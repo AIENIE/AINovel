@@ -1,6 +1,7 @@
 package com.ainovel.app.settings;
 
 import com.ainovel.app.settings.model.GlobalSettings;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -12,14 +13,14 @@ import java.util.Properties;
 @Service
 public class SmtpService {
 
-    private final JavaMailSender mailSender;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final SettingsService settingsService;
 
     @Value("${spring.mail.username:}")
     private String defaultFromAddress;
 
-    public SmtpService(JavaMailSender mailSender, SettingsService settingsService) {
-        this.mailSender = mailSender;
+    public SmtpService(ObjectProvider<JavaMailSender> mailSenderProvider, SettingsService settingsService) {
+        this.mailSenderProvider = mailSenderProvider;
         this.settingsService = settingsService;
     }
 
@@ -47,7 +48,11 @@ public class SmtpService {
     private JavaMailSender resolveMailSender() {
         GlobalSettings g = settingsService.getGlobalSettings();
         if (g.getSmtpHost() == null || g.getSmtpHost().isBlank()) {
-            return mailSender;
+            JavaMailSender sender = mailSenderProvider.getIfAvailable();
+            if (sender != null) {
+                return sender;
+            }
+            return new JavaMailSenderImpl();
         }
         JavaMailSenderImpl impl = new JavaMailSenderImpl();
         impl.setHost(g.getSmtpHost());

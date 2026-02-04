@@ -67,8 +67,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     }
                 }
 
-                provisioningService.ensureExistsBestEffort(username, role, uid);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                try {
+                    provisioningService.ensureExistsBestEffort(username, role, uid);
+                } catch (Exception ignored) {
+                }
+
+                UserDetails userDetails;
+                try {
+                    userDetails = userDetailsService.loadUserByUsername(username);
+                } catch (Exception e) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

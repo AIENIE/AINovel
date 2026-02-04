@@ -20,6 +20,7 @@
    - 进入 `/admin/logs` 查看积分日志记录。
    - 进入 `/admin/codes` 创建/查看兑换码状态。
    - 进入 `/admin/email` 查看 SMTP 状态、发送测试邮件。
+   - 进入 `/admin/api-management`：点击“显示 Swagger UI”应能加载并展示 OpenAPI（来自 `/api/v3/api-docs`）；点击“获取 Bundle”应返回包含 `summary/openapi` 的 JSON。
    - 进入 `/admin/settings`：
      - 开关注册/维护模式、签到积分区间。
      - 配置 **LLM 全局参数**（Base URL/Model/API Key）与 **SMTP 全局参数**（Host/Port/Username/Password）。

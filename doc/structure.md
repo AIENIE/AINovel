@@ -5,6 +5,7 @@
   - `src/pages/Profile/`：个人中心（积分、签到、兑换、修改密码）。
   - `src/pages/Admin/`：后台管理（仪表盘、模型管理、用户管理、积分日志、兑换码、系统设置）。
   - `src/pages/Admin/EmailManager.tsx`：SMTP 页面（查看 SMTP 状态、发送测试邮件）。
+  - `src/pages/Admin/ApiManagement.tsx`：接口管理（Swagger UI 入口 + 机器可读 bundle 展示）。
   - `src/components/ai/`：AI Copilot 侧边栏与润色弹窗等创作辅助组件。
   - `src/components/layout/`：用户端与后台端布局组件（含 AdminLayout）。
   - `src/contexts/AuthContext.tsx`：全局认证、角色与积分刷新逻辑。
@@ -14,12 +15,14 @@
   - `src/pages/auth/SsoCallback.tsx`：SSO 回跳处理页（从 hash 读取 `access_token` 并写入 LocalStorage）。
   - `package.json`：前端依赖与脚本配置（Vitest 现升级到 v4）。
   - `package-lock.json`：npm 依赖锁定文件。
-  - `Dockerfile`、`nginx.conf`：前端构建与部署镜像配置（Nginx 静态资源 + `/api` 反向代理到 `127.0.0.1:20001`）。
+  - `Dockerfile`、`nginx.conf`、`nginx.windows.conf`：前端构建与部署配置（Nginx 静态资源 + `/api` 反向代理；Linux host 网络模式下转发到 `127.0.0.1:20001`，Windows compose 下转发到 `backend:20001`）。
 - `backend/`：Spring Boot 3 后端代码（统一登录 token 鉴权），提供故事、素材、世界观、设置等 REST API。
   - `src/main/java/com/ainovel/app/`：入口与各业务模块（security、user、story、material、world、settings、manuscript）。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：可选的 userservice gRPC 会话校验（ValidateSession）。
   - `src/main/java/com/ainovel/app/user/SsoUserProvisioningService.java`：SSO 首次访问时按 userservice 的 `uid/username/role` 幂等创建/更新本地用户。
   - `src/main/java/com/ainovel/app/admin/`：后台管理接口（仪表盘、模型配置、用户管理、积分日志、兑换码、SMTP 测试）。
+  - `src/main/java/com/ainovel/app/admin/ApiManagementController.java`：接口管理机器可读接口（summary/openapi/bundle）。
+  - `src/main/java/com/ainovel/app/admin/ApiManagementService.java`：接口管理：生成 summary/openapi/bundle（代理 `/api/v3/api-docs`）。
   - `src/main/java/com/ainovel/app/ai/`：AI Copilot 接口与 OpenAI 兼容客户端封装。
   - `src/main/java/com/ainovel/app/economy/`：积分、签到、兑换码与积分流水。
   - `src/main/resources/application.yml`：默认配置（可通过环境变量覆盖，包含 SMTP 与 AI 接入参数）。
@@ -28,6 +31,7 @@
   - `Dockerfile`：后端构建与运行镜像配置。
 - `sql/schema.sql`：数据库表结构参考脚本。
 - `docker-compose.yml`：运行前后端容器的编排文件（前后端均使用 host 网络并监听 10001/20001 端口，显式容器名 `ainovel-frontend`/`ainovel-backend`），通过 volume 挂载前端 dist 与后端 jar，并注入 `JWT_SECRET`（与 userservice 一致）及 SMTP/AI 接入环境变量。
+- `docker-compose.windows.yml`：Windows/Docker Desktop 本地运行编排（端口映射 10001/20001；后端通过外部网络 `ainovel-deps_default` 直连依赖容器 `mysql/redis`）。
 - `deploy/`：部署依赖服务与宿主机 Nginx 配置。
   - `docker-compose.yml`：运行依赖服务（MySQL/Redis）的编排文件（容器名 `ainovel-mysql`/`ainovel-redis`），对外开放 3308/6381 端口并持久化数据到 deploy 目录。
   - `build.sh`：依赖服务容器的启动/重启脚本（docker compose down/up，固定项目名 `ainovel-deps`）。
@@ -37,6 +41,7 @@
 - `build_prod.sh`：生产部署脚本（调用 build.sh，支持 --init 时申请证书并配置 `ainovel.aienie.com` HTTPS）。
 - `doc/api/`：各 Controller 对应的接口说明文档。
   - `admin.md`：后台管理接口（仪表盘/模型/用户/日志/兑换码/SMTP）。
+  - `api-management.md`：接口管理（机器可读 summary/openapi/bundle）接口说明。
   - `ai.md`：AI Copilot 相关接口（模型列表/对话/润色）。
   - `material.md`：素材上传/审核/检索接口说明。
   - `manuscript.md`：稿件生成/保存/角色变化分析接口说明。
@@ -45,6 +50,7 @@
   - `user.md`：个人资料、签到、兑换码、修改密码接口说明。
   - `world.md`：世界观与定义接口说明。
 - `doc/modules/`：功能模块说明。
+- `doc/api-management-dev-plan.md`：接口管理页面与机器可读接口（Swagger；可选 MCP）开发方案。
 - `doc/issues.md`：开发/测试过程中记录的待处理问题与已解决事项。
 - `doc/test/`：测试用例与操作步骤文档。
 - `AGENTS.md`：任务与交付规范。

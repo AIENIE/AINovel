@@ -16,8 +16,19 @@ fi
 
 SUDO_PASS="${SUDO_PASS:-123456}"
 
+is_windows() {
+  local sys
+  sys=$(uname -s 2>/dev/null || echo "")
+  case "$sys" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 run_sudo() {
   if [[ "$EUID" -eq 0 ]]; then
+    "$@"
+  elif ! command -v sudo >/dev/null 2>&1; then
     "$@"
   else
     echo "$SUDO_PASS" | sudo -S -p "" "$@"
@@ -25,6 +36,10 @@ run_sudo() {
 }
 
 run_user() {
+  if is_windows; then
+    "$@"
+    return
+  fi
   if [[ "$EUID" -eq 0 && -n "${SUDO_USER:-}" ]]; then
     local user_home
     user_home="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
@@ -179,8 +194,12 @@ wait_for_health() {
 }
 
 rollout_compose() {
-  run_sudo docker compose -f "$ROOT_DIR/docker-compose.yml" down --remove-orphans
-  run_sudo docker compose -f "$ROOT_DIR/docker-compose.yml" up -d
+  local compose_file="$ROOT_DIR/docker-compose.yml"
+  if is_windows; then
+    compose_file="$ROOT_DIR/docker-compose.windows.yml"
+  fi
+  run_sudo docker compose -f "$compose_file" down --remove-orphans
+  run_sudo docker compose -f "$compose_file" up -d
 }
 
 build_frontend
@@ -193,9 +212,13 @@ wait_for_health redis "Redis"
 rollout_compose
 
 if [[ "$INIT_MODE" == "true" ]]; then
-  ensure_nginx_installed
-  ensure_hosts_entry
-  install_dev_nginx_conf
+  if is_windows; then
+    echo "--init 需要修改 hosts 与配置系统 Nginx，仅支持 Linux 环境。Windows 环境请手动配置或在 Linux 服务器上执行。" >&2
+  else
+    ensure_nginx_installed
+    ensure_hosts_entry
+    install_dev_nginx_conf
+  fi
 fi
 
 echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:20001/api"

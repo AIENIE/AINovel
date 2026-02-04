@@ -1,4 +1,60 @@
-/backend/target
-/frontend/node_modules
-/design
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+*.log
+
+# Windows metadata
+*:Zone.Identifier
+*Zone.Identifier*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+/.run/
+
+# Local env / secrets
+.env
+.env.*
+.local.env
+.cap.env
+
+# Java build outputs
+/backend/target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.hprof
+hs_err_pid*
+
+# Frontend deps & build outputs
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+coverage/
+.cache/
+
+# Playwright / E2E artifacts (if any)
+playwright-report/
+test-results/
+.playwright-mcp/
+
+# Design assets (external)
+/design/
+
+# Local-only config files
 SMTPandAPI.txt
+
+# Docker volumes / persistent data
+/deploy/**/data/**
+!/deploy/**/data/.gitkeep
+*.sock

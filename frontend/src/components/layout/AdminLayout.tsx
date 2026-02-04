@@ -10,7 +10,8 @@ import {
   Mail, 
   Settings, 
   LogOut,
-  AlertTriangle
+  AlertTriangle,
+  Code
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ const AdminLayout = () => {
     { title: "积分日志", href: "/admin/logs", icon: FileText },
     { title: "兑换码", href: "/admin/codes", icon: Gift },
     { title: "邮件验证", href: "/admin/email", icon: Mail },
+    { title: "接口管理", href: "/admin/api-management", icon: Code },
     { title: "系统设置", href: "/admin/settings", icon: Settings },
   ];
 

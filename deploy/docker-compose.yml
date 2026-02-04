@@ -23,7 +23,7 @@ services:
 
   redis:
     container_name: ainovel-redis
-    image: redis:7
+    image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:

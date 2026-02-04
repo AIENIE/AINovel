@@ -6,8 +6,19 @@ COMPOSE_FILE="$ROOT_DIR/deploy/docker-compose.yml"
 PROJECT_NAME="${PROJECT_NAME:-ainovel-deps}"
 SUDO_PASS="${SUDO_PASS:-123456}"
 
+is_windows() {
+  local sys
+  sys=$(uname -s 2>/dev/null || echo "")
+  case "$sys" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 run_sudo() {
   if [[ "$EUID" -eq 0 ]]; then
+    "$@"
+  elif ! command -v sudo >/dev/null 2>&1; then
     "$@"
   else
     echo "$SUDO_PASS" | sudo -S -p "" "$@"

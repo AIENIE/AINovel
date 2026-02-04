@@ -6,6 +6,7 @@
 - **后台全局配置**：管理员在 `/admin/settings` 配置 SMTP/LLM（对应 `/api/v1/admin/system-config`），保存后回显一致；SMTP 测试邮件可发送；普通用户 AI 可使用全局 LLM 配置。
 - **个人中心积分**：签到成功后余额增加并刷新；兑换码领取成功后余额增加；`POST /api/v1/user/password` 返回 501（密码由 SSO 管理）。
 - **后台管理权限**：普通用户无法访问 `/admin/*`，管理员可访问并操作。
+- **接口管理**：管理员进入 `/admin/api-management` 可加载 Swagger UI（OpenAPI 来自 `/api/v3/api-docs`）；Bundle 接口返回包含 `summary/openapi` 的 JSON。
 - **后台模型管理**：调整模型倍率/启用状态后列表刷新一致。
 - **后台用户管理**：封禁/解封、发放积分后列表状态刷新。
 - **后台积分日志**：生成与签到/兑换操作后日志可见。
