@@ -3,9 +3,9 @@ spring:
     servlet:
       path: /api
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/ainovel?createDatabaseIfNotExist=true&characterEncoding=utf8mb4&serverTimezone=UTC}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:123456}
+    url: ${DB_URL:jdbc:mysql://192.168.5.141:3306/ainovel?createDatabaseIfNotExist=true&characterEncoding=utf8mb4&serverTimezone=UTC}
+    username: ${DB_USERNAME:ainovel}
+    password: ${DB_PASSWORD:ainovelpwd}
   jpa:
     hibernate:
       ddl-auto: update
@@ -15,9 +15,14 @@ spring:
     open-in-view: false
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:192.168.5.141}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  cache:
+    type: redis
+    redis:
+      key-prefix: ${REDIS_KEY_PREFIX:aienie:ainovel:}
+      use-key-prefix: true
   mail:
     host: ${SMTP_HOST:}
     port: ${SMTP_PORT:587}

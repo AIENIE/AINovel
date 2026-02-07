@@ -204,11 +204,7 @@ rollout_compose() {
 
 build_frontend
 build_backend
-run_sudo bash "$ROOT_DIR/deploy/build.sh"
-wait_for_port 127.0.0.1 3308 "MySQL"
-wait_for_port 127.0.0.1 6381 "Redis"
-wait_for_health mysql "MySQL"
-wait_for_health redis "Redis"
+echo "使用统一依赖：MYSQL=${MYSQL_HOST:-192.168.5.141}:${MYSQL_PORT:-3306} REDIS=${REDIS_HOST:-192.168.5.141}:${REDIS_PORT:-6379}"
 rollout_compose
 
 if [[ "$INIT_MODE" == "true" ]]; then
