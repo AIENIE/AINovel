@@ -6,7 +6,14 @@ import path from "path";
 export default defineConfig(() => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 10010,
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:10011",
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [dyadComponentTagger(), react()],
   resolve: {

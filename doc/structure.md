@@ -1,56 +1,30 @@
 # 项目目录结构说明
 
-- `frontend/`：React 18 + Vite 前端代码，包含页面、组件、样式与构建配置。
-  - `src/pages/`：首页、登录注册、定价页、Dashboard（模块选择器）、小说/世界管理与编辑页等。
-  - `src/pages/Profile/`：个人中心（积分、签到、兑换、修改密码）。
-  - `src/pages/Admin/`：后台管理（仪表盘、模型管理、用户管理、积分日志、兑换码、系统设置）。
-  - `src/pages/Admin/EmailManager.tsx`：SMTP 页面（查看 SMTP 状态、发送测试邮件）。
-  - `src/pages/Admin/ApiManagement.tsx`：接口管理（Swagger UI 入口 + 机器可读 bundle 展示）。
-  - `src/components/ai/`：AI Copilot 侧边栏与润色弹窗等创作辅助组件。
-  - `src/components/layout/`：用户端与后台端布局组件（含 AdminLayout）。
-  - `src/contexts/AuthContext.tsx`：全局认证、角色与积分刷新逻辑。
-  - `src/lib/mock-api.ts`：前端 API 适配层（封装对后端 `/api/v1/*` 的请求，保持页面调用接口不变）。
-  - `src/lib/sso.ts`：统一登录（SSO）跳转 URL 构造（同源 `/sso/login`、`/register`）。
-  - `src/pages/auth/Login.tsx`、`src/pages/auth/Register.tsx`：SSO 入口页（自动跳转到 userservice，并通过 `next` 参数保留回跳路径）。
-  - `src/pages/auth/SsoCallback.tsx`：SSO 回跳处理页（从 hash 读取 `access_token` 并写入 LocalStorage）。
-  - `package.json`：前端依赖与脚本配置（Vitest 现升级到 v4）。
-  - `package-lock.json`：npm 依赖锁定文件。
-  - `Dockerfile`、`nginx.conf`、`nginx.windows.conf`：前端构建与部署配置（Nginx 静态资源 + `/api` 反向代理；Linux host 网络模式下转发到 `127.0.0.1:20001`，Windows compose 下转发到 `backend:20001`）。
-- `backend/`：Spring Boot 3 后端代码（统一登录 token 鉴权），提供故事、素材、世界观、设置等 REST API。
-  - `src/main/java/com/ainovel/app/`：入口与各业务模块（security、user、story、material、world、settings、manuscript）。
-  - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：可选的 userservice gRPC 会话校验（ValidateSession）。
-  - `src/main/java/com/ainovel/app/user/SsoUserProvisioningService.java`：SSO 首次访问时按 userservice 的 `uid/username/role` 幂等创建/更新本地用户。
-  - `src/main/java/com/ainovel/app/admin/`：后台管理接口（仪表盘、模型配置、用户管理、积分日志、兑换码、SMTP 测试）。
-  - `src/main/java/com/ainovel/app/admin/ApiManagementController.java`：接口管理机器可读接口（summary/openapi/bundle）。
-  - `src/main/java/com/ainovel/app/admin/ApiManagementService.java`：接口管理：生成 summary/openapi/bundle（代理 `/api/v3/api-docs`）。
-  - `src/main/java/com/ainovel/app/ai/`：AI Copilot 接口与 OpenAI 兼容客户端封装。
-  - `src/main/java/com/ainovel/app/economy/`：积分、签到、兑换码与积分流水。
-  - `src/main/resources/application.yml`：默认配置（可通过环境变量覆盖，包含 SMTP 与 AI 接入参数）。
-  - `src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker`：测试环境禁用 Mockito inline mock maker，避免 JDK 动态 attach 失败。
-  - `src/test/java/com/ainovel/app/world/WorldPublishFlowTests.java`：世界观发布/生成流程的回归测试（模块进度与版本号）。
-  - `Dockerfile`：后端构建与运行镜像配置。
-- `sql/schema.sql`：数据库表结构参考脚本。
-- `docker-compose.yml`：运行前后端容器的编排文件（前后端均使用 host 网络并监听 10001/20001 端口，显式容器名 `ainovel-frontend`/`ainovel-backend`），通过 volume 挂载前端 dist 与后端 jar，并注入 `JWT_SECRET`（与 userservice 一致）及 SMTP/AI 接入环境变量。
-- `docker-compose.windows.yml`：Windows/Docker Desktop 本地运行编排（端口映射 10001/20001；后端通过外部网络 `ainovel-deps_default` 直连依赖容器 `mysql/redis`）。
-- `deploy/`：部署依赖服务与宿主机 Nginx 配置。
-  - `docker-compose.yml`：运行依赖服务（MySQL/Redis）的编排文件（容器名 `ainovel-mysql`/`ainovel-redis`），对外开放 3308/6381 端口并持久化数据到 deploy 目录。
-  - `build.sh`：依赖服务容器的启动/重启脚本（docker compose down/up，固定项目名 `ainovel-deps`）。
-  - `nginx/ainovel.conf`：宿主机 Nginx 反向代理配置，将 `ainovel.seekerhut.com` 指向前端 10001 端口。
-  - `nginx/ainovel_prod.conf`：生产域名 `ainovel.aienie.com` 的 HTTP 反向代理模板（由 build_prod.sh 结合 Certbot 切换到 HTTPS）。
-- `build.sh`：在宿主机完成前后端构建与测试，将后端 Jar、前端 dist 产物映射到容器后启动服务（root 环境下使用 runuser/su 切回原用户，避免非交互 sudo 卡住）。
-- `build_prod.sh`：生产部署脚本（调用 build.sh，支持 --init 时申请证书并配置 `ainovel.aienie.com` HTTPS）。
-- `doc/api/`：各 Controller 对应的接口说明文档。
-  - `admin.md`：后台管理接口（仪表盘/模型/用户/日志/兑换码/SMTP）。
-  - `api-management.md`：接口管理（机器可读 summary/openapi/bundle）接口说明。
-  - `ai.md`：AI Copilot 相关接口（模型列表/对话/润色）。
-  - `material.md`：素材上传/审核/检索接口说明。
-  - `manuscript.md`：稿件生成/保存/角色变化分析接口说明。
-  - `settings.md`：模型配置与提示词设置接口说明。
-  - `story.md`：故事与大纲相关接口说明。
-  - `user.md`：个人资料、签到、兑换码、修改密码接口说明。
-  - `world.md`：世界观与定义接口说明。
-- `doc/modules/`：功能模块说明。
-- `doc/api-management-dev-plan.md`：接口管理页面与机器可读接口（Swagger；可选 MCP）开发方案。
-- `doc/issues.md`：开发/测试过程中记录的待处理问题与已解决事项。
-- `doc/test/`：测试用例与操作步骤文档。
-- `AGENTS.md`：任务与交付规范。
+- `frontend/`：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui 前端工程。
+  - `src/pages/`：首页、工作台、小说管理、世界构建、素材、设置、后台管理与认证回调页面。
+  - `src/contexts/AuthContext.tsx`：登录态初始化、token 接受、用户资料刷新。
+  - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*`）。
+  - `src/lib/sso.ts`：统一登录跳转地址构造（生产/测试域名同源，开发环境可回落到测试域名）。
+  - `vite.config.ts`：前端开发端口 `10010`，并将 `/api` 代理到 `http://127.0.0.1:10011`。
+  - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端 `10011`。
+  - `Dockerfile`：前端镜像构建与运行定义（对外 `EXPOSE 10010`）。
+- `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
+  - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
+  - `src/main/java/com/ainovel/app/security/remote/ConsulUserGrpcEndpointResolver.java`：Consul `health/service` 查询与缓存。
+  - `src/main/java/com/ainovel/app/security/remote/UserSessionValidationProperties.java`：会话校验配置对象（Consul、超时、回退地址）。
+  - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
+  - `src/main/resources/application.yml`：后端配置（默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖）。
+  - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
+  - `Dockerfile`：后端镜像定义（对外 `EXPOSE 10011`）。
+- `docker-compose.yml`：前后端容器编排（前端 `10010:10010`、后端 `10011:10011`），并注入 MySQL/Redis/Consul/SSO 相关环境变量。
+- `docker-compose.windows.yml`：Windows 本地编排（同端口策略，外部网络可接公共依赖）。
+- `build.sh`：构建与部署脚本（读取 `SUDO_PASSWORD`；输出地址与端口同步为 `10010/10011`）。
+- `build_prod.sh`：生产部署脚本（调用 `build.sh`，支持证书与 Nginx 初始化流程）。
+- `deploy/`：公共依赖容器编排与脚本。
+  - `docker-compose.yml`：依赖服务（MySQL、Redis）。
+  - `build.sh`：依赖服务编排脚本。
+- `doc/api/`：后端 Controller API 文档。
+- `doc/modules/`：模块级说明文档。
+- `doc/test/`：操作步骤、集成测试清单与问题修复记录。
+- `sql/schema.sql`：数据库结构脚本。
+- `AGENTS.md`：项目约束与端口/域名基线。

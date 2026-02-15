@@ -11,7 +11,7 @@
 - 在 Windows 环境下无法写入 `C:\\Windows\\System32\\drivers\\etc\\hosts`（权限不足），因此无法将 `ainovel.seekerhut.com` 指向 `127.0.0.1` 以满足“必须访问 http://ainovel.seekerhut.com” 的 Playwright MCP 测试要求。可选解决方案：
   - 以管理员权限手动修改 hosts：添加 `127.0.0.1 ainovel.seekerhut.com`，再执行 `./build.sh --init`（Linux）或按项目说明配置系统 Nginx 反代。
   - 若在 Linux 服务器上执行：使用 `./build.sh --init` 自动补齐 hosts 与系统 Nginx 配置，然后按要求用 Playwright MCP 访问 `http://ainovel.seekerhut.com` 验证。
-  - 兜底：在 Windows/Docker Desktop 本地环境使用 `http://127.0.0.1:10001` 进行 Playwright 端到端验证（本次已验证 `/admin/api-management` 页可“获取 Bundle”并渲染 Swagger UI）。
+- 兜底：在 Windows/Docker Desktop 本地环境使用 `http://127.0.0.1:10010` 进行 Playwright 端到端验证（本次已验证工作台与个人中心关键流程）。
 
 # 已解决事项（2026-02-03）
-- Windows/Docker Desktop 下前端 `/api/*` 反向代理需要使用 `frontend/nginx.windows.conf`（容器内转发到 `backend:20001`）；Linux host 网络模式保持使用 `frontend/nginx.conf`（转发到 `127.0.0.1:20001`）。
+- Windows/Docker Desktop 下前端 `/api/*` 反向代理需要使用 `frontend/nginx.windows.conf`（容器内转发到 `backend:10011`）；Linux 环境同样统一转发到后端 `10011`。

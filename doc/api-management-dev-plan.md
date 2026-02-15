@@ -25,8 +25,8 @@
 
 ### 2.1 服务端口（项目约定）
 
-- 前端：对外 `10001`
-- 后端：对外 `20001`
+- 前端：对外 `10010`
+- 后端：对外 `10011`
 - 依赖：MySQL `3308`、Redis `6381`（均为默认端口 +2）
 
 ### 2.2 后端统一前缀（重要）
@@ -117,12 +117,12 @@
 ### 7.1 Linux（推荐）：host 网络模式
 
 - `docker-compose.yml`：前后端均 `network_mode: host`
-- `frontend/nginx.conf`：`/api` 反向代理到 `127.0.0.1:20001`
+- `frontend/nginx.conf`：`/api` 反向代理到 `ainovel-backend:10011`
 
 ### 7.2 Windows（Docker Desktop）：端口映射 + 容器网络
 
-- `docker-compose.windows.yml`：端口映射 10001/20001；后端加入外部网络 `ainovel-deps_default` 直连 `mysql/redis`
-- `frontend/nginx.windows.conf`：`/api` 反向代理到 `backend:20001`（容器内 DNS 解析 service 名）
+- `docker-compose.windows.yml`：端口映射 10010/10011；后端加入外部网络 `ainovel-deps_default` 直连 `mysql/redis`
+- `frontend/nginx.windows.conf`：`/api` 反向代理到 `backend:10011`（容器内 DNS 解析 service 名）
 - `deploy/docker-compose.yml`：启动依赖 MySQL/Redis（3308/6381）
 
 注意：`deploy/mysql/data/`、`deploy/redis/data/` 需要是目录（已通过 `.gitkeep` 固定目录结构），并建议在 `.gitignore` 忽略实际数据文件。
@@ -140,7 +140,7 @@
 
 在 Windows 无法写 hosts 的情况下，可用以下地址做自动化验证：
 
-- `http://127.0.0.1:10001/admin/api-management`
+- `http://127.0.0.1:10010/admin/api-management`
 
 验证点：
 

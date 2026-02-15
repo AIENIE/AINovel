@@ -2,8 +2,12 @@ export type SsoMode = "login" | "register";
 
 const resolveDefaultSsoBase = () => {
   if (typeof window === "undefined") return "";
-  // Prefer same-origin so the system Nginx can proxy `/sso/login` and `/register` to userservice.
-  return window.location.origin;
+  const { hostname, origin } = window.location;
+  if (hostname === "ainovel.seekerhut.com" || hostname === "ainovel.aienie.com") {
+    return origin;
+  }
+  // Local/dev fallback: use test domain userservice entry directly.
+  return "http://ainovel.seekerhut.com";
 };
 
 const resolveSsoBase = () => {
@@ -26,4 +30,3 @@ export const buildSsoUrl = (mode: SsoMode, nextPath?: string) => {
   url.searchParams.set("redirect", callback);
   return url.toString();
 };
-

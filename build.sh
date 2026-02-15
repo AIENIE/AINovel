@@ -14,7 +14,7 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
-SUDO_PASS="${SUDO_PASS:-123456}"
+SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
 
 is_windows() {
   local sys
@@ -217,4 +217,4 @@ if [[ "$INIT_MODE" == "true" ]]; then
   fi
 fi
 
-echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:20001/api"
+echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:10011/api"

@@ -14,7 +14,7 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
-SUDO_PASS="${SUDO_PASS:-123456}"
+SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
 
 run_sudo() {
   if [[ "$EUID" -eq 0 ]]; then

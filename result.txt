@@ -19,6 +19,6 @@
   Notes / next steps:
 
   1. Playwright E2E not executed—scenarios listed in doc/test/integratedTest.md.
-  2. For deployment run ./build.sh, then access frontend at http://localhost and backend API at http://localhost:8080/
+  2. For deployment run ./build.sh, then access frontend at http://localhost:10010 and backend API at http://localhost:10011/
      api.
   3. Redis currently unused; can be wired for upload/generation caching if needed.

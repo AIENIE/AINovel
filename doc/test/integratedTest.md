@@ -1,6 +1,8 @@
 # 集成/系统测试用例
 
+- **端口与联调配置**：前端 `10010`、后端 `10011`；前端 `/api` 请求经 Vite/Nginx 转发到后端 `10011`。
 - **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 跳转 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...` → `localStorage.token` 写入 → `/api/v1/user/profile` 返回 200；未登录时返回 403。
+- **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC 实例；发现失败时回退 `USER_GRPC_ADDR`，且应在超时内快速失败不阻塞请求。
 - **Dashboard**：登录后进入 `/dashboard`，统计来自 `/api/v1/user/summary` 正常展示；点击卡片跳转到 `/novels`、`/worlds`。
 - **SMTP 管理**：管理员进入 `/admin/email` 可查看 SMTP 状态并可发送 SMTP 测试邮件。
 - **后台全局配置**：管理员在 `/admin/settings` 配置 SMTP/LLM（对应 `/api/v1/admin/system-config`），保存后回显一致；SMTP 测试邮件可发送；普通用户 AI 可使用全局 LLM 配置。
@@ -19,4 +21,4 @@
 - **世界管理/编辑**：`/worlds` 列表加载与创建；`/world-editor?id=...` 保存模块字段；发布预检与生成流程可完成并更新版本/状态。
 - **设置/提示词**：读取、更新、重置提示词与模型配置；元数据接口可被帮助页渲染。
 - **部署验证**：执行 `build_prod.sh` 后 docker 容器健康；浏览器通过域名正常访问；后端 `/api/*` 正常响应。
-- **依赖容器端口**：MySQL 容器监听 `127.0.0.1:3308`，Redis 容器监听 `127.0.0.1:6381`，后端能正常连接两者。
+- **公共依赖连通**：后端启动日志应出现 MySQL 连接成功；Redis 端口可连通并可响应 `PING`。
