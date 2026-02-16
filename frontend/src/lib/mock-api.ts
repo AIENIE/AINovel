@@ -1,6 +1,5 @@
 import {
   AdminDashboardStats,
-  CreditLog,
   FileImportJob,
   Material,
   Manuscript,
@@ -8,7 +7,6 @@ import {
   Outline,
   PromptTemplates,
   Story,
-  SystemSettings,
   UserSummary,
   User,
   World,
@@ -211,16 +209,10 @@ export const api = {
     getDashboardStats: async (): Promise<AdminDashboardStats> => {
       return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" });
     },
-    getModels: async (): Promise<ModelConfig[]> => {
-      return await requestJson<ModelConfig[]>("/v1/admin/models", { method: "GET" });
-    },
-    updateModel: async (model: ModelConfig) => {
-      return await requestJson<boolean>(`/v1/admin/models/${model.id}`, { method: "PUT", body: JSON.stringify(model) });
-    },
     getUsers: async (): Promise<User[]> => {
       const users = await requestJson<any[]>("/v1/admin/users", { method: "GET" });
       return users.map((u) => ({
-        id: u.id,
+        id: String(u.id),
         username: u.username,
         email: u.email,
         role: u.role === "admin" ? "admin" : "user",
@@ -229,37 +221,11 @@ export const api = {
         lastCheckIn: u.lastCheckIn || undefined,
       }));
     },
-    grantCredits: async (userId: string, amount: number) => {
-      return await requestJson<boolean>(`/v1/admin/users/${userId}/grant-credits`, { method: "POST", body: JSON.stringify({ amount }) });
-    },
     banUser: async (userId: string) => {
       return await requestJson<boolean>(`/v1/admin/users/${userId}/ban`, { method: "POST" });
     },
     unbanUser: async (userId: string) => {
       return await requestJson<boolean>(`/v1/admin/users/${userId}/unban`, { method: "POST" });
-    },
-    getLogs: async (): Promise<CreditLog[]> => {
-      const logs = await requestJson<any[]>("/v1/admin/logs", { method: "GET" });
-      return logs.map((l) => ({
-        id: l.id,
-        userId: l.userId,
-        amount: Number(l.amount),
-        reason: l.reason,
-        details: l.details || "",
-        createdAt: l.createdAt,
-      }));
-    },
-    getCodes: async () => {
-      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" });
-    },
-    createCode: async (data: any) => {
-      return await requestJson<boolean>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(data) });
-    },
-    getSmtpStatus: async () => {
-      return await requestJson<any>("/v1/admin/email/smtp", { method: "GET" });
-    },
-    sendTestEmail: async (email: string) => {
-      return await requestJson<boolean>("/v1/admin/email/test", { method: "POST", body: JSON.stringify({ email }) });
     },
     getSystemConfig: async () => {
       return await requestJson<any>("/v1/admin/system-config", { method: "GET" });
@@ -481,45 +447,6 @@ export const api = {
         }
       }
       return materials;
-    },
-  },
-
-  settings: {
-    get: async (): Promise<SystemSettings> => {
-      const dto = await requestJson<any>("/v1/settings", { method: "GET" });
-      return {
-        baseUrl: dto.baseUrl || "",
-        modelName: dto.modelName || "",
-        apiKeyIsSet: Boolean(dto.apiKeyIsSet),
-        registrationEnabled: Boolean(dto.registrationEnabled),
-        maintenanceMode: Boolean(dto.maintenanceMode),
-        checkInMinPoints: Number(dto.checkInMinPoints ?? 10),
-        checkInMaxPoints: Number(dto.checkInMaxPoints ?? 50),
-      };
-    },
-    update: async (data: Partial<SystemSettings> & { apiKey?: string }) => {
-      const payload: any = {
-        baseUrl: data.baseUrl,
-        modelName: data.modelName,
-        apiKey: data.apiKey,
-        registrationEnabled: data.registrationEnabled,
-        maintenanceMode: data.maintenanceMode,
-        checkInMinPoints: data.checkInMinPoints,
-        checkInMaxPoints: data.checkInMaxPoints,
-      };
-      const dto = await requestJson<any>("/v1/settings", { method: "PUT", body: JSON.stringify(payload) });
-      return {
-        baseUrl: dto.baseUrl || "",
-        modelName: dto.modelName || "",
-        apiKeyIsSet: Boolean(dto.apiKeyIsSet),
-        registrationEnabled: Boolean(dto.registrationEnabled),
-        maintenanceMode: Boolean(dto.maintenanceMode),
-        checkInMinPoints: Number(dto.checkInMinPoints ?? 10),
-        checkInMaxPoints: Number(dto.checkInMaxPoints ?? 50),
-      } as SystemSettings;
-    },
-    testConnection: async () => {
-      return await requestJson<boolean>("/v1/settings/test", { method: "POST", body: "{}" });
     },
   },
 

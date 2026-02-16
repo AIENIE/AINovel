@@ -18,15 +18,10 @@
 
 3. **后台管理（管理员账号）**
    - 进入 `/admin/dashboard` 查看仪表盘指标。
-   - 进入 `/admin/models` 调整模型倍率、启用状态。
-   - 进入 `/admin/users` 查看用户列表、封禁/解封、发放积分。
-   - 进入 `/admin/logs` 查看积分日志记录。
-   - 进入 `/admin/codes` 创建/查看兑换码状态。
-   - 进入 `/admin/email` 查看 SMTP 状态、发送测试邮件。
-   - 进入 `/admin/api-management`：点击“显示 Swagger UI”应能加载并展示 OpenAPI（来自 `/api/v3/api-docs`）；点击“获取 Bundle”应返回包含 `summary/openapi` 的 JSON。
+   - 进入 `/admin/users` 查看用户列表、封禁/解封。
    - 进入 `/admin/settings`：
      - 开关注册/维护模式、签到积分区间。
-     - 配置 **LLM 全局参数**（Base URL/Model/API Key）与 **SMTP 全局参数**（Host/Port/Username/Password）。
+     - 配置 **SMTP 全局参数**（Host/Port/Username/Password）。
        - 参数来源：`SMTPandLLM.txt`（只在后台界面填写，不要写入代码或配置文件）。
 
 4. **故事与大纲**
@@ -55,8 +50,8 @@
      - 点击“预检/发布”可触发生成并更新模块内容（示例生成逻辑）。
 
 8. **设置与提示词**
-   - 页面 `/settings`：可查看/覆盖个人的模型接入参数（可选，默认使用管理员配置的全局 LLM）。
-   - “工作区提示词”/“世界观提示词”标签可编辑并保存模板；帮助按钮跳转至提示词帮助页查看变量/函数说明。
+   - 页面 `/settings`：提供“工作区提示词”与“世界观提示词”配置。
+   - 两个标签可编辑并保存模板；帮助按钮跳转至提示词帮助页查看变量/函数说明。
 
 9. **登出**
    - 头部用户菜单选择退出，或清除浏览器 LocalStorage 中的 `token`。
@@ -64,3 +59,4 @@
 10. **后端接口连通性（可选）**
    - 未登录时访问 `/api/v1/user/profile` 应返回 403；完成统一登录后再次访问应返回 200（包含 `id/username/role/credits` 等）。
    - 本地 OpenAPI 验证地址：`http://127.0.0.1:10011/api/v3/api-docs`。
+   - 本地 Swagger UI：`http://127.0.0.1:10011/api/swagger-ui/index.html`。

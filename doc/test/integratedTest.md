@@ -4,14 +4,11 @@
 - **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 跳转 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...` → `localStorage.token` 写入 → `/api/v1/user/profile` 返回 200；未登录时返回 403。
 - **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC 实例；发现失败时回退 `USER_GRPC_ADDR`，且应在超时内快速失败不阻塞请求。
 - **Dashboard**：登录后进入 `/dashboard`，统计来自 `/api/v1/user/summary` 正常展示；点击卡片跳转到 `/novels`、`/worlds`。
-- **SMTP 管理**：管理员进入 `/admin/email` 可查看 SMTP 状态并可发送 SMTP 测试邮件。
-- **后台全局配置**：管理员在 `/admin/settings` 配置 SMTP/LLM（对应 `/api/v1/admin/system-config`），保存后回显一致；SMTP 测试邮件可发送；普通用户 AI 可使用全局 LLM 配置。
+- **后台全局配置**：管理员在 `/admin/settings` 配置注册开关、维护模式、签到区间与 SMTP（对应 `/api/v1/admin/system-config`），保存后回显一致。
 - **个人中心积分**：签到成功后余额增加并刷新；兑换码领取成功后余额增加；`POST /api/v1/user/password` 返回 501（密码由 SSO 管理）。
 - **后台管理权限**：普通用户无法访问 `/admin/*`，管理员可访问并操作。
-- **接口管理**：管理员进入 `/admin/api-management` 可加载 Swagger UI（OpenAPI 来自 `/api/v3/api-docs`）；Bundle 接口返回包含 `summary/openapi` 的 JSON。
-- **后台模型管理**：调整模型倍率/启用状态后列表刷新一致。
-- **后台用户管理**：封禁/解封、发放积分后列表状态刷新。
-- **后台积分日志**：生成与签到/兑换操作后日志可见。
+- **Swagger 文档**：访问 `/api/swagger-ui/index.html` 可加载接口文档；`/api/v3/api-docs` 返回 JSON。
+- **后台用户管理**：封禁/解封后列表状态刷新。
 - **后台系统设置**：注册开关、维护模式、签到积分区间保存后回显一致。
 - **小说管理**：`/novels` 列表加载、创建（`/novels/create`）、删除；点击卡片进入 `/workbench?id=...`。
 - **大纲保存**：创建大纲，新增章节/场景并保存，重新打开校验数据持久化。
@@ -19,6 +16,6 @@
 - **AI Copilot**：打开 Copilot 侧边栏，调用 `/api/v1/ai/chat` 返回内容并产生积分扣减与日志。
 - **素材流程**：创建素材→上传 TXT 轮询完成→在审核页批准→列表可见；检索接口返回得分排序。
 - **世界管理/编辑**：`/worlds` 列表加载与创建；`/world-editor?id=...` 保存模块字段；发布预检与生成流程可完成并更新版本/状态。
-- **设置/提示词**：读取、更新、重置提示词与模型配置；元数据接口可被帮助页渲染。
+- **设置/提示词**：读取、更新、重置提示词配置；元数据接口可被帮助页渲染。
 - **部署验证**：执行 `build_prod.sh` 后 docker 容器健康；浏览器通过域名正常访问；后端 `/api/*` 正常响应。
 - **公共依赖连通**：后端启动日志应出现 MySQL 连接成功；Redis 端口可连通并可响应 `PING`。

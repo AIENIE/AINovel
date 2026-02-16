@@ -19,9 +19,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
       CONSUL_ENABLED: ${CONSUL_ENABLED:-true}
       CONSUL_SCHEME: ${CONSUL_SCHEME:-http}
-      CONSUL_HOST: ${CONSUL_HOST:-host.docker.internal}
-      CONSUL_PORT: ${CONSUL_PORT:-8500}
-      USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-userservice-grpc}
+      CONSUL_HOST: ${CONSUL_HOST:-192.168.1.4}
+      CONSUL_PORT: ${CONSUL_PORT:-60000}
+      USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-aienie-userservice-grpc}
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
       USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-2000}
       USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://host.docker.internal:13001}

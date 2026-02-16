@@ -123,19 +123,6 @@ export interface WorldDetail extends World {
   modules: WorldModuleData[];
 }
 
-// --- Settings Types ---
-
-export interface SystemSettings {
-  baseUrl: string;
-  modelName: string;
-  apiKeyIsSet: boolean;
-  // V2 New Settings
-  registrationEnabled: boolean;
-  maintenanceMode: boolean;
-  checkInMinPoints: number;
-  checkInMaxPoints: number;
-}
-
 export interface PromptTemplates {
   storyCreation: string;
   outlineChapter: string;
@@ -171,15 +158,6 @@ export interface ApiPool {
     weight: number;
     status: 'active' | 'error';
   }[];
-}
-
-export interface CreditLog {
-  id: string;
-  userId: string;
-  amount: number;
-  reason: 'generation' | 'check_in' | 'redeem' | 'admin_grant';
-  details: string;
-  createdAt: string;
 }
 
 export interface AdminDashboardStats {

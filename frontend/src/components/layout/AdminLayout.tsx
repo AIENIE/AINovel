@@ -4,14 +4,8 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
   Users, 
-  Cpu, 
-  FileText, 
-  Gift, 
-  Mail, 
   Settings, 
-  LogOut,
-  AlertTriangle,
-  Code
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -21,12 +15,7 @@ const AdminLayout = () => {
 
   const navItems = [
     { title: "仪表盘", href: "/admin/dashboard", icon: LayoutDashboard },
-    { title: "模型管理", href: "/admin/models", icon: Cpu },
     { title: "用户管理", href: "/admin/users", icon: Users },
-    { title: "积分日志", href: "/admin/logs", icon: FileText },
-    { title: "兑换码", href: "/admin/codes", icon: Gift },
-    { title: "邮件验证", href: "/admin/email", icon: Mail },
-    { title: "接口管理", href: "/admin/api-management", icon: Code },
     { title: "系统设置", href: "/admin/settings", icon: Settings },
   ];
 

@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings2, Terminal, Globe } from "lucide-react";
+import { Terminal, Globe } from "lucide-react";
 
-import ModelSettings from "./tabs/ModelSettings";
 import WorkspacePrompts from "./tabs/WorkspacePrompts";
 import WorldPrompts from "./tabs/WorldPrompts";
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("model");
+  const [activeTab, setActiveTab] = useState("workspace");
 
   return (
     <div className="h-full flex flex-col space-y-6">
@@ -16,10 +15,7 @@ const Settings = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
-          <TabsTrigger value="model" className="gap-2">
-            <Settings2 className="h-4 w-4" /> 模型接入
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 lg:w-[420px]">
           <TabsTrigger value="workspace" className="gap-2">
             <Terminal className="h-4 w-4" /> 工作区提示词
           </TabsTrigger>
@@ -29,9 +25,6 @@ const Settings = () => {
         </TabsList>
 
         <div className="flex-1 mt-6">
-          <TabsContent value="model" className="m-0">
-            <ModelSettings />
-          </TabsContent>
           <TabsContent value="workspace" className="m-0">
             <WorkspacePrompts />
           </TabsContent>

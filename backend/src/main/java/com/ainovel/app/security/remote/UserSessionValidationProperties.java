@@ -43,9 +43,9 @@ public class UserSessionValidationProperties {
     public static class Consul {
         private boolean enabled = true;
         private String scheme = "http";
-        private String host = "127.0.0.1";
-        private int port = 8500;
-        private String serviceName = "userservice-grpc";
+        private String host = "192.168.1.4";
+        private int port = 60000;
+        private String serviceName = "aienie-userservice-grpc";
         private String datacenter = "";
         private String tag = "";
         private long cacheSeconds = 30;

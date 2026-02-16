@@ -15,17 +15,6 @@ CREATE TABLE `character_cards` (
   KEY `FK8fl6goog1m0be12r3huk0cxbu` (`story_id`),
   CONSTRAINT `FK8fl6goog1m0be12r3huk0cxbu` FOREIGN KEY (`story_id`) REFERENCES `stories` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `credit_logs` (
-  `id` binary(16) NOT NULL,
-  `amount` double NOT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `details` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `user_id` binary(16) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `FKsfo24anott3tx20oavrgmr65l` (`user_id`),
-  CONSTRAINT `FKsfo24anott3tx20oavrgmr65l` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `email_verification_codes` (
   `id` binary(16) NOT NULL,
   `code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -94,18 +83,6 @@ CREATE TABLE `materials` (
   KEY `FK32wqk9p2efffrkb1l6yvkysou` (`user_id`),
   CONSTRAINT `FK32wqk9p2efffrkb1l6yvkysou` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `model_configs` (
-  `id` binary(16) NOT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `display_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `enabled` bit(1) NOT NULL,
-  `input_multiplier` double NOT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `output_multiplier` double NOT NULL,
-  `pool_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `outlines` (
   `id` binary(16) NOT NULL,
   `content_json` longtext COLLATE utf8mb4_unicode_ci,
@@ -131,19 +108,6 @@ CREATE TABLE `prompt_templates` (
   UNIQUE KEY `UK8dm9s6fl88ua6j9y6w90hun67` (`user_id`),
   CONSTRAINT `FK49ya7kke8ffdsxx5djymew73k` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `redeem_codes` (
-  `id` binary(16) NOT NULL,
-  `amount` int NOT NULL,
-  `code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `expires_at` datetime(6) DEFAULT NULL,
-  `used` bit(1) NOT NULL,
-  `used_at` datetime(6) DEFAULT NULL,
-  `used_by_user_id` binary(16) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `FKqemhvmg9mu0kpjlcvaiex3juw` (`used_by_user_id`),
-  CONSTRAINT `FKqemhvmg9mu0kpjlcvaiex3juw` FOREIGN KEY (`used_by_user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `stories` (
   `id` binary(16) NOT NULL,
   `created_at` datetime(6) DEFAULT NULL,
@@ -158,18 +122,6 @@ CREATE TABLE `stories` (
   PRIMARY KEY (`id`),
   KEY `FKshv2ytgbsn9w9mpu43mc6ln6j` (`user_id`),
   CONSTRAINT `FKshv2ytgbsn9w9mpu43mc6ln6j` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `system_settings` (
-  `id` binary(16) NOT NULL,
-  `api_key_encrypted` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `base_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `model_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `updated_at` datetime(6) DEFAULT NULL,
-  `user_id` binary(16) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `UK1a09binh9a991bxx0slic1k43` (`user_id`),
-  CONSTRAINT `FKe1chru46gf84py92s1w04ptq5` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `user_roles` (
   `user_id` binary(16) NOT NULL,

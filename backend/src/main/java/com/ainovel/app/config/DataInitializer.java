@@ -1,15 +1,9 @@
 package com.ainovel.app.config;
 
-import com.ainovel.app.ai.model.ModelConfigEntity;
-import com.ainovel.app.ai.repo.ModelConfigRepository;
-import com.ainovel.app.economy.model.RedeemCode;
-import com.ainovel.app.economy.repo.RedeemCodeRepository;
 import com.ainovel.app.settings.model.GlobalSettings;
 import com.ainovel.app.material.model.Material;
 import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.settings.model.SystemSettings;
 import com.ainovel.app.settings.repo.GlobalSettingsRepository;
-import com.ainovel.app.settings.repo.SystemSettingsRepository;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.repo.OutlineRepository;
@@ -24,7 +18,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.util.Set;
 
 @Component
@@ -38,23 +31,11 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private MaterialRepository materialRepository;
     @Autowired
-    private SystemSettingsRepository systemSettingsRepository;
-    @Autowired
     private GlobalSettingsRepository globalSettingsRepository;
-    @Autowired
-    private ModelConfigRepository modelConfigRepository;
-    @Autowired
-    private RedeemCodeRepository redeemCodeRepository;
     @Autowired
     private OutlineRepository outlineRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
-    @Value("${app.ai.base-url:https://api.openai.com/v1}")
-    private String defaultAiBaseUrl;
-    @Value("${app.ai.model:gpt-4o}")
-    private String defaultAiModel;
-    @Value("${app.ai.api-key:}")
-    private String defaultAiApiKey;
     @Value("${spring.mail.host:}")
     private String defaultSmtpHost;
     @Value("${spring.mail.port:587}")
@@ -87,58 +68,6 @@ public class DataInitializer implements CommandLineRunner {
             if (defaultSmtpUsername != null && !defaultSmtpUsername.isBlank()) global.setSmtpUsername(defaultSmtpUsername);
             if (defaultSmtpPassword != null && !defaultSmtpPassword.isBlank()) global.setSmtpPassword(defaultSmtpPassword);
             globalSettingsRepository.save(global);
-        }
-
-        SystemSettings settings = systemSettingsRepository.findByUser(user).orElseGet(() -> {
-            SystemSettings s = new SystemSettings();
-            s.setUser(user);
-            return s;
-        });
-        boolean settingsChanged = false;
-        if (settings.getBaseUrl() == null || !settings.getBaseUrl().equals(defaultAiBaseUrl)) {
-            settings.setBaseUrl(defaultAiBaseUrl);
-            settingsChanged = true;
-        }
-        if (settings.getModelName() == null || !settings.getModelName().equals(defaultAiModel)) {
-            settings.setModelName(defaultAiModel);
-            settingsChanged = true;
-        }
-        if (defaultAiApiKey != null && !defaultAiApiKey.isBlank()
-                && (settings.getApiKeyEncrypted() == null || !settings.getApiKeyEncrypted().equals(defaultAiApiKey))) {
-            settings.setApiKeyEncrypted(defaultAiApiKey);
-            settingsChanged = true;
-        }
-        if (settings.getId() == null || settingsChanged) {
-            systemSettingsRepository.save(settings);
-        }
-
-        if (modelConfigRepository.count() == 0) {
-            ModelConfigEntity fast = new ModelConfigEntity();
-            fast.setName(defaultAiModel != null ? defaultAiModel : "gemini-2.5-flash");
-            fast.setDisplayName("Gemini 2.5 Flash (默认)");
-            fast.setInputMultiplier(1);
-            fast.setOutputMultiplier(1);
-            fast.setPoolId("p1");
-            fast.setEnabled(true);
-            modelConfigRepository.save(fast);
-
-            ModelConfigEntity disabled = new ModelConfigEntity();
-            disabled.setName("gpt-4o");
-            disabled.setDisplayName("GPT-4o (示例/未启用)");
-            disabled.setInputMultiplier(10);
-            disabled.setOutputMultiplier(30);
-            disabled.setPoolId("p2");
-            disabled.setEnabled(false);
-            modelConfigRepository.save(disabled);
-        }
-
-        if (redeemCodeRepository.count() == 0) {
-            RedeemCode code = new RedeemCode();
-            code.setCode("VIP888");
-            code.setAmount(1000);
-            code.setUsed(false);
-            code.setExpiresAt(Instant.now().plusSeconds(3600L * 24 * 365));
-            redeemCodeRepository.save(code);
         }
 
         if (storyRepository.count() == 0) {

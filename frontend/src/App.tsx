@@ -31,13 +31,8 @@ import ProfilePage from "./pages/Profile/ProfilePage";
 
 // Admin Pages
 import DashboardAdmin from "./pages/Admin/Dashboard";
-import ModelManager from "./pages/Admin/ModelManager";
 import UserManager from "./pages/Admin/UserManager";
-import CreditLogs from "./pages/Admin/CreditLogs";
 import SystemSettingsPage from "./pages/Admin/SystemSettings";
-import RedeemCodes from "./pages/Admin/RedeemCodes";
-import EmailManager from "./pages/Admin/EmailManager";
-import ApiManagement from "./pages/Admin/ApiManagement";
 
 const queryClient = new QueryClient();
 
@@ -96,12 +91,7 @@ const App = () => (
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardAdmin />} />
-                <Route path="models" element={<ModelManager />} />
                 <Route path="users" element={<UserManager />} />
-                <Route path="logs" element={<CreditLogs />} />
-                <Route path="codes" element={<RedeemCodes />} />
-                <Route path="email" element={<EmailManager />} />
-                <Route path="api-management" element={<ApiManagement />} />
                 <Route path="settings" element={<SystemSettingsPage />} />
               </Route>
             </Route>

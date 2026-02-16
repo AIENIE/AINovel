@@ -12,6 +12,13 @@
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
   - `src/main/java/com/ainovel/app/security/remote/ConsulUserGrpcEndpointResolver.java`：Consul `health/service` 查询与缓存。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidationProperties.java`：会话校验配置对象（Consul、超时、回退地址）。
+  - `src/main/java/com/ainovel/app/integration/ExternalServiceProperties.java`：外部服务配置（Consul 发现、User/AI/Pay 服务名与回退地址）。
+  - `src/main/java/com/ainovel/app/integration/ConsulServiceResolver.java`：通用 Consul 服务发现与缓存。
+  - `src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java`：UserService 管理端 HTTP 调用适配。
+  - `src/main/java/com/ainovel/app/integration/AiGatewayGrpcClient.java`：AiService gRPC 调用适配。
+  - `src/main/java/com/ainovel/app/integration/BillingGrpcClient.java`：PayService gRPC 调用适配（签到/兑换/余额）。
+  - `src/main/proto/ai/v1/ai_gateway.proto`：AiService gRPC 协议定义（v1.1 新增）。
+  - `src/main/proto/billing/v1/billing_service.proto`：PayService gRPC 协议定义（v1.1 新增）。
   - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
   - `src/main/resources/application.yml`：后端配置（默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖）。
   - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
@@ -23,7 +30,10 @@
 - `deploy/`：公共依赖容器编排与脚本。
   - `docker-compose.yml`：依赖服务（MySQL、Redis）。
   - `build.sh`：依赖服务编排脚本。
+- `design-doc/`：版本设计与开发规划文档。
+  - `v1.1/`：v1.1 版本规划与实施文档（功能收敛 + Swagger 全量补齐）。
 - `doc/api/`：后端 Controller API 文档。
+  - `external/`：外部微服务接口发现与能力映射文档。
 - `doc/modules/`：模块级说明文档。
 - `doc/test/`：操作步骤、集成测试清单与问题修复记录。
 - `sql/schema.sql`：数据库结构脚本。

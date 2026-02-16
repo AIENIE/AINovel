@@ -17,15 +17,11 @@ type AdminSystemConfig = {
   smtpPort?: number;
   smtpUsername?: string;
   smtpPasswordIsSet?: boolean;
-  llmBaseUrl?: string;
-  llmModelName?: string;
-  llmApiKeyIsSet?: boolean;
 };
 
 const SystemSettingsPage = () => {
   const [settings, setSettings] = useState<AdminSystemConfig | null>(null);
   const [smtpPassword, setSmtpPassword] = useState("");
-  const [llmApiKey, setLlmApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
@@ -45,15 +41,11 @@ const SystemSettingsPage = () => {
         smtpHost: settings.smtpHost,
         smtpPort: settings.smtpPort,
         smtpUsername: settings.smtpUsername,
-        llmBaseUrl: settings.llmBaseUrl,
-        llmModelName: settings.llmModelName,
         ...(smtpPassword ? { smtpPassword } : {}),
-        ...(llmApiKey ? { llmApiKey } : {}),
       };
       const updated = await api.admin.updateSystemConfig(payload);
       setSettings(updated);
       setSmtpPassword("");
-      setLlmApiKey("");
       toast({ title: "系统设置已更新" });
     } finally {
       setIsSaving(false);
@@ -97,33 +89,6 @@ const SystemSettingsPage = () => {
                 className="bg-zinc-950 border-zinc-800"
               />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
-        <CardHeader>
-          <CardTitle>LLM 配置（全局）</CardTitle>
-          <CardDescription className="text-zinc-400">配置后，普通用户无需填写 Key 即可使用 AI 能力。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Base URL</Label>
-            <Input value={settings.llmBaseUrl || ""} onChange={(e) => setSettings({ ...settings, llmBaseUrl: e.target.value })} className="bg-zinc-950 border-zinc-800" placeholder="https://api.openai.com/v1" />
-          </div>
-          <div className="space-y-2">
-            <Label>Model Name</Label>
-            <Input value={settings.llmModelName || ""} onChange={(e) => setSettings({ ...settings, llmModelName: e.target.value })} className="bg-zinc-950 border-zinc-800" placeholder="gpt-4o" />
-          </div>
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <Input
-              type="password"
-              value={llmApiKey}
-              onChange={(e) => setLlmApiKey(e.target.value)}
-              className="bg-zinc-950 border-zinc-800"
-              placeholder={settings.llmApiKeyIsSet ? "已设置（输入新 Key 覆盖）" : "请输入 Key"}
-            />
           </div>
         </CardContent>
       </Card>

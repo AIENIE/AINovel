@@ -1,9 +1,8 @@
 # Settings & Prompts API
-- `GET /api/v1/settings`：获取模型接入设置。
-- `PUT /api/v1/settings`：更新 `{baseUrl?,modelName?,apiKey?,registrationEnabled?,maintenanceMode?,checkInMinPoints?,checkInMaxPoints?}`（其中全局项仅管理员生效）。
-- `POST /api/v1/settings/test`：测试连接（返回布尔）。
+- `GET/PUT/POST /api/v1/settings*`：v1.1 已移除（模型接入配置由外部服务负责）。
+- 本服务保留提示词模板设置接口：`/api/v1/prompt-templates*`、`/api/v1/world-prompts*`。
 
-> 说明：SMTP 与全局 LLM（供普通用户默认使用）通过 `GET/PUT /api/v1/admin/system-config` 管理。
+> 说明：v1.1 起前端已移除“模型接入”页面，系统主配置入口为 `GET/PUT /api/v1/admin/system-config`（注册/维护/签到/SMTP）。
 
 ## 工作区提示词
 - `GET /api/v1/prompt-templates`：获取故事/大纲/稿件/润色模板。

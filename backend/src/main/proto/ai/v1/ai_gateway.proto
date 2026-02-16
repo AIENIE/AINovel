@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package fireflychat.ai.v1;
+
+option java_multiple_files = true;
+option java_package = "fireflychat.ai.v1";
+option java_outer_classname = "AiGatewayProto";
+
+message ChatMessage {
+  string role = 1;
+  string content = 2;
+}
+
+message ChatCompletionsRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  string session_id = 4;
+  string model = 5;
+  repeated ChatMessage messages = 6;
+}
+
+message ChatCompletionsResponse {
+  string content = 1;
+  string model_key = 2;
+  int64 prompt_tokens = 3;
+  int64 completion_tokens = 4;
+}
+
+message ListModelsRequest {
+}
+
+enum ModelType {
+  MODEL_TYPE_UNSPECIFIED = 0;
+  MODEL_TYPE_TEXT = 1;
+  MODEL_TYPE_EMBEDDING = 2;
+}
+
+message ModelOption {
+  int64 id = 1;
+  string display_name = 2;
+  string provider = 3;
+  double input_rate = 4;
+  double output_rate = 5;
+  ModelType type = 6;
+}
+
+message ListModelsResponse {
+  repeated ModelOption models = 1;
+}
+
+service AiGatewayService {
+  rpc ChatCompletions(ChatCompletionsRequest) returns (ChatCompletionsResponse);
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+}

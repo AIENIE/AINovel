@@ -39,9 +39,6 @@ spring:
 server:
   port: ${PORT:10011}
 
-api-management:
-  enabled: ${API_MANAGEMENT_ENABLED:true}
-
 app:
   jwt:
     secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
@@ -50,6 +47,25 @@ app:
     model: ${AI_MODEL:gpt-4o}
     base-url: ${AI_BASE_URL:https://api.openai.com/v1}
     api-key: ${AI_API_KEY:}
+  external:
+    project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
+    timeout-ms: ${EXTERNAL_TIMEOUT_MS:2500}
+    discovery:
+      enabled: ${CONSUL_ENABLED:true}
+      scheme: ${CONSUL_SCHEME:http}
+      host: ${CONSUL_HOST:192.168.1.4}
+      port: ${CONSUL_PORT:60000}
+      datacenter: ${CONSUL_DATACENTER:}
+      cache-seconds: ${CONSUL_CACHE_SECONDS:30}
+    userservice-http:
+      service-name: ${USER_HTTP_SERVICE_NAME:aienie-userservice-http}
+      fallback: ${USER_HTTP_ADDR:http://127.0.0.1:10002}
+    aiservice-grpc:
+      service-name: ${AI_GRPC_SERVICE_NAME:aienie-aiservice-grpc}
+      fallback: ${AI_GRPC_ADDR:static://127.0.0.1:20003}
+    payservice-grpc:
+      service-name: ${PAY_GRPC_SERVICE_NAME:aienie-payservice-grpc}
+      fallback: ${PAY_GRPC_ADDR:static://127.0.0.1:20004}
 
 sso:
   session-validation:
@@ -59,9 +75,9 @@ sso:
     consul:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}
-      host: ${CONSUL_HOST:127.0.0.1}
-      port: ${CONSUL_PORT:8500}
-      service-name: ${USER_GRPC_SERVICE_NAME:userservice-grpc}
+      host: ${CONSUL_HOST:192.168.1.4}
+      port: ${CONSUL_PORT:60000}
+      service-name: ${USER_GRPC_SERVICE_NAME:aienie-userservice-grpc}
       datacenter: ${CONSUL_DATACENTER:}
       tag: ${USER_GRPC_SERVICE_TAG:}
       cache-seconds: ${CONSUL_CACHE_SECONDS:30}

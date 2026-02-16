@@ -1,23 +1,22 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.*;
-import com.ainovel.app.ai.model.ModelConfigEntity;
-import com.ainovel.app.ai.repo.ModelConfigRepository;
-import com.ainovel.app.economy.EconomyService;
-import com.ainovel.app.economy.model.RedeemCode;
-import com.ainovel.app.economy.repo.CreditLogRepository;
-import com.ainovel.app.economy.repo.RedeemCodeRepository;
+import com.ainovel.app.integration.UserAdminRemoteClient;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.settings.SettingsService;
-import com.ainovel.app.settings.SmtpService;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import com.ainovel.app.settings.model.GlobalSettings;
 import com.ainovel.app.settings.repo.GlobalSettingsRepository;
-import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,129 +25,126 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/admin")
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@Tag(name = "Admin", description = "管理端接口（聚合第三方服务 + 本地管理能力）")
+@SecurityRequirement(name = "bearerAuth")
 public class AdminController {
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private CreditLogRepository creditLogRepository;
-    @Autowired
-    private MaterialRepository materialRepository;
-    @Autowired
-    private ModelConfigRepository modelConfigRepository;
-    @Autowired
-    private RedeemCodeRepository redeemCodeRepository;
-    @Autowired
-    private EconomyService economyService;
-    @Autowired
-    private SmtpService smtpService;
-    @Autowired
-    private SettingsService settingsService;
-    @Autowired
-    private GlobalSettingsRepository globalSettingsRepository;
+    private final UserRepository userRepository;
+    private final MaterialRepository materialRepository;
+    private final UserAdminRemoteClient userAdminRemoteClient;
+    private final SettingsService settingsService;
+    private final GlobalSettingsRepository globalSettingsRepository;
+
+    public AdminController(
+            UserRepository userRepository,
+            MaterialRepository materialRepository,
+            UserAdminRemoteClient userAdminRemoteClient,
+            SettingsService settingsService,
+            GlobalSettingsRepository globalSettingsRepository
+    ) {
+        this.userRepository = userRepository;
+        this.materialRepository = materialRepository;
+        this.userAdminRemoteClient = userAdminRemoteClient;
+        this.settingsService = settingsService;
+        this.globalSettingsRepository = globalSettingsRepository;
+    }
 
     @GetMapping("/dashboard")
+    @Operation(summary = "获取管理看板", description = "返回用户规模、今日新增、待审核素材、消费与错误率等汇总指标。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
     public ResponseEntity<AdminDashboardStatsResponse> dashboard() {
         Instant todayStart = LocalDate.now(ZONE).atStartOfDay(ZONE).toInstant();
         long totalUsers = userRepository.count();
         long todayNewUsers = userRepository.countByCreatedAtAfter(todayStart);
-        double totalConsumed = creditLogRepository.totalConsumed();
-        double todayConsumed = creditLogRepository.consumedSince(todayStart);
+        double totalConsumed = 0.0;
+        double todayConsumed = 0.0;
         long pendingReviews = materialRepository.countByStatusIgnoreCase("pending");
         double apiErrorRate = 0.0;
         return ResponseEntity.ok(new AdminDashboardStatsResponse(totalUsers, todayNewUsers, totalConsumed, todayConsumed, apiErrorRate, pendingReviews));
     }
 
-    @GetMapping("/models")
-    public List<ModelConfigDto> models() {
-        return modelConfigRepository.findAll().stream().map(this::toModelDto).toList();
-    }
-
-    @PutMapping("/models/{id}")
-    public ResponseEntity<Boolean> updateModel(@PathVariable UUID id, @RequestBody ModelConfigDto dto) {
-        ModelConfigEntity entity = modelConfigRepository.findById(id).orElseThrow(() -> new RuntimeException("模型不存在"));
-        if (dto.displayName() != null) entity.setDisplayName(dto.displayName());
-        if (dto.name() != null) entity.setName(dto.name());
-        entity.setInputMultiplier(dto.inputMultiplier());
-        entity.setOutputMultiplier(dto.outputMultiplier());
-        if (dto.poolId() != null) entity.setPoolId(dto.poolId());
-        entity.setEnabled(dto.isEnabled());
-        modelConfigRepository.save(entity);
-        return ResponseEntity.ok(true);
-    }
-
     @GetMapping("/users")
-    public List<AdminUserDto> users() {
-        return userRepository.findAll().stream().map(this::toUserDto).toList();
-    }
-
-    @PostMapping("/users/{id}/grant-credits")
-    public ResponseEntity<Boolean> grantCredits(@PathVariable UUID id, @RequestBody GrantCreditsRequest request) {
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("用户不存在"));
-        economyService.grant(user, request.amount(), "管理员手动调整");
-        return ResponseEntity.ok(true);
+    @Operation(summary = "查询用户列表", description = "透传 UserService 管理端用户列表，支持关键字模糊查询。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public List<AdminUserDto> users(
+            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "用户名/邮箱关键字", example = "demo")
+            @RequestParam(value = "search", required = false) String search
+    ) {
+        return userAdminRemoteClient.listUsers(authorization, search).stream()
+                .map(this::toUserDto)
+                .toList();
     }
 
     @PostMapping("/users/{id}/ban")
-    public ResponseEntity<Boolean> ban(@PathVariable UUID id) {
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("用户不存在"));
-        user.setBanned(true);
-        userRepository.save(user);
+    @Operation(summary = "封禁用户", description = "调用 UserService 执行用户封禁，并同步本地用户快照状态。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "封禁成功"),
+            @ApiResponse(responseCode = "400", description = "请求参数错误"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public ResponseEntity<Boolean> ban(
+            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "目标用户 ID（UserService 侧 ID）", example = "1001")
+            @PathVariable long id,
+            @Parameter(description = "封禁天数", example = "7")
+            @RequestParam(value = "days", defaultValue = "7") int days,
+            @Parameter(description = "封禁原因", example = "违规行为")
+            @RequestParam(value = "reason", defaultValue = "管理员封禁") String reason
+    ) {
+        userAdminRemoteClient.banUser(authorization, id, days, reason);
+        userRepository.findByRemoteUid(id).ifPresent(u -> {
+            u.setBanned(true);
+            userRepository.save(u);
+        });
         return ResponseEntity.ok(true);
     }
 
     @PostMapping("/users/{id}/unban")
-    public ResponseEntity<Boolean> unban(@PathVariable UUID id) {
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("用户不存在"));
-        user.setBanned(false);
-        userRepository.save(user);
+    @Operation(summary = "解封用户", description = "调用 UserService 解除封禁，并同步本地用户快照状态。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "解封成功"),
+            @ApiResponse(responseCode = "400", description = "用户不存在"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public ResponseEntity<Boolean> unban(
+            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @Parameter(description = "目标用户 ID（UserService 侧 ID）", example = "1001")
+            @PathVariable long id
+    ) {
+        userAdminRemoteClient.unbanUser(authorization, id);
+        userRepository.findByRemoteUid(id).ifPresent(u -> {
+            u.setBanned(false);
+            userRepository.save(u);
+        });
         return ResponseEntity.ok(true);
-    }
-
-    @GetMapping("/logs")
-    public List<CreditLogDto> logs(@RequestParam(defaultValue = "200") int limit) {
-        return creditLogRepository.findAll(PageRequest.of(0, Math.min(500, Math.max(1, limit)), Sort.by(Sort.Direction.DESC, "createdAt")))
-                .getContent()
-                .stream()
-                .map(l -> new CreditLogDto(l.getId(), l.getUser().getId(), l.getAmount(), l.getReason(), l.getDetails(), l.getCreatedAt()))
-                .toList();
-    }
-
-    @GetMapping("/redeem-codes")
-    public List<RedeemCodeDto> codes() {
-        return redeemCodeRepository.findAll().stream()
-                .map(c -> new RedeemCodeDto(c.getId(), c.getCode(), c.getAmount(), c.isUsed(), c.getUsedBy() == null ? null : c.getUsedBy().getUsername(), c.getExpiresAt()))
-                .toList();
-    }
-
-    @PostMapping("/redeem-codes")
-    public ResponseEntity<Boolean> createCode(@Valid @RequestBody CreateRedeemCodeRequest request) {
-        RedeemCode code = new RedeemCode();
-        code.setCode(request.code());
-        code.setAmount(request.amount());
-        code.setUsed(false);
-        code.setExpiresAt(Instant.now().plusSeconds(3600L * 24 * 365));
-        redeemCodeRepository.save(code);
-        return ResponseEntity.ok(true);
-    }
-
-    @GetMapping("/email/smtp")
-    public SmtpStatusResponse smtpStatus() {
-        var g = settingsService.getGlobalSettings();
-        String host = g.getSmtpHost();
-        Integer port = g.getSmtpPort();
-        String username = g.getSmtpUsername();
-        boolean pwd = g.getSmtpPassword() != null && !g.getSmtpPassword().isBlank();
-        return new SmtpStatusResponse(host, port, username, pwd);
     }
 
     @GetMapping("/system-config")
+    @Operation(summary = "读取系统配置", description = "返回注册开关、维护开关、签到范围与 SMTP 配置状态。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "读取成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
     public AdminSystemConfigResponse systemConfig() {
         GlobalSettings g = settingsService.getGlobalSettings();
         return new AdminSystemConfigResponse(
@@ -159,14 +155,24 @@ public class AdminController {
                 g.getSmtpHost(),
                 g.getSmtpPort(),
                 g.getSmtpUsername(),
-                g.getSmtpPassword() != null && !g.getSmtpPassword().isBlank(),
-                g.getLlmBaseUrl(),
-                g.getLlmModelName(),
-                g.getLlmApiKeyEncrypted() != null && !g.getLlmApiKeyEncrypted().isBlank()
+                g.getSmtpPassword() != null && !g.getSmtpPassword().isBlank()
         );
     }
 
     @PutMapping("/system-config")
+    @Operation(summary = "更新系统配置", description = "更新注册开关、维护开关、签到范围与 SMTP 配置。")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "更新成功",
+                    content = @Content(
+                            schema = @Schema(implementation = AdminSystemConfigResponse.class),
+                            examples = @ExampleObject(value = "{\"registrationEnabled\":true,\"maintenanceMode\":false,\"checkInMinPoints\":10,\"checkInMaxPoints\":50,\"smtpHost\":\"smtp.example.com\",\"smtpPort\":587,\"smtpUsername\":\"noreply@example.com\",\"smtpPasswordIsSet\":true}")
+                    )
+            ),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
     public AdminSystemConfigResponse updateSystemConfig(@RequestBody AdminSystemConfigUpdateRequest request) {
         GlobalSettings g = settingsService.getGlobalSettings();
         if (request.registrationEnabled() != null) g.setRegistrationEnabled(request.registrationEnabled());
@@ -179,25 +185,21 @@ public class AdminController {
         if (request.smtpUsername() != null) g.setSmtpUsername(request.smtpUsername());
         if (request.smtpPassword() != null && !request.smtpPassword().isBlank()) g.setSmtpPassword(request.smtpPassword());
 
-        if (request.llmBaseUrl() != null) g.setLlmBaseUrl(request.llmBaseUrl());
-        if (request.llmModelName() != null) g.setLlmModelName(request.llmModelName());
-        if (request.llmApiKey() != null && !request.llmApiKey().isBlank()) g.setLlmApiKeyEncrypted(request.llmApiKey());
-
         globalSettingsRepository.save(g);
         return systemConfig();
     }
 
-    @PostMapping("/email/test")
-    public ResponseEntity<Boolean> testEmail(@Valid @RequestBody TestEmailRequest request) {
-        smtpService.sendTestEmail(request.email());
-        return ResponseEntity.ok(true);
-    }
-
-    private ModelConfigDto toModelDto(ModelConfigEntity entity) {
-        return new ModelConfigDto(entity.getId(), entity.getName(), entity.getDisplayName(), entity.getInputMultiplier(), entity.getOutputMultiplier(), entity.getPoolId(), entity.isEnabled());
-    }
-
-    private AdminUserDto toUserDto(User user) {
-        return new AdminUserDto(user.getId(), user.getUsername(), user.getEmail(), user.hasRole("ROLE_ADMIN") ? "admin" : "user", user.getCredits(), user.isBanned(), user.getLastCheckInAt());
+    private AdminUserDto toUserDto(UserAdminRemoteClient.RemoteAdminUser remote) {
+        User local = userRepository.findByRemoteUid(remote.id()).orElse(null);
+        double credits = local != null ? local.getCredits() : 0.0;
+        return new AdminUserDto(
+                String.valueOf(remote.id()),
+                remote.username(),
+                remote.email(),
+                "ADMIN".equalsIgnoreCase(remote.role()) ? "admin" : "user",
+                credits,
+                remote.banned(),
+                local == null ? null : local.getLastCheckInAt()
+        );
     }
 }
