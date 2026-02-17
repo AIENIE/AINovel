@@ -127,6 +127,7 @@ docker compose up -d
 | 登录态管理 | token 持久化、用户信息刷新、管理员识别 | `frontend/src/contexts/AuthContext.tsx` |
 | SSO 跳转与回调 | 登录/注册跳转、回调解析 `access_token` | `frontend/src/lib/sso.ts` `frontend/src/pages/auth/SsoCallback.tsx` |
 | 工作台 | 故事构思/故事管理/大纲/写作/素材检索 | `frontend/src/pages/Workbench/Workbench.tsx` + `frontend/src/pages/Workbench/tabs/*` |
+| v2 联调面板 | 调用 v2 上下文记忆/风格/分析/版本/导出/模型/工作台接口 | `frontend/src/pages/Workbench/tabs/V2Studio.tsx` |
 | 世界观 | 世界列表、编辑、模块化构建 | `frontend/src/pages/WorldBuilder/WorldBuilderPage.tsx` + `frontend/src/pages/WorldBuilder/components/*` |
 | 素材库 | 新建、上传、审核、检索、查重合并 | `frontend/src/pages/Material/MaterialPage.tsx` + `frontend/src/pages/Material/tabs/*` |
 | 设置与提示词 | 工作区/世界观提示词编辑与帮助页 | `frontend/src/pages/Settings/Settings.tsx` `frontend/src/pages/Settings/tabs/*` |
@@ -142,6 +143,7 @@ docker compose up -d
 | 用户中心 | 资料、统计、签到、兑换 | `backend/src/main/java/com/ainovel/app/user/UserController.java` |
 | 故事与大纲 | 故事/角色/大纲增删改查 | `backend/src/main/java/com/ainovel/app/story/*` |
 | 稿件 | 稿件生成、保存、角色变化分析 | `backend/src/main/java/com/ainovel/app/manuscript/*` |
+| v2 业务域 | v2 七大模块 API 与访问守卫 | `backend/src/main/java/com/ainovel/app/v2/*` |
 | 世界观 | 定义、编辑、发布预检、模块生成 | `backend/src/main/java/com/ainovel/app/world/*` |
 | 素材 | 素材 CRUD、上传任务、审核、检索 | `backend/src/main/java/com/ainovel/app/material/*` |
 | 提示词与设置 | 提示词模板 CRUD、元数据、全局配置 | `backend/src/main/java/com/ainovel/app/settings/*` |
@@ -162,6 +164,7 @@ AINovel/
 │  │  ├─ lib/mock-api.ts          # 统一 API 访问层
 │  │  ├─ lib/sso.ts               # SSO URL 组装与回调参数
 │  │  ├─ pages/Workbench/         # 工作台主流程
+│  │  │  └─ tabs/V2Studio.tsx     # v2 联调与验收入口
 │  │  ├─ pages/WorldBuilder/      # 世界观编辑器
 │  │  ├─ pages/Material/          # 素材中心
 │  │  ├─ pages/Settings/          # 提示词设置与帮助页
@@ -174,6 +177,7 @@ AINovel/
 │  │  ├─ security/                # JWT 与远程会话校验
 │  │  ├─ integration/             # 外部服务发现与调用
 │  │  ├─ story/ manuscript/       # 创作主业务
+│  │  ├─ v2/                      # v2 七大模块 API
 │  │  ├─ material/ world/         # 素材与世界观
 │  │  ├─ settings/ admin/ user/   # 设置、管理、用户中心
 │  │  └─ AiNovelApplication.java  # 应用入口

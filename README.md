@@ -68,6 +68,7 @@ bash build.sh
 - 认证与会话：`backend/src/main/java/com/ainovel/app/security/`，`frontend/src/contexts/AuthContext.tsx`
 - 故事/大纲：`backend/src/main/java/com/ainovel/app/story/`，`frontend/src/pages/Workbench/tabs/StoryConception.tsx`，`frontend/src/pages/Workbench/tabs/OutlineWorkbench.tsx`
 - 稿件与 AI Copilot：`backend/src/main/java/com/ainovel/app/manuscript/`，`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
+- v2 能力集：`backend/src/main/java/com/ainovel/app/v2/`，`frontend/src/pages/Workbench/tabs/V2Studio.tsx`
 - 世界观：`backend/src/main/java/com/ainovel/app/world/`，`frontend/src/pages/WorldBuilder/`
 - 素材库：`backend/src/main/java/com/ainovel/app/material/`，`frontend/src/pages/Material/`
 - 设置与提示词：`backend/src/main/java/com/ainovel/app/settings/`，`frontend/src/pages/Settings/`
@@ -88,6 +89,7 @@ bash build.sh
 - 后端提示词接口：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`
 - 后端默认模板：`backend/src/main/java/com/ainovel/app/settings/SettingsService.java`
 - 提示词持久化表：`sql/schema.sql` 中 `prompt_templates`、`world_prompt_templates`
+- v2 API 文档：`doc/api/v2-context.md`、`doc/api/v2-style.md`、`doc/api/v2-analysis.md`、`doc/api/v2-version.md`、`doc/api/v2-export.md`、`doc/api/v2-models.md`、`doc/api/v2-workspace.md`
 
 ## 7. 其他上手信息
 

@@ -2,13 +2,16 @@
 
 - `frontend/`：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui 前端工程。
   - `src/pages/`：首页、工作台、小说管理、世界构建、素材、设置、后台管理与认证回调页面。
+  - `src/pages/Workbench/tabs/V2Studio.tsx`：v2 联调面板（覆盖上下文记忆、风格、分析、版本、导出、多模型、工作台接口）。
   - `src/contexts/AuthContext.tsx`：登录态初始化、token 接受、用户资料刷新。
-  - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*`）。
+  - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*` + `/api/v2/*`）。
   - `src/lib/sso.ts`：统一登录跳转地址构造（生产/测试域名同源，开发环境可回落到测试域名）。
   - `vite.config.ts`：前端开发端口 `10010`，并将 `/api` 代理到 `http://127.0.0.1:10011`。
   - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端 `10011`。
   - `Dockerfile`：前端镜像构建与运行定义（对外 `EXPOSE 10010`）。
 - `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
+  - `src/main/java/com/ainovel/app/v2/`：v2 模块接口实现（上下文记忆、风格画像、分析、版本控制、导出、多模型、工作台）与统一权限守卫。
+  - `src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`：稿件实体，新增 `currentBranchId` 用于版本控制主分支定位。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
   - `src/main/java/com/ainovel/app/security/remote/ConsulUserGrpcEndpointResolver.java`：Consul `health/service` 查询与缓存。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidationProperties.java`：会话校验配置对象（Consul、超时、回退地址）。
@@ -22,6 +25,7 @@
   - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
   - `src/main/resources/application.yml`：后端配置（默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖）。
   - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
+  - `src/test/java/com/ainovel/app/v2/`：v2 控制器单测（上下文、版本、工作台）。
   - `Dockerfile`：后端镜像定义（对外 `EXPOSE 10011`）。
 - `docker-compose.yml`：前后端容器编排（前端 `10010:10010`、后端 `10011:10011`），并注入 MySQL/Redis/Consul/SSO 相关环境变量。
 - `docker-compose.windows.yml`：Windows 本地编排（同端口策略，外部网络可接公共依赖）。
@@ -32,9 +36,13 @@
   - `build.sh`：依赖服务编排脚本。
 - `design-doc/`：版本设计与开发规划文档。
   - `v1.1/`：v1.1 版本规划与实施文档（功能收敛 + Swagger 全量补齐）。
+  - `v2/`：v2 设计文档（7 大模块、数据库变更、API 总览、前端设计系统）。
 - `doc/api/`：后端 Controller API 文档。
+  - `v2-*.md`：v2 新增控制器文档（context/style/analysis/version/export/models/workspace）。
   - `external/`：外部微服务接口发现与能力映射文档。
 - `doc/modules/`：模块级说明文档。
+  - `v2.md`：v2 新模块职责与实现落位。
 - `doc/test/`：操作步骤、集成测试清单与问题修复记录。
+  - `2026-02-17-v2-workbench-selftest.md`：v2 工作台 Playwright 自测记录（含入口降级策略与截图证据）。
 - `sql/schema.sql`：数据库结构脚本。
 - `AGENTS.md`：项目约束与端口/域名基线。

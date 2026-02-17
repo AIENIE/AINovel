@@ -60,3 +60,9 @@
    - 未登录时访问 `/api/v1/user/profile` 应返回 403；完成统一登录后再次访问应返回 200（包含 `id/username/role/credits` 等）。
    - 本地 OpenAPI 验证地址：`http://127.0.0.1:10011/api/v3/api-docs`。
    - 本地 Swagger UI：`http://127.0.0.1:10011/api/swagger-ui/index.html`。
+
+11. **v2 工作台能力验收（2026-02-17）**
+   - 优先入口：`http://ainovel.seekerhut.com/workbench`；若域名不可解析（如 `ERR_NAME_NOT_RESOLVED`），降级到 `http://127.0.0.1:10010/workbench`。
+   - 在“上下文记忆”中创建 Lorebook，填写功能相关文本（例如标题 `主角记忆缺口`，正文说明跨章节记忆约束）。
+   - 依次验证：风格画像、Beta Reader 与连续性检查、版本快照与自动保存、导出任务与模板、多模型对比、工作台布局与会话开始/结束。
+   - 每个操作都需观察右侧返回框或列表刷新，确认接口响应成功且状态可见。

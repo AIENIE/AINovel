@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Book, FileText, PenTool, Search } from "lucide-react";
+import { Sparkles, Book, FileText, PenTool, Search, Rocket } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 // Tabs Components
@@ -9,6 +9,7 @@ import StoryManager from "./tabs/StoryManager";
 import OutlineWorkbench from "./tabs/OutlineWorkbench";
 import ManuscriptWriter from "./tabs/ManuscriptWriter";
 import MaterialSearchPanel from "./tabs/MaterialSearchPanel";
+import V2Studio from "./tabs/V2Studio";
 
 const Workbench = () => {
   const [params] = useSearchParams();
@@ -22,7 +23,7 @@ const Workbench = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[800px]">
+        <TabsList className="grid w-full grid-cols-6 lg:w-[980px]">
           <TabsTrigger value="conception" className="gap-2">
             <Sparkles className="h-4 w-4" /> 故事构思
           </TabsTrigger>
@@ -37,6 +38,9 @@ const Workbench = () => {
           </TabsTrigger>
           <TabsTrigger value="search" className="gap-2">
             <Search className="h-4 w-4" /> 素材检索
+          </TabsTrigger>
+          <TabsTrigger value="v2" className="gap-2">
+            <Rocket className="h-4 w-4" /> v2工作台
           </TabsTrigger>
         </TabsList>
 
@@ -55,6 +59,9 @@ const Workbench = () => {
           </TabsContent>
           <TabsContent value="search" className="h-full m-0 border-0 p-0">
             <MaterialSearchPanel />
+          </TabsContent>
+          <TabsContent value="v2" className="h-full m-0 border-0 p-0">
+            <V2Studio />
           </TabsContent>
         </div>
       </Tabs>

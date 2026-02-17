@@ -308,4 +308,21 @@
 
 当前完整分析主文档：`doc/modules/module-analysis.md`
 
+## 8. v2 增量实现（2026-02-17）
+
+本次开发按 `design-doc/v2` 新增了 v2 API 基线与前端联调面板：
+
+- 后端新增 `backend/src/main/java/com/ainovel/app/v2/`，包含 7 个 v2 Controller + 1 个访问守卫：
+  - `V2ContextController`
+  - `V2StyleController`
+  - `V2AnalysisController`
+  - `V2VersionController`
+  - `V2ExportController`
+  - `V2ModelController`
+  - `V2WorkspaceController`
+  - `V2AccessGuard`
+- 前端工作台新增 `v2工作台` 标签，入口：`frontend/src/pages/Workbench/tabs/V2Studio.tsx`。
+- 前端 API 层新增 `api.v2.*` 封装，位置：`frontend/src/lib/mock-api.ts`。
+- 稿件模型新增 `currentBranchId` 字段（版本控制模块所需），位置：`backend/src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`。
+
 

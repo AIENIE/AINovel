@@ -47,6 +47,20 @@ async function requestForm<T>(path: string, form: FormData, tokenOverride?: stri
   return (await resp.json()) as T;
 }
 
+async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<void> {
+  const headers = new Headers(init.headers || {});
+  headers.set("Content-Type", "application/json");
+
+  const token = tokenOverride ?? getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (!resp.ok) {
+    const msg = await safeErrorMessage(resp);
+    throw new Error(msg || `Request failed: ${resp.status}`);
+  }
+}
+
 async function safeErrorMessage(resp: Response): Promise<string> {
   try {
     const ct = resp.headers.get("content-type") || "";
@@ -462,6 +476,138 @@ export const api = {
     },
     updateWorld: async (data: Partial<WorldPromptTemplates>): Promise<WorldPromptTemplates> => {
       return await requestJson<WorldPromptTemplates>("/v1/world-prompts", { method: "PUT", body: JSON.stringify(data) });
+    },
+  },
+
+  v2: {
+    context: {
+      listLorebook: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/lorebook`, { method: "GET" }),
+      createLorebook: async (storyId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/lorebook`, { method: "POST", body: JSON.stringify(payload) }),
+      importLorebook: async (storyId: string, entries: any[]) =>
+        requestJson<any>(`/v2/stories/${storyId}/lorebook/import`, { method: "POST", body: JSON.stringify({ entries }) }),
+      getGraph: async (storyId: string) => requestJson<any>(`/v2/stories/${storyId}/graph`, { method: "GET" }),
+      queryGraph: async (storyId: string, keyword: string) =>
+        requestJson<any>(`/v2/stories/${storyId}/graph/query?keyword=${encodeURIComponent(keyword)}`, { method: "GET" }),
+      syncGraph: async (storyId: string) => requestJson<any>(`/v2/stories/${storyId}/graph/sync`, { method: "POST", body: "{}" }),
+      extractEntities: async (storyId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/extract-entities`, { method: "POST", body: JSON.stringify(payload) }),
+      listExtractions: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/extractions`, { method: "GET" }),
+      reviewExtraction: async (storyId: string, id: string, reviewAction: string) =>
+        requestJson<any>(`/v2/stories/${storyId}/extractions/${id}/review`, {
+          method: "PUT",
+          body: JSON.stringify({ reviewAction }),
+        }),
+      previewContext: async (storyId: string, tokenBudget = 3500) =>
+        requestJson<any>(`/v2/stories/${storyId}/context/preview?tokenBudget=${tokenBudget}`, { method: "GET" }),
+    },
+
+    style: {
+      listProfiles: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/style-profiles`, { method: "GET" }),
+      createProfile: async (storyId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/style-profiles`, { method: "POST", body: JSON.stringify(payload) }),
+      activateProfile: async (storyId: string, profileId: string) =>
+        requestJson<any>(`/v2/stories/${storyId}/style-profiles/${profileId}/activate`, { method: "POST", body: "{}" }),
+      analyze: async (payload: any) => requestJson<any>("/v2/style-analysis", { method: "POST", body: JSON.stringify(payload) }),
+      listVoices: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/character-voices`, { method: "GET" }),
+      createVoice: async (storyId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/character-voices`, { method: "POST", body: JSON.stringify(payload) }),
+      generateVoice: async (storyId: string, voiceId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/stories/${storyId}/character-voices/${voiceId}/generate`, { method: "POST", body: JSON.stringify(payload) }),
+    },
+
+    analysis: {
+      triggerBetaReader: async (storyId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/stories/${storyId}/analysis/beta-reader`, { method: "POST", body: JSON.stringify(payload) }),
+      triggerContinuity: async (storyId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/stories/${storyId}/analysis/continuity-check`, { method: "POST", body: JSON.stringify(payload) }),
+      listJobs: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/analysis/jobs`, { method: "GET" }),
+      listReports: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/analysis/reports`, { method: "GET" }),
+      listIssues: async (storyId: string) =>
+        requestJson<any[]>(`/v2/stories/${storyId}/analysis/continuity-issues`, { method: "GET" }),
+      updateIssue: async (storyId: string, issueId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/analysis/continuity-issues/${issueId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        }),
+    },
+
+    version: {
+      listVersions: async (manuscriptId: string) => requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "GET" }),
+      createVersion: async (manuscriptId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "POST", body: JSON.stringify(payload) }),
+      getDiff: async (manuscriptId: string, fromVersionId: string, toVersionId: string) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions/diff?fromVersionId=${fromVersionId}&toVersionId=${toVersionId}`, { method: "GET" }),
+      rollback: async (manuscriptId: string, versionId: string) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}/rollback`, { method: "POST", body: "{}" }),
+      listBranches: async (manuscriptId: string) =>
+        requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "GET" }),
+      createBranch: async (manuscriptId: string, payload: any) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "POST", body: JSON.stringify(payload) }),
+      mergeBranch: async (manuscriptId: string, branchId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/merge`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+      getAutoSave: async () => requestJson<any>("/v2/users/me/auto-save-config", { method: "GET" }),
+      updateAutoSave: async (payload: any) =>
+        requestJson<any>("/v2/users/me/auto-save-config", { method: "PUT", body: JSON.stringify(payload) }),
+    },
+
+    export: {
+      createJob: async (manuscriptId: string, payload: any) =>
+        requestJson<any>(`/v2/manuscripts/${manuscriptId}/export`, { method: "POST", body: JSON.stringify(payload) }),
+      listJobs: async (manuscriptId: string) =>
+        requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/export/jobs`, { method: "GET" }),
+      listTemplates: async () => requestJson<any[]>("/v2/export-templates", { method: "GET" }),
+      createTemplate: async (payload: any) =>
+        requestJson<any>("/v2/export-templates", { method: "POST", body: JSON.stringify(payload) }),
+      downloadUrl: (manuscriptId: string, jobId: string) => `${API_BASE}/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}/download`,
+    },
+
+    models: {
+      list: async () => requestJson<any[]>("/v2/models", { method: "GET" }),
+      listRouting: async () => requestJson<any[]>("/v2/admin/model-routing", { method: "GET" }),
+      updateRouting: async (taskType: string, payload: any) =>
+        requestJson<any>(`/v2/admin/model-routing/${taskType}`, { method: "PUT", body: JSON.stringify(payload) }),
+      listPreferences: async () => requestJson<any[]>("/v2/users/me/model-preferences", { method: "GET" }),
+      setPreference: async (taskType: string, preferredModelId: string | null) =>
+        requestJson<any>(`/v2/users/me/model-preferences/${taskType}`, {
+          method: "PUT",
+          body: JSON.stringify({ preferredModelId }),
+        }),
+      resetPreference: async (taskType: string) => {
+        await requestVoid(`/v2/users/me/model-preferences/${taskType}`, { method: "DELETE" });
+      },
+      usageSummary: async () => requestJson<any>("/v2/users/me/model-usage", { method: "GET" }),
+      usageDetails: async () => requestJson<any[]>("/v2/users/me/model-usage/details", { method: "GET" }),
+      compare: async (storyId: string, payload: any) =>
+        requestJson<any>(`/v2/stories/${storyId}/compare-models`, { method: "POST", body: JSON.stringify(payload) }),
+    },
+
+    workspace: {
+      listLayouts: async () => requestJson<any[]>("/v2/users/me/workspace-layouts", { method: "GET" }),
+      createLayout: async (payload: any) =>
+        requestJson<any>("/v2/users/me/workspace-layouts", { method: "POST", body: JSON.stringify(payload) }),
+      activateLayout: async (layoutId: string) =>
+        requestJson<any>(`/v2/users/me/workspace-layouts/${layoutId}/activate`, { method: "POST", body: "{}" }),
+      startSession: async (payload: any) => requestJson<any>("/v2/writing-sessions/start", { method: "POST", body: JSON.stringify(payload) }),
+      heartbeatSession: async (sessionId: string, payload: any) =>
+        requestJson<any>(`/v2/writing-sessions/${sessionId}/heartbeat`, { method: "PUT", body: JSON.stringify(payload) }),
+      endSession: async (sessionId: string, payload: any = {}) =>
+        requestJson<any>(`/v2/writing-sessions/${sessionId}/end`, { method: "POST", body: JSON.stringify(payload) }),
+      getStats: async () => requestJson<any>("/v2/writing-sessions/stats", { method: "GET" }),
+      listGoals: async () => requestJson<any[]>("/v2/users/me/writing-goals", { method: "GET" }),
+      createGoal: async (payload: any) =>
+        requestJson<any>("/v2/users/me/writing-goals", { method: "POST", body: JSON.stringify(payload) }),
+      updateGoal: async (goalId: string, payload: any) =>
+        requestJson<any>(`/v2/users/me/writing-goals/${goalId}`, { method: "PUT", body: JSON.stringify(payload) }),
+      deleteGoal: async (goalId: string) => {
+        await requestVoid(`/v2/users/me/writing-goals/${goalId}`, { method: "DELETE" });
+      },
+      listShortcuts: async () => requestJson<any[]>("/v2/users/me/shortcuts", { method: "GET" }),
+      updateShortcuts: async (shortcuts: Array<{ action: string; shortcut: string }>) =>
+        requestJson<any[]>("/v2/users/me/shortcuts", { method: "PUT", body: JSON.stringify({ shortcuts }) }),
     },
   },
 };

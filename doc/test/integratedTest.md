@@ -19,3 +19,9 @@
 - **设置/提示词**：读取、更新、重置提示词配置；元数据接口可被帮助页渲染。
 - **部署验证**：执行 `build_prod.sh` 后 docker 容器健康；浏览器通过域名正常访问；后端 `/api/*` 正常响应。
 - **公共依赖连通**：后端启动日志应出现 MySQL 连接成功；Redis 端口可连通并可响应 `PING`。
+- **v2 上下文记忆**：`/api/v2/context/lorebooks` 创建成功，`/api/v2/context/preview` 返回上下文预览。
+- **v2 风格画像**：`/api/v2/style/profiles` 可创建画像，`/api/v2/style/analyze` 返回风格分析结果。
+- **v2 分析链路**：`/api/v2/analysis/beta-reader` 与 `/api/v2/analysis/continuity` 均可返回分析内容。
+- **v2 版本管理**：`/api/v2/version/snapshots` 可新建并查询，自动保存配置可读写。
+- **v2 导出系统**：`/api/v2/export/tasks` 可发起导出并查询任务列表，模板列表接口可用。
+- **v2 多模型与工作区**：模型列表/对比接口可用，布局保存接口可用，会话开始与结束接口可用。

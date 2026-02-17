@@ -6,6 +6,7 @@
 
 - `doc/modules/dashboard.md`
 - `doc/modules/workbench.md`
+- `doc/modules/v2.md`
 - `doc/modules/profile.md`
 - `doc/modules/admin.md`
 - `doc/modules/security-remote.md`
