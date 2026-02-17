@@ -58,3 +58,4 @@ SMTPandAPI.txt
 /deploy/**/data/**
 !/deploy/**/data/.gitkeep
 *.sock
+/backend/.settings
