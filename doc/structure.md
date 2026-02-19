@@ -13,11 +13,12 @@
   - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*` + `/api/v2/*`）。
   - `src/lib/shortcuts.ts`：快捷键默认表、匹配逻辑、归一化与冲突检测工具。
   - `src/lib/__tests__/shortcuts.test.ts`：快捷键工具单元测试。
-  - `src/lib/sso.ts`：统一登录跳转地址构造（生产/测试域名同源，开发环境可回落到测试域名）。
+  - `src/lib/sso.ts`：统一登录跳转 URL 组装（指向 `/api/v1/sso/*`）与前端 `state` 一次性校验辅助函数。
   - `vite.config.ts`：前端开发端口 `11040`，并将 `/api` 代理到 `http://127.0.0.1:11041`。
   - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端容器端口 `10011`（宿主机映射默认 `11040/11041`）。
   - `Dockerfile`：前端镜像构建与运行定义（容器内 `EXPOSE 10010`）。
 - `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
+  - `src/main/java/com/ainovel/app/auth/SsoController.java`：统一登录入口中转（`/api/v1/sso/login|register`，后端 302 到 user-service）。
   - `src/main/java/com/ainovel/app/v2/`：v2 模块接口实现（上下文记忆、风格画像、分析、版本控制、导出、多模型、工作台）与统一权限守卫。
   - `src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`：稿件实体，新增 `currentBranchId` 用于版本控制主分支定位。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
@@ -32,6 +33,8 @@
   - `src/main/proto/billing/v1/billing_service.proto`：PayService gRPC 协议定义（v1.1 新增）。
   - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
   - `src/main/resources/application.yml`：后端配置（容器内默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖；宿主机映射默认 `11041`）。
+  - `src/test/java/com/ainovel/app/auth/SsoControllerTest.java`：SSO 中转控制器单元测试（`next/state` 校验与异常分支）。
+  - `src/test/java/com/ainovel/app/auth/SsoEntryServiceTest.java`：SSO 跳转目标组装与 fallback 校验单元测试。
   - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
   - `src/test/java/com/ainovel/app/v2/`：v2 控制器单测（上下文、版本、工作台）。
   - `Dockerfile`：后端镜像定义（容器内 `EXPOSE 10011`）。

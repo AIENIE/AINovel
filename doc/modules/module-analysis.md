@@ -31,10 +31,10 @@
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
-| 登录页跳转 SSO | 自动跳统一登录，保留 `next` 回跳地址 | `frontend/src/pages/auth/Login.tsx` |
-| 注册页跳转 SSO | 自动跳统一注册，保留 `next` 回跳地址 | `frontend/src/pages/auth/Register.tsx` |
-| SSO 回调处理 | 从 hash 读取 `access_token`，写入本地并刷新资料 | `frontend/src/pages/auth/SsoCallback.tsx` |
-| SSO URL 生成 | 根据域名与环境变量生成 `/sso/login`、`/register` 地址 | `frontend/src/lib/sso.ts` |
+| 登录页跳转 SSO | 自动跳转后端 `/api/v1/sso/login`，保留 `next` 与一次性 `state` | `frontend/src/pages/auth/Login.tsx` `backend/src/main/java/com/ainovel/app/auth/SsoController.java` |
+| 注册页跳转 SSO | 自动跳转后端 `/api/v1/sso/register`，保留 `next` 与一次性 `state` | `frontend/src/pages/auth/Register.tsx` `backend/src/main/java/com/ainovel/app/auth/SsoController.java` |
+| SSO 回调处理 | 从 hash 读取 `access_token`，并强制校验 `state` 后写入本地并刷新资料 | `frontend/src/pages/auth/SsoCallback.tsx` |
+| SSO URL 生成 | 生成后端中转 URL，管理一次性 `state` 生成/消费 | `frontend/src/lib/sso.ts` |
 | 全局登录态 | 初始化 token、拉取 profile、判断 admin、提供登出/刷新 | `frontend/src/contexts/AuthContext.tsx` |
 | 路由守卫 | 普通鉴权与管理员鉴权 | `frontend/src/App.tsx`（`ProtectedRoute`、`AdminRoute`） |
 

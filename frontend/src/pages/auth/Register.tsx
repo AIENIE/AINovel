@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { buildSsoUrl } from "@/lib/sso";
+import { buildSsoUrl, issueSsoState } from "@/lib/sso";
 
 const Register = () => {
   const location = useLocation();
@@ -13,13 +13,18 @@ const Register = () => {
     return raw.startsWith("/") ? raw : "/workbench";
   }, [location.search]);
 
+  const redirectToSso = (mode: "login" | "register") => {
+    const state = issueSsoState();
+    window.location.replace(buildSsoUrl(mode, next, state));
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       window.location.replace(next);
       return;
     }
-    window.location.replace(buildSsoUrl("register", next));
+    redirectToSso("register");
   }, [next]);
 
   return (
@@ -32,7 +37,7 @@ const Register = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button className="w-full" onClick={() => (window.location.href = buildSsoUrl("register", next))}>
+          <Button className="w-full" onClick={() => redirectToSso("register")}>
             前往统一登录注册
           </Button>
         </CardContent>
@@ -42,7 +47,7 @@ const Register = () => {
             <button
               type="button"
               className="text-primary hover:underline font-medium"
-              onClick={() => (window.location.href = buildSsoUrl("login", next))}
+              onClick={() => redirectToSso("login")}
             >
               去登录（统一登录）
             </button>

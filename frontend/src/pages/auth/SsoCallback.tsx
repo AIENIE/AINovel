@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateSsoState } from "@/lib/sso";
 
 const SsoCallback = () => {
   const navigate = useNavigate();
@@ -10,7 +11,14 @@ const SsoCallback = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.hash.replace(/^#/, ""));
+    const state = params.get("state");
     const accessToken = params.get("access_token") || "";
+
+    if (!validateSsoState(state)) {
+      toast.error("单点登录失败：state 校验未通过");
+      navigate("/login", { replace: true });
+      return;
+    }
 
     if (!accessToken) {
       toast.error("单点登录失败：未获取到 token");
@@ -38,4 +46,3 @@ const SsoCallback = () => {
 };
 
 export default SsoCallback;
-

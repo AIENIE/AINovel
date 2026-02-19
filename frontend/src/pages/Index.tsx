@@ -3,14 +3,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, BookOpen, Globe, Zap } from "lucide-react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { buildSsoUrl } from "@/lib/sso";
+import { buildSsoUrl, issueSsoState } from "@/lib/sso";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const goSso = (mode: "login" | "register", nextPath = "/workbench") => {
-    window.location.href = buildSsoUrl(mode, nextPath);
+    const state = issueSsoState();
+    window.location.href = buildSsoUrl(mode, nextPath, state);
   };
 
   return (

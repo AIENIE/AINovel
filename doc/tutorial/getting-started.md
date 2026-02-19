@@ -116,14 +116,14 @@ docker compose up -d
 | UserService HTTP | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 管理后台用户查询/封禁透传 |
 | AiService gRPC | `AI_GRPC_SERVICE_NAME` `AI_GRPC_ADDR` | `application.yml` | 模型列表/对话/润色 |
 | PayService gRPC | `PAY_GRPC_SERVICE_NAME` `PAY_GRPC_ADDR` `EXTERNAL_PROJECT_KEY` | `application.yml` | 签到、兑换、余额 |
-| 前端 SSO 跳转 | `VITE_SSO_BASE_URL` | 前端环境变量 | 统一登录入口地址 |
+| SSO 页面中转 | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 后端 `/api/v1/sso/*` 解析 user-service 地址并发起 302 |
 
 ### 2.2 推荐落地方式
 
 1. 复制并维护环境变量文件（例如 `.env`）
 2. 按环境覆盖 compose 中的默认值（避免写死内网 IP）
 3. 检查后端 `application.yml` 中的 fallback 地址是否适合当前环境
-4. 配置前端 `VITE_SSO_BASE_URL`（未设置时会按当前域名或测试域名推断）
+4. 配置后端 `USER_HTTP_SERVICE_NAME` / `USER_HTTP_ADDR`，确保后端可解析 user-service HTTP 地址（Consul 优先，fallback 兜底）
 
 ### 2.3 新环境最容易漏掉的点
 
@@ -142,7 +142,7 @@ docker compose up -d
 | --- | --- | --- |
 | 路由与权限 | 公共页、用户页、管理页路由与守卫 | `frontend/src/App.tsx` |
 | 登录态管理 | token 持久化、用户信息刷新、管理员识别 | `frontend/src/contexts/AuthContext.tsx` |
-| SSO 跳转与回调 | 登录/注册跳转、回调解析 `access_token` | `frontend/src/lib/sso.ts` `frontend/src/pages/auth/SsoCallback.tsx` |
+| SSO 跳转与回调 | 前端请求后端 SSO 中转、回调解析 token + `state` 校验 | `frontend/src/lib/sso.ts` `frontend/src/pages/auth/SsoCallback.tsx` `backend/src/main/java/com/ainovel/app/auth/SsoController.java` |
 | 工作台 | 故事构思/故事管理/大纲/写作/素材检索 | `frontend/src/pages/Workbench/Workbench.tsx` + `frontend/src/pages/Workbench/tabs/*` |
 | v2 能力页面 | 知识库、知识图谱、增强写作页与联调入口 | `frontend/src/pages/Workbench/tabs/LorebookPanel.tsx` `frontend/src/pages/Workbench/tabs/KnowledgeGraphTab.tsx` `frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx` `frontend/src/pages/Workbench/tabs/V2Studio.tsx` |
 | 世界观 | 世界列表、编辑、模块化构建 | `frontend/src/pages/WorldBuilder/WorldBuilderPage.tsx` + `frontend/src/pages/WorldBuilder/components/*` |
@@ -157,6 +157,7 @@ docker compose up -d
 | --- | --- | --- |
 | 应用入口 | Spring Boot 启动 | `backend/src/main/java/com/ainovel/app/AiNovelApplication.java` |
 | 鉴权与安全 | JWT 解析、会话校验、系统开关 | `backend/src/main/java/com/ainovel/app/security/*` |
+| SSO 入口中转 | `/api/v1/sso/login|register` 302 到 user-service | `backend/src/main/java/com/ainovel/app/auth/SsoController.java` |
 | 用户中心 | 资料、统计、签到、兑换 | `backend/src/main/java/com/ainovel/app/user/UserController.java` |
 | 故事与大纲 | 故事/角色/大纲增删改查 | `backend/src/main/java/com/ainovel/app/story/*` |
 | 稿件 | 稿件生成、保存、角色变化分析 | `backend/src/main/java/com/ainovel/app/manuscript/*` |
@@ -179,7 +180,7 @@ AINovel/
 │  │  ├─ App.tsx                  # 路由总入口（含权限路由）
 │  │  ├─ contexts/AuthContext.tsx # 登录态与用户上下文
 │  │  ├─ lib/mock-api.ts          # 统一 API 访问层
-│  │  ├─ lib/sso.ts               # SSO URL 组装与回调参数
+│  │  ├─ lib/sso.ts               # SSO 中转 URL 组装与 state 管理
 │  │  ├─ pages/Workbench/         # 工作台主流程
 │  │  │  ├─ tabs/LorebookPanel.tsx      # 知识库管理
 │  │  │  ├─ tabs/KnowledgeGraphTab.tsx  # 知识图谱查询
@@ -195,6 +196,7 @@ AINovel/
 ├─ backend/                       # Spring Boot 后端
 │  ├─ src/main/java/com/ainovel/app/
 │  │  ├─ security/                # JWT 与远程会话校验
+│  │  ├─ auth/                    # SSO 登录/注册入口中转
 │  │  ├─ integration/             # 外部服务发现与调用
 │  │  ├─ story/ manuscript/       # 创作主业务
 │  │  ├─ v2/                      # v2 七大模块 API
@@ -259,7 +261,7 @@ AINovel/
 
 ## 7、其他上手信息
 
-1. 统一登录链路：`/login`、`/register` 页面会直接跳转 SSO，回调页 `/sso/callback` 从 URL hash 提取 `access_token` 并写入本地存储。
+1. 统一登录链路：`/login`、`/register` 会先请求后端 `/api/v1/sso/login|register`，由后端 302 到 user-service 页面；回调页 `/sso/callback` 从 URL hash 读取 `access_token` 并强制校验 `state` 后再写入本地存储。
 2. 开发种子数据：`DataInitializer` 会在首次启动时创建示例用户/故事/世界/素材，包含管理员账号 `admin / password`。
 3. 脚本依赖缺口：`build.sh --init` 与 `build_prod.sh --init` 使用 `deploy/nginx/ainovel.conf`、`deploy/nginx/ainovel_prod.conf`，当前仓库未包含该目录，需自行提供。
 4. 端口差异：`deploy/docker-compose.yml` 的 MySQL/Redis 暴露端口是 `3308/6381`，若与后端默认端口不一致，需同步覆盖 `MYSQL_PORT`、`REDIS_PORT`。

@@ -1,7 +1,8 @@
 # 集成/系统测试用例
 
 - **端口与联调配置**：前端 `10010`、后端 `10011`；前端 `/api` 请求经 Vite/Nginx 转发到后端 `10011`。
-- **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 跳转 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...` → `localStorage.token` 写入 → `/api/v1/user/profile` 返回 200；未登录时返回 403。
+- **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 先请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...&state=...` → 前端 `state` 校验通过后写入 `localStorage.token` → `/api/v1/user/profile` 返回 200；未登录时返回 403。
+- **SSO 安全回归**：篡改回跳 hash 中 `state` 后访问 `/sso/callback`，应拒绝落 token 并跳回 `/login`。
 - **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC 实例；发现失败时回退 `USER_GRPC_ADDR`，且应在超时内快速失败不阻塞请求。
 - **Dashboard**：登录后进入 `/dashboard`，统计来自 `/api/v1/user/summary` 正常展示；点击卡片跳转到 `/novels`、`/worlds`。
 - **后台全局配置**：管理员在 `/admin/settings` 配置注册开关、维护模式、签到区间与 SMTP（对应 `/api/v1/admin/system-config`），保存后回显一致。

@@ -5,9 +5,10 @@
 1. **统一登录（SSO）**
    - 本地联调访问：`http://127.0.0.1:10010/`。
    - 测试域名：`http://ainovel.seekerhut.com/`；生产域名：`https://ainovel.aienie.com/`。
-   - 登录：点击页面上的“登录”按钮会直接跳转到同域名的 `/sso/login`（由宿主机 Nginx 反代到 userservice）；也可直接访问 `/login`（会自动跳转）。
-   - 注册：点击页面上的“注册/免费开始”按钮会直接跳转到同域名的 `/register`（由宿主机 Nginx 反代到 userservice）；也可直接访问 `/register`（会自动跳转）。
-   - 登录/注册成功后会回跳到 `/sso/callback`，前端从 URL hash 读取 `access_token` 并写入 LocalStorage。
+   - 登录：点击页面上的“登录”按钮或直接访问 `/login`，前端会先请求 `/api/v1/sso/login`，由后端 302 到 user-service 登录页。
+   - 注册：点击页面上的“注册/免费开始”按钮或直接访问 `/register`，前端会先请求 `/api/v1/sso/register`，由后端 302 到 user-service 注册页。
+   - 登录/注册成功后会回跳到 `/sso/callback`，前端从 URL hash 读取 `access_token`，并校验回跳 `state` 成功后再写入 LocalStorage。
+   - 安全校验：若 `state` 缺失或不匹配，前端会拒绝落地 token 并返回 `/login`。
    - 管理员权限：由 userservice 下发的 token 里 `role=ADMIN` 决定（AINovel 后端据此映射为 `ROLE_ADMIN`）。
 
 2. **个人中心（积分/签到/兑换）**
