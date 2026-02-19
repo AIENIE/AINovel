@@ -14,9 +14,9 @@
   - `src/lib/shortcuts.ts`：快捷键默认表、匹配逻辑、归一化与冲突检测工具。
   - `src/lib/__tests__/shortcuts.test.ts`：快捷键工具单元测试。
   - `src/lib/sso.ts`：统一登录跳转地址构造（生产/测试域名同源，开发环境可回落到测试域名）。
-  - `vite.config.ts`：前端开发端口 `10010`，并将 `/api` 代理到 `http://127.0.0.1:10011`。
-  - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端 `10011`。
-  - `Dockerfile`：前端镜像构建与运行定义（对外 `EXPOSE 10010`）。
+  - `vite.config.ts`：前端开发端口 `11040`，并将 `/api` 代理到 `http://127.0.0.1:11041`。
+  - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端容器端口 `10011`（宿主机映射默认 `11040/11041`）。
+  - `Dockerfile`：前端镜像构建与运行定义（容器内 `EXPOSE 10010`）。
 - `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
   - `src/main/java/com/ainovel/app/v2/`：v2 模块接口实现（上下文记忆、风格画像、分析、版本控制、导出、多模型、工作台）与统一权限守卫。
   - `src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`：稿件实体，新增 `currentBranchId` 用于版本控制主分支定位。
@@ -31,13 +31,13 @@
   - `src/main/proto/ai/v1/ai_gateway.proto`：AiService gRPC 协议定义（v1.1 新增）。
   - `src/main/proto/billing/v1/billing_service.proto`：PayService gRPC 协议定义（v1.1 新增）。
   - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
-  - `src/main/resources/application.yml`：后端配置（默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖）。
+  - `src/main/resources/application.yml`：后端配置（容器内默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖；宿主机映射默认 `11041`）。
   - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
   - `src/test/java/com/ainovel/app/v2/`：v2 控制器单测（上下文、版本、工作台）。
-  - `Dockerfile`：后端镜像定义（对外 `EXPOSE 10011`）。
-- `docker-compose.yml`：前后端容器编排（前端 `10010:10010`、后端 `10011:10011`），并注入 MySQL/Redis/Consul/SSO 相关环境变量。
+  - `Dockerfile`：后端镜像定义（容器内 `EXPOSE 10011`）。
+- `docker-compose.yml`：前后端容器编排（宿主机映射前端 `11040`、后端 `11041`），并注入 MySQL/Redis/Consul/SSO 相关环境变量。
 - `docker-compose.windows.yml`：Windows 本地编排（同端口策略，外部网络可接公共依赖）。
-- `build.sh`：构建与部署脚本（读取 `SUDO_PASSWORD`；输出地址与端口同步为 `10010/10011`）。
+- `build.sh`：构建与部署脚本（读取 `SUDO_PASSWORD`；输出地址与端口同步为 `11040/11041`）。
 - `build_prod.sh`：生产部署脚本（调用 `build.sh`，支持证书与 Nginx 初始化流程）。
 - `build_local.sh`：本地运行脚本（不使用 Docker，直接编译并启动前后端；自动读取 `.env` 或 `env.txt`）。
 - `build.ps1`：`build.sh` 的 PowerShell 版本。

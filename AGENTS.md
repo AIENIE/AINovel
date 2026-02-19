@@ -1,9 +1,12 @@
 - 项目名: AINovel
+- 项目类型：业务项目
 - 前端技术栈: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - 后端技术栈: Java Spring boot
 - 测试服域名: ainovel.seekerhut.com
 - 正式服域名: ainovel.aienie.com
-- 前端对外端口: 10010
-- 后端对外端口: 10011
+- 前端对外端口: 11040
+- 后端对外端口: 11041
 
-执行sudo的密码请从SUDO_PASSWORD环境变量获取。
+在linux环境下，执行sudo的密码请从SUDO_PASSWORD环境变量获取。
+- 部署脚本: 公共支持项目使用 build.ps1，业务项目使用 build_local.ps1。
+

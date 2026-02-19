@@ -6,11 +6,11 @@ import path from "path";
 export default defineConfig(() => ({
   server: {
     host: "::",
-    port: 10010,
+    port: 11040,
     strictPort: true,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:10011",
+        target: "http://127.0.0.1:11041",
         changeOrigin: true,
       },
     },

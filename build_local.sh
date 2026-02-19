@@ -207,7 +207,7 @@ start_frontend() {
   local front_dir="$ROOT_DIR/frontend"
   (
     cd "$front_dir"
-    nohup npm run dev -- --host 0.0.0.0 --port 10010 --strictPort >"$FRONTEND_LOG" 2>"$FRONTEND_ERR" &
+    nohup npm run dev -- --host 0.0.0.0 --port 11040 --strictPort >"$FRONTEND_LOG" 2>"$FRONTEND_ERR" &
     echo $! >"$FRONTEND_PID_FILE"
   )
 }
@@ -251,7 +251,7 @@ main() {
   set_default_env DB_URL "jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
   set_default_env DB_USERNAME "${MYSQL_USER}"
   set_default_env DB_PASSWORD "${MYSQL_PASSWORD}"
-  set_default_env PORT 10011
+  set_default_env PORT 11041
 
   stop_managed_process "$BACKEND_PID_FILE" backend
   stop_managed_process "$FRONTEND_PID_FILE" frontend
@@ -262,18 +262,18 @@ main() {
   start_backend
   start_frontend
 
-  if ! wait_for_port 127.0.0.1 10011 backend; then
+  if ! wait_for_port 127.0.0.1 11041 backend; then
     print_startup_logs_on_failure
     exit 1
   fi
-  if ! wait_for_http "http://127.0.0.1:10010" frontend; then
+  if ! wait_for_http "http://127.0.0.1:11040" frontend; then
     print_startup_logs_on_failure
     exit 1
   fi
 
   echo "Local deployment finished."
-  echo "Frontend: http://127.0.0.1:10010"
-  echo "Backend API: http://127.0.0.1:10011/api"
+  echo "Frontend: http://127.0.0.1:11040"
+  echo "Backend API: http://127.0.0.1:11041/api"
   echo "Backend PID file: $BACKEND_PID_FILE"
   echo "Frontend PID file: $FRONTEND_PID_FILE"
 }

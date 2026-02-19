@@ -190,7 +190,7 @@ function Wait-Http {
       throw "$Label process exited before $Url became reachable."
     }
     try {
-      $response = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 5
+      $response = Invoke-WebRequest -Uri $Url -Method Get -UseBasicParsing -TimeoutSec 5
       if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
         return
       }
@@ -281,7 +281,7 @@ function Start-Frontend {
   $npmCommand = if ($isWindowsPlatform) { "npm.cmd" } else { "npm" }
 
   return Start-Process -FilePath $npmCommand `
-    -ArgumentList @("run", "dev", "--", "--host", "0.0.0.0", "--port", "10010", "--strictPort") `
+    -ArgumentList @("run", "dev", "--", "--host", "0.0.0.0", "--port", "11040", "--strictPort") `
     -WorkingDirectory $frontDir `
     -RedirectStandardOutput $FrontendOutLog `
     -RedirectStandardError $FrontendErrLog `
@@ -338,12 +338,12 @@ Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "true"
 Set-DefaultEnv -Name "DB_URL" -Value "jdbc:mysql://$($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DB)?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
 Set-DefaultEnv -Name "DB_USERNAME" -Value "$($env:MYSQL_USER)"
 Set-DefaultEnv -Name "DB_PASSWORD" -Value "$($env:MYSQL_PASSWORD)"
-Set-DefaultEnv -Name "PORT" -Value "10011"
+Set-DefaultEnv -Name "PORT" -Value "11041"
 
 Stop-ManagedProcess -PidFile $BackendPidFile -Name "backend"
 Stop-ManagedProcess -PidFile $FrontendPidFile -Name "frontend"
-Stop-StaleProjectProcessByPort -Port 10010
-Stop-StaleProjectProcessByPort -Port 10011
+Stop-StaleProjectProcessByPort -Port 11040
+Stop-StaleProjectProcessByPort -Port 11041
 
 Build-Frontend
 Build-Backend
@@ -357,15 +357,15 @@ try {
   $frontendProc = Start-Frontend
   Set-Content -Path $FrontendPidFile -Value $frontendProc.Id -NoNewline
 
-  Wait-Port -Address "127.0.0.1" -Port 10011 -Label "backend" -WatchProcessId $backendProc.Id
-  Wait-Http -Url "http://127.0.0.1:10010" -Label "frontend homepage" -WatchProcessId $frontendProc.Id
+  Wait-Port -Address "127.0.0.1" -Port 11041 -Label "backend" -WatchProcessId $backendProc.Id
+  Wait-Http -Url "http://127.0.0.1:11040" -Label "frontend homepage" -WatchProcessId $frontendProc.Id
 } catch {
   Show-StartupLogs
   throw
 }
 
 Write-Host "Local deployment finished."
-Write-Host "Frontend: http://127.0.0.1:10010"
-Write-Host "Backend API: http://127.0.0.1:10011/api"
+Write-Host "Frontend: http://127.0.0.1:11040"
+Write-Host "Backend API: http://127.0.0.1:11041/api"
 Write-Host "Backend PID file: $BackendPidFile"
 Write-Host "Frontend PID file: $FrontendPidFile"

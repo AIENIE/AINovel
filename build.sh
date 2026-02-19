@@ -108,7 +108,7 @@ server {
     server_name ainovel.seekerhut.com ainovel.aienie.com;
 
     location /api/ {
-        proxy_pass http://127.0.0.1:10011;
+        proxy_pass http://127.0.0.1:11041;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -117,7 +117,7 @@ server {
     }
 
     location / {
-        proxy_pass http://127.0.0.1:10010;
+        proxy_pass http://127.0.0.1:11040;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -247,4 +247,4 @@ if [[ "$INIT_MODE" == "true" ]]; then
   fi
 fi
 
-echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:10011/api"
+echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:11041/api"

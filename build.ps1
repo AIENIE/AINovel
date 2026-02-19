@@ -103,4 +103,4 @@ if ($Init) {
   }
 }
 
-Write-Host "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:10011/api"
+Write-Host "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:11041/api"

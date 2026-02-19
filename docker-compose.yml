@@ -4,7 +4,7 @@ services:
     image: eclipse-temurin:21-jre
     restart: unless-stopped
     ports:
-      - "10011:10011"
+      - "11041:10011"
     environment:
       DB_URL: jdbc:mysql://${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}
@@ -38,7 +38,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "10010:10010"
+      - "11040:10010"
     volumes:
       - ./frontend/dist:/usr/share/nginx/html:ro
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
