@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from "react-router-dom";
+import { Palette } from "lucide-react";
 
 interface StoryManagerProps {
   initialStoryId?: string;
@@ -129,12 +130,18 @@ const StoryManager = ({ initialStoryId }: StoryManagerProps) => {
                   <Button variant="destructive" size="icon" onClick={handleDeleteStory}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Badge variant="outline">{selectedStory.genre}</Badge>
-                <Badge variant="outline">{selectedStory.tone}</Badge>
-                <Badge variant="outline">更新于 {new Date(selectedStory.updatedAt).toLocaleDateString()}</Badge>
-              </div>
-            </CardHeader>
+                <div className="flex gap-2 mt-4">
+                  <Badge variant="outline">{selectedStory.genre}</Badge>
+                  <Badge variant="outline">{selectedStory.tone}</Badge>
+                  <Badge variant="outline">更新于 {new Date(selectedStory.updatedAt).toLocaleDateString()}</Badge>
+                  <Link to={`/settings?tab=style&storyId=${selectedStory.id}`}>
+                    <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                      <Palette className="h-3 w-3 mr-1" />
+                      风格画像
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
             <CardContent className="flex-1 overflow-y-auto">
               <div className="space-y-6">
                 <div>

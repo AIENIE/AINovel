@@ -78,4 +78,84 @@ class V2ContextControllerTests {
         assertEquals(true, reviewed.get("reviewed"));
         assertEquals("approved", reviewed.get("reviewAction"));
     }
+
+    @Test
+    void graphShouldContainRelationshipAndCascadeOnNodeDelete() {
+        Map<String, Object> nodeA = controller.createLorebook(principal, storyId, Map.of(
+                "displayName", "林烬",
+                "category", "character",
+                "tokenBudget", 80
+        ));
+        Map<String, Object> nodeB = controller.createLorebook(principal, storyId, Map.of(
+                "displayName", "夜雨港",
+                "category", "location",
+                "tokenBudget", 80
+        ));
+
+        UUID nodeAId = (UUID) nodeA.get("id");
+        UUID nodeBId = (UUID) nodeB.get("id");
+        controller.createRelationship(principal, storyId, Map.of(
+                "source", nodeAId.toString(),
+                "target", nodeBId.toString(),
+                "relationType", "located_at"
+        ));
+
+        Map<String, Object> graph = controller.graph(principal, storyId);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> edges = (List<Map<String, Object>>) graph.get("edges");
+        assertEquals(1, edges.size());
+
+        controller.deleteLorebook(principal, storyId, nodeAId);
+        Map<String, Object> graphAfterDelete = controller.graph(principal, storyId);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> edgesAfterDelete = (List<Map<String, Object>>) graphAfterDelete.get("edges");
+        assertEquals(0, edgesAfterDelete.size());
+    }
+
+    @Test
+    void previewShouldExposeSegmentedContextSections() {
+        Map<String, Object> character = controller.createLorebook(principal, storyId, Map.of(
+                "displayName", "林烬",
+                "category", "character",
+                "tokenBudget", 80,
+                "insertionPosition", "before_scene"
+        ));
+        Map<String, Object> systemRule = controller.createLorebook(principal, storyId, Map.of(
+                "displayName", "世界规则",
+                "category", "concept",
+                "tokenBudget", 60,
+                "insertionPosition", "system_prompt"
+        ));
+        Map<String, Object> afterHint = controller.createLorebook(principal, storyId, Map.of(
+                "displayName", "收束提示",
+                "category", "event",
+                "tokenBudget", 50,
+                "insertionPosition", "after_scene"
+        ));
+
+        controller.createRelationship(principal, storyId, Map.of(
+                "source", character.get("id").toString(),
+                "target", systemRule.get("id").toString(),
+                "relationType", "knows"
+        ));
+
+        Map<String, Object> preview = controller.previewContext(principal, storyId, 3, 1, 300);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> systemPromptEntries = (List<Map<String, Object>>) preview.get("systemPromptEntries");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> beforeSceneEntries = (List<Map<String, Object>>) preview.get("beforeSceneEntries");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> afterSceneEntries = (List<Map<String, Object>>) preview.get("afterSceneEntries");
+        @SuppressWarnings("unchecked")
+        List<String> graphRelations = (List<String>) preview.get("graphRelations");
+        @SuppressWarnings("unchecked")
+        List<String> activeCharacters = (List<String>) preview.get("activeCharacters");
+
+        assertEquals(1, systemPromptEntries.size());
+        assertEquals(1, beforeSceneEntries.size());
+        assertEquals(1, afterSceneEntries.size());
+        assertFalse(graphRelations.isEmpty());
+        assertTrue(activeCharacters.contains("林烬"));
+        assertNotNull(preview.get("recentSummary"));
+    }
 }

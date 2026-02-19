@@ -10,5 +10,6 @@
 - `doc/modules/profile.md`
 - `doc/modules/admin.md`
 - `doc/modules/security-remote.md`
+- `doc/modules/third-party-components.md`
 
 说明：`module-analysis.md` 基于当前代码进行了逐模块、逐功能点定位，覆盖前端实现、后端实现和主要数据落点。

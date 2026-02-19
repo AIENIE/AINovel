@@ -88,21 +88,51 @@ reload_nginx() {
 }
 
 ensure_hosts_entry() {
-  if ! grep -qE "^[^#]*\s+ainovel\.seekerhut\.com" /etc/hosts; then
-    run_sudo sh -c 'echo "127.0.0.1 ainovel.seekerhut.com" >> /etc/hosts'
-  fi
+  for domain in ainovel.seekerhut.com ainovel.aienie.com; do
+    if ! grep -qE "^[^#]*\s+${domain}" /etc/hosts; then
+      run_sudo sh -c "echo \"127.0.0.1 ${domain}\" >> /etc/hosts"
+    fi
+  done
 }
 
 install_dev_nginx_conf() {
   local source_conf="$ROOT_DIR/deploy/nginx/ainovel.conf"
   local target_conf="/etc/nginx/conf.d/ainovel.conf"
+  local generated_conf=""
 
   if [[ ! -f "$source_conf" ]]; then
-    echo "Missing nginx config: $source_conf"
-    exit 1
+    generated_conf="$(mktemp)"
+    cat >"$generated_conf" <<'EOF'
+server {
+    listen 80;
+    server_name ainovel.seekerhut.com ainovel.aienie.com;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:10011;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:10010;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+    source_conf="$generated_conf"
   fi
 
   run_sudo install -m 0644 "$source_conf" "$target_conf"
+  if [[ -n "$generated_conf" ]]; then
+    rm -f "$generated_conf"
+  fi
   reload_nginx
 }
 
@@ -204,7 +234,7 @@ rollout_compose() {
 
 build_frontend
 build_backend
-echo "使用统一依赖：MYSQL=${MYSQL_HOST:-192.168.5.141}:${MYSQL_PORT:-3306} REDIS=${REDIS_HOST:-192.168.5.141}:${REDIS_PORT:-6379}"
+echo "使用统一依赖：MYSQL=${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308} REDIS=${REDIS_HOST:-127.0.0.1}:${REDIS_PORT:-6381} QDRANT=${QDRANT_HOST:-http://127.0.0.1}:${QDRANT_PORT:-6335} CONSUL=${CONSUL_SCHEME:-http}://${CONSUL_HOST:-127.0.0.1}:${CONSUL_PORT:-8502}"
 rollout_compose
 
 if [[ "$INIT_MODE" == "true" ]]; then

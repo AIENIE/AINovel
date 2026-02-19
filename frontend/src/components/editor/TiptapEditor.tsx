@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { showSuccess, showError } from "@/utils/toast";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AiRefineDialog from "@/components/ai/AiRefineDialog";
 import { api } from "@/lib/mock-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +50,9 @@ const TiptapEditor = ({
   const [originalText, setOriginalText] = useState("");
   const [refinedText, setRefinedText] = useState("");
   const [refineCost, setRefineCost] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const applyingExternalContentRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -67,6 +70,7 @@ const TiptapEditor = ({
     content,
     editable,
     onUpdate: ({ editor }) => {
+      if (applyingExternalContentRef.current) return;
       onChange(editor.getHTML());
     },
     editorProps: {
@@ -83,6 +87,74 @@ const TiptapEditor = ({
       },
     },
   });
+
+  const centerCurrentLine = useCallback(() => {
+    if (!zenMode) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (!container.contains(range.startContainer)) return;
+
+    let firstRect = range.getClientRects()[0] || range.getBoundingClientRect();
+    if (!firstRect || (!firstRect.height && !firstRect.width)) {
+      const probeRange = range.cloneRange();
+      probeRange.collapse(true);
+      const marker = document.createElement("span");
+      marker.textContent = "\u200b";
+      marker.style.display = "inline-block";
+      marker.style.width = "1px";
+      marker.style.height = "1em";
+      probeRange.insertNode(marker);
+      firstRect = marker.getBoundingClientRect();
+      marker.remove();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    if (!firstRect || (!firstRect.height && !firstRect.width)) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const lineCenter = firstRect.top - containerRect.top + container.scrollTop + firstRect.height / 2;
+    const targetTop = Math.max(0, lineCenter - container.clientHeight / 2);
+    if (Math.abs(container.scrollTop - targetTop) < 8) return;
+    container.scrollTo({ top: targetTop, behavior: "smooth" });
+  }, [zenMode]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(editable);
+  }, [editor, editable]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const next = content || "";
+    const current = editor.getHTML();
+    if (current === next) return;
+    applyingExternalContentRef.current = true;
+    editor.commands.setContent(next, false);
+    applyingExternalContentRef.current = false;
+  }, [content, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const schedule = () => {
+      if (!zenMode) return;
+      if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = window.requestAnimationFrame(centerCurrentLine);
+    };
+
+    editor.on("selectionUpdate", schedule);
+    editor.on("transaction", schedule);
+    if (zenMode) schedule();
+
+    return () => {
+      editor.off("selectionUpdate", schedule);
+      editor.off("transaction", schedule);
+      if (scrollRafRef.current) window.cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    };
+  }, [centerCurrentLine, editor, zenMode]);
 
   const handleAIPolish = async () => {
     if (!editor) return;
@@ -212,6 +284,7 @@ const TiptapEditor = ({
       )}
 
       <div 
+        ref={scrollContainerRef}
         className={cn(
           "flex-1 overflow-y-auto flex justify-center transition-colors duration-300",
           theme === "parchment" && "bg-[#f5e6c8]",

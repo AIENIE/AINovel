@@ -115,11 +115,23 @@ public class V2StyleController {
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         UUID jobId = UUID.randomUUID();
+        String sampleText = str(payload.get("sampleText"), "");
+        Map<String, Integer> dimensions = analyzeDimensionScores(sampleText);
+
         Map<String, Object> result = new HashMap<>();
+        result.putAll(dimensions);
+        result.put("dimensions", dimensions);
         result.put("tone", "balanced");
-        result.put("rhythm", 78);
-        result.put("imagery", 82);
-        result.put("dialogueDensity", 64);
+        result.put("rhythm", dimensions.getOrDefault("pacing", 6) * 10);
+        result.put("imagery", dimensions.getOrDefault("descriptiveness", 6) * 10);
+        result.put("dialogueDensity", dimensions.getOrDefault("dialogue_ratio", 6) * 10);
+        result.put("summary", "文本整体偏叙事描写，节奏稳定，建议继续保持情绪推进与场景细节平衡。");
+        result.put("suggestedProfileName", "分析画像-" + Instant.now().toString().substring(11, 19));
+        result.put("recommendations", List.of(
+                "关键冲突段可适度提升情感强度",
+                "对话场景可提高对话占比并缩短句长",
+                "回忆段落可增加修辞频率与描写密度"
+        ));
 
         Map<String, Object> job = new HashMap<>();
         job.put("id", jobId);
@@ -253,5 +265,69 @@ public class V2StyleController {
         }
         String text = value.toString().trim();
         return text.isEmpty() ? fallback : text;
+    }
+
+    private Map<String, Integer> analyzeDimensionScores(String sampleText) {
+        String text = sampleText == null ? "" : sampleText.trim();
+        int length = text.length();
+        int punctuation = countChars(text, "，。！？；：");
+        int quotes = countChars(text, "“”\"「」");
+        int emphasis = countChars(text, "！？!");
+
+        Map<String, Integer> dimensions = new LinkedHashMap<>();
+        dimensions.put("formality", clamp(5 + (containsAny(text, "其", "乃", "并非", "故而") ? 1 : 0)));
+        dimensions.put("sentence_length", clamp(3 + length / 120));
+        dimensions.put("vocabulary_richness", clamp(4 + uniqueCharacterCount(text) / 120));
+        dimensions.put("pacing", clamp(8 - dimensions.get("sentence_length") / 2 + (punctuation > 8 ? 1 : 0)));
+        dimensions.put("descriptiveness", clamp(4 + countContains(text, "风", "雾", "光", "影", "色", "声") / 2));
+        dimensions.put("dialogue_ratio", clamp(3 + quotes * 2));
+        dimensions.put("emotional_intensity", clamp(4 + emphasis + countContains(text, "怒", "恨", "痛", "惊", "慌")));
+        dimensions.put("rhetoric_frequency", clamp(4 + countContains(text, "仿佛", "像", "宛如", "如同")));
+        return dimensions;
+    }
+
+    private int clamp(int value) {
+        return Math.max(1, Math.min(10, value));
+    }
+
+    private int countChars(String source, String chars) {
+        if (source == null || source.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = 0; i < source.length(); i++) {
+            if (chars.indexOf(source.charAt(i)) >= 0) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countContains(String source, String... keywords) {
+        int count = 0;
+        if (source == null || source.isEmpty()) {
+            return count;
+        }
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isEmpty() && source.contains(keyword)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean containsAny(String source, String... keywords) {
+        return countContains(source, keywords) > 0;
+    }
+
+    private int uniqueCharacterCount(String source) {
+        if (source == null || source.isEmpty()) {
+            return 0;
+        }
+        Set<Character> chars = new HashSet<>();
+        for (int i = 0; i < source.length(); i++) {
+            chars.add(source.charAt(i));
+        }
+        return chars.size();
     }
 }

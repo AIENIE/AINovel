@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -141,6 +144,7 @@ public class V2WorkspaceController {
             throw new RuntimeException("会话已结束，无法继续心跳更新");
         }
 
+        int previousNet = intVal(session.get("netWords"), 0);
         int wordsWritten = intVal(payload.get("wordsWritten"), intVal(session.get("wordsWritten"), 0));
         int wordsDeleted = intVal(payload.get("wordsDeleted"), intVal(session.get("wordsDeleted"), 0));
         session.put("wordsWritten", wordsWritten);
@@ -149,6 +153,7 @@ public class V2WorkspaceController {
         session.put("chaptersEdited", payload.getOrDefault("chaptersEdited", session.get("chaptersEdited")));
         session.put("durationSeconds", currentDurationSeconds(session));
         session.put("updatedAt", Instant.now());
+        syncGoalProgress(user.getId(), session, wordsWritten - wordsDeleted - previousNet);
         return session;
     }
 
@@ -160,6 +165,7 @@ public class V2WorkspaceController {
         Map<String, Object> session = requireSession(user.getId(), id);
 
         if (session.get("endedAt") == null) {
+            int previousNet = intVal(session.get("netWords"), 0);
             if (payload != null) {
                 int wordsWritten = intVal(payload.get("wordsWritten"), intVal(session.get("wordsWritten"), 0));
                 int wordsDeleted = intVal(payload.get("wordsDeleted"), intVal(session.get("wordsDeleted"), 0));
@@ -172,6 +178,7 @@ public class V2WorkspaceController {
             }
             session.put("endedAt", Instant.now());
             session.put("durationSeconds", currentDurationSeconds(session));
+            syncGoalProgress(user.getId(), session, intVal(session.get("netWords"), 0) - previousNet);
         }
         return session;
     }
@@ -193,20 +200,90 @@ public class V2WorkspaceController {
             totalDuration += intVal(session.get("durationSeconds"), 0);
         }
 
+        ZoneId zoneId = ZoneId.systemDefault();
+        LocalDate today = LocalDate.now(zoneId);
+        Map<LocalDate, int[]> daily = new HashMap<>();
+        Map<LocalDate, int[]> weekly = new HashMap<>();
+        Map<YearMonth, int[]> monthly = new HashMap<>();
+        for (Map<String, Object> session : sessions) {
+            Object startedObj = session.get("startedAt");
+            if (!(startedObj instanceof Instant startedAt)) {
+                continue;
+            }
+            LocalDate day = startedAt.atZone(zoneId).toLocalDate();
+            int net = intVal(session.get("netWords"), 0);
+            int duration = intVal(session.get("durationSeconds"), 0);
+            daily.computeIfAbsent(day, key -> new int[] {0, 0, 0});
+            daily.get(day)[0] += net;
+            daily.get(day)[1] += duration;
+            daily.get(day)[2] += 1;
+
+            LocalDate weekStart = day.minusDays(day.getDayOfWeek().getValue() - 1L);
+            weekly.computeIfAbsent(weekStart, key -> new int[] {0, 0});
+            weekly.get(weekStart)[0] += net;
+            weekly.get(weekStart)[1] += 1;
+
+            YearMonth ym = YearMonth.from(day);
+            monthly.computeIfAbsent(ym, key -> new int[] {0, 0});
+            monthly.get(ym)[0] += net;
+            monthly.get(ym)[1] += 1;
+        }
+
+        List<Map<String, Object>> dailySeries = new ArrayList<>();
+        for (int i = 29; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            int[] values = daily.getOrDefault(day, new int[] {0, 0, 0});
+            dailySeries.add(Map.of(
+                    "date", day.toString(),
+                    "netWords", values[0],
+                    "durationSeconds", values[1],
+                    "sessions", values[2]
+            ));
+        }
+
+        List<Map<String, Object>> weeklySeries = new ArrayList<>();
+        LocalDate thisWeekStart = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        for (int i = 11; i >= 0; i--) {
+            LocalDate weekStart = thisWeekStart.minusWeeks(i);
+            int[] values = weekly.getOrDefault(weekStart, new int[] {0, 0});
+            weeklySeries.add(Map.of(
+                    "weekStart", weekStart.toString(),
+                    "netWords", values[0],
+                    "sessions", values[1]
+            ));
+        }
+
+        List<Map<String, Object>> monthSeries = new ArrayList<>();
+        YearMonth currentMonth = YearMonth.now(zoneId);
+        for (int i = 11; i >= 0; i--) {
+            YearMonth ym = currentMonth.minusMonths(i);
+            int[] values = monthly.getOrDefault(ym, new int[] {0, 0});
+            monthSeries.add(Map.of(
+                    "month", ym.toString(),
+                    "netWords", values[0],
+                    "sessions", values[1]
+            ));
+        }
+
         return Map.of(
                 "totalSessions", totalSessions,
                 "totalWordsWritten", totalWritten,
                 "totalWordsDeleted", totalDeleted,
                 "totalNetWords", totalNet,
                 "totalDurationSeconds", totalDuration,
-                "averageWordsPerSession", totalSessions == 0 ? 0 : totalNet / totalSessions
+                "averageWordsPerSession", totalSessions == 0 ? 0 : totalNet / totalSessions,
+                "dailySeries", dailySeries,
+                "weeklySeries", weeklySeries,
+                "monthlySeries", monthSeries
         );
     }
 
     @GetMapping("/users/me/writing-goals")
     public List<Map<String, Object>> listGoals(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        return new ArrayList<>(goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
+        ConcurrentMap<UUID, Map<String, Object>> goals = goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
+        goals.values().forEach(this::applyDailyResetIfNeeded);
+        return new ArrayList<>(goals.values());
     }
 
     @PostMapping("/users/me/writing-goals")
@@ -332,6 +409,19 @@ public class V2WorkspaceController {
         defaults.put("save", shortcut(userId, "save", "Ctrl+S", false));
         defaults.put("focus_mode", shortcut(userId, "focus_mode", "Ctrl+Shift+F", false));
         defaults.put("command_palette", shortcut(userId, "command_palette", "Ctrl+K", false));
+        defaults.put("toggle_left_panel", shortcut(userId, "toggle_left_panel", "Ctrl+B", false));
+        defaults.put("toggle_right_panel", shortcut(userId, "toggle_right_panel", "Ctrl+Shift+B", false));
+        defaults.put("next_chapter", shortcut(userId, "next_chapter", "Ctrl+]", false));
+        defaults.put("prev_chapter", shortcut(userId, "prev_chapter", "Ctrl+[", false));
+        defaults.put("ai_refine", shortcut(userId, "ai_refine", "Ctrl+Shift+R", false));
+        defaults.put("new_scene", shortcut(userId, "new_scene", "Ctrl+Shift+N", false));
+        defaults.put("search_manuscript", shortcut(userId, "search_manuscript", "Ctrl+F", false));
+        defaults.put("search_replace", shortcut(userId, "search_replace", "Ctrl+H", false));
+        defaults.put("export", shortcut(userId, "export", "Ctrl+Shift+E", false));
+        defaults.put("close_tab", shortcut(userId, "close_tab", "Ctrl+W", false));
+        defaults.put("next_tab", shortcut(userId, "next_tab", "Ctrl+Tab", false));
+        defaults.put("undo", shortcut(userId, "undo", "Ctrl+Z", false));
+        defaults.put("redo", shortcut(userId, "redo", "Ctrl+Shift+Z", false));
         return defaults;
     }
 
@@ -397,6 +487,57 @@ public class V2WorkspaceController {
             if (source.containsKey(key)) {
                 target.put(key, source.get(key));
             }
+        }
+    }
+
+    private void syncGoalProgress(UUID userId, Map<String, Object> session, int deltaNetWords) {
+        if (deltaNetWords == 0) {
+            return;
+        }
+        ConcurrentMap<UUID, Map<String, Object>> goals = goalsByUser.computeIfAbsent(userId, uid -> new ConcurrentHashMap<>());
+        UUID storyId = uuid(session.get("storyId"));
+        for (Map<String, Object> goal : goals.values()) {
+            applyDailyResetIfNeeded(goal);
+            String status = str(goal.get("status"), "active");
+            if (!"active".equalsIgnoreCase(status)) {
+                continue;
+            }
+            UUID goalStoryId = uuid(goal.get("storyId"));
+            if (goalStoryId != null && storyId != null && !Objects.equals(goalStoryId, storyId)) {
+                continue;
+            }
+            String goalType = str(goal.get("goalType"), "daily_words");
+            if (!goalType.contains("words")) {
+                continue;
+            }
+            int current = intVal(goal.get("currentValue"), 0);
+            int target = Math.max(1, intVal(goal.get("targetValue"), 1));
+            int nextValue = Math.max(0, current + deltaNetWords);
+            goal.put("currentValue", nextValue);
+            if (nextValue >= target) {
+                goal.put("status", "completed");
+            }
+            goal.put("updatedAt", Instant.now());
+        }
+    }
+
+    private void applyDailyResetIfNeeded(Map<String, Object> goal) {
+        String goalType = str(goal.get("goalType"), "");
+        if (!goalType.startsWith("daily_")) {
+            return;
+        }
+        Object updatedObj = goal.get("updatedAt");
+        if (!(updatedObj instanceof Instant updatedAt)) {
+            return;
+        }
+        LocalDate updatedDay = updatedAt.atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        if (!updatedDay.isEqual(today)) {
+            goal.put("currentValue", 0);
+            if (!"archived".equalsIgnoreCase(str(goal.get("status"), ""))) {
+                goal.put("status", "active");
+            }
+            goal.put("updatedAt", Instant.now());
         }
     }
 }

@@ -6,19 +6,22 @@ services:
     ports:
       - "10011:10011"
     environment:
-      DB_URL: jdbc:mysql://${MYSQL_HOST:-192.168.5.141}:${MYSQL_PORT:-3306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_URL: jdbc:mysql://${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}
       DB_PASSWORD: ${MYSQL_PASSWORD:-ainovelpwd}
-      REDIS_HOST: ${REDIS_HOST:-192.168.5.141}
-      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
+      REDIS_PORT: ${REDIS_PORT:-6381}
       REDIS_PASSWORD: ""
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-aienie:ainovel:}
+      QDRANT_HOST: ${QDRANT_HOST:-http://127.0.0.1}
+      QDRANT_PORT: ${QDRANT_PORT:-6335}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
       PORT: 10011
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
       CONSUL_ENABLED: ${CONSUL_ENABLED:-true}
       CONSUL_SCHEME: ${CONSUL_SCHEME:-http}
-      CONSUL_HOST: ${CONSUL_HOST:-192.168.1.4}
-      CONSUL_PORT: ${CONSUL_PORT:-60000}
+      CONSUL_HOST: ${CONSUL_HOST:-127.0.0.1}
+      CONSUL_PORT: ${CONSUL_PORT:-8502}
       USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-aienie-userservice-grpc}
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
       USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-2000}

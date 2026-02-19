@@ -35,3 +35,39 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+
+  qdrant:
+    container_name: ainovel-qdrant
+    image: qdrant/qdrant:v1.13.4
+    restart: unless-stopped
+    ports:
+      - "6335:6333"
+      - "6336:6334"
+    volumes:
+      - ./qdrant/storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "/qdrant/qdrant", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  consul:
+    container_name: ainovel-consul
+    image: hashicorp/consul:1.20
+    restart: unless-stopped
+    command:
+      - "agent"
+      - "-server"
+      - "-bootstrap-expect=1"
+      - "-ui"
+      - "-client=0.0.0.0"
+      - "-data-dir=/consul/data"
+    ports:
+      - "8502:8500"
+    volumes:
+      - ./consul/data:/consul/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8500/v1/status/leader"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

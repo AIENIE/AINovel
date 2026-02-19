@@ -28,6 +28,7 @@ public class V2VersionController {
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> versionByManuscript = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Map<String, Object>> diffCache = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Map<String, Object>> autoSaveByUser = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Object> initLocks = new ConcurrentHashMap<>();
 
     public V2VersionController(V2AccessGuard accessGuard, ManuscriptRepository manuscriptRepository) {
         this.accessGuard = accessGuard;
@@ -56,12 +57,26 @@ public class V2VersionController {
             branchId = UUID.fromString(branchIdText);
         }
 
+        Map<String, Object> latestOnBranch = latestVersion(manuscriptId, branchId);
+        String currentHash = sha256(str(manuscript.getSectionsJson(), "{}"));
+        if (latestOnBranch != null && Objects.equals(latestOnBranch.get("contentHash"), currentHash)) {
+            Map<String, Object> dedup = new HashMap<>(latestOnBranch);
+            dedup.put("deduplicated", true);
+            return dedup;
+        }
+
+        String snapshotType = str(payload == null ? null : payload.get("snapshotType"), "manual");
         Map<String, Object> version = buildVersion(manuscript, user, branchId,
                 payload == null ? null : payload.get("label"),
-                str(payload == null ? null : payload.get("snapshotType"), "manual"),
+                snapshotType,
                 payload == null ? null : payload.get("metadata"));
         versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>())
                 .put((UUID) version.get("id"), version);
+        if ("auto".equalsIgnoreCase(snapshotType)) {
+            Map<String, Object> autoConfig = autoSaveByUser.computeIfAbsent(user.getId(), this::defaultAutoSave);
+            int maxAutoVersions = intVal(autoConfig.get("maxAutoVersions"), 100);
+            cleanupAutoSnapshots(manuscriptId, branchId, maxAutoVersions);
+        }
         return version;
     }
 
@@ -92,12 +107,42 @@ public class V2VersionController {
             throw new RuntimeException("版本不存在");
         }
 
+        UUID currentBranchId = manuscript.getCurrentBranchId();
+        if (currentBranchId == null) {
+            currentBranchId = mainBranchId(manuscriptId);
+        }
+        Map<String, Object> backup = buildVersion(
+                manuscript,
+                user,
+                currentBranchId,
+                "回滚前自动备份",
+                "manual",
+                Map.of("rollbackTargetVersionId", versionId)
+        );
+        versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>())
+                .put((UUID) backup.get("id"), backup);
+
         manuscript.setSectionsJson(str(version.get("sectionsJson"), "{}"));
         manuscriptRepository.save(manuscript);
+
+        String rollbackLabel = "回滚至 v" + intVal(version.get("versionNumber"), 0);
+        Map<String, Object> rollbackVersion = buildVersion(
+                manuscript,
+                user,
+                currentBranchId,
+                rollbackLabel,
+                "manual",
+                Map.of("sourceVersionId", versionId)
+        );
+        versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>())
+                .put((UUID) rollbackVersion.get("id"), rollbackVersion);
 
         Map<String, Object> result = new HashMap<>();
         result.put("manuscriptId", manuscriptId);
         result.put("rolledBackTo", versionId);
+        result.put("backupVersionId", backup.get("id"));
+        result.put("rollbackVersionId", rollbackVersion.get("id"));
+        result.put("message", "已回滚至 " + rollbackLabel + "，当前状态已备份");
         result.put("status", "completed");
         result.put("updatedAt", Instant.now());
         return result;
@@ -134,11 +179,17 @@ public class V2VersionController {
             String after = toSections.getOrDefault(sceneId, "");
             if (!Objects.equals(before, after)) {
                 changed++;
+                int beforeWords = before.trim().isEmpty() ? 0 : before.trim().split("\\s+").length;
+                int afterWords = after.trim().isEmpty() ? 0 : after.trim().split("\\s+").length;
                 changes.add(Map.of(
                         "sceneId", sceneId,
                         "beforeLength", before.length(),
                         "afterLength", after.length(),
-                        "delta", after.length() - before.length()
+                        "beforeWordCount", beforeWords,
+                        "afterWordCount", afterWords,
+                        "delta", after.length() - before.length(),
+                        "beforeContent", before,
+                        "afterContent", after
                 ));
             }
         }
@@ -160,6 +211,34 @@ public class V2VersionController {
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
         ensureMainBranchAndInitialVersion(manuscript, user);
         return sortedBranches(manuscriptId);
+    }
+
+    @PostMapping("/manuscripts/{manuscriptId}/branches/{branchId}/checkout")
+    public Map<String, Object> checkoutBranch(@AuthenticationPrincipal UserDetails principal,
+                                              @PathVariable UUID manuscriptId,
+                                              @PathVariable UUID branchId) {
+        User user = accessGuard.currentUser(principal);
+        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        ensureMainBranchAndInitialVersion(manuscript, user);
+        Map<String, Object> branch = requireBranch(manuscriptId, branchId);
+        if (!"active".equals(branch.get("status"))) {
+            throw new RuntimeException("仅 active 分支可切换");
+        }
+        manuscript.setCurrentBranchId(branchId);
+        manuscriptRepository.save(manuscript);
+
+        Map<String, Object> latest = latestVersion(manuscriptId, branchId);
+        if (latest != null) {
+            manuscript.setSectionsJson(str(latest.get("sectionsJson"), manuscript.getSectionsJson()));
+            manuscriptRepository.save(manuscript);
+        }
+
+        return Map.of(
+                "manuscriptId", manuscriptId,
+                "currentBranchId", branchId,
+                "status", "checked_out",
+                "checkedOutAt", Instant.now()
+        );
     }
 
     @PostMapping("/manuscripts/{manuscriptId}/branches")
@@ -194,6 +273,19 @@ public class V2VersionController {
         branch.put("updatedAt", Instant.now());
 
         branchByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).put(branchId, branch);
+
+        Map<String, Object> sourceVersion = requireVersion(manuscriptId, sourceVersionId);
+        Map<String, Object> seedVersion = buildVersionWithSections(
+                manuscriptId,
+                user,
+                branchId,
+                "从 v" + intVal(sourceVersion.get("versionNumber"), 0) + " 分支",
+                "branch_point",
+                str(sourceVersion.get("sectionsJson"), "{}"),
+                Map.of("sourceVersionId", sourceVersionId)
+        );
+        versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>())
+                .put((UUID) seedVersion.get("id"), seedVersion);
         return branch;
     }
 
@@ -237,16 +329,75 @@ public class V2VersionController {
             throw new RuntimeException("仅 active 分支可合并");
         }
 
+        UUID mainBranchId = mainBranchId(manuscriptId);
+        if (mainBranchId == null) {
+            throw new RuntimeException("主分支不存在");
+        }
+        Map<String, Object> sourceVersion = latestVersion(manuscriptId, branchId);
+        if (sourceVersion == null) {
+            throw new RuntimeException("分支没有可合并版本");
+        }
+        Map<String, Object> targetVersion = latestVersion(manuscriptId, mainBranchId);
+        String strategy = str(payload == null ? null : payload.get("strategy"), "REPLACE_ALL");
+        Map<String, String> sourceSections = parseSections(str(sourceVersion.get("sectionsJson"), "{}"));
+        Map<String, String> targetSections = parseSections(targetVersion == null ? "{}" : str(targetVersion.get("sectionsJson"), "{}"));
+
+        Map<String, String> mergedSections = new LinkedHashMap<>(targetSections);
+        List<Map<String, Object>> conflicts = new ArrayList<>();
+        if ("SCENE_SELECT".equalsIgnoreCase(strategy)) {
+            Map<String, Object> resolutions = map(payload == null ? null : payload.get("sceneResolutions"));
+            Set<String> allSceneIds = new LinkedHashSet<>();
+            allSceneIds.addAll(targetSections.keySet());
+            allSceneIds.addAll(sourceSections.keySet());
+            for (String sceneId : allSceneIds) {
+                String fromTarget = targetSections.getOrDefault(sceneId, "");
+                String fromSource = sourceSections.getOrDefault(sceneId, "");
+                if (Objects.equals(fromTarget, fromSource)) {
+                    continue;
+                }
+                String choose = str(resolutions.get(sceneId), "");
+                if (choose.isBlank()) {
+                    conflicts.add(Map.of(
+                            "sceneId", sceneId,
+                            "targetLength", fromTarget.length(),
+                            "sourceLength", fromSource.length(),
+                            "mainContent", fromTarget,
+                            "branchContent", fromSource,
+                            "reason", "主线和分支均修改了此场景，缺少解决策略"
+                    ));
+                    continue;
+                }
+                mergedSections.put(sceneId, "target".equalsIgnoreCase(choose) ? fromTarget : fromSource);
+            }
+        } else {
+            mergedSections.clear();
+            mergedSections.putAll(sourceSections);
+        }
+
+        if (!conflicts.isEmpty()) {
+            return Map.of(
+                    "manuscriptId", manuscriptId,
+                    "sourceBranchId", branchId,
+                    "targetBranchId", mainBranchId,
+                    "status", "conflict",
+                    "conflicts", conflicts
+            );
+        }
+
+        manuscript.setCurrentBranchId(mainBranchId);
+        manuscript.setSectionsJson(writeSections(mergedSections));
+        manuscriptRepository.save(manuscript);
+
         branch.put("status", "merged");
         branch.put("updatedAt", Instant.now());
 
         Map<String, Object> mergeVersion = buildVersion(
                 manuscript,
                 user,
-                manuscript.getCurrentBranchId(),
+                mainBranchId,
                 payload == null ? "merge:" + branch.get("name") : payload.get("label"),
                 "merge",
-                Map.of("sourceBranchId", branchId)
+                Map.of("sourceBranchId", branchId, "strategy", strategy)
         );
         versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>())
                 .put((UUID) mergeVersion.get("id"), mergeVersion);
@@ -254,7 +405,7 @@ public class V2VersionController {
         return Map.of(
                 "manuscriptId", manuscriptId,
                 "sourceBranchId", branchId,
-                "targetBranchId", manuscript.getCurrentBranchId(),
+                "targetBranchId", mainBranchId,
                 "mergeVersionId", mergeVersion.get("id"),
                 "status", "merged"
         );
@@ -302,38 +453,57 @@ public class V2VersionController {
 
     private void ensureMainBranchAndInitialVersion(Manuscript manuscript, User user) {
         UUID manuscriptId = manuscript.getId();
-        ConcurrentMap<UUID, Map<String, Object>> branches = branchByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>());
-        if (branches.isEmpty()) {
-            UUID mainBranchId = UUID.randomUUID();
-            Map<String, Object> main = new HashMap<>();
-            main.put("id", mainBranchId);
-            main.put("manuscriptId", manuscriptId);
-            main.put("name", "main");
-            main.put("description", "默认主分支");
-            main.put("sourceVersionId", null);
-            main.put("status", "active");
-            main.put("isMain", true);
-            main.put("createdAt", Instant.now());
-            main.put("updatedAt", Instant.now());
-            branches.put(mainBranchId, main);
+        Object lock = initLocks.computeIfAbsent(manuscriptId, key -> new Object());
+        synchronized (lock) {
+            ConcurrentMap<UUID, Map<String, Object>> branches = branchByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>());
 
-            manuscript.setCurrentBranchId(mainBranchId);
-            manuscriptRepository.save(manuscript);
-        }
+            Map<String, Object> mainBranch = null;
+            if (branches.isEmpty()) {
+                mainBranch = createMainBranch(manuscriptId);
+                branches.put((UUID) mainBranch.get("id"), mainBranch);
+            } else {
+                List<Map<String, Object>> mains = branches.values().stream()
+                        .filter(branch -> Boolean.TRUE.equals(branch.get("isMain")))
+                        .sorted(Comparator.comparing(branch -> (Instant) branch.get("createdAt")))
+                        .toList();
+                if (mains.isEmpty()) {
+                    mainBranch = createMainBranch(manuscriptId);
+                    branches.put((UUID) mainBranch.get("id"), mainBranch);
+                } else {
+                    mainBranch = mains.get(0);
+                    for (int i = 1; i < mains.size(); i++) {
+                        mains.get(i).put("isMain", false);
+                        mains.get(i).put("updatedAt", Instant.now());
+                    }
+                }
+            }
 
-        if (manuscript.getCurrentBranchId() == null) {
-            Optional<Map<String, Object>> main = branches.values().stream().filter(branch -> Boolean.TRUE.equals(branch.get("isMain"))).findFirst();
-            if (main.isPresent()) {
-                manuscript.setCurrentBranchId((UUID) main.get().get("id"));
+            UUID currentBranchId = manuscript.getCurrentBranchId();
+            if (currentBranchId == null || !branches.containsKey(currentBranchId)) {
+                manuscript.setCurrentBranchId((UUID) mainBranch.get("id"));
                 manuscriptRepository.save(manuscript);
             }
-        }
 
-        ConcurrentMap<UUID, Map<String, Object>> versions = versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>());
-        if (versions.isEmpty()) {
-            Map<String, Object> initial = buildVersion(manuscript, user, manuscript.getCurrentBranchId(), "initial", "auto", Map.of("bootstrap", true));
-            versions.put((UUID) initial.get("id"), initial);
+            ConcurrentMap<UUID, Map<String, Object>> versions = versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>());
+            if (versions.isEmpty()) {
+                Map<String, Object> initial = buildVersion(manuscript, user, manuscript.getCurrentBranchId(), "initial", "auto", Map.of("bootstrap", true));
+                versions.put((UUID) initial.get("id"), initial);
+            }
         }
+    }
+
+    private Map<String, Object> createMainBranch(UUID manuscriptId) {
+        Map<String, Object> main = new HashMap<>();
+        main.put("id", UUID.randomUUID());
+        main.put("manuscriptId", manuscriptId);
+        main.put("name", "main");
+        main.put("description", "默认主分支");
+        main.put("sourceVersionId", null);
+        main.put("status", "active");
+        main.put("isMain", true);
+        main.put("createdAt", Instant.now());
+        main.put("updatedAt", Instant.now());
+        return main;
     }
 
     private Map<String, Object> buildVersion(Manuscript manuscript,
@@ -342,11 +512,27 @@ public class V2VersionController {
                                              Object label,
                                              String snapshotType,
                                              Object metadata) {
-        UUID manuscriptId = manuscript.getId();
+        return buildVersionWithSections(
+                manuscript.getId(),
+                user,
+                branchId,
+                label,
+                snapshotType,
+                str(manuscript.getSectionsJson(), "{}"),
+                metadata
+        );
+    }
+
+    private Map<String, Object> buildVersionWithSections(UUID manuscriptId,
+                                                         User user,
+                                                         UUID branchId,
+                                                         Object label,
+                                                         String snapshotType,
+                                                         String sectionsJson,
+                                                         Object metadata) {
         UUID id = UUID.randomUUID();
         int versionNumber = nextVersionNumber(manuscriptId, branchId);
         UUID parentVersionId = latestVersionId(manuscriptId);
-        String sectionsJson = str(manuscript.getSectionsJson(), "{}");
 
         Map<String, Object> version = new HashMap<>();
         version.put("id", id);
@@ -362,6 +548,32 @@ public class V2VersionController {
         version.put("createdBy", user.getId());
         version.put("createdAt", Instant.now());
         return version;
+    }
+
+    private void cleanupAutoSnapshots(UUID manuscriptId, UUID branchId, int maxAutoVersions) {
+        if (maxAutoVersions <= 0) {
+            return;
+        }
+        List<Map<String, Object>> autos = new ArrayList<>();
+        for (Map<String, Object> version : versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).values()) {
+            if (!Objects.equals(version.get("branchId"), branchId)) {
+                continue;
+            }
+            if (!"auto".equalsIgnoreCase(str(version.get("snapshotType"), ""))) {
+                continue;
+            }
+            autos.add(version);
+        }
+        autos.sort(Comparator.comparing(v -> (Instant) v.get("createdAt")));
+        int overflow = autos.size() - maxAutoVersions;
+        if (overflow <= 0) {
+            return;
+        }
+        ConcurrentMap<UUID, Map<String, Object>> versions = versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>());
+        for (int i = 0; i < overflow; i++) {
+            UUID id = (UUID) autos.get(i).get("id");
+            versions.remove(id);
+        }
     }
 
     private int nextVersionNumber(UUID manuscriptId, UUID branchId) {
@@ -388,6 +600,34 @@ public class V2VersionController {
             }
         }
         return latestId;
+    }
+
+    private Map<String, Object> latestVersion(UUID manuscriptId, UUID branchId) {
+        Map<String, Object> latestVersion = null;
+        Instant latest = null;
+        for (Map<String, Object> version : versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).values()) {
+            if (!Objects.equals(version.get("branchId"), branchId)) {
+                continue;
+            }
+            Object createdAt = version.get("createdAt");
+            if (!(createdAt instanceof Instant instant)) {
+                continue;
+            }
+            if (latest == null || instant.isAfter(latest)) {
+                latest = instant;
+                latestVersion = version;
+            }
+        }
+        return latestVersion;
+    }
+
+    private UUID mainBranchId(UUID manuscriptId) {
+        for (Map<String, Object> branch : branchByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).values()) {
+            if (Boolean.TRUE.equals(branch.get("isMain"))) {
+                return (UUID) branch.get("id");
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> requireVersion(UUID manuscriptId, UUID versionId) {
@@ -449,6 +689,27 @@ public class V2VersionController {
         } catch (Exception ex) {
             return new HashMap<>();
         }
+    }
+
+    private String writeSections(Map<String, String> sections) {
+        try {
+            return objectMapper.writeValueAsString(sections);
+        } catch (Exception ex) {
+            return "{}";
+        }
+    }
+
+    private Map<String, Object> map(Object value) {
+        if (value instanceof Map<?, ?> raw) {
+            Map<String, Object> result = new HashMap<>();
+            for (Map.Entry<?, ?> entry : raw.entrySet()) {
+                if (entry.getKey() != null) {
+                    result.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            }
+            return result;
+        }
+        return new HashMap<>();
     }
 
     private int intVal(Object value, int fallback) {

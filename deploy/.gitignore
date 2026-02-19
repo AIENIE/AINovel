@@ -6,3 +6,7 @@ mysql/data/**
 !mysql/data/.gitkeep
 redis/data/**
 !redis/data/.gitkeep
+qdrant/storage/**
+!qdrant/storage/.gitkeep
+consul/data/**
+!consul/data/.gitkeep

@@ -9,22 +9,25 @@ services:
       - default
       - ainovel-deps_default
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/ainovel?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
-      DB_USERNAME: root
-      DB_PASSWORD: 123456
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DB_URL: ${DB_URL:-jdbc:mysql://${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308}/ainovel?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false}
+      DB_USERNAME: ${DB_USERNAME:-${MYSQL_USER:-ainovel}}
+      DB_PASSWORD: ${DB_PASSWORD:-${MYSQL_PASSWORD:-ainovelpwd}}
+      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
+      REDIS_PORT: ${REDIS_PORT:-6381}
       REDIS_PASSWORD: ""
+      QDRANT_HOST: ${QDRANT_HOST:-http://127.0.0.1}
+      QDRANT_PORT: ${QDRANT_PORT:-6335}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
       PORT: 10011
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
       CONSUL_ENABLED: ${CONSUL_ENABLED:-true}
       CONSUL_SCHEME: ${CONSUL_SCHEME:-http}
-      CONSUL_HOST: ${CONSUL_HOST:-192.168.1.4}
-      CONSUL_PORT: ${CONSUL_PORT:-60000}
+      CONSUL_HOST: ${CONSUL_HOST:-127.0.0.1}
+      CONSUL_PORT: ${CONSUL_PORT:-8502}
       USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-aienie-userservice-grpc}
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
       USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-2000}
-      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://host.docker.internal:13001}
+      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://127.0.0.1:20002}
       SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-false}
       JAVA_OPTS: ""
     volumes:
@@ -37,6 +40,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
+      - "80:10010"
       - "10010:10010"
     volumes:
       - ./frontend/dist:/usr/share/nginx/html:ro

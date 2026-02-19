@@ -39,6 +39,18 @@ npm run dev
 bash build.sh
 ```
 
+4. 一键本地编译并启动（非 Docker）
+```bash
+bash build_local.sh
+```
+
+5. PowerShell 等价命令（Windows）
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+powershell -ExecutionPolicy Bypass -File .\build_prod.ps1
+powershell -ExecutionPolicy Bypass -File .\build_local.ps1
+```
+
 ## 2. 新环境部署时需调整的三方配置
 
 详细清单见 `doc/tutorial/getting-started.md` 的「2、新环境部署时需要调整哪些配置（连接三方服务）」。
@@ -68,7 +80,7 @@ bash build.sh
 - 认证与会话：`backend/src/main/java/com/ainovel/app/security/`，`frontend/src/contexts/AuthContext.tsx`
 - 故事/大纲：`backend/src/main/java/com/ainovel/app/story/`，`frontend/src/pages/Workbench/tabs/StoryConception.tsx`，`frontend/src/pages/Workbench/tabs/OutlineWorkbench.tsx`
 - 稿件与 AI Copilot：`backend/src/main/java/com/ainovel/app/manuscript/`，`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
-- v2 能力集：`backend/src/main/java/com/ainovel/app/v2/`，`frontend/src/pages/Workbench/tabs/V2Studio.tsx`
+- v2 能力集：`backend/src/main/java/com/ainovel/app/v2/`，以及前端 `frontend/src/pages/Workbench/tabs/LorebookPanel.tsx`、`frontend/src/pages/Workbench/tabs/KnowledgeGraphTab.tsx`、`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`、`frontend/src/pages/Workbench/tabs/V2Studio.tsx`
 - 世界观：`backend/src/main/java/com/ainovel/app/world/`，`frontend/src/pages/WorldBuilder/`
 - 素材库：`backend/src/main/java/com/ainovel/app/material/`，`frontend/src/pages/Material/`
 - 设置与提示词：`backend/src/main/java/com/ainovel/app/settings/`，`frontend/src/pages/Settings/`
@@ -84,7 +96,7 @@ bash build.sh
 
 关键位置：
 
-- 前端设置页：`frontend/src/pages/Settings/Settings.tsx`
+- 前端设置页：`frontend/src/pages/Settings/Settings.tsx`（含提示词、风格画像、模型偏好、工作台体验）
 - 前端提示词编辑：`frontend/src/pages/Settings/tabs/WorkspacePrompts.tsx`、`frontend/src/pages/Settings/tabs/WorldPrompts.tsx`
 - 后端提示词接口：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`
 - 后端默认模板：`backend/src/main/java/com/ainovel/app/settings/SettingsService.java`
@@ -95,6 +107,6 @@ bash build.sh
 
 - 本项目已切换统一登录（SSO），`/login` 与 `/register` 会跳转 SSO，不使用本地账号密码表单。
 - 开发环境首次启动会由 `DataInitializer` 注入种子数据，包括管理员账号 `admin / password`（仅开发环境使用）。
-- 脚本注意：`build.sh --init` 与 `build_prod.sh --init` 依赖 `deploy/nginx/*.conf`，当前仓库未包含该目录，执行前需先补齐 Nginx 配置文件。
+- 脚本注意：`build.sh --init` 与 `build_prod.sh --init` 依赖 `deploy/nginx/*.conf`，当前仓库未包含该目录，执行前需先补齐 Nginx 配置文件；`build_local.sh` / `build_local.ps1` 会自动加载 `.env` 或 `env.txt` 中的环境变量（若存在）。
 - 本地依赖端口差异：`deploy/docker-compose.yml` 默认 MySQL/Redis 映射为 `3308/6381`，与后端默认 `3306/6379` 不同，需同步调整环境变量。
 - Java 运行基线：后端编译目标是 Java 17（`backend/pom.xml`），容器运行镜像为 `eclipse-temurin:21-jre`，建议团队统一版本策略以降低环境差异。

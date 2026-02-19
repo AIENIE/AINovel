@@ -18,7 +18,7 @@
 - JDK：`17+`（`backend/pom.xml` 使用 Java 17）
 - Maven：`3.9+`
 - Docker + Docker Compose（用于容器化启动）
-- Bash（执行 `build.sh` / `build_prod.sh`）
+- Bash 或 PowerShell（执行 `build.sh` / `build_prod.sh` / `build_local.sh` 与对应 `.ps1`）
 
 ---
 
@@ -67,7 +67,24 @@ bash build.sh
 - `build.sh` 会读取 `SUDO_PASSWORD` 环境变量（有 sudo 操作时使用）。
 - `build_prod.sh` 会在 `build.sh` 基础上补充生产 Nginx/证书流程。
 
-### 方案 C：仅启动本地依赖（MySQL/Redis）
+### 方案 C：一键本地编译并启动（非 Docker）
+
+```bash
+bash build_local.sh
+```
+
+PowerShell：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_local.ps1
+```
+
+说明：
+
+- 会编译前端与后端，然后以本地进程启动服务（不通过 Docker 启动应用）。
+- 脚本会自动尝试加载项目根目录的 `.env` 或 `env.txt`（任一存在即可）。
+
+### 方案 D：仅启动本地依赖（MySQL/Redis）
 
 如你只需要数据库和缓存，可单独起 `deploy/docker-compose.yml`：
 
@@ -127,10 +144,10 @@ docker compose up -d
 | 登录态管理 | token 持久化、用户信息刷新、管理员识别 | `frontend/src/contexts/AuthContext.tsx` |
 | SSO 跳转与回调 | 登录/注册跳转、回调解析 `access_token` | `frontend/src/lib/sso.ts` `frontend/src/pages/auth/SsoCallback.tsx` |
 | 工作台 | 故事构思/故事管理/大纲/写作/素材检索 | `frontend/src/pages/Workbench/Workbench.tsx` + `frontend/src/pages/Workbench/tabs/*` |
-| v2 联调面板 | 调用 v2 上下文记忆/风格/分析/版本/导出/模型/工作台接口 | `frontend/src/pages/Workbench/tabs/V2Studio.tsx` |
+| v2 能力页面 | 知识库、知识图谱、增强写作页与联调入口 | `frontend/src/pages/Workbench/tabs/LorebookPanel.tsx` `frontend/src/pages/Workbench/tabs/KnowledgeGraphTab.tsx` `frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx` `frontend/src/pages/Workbench/tabs/V2Studio.tsx` |
 | 世界观 | 世界列表、编辑、模块化构建 | `frontend/src/pages/WorldBuilder/WorldBuilderPage.tsx` + `frontend/src/pages/WorldBuilder/components/*` |
 | 素材库 | 新建、上传、审核、检索、查重合并 | `frontend/src/pages/Material/MaterialPage.tsx` + `frontend/src/pages/Material/tabs/*` |
-| 设置与提示词 | 工作区/世界观提示词编辑与帮助页 | `frontend/src/pages/Settings/Settings.tsx` `frontend/src/pages/Settings/tabs/*` |
+| 设置与体验 | 提示词、风格画像、模型偏好、工作台体验配置 | `frontend/src/pages/Settings/Settings.tsx` `frontend/src/pages/Settings/tabs/*` |
 | 管理后台 | 仪表盘、用户管理、系统设置 | `frontend/src/pages/Admin/*` |
 | API 访问层 | 统一请求、token 注入、DTO 转换 | `frontend/src/lib/mock-api.ts` |
 
@@ -164,7 +181,10 @@ AINovel/
 │  │  ├─ lib/mock-api.ts          # 统一 API 访问层
 │  │  ├─ lib/sso.ts               # SSO URL 组装与回调参数
 │  │  ├─ pages/Workbench/         # 工作台主流程
-│  │  │  └─ tabs/V2Studio.tsx     # v2 联调与验收入口
+│  │  │  ├─ tabs/LorebookPanel.tsx      # 知识库管理
+│  │  │  ├─ tabs/KnowledgeGraphTab.tsx  # 知识图谱查询
+│  │  │  ├─ tabs/ManuscriptWriter.tsx   # 增强写作台（上下文/版本/导出）
+│  │  │  └─ tabs/V2Studio.tsx           # v2 联调与验收入口
 │  │  ├─ pages/WorldBuilder/      # 世界观编辑器
 │  │  ├─ pages/Material/          # 素材中心
 │  │  ├─ pages/Settings/          # 提示词设置与帮助页
@@ -187,8 +207,12 @@ AINovel/
 ├─ sql/schema.sql                 # 数据表结构参考
 ├─ docker-compose.yml             # 前后端容器编排（Linux/通用）
 ├─ docker-compose.windows.yml     # Windows 容器编排
-├─ build.sh                       # 构建+部署脚本（测试服）
-├─ build_prod.sh                  # 生产部署脚本
+├─ build.sh                       # 构建+部署脚本（测试服，Docker）
+├─ build_prod.sh                  # 生产部署脚本（Docker）
+├─ build_local.sh                 # 本地编译并启动（非 Docker）
+├─ build.ps1                      # build.sh 的 PowerShell 版本
+├─ build_prod.ps1                 # build_prod.sh 的 PowerShell 版本
+├─ build_local.ps1                # build_local.sh 的 PowerShell 版本
 ├─ doc/                           # 项目文档（API/模块/测试/教程）
 └─ design-doc/                    # 版本设计文档
 ```
