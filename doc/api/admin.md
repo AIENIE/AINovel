@@ -12,7 +12,12 @@
 - `GET /api/v1/admin/system-config`：获取全局配置（注册、维护、签到范围、SMTP 状态）。
 - `PUT /api/v1/admin/system-config`：更新全局配置（可选字段更新，SMTP 密码仅在传入时覆盖）。
 
-## 已下线本地能力（v1.1）
+## 积分与兑换码（本地）
+- `POST /api/v1/admin/credits/grant`：管理员给用户加发项目积分（仅加分，支持本地 UUID 或 remoteUid 定位）。
+- `GET /api/v1/admin/redeem-codes`：查询本地兑换码列表。
+- `POST /api/v1/admin/redeem-codes`：创建本地兑换码（支持批次/个人码配置）。
+
+## 已下线本地能力（v1.1 历史）
 - 本地模型管理：`/api/v1/admin/models*`
-- 本地积分日志/兑换码管理：`/api/v1/admin/logs`、`/api/v1/admin/redeem-codes*`
+- 本地积分日志旧接口：`/api/v1/admin/logs`
 - 本地邮箱测试接口：`/api/v1/admin/email/*`

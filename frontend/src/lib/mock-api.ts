@@ -121,13 +121,19 @@ function normalizeModel(model: any, index: number): ModelConfig {
 }
 
 function toUser(profile: any): User {
+  const projectCredits = Number(profile.projectCredits ?? profile.credits ?? 0);
+  const publicCredits = Number(profile.publicCredits ?? 0);
+  const totalCredits = Number(profile.totalCredits ?? (projectCredits + publicCredits));
   return {
     id: profile.id,
     username: profile.username,
     email: profile.email,
     avatar: profile.avatar || undefined,
     role: profile.role === "admin" ? "admin" : "user",
-    credits: Number(profile.credits ?? 0),
+    credits: projectCredits,
+    projectCredits,
+    publicCredits,
+    totalCredits,
     isBanned: Boolean(profile.isBanned ?? false),
     lastCheckIn: profile.lastCheckIn || undefined,
   };
@@ -223,12 +229,40 @@ export const api = {
       return toUser(profile);
     },
     checkIn: async () => {
-      return await requestJson<{ success: boolean; points: number; newTotal: number }>("/v1/user/check-in", { method: "POST", body: "{}" });
+      return await requestJson<{
+        success: boolean;
+        points: number;
+        newTotal: number;
+        projectCredits: number;
+        publicCredits: number;
+        totalCredits: number;
+        message?: string;
+      }>("/v1/user/check-in", { method: "POST", body: "{}" });
     },
     redeem: async (code: string) => {
-      return await requestJson<{ success: boolean; points: number; newTotal: number }>("/v1/user/redeem", {
+      return await requestJson<{
+        success: boolean;
+        points: number;
+        newTotal: number;
+        projectCredits: number;
+        publicCredits: number;
+        totalCredits: number;
+        message?: string;
+      }>("/v1/user/redeem", {
         method: "POST",
         body: JSON.stringify({ code }),
+      });
+    },
+    convertPublicToProject: async (amount: number, idempotencyKey: string) => {
+      return await requestJson<{
+        orderNo: string;
+        amount: number;
+        projectCredits: number;
+        publicCredits: number;
+        totalCredits: number;
+      }>("/v1/user/credits/convert", {
+        method: "POST",
+        body: JSON.stringify({ amount, idempotencyKey }),
       });
     },
     summary: async (): Promise<UserSummary> => {
@@ -278,6 +312,9 @@ export const api = {
         email: u.email,
         role: u.role === "admin" ? "admin" : "user",
         credits: Number(u.credits ?? 0),
+        projectCredits: Number(u.projectCredits ?? u.credits ?? 0),
+        publicCredits: Number(u.publicCredits ?? 0),
+        totalCredits: Number(u.totalCredits ?? ((u.projectCredits ?? u.credits ?? 0) + (u.publicCredits ?? 0))),
         isBanned: Boolean(u.isBanned ?? false),
         lastCheckIn: u.lastCheckIn || undefined,
       }));

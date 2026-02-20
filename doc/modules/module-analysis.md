@@ -150,13 +150,14 @@
 
 ### 2.9 个人中心与积分模块
 
-模块作用：展示用户信息与资产，承接签到和兑换。
+模块作用：展示用户信息与双余额（项目积分+通用积分），承接本地签到、兑换码与通用积分兑换。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 资料展示 | 用户名、邮箱、角色、余额 | 前端：`frontend/src/pages/Profile/ProfilePage.tsx`；后端：`backend/src/main/java/com/ainovel/app/user/UserController.java`（`/profile`） |
-| 每日签到 | 调 PayService 获取签到奖励并刷新余额 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
-| 兑换码 | 调 PayService 兑换并刷新余额 | 同上 |
+| 每日签到 | 在 AINovel 本地账本发放项目积分（北京时间日切）并刷新双余额 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
+| 兑换码 | 在 AINovel 本地兑换码表核销并入账项目积分 | 同上 |
+| 通用积分兑换 | 调用 PayService 扣减通用积分后，在本地账本入账项目积分（1:1） | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `EconomyService.java` + `BillingGrpcClient.java` |
 | 安全说明 | 明确密码由 SSO 管理 | 前端：`ProfilePage.tsx`；后端：`UserController.java`（`/password` 返回 501） |
 
 ### 2.10 管理后台模块
@@ -182,7 +183,7 @@
 
 ### 3.1 用户与资产域（`user` + `economy`）
 
-模块作用：用户资料、统计、资产变化（签到/兑换）的统一出口。
+模块作用：用户资料、统计、项目积分账本、签到/兑换码/AI 扣费与通用积分兑换统一出口。
 
 核心实现：
 - `backend/src/main/java/com/ainovel/app/user/UserController.java`
@@ -264,7 +265,7 @@
 | 安全配置 | 过滤链顺序、放行规则、CORS | `backend/src/main/java/com/ainovel/app/security/SecurityConfig.java` |
 | 外部服务发现 | 通用 Consul 解析与缓存 | `backend/src/main/java/com/ainovel/app/integration/ConsulServiceResolver.java` |
 | UserService 管理适配 | 管理端用户查询/封禁/解封 HTTP 适配 | `backend/src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java` |
-| Billing 适配 | 签到、兑换、余额 gRPC 适配 | `backend/src/main/java/com/ainovel/app/integration/BillingGrpcClient.java` |
+| Billing 适配 | 通用积分查询、通用->项目兑换、冲回补偿 gRPC 适配 | `backend/src/main/java/com/ainovel/app/integration/BillingGrpcClient.java` |
 | 公共异常处理 | 统一异常 -> `ApiError` 输出 | `backend/src/main/java/com/ainovel/app/common/GlobalExceptionHandler.java` |
 | 启动种子数据 | 初始化 admin、故事、世界、素材、系统配置 | `backend/src/main/java/com/ainovel/app/config/DataInitializer.java` |
 

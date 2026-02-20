@@ -3,13 +3,19 @@ package com.ainovel.app.integration;
 import com.google.protobuf.Timestamp;
 import fireflychat.billing.v1.BillingBalanceServiceGrpc;
 import fireflychat.billing.v1.BillingCheckinServiceGrpc;
+import fireflychat.billing.v1.BillingConversionServiceGrpc;
+import fireflychat.billing.v1.BillingGrantServiceGrpc;
 import fireflychat.billing.v1.BillingRedeemCodeServiceGrpc;
 import fireflychat.billing.v1.CheckinRequest;
 import fireflychat.billing.v1.CheckinResponse;
+import fireflychat.billing.v1.ConvertPublicToProjectRequest;
+import fireflychat.billing.v1.ConvertPublicToProjectResponse;
 import fireflychat.billing.v1.GetCheckinStatusRequest;
 import fireflychat.billing.v1.GetCheckinStatusResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
+import fireflychat.billing.v1.GrantPublicTokensRequest;
+import fireflychat.billing.v1.GrantPublicTokensResponse;
 import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
@@ -99,13 +105,43 @@ public class BillingGrpcClient {
         return publicTokens + balanceFromProject(project);
     }
 
-    private long publicBalance(long remoteUserId) {
+    public long publicBalance(long remoteUserId) {
         return stubs().balanceStub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .getPublicBalance(GetPublicBalanceRequest.newBuilder()
                         .setUserId(remoteUserId)
                         .build())
                 .getPublicPermanentTokens();
+    }
+
+    public ConversionResult convertPublicToProject(long remoteUserId, long amount, String requestId) {
+        ConvertPublicToProjectResponse response = stubs().conversionStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .convertPublicToProject(ConvertPublicToProjectRequest.newBuilder()
+                        .setRequestId(requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId)
+                        .setUserId(remoteUserId)
+                        .setProjectKey(properties.getProjectKey())
+                        .setPublicTokens(amount)
+                        .build());
+        return new ConversionResult(
+                response.getSuccess(),
+                response.getConvertedPublicTokens(),
+                response.getConvertedProjectTokens(),
+                response.getPublicPermanentTokens(),
+                response.getErrorMessage()
+        );
+    }
+
+    public boolean grantPublicTokens(long remoteUserId, long amount, String reason) {
+        GrantPublicTokensResponse response = stubs().grantStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .grantPublicTokens(GrantPublicTokensRequest.newBuilder()
+                        .setRequestId(UUID.randomUUID().toString())
+                        .setUserId(remoteUserId)
+                        .setTokens(amount)
+                        .setReason(reason == null ? "" : reason)
+                        .build());
+        return response.getSuccess();
     }
 
     private long balanceFromProject(ProjectBalance balance) {
@@ -145,7 +181,9 @@ public class BillingGrpcClient {
                 channel,
                 BillingCheckinServiceGrpc.newBlockingStub(channel),
                 BillingRedeemCodeServiceGrpc.newBlockingStub(channel),
-                BillingBalanceServiceGrpc.newBlockingStub(channel)
+                BillingBalanceServiceGrpc.newBlockingStub(channel),
+                BillingConversionServiceGrpc.newBlockingStub(channel),
+                BillingGrantServiceGrpc.newBlockingStub(channel)
         );
         if (existing != null) {
             existing.close();
@@ -190,13 +228,24 @@ public class BillingGrpcClient {
     ) {
     }
 
+    public record ConversionResult(
+            boolean success,
+            long convertedPublicTokens,
+            long convertedProjectTokens,
+            long publicRemainingTokens,
+            String errorMessage
+    ) {
+    }
+
     private record EndpointClient(
             String host,
             int port,
             ManagedChannel channel,
             BillingCheckinServiceGrpc.BillingCheckinServiceBlockingStub checkinStub,
             BillingRedeemCodeServiceGrpc.BillingRedeemCodeServiceBlockingStub redeemStub,
-            BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub
+            BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub,
+            BillingConversionServiceGrpc.BillingConversionServiceBlockingStub conversionStub,
+            BillingGrantServiceGrpc.BillingGrantServiceBlockingStub grantStub
     ) {
         boolean sameEndpoint(String targetHost, int targetPort) {
             return host.equals(targetHost) && port == targetPort;

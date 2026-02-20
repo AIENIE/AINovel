@@ -9,7 +9,7 @@
 6. 提示词在哪里调整，如何做提示词优化
 7. 其他上手信息
 
-> 端口基线：前端 `10010`，后端 `10011`。  
+> 端口基线：前端 `11040`，后端 `11041`。  
 > 域名基线：测试 `ainovel.seekerhut.com`，正式 `ainovel.aienie.com`。
 
 ## 环境准备
@@ -26,13 +26,13 @@
 
 ### 方案 A：本地进程启动（开发推荐）
 
-1. 启动后端（`10011`）
+1. 启动后端（`11041`）
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-2. 启动前端（`10010`）
+2. 启动前端（`11040`）
 ```bash
 cd frontend
 npm ci --legacy-peer-deps
@@ -41,13 +41,13 @@ npm run dev
 
 3. 访问入口
 
-- 前端：`http://127.0.0.1:10010`
-- 后端 OpenAPI：`http://127.0.0.1:10011/api/v3/api-docs`
-- 后端 Swagger：`http://127.0.0.1:10011/api/swagger-ui/index.html`
+- 前端：`http://127.0.0.1:11040`
+- 后端 OpenAPI：`http://127.0.0.1:11041/api/v3/api-docs`
+- 后端 Swagger：`http://127.0.0.1:11041/api/swagger-ui/index.html`
 
 说明：
 
-- `frontend/vite.config.ts` 已将 `/api` 代理到 `http://127.0.0.1:10011`。
+- `frontend/vite.config.ts` 已将 `/api` 代理到 `http://127.0.0.1:11041`。
 - 后端所有接口挂载在 `/api` 下（见 `backend/src/main/resources/application.yml` 的 `spring.mvc.servlet.path=/api`）。
 
 ### 方案 B：一键构建 + Docker 启动（联调/部署）
@@ -115,7 +115,7 @@ docker compose up -d
 | 服务发现 | `CONSUL_ENABLED` `CONSUL_SCHEME` `CONSUL_HOST` `CONSUL_PORT` `CONSUL_DATACENTER` `CONSUL_CACHE_SECONDS` | `.env` / compose / `application.yml` | Consul 发现外部服务 |
 | UserService HTTP | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 管理后台用户查询/封禁透传 |
 | AiService gRPC | `AI_GRPC_SERVICE_NAME` `AI_GRPC_ADDR` | `application.yml` | 模型列表/对话/润色 |
-| PayService gRPC | `PAY_GRPC_SERVICE_NAME` `PAY_GRPC_ADDR` `EXTERNAL_PROJECT_KEY` | `application.yml` | 签到、兑换、余额 |
+| PayService gRPC | `PAY_GRPC_SERVICE_NAME` `PAY_GRPC_ADDR` `EXTERNAL_PROJECT_KEY` | `application.yml` | 通用积分查询、通用->项目兑换、冲回补偿 |
 | SSO 页面中转 | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 后端 `/api/v1/sso/*` 解析 user-service 地址并发起 302 |
 
 ### 2.2 推荐落地方式
@@ -158,7 +158,7 @@ docker compose up -d
 | 应用入口 | Spring Boot 启动 | `backend/src/main/java/com/ainovel/app/AiNovelApplication.java` |
 | 鉴权与安全 | JWT 解析、会话校验、系统开关 | `backend/src/main/java/com/ainovel/app/security/*` |
 | SSO 入口中转 | `/api/v1/sso/login|register` 302 到 user-service | `backend/src/main/java/com/ainovel/app/auth/SsoController.java` |
-| 用户中心 | 资料、统计、签到、兑换 | `backend/src/main/java/com/ainovel/app/user/UserController.java` |
+| 用户中心 | 资料、统计、本地签到、兑换码、通用积分兑换 | `backend/src/main/java/com/ainovel/app/user/UserController.java` |
 | 故事与大纲 | 故事/角色/大纲增删改查 | `backend/src/main/java/com/ainovel/app/story/*` |
 | 稿件 | 稿件生成、保存、角色变化分析 | `backend/src/main/java/com/ainovel/app/manuscript/*` |
 | v2 业务域 | v2 七大模块 API 与访问守卫 | `backend/src/main/java/com/ainovel/app/v2/*` |
@@ -273,6 +273,6 @@ AINovel/
 
 1. 前端页面空白：检查 `frontend/dist` 是否存在、`nginx.conf` 是否正确挂载。
 2. `/api` 401：确认浏览器已写入 `token`，或确认 SSO 回调是否成功。
-3. 签到/兑换失败：优先检查 PayService 地址（Consul 或 fallback）与 `EXTERNAL_PROJECT_KEY`。
+3. 通用积分兑换失败：优先检查 PayService 地址（Consul 或 fallback）与 `EXTERNAL_PROJECT_KEY`；本地签到/兑换码失败优先检查 AINovel 本地数据库与系统配置。
 4. Copilot 无模型：检查 AiService gRPC 连通性和 `AI_GRPC_*` 配置。
 5. 管理端用户列表失败：检查 `USER_HTTP_*` 以及管理员 JWT 是否透传。

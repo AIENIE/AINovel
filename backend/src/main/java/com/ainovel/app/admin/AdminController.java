@@ -1,6 +1,7 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.*;
+import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.integration.UserAdminRemoteClient;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.settings.SettingsService;
@@ -17,14 +18,18 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/admin")
@@ -39,19 +44,22 @@ public class AdminController {
     private final UserAdminRemoteClient userAdminRemoteClient;
     private final SettingsService settingsService;
     private final GlobalSettingsRepository globalSettingsRepository;
+    private final EconomyService economyService;
 
     public AdminController(
             UserRepository userRepository,
             MaterialRepository materialRepository,
             UserAdminRemoteClient userAdminRemoteClient,
             SettingsService settingsService,
-            GlobalSettingsRepository globalSettingsRepository
+            GlobalSettingsRepository globalSettingsRepository,
+            EconomyService economyService
     ) {
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
         this.userAdminRemoteClient = userAdminRemoteClient;
         this.settingsService = settingsService;
         this.globalSettingsRepository = globalSettingsRepository;
+        this.economyService = economyService;
     }
 
     @GetMapping("/dashboard")
@@ -187,6 +195,110 @@ public class AdminController {
 
         globalSettingsRepository.save(g);
         return systemConfig();
+    }
+
+    @PostMapping("/credits/grant")
+    @Operation(summary = "管理员加发项目积分", description = "仅支持加分，不支持扣减。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "发放成功"),
+            @ApiResponse(responseCode = "400", description = "参数错误或用户不存在"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public ResponseEntity<com.ainovel.app.user.dto.CreditChangeResponse> grantCredits(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody AdminGrantCreditsRequest request
+    ) {
+        User target = resolveTargetUser(request.userId());
+        EconomyService.CreditChangeResult result = economyService.grantProjectCredits(
+                target,
+                request.amount(),
+                request.reason(),
+                principal == null ? "admin" : principal.getUsername()
+        );
+        return ResponseEntity.ok(new com.ainovel.app.user.dto.CreditChangeResponse(
+                result.success(),
+                result.points(),
+                result.totalCredits(),
+                result.projectCredits(),
+                result.publicCredits(),
+                result.totalCredits(),
+                result.message()
+        ));
+    }
+
+    @GetMapping("/redeem-codes")
+    @Operation(summary = "兑换码列表", description = "查询本地项目兑换码配置。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public List<AdminRedeemCodeDto> listRedeemCodes() {
+        return economyService.listRedeemCodes().stream()
+                .map(item -> new AdminRedeemCodeDto(
+                        item.id(),
+                        item.code(),
+                        item.grantAmount(),
+                        item.maxUses(),
+                        item.usedCount(),
+                        item.startsAt(),
+                        item.expiresAt(),
+                        item.enabled(),
+                        item.stackable(),
+                        item.description()
+                ))
+                .toList();
+    }
+
+    @PostMapping("/redeem-codes")
+    @Operation(summary = "创建兑换码", description = "创建本地项目兑换码（支持个人码/批次码）。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "创建成功"),
+            @ApiResponse(responseCode = "400", description = "参数错误"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public AdminRedeemCodeDto createRedeemCode(@Valid @RequestBody AdminRedeemCodeCreateRequest request) {
+        EconomyService.RedeemCodeView item = economyService.createRedeemCode(
+                request.code(),
+                request.grantAmount(),
+                request.maxUses(),
+                request.startsAt(),
+                request.expiresAt(),
+                request.enabled() == null || request.enabled(),
+                request.stackable() == null || request.stackable(),
+                request.description()
+        );
+        return new AdminRedeemCodeDto(
+                item.id(),
+                item.code(),
+                item.grantAmount(),
+                item.maxUses(),
+                item.usedCount(),
+                item.startsAt(),
+                item.expiresAt(),
+                item.enabled(),
+                item.stackable(),
+                item.description()
+        );
+    }
+
+    private User resolveTargetUser(String userId) {
+        String value = userId == null ? "" : userId.trim();
+        if (value.isBlank()) {
+            throw new RuntimeException("目标用户不能为空");
+        }
+        try {
+            return userRepository.findById(UUID.fromString(value)).orElseThrow(() -> new RuntimeException("用户不存在"));
+        } catch (IllegalArgumentException ignore) {
+            try {
+                long remoteUid = Long.parseLong(value);
+                return userRepository.findByRemoteUid(remoteUid).orElseThrow(() -> new RuntimeException("用户不存在"));
+            } catch (NumberFormatException ex) {
+                throw new RuntimeException("用户 ID 格式错误");
+            }
+        }
     }
 
     private AdminUserDto toUserDto(UserAdminRemoteClient.RemoteAdminUser remote) {

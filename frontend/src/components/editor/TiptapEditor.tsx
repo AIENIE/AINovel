@@ -158,8 +158,8 @@ const TiptapEditor = ({
 
   const handleAIPolish = async () => {
     if (!editor) return;
-    if (user && user.credits < 0) {
-      showError("积分不足（已透支），请先充值/兑换后再使用 AI");
+    if (user && user.credits <= 0) {
+      showError("项目积分不足，请先在个人中心兑换项目积分后再使用 AI");
       return;
     }
     const selection = editor.state.selection;

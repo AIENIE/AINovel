@@ -4,7 +4,10 @@ export interface User {
   email: string;
   avatar?: string;
   role: 'user' | 'admin';
-  credits: number;
+  credits: number; // legacy: projectCredits
+  projectCredits: number;
+  publicCredits: number;
+  totalCredits: number;
   isBanned: boolean;
   lastCheckIn?: string; // ISO Date string
 }

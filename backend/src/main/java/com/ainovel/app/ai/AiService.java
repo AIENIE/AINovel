@@ -7,6 +7,7 @@ import com.ainovel.app.user.User;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AiService {
@@ -24,10 +25,7 @@ public class AiService {
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
-        Long remoteUid = user.getRemoteUid();
-        if (remoteUid == null || remoteUid <= 0) {
-            throw new RuntimeException("当前账号未绑定统一用户，无法调用 AI 服务");
-        }
+        Long remoteUid = resolveGatewayUserId(user);
         String model = request.modelId();
         if (model == null || model.isBlank()) {
             List<AiModelDto> models = listModels();
@@ -36,12 +34,18 @@ public class AiService {
             }
         }
         AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(remoteUid, model, request.messages());
-        double remaining = economyService.currentBalance(user);
+        EconomyService.AiChargeResult charge = economyService.chargeAiUsage(
+                user,
+                result.promptTokens(),
+                result.completionTokens(),
+                UUID.randomUUID().toString()
+        );
+        var balance = economyService.currentBalance(user);
         return new AiChatResponse(
                 "assistant",
                 result.content(),
-                new AiUsageDto((int) result.promptTokens(), (int) result.completionTokens(), 0.0),
-                remaining
+                new AiUsageDto((int) result.promptTokens(), (int) result.completionTokens(), charge.charged()),
+                balance.totalCredits()
         );
     }
 
@@ -54,5 +58,13 @@ public class AiService {
         );
         AiChatResponse resp = chat(user, chatRequest);
         return new AiRefineResponse(resp.content(), resp.usage(), resp.remainingCredits());
+    }
+
+    private Long resolveGatewayUserId(User user) {
+        Long remoteUid = user.getRemoteUid();
+        if (remoteUid != null && remoteUid > 0) {
+            return remoteUid;
+        }
+        return Math.abs(user.getId().getMostSignificantBits() ^ user.getId().getLeastSignificantBits());
     }
 }

@@ -609,3 +609,90 @@ CREATE TABLE `keyboard_shortcuts` (
 ALTER TABLE `manuscripts`
   ADD CONSTRAINT `fk_manuscript_current_branch`
   FOREIGN KEY (`current_branch_id`) REFERENCES `manuscript_branches` (`id`) ON DELETE SET NULL;
+
+-- economy local billing incremental schema (2026-02-20)
+CREATE TABLE `project_credit_accounts` (
+  `id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL,
+  `balance` bigint NOT NULL,
+  `version` bigint NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_project_credit_account_user` (`user_id`),
+  CONSTRAINT `fk_project_credit_account_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `project_credit_ledger` (
+  `id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL,
+  `entry_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `delta` bigint NOT NULL,
+  `balance_after` bigint NOT NULL,
+  `reference_type` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference_id` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `idempotency_key` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_project_credit_ledger_user_created` (`user_id`,`created_at`),
+  CONSTRAINT `fk_project_credit_ledger_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `checkin_records` (
+  `id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL,
+  `checkin_date` date NOT NULL,
+  `reward` bigint NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_checkin_user_date` (`user_id`,`checkin_date`),
+  CONSTRAINT `fk_checkin_record_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `redeem_codes` (
+  `id` binary(16) NOT NULL,
+  `code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `grant_amount` bigint NOT NULL,
+  `max_uses` int DEFAULT NULL,
+  `used_count` int NOT NULL,
+  `starts_at` datetime(6) DEFAULT NULL,
+  `expires_at` datetime(6) DEFAULT NULL,
+  `enabled` bit(1) NOT NULL,
+  `stackable` bit(1) NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_redeem_code_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `redeem_code_usages` (
+  `id` binary(16) NOT NULL,
+  `redeem_code_id` binary(16) NOT NULL,
+  `user_id` binary(16) NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_redeem_code_user` (`redeem_code_id`,`user_id`),
+  KEY `idx_redeem_usage_user` (`user_id`),
+  CONSTRAINT `fk_redeem_usage_code` FOREIGN KEY (`redeem_code_id`) REFERENCES `redeem_codes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_redeem_usage_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `credit_conversion_orders` (
+  `id` binary(16) NOT NULL,
+  `order_no` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` binary(16) NOT NULL,
+  `idempotency_key` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `requested_amount` bigint NOT NULL,
+  `converted_amount` bigint NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `remote_request_id` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `remote_message` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_conversion_order_no` (`order_no`),
+  UNIQUE KEY `uk_conversion_user_idempotency` (`user_id`,`idempotency_key`),
+  CONSTRAINT `fk_conversion_order_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

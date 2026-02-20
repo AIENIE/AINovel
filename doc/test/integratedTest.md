@@ -1,12 +1,14 @@
 # 集成/系统测试用例
 
-- **端口与联调配置**：前端 `10010`、后端 `10011`；前端 `/api` 请求经 Vite/Nginx 转发到后端 `10011`。
+- **端口与联调配置**：前端 `11040`、后端 `11041`；前端 `/api` 请求经 Vite/Nginx 转发到后端 `11041`。
 - **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 先请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...&state=...` → 前端 `state` 校验通过后写入 `localStorage.token` → `/api/v1/user/profile` 返回 200；未登录时返回 403。
 - **SSO 安全回归**：篡改回跳 hash 中 `state` 后访问 `/sso/callback`，应拒绝落 token 并跳回 `/login`。
 - **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC 实例；发现失败时回退 `USER_GRPC_ADDR`，且应在超时内快速失败不阻塞请求。
 - **Dashboard**：登录后进入 `/dashboard`，统计来自 `/api/v1/user/summary` 正常展示；点击卡片跳转到 `/novels`、`/worlds`。
 - **后台全局配置**：管理员在 `/admin/settings` 配置注册开关、维护模式、签到区间与 SMTP（对应 `/api/v1/admin/system-config`），保存后回显一致。
-- **个人中心积分**：签到成功后余额增加并刷新；兑换码领取成功后余额增加；`POST /api/v1/user/password` 返回 501（密码由 SSO 管理）。
+- **个人中心积分**：签到成功后项目积分增加并刷新；兑换码领取成功后项目积分增加；通用积分兑换成功后项目积分增加且通用积分减少；`POST /api/v1/user/password` 返回 501（密码由 SSO 管理）。
+- **积分流水**：`GET /api/v1/user/credits/ledger` 返回按时间倒序的本地积分流水（签到/兑换码/AI 扣费/兑换入账）。
+- **管理员加分与兑换码**：`POST /api/v1/admin/credits/grant` 可成功加发项目积分；`GET/POST /api/v1/admin/redeem-codes` 可查询和新增兑换码。
 - **后台管理权限**：普通用户无法访问 `/admin/*`，管理员可访问并操作。
 - **Swagger 文档**：访问 `/api/swagger-ui/index.html` 可加载接口文档；`/api/v3/api-docs` 返回 JSON。
 - **后台用户管理**：封禁/解封后列表状态刷新。

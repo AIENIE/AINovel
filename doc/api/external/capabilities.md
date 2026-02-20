@@ -19,7 +19,8 @@
 
 ## PayService
 - gRPC：
-  - `BillingCheckinService.Checkin/GetCheckinStatus`
-  - `BillingRedeemCodeService.RedeemCode`
   - `BillingBalanceService.GetPublicBalance/GetProjectBalance`
-- 本地 `/api/v1/user/check-in` 与 `/api/v1/user/redeem` 已改为 PayService 编排调用。
+  - `BillingConversionService.ConvertPublicToProject`
+  - `BillingGrantService.GrantPublicTokens`（本地入账失败时冲回补偿）
+- 本地 `/api/v1/user/check-in` 与 `/api/v1/user/redeem` 已迁回 AINovel 本地账本。
+- 本地 `/api/v1/user/credits/convert` 使用 PayService 完成通用积分扣减，再在 AINovel 本地入账项目积分。

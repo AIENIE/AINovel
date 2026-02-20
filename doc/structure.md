@@ -28,7 +28,10 @@
   - `src/main/java/com/ainovel/app/integration/ConsulServiceResolver.java`：通用 Consul 服务发现与缓存。
   - `src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java`：UserService 管理端 HTTP 调用适配。
   - `src/main/java/com/ainovel/app/integration/AiGatewayGrpcClient.java`：AiService gRPC 调用适配。
-  - `src/main/java/com/ainovel/app/integration/BillingGrpcClient.java`：PayService gRPC 调用适配（签到/兑换/余额）。
+  - `src/main/java/com/ainovel/app/integration/BillingGrpcClient.java`：PayService gRPC 调用适配（通用积分余额、通用->项目兑换、冲回补偿）。
+  - `src/main/java/com/ainovel/app/economy/model/*`：本地积分账本实体（账户、流水、签到记录、兑换码、兑换订单）。
+  - `src/main/java/com/ainovel/app/economy/repo/*`：本地积分账本仓储。
+  - `src/main/java/com/ainovel/app/economy/EconomyService.java`：本地积分核心服务（签到、兑换码、AI 扣费、通用积分兑换、管理员加分）。
   - `src/main/proto/ai/v1/ai_gateway.proto`：AiService gRPC 协议定义（v1.1 新增）。
   - `src/main/proto/billing/v1/billing_service.proto`：PayService gRPC 协议定义（v1.1 新增）。
   - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。

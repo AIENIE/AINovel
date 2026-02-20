@@ -17,8 +17,14 @@ public record UserProfileResponse(
         String avatar,
         @Schema(description = "角色（admin/user）", example = "user")
         String role,
-        @Schema(description = "当前可用资产", example = "1200.0")
+        @Schema(description = "兼容字段：项目专属积分余额", example = "1200.0")
         double credits,
+        @Schema(description = "项目专属积分余额", example = "1200.0")
+        double projectCredits,
+        @Schema(description = "通用积分余额", example = "300.0")
+        double publicCredits,
+        @Schema(description = "总余额（项目 + 通用）", example = "1500.0")
+        double totalCredits,
         @Schema(description = "是否封禁", example = "false")
         boolean isBanned,
         @Schema(description = "最近签到时间", example = "2026-02-16T08:00:00Z")

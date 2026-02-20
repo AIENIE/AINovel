@@ -15,3 +15,13 @@
 
 # 已解决事项（2026-02-03）
 - Windows/Docker Desktop 下前端 `/api/*` 反向代理需要使用 `frontend/nginx.windows.conf`（容器内转发到 `backend:10011`）；Linux 环境同样统一转发到后端 `10011`。
+
+# 待处理事项（2026-02-20）
+- 时间：2026-02-20 22:36-22:38（Asia/Shanghai）
+- 域名/地址：`http://127.0.0.1:11040/profile`（SSO 跳转至 `http://192.168.1.3:10002/sso/login`）
+- 结论：本地部署成功，首页可访问；但 `/profile` 关键路径受外部 SSO 账号阻塞，无法完成登录后双余额页面验收。
+- 失败阶段：Web 自测登录步骤（Playwright）。
+- 关键错误：SSO 页面返回 `USER_NOT_FOUND`（使用 `admin/password` 登录失败），导致无法进入项目内个人中心页面。
+- 证据目录：`artifacts/test/2026-02-20-local-billing/`
+  - 截图：`homepage.png`、`profile-login-blocked.png`
+  - 日志：`console.log`、`network.log`、`backend.err.tail.log`、`frontend.err.tail.log`

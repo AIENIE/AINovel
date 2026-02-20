@@ -20,6 +20,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -65,9 +66,9 @@ public class UserController {
     })
     public ResponseEntity<UserProfileResponse> profile(@AuthenticationPrincipal UserDetails principal) {
         User user = currentUser(principal);
-        double credits = economyService.currentBalance(user);
-        var lastCheckInAt = economyService.fetchLastCheckInAt(user);
-        return ResponseEntity.ok(toProfile(user, credits, lastCheckInAt));
+        EconomyService.BalanceSnapshot balance = economyService.currentBalance(user);
+        var lastCheckInAt = balance.lastCheckInAt();
+        return ResponseEntity.ok(toProfile(user, balance, lastCheckInAt));
     }
 
     @GetMapping("/summary")
@@ -86,7 +87,7 @@ public class UserController {
     }
 
     @PostMapping("/check-in")
-    @Operation(summary = "每日签到", description = "调用第三方 PayService 执行每日签到并返回资产变动。")
+    @Operation(summary = "每日签到", description = "在本项目本地账本执行每日签到并返回资产变动。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -98,11 +99,19 @@ public class UserController {
     public ResponseEntity<CreditChangeResponse> checkIn(@AuthenticationPrincipal UserDetails principal) {
         User user = currentUser(principal);
         EconomyService.CreditChangeResult result = economyService.checkIn(user);
-        return ResponseEntity.ok(new CreditChangeResponse(result.success(), result.points(), result.newTotal()));
+        return ResponseEntity.ok(new CreditChangeResponse(
+                result.success(),
+                result.points(),
+                result.totalCredits(),
+                result.projectCredits(),
+                result.publicCredits(),
+                result.totalCredits(),
+                result.message()
+        ));
     }
 
     @PostMapping("/redeem")
-    @Operation(summary = "兑换码兑换", description = "调用第三方 PayService 兑换码接口并返回资产变动。")
+    @Operation(summary = "兑换码兑换", description = "在本项目本地兑换码账本执行兑换并返回资产变动。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -115,7 +124,72 @@ public class UserController {
     public ResponseEntity<CreditChangeResponse> redeem(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody RedeemRequest request) {
         User user = currentUser(principal);
         EconomyService.CreditChangeResult result = economyService.redeem(user, request.code());
-        return ResponseEntity.ok(new CreditChangeResponse(result.success(), result.points(), result.newTotal()));
+        return ResponseEntity.ok(new CreditChangeResponse(
+                result.success(),
+                result.points(),
+                result.totalCredits(),
+                result.projectCredits(),
+                result.publicCredits(),
+                result.totalCredits(),
+                result.message()
+        ));
+    }
+
+    @PostMapping("/credits/convert")
+    @Operation(summary = "通用积分兑换项目积分", description = "按 1:1 将 payService 通用积分兑换为本项目专属积分。")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "兑换成功",
+                    content = @Content(examples = @ExampleObject(value = "{\"orderNo\":\"CVT-6A4C2710D8D845B4B09C\",\"amount\":100.0,\"projectCredits\":1300.0,\"publicCredits\":200.0,\"totalCredits\":1500.0}"))
+            ),
+            @ApiResponse(responseCode = "400", description = "余额不足或参数错误"),
+            @ApiResponse(responseCode = "401", description = "未登录")
+    })
+    public ResponseEntity<ConvertCreditsResponse> convertCredits(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody ConvertCreditsRequest request
+    ) {
+        User user = currentUser(principal);
+        EconomyService.ConversionResult result = economyService.convertPublicToProject(user, request.amount(), request.idempotencyKey());
+        return ResponseEntity.ok(new ConvertCreditsResponse(
+                result.orderNo(),
+                result.amount(),
+                result.projectCredits(),
+                result.publicCredits(),
+                result.totalCredits()
+        ));
+    }
+
+    @GetMapping("/credits/ledger")
+    @Operation(summary = "查询项目积分流水", description = "分页查询当前用户项目积分流水。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录")
+    })
+    public ResponseEntity<java.util.List<CreditLedgerItemResponse>> ledger(
+            @AuthenticationPrincipal UserDetails principal,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        User user = currentUser(principal);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        java.util.List<CreditLedgerItemResponse> items = economyService
+                .listLedger(user, PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(it -> new CreditLedgerItemResponse(
+                        it.id(),
+                        it.type(),
+                        it.delta(),
+                        it.balanceAfter(),
+                        it.referenceType(),
+                        it.referenceId(),
+                        it.description(),
+                        it.createdAt()
+                ))
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
     @PostMapping("/password")
@@ -131,7 +205,7 @@ public class UserController {
         return ResponseEntity.status(501).body(new BasicResponse(false, "PASSWORD_MANAGED_BY_SSO"));
     }
 
-    private UserProfileResponse toProfile(User user, double credits, java.time.Instant lastCheckInAt) {
+    private UserProfileResponse toProfile(User user, EconomyService.BalanceSnapshot balance, java.time.Instant lastCheckInAt) {
         String role = user.hasRole("ROLE_ADMIN") ? "admin" : "user";
         return new UserProfileResponse(
                 user.getId(),
@@ -139,7 +213,10 @@ public class UserController {
                 user.getEmail(),
                 user.getAvatarUrl(),
                 role,
-                credits,
+                balance.projectCredits(),
+                balance.projectCredits(),
+                balance.publicCredits(),
+                balance.totalCredits(),
                 user.isBanned(),
                 lastCheckInAt
         );

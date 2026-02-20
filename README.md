@@ -4,7 +4,7 @@ AINovel 是一个 AI 小说创作平台，采用前后端分离架构：
 
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - 后端：Spring Boot（REST + gRPC 集成 + JWT/SSO）
-- 默认端口：前端 `10010`，后端 `10011`
+- 默认端口：前端 `11040`，后端 `11041`
 - 测试域名：`ainovel.seekerhut.com`，正式域名：`ainovel.aienie.com`
 
 ## 快速入口

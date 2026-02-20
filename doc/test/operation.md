@@ -1,9 +1,9 @@
 # 操作步骤（端到端）
 
-> 当前基线端口：前端 `10010`，后端 `10011`。
+> 当前基线端口：前端 `11040`，后端 `11041`。
 
 1. **统一登录（SSO）**
-   - 本地联调访问：`http://127.0.0.1:10010/`。
+   - 本地联调访问：`http://127.0.0.1:11040/`。
    - 测试域名：`http://ainovel.seekerhut.com/`；生产域名：`https://ainovel.aienie.com/`。
    - 登录：点击页面上的“登录”按钮或直接访问 `/login`，前端会先请求 `/api/v1/sso/login`，由后端 302 到 user-service 登录页。
    - 注册：点击页面上的“注册/免费开始”按钮或直接访问 `/register`，前端会先请求 `/api/v1/sso/register`，由后端 302 到 user-service 注册页。
@@ -12,9 +12,10 @@
    - 管理员权限：由 userservice 下发的 token 里 `role=ADMIN` 决定（AINovel 后端据此映射为 `ROLE_ADMIN`）。
 
 2. **个人中心（积分/签到/兑换）**
-   - 进入 `/profile`，确认头像、邮箱与积分余额展示。
+   - 进入 `/profile`，确认头像、邮箱与项目积分/通用积分/总余额展示。
    - 点击“每日签到”，成功后余额增加、按钮禁用显示“今日已签到”。
    - 输入兑换码（例如 `VIP888` / `WELCOME2026` / `TOPUP100`）点击“兑换”，余额增加，输入框清空。
+   - 输入“通用积分兑换为项目积分”的数量并点击“兑换”，确认项目积分增加、通用积分减少、总余额变化正确。
    - 密码管理：由统一登录服务负责，本系统不提供改密功能（`POST /api/v1/user/password` 固定返回 501）。
 
 3. **后台管理（管理员账号）**
@@ -58,12 +59,12 @@
    - 头部用户菜单选择退出，或清除浏览器 LocalStorage 中的 `token`。
 
 10. **后端接口连通性（可选）**
-   - 未登录时访问 `/api/v1/user/profile` 应返回 403；完成统一登录后再次访问应返回 200（包含 `id/username/role/credits` 等）。
-   - 本地 OpenAPI 验证地址：`http://127.0.0.1:10011/api/v3/api-docs`。
-   - 本地 Swagger UI：`http://127.0.0.1:10011/api/swagger-ui/index.html`。
+   - 未登录时访问 `/api/v1/user/profile` 应返回 403；完成统一登录后再次访问应返回 200（包含 `id/username/role/projectCredits/publicCredits/totalCredits` 等）。
+   - 本地 OpenAPI 验证地址：`http://127.0.0.1:11041/api/v3/api-docs`。
+   - 本地 Swagger UI：`http://127.0.0.1:11041/api/swagger-ui/index.html`。
 
 11. **v2 工作台能力验收（2026-02-17）**
-   - 优先入口：`http://ainovel.seekerhut.com/workbench`；若域名不可解析（如 `ERR_NAME_NOT_RESOLVED`），降级到 `http://127.0.0.1:10010/workbench`。
+   - 优先入口：`http://ainovel.seekerhut.com/workbench`；若域名不可解析（如 `ERR_NAME_NOT_RESOLVED`），降级到 `http://127.0.0.1:11040/workbench`。
    - 在“上下文记忆”中创建 Lorebook，填写功能相关文本（例如标题 `主角记忆缺口`，正文说明跨章节记忆约束）。
    - 依次验证：风格画像、Beta Reader 与连续性检查、版本快照与自动保存、导出任务与模板、多模型对比、工作台布局与会话开始/结束。
    - 每个操作都需观察右侧返回框或列表刷新，确认接口响应成功且状态可见。
