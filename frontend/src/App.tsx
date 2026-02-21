@@ -33,6 +33,7 @@ import ProfilePage from "./pages/Profile/ProfilePage";
 import DashboardAdmin from "./pages/Admin/Dashboard";
 import UserManager from "./pages/Admin/UserManager";
 import SystemSettingsPage from "./pages/Admin/SystemSettings";
+import CreditsManager from "./pages/Admin/CreditsManager";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
                 <Route index element={<Navigate to="/admin/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardAdmin />} />
                 <Route path="users" element={<UserManager />} />
+                <Route path="credits" element={<CreditsManager />} />
                 <Route path="settings" element={<SystemSettingsPage />} />
               </Route>
             </Route>

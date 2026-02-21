@@ -39,6 +39,7 @@ public class AiGatewayGrpcClient {
                 String.valueOf(m.getId()),
                 String.valueOf(m.getId()),
                 m.getDisplayName(),
+                toModelType(m.getType()),
                 m.getInputRate(),
                 m.getOutputRate(),
                 m.getProvider(),
@@ -123,6 +124,17 @@ public class AiGatewayGrpcClient {
     }
 
     public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens) {
+    }
+
+    private String toModelType(fireflychat.ai.v1.ModelType type) {
+        if (type == null) {
+            return "unspecified";
+        }
+        return switch (type) {
+            case MODEL_TYPE_TEXT -> "text";
+            case MODEL_TYPE_EMBEDDING -> "embedding";
+            default -> "unspecified";
+        };
     }
 
     private record EndpointClient(

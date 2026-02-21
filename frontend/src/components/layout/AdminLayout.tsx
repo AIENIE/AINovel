@@ -5,6 +5,7 @@ import {
   LayoutDashboard, 
   Users, 
   Settings, 
+  Coins,
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const AdminLayout = () => {
   const navItems = [
     { title: "仪表盘", href: "/admin/dashboard", icon: LayoutDashboard },
     { title: "用户管理", href: "/admin/users", icon: Users },
+    { title: "积分与兑换码", href: "/admin/credits", icon: Coins },
     { title: "系统设置", href: "/admin/settings", icon: Settings },
   ];
 

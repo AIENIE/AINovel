@@ -146,6 +146,7 @@ export interface ModelConfig {
   id: string;
   name: string; // Internal ID, e.g., 'gpt-4'
   displayName: string; // UI Name, e.g., 'GPT-4 Turbo'
+  modelType?: string; // text | embedding | unspecified
   inputMultiplier: number; // e.g., 1.0
   outputMultiplier: number; // e.g., 3.0
   poolId: string;

@@ -22,6 +22,23 @@ interface CopilotSidebarProps {
   className?: string;
 }
 
+const pickDefaultChatModel = (models: ModelConfig[]): string => {
+  if (!models.length) return "";
+  const enabled = models.filter((m) => m.isEnabled !== false);
+  const candidates = enabled.length ? enabled : models;
+
+  const textModel = candidates.find((m) => (m.modelType || "").toLowerCase() === "text");
+  if (textModel) return textModel.id;
+
+  const nonEmbedding = candidates.find((m) => {
+    const key = `${m.displayName || ""} ${m.name || ""}`.toLowerCase();
+    return !key.includes("embedding") && !key.includes("ocr");
+  });
+  if (nonEmbedding) return nonEmbedding.id;
+
+  return candidates[0].id;
+};
+
 const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
   const { user, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
@@ -38,7 +55,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
       .getModels()
       .then((data) => {
         setModels(data);
-        if (data.length > 0) setSelectedModelId(data[0].id);
+        if (data.length > 0) setSelectedModelId(pickDefaultChatModel(data));
       })
       .catch(() => {
         setModels([

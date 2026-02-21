@@ -24,6 +24,7 @@ const FALLBACK_AI_MODELS: ModelConfig[] = [
     id: "gpt-4o",
     name: "gpt-4o",
     displayName: "GPT-4o",
+    modelType: "text",
     inputMultiplier: 1,
     outputMultiplier: 1,
     poolId: "default",
@@ -33,6 +34,7 @@ const FALLBACK_AI_MODELS: ModelConfig[] = [
     id: "deepseek-chat",
     name: "deepseek-chat",
     displayName: "DeepSeek Chat",
+    modelType: "text",
     inputMultiplier: 1,
     outputMultiplier: 1,
     poolId: "default",
@@ -42,6 +44,7 @@ const FALLBACK_AI_MODELS: ModelConfig[] = [
     id: "claude-sonnet",
     name: "claude-sonnet",
     displayName: "Claude Sonnet",
+    modelType: "text",
     inputMultiplier: 1,
     outputMultiplier: 1,
     poolId: "default",
@@ -113,6 +116,7 @@ function normalizeModel(model: any, index: number): ModelConfig {
     id,
     name,
     displayName,
+    modelType: String(model?.modelType ?? model?.type ?? "unspecified"),
     inputMultiplier: Number(model?.inputMultiplier ?? 1),
     outputMultiplier: Number(model?.outputMultiplier ?? 1),
     poolId: String(model?.poolId ?? model?.provider ?? "default"),
@@ -330,6 +334,24 @@ export const api = {
     },
     updateSystemConfig: async (payload: any) => {
       return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) });
+    },
+    listRedeemCodes: async () => {
+      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" });
+    },
+    createRedeemCode: async (payload: {
+      code: string;
+      grantAmount: number;
+      maxUses?: number | null;
+      startsAt?: string | null;
+      expiresAt?: string | null;
+      enabled?: boolean;
+      stackable?: boolean;
+      description?: string;
+    }) => {
+      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) });
+    },
+    grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
+      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) });
     },
   },
 

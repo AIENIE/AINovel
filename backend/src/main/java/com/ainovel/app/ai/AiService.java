@@ -7,6 +7,7 @@ import com.ainovel.app.user.User;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -28,10 +29,7 @@ public class AiService {
         Long remoteUid = resolveGatewayUserId(user);
         String model = request.modelId();
         if (model == null || model.isBlank()) {
-            List<AiModelDto> models = listModels();
-            if (!models.isEmpty()) {
-                model = models.get(0).id();
-            }
+            model = pickDefaultChatModel(listModels());
         }
         AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(remoteUid, model, request.messages());
         EconomyService.AiChargeResult charge = economyService.chargeAiUsage(
@@ -66,5 +64,34 @@ public class AiService {
             return remoteUid;
         }
         return Math.abs(user.getId().getMostSignificantBits() ^ user.getId().getLeastSignificantBits());
+    }
+
+    private String pickDefaultChatModel(List<AiModelDto> models) {
+        if (models == null || models.isEmpty()) {
+            return null;
+        }
+        for (AiModelDto model : models) {
+            if (model == null || model.id() == null || model.id().isBlank()) {
+                continue;
+            }
+            String type = model.modelType() == null ? "" : model.modelType().trim().toLowerCase(Locale.ROOT);
+            if ("text".equals(type)) {
+                return model.id();
+            }
+        }
+        for (AiModelDto model : models) {
+            if (model == null || model.id() == null || model.id().isBlank()) {
+                continue;
+            }
+            String name = (model.displayName() == null ? "" : model.displayName())
+                    + " "
+                    + (model.name() == null ? "" : model.name());
+            String normalized = name.toLowerCase(Locale.ROOT);
+            if (normalized.contains("embedding") || normalized.contains("ocr")) {
+                continue;
+            }
+            return model.id();
+        }
+        return models.get(0).id();
     }
 }

@@ -25,3 +25,20 @@
 - 证据目录：`artifacts/test/2026-02-20-local-billing/`
   - 截图：`homepage.png`、`profile-login-blocked.png`
   - 日志：`console.log`、`network.log`、`backend.err.tail.log`、`frontend.err.tail.log`
+
+# 已解决事项（2026-02-21）
+- 时间：2026-02-21（Asia/Shanghai）
+- 问题：`/api/v1/ai/chat` 在 `modelId` 为空时默认选中模型列表第一项，若该模型不是文本对话模型会返回 `INVALID_ARGUMENT` 且无法扣费。
+- 修复：
+  - 后端 `AiService` 默认模型选择优先 `modelType=text`，并跳过 embedding/ocr 候选。
+  - 前端 Copilot 默认模型同步优先文本对话模型。
+- 验证：空 `modelId` 调用成功，项目积分按 `1` 积分扣减（`1732 -> 1731`）。
+
+# 待处理事项（2026-02-21）
+- 时间：2026-02-21（Asia/Shanghai）
+- 结论：外部 SSO 的邮箱验证码发送接口返回 `{\"ok\":false,\"error\":\"SMTP 服务不可用，请稍后重试或联系管理员\"}`，导致无法完成真实注册流程。
+- 影响：本地 Playwright 仅能通过测试 token 回跳完成用户登录验收，不能覆盖真实“注册-验证码-登录”闭环。
+- 证据目录：`artifacts/test/2026-02-21-acceptance/`
+  - 截图：`register-email-code-blocked.png`
+  - 网络：`network-requests.txt`
+  - 验收记录：`doc/test/2026-02-21-playwright-acceptance.md`

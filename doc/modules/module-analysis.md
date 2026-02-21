@@ -162,13 +162,14 @@
 
 ### 2.10 管理后台模块
 
-模块作用：提供管理员看板、用户封禁管理、系统开关配置。
+模块作用：提供管理员看板、用户封禁管理、系统开关配置，以及本地积分兑换码发放能力。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 后台布局与路由 | 管理侧导航、子路由容器 | 前端：`frontend/src/components/layout/AdminLayout.tsx`、`frontend/src/App.tsx`（`/admin/*`） |
 | 看板统计 | 总用户、今日新增、待审素材等 | 前端：`frontend/src/pages/Admin/Dashboard.tsx`；后端：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`（`/dashboard`） |
 | 用户管理 | 查看用户并封禁/解封 | 前端：`frontend/src/pages/Admin/UserManager.tsx`；后端：`AdminController.java`（`/users`、`/users/{id}/ban`、`/users/{id}/unban`） |
+| 积分与兑换码 | 创建/查看本地兑换码、发放项目积分 | 前端：`frontend/src/pages/Admin/CreditsManager.tsx`；后端：`AdminController.java`（`/credits/grant`、`/redeem-codes`） |
 | 系统设置 | 注册开关、维护模式、签到区间、SMTP 配置 | 前端：`frontend/src/pages/Admin/SystemSettings.tsx`；后端：`AdminController.java`（`/system-config`） |
 
 ### 2.11 前端共享基础模块
