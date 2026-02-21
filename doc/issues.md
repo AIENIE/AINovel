@@ -34,6 +34,17 @@
   - 前端 Copilot 默认模型同步优先文本对话模型。
 - 验证：空 `modelId` 调用成功，项目积分按 `1` 积分扣减（`1732 -> 1731`）。
 
+# 已解决事项（2026-02-21）
+- 时间：2026-02-21（Asia/Shanghai）
+- 问题：SSO 账密登录成功回跳后，`/api/v1/user/profile` 返回 `403`，用户无法进入业务页面。
+- 根因：后端 `JwtAuthFilter` 仅支持本地密钥验签，无法兼容 user-service 签发的异签名 token。
+- 修复：
+  - 保留本地验签优先路径；
+  - 增加远程会话兜底：验签失败时解析 `uid/sid`，仅在 `validateSession` 通过后建立登录态；
+  - 无法远程验证的未验签 token 继续拒绝。
+- 验证：`goodboy95 / superhs2cr1` 可完成 SSO 登录并进入 `/workbench`、`/profile`，兑换与扣费链路通过。
+- 证据目录：`artifacts/test/2026-02-21-goodboy-acceptance/`
+
 # 待处理事项（2026-02-21）
 - 时间：2026-02-21（Asia/Shanghai）
 - 结论：外部 SSO 的邮箱验证码发送接口返回 `{\"ok\":false,\"error\":\"SMTP 服务不可用，请稍后重试或联系管理员\"}`，导致无法完成真实注册流程。
