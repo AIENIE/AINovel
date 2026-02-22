@@ -97,6 +97,31 @@ export interface UserSummary {
   totalEntries: number;
 }
 
+export interface CreditLedgerItem {
+  id: string;
+  type: string;
+  delta: number;
+  balanceAfter: number;
+  referenceType?: string;
+  referenceId?: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface CreditConversionRecord {
+  id: string;
+  orderNo: string;
+  requestedAmount: number;
+  convertedAmount: number;
+  projectBefore: number;
+  projectAfter: number;
+  publicBefore: number;
+  publicAfter: number;
+  status: string;
+  message?: string;
+  createdAt: string;
+}
+
 // --- World Building Types ---
 
 export interface WorldFieldDefinition {

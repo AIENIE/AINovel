@@ -1,64 +1,40 @@
-# 已解决事项（2026-01-03）
-- 补齐 `deploy/nginx/ainovel.conf` 与 `deploy/nginx/ainovel_prod.conf`，`build.sh --init` 与 `build_prod.sh --init` 可安装宿主机 Nginx 配置。
-- `build_prod.sh`/`build.sh` 修复为显式 `bash` 调用子脚本，避免因脚本未加可执行位导致 `Permission denied`。
-- 后端新增邮件验证码注册（SMTP）、AI Copilot（OpenAI 兼容）、积分/签到/兑换码、后台管理接口，并已接入前端 `src/lib/mock-api.ts` 作为真实 API 适配层。
-- `docker-compose.yml` 已注入 `SMTPandLLM.txt` 的 SMTP 与大模型配置，`build_prod.sh --init` 已成功签发并部署 `ainovel.aienie.com` 证书（有效期至 2026-04-03）。
+# AINovel 当前问题跟踪（更新于 2026-02-23）
 
-# 待处理事项（2026-01-03）
-- Playwright MCP 当前提示 `Browser is already in use`，无法执行浏览器端到端自动化测试（已改用接口级回归测试验证核心功能）。建议待浏览器资源释放后再次运行 Playwright 测试，目标地址：`https://ainovel.aienie.com/`。
+## 当前待处理
 
-# 待处理事项（2026-02-03）
-- 在 Windows 环境下无法写入 `C:\\Windows\\System32\\drivers\\etc\\hosts`（权限不足），因此无法将 `ainovel.seekerhut.com` 指向 `127.0.0.1` 以满足“必须访问 http://ainovel.seekerhut.com” 的 Playwright MCP 测试要求。可选解决方案：
-  - 以管理员权限手动修改 hosts：添加 `127.0.0.1 ainovel.seekerhut.com`，再执行 `./build.sh --init`（Linux）或按项目说明配置系统 Nginx 反代。
-  - 若在 Linux 服务器上执行：使用 `./build.sh --init` 自动补齐 hosts 与系统 Nginx 配置，然后按要求用 Playwright MCP 访问 `http://ainovel.seekerhut.com` 验证。
-- 兜底：在 Windows/Docker Desktop 本地环境使用 `http://127.0.0.1:10010` 进行 Playwright 端到端验证（本次已验证工作台与个人中心关键流程）。
+- 暂无阻塞项。
 
-# 已解决事项（2026-02-03）
-- Windows/Docker Desktop 下前端 `/api/*` 反向代理需要使用 `frontend/nginx.windows.conf`（容器内转发到 `backend:10011`）；Linux 环境同样统一转发到后端 `10011`。
+## 今日已验证并关闭
 
-# 待处理事项（2026-02-20）
-- 时间：2026-02-20 22:36-22:38（Asia/Shanghai）
-- 域名/地址：`http://127.0.0.1:11040/profile`（SSO 跳转至 `http://192.168.1.3:10002/sso/login`）
-- 结论：本地部署成功，首页可访问；但 `/profile` 关键路径受外部 SSO 账号阻塞，无法完成登录后双余额页面验收。
-- 失败阶段：Web 自测登录步骤（Playwright）。
-- 关键错误：SSO 页面返回 `USER_NOT_FOUND`（使用 `admin/password` 登录失败），导致无法进入项目内个人中心页面。
-- 证据目录：`artifacts/test/2026-02-20-local-billing/`
-  - 截图：`homepage.png`、`profile-login-blocked.png`
-  - 日志：`console.log`、`network.log`、`backend.err.tail.log`、`frontend.err.tail.log`
+1. `build.sh` 本地部署链路
+- 时间：2026-02-23 03:11-03:14（Asia/Shanghai）
+- 结果：前端测试+构建、后端测试+打包、`docker compose` 重建、`nginx -t` 均通过。
 
-# 已解决事项（2026-02-21）
-- 时间：2026-02-21（Asia/Shanghai）
-- 问题：`/api/v1/ai/chat` 在 `modelId` 为空时默认选中模型列表第一项，若该模型不是文本对话模型会返回 `INVALID_ARGUMENT` 且无法扣费。
-- 修复：
-  - 后端 `AiService` 默认模型选择优先 `modelType=text`，并跳过 embedding/ocr 候选。
-  - 前端 Copilot 默认模型同步优先文本对话模型。
-- 验证：空 `modelId` 调用成功，项目积分按 `1` 积分扣减（`1732 -> 1731`）。
+2. 测试域名与 HTTPS 可用性
+- 时间：2026-02-23 03:16（Asia/Shanghai）
+- 结果：`https://ainovel.seekerhut.com` 与 `https://ainovel.seekerhut.com/api/v3/api-docs` 均返回 200。
 
-# 已解决事项（2026-02-21）
-- 时间：2026-02-21（Asia/Shanghai）
-- 问题：SSO 账密登录成功回跳后，`/api/v1/user/profile` 返回 `403`，用户无法进入业务页面。
-- 根因：后端 `JwtAuthFilter` 仅支持本地密钥验签，无法兼容 user-service 签发的异签名 token。
-- 修复：
-  - 保留本地验签优先路径；
-  - 增加远程会话兜底：验签失败时解析 `uid/sid`，仅在 `validateSession` 通过后建立登录态；
-  - 无法远程验证的未验签 token 继续拒绝。
-- 验证：`goodboy95 / superhs2cr1` 可完成 SSO 登录并进入 `/workbench`、`/profile`，兑换与扣费链路通过。
-- 证据目录：`artifacts/test/2026-02-21-goodboy-acceptance/`
+3. SSO + 积分兑换 + 记录链路
+- 时间：2026-02-23 03:17-03:20（Asia/Shanghai）
+- 账号：`goodboy95`
+- 结果：
+  - 真实 userservice SSO 登录成功。
+  - 用户页可完成通用积分兑换项目积分（100 -> 100）。
+  - 用户页可展示兑换前后余额及历史记录。
+  - 项目积分流水与兑换历史可正常新增记录。
 
-# 待处理事项（2026-02-21）
-- 时间：2026-02-21（Asia/Shanghai）
-- 结论：外部 SSO 的邮箱验证码发送接口返回 `{\"ok\":false,\"error\":\"SMTP 服务不可用，请稍后重试或联系管理员\"}`，导致无法完成真实注册流程。
-- 影响：本地 Playwright 仅能通过测试 token 回跳完成用户登录验收，不能覆盖真实“注册-验证码-登录”闭环。
-- 证据目录：`artifacts/test/2026-02-21-acceptance/`
-  - 截图：`register-email-code-blocked.png`
-  - 网络：`network-requests.txt`
-  - 验收记录：`doc/test/2026-02-21-playwright-acceptance.md`
+4. Admin 新能力链路
+- 时间：2026-02-23 03:17-03:18（Asia/Shanghai）
+- 结果：
+  - `/api/v1/admin/dashboard` 正常返回。
+  - 可创建兑换码并由用户成功兑换入账。
 
-# 待处理事项（2026-02-22）
-- 时间：2026-02-22 17:47（Asia/Shanghai）
-- 结论：`env.txt` 配置化改造后，本地部署与 SSO 跳转 URL 生成正常；但跳转到外部 `userservice.seekerhut.com` 后返回 `502 Bad Gateway`。
-- 影响：无法在当前环境完成真实 SSO 登录后的业务路径验收（`/workbench`、`/profile` 需依赖外部 user-service 可达）。
-- 失败阶段：Playwright 点击首页“登录”后进入外部 SSO 页面。
-- 证据目录：
-  - 截图：`artifacts/test/2026-02-22-envtxt-sso-redirect-502.png`
-  - 验收记录：`doc/test/2026-02-22-envtxt-redeploy.md`
+5. 兼容旧库 `redeem_codes` 表结构
+- 状态：已修复
+- 说明：兼容 legacy 列 `amount` / `used` 非空约束，避免创建兑换码失败。
+- 代码：`backend/src/main/java/com/ainovel/app/economy/model/RedeemCode.java`
+
+## 说明
+
+- 旧文档中 `userservice 502`、`SMTP 注册阻塞`、`Playwright Browser is already in use` 等记录均为历史阶段性问题，不再代表当前状态。
+- 本轮完整验收详情见：`doc/test/2026-02-23-full-acceptance.md`。

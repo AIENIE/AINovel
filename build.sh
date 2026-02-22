@@ -24,17 +24,14 @@ trim_value() {
 load_env_file() {
   local env_file="$ROOT_DIR/env.txt"
   if [[ ! -f "$env_file" ]]; then
-    echo "env.txt not found, using current shell environment and script defaults."
+    echo "env.txt not found, using current shell environment and built-in defaults."
     return
   fi
 
   while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
     local line key value
     line="$(trim_value "$raw_line")"
-    if [[ -z "$line" || "${line:0:1}" == "#" ]]; then
-      continue
-    fi
-    if [[ "$line" != *=* ]]; then
+    if [[ -z "$line" || "${line:0:1}" == "#" || "$line" != *=* ]]; then
       continue
     fi
     key="$(trim_value "${line%%=*}")"
@@ -50,7 +47,13 @@ load_env_file() {
   done < "$env_file"
 }
 
-SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
+set_default() {
+  local key="$1"
+  local value="$2"
+  if [[ -z "${!key:-}" ]]; then
+    export "$key=$value"
+  fi
+}
 
 is_windows() {
   local sys
@@ -61,13 +64,19 @@ is_windows() {
   esac
 }
 
+SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
+
 run_sudo() {
   if [[ "$EUID" -eq 0 ]]; then
     "$@"
-  elif ! command -v sudo >/dev/null 2>&1; then
-    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    if [[ -n "$SUDO_PASS" ]]; then
+      echo "$SUDO_PASS" | sudo -E -S -p "" "$@"
+    else
+      sudo -E "$@"
+    fi
   else
-    echo "$SUDO_PASS" | sudo -S -p "" "$@"
+    "$@"
   fi
 }
 
@@ -89,6 +98,12 @@ run_user() {
   fi
 }
 
+port_open() {
+  local host="$1"
+  local port="$2"
+  timeout 2 bash -lc "</dev/tcp/${host}/${port}" >/dev/null 2>&1
+}
+
 ensure_nginx_installed() {
   if ! command -v nginx >/dev/null 2>&1; then
     run_sudo env DEBIAN_FRONTEND=noninteractive apt-get update
@@ -101,80 +116,146 @@ reload_nginx() {
   if command -v systemctl >/dev/null 2>&1; then
     if run_sudo systemctl is-active --quiet nginx; then
       run_sudo systemctl reload nginx
-      return
+    else
+      run_sudo systemctl start nginx
     fi
+  elif command -v service >/dev/null 2>&1; then
+    run_sudo service nginx reload || run_sudo service nginx start
+  else
+    run_sudo nginx -s reload || run_sudo nginx
   fi
-
-  if run_sudo pgrep -x nginx >/dev/null 2>&1; then
-    run_sudo pkill -HUP -x nginx || true
-    return
-  fi
-
-  if command -v systemctl >/dev/null 2>&1; then
-    run_sudo systemctl start nginx
-    return
-  fi
-
-  if command -v service >/dev/null 2>&1; then
-    run_sudo service nginx start
-    return
-  fi
-
-  run_sudo nginx
 }
 
 ensure_hosts_entry() {
-  for domain in ainovel.seekerhut.com ainovel.aienie.com; do
-    if ! grep -qE "^[^#]*\s+${domain}" /etc/hosts; then
+  local domain
+  for domain in "$APP_TEST_DOMAIN" "$APP_PROD_DOMAIN" userservice.seekerhut.com payservice.seekerhut.com aiservice.seekerhut.com; do
+    if ! grep -qE "^[^#]*[[:space:]]${domain}([[:space:]]|$)" /etc/hosts; then
       run_sudo sh -c "echo \"127.0.0.1 ${domain}\" >> /etc/hosts"
     fi
   done
 }
 
-install_dev_nginx_conf() {
-  local source_conf="$ROOT_DIR/deploy/nginx/ainovel.conf"
-  local target_conf="/etc/nginx/conf.d/ainovel.conf"
-  local generated_conf=""
+install_nginx_conf() {
+  local conf_file="/etc/nginx/sites-available/ainovel.local.conf"
+  local enabled_link="/etc/nginx/sites-enabled/ainovel.local.conf"
+  local cert="/etc/nginx/ssl/seekerhut.com.crt"
+  local key="/etc/nginx/ssl/seekerhut.com.key"
 
-  if [[ ! -f "$source_conf" ]]; then
-    generated_conf="$(mktemp)"
-    cat >"$generated_conf" <<'EOF'
+  local tmp
+  tmp="$(mktemp)"
+
+  if [[ -f "$cert" && -f "$key" ]]; then
+    cat >"$tmp" <<NGINX
 server {
     listen 80;
-    server_name ainovel.seekerhut.com ainovel.aienie.com;
+    server_name ${APP_TEST_DOMAIN} ${APP_PROD_DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${APP_TEST_DOMAIN} ${APP_PROD_DOMAIN};
+
+    ssl_certificate ${cert};
+    ssl_certificate_key ${key};
 
     location /api/ {
-        proxy_pass http://127.0.0.1:11041;
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location / {
-        proxy_pass http://127.0.0.1:11040;
+        proxy_pass http://127.0.0.1:${FRONTEND_PORT};
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
-EOF
-    source_conf="$generated_conf"
+NGINX
+  else
+    cat >"$tmp" <<NGINX
+server {
+    listen 80;
+    server_name ${APP_TEST_DOMAIN} ${APP_PROD_DOMAIN};
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:${FRONTEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX
   fi
 
-  run_sudo install -m 0644 "$source_conf" "$target_conf"
-  if [[ -n "$generated_conf" ]]; then
-    rm -f "$generated_conf"
+  run_sudo install -m 0644 "$tmp" "$conf_file"
+  rm -f "$tmp"
+  if [[ ! -L "$enabled_link" ]]; then
+    run_sudo ln -sf "$conf_file" "$enabled_link"
   fi
   reload_nginx
 }
 
+ensure_local_deps() {
+  local compose_file="$ROOT_DIR/backend/deploy/deps-compose.yml"
+  if [[ ! -f "$compose_file" ]]; then
+    echo "Missing dependency compose file: $compose_file"
+    exit 1
+  fi
+  run_sudo docker compose -f "$compose_file" up -d
+
+  export MYSQL_HOST=127.0.0.1
+  export MYSQL_PORT=3308
+  export REDIS_HOST=127.0.0.1
+  export REDIS_PORT=6381
+  export QDRANT_HOST=http://127.0.0.1
+  export QDRANT_PORT=6335
+}
+
+prepare_dependencies() {
+  local missing=false
+  if ! port_open "$MYSQL_HOST" "$MYSQL_PORT"; then
+    missing=true
+    echo "Dependency unavailable: MySQL ${MYSQL_HOST}:${MYSQL_PORT}"
+  fi
+  if ! port_open "$REDIS_HOST" "$REDIS_PORT"; then
+    missing=true
+    echo "Dependency unavailable: Redis ${REDIS_HOST}:${REDIS_PORT}"
+  fi
+  if ! port_open "$QDRANT_TCP_HOST" "$QDRANT_PORT"; then
+    missing=true
+    echo "Dependency unavailable: Qdrant ${QDRANT_TCP_HOST}:${QDRANT_PORT}"
+  fi
+
+  if [[ "$missing" == true && "${DEPS_AUTO_BOOTSTRAP,,}" == "true" ]]; then
+    echo "Remote dependencies unavailable, bootstrapping local Docker dependencies..."
+    ensure_local_deps
+  elif [[ "$missing" == true ]]; then
+    echo "Dependencies unavailable and DEPS_AUTO_BOOTSTRAP is disabled."
+    exit 1
+  fi
+}
+
 build_frontend() {
   local front_dir="$ROOT_DIR/frontend"
-  run_user bash -c "cd '$front_dir' && npm ci --legacy-peer-deps"
+  run_user bash -c "cd '$front_dir' && npm ci --legacy-peer-deps || npm install --legacy-peer-deps"
   if run_user bash -c "cd '$front_dir' && npm run" | grep -q "^  test"; then
     run_user bash -c "cd '$front_dir' && npm run test"
   fi
@@ -183,9 +264,6 @@ build_frontend() {
 
 build_backend() {
   local backend_dir="$ROOT_DIR/backend"
-  if [[ -d "$backend_dir/target" ]]; then
-    run_sudo rm -rf "$backend_dir/target"
-  fi
   run_user bash -c "cd '$backend_dir' && mvn -q test"
   run_user bash -c "cd '$backend_dir' && mvn -q -Dmaven.test.skip=true clean package"
 
@@ -203,85 +281,79 @@ build_backend() {
     echo "Backend jar not found in $backend_dir/target"
     exit 1
   fi
-
+  run_user rm -rf "$backend_dir/target/app.jar"
   run_user cp "$jar_path" "$backend_dir/target/app.jar"
 }
 
-wait_for_port() {
-  local host="$1"
-  local port="$2"
-  local label="$3"
-  local retries=90
-  local count=0
-
-  while (( count < retries )); do
-    if (echo >"/dev/tcp/${host}/${port}") >/dev/null 2>&1; then
-      return 0
-    fi
-    count=$((count + 1))
-    sleep 1
-  done
-
-  echo "Timeout waiting for ${label} at ${host}:${port}"
-  exit 1
-}
-
-wait_for_health() {
-  local service="$1"
-  local label="$2"
-  local retries=30
-  local count=0
-  local compose_file="$ROOT_DIR/deploy/docker-compose.yml"
-  local project_name="ainovel-deps"
-
-  local container_id
-  container_id="$(run_sudo docker compose -p "$project_name" -f "$compose_file" ps -q "$service" 2>/dev/null || true)"
-  if [[ -z "$container_id" ]]; then
-    echo "Unable to resolve container for ${label}"
-    exit 1
-  fi
-
-  while (( count < retries )); do
-    local status
-    status="$(run_sudo docker inspect -f '{{.State.Health.Status}}' "$container_id" 2>/dev/null || true)"
-    if [[ "$status" == "healthy" ]]; then
-      return 0
-    fi
-    if [[ "$status" == "unhealthy" ]]; then
-      echo "${label} reported unhealthy status"
-      exit 1
-    fi
-    count=$((count + 1))
-    sleep 2
-  done
-
-  echo "Timeout waiting for ${label} to become healthy"
-  exit 1
-}
-
-rollout_compose() {
+rollout_app() {
   local compose_file="$ROOT_DIR/docker-compose.yml"
-  if is_windows; then
-    compose_file="$ROOT_DIR/docker-compose.windows.yml"
-  fi
   run_sudo docker compose -f "$compose_file" down --remove-orphans
   run_sudo docker compose -f "$compose_file" up -d
 }
 
 load_env_file
+
+set_default APP_TEST_DOMAIN "ainovel.seekerhut.com"
+set_default APP_PROD_DOMAIN "ainovel.aienie.com"
+set_default FRONTEND_PORT "11040"
+set_default BACKEND_PORT "11041"
+
+set_default MYSQL_HOST "192.168.1.4"
+set_default MYSQL_PORT "3306"
+set_default MYSQL_DB "ainovel"
+set_default MYSQL_USER "ainovel"
+set_default MYSQL_PASSWORD "ainovelpwd"
+
+set_default REDIS_HOST "192.168.1.4"
+set_default REDIS_PORT "6379"
+set_default REDIS_PASSWORD ""
+set_default REDIS_KEY_PREFIX "aienie:ainovel:"
+
+set_default QDRANT_HOST "http://192.168.1.4"
+set_default QDRANT_PORT "6333"
+set_default QDRANT_ENABLED "true"
+
+set_default CONSUL_ENABLED "true"
+set_default CONSUL_SCHEME "http"
+set_default CONSUL_HOST "192.168.1.4"
+set_default CONSUL_PORT "60000"
+set_default CONSUL_DATACENTER ""
+set_default CONSUL_CACHE_SECONDS "30"
+
+set_default USER_HTTP_SERVICE_NAME "aienie-userservice-http"
+set_default USER_HTTP_ADDR "https://userservice.seekerhut.com"
+set_default USER_GRPC_SERVICE_NAME "aienie-userservice-grpc"
+set_default USER_GRPC_ADDR "static://userservice.seekerhut.com:10001"
+set_default PAY_GRPC_SERVICE_NAME "aienie-payservice-grpc"
+set_default PAY_GRPC_ADDR "static://payservice.seekerhut.com:20021"
+set_default AI_GRPC_SERVICE_NAME "aienie-aiservice-grpc"
+set_default AI_GRPC_ADDR "static://aiservice.seekerhut.com:10011"
+
+set_default USER_SESSION_GRPC_TIMEOUT_MS "5000"
+set_default USER_GRPC_SERVICE_TAG ""
+set_default SSO_SESSION_VALIDATION_ENABLED "false"
+set_default SSO_CALLBACK_ORIGIN "https://${APP_TEST_DOMAIN}"
+set_default VITE_SSO_ENTRY_BASE_URL "https://${APP_TEST_DOMAIN}"
+set_default EXTERNAL_PROJECT_KEY "ainovel"
+set_default DEPS_AUTO_BOOTSTRAP "true"
+set_default JWT_SECRET "replace-with-your-own-long-random-secret"
+
+QDRANT_TCP_HOST="${QDRANT_HOST#http://}"
+QDRANT_TCP_HOST="${QDRANT_TCP_HOST#https://}"
+QDRANT_TCP_HOST="${QDRANT_TCP_HOST%%/*}"
+
+prepare_dependencies
 build_frontend
 build_backend
-echo "使用统一依赖：MYSQL=${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308} REDIS=${REDIS_HOST:-127.0.0.1}:${REDIS_PORT:-6381} QDRANT=${QDRANT_HOST:-http://127.0.0.1}:${QDRANT_PORT:-6335} CONSUL=${CONSUL_SCHEME:-http}://${CONSUL_HOST:-127.0.0.1}:${CONSUL_PORT:-8502}"
-rollout_compose
+rollout_app
 
-if [[ "$INIT_MODE" == "true" ]]; then
-  if is_windows; then
-    echo "--init 需要修改 hosts 与配置系统 Nginx，仅支持 Linux 环境。Windows 环境请手动配置或在 Linux 服务器上执行。" >&2
-  else
-    ensure_nginx_installed
-    ensure_hosts_entry
-    install_dev_nginx_conf
-  fi
+if [[ "$INIT_MODE" == "true" ]] || ! is_windows; then
+  ensure_nginx_installed
+  ensure_hosts_entry
+  install_nginx_conf
 fi
 
-echo "Deployment finished. Frontend: http://ainovel.seekerhut.com. Backend API: http://ainovel.seekerhut.com:11041/api"
+echo "Deployment finished."
+echo "Frontend URL: https://${APP_TEST_DOMAIN}"
+echo "Backend API: https://${APP_TEST_DOMAIN}/api"
+echo "Consul: ${CONSUL_SCHEME}://${CONSUL_HOST}:${CONSUL_PORT}"

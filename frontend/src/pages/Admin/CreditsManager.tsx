@@ -21,11 +21,36 @@ type RedeemCodeItem = {
   description?: string | null;
 };
 
+type AdminConversionItem = {
+  id: string;
+  orderNo: string;
+  username: string;
+  convertedAmount: number;
+  projectBefore: number;
+  projectAfter: number;
+  publicBefore: number;
+  publicAfter: number;
+  status: string;
+  createdAt: string;
+};
+
+type AdminLedgerItem = {
+  id: string;
+  username: string;
+  type: string;
+  delta: number;
+  balanceAfter: number;
+  description?: string;
+  createdAt: string;
+};
+
 const CreditsManager = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [items, setItems] = useState<RedeemCodeItem[]>([]);
+  const [conversionItems, setConversionItems] = useState<AdminConversionItem[]>([]);
+  const [ledgerItems, setLedgerItems] = useState<AdminLedgerItem[]>([]);
 
   const [code, setCode] = useState(`AICREDIT-${Date.now().toString().slice(-6)}`);
   const [grantAmount, setGrantAmount] = useState(1234);
@@ -37,8 +62,14 @@ const CreditsManager = () => {
   const load = async () => {
     setIsLoading(true);
     try {
-      const list = await api.admin.listRedeemCodes();
+      const [list, conversions, ledger] = await Promise.all([
+        api.admin.listRedeemCodes(),
+        api.admin.listConversionOrders(),
+        api.admin.listCreditLedger(),
+      ]);
       setItems(list || []);
+      setConversionItems(conversions || []);
+      setLedgerItems(ledger || []);
     } finally {
       setIsLoading(false);
     }
@@ -160,9 +191,68 @@ const CreditsManager = () => {
           )}
         </CardContent>
       </Card>
+
+      <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+        <CardHeader>
+          <CardTitle>通用积分兑换订单</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-zinc-400">加载中...</div>
+          ) : conversionItems.length === 0 ? (
+            <div className="text-zinc-400">暂无兑换订单</div>
+          ) : (
+            <div className="space-y-2">
+              {conversionItems.slice(0, 12).map((item) => (
+                <div key={item.id} className="rounded-md border border-zinc-800 p-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{item.orderNo}</div>
+                    <div className="text-xs text-zinc-400">{item.status}</div>
+                  </div>
+                  <div className="text-xs text-zinc-400">
+                    用户 {item.username} · 通用 {item.publicBefore} -&gt; {item.publicAfter} · 项目 {item.projectBefore} -&gt; {item.projectAfter}
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    兑换 {item.convertedAmount} · {new Date(item.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
+        <CardHeader>
+          <CardTitle>项目积分流水</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-zinc-400">加载中...</div>
+          ) : ledgerItems.length === 0 ? (
+            <div className="text-zinc-400">暂无流水</div>
+          ) : (
+            <div className="space-y-2">
+              {ledgerItems.slice(0, 12).map((item) => (
+                <div key={item.id} className="rounded-md border border-zinc-800 p-3 text-sm flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{item.username} · {item.type}</div>
+                    <div className="text-xs text-zinc-500">{item.description || "-"}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className={item.delta >= 0 ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
+                      {item.delta >= 0 ? "+" : ""}{item.delta}
+                    </div>
+                    <div className="text-xs text-zinc-500">余额 {item.balanceAfter}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
 export default CreditsManager;
-

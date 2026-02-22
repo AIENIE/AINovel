@@ -87,7 +87,15 @@ public class EconomyService {
     ) {
     }
 
-    public record ConversionResult(String orderNo, long amount, long projectCredits, long publicCredits, long totalCredits) {
+    public record ConversionResult(
+            String orderNo,
+            long amount,
+            long projectBefore,
+            long projectAfter,
+            long publicBefore,
+            long publicAfter,
+            long totalCredits
+    ) {
     }
 
     public record AiChargeResult(long charged, long remainingProjectCredits) {
@@ -95,12 +103,31 @@ public class EconomyService {
 
     public record LedgerItem(
             String id,
+            String userId,
+            String username,
             String type,
             long delta,
             long balanceAfter,
             String referenceType,
             String referenceId,
             String description,
+            Instant createdAt
+    ) {
+    }
+
+    public record ConversionHistoryItem(
+            String id,
+            String orderNo,
+            String userId,
+            String username,
+            long requestedAmount,
+            long convertedAmount,
+            long projectBefore,
+            long projectAfter,
+            long publicBefore,
+            long publicAfter,
+            String status,
+            String remoteMessage,
             Instant createdAt
     ) {
     }
@@ -262,17 +289,24 @@ public class EconomyService {
         CreditConversionOrder existing = conversionOrderRepository.findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
         if (existing != null) {
             if (existing.getStatus() == ConversionOrderStatus.SUCCESS) {
-                BalanceSnapshot snapshot = currentBalance(user);
+                long projectAfter = existing.getProjectAfter();
+                long publicAfter = existing.getPublicAfter();
                 return new ConversionResult(
                         existing.getOrderNo(),
                         existing.getConvertedAmount(),
-                        snapshot.projectCredits(),
-                        snapshot.publicCredits(),
-                        snapshot.totalCredits()
+                        existing.getProjectBefore(),
+                        projectAfter,
+                        existing.getPublicBefore(),
+                        publicAfter,
+                        projectAfter + publicAfter
                 );
             }
             throw new RuntimeException("该兑换请求正在处理或已失败，请更换 idempotencyKey");
         }
+
+        ProjectCreditAccount accountSnapshot = getOrCreateAccount(user);
+        long projectBefore = accountSnapshot.getBalance();
+        long publicBefore = fetchPublicBalance(user);
 
         String orderNo = "CVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase(Locale.ROOT);
         CreditConversionOrder order = new CreditConversionOrder();
@@ -281,11 +315,23 @@ public class EconomyService {
         order.setIdempotencyKey(idempotencyKey);
         order.setRequestedAmount(amount);
         order.setConvertedAmount(0);
+        order.setProjectBefore(projectBefore);
+        order.setProjectAfter(projectBefore);
+        order.setPublicBefore(publicBefore);
+        order.setPublicAfter(publicBefore);
         order.setStatus(ConversionOrderStatus.PENDING);
         order.setRemoteRequestId(UUID.randomUUID().toString());
         conversionOrderRepository.save(order);
 
-        BillingGrpcClient.ConversionResult remote = billingGrpcClient.convertPublicToProject(remoteUid, amount, order.getRemoteRequestId());
+        BillingGrpcClient.ConversionResult remote;
+        try {
+            remote = billingGrpcClient.convertPublicToProject(remoteUid, amount, order.getRemoteRequestId());
+        } catch (RuntimeException ex) {
+            order.setStatus(ConversionOrderStatus.FAILED);
+            order.setRemoteMessage(ex.getMessage());
+            conversionOrderRepository.save(order);
+            throw ex;
+        }
         if (!remote.success()) {
             order.setStatus(ConversionOrderStatus.FAILED);
             order.setRemoteMessage(remote.errorMessage());
@@ -311,14 +357,26 @@ public class EconomyService {
             order.setConvertedAmount(converted);
             order.setStatus(ConversionOrderStatus.SUCCESS);
             order.setRemoteMessage(remote.errorMessage());
+            order.setProjectAfter(project);
+            long publicCredits = remote.publicRemainingTokens() >= 0 ? remote.publicRemainingTokens() : fetchPublicBalance(user);
+            order.setPublicAfter(publicCredits);
             conversionOrderRepository.save(order);
 
-            long publicCredits = remote.publicRemainingTokens() >= 0 ? remote.publicRemainingTokens() : fetchPublicBalance(user);
-            return new ConversionResult(orderNo, converted, project, publicCredits, project + publicCredits);
+            return new ConversionResult(
+                    orderNo,
+                    converted,
+                    order.getProjectBefore(),
+                    order.getProjectAfter(),
+                    order.getPublicBefore(),
+                    order.getPublicAfter(),
+                    order.getProjectAfter() + order.getPublicAfter()
+            );
         } catch (RuntimeException ex) {
             boolean rollback = billingGrpcClient.grantPublicTokens(remoteUid, converted, "AINovel conversion rollback " + orderNo);
             order.setStatus(rollback ? ConversionOrderStatus.ROLLBACK_SUCCESS : ConversionOrderStatus.ROLLBACK_FAILED);
             order.setRemoteMessage("local apply failed: " + ex.getMessage());
+            order.setProjectAfter(order.getProjectBefore());
+            order.setPublicAfter(fetchPublicBalance(user));
             conversionOrderRepository.save(order);
             throw ex;
         }
@@ -347,12 +405,71 @@ public class EconomyService {
         return ledgerRepository.findByUserOrderByCreatedAtDesc(user, pageable)
                 .map(item -> new LedgerItem(
                         String.valueOf(item.getId()),
+                        String.valueOf(item.getUser().getId()),
+                        item.getUser().getUsername(),
                         item.getEntryType().name(),
                         item.getDelta(),
                         item.getBalanceAfter(),
                         item.getReferenceType(),
                         item.getReferenceId(),
                         item.getDescription(),
+                        item.getCreatedAt()
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LedgerItem> listLedger(Pageable pageable) {
+        return ledgerRepository.findByOrderByCreatedAtDesc(pageable)
+                .map(item -> new LedgerItem(
+                        String.valueOf(item.getId()),
+                        String.valueOf(item.getUser().getId()),
+                        item.getUser().getUsername(),
+                        item.getEntryType().name(),
+                        item.getDelta(),
+                        item.getBalanceAfter(),
+                        item.getReferenceType(),
+                        item.getReferenceId(),
+                        item.getDescription(),
+                        item.getCreatedAt()
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ConversionHistoryItem> listConversions(User user, Pageable pageable) {
+        return conversionOrderRepository.findByUserOrderByCreatedAtDesc(user, pageable)
+                .map(item -> new ConversionHistoryItem(
+                        String.valueOf(item.getId()),
+                        item.getOrderNo(),
+                        String.valueOf(item.getUser().getId()),
+                        item.getUser().getUsername(),
+                        item.getRequestedAmount(),
+                        item.getConvertedAmount(),
+                        item.getProjectBefore(),
+                        item.getProjectAfter(),
+                        item.getPublicBefore(),
+                        item.getPublicAfter(),
+                        item.getStatus().name(),
+                        item.getRemoteMessage(),
+                        item.getCreatedAt()
+                ));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ConversionHistoryItem> listConversions(Pageable pageable) {
+        return conversionOrderRepository.findByOrderByCreatedAtDesc(pageable)
+                .map(item -> new ConversionHistoryItem(
+                        String.valueOf(item.getId()),
+                        item.getOrderNo(),
+                        String.valueOf(item.getUser().getId()),
+                        item.getUser().getUsername(),
+                        item.getRequestedAmount(),
+                        item.getConvertedAmount(),
+                        item.getProjectBefore(),
+                        item.getProjectAfter(),
+                        item.getPublicBefore(),
+                        item.getPublicAfter(),
+                        item.getStatus().name(),
+                        item.getRemoteMessage(),
                         item.getCreatedAt()
                 ));
     }
@@ -447,12 +564,21 @@ public class EconomyService {
         if (remoteUid == null || remoteUid <= 0) {
             return 0L;
         }
-        try {
-            return billingGrpcClient.publicBalance(remoteUid);
-        } catch (Exception ex) {
-            log.warn("Failed to fetch public balance for remoteUid={}: {}", remoteUid, ex.getMessage());
-            return 0L;
+        RuntimeException lastError = null;
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                return billingGrpcClient.publicBalance(remoteUid);
+            } catch (RuntimeException ex) {
+                lastError = ex;
+            }
         }
+
+        long fallback = conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)
+                .map(item -> item.getPublicAfter() > 0 ? item.getPublicAfter() : item.getPublicBefore())
+                .orElse(0L);
+        String reason = lastError == null ? "unknown" : lastError.getMessage();
+        log.warn("Failed to fetch public balance for remoteUid={}, fallback={} reason={}", remoteUid, fallback, reason);
+        return fallback;
     }
 
     private String normalizeRedeemCode(String code) {

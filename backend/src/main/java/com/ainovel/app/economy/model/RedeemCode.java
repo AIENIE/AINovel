@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -24,6 +26,14 @@ public class RedeemCode {
 
     @Column(nullable = false)
     private long grantAmount;
+
+    // Backward compatibility for legacy schema where redeem_codes.amount is mandatory.
+    @Column(name = "amount")
+    private Long legacyAmount;
+
+    // Backward compatibility for legacy schema where redeem_codes.used is mandatory.
+    @Column(name = "used")
+    private Boolean legacyUsed;
 
     private Integer maxUses;
 
@@ -71,6 +81,7 @@ public class RedeemCode {
 
     public void setGrantAmount(long grantAmount) {
         this.grantAmount = grantAmount;
+        this.legacyAmount = grantAmount;
     }
 
     public Integer getMaxUses() {
@@ -144,5 +155,11 @@ public class RedeemCode {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
-}
 
+    @PrePersist
+    @PreUpdate
+    void syncLegacyAmount() {
+        this.legacyAmount = this.grantAmount;
+        this.legacyUsed = this.usedCount > 0;
+    }
+}

@@ -1,5 +1,7 @@
 import {
   AdminDashboardStats,
+  CreditConversionRecord,
+  CreditLedgerItem,
   FileImportJob,
   Material,
   Manuscript,
@@ -261,13 +263,21 @@ export const api = {
       return await requestJson<{
         orderNo: string;
         amount: number;
-        projectCredits: number;
-        publicCredits: number;
+        projectBefore: number;
+        projectAfter: number;
+        publicBefore: number;
+        publicAfter: number;
         totalCredits: number;
       }>("/v1/user/credits/convert", {
         method: "POST",
         body: JSON.stringify({ amount, idempotencyKey }),
       });
+    },
+    listLedger: async (): Promise<CreditLedgerItem[]> => {
+      return await requestJson<CreditLedgerItem[]>("/v1/user/credits/ledger?page=0&size=50", { method: "GET" });
+    },
+    listConversionHistory: async (): Promise<CreditConversionRecord[]> => {
+      return await requestJson<CreditConversionRecord[]>("/v1/user/credits/conversions?page=0&size=50", { method: "GET" });
     },
     summary: async (): Promise<UserSummary> => {
       return await requestJson<UserSummary>("/v1/user/summary", { method: "GET" });
@@ -352,6 +362,12 @@ export const api = {
     },
     grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
       return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) });
+    },
+    listConversionOrders: async () => {
+      return await requestJson<any[]>("/v1/admin/credits/conversions?page=0&size=50", { method: "GET" });
+    },
+    listCreditLedger: async () => {
+      return await requestJson<any[]>("/v1/admin/credits/ledger?page=0&size=50", { method: "GET" });
     },
   },
 

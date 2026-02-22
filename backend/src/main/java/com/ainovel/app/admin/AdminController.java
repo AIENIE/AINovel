@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -282,6 +283,69 @@ public class AdminController {
                 item.stackable(),
                 item.description()
         );
+    }
+
+    @GetMapping("/credits/conversions")
+    @Operation(summary = "查询通用积分兑换订单", description = "分页查询全站通用积分兑换为项目积分的订单记录。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public List<AdminConversionOrderDto> conversionOrders(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return economyService.listConversions(PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(item -> new AdminConversionOrderDto(
+                        item.id(),
+                        item.orderNo(),
+                        item.userId(),
+                        item.username(),
+                        item.requestedAmount(),
+                        item.convertedAmount(),
+                        item.projectBefore(),
+                        item.projectAfter(),
+                        item.publicBefore(),
+                        item.publicAfter(),
+                        item.status(),
+                        item.remoteMessage(),
+                        item.createdAt()
+                ))
+                .toList();
+    }
+
+    @GetMapping("/credits/ledger")
+    @Operation(summary = "查询项目积分流水", description = "分页查询全站项目积分流水。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录"),
+            @ApiResponse(responseCode = "403", description = "无管理员权限")
+    })
+    public List<AdminCreditLedgerItemDto> ledger(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return economyService.listLedger(PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(item -> new AdminCreditLedgerItemDto(
+                        item.id(),
+                        item.userId(),
+                        item.username(),
+                        item.type(),
+                        item.delta(),
+                        item.balanceAfter(),
+                        item.referenceType(),
+                        item.referenceId(),
+                        item.description(),
+                        item.createdAt()
+                ))
+                .toList();
     }
 
     private User resolveTargetUser(String userId) {

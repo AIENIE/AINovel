@@ -8,12 +8,15 @@ public record ConvertCreditsResponse(
         String orderNo,
         @Schema(description = "本次兑换数量", example = "100")
         double amount,
-        @Schema(description = "项目专属积分余额", example = "1300.0")
-        double projectCredits,
-        @Schema(description = "通用积分余额", example = "200.0")
-        double publicCredits,
+        @Schema(description = "兑换前项目专属积分", example = "1200.0")
+        double projectBefore,
+        @Schema(description = "兑换后项目专属积分", example = "1300.0")
+        double projectAfter,
+        @Schema(description = "兑换前通用积分", example = "300.0")
+        double publicBefore,
+        @Schema(description = "兑换后通用积分", example = "200.0")
+        double publicAfter,
         @Schema(description = "总余额", example = "1500.0")
         double totalCredits
 ) {
 }
-

@@ -39,12 +39,30 @@ public class SsoEntryService {
 
     private String resolveUserServiceBaseUrl() {
         ExternalServiceProperties.ServiceTarget target = properties.getUserserviceHttp();
+        String preferred = normalizeHttpUrl(target.getFallback());
+        if (preferred != null) {
+            return preferred;
+        }
         Optional<ConsulServiceResolver.Endpoint> endpoint =
                 resolver.resolveOrFallback(target.getServiceName(), target.getFallback());
         if (endpoint.isPresent()) {
             return endpoint.get().toHttpBase();
         }
         return normalizeBaseUrl(target.getFallback());
+    }
+
+    private String normalizeHttpUrl(String fallback) {
+        if (fallback == null || fallback.isBlank()) {
+            return null;
+        }
+        String value = fallback.trim();
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            if (value.endsWith("/")) {
+                return value.substring(0, value.length() - 1);
+            }
+            return value;
+        }
+        return null;
     }
 
     private String normalizeBaseUrl(String fallback) {

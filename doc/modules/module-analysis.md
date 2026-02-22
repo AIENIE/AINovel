@@ -281,7 +281,7 @@
 | 素材 | `materials`、`material_upload_jobs` | `backend/src/main/java/com/ainovel/app/material/model/*` |
 | 提示词与系统配置 | `prompt_templates`、`world_prompt_templates`、`global_settings` | `backend/src/main/java/com/ainovel/app/settings/model/*` |
 
-完整参考：`sql/schema.sql`
+完整参考：`backend/sql/schema.sql`
 
 ## 6. 当前实现状态（已闭环与占位项）
 

@@ -1,68 +1,36 @@
 # 项目目录结构说明
 
-- `frontend/`：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui 前端工程。
-  - `src/pages/`：首页、工作台、小说管理、世界构建、素材、设置、后台管理与认证回调页面。
-  - `src/pages/Workbench/tabs/LorebookPanel.tsx`：知识库页面（Lorebook 条目管理、实体审核、上下文预览）。
-  - `src/pages/Workbench/tabs/KnowledgeGraphTab.tsx`：知识图谱页面（图谱查询与节点详情）。
-  - `src/pages/Workbench/tabs/ManuscriptWriter.tsx`：增强稿件工作台（三栏布局、上下文/版本/导出侧栏、会话状态）。
-  - `src/pages/Workbench/tabs/V2Studio.tsx`：v2 联调面板（覆盖上下文记忆、风格、分析、版本、导出、多模型、工作台接口）。
-  - `src/pages/Settings/tabs/StyleProfiles.tsx`：风格画像与角色声音管理页面。
-  - `src/pages/Settings/tabs/ModelPreferences.tsx`：模型偏好、用量统计与 A/B 对比页面。
-  - `src/pages/Settings/tabs/WorkspaceExperience.tsx`：工作台布局、快捷键、写作目标配置页面。
-  - `src/contexts/AuthContext.tsx`：登录态初始化、token 接受、用户资料刷新。
-  - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*` + `/api/v2/*`）。
-  - `src/lib/shortcuts.ts`：快捷键默认表、匹配逻辑、归一化与冲突检测工具。
-  - `src/lib/__tests__/shortcuts.test.ts`：快捷键工具单元测试。
-  - `src/lib/sso.ts`：统一登录跳转 URL 组装（指向 `/api/v1/sso/*`，支持 `VITE_SSO_ENTRY_BASE_URL` 覆盖）与前端 `state` 一次性校验辅助函数。
-  - `vite.config.ts`：前端开发端口 `11040`，并将 `/api` 代理到 `http://127.0.0.1:11041`。
-  - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端容器端口 `10011`（宿主机映射默认 `11040/11041`）。
-  - `Dockerfile`：前端镜像构建与运行定义（容器内 `EXPOSE 10010`）。
-- `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
-  - `src/main/java/com/ainovel/app/auth/SsoController.java`：统一登录入口中转（`/api/v1/sso/login|register`，后端 302 到 user-service；支持 `SSO_CALLBACK_ORIGIN` 覆盖回跳 origin）。
-  - `src/main/java/com/ainovel/app/v2/`：v2 模块接口实现（上下文记忆、风格画像、分析、版本控制、导出、多模型、工作台）与统一权限守卫。
-  - `src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`：稿件实体，新增 `currentBranchId` 用于版本控制主分支定位。
-  - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
-  - `src/main/java/com/ainovel/app/security/remote/ConsulUserGrpcEndpointResolver.java`：Consul `health/service` 查询与缓存。
-  - `src/main/java/com/ainovel/app/security/remote/UserSessionValidationProperties.java`：会话校验配置对象（Consul、超时、回退地址）。
-  - `src/main/java/com/ainovel/app/integration/ExternalServiceProperties.java`：外部服务配置（Consul 发现、User/AI/Pay 服务名与回退地址）。
-  - `src/main/java/com/ainovel/app/integration/ConsulServiceResolver.java`：通用 Consul 服务发现与缓存。
-  - `src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java`：UserService 管理端 HTTP 调用适配。
-  - `src/main/java/com/ainovel/app/integration/AiGatewayGrpcClient.java`：AiService gRPC 调用适配。
-  - `src/main/java/com/ainovel/app/integration/BillingGrpcClient.java`：PayService gRPC 调用适配（通用积分余额、通用->项目兑换、冲回补偿）。
-  - `src/main/java/com/ainovel/app/economy/model/*`：本地积分账本实体（账户、流水、签到记录、兑换码、兑换订单）。
-  - `src/main/java/com/ainovel/app/economy/repo/*`：本地积分账本仓储。
-  - `src/main/java/com/ainovel/app/economy/EconomyService.java`：本地积分核心服务（签到、兑换码、AI 扣费、通用积分兑换、管理员加分）。
-  - `src/main/proto/ai/v1/ai_gateway.proto`：AiService gRPC 协议定义（v1.1 新增）。
-  - `src/main/proto/billing/v1/billing_service.proto`：PayService gRPC 协议定义（v1.1 新增）。
-  - `src/main/java/com/ainovel/app/security/JwtAuthFilter.java`：JWT 解析与鉴权过滤器。
-  - `src/main/resources/application.yml`：后端配置（容器内默认端口 `10011`；MySQL/Redis/Consul/SSO 均支持环境变量覆盖；宿主机映射默认 `11041`）。
-  - `src/test/java/com/ainovel/app/auth/SsoControllerTest.java`：SSO 中转控制器单元测试（`next/state` 校验与异常分支）。
-  - `src/test/java/com/ainovel/app/auth/SsoEntryServiceTest.java`：SSO 跳转目标组装与 fallback 校验单元测试。
-  - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
-  - `src/test/java/com/ainovel/app/v2/`：v2 控制器单测（上下文、版本、工作台）。
-  - `Dockerfile`：后端镜像定义（容器内 `EXPOSE 10011`）。
-- `docker-compose.yml`：前后端容器编排（宿主机映射前端 `11040`、后端 `11041`），并注入 MySQL/Redis/Consul、User/AI/Pay 服务与 SSO 相关环境变量。
-- `docker-compose.windows.yml`：Windows 本地编排（同端口策略，外部网络可接公共依赖）。
-- `build.sh`：构建与部署脚本（读取 `env.txt` 与 `SUDO_PASSWORD`；输出地址与端口同步为 `11040/11041`）。
-- `build_prod.sh`：生产部署脚本（读取 `env.txt` 后调用 `build.sh`，支持证书与 Nginx 初始化流程）。
-- `build_local.sh`：本地运行脚本（不使用 Docker，直接编译并启动前后端；自动读取 `env.txt`）。
-- `build.ps1`：`build.sh` 的 PowerShell 版本。
-- `build_prod.ps1`：`build_prod.sh` 的 PowerShell 版本。
-- `build_local.ps1`：`build_local.sh` 的 PowerShell 版本（不使用 Docker，直接编译并启动）。
-- `deploy/`：公共依赖容器编排与脚本。
-  - `docker-compose.yml`：依赖服务（MySQL、Redis、Qdrant、Consul）。
-  - `build.sh`：依赖服务独立部署脚本（与服务本体部署脚本分离）。
-  - `qdrant/storage/.gitkeep`、`consul/data/.gitkeep`：依赖数据目录占位。
-- `design-doc/`：版本设计与开发规划文档。
-  - `v1.1/`：v1.1 版本规划与实施文档（功能收敛 + Swagger 全量补齐）。
-  - `v2/`：v2 设计文档（7 大模块、数据库变更、API 总览、前端设计系统）。
-- `doc/api/`：后端 Controller API 文档。
-  - `v2-*.md`：v2 新增控制器文档（context/style/analysis/version/export/models/workspace）。
-  - `external/`：外部微服务接口发现与能力映射文档。
-- `doc/modules/`：模块级说明文档。
-  - `v2.md`：v2 新模块职责与实现落位。
-  - `third-party-components.md`：第三方组件对齐基线与 deploy 拆分说明。
-- `doc/test/`：操作步骤、集成测试清单与问题修复记录。
-  - `2026-02-17-v2-workbench-selftest.md`：v2 工作台 Playwright 自测记录（含入口降级策略与截图证据）。
-- `sql/schema.sql`：数据库结构脚本。
-- `AGENTS.md`：项目约束与端口/域名基线。
+## 顶层目录
+
+- `frontend/`：React 前端工程。
+- `backend/`：Spring Boot 后端工程。
+- `doc/`：项目文档、API、测试记录。
+- `design-doc/`：设计方案与版本规划文档。
+- `build.sh`：Linux 一键部署脚本（支持 hosts + nginx + HTTPS 代理）。
+- `build_prod.sh`：生产部署包装脚本（调用 `build.sh`）。
+- `build_local.ps1`：Windows 本地编译运行脚本。
+- `docker-compose.yml`：AINovel 前后端容器编排。
+- `env.txt`：默认环境配置（可被进程环境变量覆盖）。
+
+## frontend 目录
+
+- `frontend/src/App.tsx`：路由与权限守卫入口。
+- `frontend/src/contexts/AuthContext.tsx`：登录态与用户资料上下文。
+- `frontend/src/pages/auth/*`：SSO 登录/注册跳转与回调页面。
+- `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（签到/兑换/兑换历史/积分流水）。
+- `frontend/src/pages/Admin/*`：管理后台页面。
+- `frontend/src/lib/mock-api.ts`：统一 API 请求层。
+
+## backend 目录
+
+- `backend/src/main/resources/application.yml`：后端主配置（支持 env 覆盖）。
+- `backend/src/main/java/com/ainovel/app/auth/*`：SSO 中转。
+- `backend/src/main/java/com/ainovel/app/security/*`：JWT 与会话校验。
+- `backend/src/main/java/com/ainovel/app/integration/*`：Consul + 三服务客户端。
+- `backend/src/main/java/com/ainovel/app/economy/*`：项目积分账本与兑换核心逻辑。
+- `backend/src/main/java/com/ainovel/app/user/*`：用户中心接口。
+- `backend/src/main/java/com/ainovel/app/admin/*`：管理端接口。
+- `backend/src/main/proto/*`：ai/user/pay gRPC 协议。
+- `backend/sql/schema.sql`：数据库结构参考。
+- `backend/deploy/deps-compose.yml`：本机依赖容器编排（MySQL/Redis/Qdrant）。
+

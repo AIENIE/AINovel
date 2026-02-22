@@ -1,112 +1,68 @@
 # AINovel
 
-AINovel 是一个 AI 小说创作平台，采用前后端分离架构：
+AINovel 是一个前后端分离的 AI 小说创作业务项目。
 
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
-- 后端：Spring Boot（REST + gRPC 集成 + JWT/SSO）
-- 默认端口：前端 `11040`，后端 `11041`
-- 测试域名：`ainovel.seekerhut.com`，正式域名：`ainovel.aienie.com`
+- 后端：Spring Boot 3 + JPA + Redis + gRPC 客户端
+- 对外端口：前端 `11040`，后端 `11041`
+- 测试域名：`ainovel.seekerhut.com`
+- 正式域名：`ainovel.aienie.com`
 
-## 快速入口
+## 当前能力概览
 
-- 上手详解文档：`doc/tutorial/getting-started.md`
-- 项目结构说明：`doc/structure.md`
-- 后端 API 文档索引：`doc/api/`
-- 模块说明文档：`doc/modules/`
-- 测试与联调记录：`doc/test/`
+- 统一登录（SSO）：仅保留 `/api/v1/sso/*` 中转，不提供本地登录注册表单接口。
+- 用户首次登录：自动创建本地用户映射与项目积分账户（最小初始化）。
+- 项目专属积分：在 AINovel 本地账本管理（签到、兑换码、AI 扣费、管理员加分）。
+- 通用积分：通过 pay-service 查询并支持 1:1 兑换为项目积分。
+- 积分记录：
+  - 用户侧：项目积分流水 + 通用积分兑换历史（含兑换前后余额）。
+  - 管理侧：兑换订单列表 + 全站项目积分流水。
 
-## 1. 如何启动项目前后端
+## 快速启动
 
-详细步骤见 `doc/tutorial/getting-started.md` 的「1、如何启动项目前后端」。
+1. 准备 `env.txt`（仓库已提供默认模板，可直接改值）。
+2. Linux 一键部署（构建前后端 + docker compose 启动 + Nginx/hosts 代理）：
 
-常用命令如下：
-
-1. 启动后端（本地进程）
 ```bash
-cd backend
-mvn spring-boot:run
+sudo bash build.sh
 ```
 
-2. 启动前端（本地进程）
-```bash
-cd frontend
-npm ci --legacy-peer-deps
-npm run dev
-```
+3. 打开：
+- `https://ainovel.seekerhut.com`
+- `https://ainovel.seekerhut.com/api/v3/api-docs`
 
-3. 一键构建并以 Docker 方式启动前后端
-```bash
-bash build.sh
-```
+说明：
+- `build.sh` 会读取 `env.txt`，环境变量可覆盖。
+- 若手动执行 `docker compose`，先执行 `set -a; source env.txt; set +a`，避免容器使用到错误默认值（如 `JWT_SECRET` 不一致导致 SSO token 全部 403）。
+- 当远端 `MySQL/Redis/Qdrant` 不可用且 `DEPS_AUTO_BOOTSTRAP=true` 时，会自动拉起本机依赖容器（`backend/deploy/deps-compose.yml`）。
 
-4. 一键本地编译并启动（非 Docker）
-```bash
-bash build_local.sh
-```
+## 关键配置
 
-5. PowerShell 等价命令（Windows）
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-powershell -ExecutionPolicy Bypass -File .\build_prod.ps1
-powershell -ExecutionPolicy Bypass -File .\build_local.ps1
-```
+统一写在 `env.txt`（可被 shell 环境变量覆盖）：
 
-## 2. 新环境部署时需调整的三方配置
+- 依赖服务：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
+- Consul：`CONSUL_*`（默认对接 `192.168.1.4:60000`）
+- 三服务名：
+  - `USER_GRPC_SERVICE_NAME=aienie-userservice-grpc`
+  - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
+  - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
+- 三服务 fallback：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`（默认 `*.seekerhut.com`）
+- SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 
-详细清单见 `doc/tutorial/getting-started.md` 的「2、新环境部署时需要调整哪些配置（连接三方服务）」。
+## 目录说明
 
-至少要确认以下配置：
+- `frontend/`：前端代码
+- `backend/`：后端代码
+- `backend/sql/schema.sql`：数据库结构参考脚本
+- `backend/deploy/deps-compose.yml`：本机依赖容器编排（兜底用）
+- `doc/`：项目文档、API 文档、测试记录
+- `design-doc/`：设计与规划文档
+- `build.sh` / `build_prod.sh` / `build_local.ps1`：部署脚本
+- `docker-compose.yml`：AINovel 前后端容器编排
 
-- 数据库与缓存：`MYSQL_*`、`REDIS_*`
-- SSO/JWT：`JWT_SECRET`、`SSO_SESSION_VALIDATION_ENABLED`、`USER_GRPC_*`
-- 服务发现：`CONSUL_*`
-- 外部微服务：`USER_HTTP_ADDR` / `USER_HTTP_SERVICE_NAME`、`AI_GRPC_ADDR` / `AI_GRPC_SERVICE_NAME`、`PAY_GRPC_ADDR` / `PAY_GRPC_SERVICE_NAME`
-- SSO 中转与回调：`USER_HTTP_SERVICE_NAME`、`USER_HTTP_ADDR`、`SSO_SESSION_VALIDATION_ENABLED`、`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
+## 验证建议
 
-主要配置文件：
-
-- `env.txt`
-- `backend/src/main/resources/application.yml`
-- `docker-compose.yml`
-- `frontend/src/lib/sso.ts`
-- `backend/src/main/java/com/ainovel/app/auth/SsoController.java`
-
-## 3. 项目模块、功能与对应文件
-
-详细对照表见 `doc/tutorial/getting-started.md` 的「3、项目主要模块、功能、对应文件」。
-
-核心模块（摘要）：
-
-- 认证与会话：`backend/src/main/java/com/ainovel/app/security/`，`frontend/src/contexts/AuthContext.tsx`
-- 故事/大纲：`backend/src/main/java/com/ainovel/app/story/`，`frontend/src/pages/Workbench/tabs/StoryConception.tsx`，`frontend/src/pages/Workbench/tabs/OutlineWorkbench.tsx`
-- 稿件与 AI Copilot：`backend/src/main/java/com/ainovel/app/manuscript/`，`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
-- v2 能力集：`backend/src/main/java/com/ainovel/app/v2/`，以及前端 `frontend/src/pages/Workbench/tabs/LorebookPanel.tsx`、`frontend/src/pages/Workbench/tabs/KnowledgeGraphTab.tsx`、`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`、`frontend/src/pages/Workbench/tabs/V2Studio.tsx`
-- 世界观：`backend/src/main/java/com/ainovel/app/world/`，`frontend/src/pages/WorldBuilder/`
-- 素材库：`backend/src/main/java/com/ainovel/app/material/`，`frontend/src/pages/Material/`
-- 设置与提示词：`backend/src/main/java/com/ainovel/app/settings/`，`frontend/src/pages/Settings/`
-- 管理后台：`backend/src/main/java/com/ainovel/app/admin/`，`frontend/src/pages/Admin/`
-
-## 5. 文件树与各文件主要功能
-
-详细文件树见 `doc/tutorial/getting-started.md` 的「5、文件树与各文件主要功能」。
-
-## 6. 提示词在哪里调整，如何做提示词优化
-
-详细步骤见 `doc/tutorial/getting-started.md` 的「6、提示词在哪里调整，如何优化」。
-
-关键位置：
-
-- 前端设置页：`frontend/src/pages/Settings/Settings.tsx`（含提示词、风格画像、模型偏好、工作台体验）
-- 前端提示词编辑：`frontend/src/pages/Settings/tabs/WorkspacePrompts.tsx`、`frontend/src/pages/Settings/tabs/WorldPrompts.tsx`
-- 后端提示词接口：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`
-- 后端默认模板：`backend/src/main/java/com/ainovel/app/settings/SettingsService.java`
-- 提示词持久化表：`sql/schema.sql` 中 `prompt_templates`、`world_prompt_templates`
-- v2 API 文档：`doc/api/v2-context.md`、`doc/api/v2-style.md`、`doc/api/v2-analysis.md`、`doc/api/v2-version.md`、`doc/api/v2-export.md`、`doc/api/v2-models.md`、`doc/api/v2-workspace.md`
-
-## 7. 其他上手信息
-
-- 本项目已切换统一登录（SSO）：前端 `/login` 与 `/register` 会先请求后端 `/api/v1/sso/*`，由后端 302 到 user-service 登录/注册页；回跳 `/sso/callback` 后前端校验 `state` 再落地 token。
-- 开发环境首次启动会由 `DataInitializer` 注入种子数据，包括管理员账号 `admin / password`（仅开发环境使用）。
-- 脚本注意：`build.sh`、`build_prod.sh`、`build_local.ps1` 会自动加载项目根目录 `env.txt`；`build.sh --init` 与 `build_prod.sh --init` 依赖 `deploy/nginx/*.conf`，当前仓库未包含该目录，执行前需先补齐 Nginx 配置文件。
-- 本地依赖端口差异：`deploy/docker-compose.yml` 默认 MySQL/Redis 映射为 `3308/6381`，与后端默认 `3306/6379` 不同，需同步调整环境变量。
-- Java 运行基线：后端编译目标是 Java 17（`backend/pom.xml`），容器运行镜像为 `eclipse-temurin:21-jre`，建议团队统一版本策略以降低环境差异。
+- 后端测试：`cd backend && mvn -q test`
+- 前端测试：`cd frontend && npm ci && npm run test`
+- 前端构建：`cd frontend && npm run build`
+- 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.seekerhut.com/api/v3/api-docs`

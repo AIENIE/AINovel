@@ -3,7 +3,7 @@ spring:
     servlet:
       path: /api
   datasource:
-    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3308}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false}
+    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:192.168.1.4}:${MYSQL_PORT:3306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${DB_USERNAME:${MYSQL_USER:ainovel}}
     password: ${DB_PASSWORD:${MYSQL_PASSWORD:ainovelpwd}}
   jpa:
@@ -15,8 +15,8 @@ spring:
     open-in-view: false
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6381}
+      host: ${REDIS_HOST:192.168.1.4}
+      port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
   cache:
     type: redis
@@ -53,37 +53,37 @@ app:
     discovery:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}
-      host: ${CONSUL_HOST:127.0.0.1}
-      port: ${CONSUL_PORT:8502}
+      host: ${CONSUL_HOST:192.168.1.4}
+      port: ${CONSUL_PORT:60000}
       datacenter: ${CONSUL_DATACENTER:}
       cache-seconds: ${CONSUL_CACHE_SECONDS:30}
     userservice-http:
       service-name: ${USER_HTTP_SERVICE_NAME:aienie-userservice-http}
-      fallback: ${USER_HTTP_ADDR:http://127.0.0.1:10000}
+      fallback: ${USER_HTTP_ADDR:https://userservice.seekerhut.com}
     aiservice-grpc:
       service-name: ${AI_GRPC_SERVICE_NAME:aienie-aiservice-grpc}
-      fallback: ${AI_GRPC_ADDR:static://127.0.0.1:10011}
+      fallback: ${AI_GRPC_ADDR:static://aiservice.seekerhut.com:10011}
     payservice-grpc:
       service-name: ${PAY_GRPC_SERVICE_NAME:aienie-payservice-grpc}
-      fallback: ${PAY_GRPC_ADDR:static://127.0.0.1:20021}
+      fallback: ${PAY_GRPC_ADDR:static://payservice.seekerhut.com:20021}
 
 sso:
-  callback-origin: ${SSO_CALLBACK_ORIGIN:}
+  callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.seekerhut.com}
   session-validation:
-    enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
-    timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:2000}
+    enabled: ${SSO_SESSION_VALIDATION_ENABLED:false}
+    timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:5000}
     grpc-fallback-address: ${USER_GRPC_ADDR:static://127.0.0.1:10001}
     consul:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}
-      host: ${CONSUL_HOST:127.0.0.1}
-      port: ${CONSUL_PORT:8502}
+      host: ${CONSUL_HOST:192.168.1.4}
+      port: ${CONSUL_PORT:60000}
       service-name: ${USER_GRPC_SERVICE_NAME:aienie-userservice-grpc}
       datacenter: ${CONSUL_DATACENTER:}
       tag: ${USER_GRPC_SERVICE_TAG:}
       cache-seconds: ${CONSUL_CACHE_SECONDS:30}
 
 qdrant:
-  host: ${QDRANT_HOST:http://127.0.0.1}
-  http-port: ${QDRANT_PORT:6335}
+  host: ${QDRANT_HOST:http://192.168.1.4}
+  http-port: ${QDRANT_PORT:6333}
   enabled: ${QDRANT_ENABLED:true}

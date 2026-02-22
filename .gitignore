@@ -23,7 +23,6 @@ Thumbs.db
 # Local env / secrets
 .env
 .env.*
-env.txt
 .local.env
 .cap.env
 

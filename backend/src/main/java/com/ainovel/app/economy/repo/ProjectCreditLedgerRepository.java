@@ -10,5 +10,5 @@ import java.util.UUID;
 
 public interface ProjectCreditLedgerRepository extends JpaRepository<ProjectCreditLedger, UUID> {
     Page<ProjectCreditLedger> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+    Page<ProjectCreditLedger> findByOrderByCreatedAtDesc(Pageable pageable);
 }
-

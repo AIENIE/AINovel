@@ -8,10 +8,112 @@ option java_multiple_files = true;
 option java_package = "fireflychat.billing.v1";
 option java_outer_classname = "BillingServiceProto";
 
+message GetProjectBalanceRequest {
+  string project_key = 1;
+  int64 user_id = 2;
+}
+
 message ProjectBalance {
   int64 temp_tokens = 1;
   google.protobuf.Timestamp temp_expires_at = 2;
   int64 permanent_tokens = 3;
+}
+
+message GetProjectBalanceResponse {
+  ProjectBalance balance = 1;
+}
+
+message GetPublicBalanceRequest {
+  int64 user_id = 1;
+}
+
+message GetPublicBalanceResponse {
+  int64 public_permanent_tokens = 1;
+}
+
+message ConvertPublicToProjectRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  int64 tokens = 4;
+}
+
+message ConvertPublicToProjectResponse {
+  int64 public_permanent_tokens = 1;
+  ProjectBalance project_balance = 2;
+}
+
+message GrantPublicTokensRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  int64 tokens = 4;
+  string reason = 5;
+}
+
+message GrantPublicTokensResponse {
+  int64 public_permanent_tokens = 1;
+}
+
+message GrantProjectPermanentTokensRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  int64 tokens = 4;
+  string reason = 5;
+}
+
+message GrantProjectPermanentTokensResponse {
+  ProjectBalance project_balance = 1;
+}
+
+message DeductUsageRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  string model_key = 4;
+  int64 prompt_tokens = 5;
+  int64 completion_tokens = 6;
+  string session_id = 7;
+  map<string, string> metadata = 8;
+}
+
+message DeductUsageResponse {
+  int64 billed_tokens = 1;
+  int64 deducted_tokens = 2;
+  int64 deducted_temp_tokens = 3;
+  int64 deducted_permanent_tokens = 4;
+  ProjectBalance project_balance = 5;
+}
+
+message DeductPerCallRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  string model_key = 4;
+  int32 calls = 5;
+  string session_id = 6;
+  map<string, string> metadata = 7;
+}
+
+message DeductPerCallResponse {
+  int64 billed_tokens = 1;
+  int64 deducted_tokens = 2;
+  int64 deducted_temp_tokens = 3;
+  int64 deducted_permanent_tokens = 4;
+  ProjectBalance project_balance = 5;
+}
+
+message CheckAndConsumeQuotaRequest {
+  string request_id = 1;
+  string project_key = 2;
+  string model_key = 3;
+  int64 tokens = 4;
+}
+
+message CheckAndConsumeQuotaResponse {
+  bool allowed = 1;
+  int64 remaining_tokens = 2;
 }
 
 message CheckinRequest {
@@ -39,6 +141,13 @@ message GetCheckinStatusResponse {
   int64 tokens_granted_today = 3;
 }
 
+enum CreditType {
+  CREDIT_TYPE_UNSPECIFIED = 0;
+  CREDIT_TYPE_TEMP = 1;
+  CREDIT_TYPE_PERMANENT = 2;
+  CREDIT_TYPE_PUBLIC = 3;
+}
+
 message RedeemCodeRequest {
   string request_id = 1;
   int64 user_id = 2;
@@ -49,55 +158,56 @@ message RedeemCodeRequest {
 message RedeemCodeResponse {
   bool success = 1;
   int64 tokens_granted = 2;
-  int32 credit_type = 3;
+  CreditType credit_type = 3;
   ProjectBalance project_balance = 4;
   int64 public_permanent_tokens = 5;
   string error_message = 6;
 }
 
-message GetPublicBalanceRequest {
+message GetRedemptionHistoryRequest {
   int64 user_id = 1;
+  string project_key = 2;
+  int32 page = 3;
+  int32 size = 4;
 }
 
-message GetPublicBalanceResponse {
-  int64 public_permanent_tokens = 1;
+message RedemptionRecord {
+  int64 id = 1;
+  string code = 2;
+  int64 tokens_granted = 3;
+  CreditType credit_type = 4;
+  string project_key = 5;
+  google.protobuf.Timestamp redeemed_at = 6;
 }
 
-message GetProjectBalanceRequest {
-  string project_key = 1;
-  int64 user_id = 2;
+message GetRedemptionHistoryResponse {
+  repeated RedemptionRecord redemptions = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 size = 4;
 }
 
-message GetProjectBalanceResponse {
-  ProjectBalance balance = 1;
+service BillingBalanceService {
+  rpc GetProjectBalance(GetProjectBalanceRequest) returns (GetProjectBalanceResponse);
+  rpc GetPublicBalance(GetPublicBalanceRequest) returns (GetPublicBalanceResponse);
 }
 
-message ConvertPublicToProjectRequest {
-  string request_id = 1;
-  int64 user_id = 2;
-  string project_key = 3;
-  int64 public_tokens = 4;
+service BillingConversionService {
+  rpc ConvertPublicToProject(ConvertPublicToProjectRequest) returns (ConvertPublicToProjectResponse);
 }
 
-message ConvertPublicToProjectResponse {
-  bool success = 1;
-  int64 converted_public_tokens = 2;
-  int64 converted_project_tokens = 3;
-  int64 public_permanent_tokens = 4;
-  string error_message = 5;
+service BillingGrantService {
+  rpc GrantPublicTokens(GrantPublicTokensRequest) returns (GrantPublicTokensResponse);
+  rpc GrantProjectPermanentTokens(GrantProjectPermanentTokensRequest) returns (GrantProjectPermanentTokensResponse);
 }
 
-message GrantPublicTokensRequest {
-  string request_id = 1;
-  int64 user_id = 2;
-  int64 tokens = 3;
-  string reason = 4;
+service BillingUsageService {
+  rpc DeductUsage(DeductUsageRequest) returns (DeductUsageResponse);
+  rpc DeductPerCall(DeductPerCallRequest) returns (DeductPerCallResponse);
 }
 
-message GrantPublicTokensResponse {
-  bool success = 1;
-  int64 public_permanent_tokens = 2;
-  string error_message = 3;
+service BillingProjectModelQuotaService {
+  rpc CheckAndConsumeQuota(CheckAndConsumeQuotaRequest) returns (CheckAndConsumeQuotaResponse);
 }
 
 service BillingCheckinService {
@@ -107,17 +217,67 @@ service BillingCheckinService {
 
 service BillingRedeemCodeService {
   rpc RedeemCode(RedeemCodeRequest) returns (RedeemCodeResponse);
+  rpc GetRedemptionHistory(GetRedemptionHistoryRequest) returns (GetRedemptionHistoryResponse);
 }
 
-service BillingBalanceService {
-  rpc GetPublicBalance(GetPublicBalanceRequest) returns (GetPublicBalanceResponse);
-  rpc GetProjectBalance(GetProjectBalanceRequest) returns (GetProjectBalanceResponse);
+message PageInfo {
+  int32 page = 1;
+  int32 size = 2;
+  int64 total = 3;
 }
 
-service BillingConversionService {
-  rpc ConvertPublicToProject(ConvertPublicToProjectRequest) returns (ConvertPublicToProjectResponse);
+message ListUsageRecordsRequest {
+  int64 user_id = 1;
+  string project_key = 2;
+  int32 page = 3;
+  int32 size = 4;
 }
 
-service BillingGrantService {
-  rpc GrantPublicTokens(GrantPublicTokensRequest) returns (GrantPublicTokensResponse);
+message UsageRecord {
+  int64 id = 1;
+  string request_id = 2;
+  string project_key = 3;
+  string model_key = 4;
+  int64 prompt_tokens = 5;
+  int64 completion_tokens = 6;
+  int64 billed_tokens = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListUsageRecordsResponse {
+  repeated UsageRecord records = 1;
+  PageInfo page_info = 2;
+}
+
+message ListLedgerEntriesRequest {
+  int64 user_id = 1;
+  string project_key = 2;
+  int32 page = 3;
+  int32 size = 4;
+}
+
+message LedgerEntry {
+  int64 id = 1;
+  string request_id = 2;
+  string project_key = 3;
+  string type = 4;
+  int64 token_delta_temp = 5;
+  int64 token_delta_permanent = 6;
+  int64 token_delta_public = 7;
+  int64 balance_temp = 8;
+  int64 balance_permanent = 9;
+  int64 balance_public = 10;
+  string source = 11;
+  google.protobuf.Timestamp created_at = 12;
+  map<string, string> metadata = 13;
+}
+
+message ListLedgerEntriesResponse {
+  repeated LedgerEntry entries = 1;
+  PageInfo page_info = 2;
+}
+
+service BillingQueryService {
+  rpc ListUsageRecords(ListUsageRecordsRequest) returns (ListUsageRecordsResponse);
+  rpc ListLedgerEntries(ListLedgerEntriesRequest) returns (ListLedgerEntriesResponse);
 }

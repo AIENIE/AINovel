@@ -15,12 +15,12 @@ import fireflychat.billing.v1.GetCheckinStatusResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
 import fireflychat.billing.v1.GrantPublicTokensRequest;
-import fireflychat.billing.v1.GrantPublicTokensResponse;
 import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.StatusRuntimeException;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
@@ -115,33 +115,44 @@ public class BillingGrpcClient {
     }
 
     public ConversionResult convertPublicToProject(long remoteUserId, long amount, String requestId) {
-        ConvertPublicToProjectResponse response = stubs().conversionStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .convertPublicToProject(ConvertPublicToProjectRequest.newBuilder()
-                        .setRequestId(requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId)
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .setPublicTokens(amount)
-                        .build());
-        return new ConversionResult(
-                response.getSuccess(),
-                response.getConvertedPublicTokens(),
-                response.getConvertedProjectTokens(),
-                response.getPublicPermanentTokens(),
-                response.getErrorMessage()
-        );
+        try {
+            ConvertPublicToProjectResponse response = stubs().conversionStub()
+                    .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                    .convertPublicToProject(ConvertPublicToProjectRequest.newBuilder()
+                            .setRequestId(requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId)
+                            .setProjectKey(properties.getProjectKey())
+                            .setUserId(remoteUserId)
+                            .setTokens(amount)
+                            .build());
+            return new ConversionResult(true, amount, amount, response.getPublicPermanentTokens(), null);
+        } catch (StatusRuntimeException ex) {
+            String message;
+            if (ex.getStatus() == null) {
+                message = ex.getMessage();
+            } else if (ex.getStatus().getDescription() == null || ex.getStatus().getDescription().isBlank()) {
+                message = ex.getStatus().getCode().name();
+            } else {
+                message = ex.getStatus().getCode().name() + ": " + ex.getStatus().getDescription();
+            }
+            return new ConversionResult(false, 0, 0, 0, message == null ? "GRPC_ERROR" : message);
+        }
     }
 
     public boolean grantPublicTokens(long remoteUserId, long amount, String reason) {
-        GrantPublicTokensResponse response = stubs().grantStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .grantPublicTokens(GrantPublicTokensRequest.newBuilder()
-                        .setRequestId(UUID.randomUUID().toString())
-                        .setUserId(remoteUserId)
-                        .setTokens(amount)
-                        .setReason(reason == null ? "" : reason)
-                        .build());
-        return response.getSuccess();
+        try {
+            stubs().grantStub()
+                    .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                    .grantPublicTokens(GrantPublicTokensRequest.newBuilder()
+                            .setRequestId(UUID.randomUUID().toString())
+                            .setProjectKey(properties.getProjectKey())
+                            .setUserId(remoteUserId)
+                            .setTokens(amount)
+                            .setReason(reason == null ? "" : reason)
+                            .build());
+            return true;
+        } catch (StatusRuntimeException ignored) {
+            return false;
+        }
     }
 
     private long balanceFromProject(ProjectBalance balance) {

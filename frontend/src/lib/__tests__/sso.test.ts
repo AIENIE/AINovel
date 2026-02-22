@@ -21,7 +21,7 @@ describe("sso helpers", () => {
   beforeEach(() => {
     const sessionStorage = createSessionStorage();
     vi.stubGlobal("window", {
-      location: { origin: "http://ainovel.seekerhut.com" },
+      location: { origin: "https://ainovel.seekerhut.com" },
       sessionStorage,
     });
     vi.stubGlobal("sessionStorage", sessionStorage);
@@ -34,7 +34,7 @@ describe("sso helpers", () => {
 
   it("builds backend sso entry url", () => {
     const url = buildSsoUrl("login", "/workbench", "state123");
-    expect(url).toBe("http://ainovel.seekerhut.com/api/v1/sso/login?next=%2Fworkbench&state=state123");
+    expect(url).toBe("https://ainovel.seekerhut.com/api/v1/sso/login?next=%2Fworkbench&state=state123");
   });
 
   it("prefers configured sso entry base url", () => {

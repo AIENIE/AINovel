@@ -14,7 +14,11 @@ import org.springframework.stereotype.Component;
 import java.net.URI;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -26,7 +30,7 @@ public class UserSessionValidator {
     private final ConsulUserGrpcEndpointResolver consulResolver;
     private final UserSessionValidationProperties properties;
 
-    private volatile EndpointClient endpointClient;
+    private final ConcurrentMap<String, EndpointClient> endpointClients = new ConcurrentHashMap<>();
 
     public UserSessionValidator(
             ConsulUserGrpcEndpointResolver consulResolver,
@@ -40,66 +44,70 @@ public class UserSessionValidator {
         if (userId <= 0 || sessionId == null || sessionId.isBlank()) {
             return false;
         }
-        EndpointClient client;
-        try {
-            client = getOrCreateClient();
-        } catch (Exception e) {
-            return false;
+
+        int connectTimeout = (int) Math.max(300L, properties.getTimeoutMs());
+        for (ConsulUserGrpcEndpointResolver.Endpoint endpoint : resolveCandidates()) {
+            if (!isTcpReachable(endpoint.host(), endpoint.port(), connectTimeout)) {
+                log.warn("Userservice session validation endpoint unreachable: {}:{}", endpoint.host(), endpoint.port());
+                continue;
+            }
+
+            EndpointClient client;
+            try {
+                client = getOrCreateClient(endpoint);
+            } catch (Exception e) {
+                log.warn("Create userservice session validation client failed: {}:{} -> {}", endpoint.host(), endpoint.port(), e.getMessage());
+                continue;
+            }
+
+            try {
+                boolean valid = client.stub()
+                        .withDeadlineAfter(Math.max(500L, properties.getTimeoutMs()), TimeUnit.MILLISECONDS)
+                        .validateSession(ValidateSessionRequest.newBuilder()
+                                .setUserId(userId)
+                                .setSessionId(sessionId)
+                                .build())
+                        .getValid();
+                if (valid) {
+                    return true;
+                }
+            } catch (Exception e) {
+                log.warn("Userservice session validation RPC failed at {}:{} -> {}", endpoint.host(), endpoint.port(), e.getMessage());
+            }
         }
-        if (client == null) {
-            return false;
-        }
-        if (!isTcpReachable(client.host(), client.port(), (int) Math.max(300L, properties.getTimeoutMs()))) {
-            return false;
-        }
-        try {
-            return client.stub()
-                    .withDeadlineAfter(Math.max(500L, properties.getTimeoutMs()), TimeUnit.MILLISECONDS)
-                    .validateSession(ValidateSessionRequest.newBuilder()
-                            .setUserId(userId)
-                            .setSessionId(sessionId)
-                            .build())
-                    .getValid();
-        } catch (Exception e) {
-            return false;
-        }
+        return false;
     }
 
-    private synchronized EndpointClient getOrCreateClient() {
-        ConsulUserGrpcEndpointResolver.Endpoint endpoint = resolveEndpoint().orElse(null);
-        if (endpoint == null) {
-            return null;
-        }
-
-        EndpointClient existing = endpointClient;
-        if (existing != null && existing.sameEndpoint(endpoint.host(), endpoint.port())) {
-            return existing;
-        }
-
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
-                .usePlaintext()
-                .build();
-        EndpointClient next = new EndpointClient(endpoint.host(), endpoint.port(), channel, UserAuthServiceGrpc.newBlockingStub(channel));
-
-        if (existing != null) {
-            existing.close();
-        }
-        endpointClient = next;
-        return next;
+    private EndpointClient getOrCreateClient(ConsulUserGrpcEndpointResolver.Endpoint endpoint) {
+        String key = endpoint.host() + ":" + endpoint.port();
+        return endpointClients.computeIfAbsent(key, ignored -> {
+            ManagedChannel channel = ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
+                    .usePlaintext()
+                    .build();
+            return new EndpointClient(endpoint.host(), endpoint.port(), channel, UserAuthServiceGrpc.newBlockingStub(channel));
+        });
     }
 
-    private Optional<ConsulUserGrpcEndpointResolver.Endpoint> resolveEndpoint() {
+    private List<ConsulUserGrpcEndpointResolver.Endpoint> resolveCandidates() {
+        LinkedHashMap<String, ConsulUserGrpcEndpointResolver.Endpoint> ordered = new LinkedHashMap<>();
+
         try {
             Optional<ConsulUserGrpcEndpointResolver.Endpoint> fromConsul = consulResolver.resolve();
-            if (fromConsul.isPresent()) {
-                return fromConsul;
-            }
+            fromConsul.ifPresent(endpoint -> ordered.put(endpoint.host() + ":" + endpoint.port(), endpoint));
         } catch (Exception ex) {
             log.warn("Consul userservice discovery failed, fallback to USER_GRPC_ADDR: {}", ex.getMessage());
         }
-        Optional<ConsulUserGrpcEndpointResolver.Endpoint> fallback = parseGrpcAddress(properties.getGrpcFallbackAddress());
-        fallback.ifPresent(endpoint -> log.info("Using fallback userservice grpc endpoint: {}:{}", endpoint.host(), endpoint.port()));
-        return fallback;
+
+        parseGrpcAddress(properties.getGrpcFallbackAddress())
+                .ifPresent(endpoint -> {
+                    String key = endpoint.host() + ":" + endpoint.port();
+                    if (!ordered.containsKey(key)) {
+                        log.info("Using fallback userservice grpc endpoint candidate: {}:{}", endpoint.host(), endpoint.port());
+                        ordered.put(key, endpoint);
+                    }
+                });
+
+        return List.copyOf(ordered.values());
     }
 
     static Optional<ConsulUserGrpcEndpointResolver.Endpoint> parseGrpcAddress(String rawAddress) {
@@ -143,11 +151,9 @@ public class UserSessionValidator {
     }
 
     @PreDestroy
-    public synchronized void shutdown() {
-        if (endpointClient != null) {
-            endpointClient.close();
-            endpointClient = null;
-        }
+    public void shutdown() {
+        endpointClients.values().forEach(EndpointClient::close);
+        endpointClients.clear();
     }
 
     private record EndpointClient(

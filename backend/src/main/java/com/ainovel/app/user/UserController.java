@@ -155,10 +155,46 @@ public class UserController {
         return ResponseEntity.ok(new ConvertCreditsResponse(
                 result.orderNo(),
                 result.amount(),
-                result.projectCredits(),
-                result.publicCredits(),
+                result.projectBefore(),
+                result.projectAfter(),
+                result.publicBefore(),
+                result.publicAfter(),
                 result.totalCredits()
         ));
+    }
+
+    @GetMapping("/credits/conversions")
+    @Operation(summary = "查询通用积分兑换历史", description = "分页查询当前用户通用积分兑换项目积分的订单历史。")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "查询成功"),
+            @ApiResponse(responseCode = "401", description = "未登录")
+    })
+    public ResponseEntity<java.util.List<CreditConversionHistoryItemResponse>> conversions(
+            @AuthenticationPrincipal UserDetails principal,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        User user = currentUser(principal);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        java.util.List<CreditConversionHistoryItemResponse> items = economyService
+                .listConversions(user, PageRequest.of(safePage, safeSize))
+                .stream()
+                .map(it -> new CreditConversionHistoryItemResponse(
+                        it.id(),
+                        it.orderNo(),
+                        it.requestedAmount(),
+                        it.convertedAmount(),
+                        it.projectBefore(),
+                        it.projectAfter(),
+                        it.publicBefore(),
+                        it.publicAfter(),
+                        it.status(),
+                        it.remoteMessage(),
+                        it.createdAt()
+                ))
+                .toList();
+        return ResponseEntity.ok(items);
     }
 
     @GetMapping("/credits/ledger")

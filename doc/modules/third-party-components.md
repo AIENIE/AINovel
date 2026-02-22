@@ -1,26 +1,41 @@
 # 第三方组件对齐说明
 
-## 对齐基线来源
+## 组件清单
 
-以下基线来自 `user-service`、`fireflyChat`、`fireflychat_studio` 当前配置：
+AINovel 对接以下基础组件与外部服务：
 
 - MySQL
 - Redis
 - Qdrant
 - Consul
+- user-service / pay-service / ai-service
 
-## AINovel 对齐结果
+## 对接原则
 
-- 服务本体配置（`docker-compose.yml`、`docker-compose.windows.yml`、`backend/src/main/resources/application.yml`）已统一包含上述四类组件对应环境变量。
-- 默认连接统一为 `127.0.0.1` + 默认端口 `+2`：
-  - MySQL：`3308`
-  - Redis：`6381`
-  - Qdrant：`6335`
-  - Consul：`8502`
+- 运行时参数统一来自 `env.txt`，并允许环境变量覆盖。
+- 服务发现优先通过 Consul（`CONSUL_HOST` / `CONSUL_PORT`）。
+- 三服务使用固定 Consul 服务名：
+  - `aienie-userservice-grpc`
+  - `aienie-payservice-grpc`
+  - `aienie-aiservice-grpc`
+- fallback 地址优先使用域名（`*.seekerhut.com`），不在代码硬编码 IP。
 
-## 依赖部署脚本
+## 默认目标（可覆盖）
 
-- `deploy/docker-compose.yml`：独立编排 `MySQL + Redis + Qdrant + Consul`
-- `deploy/build.sh`：独立启动/重启依赖容器
+- MySQL: `192.168.1.4:3306`
+- Redis: `192.168.1.4:6379`
+- Qdrant: `http://192.168.1.4:6333`
+- Consul: `http://192.168.1.4:60000`
 
-本项目当前无额外独立第三方组件（例如 Neo4j），因此无需新增额外 deploy 子脚本。
+## 本机兜底
+
+当远端依赖不可用且 `DEPS_AUTO_BOOTSTRAP=true`，`build.sh` 会自动启动：
+
+- `backend/deploy/deps-compose.yml`
+
+默认本机映射端口：
+
+- MySQL: `3308`
+- Redis: `6381`
+- Qdrant: `6335`
+

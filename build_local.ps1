@@ -253,7 +253,11 @@ function Build-Backend {
     throw "Backend jar not found in $targetDir"
   }
 
-  Copy-Item -Path $jar.FullName -Destination (Join-Path $targetDir "app.jar") -Force
+  $appJarPath = Join-Path $targetDir "app.jar"
+  if (Test-Path $appJarPath) {
+    Remove-Item -Recurse -Force $appJarPath
+  }
+  Copy-Item -Path $jar.FullName -Destination $appJarPath -Force
 }
 
 function Start-Backend {
@@ -308,37 +312,37 @@ if (Load-DotEnv -Path (Join-Path $RootDir "env.txt")) {
 if (-not $loadedDotEnv) {
   Write-Host "No env.txt found, using built-in defaults."
 }
-Set-DefaultEnv -Name "MYSQL_HOST" -Value "127.0.0.1"
-Set-DefaultEnv -Name "MYSQL_PORT" -Value "3308"
+Set-DefaultEnv -Name "MYSQL_HOST" -Value "192.168.1.4"
+Set-DefaultEnv -Name "MYSQL_PORT" -Value "3306"
 Set-DefaultEnv -Name "MYSQL_DB" -Value "ainovel"
-Set-DefaultEnv -Name "MYSQL_USER" -Value "root"
-Set-DefaultEnv -Name "MYSQL_PASSWORD" -Value "123456"
-Set-DefaultEnv -Name "REDIS_HOST" -Value "127.0.0.1"
-Set-DefaultEnv -Name "REDIS_PORT" -Value "6381"
+Set-DefaultEnv -Name "MYSQL_USER" -Value "ainovel"
+Set-DefaultEnv -Name "MYSQL_PASSWORD" -Value "ainovelpwd"
+Set-DefaultEnv -Name "REDIS_HOST" -Value "192.168.1.4"
+Set-DefaultEnv -Name "REDIS_PORT" -Value "6379"
 Set-DefaultEnv -Name "REDIS_PASSWORD" -Value ""
 Set-DefaultEnv -Name "REDIS_KEY_PREFIX" -Value "aienie:ainovel:"
-Set-DefaultEnv -Name "QDRANT_HOST" -Value "http://127.0.0.1"
-Set-DefaultEnv -Name "QDRANT_PORT" -Value "6335"
+Set-DefaultEnv -Name "QDRANT_HOST" -Value "http://192.168.1.4"
+Set-DefaultEnv -Name "QDRANT_PORT" -Value "6333"
 Set-DefaultEnv -Name "QDRANT_ENABLED" -Value "true"
 Set-DefaultEnv -Name "CONSUL_ENABLED" -Value "true"
 Set-DefaultEnv -Name "CONSUL_SCHEME" -Value "http"
-Set-DefaultEnv -Name "CONSUL_HOST" -Value "127.0.0.1"
-Set-DefaultEnv -Name "CONSUL_PORT" -Value "8502"
+Set-DefaultEnv -Name "CONSUL_HOST" -Value "192.168.1.4"
+Set-DefaultEnv -Name "CONSUL_PORT" -Value "60000"
 Set-DefaultEnv -Name "CONSUL_DATACENTER" -Value ""
 Set-DefaultEnv -Name "CONSUL_CACHE_SECONDS" -Value "30"
 Set-DefaultEnv -Name "USER_HTTP_SERVICE_NAME" -Value "aienie-userservice-http"
-Set-DefaultEnv -Name "USER_HTTP_ADDR" -Value "http://127.0.0.1:10000"
+Set-DefaultEnv -Name "USER_HTTP_ADDR" -Value "https://userservice.seekerhut.com"
 Set-DefaultEnv -Name "AI_GRPC_SERVICE_NAME" -Value "aienie-aiservice-grpc"
-Set-DefaultEnv -Name "AI_GRPC_ADDR" -Value "static://127.0.0.1:10011"
+Set-DefaultEnv -Name "AI_GRPC_ADDR" -Value "static://aiservice.seekerhut.com:10011"
 Set-DefaultEnv -Name "PAY_GRPC_SERVICE_NAME" -Value "aienie-payservice-grpc"
-Set-DefaultEnv -Name "PAY_GRPC_ADDR" -Value "static://127.0.0.1:20021"
+Set-DefaultEnv -Name "PAY_GRPC_ADDR" -Value "static://payservice.seekerhut.com:20021"
 Set-DefaultEnv -Name "USER_GRPC_SERVICE_NAME" -Value "aienie-userservice-grpc"
 Set-DefaultEnv -Name "USER_GRPC_SERVICE_TAG" -Value ""
-Set-DefaultEnv -Name "USER_SESSION_GRPC_TIMEOUT_MS" -Value "2000"
-Set-DefaultEnv -Name "USER_GRPC_ADDR" -Value "static://127.0.0.1:10001"
-Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "true"
-Set-DefaultEnv -Name "SSO_CALLBACK_ORIGIN" -Value ""
-Set-DefaultEnv -Name "VITE_SSO_ENTRY_BASE_URL" -Value ""
+Set-DefaultEnv -Name "USER_SESSION_GRPC_TIMEOUT_MS" -Value "5000"
+Set-DefaultEnv -Name "USER_GRPC_ADDR" -Value "static://userservice.seekerhut.com:10001"
+Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "false"
+Set-DefaultEnv -Name "SSO_CALLBACK_ORIGIN" -Value "https://ainovel.seekerhut.com"
+Set-DefaultEnv -Name "VITE_SSO_ENTRY_BASE_URL" -Value "https://ainovel.seekerhut.com"
 Set-DefaultEnv -Name "DB_URL" -Value "jdbc:mysql://$($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DB)?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
 Set-DefaultEnv -Name "DB_USERNAME" -Value "$($env:MYSQL_USER)"
 Set-DefaultEnv -Name "DB_PASSWORD" -Value "$($env:MYSQL_PASSWORD)"

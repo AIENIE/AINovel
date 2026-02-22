@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
 import { Coins, CalendarCheck, Gift, Shield, Loader2, ArrowRightLeft } from "lucide-react";
+import { CreditConversionRecord, CreditLedgerItem } from "@/types";
 
 const ProfilePage = () => {
   const { user, refreshProfile } = useAuth();
@@ -18,6 +19,31 @@ const ProfilePage = () => {
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [convertAmount, setConvertAmount] = useState("");
   const [isConverting, setIsConverting] = useState(false);
+  const [ledger, setLedger] = useState<CreditLedgerItem[]>([]);
+  const [conversions, setConversions] = useState<CreditConversionRecord[]>([]);
+  const [isRecordsLoading, setIsRecordsLoading] = useState(false);
+
+  const loadRecords = async () => {
+    setIsRecordsLoading(true);
+    try {
+      const [ledgerItems, conversionItems] = await Promise.all([
+        api.user.listLedger(),
+        api.user.listConversionHistory(),
+      ]);
+      setLedger(ledgerItems || []);
+      setConversions(conversionItems || []);
+    } catch {
+      // ignore silently and keep page usable
+    } finally {
+      setIsRecordsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadRecords();
+    }
+  }, [user?.id]);
 
   const isCheckedInToday = () => {
     if (!user?.lastCheckIn) return false;
@@ -36,6 +62,7 @@ const ProfilePage = () => {
         className: "bg-yellow-50 border-yellow-200 text-yellow-800"
       });
       await refreshProfile();
+      await loadRecords();
     } catch (error) {
       toast({ variant: "destructive", title: "签到失败" });
     } finally {
@@ -55,6 +82,7 @@ const ProfilePage = () => {
       });
       setRedeemCode("");
       await refreshProfile();
+      await loadRecords();
     } catch (error: any) {
       toast({ variant: "destructive", title: "兑换失败", description: error.message });
     } finally {
@@ -71,11 +99,12 @@ const ProfilePage = () => {
       const res = await api.user.convertPublicToProject(amount, idempotencyKey);
       toast({
         title: "兑换成功",
-        description: `已兑换 ${res.amount} 通用积分为项目积分`,
+        description: `通用积分 ${res.publicBefore} -> ${res.publicAfter}，项目积分 ${res.projectBefore} -> ${res.projectAfter}`,
         className: "bg-blue-50 border-blue-200 text-blue-800"
       });
       setConvertAmount("");
       await refreshProfile();
+      await loadRecords();
     } catch (error: any) {
       toast({ variant: "destructive", title: "兑换失败", description: error.message });
     } finally {
@@ -188,6 +217,66 @@ const ProfilePage = () => {
         <CardContent className="max-w-md space-y-2 text-sm text-muted-foreground">
           <div>本系统已启用统一登录（SSO）。</div>
           <div>密码/注册/登录相关操作由统一登录服务管理，本服务不再提供修改密码入口。</div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>积分记录</CardTitle>
+          <CardDescription>包含项目积分变更流水与通用积分兑换明细。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <div className="text-sm font-medium">项目积分流水</div>
+            {isRecordsLoading ? (
+              <div className="text-sm text-muted-foreground">加载中...</div>
+            ) : ledger.length === 0 ? (
+              <div className="text-sm text-muted-foreground">暂无记录</div>
+            ) : (
+              <div className="space-y-2">
+                {ledger.slice(0, 10).map((item) => (
+                  <div key={item.id} className="rounded-md border p-3 text-sm flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="font-medium">{item.type}</div>
+                      <div className="text-xs text-muted-foreground">{item.description || item.referenceType || "-"}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className={item.delta >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                        {item.delta >= 0 ? "+" : ""}{item.delta}
+                      </div>
+                      <div className="text-xs text-muted-foreground">余额 {item.balanceAfter}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-medium">通用积分兑换历史</div>
+            {isRecordsLoading ? (
+              <div className="text-sm text-muted-foreground">加载中...</div>
+            ) : conversions.length === 0 ? (
+              <div className="text-sm text-muted-foreground">暂无兑换记录</div>
+            ) : (
+              <div className="space-y-2">
+                {conversions.slice(0, 10).map((item) => (
+                  <div key={item.id} className="rounded-md border p-3 text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{item.orderNo}</div>
+                      <div className="text-xs text-muted-foreground">{item.status}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      通用积分 {item.publicBefore} -&gt; {item.publicAfter}，项目积分 {item.projectBefore} -&gt; {item.projectAfter}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      兑换 {item.convertedAmount}，时间 {new Date(item.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

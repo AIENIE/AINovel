@@ -1,5 +1,7 @@
 package com.ainovel.app.user;
 
+import com.ainovel.app.economy.model.ProjectCreditAccount;
+import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,9 +14,11 @@ import java.util.UUID;
 public class SsoUserProvisioningService {
 
     private final UserRepository userRepository;
+    private final ProjectCreditAccountRepository accountRepository;
 
-    public SsoUserProvisioningService(UserRepository userRepository) {
+    public SsoUserProvisioningService(UserRepository userRepository, ProjectCreditAccountRepository accountRepository) {
         this.userRepository = userRepository;
+        this.accountRepository = accountRepository;
     }
 
     @Transactional
@@ -44,7 +48,8 @@ public class SsoUserProvisioningService {
             if (remoteUid != null && remoteUid > 0) {
                 user.setRemoteUid(remoteUid);
             }
-            userRepository.save(user);
+            user = userRepository.save(user);
+            ensureProjectAccount(user);
             return;
         }
 
@@ -81,8 +86,9 @@ public class SsoUserProvisioningService {
         }
 
         if (changed) {
-            userRepository.save(user);
+            user = userRepository.save(user);
         }
+        ensureProjectAccount(user);
     }
 
     private String allocateSsoEmail(String username) {
@@ -110,5 +116,14 @@ public class SsoUserProvisioningService {
             roles.add("ROLE_ADMIN");
         }
         return roles;
+    }
+
+    private void ensureProjectAccount(User user) {
+        accountRepository.findByUser(user).orElseGet(() -> {
+            ProjectCreditAccount account = new ProjectCreditAccount();
+            account.setUser(user);
+            account.setBalance(Math.max(0L, Math.round(user.getCredits())));
+            return accountRepository.save(account);
+        });
     }
 }

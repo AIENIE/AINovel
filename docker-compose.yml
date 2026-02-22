@@ -4,41 +4,45 @@ services:
     image: eclipse-temurin:21-jre
     restart: unless-stopped
     ports:
-      - "11041:10011"
+      - "${BACKEND_PORT:-11041}:10011"
     environment:
-      DB_URL: jdbc:mysql://${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_URL: jdbc:mysql://${MYSQL_HOST:-192.168.1.4}:${MYSQL_PORT:-3306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}
       DB_PASSWORD: ${MYSQL_PASSWORD:-ainovelpwd}
-      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
-      REDIS_PORT: ${REDIS_PORT:-6381}
+      REDIS_HOST: ${REDIS_HOST:-192.168.1.4}
+      REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_PASSWORD: ""
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-aienie:ainovel:}
-      QDRANT_HOST: ${QDRANT_HOST:-http://127.0.0.1}
-      QDRANT_PORT: ${QDRANT_PORT:-6335}
+      QDRANT_HOST: ${QDRANT_HOST:-http://192.168.1.4}
+      QDRANT_PORT: ${QDRANT_PORT:-6333}
       QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
       PORT: 10011
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
       CONSUL_ENABLED: ${CONSUL_ENABLED:-true}
       CONSUL_SCHEME: ${CONSUL_SCHEME:-http}
-      CONSUL_HOST: ${CONSUL_HOST:-127.0.0.1}
-      CONSUL_PORT: ${CONSUL_PORT:-8502}
+      CONSUL_HOST: ${CONSUL_HOST:-192.168.1.4}
+      CONSUL_PORT: ${CONSUL_PORT:-60000}
       CONSUL_DATACENTER: ${CONSUL_DATACENTER:-}
       CONSUL_CACHE_SECONDS: ${CONSUL_CACHE_SECONDS:-30}
       USER_HTTP_SERVICE_NAME: ${USER_HTTP_SERVICE_NAME:-aienie-userservice-http}
-      USER_HTTP_ADDR: ${USER_HTTP_ADDR:-http://127.0.0.1:10000}
+      USER_HTTP_ADDR: ${USER_HTTP_ADDR:-https://userservice.seekerhut.com}
       AI_GRPC_SERVICE_NAME: ${AI_GRPC_SERVICE_NAME:-aienie-aiservice-grpc}
-      AI_GRPC_ADDR: ${AI_GRPC_ADDR:-static://127.0.0.1:10011}
+      AI_GRPC_ADDR: ${AI_GRPC_ADDR:-static://aiservice.seekerhut.com:10011}
       PAY_GRPC_SERVICE_NAME: ${PAY_GRPC_SERVICE_NAME:-aienie-payservice-grpc}
-      PAY_GRPC_ADDR: ${PAY_GRPC_ADDR:-static://127.0.0.1:20021}
+      PAY_GRPC_ADDR: ${PAY_GRPC_ADDR:-static://payservice.seekerhut.com:20021}
       USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-aienie-userservice-grpc}
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
-      USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-2000}
-      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://127.0.0.1:10001}
-      SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-true}
-      SSO_CALLBACK_ORIGIN: ${SSO_CALLBACK_ORIGIN:-}
+      USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-5000}
+      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://userservice.seekerhut.com:10001}
+      SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-false}
+      SSO_CALLBACK_ORIGIN: ${SSO_CALLBACK_ORIGIN:-https://ainovel.seekerhut.com}
       JAVA_OPTS: ""
     volumes:
       - ./backend/target/app.jar:/app/app.jar:ro
+    extra_hosts:
+      - "userservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
+      - "payservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
+      - "aiservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
     working_dir: /app
     command: ["sh", "-c", "java $${JAVA_OPTS} -jar /app/app.jar"]
 
@@ -47,8 +51,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "11040:10010"
+      - "${FRONTEND_PORT:-11040}:10010"
     volumes:
       - ./frontend/dist:/usr/share/nginx/html:ro
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-

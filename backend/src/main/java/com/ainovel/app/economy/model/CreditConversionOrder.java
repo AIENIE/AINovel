@@ -48,6 +48,18 @@ public class CreditConversionOrder {
     @Column(nullable = false)
     private long convertedAmount;
 
+    @Column(nullable = false)
+    private long projectBefore = 0L;
+
+    @Column(nullable = false)
+    private long projectAfter = 0L;
+
+    @Column(nullable = false)
+    private long publicBefore = 0L;
+
+    @Column(nullable = false)
+    private long publicAfter = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ConversionOrderStatus status = ConversionOrderStatus.PENDING;
@@ -112,6 +124,38 @@ public class CreditConversionOrder {
         this.convertedAmount = convertedAmount;
     }
 
+    public long getProjectBefore() {
+        return projectBefore;
+    }
+
+    public void setProjectBefore(long projectBefore) {
+        this.projectBefore = projectBefore;
+    }
+
+    public long getProjectAfter() {
+        return projectAfter;
+    }
+
+    public void setProjectAfter(long projectAfter) {
+        this.projectAfter = projectAfter;
+    }
+
+    public long getPublicBefore() {
+        return publicBefore;
+    }
+
+    public void setPublicBefore(long publicBefore) {
+        this.publicBefore = publicBefore;
+    }
+
+    public long getPublicAfter() {
+        return publicAfter;
+    }
+
+    public void setPublicAfter(long publicAfter) {
+        this.publicAfter = publicAfter;
+    }
+
     public ConversionOrderStatus getStatus() {
         return status;
     }
@@ -152,4 +196,3 @@ public class CreditConversionOrder {
         this.updatedAt = updatedAt;
     }
 }
-

@@ -3,8 +3,12 @@ package com.ainovel.app.integration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ConsulServiceResolver {
+    private static final Logger log = LoggerFactory.getLogger(ConsulServiceResolver.class);
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(2))
@@ -58,10 +63,30 @@ public class ConsulServiceResolver {
             fromConsul = resolve(serviceName);
         } catch (Exception ignored) {
         }
+
+        int timeoutMs = (int) Math.max(300L, properties.getTimeoutMs());
         if (fromConsul.isPresent()) {
-            return fromConsul;
+            Endpoint endpoint = fromConsul.get();
+            if (isTcpReachable(endpoint.host(), endpoint.port(), timeoutMs)) {
+                return fromConsul;
+            }
+            log.warn("Consul endpoint unreachable for {}: {}:{}", serviceName, endpoint.host(), endpoint.port());
         }
-        return parseAddress(fallback);
+
+        Optional<Endpoint> fallbackEndpoint = parseAddress(fallback);
+        if (fallbackEndpoint.isPresent()) {
+            Endpoint endpoint = fallbackEndpoint.get();
+            if (isTcpReachable(endpoint.host(), endpoint.port(), timeoutMs)) {
+                if (fromConsul.isPresent()) {
+                    log.info("Switching {} to fallback endpoint {}:{} after Consul endpoint check failed",
+                            serviceName, endpoint.host(), endpoint.port());
+                }
+                return fallbackEndpoint;
+            }
+            log.warn("Fallback endpoint unreachable for {}: {}:{}", serviceName, endpoint.host(), endpoint.port());
+        }
+
+        return fromConsul.isPresent() ? fromConsul : fallbackEndpoint;
     }
 
     private Endpoint fetchFromConsul(String serviceName, ExternalServiceProperties.Discovery discovery) {
@@ -173,5 +198,14 @@ public class ConsulServiceResolver {
     }
 
     private record CacheEntry(Endpoint endpoint, long expireAtMs) {
+    }
+
+    private boolean isTcpReachable(String host, int port, int timeoutMs) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), timeoutMs);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }
