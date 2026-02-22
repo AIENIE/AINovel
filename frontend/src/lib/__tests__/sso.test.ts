@@ -28,12 +28,19 @@ describe("sso helpers", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
 
   it("builds backend sso entry url", () => {
     const url = buildSsoUrl("login", "/workbench", "state123");
     expect(url).toBe("http://ainovel.seekerhut.com/api/v1/sso/login?next=%2Fworkbench&state=state123");
+  });
+
+  it("prefers configured sso entry base url", () => {
+    vi.stubEnv("VITE_SSO_ENTRY_BASE_URL", "https://gateway.example.com");
+    const url = buildSsoUrl("register", "/workbench", "state123");
+    expect(url).toBe("https://gateway.example.com/api/v1/sso/register?next=%2Fworkbench&state=state123");
   });
 
   it("issues and validates one-time state", () => {

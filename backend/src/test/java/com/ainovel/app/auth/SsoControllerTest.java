@@ -6,6 +6,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -93,5 +94,25 @@ class SsoControllerTest {
         verify(entryService).buildLoginRedirectUri(callbackCaptor.capture(), eq("state-3"));
         String callback = callbackCaptor.getValue();
         assertTrue(callback.startsWith("http://127.0.0.1:11040/sso/callback"));
+    }
+
+    @Test
+    void shouldPreferConfiguredCallbackOrigin() {
+        SsoEntryService entryService = mock(SsoEntryService.class);
+        SsoController controller = new SsoController(entryService);
+        ReflectionTestUtils.setField(controller, "callbackOrigin", "https://sso-callback.example.com");
+        URI target = URI.create("http://127.0.0.1:10000/sso/login?redirect=r&state=s");
+        when(entryService.buildLoginRedirectUri(anyString(), eq("state-4"))).thenReturn(target);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/sso/login");
+        request.addHeader("X-Forwarded-Proto", "https");
+        request.addHeader("X-Forwarded-Host", "ainovel.aienie.com");
+
+        controller.login("/workbench", "state-4", request);
+
+        ArgumentCaptor<String> callbackCaptor = ArgumentCaptor.forClass(String.class);
+        verify(entryService).buildLoginRedirectUri(callbackCaptor.capture(), eq("state-4"));
+        String callback = callbackCaptor.getValue();
+        assertTrue(callback.startsWith("https://sso-callback.example.com/sso/callback"));
     }
 }

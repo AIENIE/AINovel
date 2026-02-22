@@ -61,14 +61,13 @@ powershell -ExecutionPolicy Bypass -File .\build_local.ps1
 - SSO/JWT：`JWT_SECRET`、`SSO_SESSION_VALIDATION_ENABLED`、`USER_GRPC_*`
 - 服务发现：`CONSUL_*`
 - 外部微服务：`USER_HTTP_ADDR` / `USER_HTTP_SERVICE_NAME`、`AI_GRPC_ADDR` / `AI_GRPC_SERVICE_NAME`、`PAY_GRPC_ADDR` / `PAY_GRPC_SERVICE_NAME`
-- SSO 中转与回调：`USER_HTTP_SERVICE_NAME`、`USER_HTTP_ADDR`、`SSO_SESSION_VALIDATION_ENABLED`
+- SSO 中转与回调：`USER_HTTP_SERVICE_NAME`、`USER_HTTP_ADDR`、`SSO_SESSION_VALIDATION_ENABLED`、`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 
 主要配置文件：
 
-- `.env`
+- `env.txt`
 - `backend/src/main/resources/application.yml`
 - `docker-compose.yml`
-- `docker-compose.windows.yml`
 - `frontend/src/lib/sso.ts`
 - `backend/src/main/java/com/ainovel/app/auth/SsoController.java`
 
@@ -108,6 +107,6 @@ powershell -ExecutionPolicy Bypass -File .\build_local.ps1
 
 - 本项目已切换统一登录（SSO）：前端 `/login` 与 `/register` 会先请求后端 `/api/v1/sso/*`，由后端 302 到 user-service 登录/注册页；回跳 `/sso/callback` 后前端校验 `state` 再落地 token。
 - 开发环境首次启动会由 `DataInitializer` 注入种子数据，包括管理员账号 `admin / password`（仅开发环境使用）。
-- 脚本注意：`build.sh --init` 与 `build_prod.sh --init` 依赖 `deploy/nginx/*.conf`，当前仓库未包含该目录，执行前需先补齐 Nginx 配置文件；`build_local.sh` / `build_local.ps1` 会自动加载 `.env` 或 `env.txt` 中的环境变量（若存在）。
+- 脚本注意：`build.sh`、`build_prod.sh`、`build_local.ps1` 会自动加载项目根目录 `env.txt`；`build.sh --init` 与 `build_prod.sh --init` 依赖 `deploy/nginx/*.conf`，当前仓库未包含该目录，执行前需先补齐 Nginx 配置文件。
 - 本地依赖端口差异：`deploy/docker-compose.yml` 默认 MySQL/Redis 映射为 `3308/6381`，与后端默认 `3306/6379` 不同，需同步调整环境变量。
 - Java 运行基线：后端编译目标是 Java 17（`backend/pom.xml`），容器运行镜像为 `eclipse-temurin:21-jre`，建议团队统一版本策略以降低环境差异。

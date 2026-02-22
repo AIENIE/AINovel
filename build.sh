@@ -14,6 +14,42 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+trim_value() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+load_env_file() {
+  local env_file="$ROOT_DIR/env.txt"
+  if [[ ! -f "$env_file" ]]; then
+    echo "env.txt not found, using current shell environment and script defaults."
+    return
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    local line key value
+    line="$(trim_value "$raw_line")"
+    if [[ -z "$line" || "${line:0:1}" == "#" ]]; then
+      continue
+    fi
+    if [[ "$line" != *=* ]]; then
+      continue
+    fi
+    key="$(trim_value "${line%%=*}")"
+    value="$(trim_value "${line#*=}")"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      export "$key=$value"
+    fi
+  done < "$env_file"
+}
+
 SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
 
 is_windows() {
@@ -232,6 +268,7 @@ rollout_compose() {
   run_sudo docker compose -f "$compose_file" up -d
 }
 
+load_env_file
 build_frontend
 build_backend
 echo "使用统一依赖：MYSQL=${MYSQL_HOST:-127.0.0.1}:${MYSQL_PORT:-3308} REDIS=${REDIS_HOST:-127.0.0.1}:${REDIS_PORT:-6381} QDRANT=${QDRANT_HOST:-http://127.0.0.1}:${QDRANT_PORT:-6335} CONSUL=${CONSUL_SCHEME:-http}://${CONSUL_HOST:-127.0.0.1}:${CONSUL_PORT:-8502}"

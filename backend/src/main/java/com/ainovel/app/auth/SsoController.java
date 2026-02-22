@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,8 @@ public class SsoController {
 
     private static final String DEFAULT_NEXT_PATH = "/workbench";
     private final SsoEntryService ssoEntryService;
+    @Value("${sso.callback-origin:}")
+    private String callbackOrigin;
 
     public SsoController(SsoEntryService ssoEntryService) {
         this.ssoEntryService = ssoEntryService;
@@ -90,12 +93,23 @@ public class SsoController {
     }
 
     private String buildCallbackUrl(HttpServletRequest request, String next) {
-        String origin = resolveOrigin(request);
+        String origin = resolveCallbackOrigin(request);
         return UriComponentsBuilder.fromHttpUrl(origin)
                 .path("/sso/callback")
                 .queryParam("next", next)
                 .build()
                 .toUriString();
+    }
+
+    private String resolveCallbackOrigin(HttpServletRequest request) {
+        if (callbackOrigin != null && !callbackOrigin.isBlank()) {
+            String configured = callbackOrigin.trim();
+            if (configured.endsWith("/")) {
+                configured = configured.substring(0, configured.length() - 1);
+            }
+            return configured;
+        }
+        return resolveOrigin(request);
     }
 
     private String resolveOrigin(HttpServletRequest request) {

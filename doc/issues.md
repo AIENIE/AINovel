@@ -53,3 +53,12 @@
   - 截图：`register-email-code-blocked.png`
   - 网络：`network-requests.txt`
   - 验收记录：`doc/test/2026-02-21-playwright-acceptance.md`
+
+# 待处理事项（2026-02-22）
+- 时间：2026-02-22 17:47（Asia/Shanghai）
+- 结论：`env.txt` 配置化改造后，本地部署与 SSO 跳转 URL 生成正常；但跳转到外部 `userservice.seekerhut.com` 后返回 `502 Bad Gateway`。
+- 影响：无法在当前环境完成真实 SSO 登录后的业务路径验收（`/workbench`、`/profile` 需依赖外部 user-service 可达）。
+- 失败阶段：Playwright 点击首页“登录”后进入外部 SSO 页面。
+- 证据目录：
+  - 截图：`artifacts/test/2026-02-22-envtxt-sso-redirect-502.png`
+  - 验收记录：`doc/test/2026-02-22-envtxt-redeploy.md`

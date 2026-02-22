@@ -14,6 +14,42 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+trim_value() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+load_env_file() {
+  local env_file="$ROOT_DIR/env.txt"
+  if [[ ! -f "$env_file" ]]; then
+    echo "env.txt not found, using current shell environment and script defaults."
+    return
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    local line key value
+    line="$(trim_value "$raw_line")"
+    if [[ -z "$line" || "${line:0:1}" == "#" ]]; then
+      continue
+    fi
+    if [[ "$line" != *=* ]]; then
+      continue
+    fi
+    key="$(trim_value "${line%%=*}")"
+    value="$(trim_value "${line#*=}")"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      export "$key=$value"
+    fi
+  done < "$env_file"
+}
+
 SUDO_PASS="${SUDO_PASSWORD:-${SUDO_PASS:-}}"
 
 run_sudo() {
@@ -74,6 +110,7 @@ install_prod_nginx_conf() {
   reload_nginx
 }
 
+load_env_file
 bash "$ROOT_DIR/build.sh"
 
 if [[ "$INIT_MODE" == "true" ]]; then

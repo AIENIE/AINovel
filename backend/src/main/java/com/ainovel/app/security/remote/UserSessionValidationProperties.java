@@ -9,7 +9,7 @@ public class UserSessionValidationProperties {
 
     private boolean enabled = true;
     private long timeoutMs = 2000;
-    private String grpcFallbackAddress = "static://127.0.0.1:13001";
+    private String grpcFallbackAddress = "static://127.0.0.1:10001";
     private final Consul consul = new Consul();
 
     public boolean isEnabled() {
@@ -43,8 +43,8 @@ public class UserSessionValidationProperties {
     public static class Consul {
         private boolean enabled = true;
         private String scheme = "http";
-        private String host = "192.168.1.4";
-        private int port = 60000;
+        private String host = "127.0.0.1";
+        private int port = 8502;
         private String serviceName = "aienie-userservice-grpc";
         private String datacenter = "";
         private String tag = "";

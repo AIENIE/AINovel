@@ -82,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File .\build_local.ps1
 说明：
 
 - 会编译前端与后端，然后以本地进程启动服务（不通过 Docker 启动应用）。
-- 脚本会自动尝试加载项目根目录的 `.env` 或 `env.txt`（任一存在即可）。
+- `build.sh`、`build_prod.sh`、`build_local.ps1` 会自动加载项目根目录的 `env.txt`。
 
 ### 方案 D：仅启动本地依赖（MySQL/Redis）
 
@@ -108,19 +108,19 @@ docker compose up -d
 
 | 配置类别 | 关键变量 | 典型位置 | 作用 |
 | --- | --- | --- | --- |
-| 数据库 | `MYSQL_HOST` `MYSQL_PORT` `MYSQL_DB` `MYSQL_USER` `MYSQL_PASSWORD` | `.env` / `docker-compose*.yml` / `application.yml` | 连接 MySQL |
+| 数据库 | `MYSQL_HOST` `MYSQL_PORT` `MYSQL_DB` `MYSQL_USER` `MYSQL_PASSWORD` | `env.txt` / `docker-compose*.yml` / `application.yml` | 连接 MySQL |
 | 缓存 | `REDIS_HOST` `REDIS_PORT` `REDIS_PASSWORD` `REDIS_KEY_PREFIX` | 同上 | Redis 缓存与 key 前缀 |
-| JWT | `JWT_SECRET` | `.env` / compose | 鉴权签名密钥 |
-| SSO 会话校验 | `SSO_SESSION_VALIDATION_ENABLED` `USER_GRPC_ADDR` `USER_GRPC_SERVICE_NAME` `USER_GRPC_SERVICE_TAG` | `.env` / compose / `application.yml` | 远程校验 uid+sid |
-| 服务发现 | `CONSUL_ENABLED` `CONSUL_SCHEME` `CONSUL_HOST` `CONSUL_PORT` `CONSUL_DATACENTER` `CONSUL_CACHE_SECONDS` | `.env` / compose / `application.yml` | Consul 发现外部服务 |
-| UserService HTTP | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 管理后台用户查询/封禁透传 |
-| AiService gRPC | `AI_GRPC_SERVICE_NAME` `AI_GRPC_ADDR` | `application.yml` | 模型列表/对话/润色 |
-| PayService gRPC | `PAY_GRPC_SERVICE_NAME` `PAY_GRPC_ADDR` `EXTERNAL_PROJECT_KEY` | `application.yml` | 通用积分查询、通用->项目兑换、冲回补偿 |
-| SSO 页面中转 | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `application.yml` | 后端 `/api/v1/sso/*` 解析 user-service 地址并发起 302 |
+| JWT | `JWT_SECRET` | `env.txt` / compose | 鉴权签名密钥 |
+| SSO 会话校验 | `SSO_SESSION_VALIDATION_ENABLED` `USER_GRPC_ADDR` `USER_GRPC_SERVICE_NAME` `USER_GRPC_SERVICE_TAG` | `env.txt` / compose / `application.yml` | 远程校验 uid+sid |
+| 服务发现 | `CONSUL_ENABLED` `CONSUL_SCHEME` `CONSUL_HOST` `CONSUL_PORT` `CONSUL_DATACENTER` `CONSUL_CACHE_SECONDS` | `env.txt` / compose / `application.yml` | Consul 发现外部服务 |
+| UserService HTTP | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` | `env.txt` / compose / `application.yml` | 管理后台用户查询/封禁透传 |
+| AiService gRPC | `AI_GRPC_SERVICE_NAME` `AI_GRPC_ADDR` | `env.txt` / compose / `application.yml` | 模型列表/对话/润色 |
+| PayService gRPC | `PAY_GRPC_SERVICE_NAME` `PAY_GRPC_ADDR` `EXTERNAL_PROJECT_KEY` | `env.txt` / compose / `application.yml` | 通用积分查询、通用->项目兑换、冲回补偿 |
+| SSO 页面中转 | `USER_HTTP_SERVICE_NAME` `USER_HTTP_ADDR` `SSO_CALLBACK_ORIGIN` `VITE_SSO_ENTRY_BASE_URL` | `env.txt` / compose / `application.yml` / 前端构建环境 | 后端 `/api/v1/sso/*` 302 与前端 SSO 入口基址 |
 
 ### 2.2 推荐落地方式
 
-1. 复制并维护环境变量文件（例如 `.env`）
+1. 复制并维护环境变量文件（`env.txt`）
 2. 按环境覆盖 compose 中的默认值（避免写死内网 IP）
 3. 检查后端 `application.yml` 中的 fallback 地址是否适合当前环境
 4. 配置后端 `USER_HTTP_SERVICE_NAME` / `USER_HTTP_ADDR`，确保后端可解析 user-service HTTP 地址（Consul 优先，fallback 兜底）

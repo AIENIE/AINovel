@@ -4,6 +4,10 @@ const SSO_STATE_KEY = "ainovel.sso.state";
 const DEFAULT_NEXT_PATH = "/workbench";
 
 const resolveBackendBase = () => {
+  const configuredBase = import.meta.env.VITE_SSO_ENTRY_BASE_URL?.trim();
+  if (configuredBase) {
+    return configuredBase;
+  }
   if (typeof window === "undefined") return "http://127.0.0.1";
   return window.location.origin;
 };

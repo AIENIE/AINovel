@@ -13,12 +13,12 @@
   - `src/lib/mock-api.ts`：统一后端调用层（`/api/v1/*` + `/api/v2/*`）。
   - `src/lib/shortcuts.ts`：快捷键默认表、匹配逻辑、归一化与冲突检测工具。
   - `src/lib/__tests__/shortcuts.test.ts`：快捷键工具单元测试。
-  - `src/lib/sso.ts`：统一登录跳转 URL 组装（指向 `/api/v1/sso/*`）与前端 `state` 一次性校验辅助函数。
+  - `src/lib/sso.ts`：统一登录跳转 URL 组装（指向 `/api/v1/sso/*`，支持 `VITE_SSO_ENTRY_BASE_URL` 覆盖）与前端 `state` 一次性校验辅助函数。
   - `vite.config.ts`：前端开发端口 `11040`，并将 `/api` 代理到 `http://127.0.0.1:11041`。
   - `nginx.conf`、`nginx.windows.conf`：Nginx 容器监听 `10010`，`/api` 反代到后端容器端口 `10011`（宿主机映射默认 `11040/11041`）。
   - `Dockerfile`：前端镜像构建与运行定义（容器内 `EXPOSE 10010`）。
 - `backend/`：Spring Boot 后端（统一登录 token 鉴权 + 业务 API）。
-  - `src/main/java/com/ainovel/app/auth/SsoController.java`：统一登录入口中转（`/api/v1/sso/login|register`，后端 302 到 user-service）。
+  - `src/main/java/com/ainovel/app/auth/SsoController.java`：统一登录入口中转（`/api/v1/sso/login|register`，后端 302 到 user-service；支持 `SSO_CALLBACK_ORIGIN` 覆盖回跳 origin）。
   - `src/main/java/com/ainovel/app/v2/`：v2 模块接口实现（上下文记忆、风格画像、分析、版本控制、导出、多模型、工作台）与统一权限守卫。
   - `src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`：稿件实体，新增 `currentBranchId` 用于版本控制主分支定位。
   - `src/main/java/com/ainovel/app/security/remote/UserSessionValidator.java`：会话校验逻辑；优先 Consul 发现 userservice gRPC，失败回退 `USER_GRPC_ADDR`，并使用短超时可达性检查避免阻塞。
@@ -41,11 +41,11 @@
   - `src/test/java/com/ainovel/app/security/remote/UserSessionValidatorInfrastructureTests.java`：Consul 解析缓存与 gRPC 地址解析单测。
   - `src/test/java/com/ainovel/app/v2/`：v2 控制器单测（上下文、版本、工作台）。
   - `Dockerfile`：后端镜像定义（容器内 `EXPOSE 10011`）。
-- `docker-compose.yml`：前后端容器编排（宿主机映射前端 `11040`、后端 `11041`），并注入 MySQL/Redis/Consul/SSO 相关环境变量。
+- `docker-compose.yml`：前后端容器编排（宿主机映射前端 `11040`、后端 `11041`），并注入 MySQL/Redis/Consul、User/AI/Pay 服务与 SSO 相关环境变量。
 - `docker-compose.windows.yml`：Windows 本地编排（同端口策略，外部网络可接公共依赖）。
-- `build.sh`：构建与部署脚本（读取 `SUDO_PASSWORD`；输出地址与端口同步为 `11040/11041`）。
-- `build_prod.sh`：生产部署脚本（调用 `build.sh`，支持证书与 Nginx 初始化流程）。
-- `build_local.sh`：本地运行脚本（不使用 Docker，直接编译并启动前后端；自动读取 `.env` 或 `env.txt`）。
+- `build.sh`：构建与部署脚本（读取 `env.txt` 与 `SUDO_PASSWORD`；输出地址与端口同步为 `11040/11041`）。
+- `build_prod.sh`：生产部署脚本（读取 `env.txt` 后调用 `build.sh`，支持证书与 Nginx 初始化流程）。
+- `build_local.sh`：本地运行脚本（不使用 Docker，直接编译并启动前后端；自动读取 `env.txt`）。
 - `build.ps1`：`build.sh` 的 PowerShell 版本。
 - `build_prod.ps1`：`build_prod.sh` 的 PowerShell 版本。
 - `build_local.ps1`：`build_local.sh` 的 PowerShell 版本（不使用 Docker，直接编译并启动）。

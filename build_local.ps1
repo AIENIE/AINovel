@@ -74,10 +74,7 @@ function Load-DotEnv {
       $value = $value.Substring(1, $value.Length - 2)
     }
 
-    $existing = [Environment]::GetEnvironmentVariable($name, [EnvironmentVariableTarget]::Process)
-    if ([string]::IsNullOrEmpty($existing)) {
-      [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
-    }
+    [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
   }
   return $true
 }
@@ -305,14 +302,11 @@ Require-Command -Name java
 
 New-Item -ItemType Directory -Path $RunDir -Force | Out-Null
 $loadedDotEnv = $false
-if (Load-DotEnv -Path (Join-Path $RootDir ".env")) {
-  $loadedDotEnv = $true
-}
 if (Load-DotEnv -Path (Join-Path $RootDir "env.txt")) {
   $loadedDotEnv = $true
 }
 if (-not $loadedDotEnv) {
-  Write-Host "No .env or env.txt found, using built-in defaults."
+  Write-Host "No env.txt found, using built-in defaults."
 }
 Set-DefaultEnv -Name "MYSQL_HOST" -Value "127.0.0.1"
 Set-DefaultEnv -Name "MYSQL_PORT" -Value "3308"
@@ -330,11 +324,21 @@ Set-DefaultEnv -Name "CONSUL_ENABLED" -Value "true"
 Set-DefaultEnv -Name "CONSUL_SCHEME" -Value "http"
 Set-DefaultEnv -Name "CONSUL_HOST" -Value "127.0.0.1"
 Set-DefaultEnv -Name "CONSUL_PORT" -Value "8502"
+Set-DefaultEnv -Name "CONSUL_DATACENTER" -Value ""
+Set-DefaultEnv -Name "CONSUL_CACHE_SECONDS" -Value "30"
+Set-DefaultEnv -Name "USER_HTTP_SERVICE_NAME" -Value "aienie-userservice-http"
+Set-DefaultEnv -Name "USER_HTTP_ADDR" -Value "http://127.0.0.1:10000"
+Set-DefaultEnv -Name "AI_GRPC_SERVICE_NAME" -Value "aienie-aiservice-grpc"
+Set-DefaultEnv -Name "AI_GRPC_ADDR" -Value "static://127.0.0.1:10011"
+Set-DefaultEnv -Name "PAY_GRPC_SERVICE_NAME" -Value "aienie-payservice-grpc"
+Set-DefaultEnv -Name "PAY_GRPC_ADDR" -Value "static://127.0.0.1:20021"
 Set-DefaultEnv -Name "USER_GRPC_SERVICE_NAME" -Value "aienie-userservice-grpc"
 Set-DefaultEnv -Name "USER_GRPC_SERVICE_TAG" -Value ""
 Set-DefaultEnv -Name "USER_SESSION_GRPC_TIMEOUT_MS" -Value "2000"
-Set-DefaultEnv -Name "USER_GRPC_ADDR" -Value "static://127.0.0.1:13001"
+Set-DefaultEnv -Name "USER_GRPC_ADDR" -Value "static://127.0.0.1:10001"
 Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "true"
+Set-DefaultEnv -Name "SSO_CALLBACK_ORIGIN" -Value ""
+Set-DefaultEnv -Name "VITE_SSO_ENTRY_BASE_URL" -Value ""
 Set-DefaultEnv -Name "DB_URL" -Value "jdbc:mysql://$($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DB)?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
 Set-DefaultEnv -Name "DB_USERNAME" -Value "$($env:MYSQL_USER)"
 Set-DefaultEnv -Name "DB_PASSWORD" -Value "$($env:MYSQL_PASSWORD)"

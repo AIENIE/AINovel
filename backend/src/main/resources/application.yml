@@ -59,19 +59,20 @@ app:
       cache-seconds: ${CONSUL_CACHE_SECONDS:30}
     userservice-http:
       service-name: ${USER_HTTP_SERVICE_NAME:aienie-userservice-http}
-      fallback: ${USER_HTTP_ADDR:http://127.0.0.1:10002}
+      fallback: ${USER_HTTP_ADDR:http://127.0.0.1:10000}
     aiservice-grpc:
       service-name: ${AI_GRPC_SERVICE_NAME:aienie-aiservice-grpc}
-      fallback: ${AI_GRPC_ADDR:static://127.0.0.1:20003}
+      fallback: ${AI_GRPC_ADDR:static://127.0.0.1:10011}
     payservice-grpc:
       service-name: ${PAY_GRPC_SERVICE_NAME:aienie-payservice-grpc}
-      fallback: ${PAY_GRPC_ADDR:static://127.0.0.1:20004}
+      fallback: ${PAY_GRPC_ADDR:static://127.0.0.1:20021}
 
 sso:
+  callback-origin: ${SSO_CALLBACK_ORIGIN:}
   session-validation:
     enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
     timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:2000}
-    grpc-fallback-address: ${USER_GRPC_ADDR:static://127.0.0.1:13001}
+    grpc-fallback-address: ${USER_GRPC_ADDR:static://127.0.0.1:10001}
     consul:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}

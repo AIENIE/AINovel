@@ -16,11 +16,11 @@ public class ExternalServiceProperties {
 
     public ExternalServiceProperties() {
         userserviceHttp.setServiceName("aienie-userservice-http");
-        userserviceHttp.setFallback("http://127.0.0.1:10002");
+        userserviceHttp.setFallback("http://127.0.0.1:10000");
         aiserviceGrpc.setServiceName("aienie-aiservice-grpc");
-        aiserviceGrpc.setFallback("static://127.0.0.1:20003");
+        aiserviceGrpc.setFallback("static://127.0.0.1:10011");
         payserviceGrpc.setServiceName("aienie-payservice-grpc");
-        payserviceGrpc.setFallback("static://127.0.0.1:20004");
+        payserviceGrpc.setFallback("static://127.0.0.1:20021");
     }
 
     public String getProjectKey() {
@@ -58,8 +58,8 @@ public class ExternalServiceProperties {
     public static class Discovery {
         private boolean enabled = true;
         private String scheme = "http";
-        private String host = "192.168.1.4";
-        private int port = 60000;
+        private String host = "127.0.0.1";
+        private int port = 8502;
         private String datacenter = "";
         private long cacheSeconds = 30;
 
