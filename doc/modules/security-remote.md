@@ -9,7 +9,7 @@
 ## 关键实现
 - `UserSessionValidator`：
   - 维护 gRPC 连接；
-  - 调用 `validateSession`；
+  - 以 `x-internal-token` metadata 调用 `UserAuthService.ValidateSession`；
   - 对不可达目标执行短超时 TCP 探测。
 - `JwtAuthFilter`：
   - 先按本地密钥做标准 JWT 验签；
@@ -26,3 +26,8 @@
 - `sso.session-validation.timeout-ms`
 - `sso.session-validation.consul.*`
 - `sso.session-validation.grpc-fallback-address`
+- `EXTERNAL_USER_INTERNAL_GRPC_TOKEN`（必填，映射到 `x-internal-token`）
+
+## 2026-02 加固后的行为
+- user-service 受保护 gRPC 方法默认要求 `x-internal-token`，缺失或不匹配会返回 `UNAUTHENTICATED/PERMISSION_DENIED`。
+- 本服务启动期会执行外部安全配置校验（fail-fast），防止空 token 或占位值进入运行时。

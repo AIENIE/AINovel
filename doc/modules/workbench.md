@@ -1,7 +1,9 @@
 # 模块说明
 
 ## 认证
-- JWT + Spring Security；默认种子用户 `admin/password`。
+- 统一登录（SSO）+ JWT + Spring Security。
+- 前端仅负责跳转 `/api/v1/sso/login|register` 并在 `/sso/callback` 完成 `state` 校验后落地 token。
+- 后端认证链路包含远程会话校验：`uid + sid` 通过 user-service `ValidateSession` 后才建立登录态。
 
 ## 故事与大纲
 - 故事 CRUD、角色管理、简化的“灵感生成”接口。

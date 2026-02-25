@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 
 const TASKS = [
   { key: "draft_generation", label: "正文生成" },
@@ -31,6 +32,7 @@ const toNumber = (value: any) => {
 
 const ModelPreferences = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [models, setModels] = useState<any[]>([]);
   const [prefs, setPrefs] = useState<any[]>([]);
   const [routing, setRouting] = useState<any[]>([]);
@@ -53,13 +55,14 @@ const ModelPreferences = () => {
   const [estimatedOutputTokens, setEstimatedOutputTokens] = useState(1200);
 
   const loadData = async () => {
+    const shouldLoadRouting = user?.role === "admin";
     const [modelList, prefList, summary, details, storyList, routingList] = await Promise.all([
       api.v2.models.list(),
       api.v2.models.listPreferences(),
       api.v2.models.usageSummary(),
       api.v2.models.usageDetails(),
       api.stories.list(),
-      api.v2.models.listRouting().catch(() => []),
+      shouldLoadRouting ? api.v2.models.listRouting().catch(() => []) : Promise.resolve([]),
     ]);
     setModels(modelList);
     setPrefs(prefList);
@@ -76,7 +79,7 @@ const ModelPreferences = () => {
 
   useEffect(() => {
     loadData().catch((error: any) => toast({ variant: "destructive", title: "加载模型配置失败", description: error.message }));
-  }, []);
+  }, [user?.role]);
 
   const currentPref = useMemo(() => prefs.find((pref) => pref.taskType === taskType), [prefs, taskType]);
   const currentRouting = useMemo(() => routing.find((item) => item.taskType === taskType), [routing, taskType]);

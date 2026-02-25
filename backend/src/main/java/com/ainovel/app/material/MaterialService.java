@@ -5,6 +5,7 @@ import com.ainovel.app.material.model.Material;
 import com.ainovel.app.material.model.MaterialUploadJob;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.material.repo.MaterialUploadJobRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +23,8 @@ public class MaterialService {
     private MaterialRepository materialRepository;
     @Autowired
     private MaterialUploadJobRepository uploadJobRepository;
+    @Autowired
+    private ResourceAccessGuard accessGuard;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MaterialDto create(User user, MaterialCreateRequest request) {
@@ -38,14 +41,20 @@ public class MaterialService {
     }
 
     public List<MaterialDto> list(User user) {
+        accessGuard.assertCurrentUserEquals(user.getUsername());
         return materialRepository.findByUser(user).stream().map(this::toDto).toList();
     }
 
-    public MaterialDto get(UUID id) { return toDto(materialRepository.findById(id).orElseThrow(() -> new RuntimeException("素材不存在"))); }
+    public MaterialDto get(UUID id) {
+        Material material = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("素材不存在"));
+        accessGuard.assertOwner(material.getUser());
+        return toDto(material);
+    }
 
     @Transactional
     public MaterialDto update(UUID id, MaterialUpdateRequest request) {
         Material material = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("素材不存在"));
+        accessGuard.assertOwner(material.getUser());
         if (request.title() != null) material.setTitle(request.title());
         if (request.type() != null) material.setType(request.type());
         if (request.summary() != null) material.setSummary(request.summary());
@@ -57,7 +66,11 @@ public class MaterialService {
         return toDto(material);
     }
 
-    public void delete(UUID id) { materialRepository.deleteById(id); }
+    public void delete(UUID id) {
+        Material material = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("素材不存在"));
+        accessGuard.assertOwner(material.getUser());
+        materialRepository.delete(material);
+    }
 
     public FileImportJobDto createUploadJob(User user, String fileName, String content) {
         MaterialUploadJob job = new MaterialUploadJob();
@@ -82,6 +95,12 @@ public class MaterialService {
 
     public FileImportJobDto getUploadStatus(UUID jobId) {
         MaterialUploadJob job = uploadJobRepository.findById(jobId).orElseThrow(() -> new RuntimeException("上传任务不存在"));
+        if (job.getResultMaterialId() != null) {
+            Material material = materialRepository.findById(job.getResultMaterialId()).orElse(null);
+            if (material != null) {
+                accessGuard.assertOwner(material.getUser());
+            }
+        }
         if (job.getProgress() < 100) {
             job.setProgress(100);
             job.setStatus("completed");
@@ -91,11 +110,20 @@ public class MaterialService {
     }
 
     public List<MaterialDto> pending() {
-        return materialRepository.findAll().stream().filter(m -> "pending".equalsIgnoreCase(m.getStatus())).map(this::toDto).toList();
+        if (accessGuard.isCurrentUserAdmin()) {
+            return materialRepository.findAll().stream().filter(m -> "pending".equalsIgnoreCase(m.getStatus())).map(this::toDto).toList();
+        }
+        String username = accessGuard.currentUsername();
+        return materialRepository.findAll().stream()
+                .filter(m -> m.getUser() != null && username.equals(m.getUser().getUsername()))
+                .filter(m -> "pending".equalsIgnoreCase(m.getStatus()))
+                .map(this::toDto)
+                .toList();
     }
 
     @Transactional
     public MaterialDto review(UUID id, String action, MaterialReviewRequest request) {
+        accessGuard.assertAdmin();
         Material material = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("素材不存在"));
         if (request.title() != null) material.setTitle(request.title());
         if (request.summary() != null) material.setSummary(request.summary());
@@ -109,7 +137,10 @@ public class MaterialService {
     public List<MaterialSearchResultDto> search(MaterialSearchRequest request) {
         String q = request.query() == null ? "" : request.query().toLowerCase();
         int limit = request.limit() != null ? request.limit() : 10;
+        boolean admin = accessGuard.isCurrentUserAdmin();
+        String username = admin ? "" : accessGuard.currentUsername();
         return materialRepository.findAll().stream()
+                .filter(m -> admin || (m.getUser() != null && username.equals(m.getUser().getUsername())))
                 .filter(m -> m.getTitle().toLowerCase().contains(q) || (m.getSummary() != null && m.getSummary().toLowerCase().contains(q)) || (m.getContent() != null && m.getContent().toLowerCase().contains(q)))
                 .limit(limit)
                 .map(m -> new MaterialSearchResultDto(m.getId(), m.getTitle(), snippet(m.getContent()), Math.random(), 0))
@@ -121,6 +152,7 @@ public class MaterialService {
     }
 
     public List<Map<String, Object>> findDuplicates() {
+        accessGuard.assertAdmin();
         return List.of();
     }
 
@@ -128,6 +160,10 @@ public class MaterialService {
     public MaterialDto merge(MaterialMergeRequest request) {
         Material source = materialRepository.findById(request.sourceMaterialId()).orElseThrow();
         Material target = materialRepository.findById(request.targetMaterialId()).orElseThrow();
+        if (!accessGuard.isCurrentUserAdmin()) {
+            accessGuard.assertOwner(source.getUser());
+            accessGuard.assertOwner(target.getUser());
+        }
         if (Boolean.TRUE.equals(request.mergeTags())) {
             Set<String> tags = new LinkedHashSet<>();
             tags.addAll(readTags(target.getTagsJson()));
@@ -143,6 +179,8 @@ public class MaterialService {
     }
 
     public List<Map<String, Object>> citations(UUID materialId) {
+        Material material = materialRepository.findById(materialId).orElseThrow(() -> new RuntimeException("素材不存在"));
+        accessGuard.assertOwner(material.getUser());
         return List.of();
     }
 

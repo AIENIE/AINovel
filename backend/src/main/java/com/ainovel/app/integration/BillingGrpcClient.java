@@ -19,8 +19,9 @@ import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
@@ -33,12 +34,18 @@ public class BillingGrpcClient {
 
     private final ExternalServiceProperties properties;
     private final ConsulServiceResolver resolver;
+    private final GrpcChannelFactory channelFactory;
 
     private volatile EndpointClient client;
 
-    public BillingGrpcClient(ExternalServiceProperties properties, ConsulServiceResolver resolver) {
+    public BillingGrpcClient(
+            ExternalServiceProperties properties,
+            ConsulServiceResolver resolver,
+            GrpcChannelFactory channelFactory
+    ) {
         this.properties = properties;
         this.resolver = resolver;
+        this.channelFactory = channelFactory;
     }
 
     public CheckinResult checkin(long remoteUserId) {
@@ -183,18 +190,23 @@ public class BillingGrpcClient {
             return existing;
         }
 
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
-                .usePlaintext()
-                .build();
+        ManagedChannel channel = channelFactory.create(endpoint.host(), endpoint.port());
+        Metadata metadata = new Metadata();
+        metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER), bearerToken());
         EndpointClient next = new EndpointClient(
                 endpoint.host(),
                 endpoint.port(),
                 channel,
-                BillingCheckinServiceGrpc.newBlockingStub(channel),
-                BillingRedeemCodeServiceGrpc.newBlockingStub(channel),
-                BillingBalanceServiceGrpc.newBlockingStub(channel),
-                BillingConversionServiceGrpc.newBlockingStub(channel),
+                BillingCheckinServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                BillingRedeemCodeServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                BillingBalanceServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                BillingConversionServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingGrantServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
         );
         if (existing != null) {
             existing.close();
@@ -205,6 +217,15 @@ public class BillingGrpcClient {
 
     private long timeoutMs() {
         return Math.max(800L, properties.getTimeoutMs());
+    }
+
+    private String bearerToken() {
+        String raw = properties.getSecurity().getPay().getServiceJwt();
+        String token = raw == null ? "" : raw.trim();
+        if (token.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
+            return token;
+        }
+        return "Bearer " + token;
     }
 
     @PreDestroy

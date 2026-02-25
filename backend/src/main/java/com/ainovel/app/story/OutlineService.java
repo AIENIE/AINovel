@@ -4,6 +4,7 @@ import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,18 +17,24 @@ import java.util.*;
 public class OutlineService {
     @Autowired
     private OutlineRepository outlineRepository;
+    @Autowired
+    private ResourceAccessGuard accessGuard;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<OutlineDto> listByStory(Story story) {
+        accessGuard.assertOwner(story.getUser());
         return outlineRepository.findByStory(story).stream().map(this::toDto).toList();
     }
 
     public OutlineDto get(UUID id) {
-        return toDto(outlineRepository.findById(id).orElseThrow(() -> new RuntimeException("大纲不存在")));
+        Outline outline = outlineRepository.findById(id).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        accessGuard.assertOwner(outline.getStory().getUser());
+        return toDto(outline);
     }
 
     @Transactional
     public OutlineDto createOutline(Story story, OutlineCreateRequest request) {
+        accessGuard.assertOwner(story.getUser());
         Map<String, Object> content = new HashMap<>();
         content.put("chapters", new ArrayList<>());
         Outline outline = new Outline();
@@ -42,6 +49,7 @@ public class OutlineService {
     @Transactional
     public OutlineDto saveOutline(UUID outlineId, OutlineSaveRequest request) {
         Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        accessGuard.assertOwner(outline.getStory().getUser());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
         outline.setWorldId(request.worldId());
         List<OutlineSaveRequest.ChapterPayload> normalized = normalizeChapters(request.chapters());
@@ -55,6 +63,7 @@ public class OutlineService {
     @Transactional
     public OutlineDto updateChapter(UUID chapterId, ChapterUpdateRequest request) {
         Outline outline = findOutlineContainingChapter(chapterId);
+        accessGuard.assertOwner(outline.getStory().getUser());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -81,6 +90,7 @@ public class OutlineService {
     @Transactional
     public OutlineDto updateScene(UUID sceneId, SceneUpdateRequest request) {
         Outline outline = findOutlineContainingScene(sceneId);
+        accessGuard.assertOwner(outline.getStory().getUser());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -111,12 +121,15 @@ public class OutlineService {
 
     @Transactional
     public void deleteOutline(UUID outlineId) {
-        outlineRepository.deleteById(outlineId);
+        Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        accessGuard.assertOwner(outline.getStory().getUser());
+        outlineRepository.delete(outline);
     }
 
     @Transactional
     public OutlineDto addGeneratedChapter(UUID outlineId, OutlineChapterGenerateRequest request) {
         Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        accessGuard.assertOwner(outline.getStory().getUser());
         OutlineDto dto = toDto(outline);
         int order = dto.chapters() == null ? 1 : dto.chapters().size() + 1;
         UUID chapterId = UUID.randomUUID();

@@ -3,7 +3,7 @@ spring:
     servlet:
       path: /api
   datasource:
-    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:192.168.1.4}:${MYSQL_PORT:3306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false}
+    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:192.168.1.4}:${MYSQL_PORT:3306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${DB_USERNAME:${MYSQL_USER:ainovel}}
     password: ${DB_PASSWORD:${MYSQL_PASSWORD:ainovelpwd}}
   jpa:
@@ -35,11 +35,14 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+  jackson:
+    time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
 
 server:
   port: ${PORT:10011}
 
 app:
+  time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
   jwt:
     secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
     expiration-minutes: 120
@@ -50,6 +53,22 @@ app:
   external:
     project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
     timeout-ms: ${EXTERNAL_TIMEOUT_MS:2500}
+    grpc:
+      tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:false}
+      plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:true}
+    security:
+      fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
+      ai:
+        hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:${APP_EXTERNAL_AI_HMAC_CALLER:}}
+        hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:${APP_EXTERNAL_AI_HMAC_SECRET:}}
+      user:
+        internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:${APP_EXTERNAL_USER_INTERNAL_TOKEN:}}
+      pay:
+        service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:${APP_EXTERNAL_PAY_SERVICE_JWT:}}
+        jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}
+        jwt-audience: ${EXTERNAL_PAY_JWT_AUDIENCE:aienie-payservice-grpc}
+        required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}
+        required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.read,billing.write}
     discovery:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}
@@ -70,7 +89,7 @@ app:
 sso:
   callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.seekerhut.com}
   session-validation:
-    enabled: ${SSO_SESSION_VALIDATION_ENABLED:false}
+    enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
     timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:5000}
     grpc-fallback-address: ${USER_GRPC_ADDR:static://127.0.0.1:10001}
     consul:
@@ -87,3 +106,9 @@ qdrant:
   host: ${QDRANT_HOST:http://192.168.1.4}
   http-port: ${QDRANT_PORT:6333}
   enabled: ${QDRANT_ENABLED:true}
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}

@@ -74,7 +74,10 @@ function Load-DotEnv {
       $value = $value.Substring(1, $value.Length - 2)
     }
 
-    [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
+    $existing = [Environment]::GetEnvironmentVariable($name, [EnvironmentVariableTarget]::Process)
+    if ([string]::IsNullOrEmpty($existing)) {
+      [Environment]::SetEnvironmentVariable($name, $value, [EnvironmentVariableTarget]::Process)
+    }
   }
   return $true
 }
@@ -88,6 +91,181 @@ function Set-DefaultEnv {
   $existing = [Environment]::GetEnvironmentVariable($Name, [EnvironmentVariableTarget]::Process)
   if ([string]::IsNullOrEmpty($existing)) {
     [Environment]::SetEnvironmentVariable($Name, $Value, [EnvironmentVariableTarget]::Process)
+  }
+}
+
+function Test-PlaceholderValue {
+  param([string]$Value)
+
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return $true
+  }
+  $normalized = $Value.Trim().ToUpperInvariant()
+  return $normalized.StartsWith("REPLACE_ME") -or
+    $normalized.Contains("REPLACE_WITH_YOUR_OWN") -or
+    $normalized.Contains("REPLACE-WITH-YOUR-OWN") -or
+    $normalized.Contains("CHANGE-ME") -or
+    $normalized.Contains("CHANGE_ME")
+}
+
+function ConvertTo-Base64Url {
+  param([byte[]]$Bytes)
+
+  return [Convert]::ToBase64String($Bytes).TrimEnd("=").Replace("+", "-").Replace("/", "_")
+}
+
+function New-Hs256Jwt {
+  param(
+    [string]$Secret,
+    [string]$Issuer,
+    [string]$Audience,
+    [string]$Role,
+    [string]$ServiceName,
+    [string[]]$Scopes,
+    [int]$TtlSeconds
+  )
+
+  $headerJson = '{"alg":"HS256","typ":"JWT"}'
+  $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+  $ttl = [Math]::Max(300, $TtlSeconds)
+  $payloadObj = [ordered]@{
+    sub = $ServiceName
+    service = $ServiceName
+    role = $Role
+    scopes = $Scopes
+    iat = $now
+    exp = $now + $ttl
+    iss = $Issuer
+    aud = $Audience
+  }
+  $payloadJson = $payloadObj | ConvertTo-Json -Compress -Depth 6
+
+  $headerB64 = ConvertTo-Base64Url ([System.Text.Encoding]::UTF8.GetBytes($headerJson))
+  $payloadB64 = ConvertTo-Base64Url ([System.Text.Encoding]::UTF8.GetBytes($payloadJson))
+  $signingInput = "$headerB64.$payloadB64"
+
+  $hmac = [System.Security.Cryptography.HMACSHA256]::new([System.Text.Encoding]::UTF8.GetBytes($Secret))
+  try {
+    $signatureBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($signingInput))
+  } finally {
+    $hmac.Dispose()
+  }
+  $signatureB64 = ConvertTo-Base64Url $signatureBytes
+  return "$signingInput.$signatureB64"
+}
+
+function Ensure-PayServiceJwt {
+  function Test-PayServiceJwtClaims {
+    param(
+      [string]$Token,
+      [string]$ExpectedIssuer,
+      [string]$ExpectedAudience,
+      [string]$ExpectedRole,
+      [string[]]$RequiredScopes
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Token)) {
+      return $false
+    }
+    $raw = $Token.Trim()
+    if ($raw.StartsWith("Bearer ", [System.StringComparison]::OrdinalIgnoreCase)) {
+      $raw = $raw.Substring(7).Trim()
+    }
+    $parts = $raw.Split(".")
+    if ($parts.Length -ne 3) {
+      return $false
+    }
+    try {
+      $payloadBytes = [Convert]::FromBase64String($parts[1].Replace("-", "+").Replace("_", "/").PadRight($parts[1].Length + ((4 - $parts[1].Length % 4) % 4), "="))
+      $payload = ([System.Text.Encoding]::UTF8.GetString($payloadBytes) | ConvertFrom-Json)
+    } catch {
+      return $false
+    }
+    if ($null -eq $payload) {
+      return $false
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$payload.role) -or [string]$payload.role -ine $ExpectedRole) {
+      return $false
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedIssuer) -and [string]$payload.iss -ne $ExpectedIssuer) {
+      return $false
+    }
+
+    $audiences = @()
+    if ($payload.aud -is [System.Array]) {
+      $audiences = @($payload.aud | ForEach-Object { [string]$_ })
+    } elseif ($null -ne $payload.aud) {
+      $audiences = @([string]$payload.aud -split "[,\s]+" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedAudience) -and -not ($audiences -contains $ExpectedAudience)) {
+      return $false
+    }
+
+    $actualScopes = @()
+    if ($payload.scopes -is [System.Array]) {
+      $actualScopes = @($payload.scopes | ForEach-Object { [string]$_ })
+    } elseif ($null -ne $payload.scopes) {
+      $actualScopes = @([string]$payload.scopes -split "[,\s]+" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+    foreach ($required in $RequiredScopes) {
+      if (-not ($actualScopes | Where-Object { $_ -ieq $required })) {
+        return $false
+      }
+    }
+
+    $exp = 0L
+    [void][long]::TryParse([string]$payload.exp, [ref]$exp)
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    return $exp -gt ($now + 30)
+  }
+
+  $current = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_SERVICE_JWT", [EnvironmentVariableTarget]::Process)
+  $secret = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_SECRET", [EnvironmentVariableTarget]::Process)
+  $issuer = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_ISSUER", [EnvironmentVariableTarget]::Process)
+  $audience = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_AUDIENCE", [EnvironmentVariableTarget]::Process)
+  $role = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_ROLE", [EnvironmentVariableTarget]::Process)
+  $scopesRaw = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_SCOPES", [EnvironmentVariableTarget]::Process)
+  $requiredScopes = @()
+  if (-not [string]::IsNullOrWhiteSpace($scopesRaw)) {
+    $requiredScopes = $scopesRaw -split "[,\s]+" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  }
+
+  if (-not (Test-PlaceholderValue -Value $current)) {
+    if (Test-PayServiceJwtClaims -Token $current -ExpectedIssuer $issuer -ExpectedAudience $audience -ExpectedRole $role -RequiredScopes $requiredScopes) {
+      return
+    }
+  }
+
+  if (Test-PlaceholderValue -Value $secret) {
+    throw "EXTERNAL_PAY_SERVICE_JWT missing/invalid and EXTERNAL_PAY_JWT_SECRET is invalid."
+  }
+  $service = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_SERVICE", [EnvironmentVariableTarget]::Process)
+  $ttlRaw = [Environment]::GetEnvironmentVariable("EXTERNAL_PAY_JWT_TTL_SECONDS", [EnvironmentVariableTarget]::Process)
+
+  $ttl = 3600
+  if (-not [string]::IsNullOrWhiteSpace($ttlRaw)) {
+    [void][int]::TryParse($ttlRaw, [ref]$ttl)
+  }
+  $scopes = @()
+  if (-not [string]::IsNullOrWhiteSpace($scopesRaw)) {
+    $scopes = $scopesRaw -split "[,\s]+" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+  }
+
+  $token = New-Hs256Jwt `
+    -Secret $secret `
+    -Issuer $issuer `
+    -Audience $audience `
+    -Role $role `
+    -ServiceName $service `
+    -Scopes $scopes `
+    -TtlSeconds $ttl
+
+  [Environment]::SetEnvironmentVariable("EXTERNAL_PAY_SERVICE_JWT", $token, [EnvironmentVariableTarget]::Process)
+  if (Test-PlaceholderValue -Value $current) {
+    Write-Host "Generated EXTERNAL_PAY_SERVICE_JWT from EXTERNAL_PAY_JWT_SECRET."
+  } else {
+    Write-Host "Regenerated EXTERNAL_PAY_SERVICE_JWT because existing token claims are invalid or expired."
   }
 }
 
@@ -340,13 +518,38 @@ Set-DefaultEnv -Name "USER_GRPC_SERVICE_NAME" -Value "aienie-userservice-grpc"
 Set-DefaultEnv -Name "USER_GRPC_SERVICE_TAG" -Value ""
 Set-DefaultEnv -Name "USER_SESSION_GRPC_TIMEOUT_MS" -Value "5000"
 Set-DefaultEnv -Name "USER_GRPC_ADDR" -Value "static://userservice.seekerhut.com:10001"
-Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "false"
+Set-DefaultEnv -Name "SSO_SESSION_VALIDATION_ENABLED" -Value "true"
 Set-DefaultEnv -Name "SSO_CALLBACK_ORIGIN" -Value "https://ainovel.seekerhut.com"
 Set-DefaultEnv -Name "VITE_SSO_ENTRY_BASE_URL" -Value "https://ainovel.seekerhut.com"
-Set-DefaultEnv -Name "DB_URL" -Value "jdbc:mysql://$($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DB)?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false"
+Set-DefaultEnv -Name "EXTERNAL_PROJECT_KEY" -Value "ainovel"
+Set-DefaultEnv -Name "EXTERNAL_SECURITY_FAIL_FAST" -Value "true"
+Set-DefaultEnv -Name "EXTERNAL_GRPC_TLS_ENABLED" -Value "false"
+Set-DefaultEnv -Name "EXTERNAL_GRPC_PLAINTEXT_ENABLED" -Value "true"
+Set-DefaultEnv -Name "EXTERNAL_AI_HMAC_CALLER" -Value "integration-test"
+Set-DefaultEnv -Name "EXTERNAL_AI_HMAC_SECRET" -Value "0f18f9c1548e4f5d8520c55f5c8d0b3d9e95bd5f81a40fbb8e2ffeb8b7f0d530"
+Set-DefaultEnv -Name "EXTERNAL_USER_INTERNAL_GRPC_TOKEN" -Value "local-userservice-internal-token"
+Set-DefaultEnv -Name "EXTERNAL_PAY_SERVICE_JWT" -Value "REPLACE_ME_PAY_SERVICE_JWT"
+Set-DefaultEnv -Name "JWT_SECRET" -Value "replace-with-your-own-long-random-secret"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_SECRET" -Value "$($env:JWT_SECRET)"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_ISSUER" -Value "aienie-services"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_AUDIENCE" -Value "aienie-payservice-grpc"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_ROLE" -Value "SERVICE"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_SERVICE" -Value "$($env:EXTERNAL_PROJECT_KEY)"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_SCOPES" -Value "billing.read,billing.write"
+Set-DefaultEnv -Name "EXTERNAL_PAY_JWT_TTL_SECONDS" -Value "3600"
+Set-DefaultEnv -Name "APP_TIME_ZONE" -Value "Asia/Shanghai"
+Set-DefaultEnv -Name "JAVA_OPTS" -Value "-Duser.timezone=Asia/Shanghai"
+Set-DefaultEnv -Name "SPRINGDOC_API_DOCS_ENABLED" -Value "false"
+Set-DefaultEnv -Name "SPRINGDOC_SWAGGER_UI_ENABLED" -Value "false"
+Set-DefaultEnv -Name "APP_SECURITY_CORS_ALLOWED_ORIGINS" -Value "https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040"
+Set-DefaultEnv -Name "APP_SECURITY_CORS_ALLOWED_METHODS" -Value "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+Set-DefaultEnv -Name "APP_SECURITY_CORS_ALLOWED_HEADERS" -Value "Authorization,Content-Type,Idempotency-Key,X-Requested-With"
+Set-DefaultEnv -Name "DB_URL" -Value "jdbc:mysql://$($env:MYSQL_HOST):$($env:MYSQL_PORT)/$($env:MYSQL_DB)?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
 Set-DefaultEnv -Name "DB_USERNAME" -Value "$($env:MYSQL_USER)"
 Set-DefaultEnv -Name "DB_PASSWORD" -Value "$($env:MYSQL_PASSWORD)"
 Set-DefaultEnv -Name "PORT" -Value "11041"
+
+Ensure-PayServiceJwt
 
 Stop-ManagedProcess -PidFile $BackendPidFile -Name "backend"
 Stop-ManagedProcess -PidFile $FrontendPidFile -Name "frontend"

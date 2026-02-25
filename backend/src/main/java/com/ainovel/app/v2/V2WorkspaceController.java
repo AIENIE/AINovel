@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.config.AppTimeProvider;
 import com.ainovel.app.user.User;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -10,7 +11,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -19,14 +19,16 @@ import java.util.concurrent.ConcurrentMap;
 @RequestMapping("/v2")
 public class V2WorkspaceController {
     private final V2AccessGuard accessGuard;
+    private final AppTimeProvider timeProvider;
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> layoutsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> sessionsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> goalsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<String, Map<String, Object>>> shortcutsByUser = new ConcurrentHashMap<>();
 
-    public V2WorkspaceController(V2AccessGuard accessGuard) {
+    public V2WorkspaceController(V2AccessGuard accessGuard, AppTimeProvider timeProvider) {
         this.accessGuard = accessGuard;
+        this.timeProvider = timeProvider;
     }
 
     @GetMapping("/users/me/workspace-layouts")
@@ -46,14 +48,14 @@ public class V2WorkspaceController {
         layout.put("name", str(payload.get("name"), "我的布局"));
         layout.put("layout", payload.getOrDefault("layout", Map.of("preset", "writing")));
         layout.put("isActive", boolVal(payload.get("isActive"), false));
-        layout.put("createdAt", Instant.now());
-        layout.put("updatedAt", Instant.now());
+        layout.put("createdAt", now());
+        layout.put("updatedAt", now());
 
         ConcurrentMap<UUID, Map<String, Object>> userLayouts = layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
         if (Boolean.TRUE.equals(layout.get("isActive"))) {
             for (Map<String, Object> existing : userLayouts.values()) {
                 existing.put("isActive", false);
-                existing.put("updatedAt", Instant.now());
+                existing.put("updatedAt", now());
             }
         }
         userLayouts.put(id, layout);
@@ -77,7 +79,7 @@ public class V2WorkspaceController {
             }
             layout.put("isActive", true);
         }
-        layout.put("updatedAt", Instant.now());
+        layout.put("updatedAt", now());
         return layout;
     }
 
@@ -100,10 +102,10 @@ public class V2WorkspaceController {
         }
         for (Map<String, Object> existing : userLayouts.values()) {
             existing.put("isActive", false);
-            existing.put("updatedAt", Instant.now());
+            existing.put("updatedAt", now());
         }
         layout.put("isActive", true);
-        layout.put("updatedAt", Instant.now());
+        layout.put("updatedAt", now());
         return layout;
     }
 
@@ -122,7 +124,7 @@ public class V2WorkspaceController {
         session.put("id", id);
         session.put("userId", user.getId());
         session.put("storyId", storyId);
-        session.put("startedAt", Instant.now());
+        session.put("startedAt", now());
         session.put("endedAt", null);
         session.put("wordsWritten", intVal(payload.get("wordsWritten"), 0));
         session.put("wordsDeleted", intVal(payload.get("wordsDeleted"), 0));
@@ -152,7 +154,7 @@ public class V2WorkspaceController {
         session.put("netWords", wordsWritten - wordsDeleted);
         session.put("chaptersEdited", payload.getOrDefault("chaptersEdited", session.get("chaptersEdited")));
         session.put("durationSeconds", currentDurationSeconds(session));
-        session.put("updatedAt", Instant.now());
+        session.put("updatedAt", now());
         syncGoalProgress(user.getId(), session, wordsWritten - wordsDeleted - previousNet);
         return session;
     }
@@ -176,7 +178,7 @@ public class V2WorkspaceController {
                     session.put("chaptersEdited", payload.get("chaptersEdited"));
                 }
             }
-            session.put("endedAt", Instant.now());
+            session.put("endedAt", now());
             session.put("durationSeconds", currentDurationSeconds(session));
             syncGoalProgress(user.getId(), session, intVal(session.get("netWords"), 0) - previousNet);
         }
@@ -200,8 +202,8 @@ public class V2WorkspaceController {
             totalDuration += intVal(session.get("durationSeconds"), 0);
         }
 
-        ZoneId zoneId = ZoneId.systemDefault();
-        LocalDate today = LocalDate.now(zoneId);
+        LocalDate today = timeProvider.today();
+        var zoneId = timeProvider.zoneId();
         Map<LocalDate, int[]> daily = new HashMap<>();
         Map<LocalDate, int[]> weekly = new HashMap<>();
         Map<YearMonth, int[]> monthly = new HashMap<>();
@@ -305,8 +307,8 @@ public class V2WorkspaceController {
         goal.put("currentValue", intVal(payload.get("currentValue"), 0));
         goal.put("deadline", payload.get("deadline"));
         goal.put("status", str(payload.get("status"), "active"));
-        goal.put("createdAt", Instant.now());
-        goal.put("updatedAt", Instant.now());
+        goal.put("createdAt", now());
+        goal.put("updatedAt", now());
 
         goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).put(id, goal);
         return goal;
@@ -329,7 +331,7 @@ public class V2WorkspaceController {
         if (payload.containsKey("currentValue")) {
             goal.put("currentValue", intVal(payload.get("currentValue"), intVal(goal.get("currentValue"), 0)));
         }
-        goal.put("updatedAt", Instant.now());
+        goal.put("updatedAt", now());
         return goal;
     }
 
@@ -375,7 +377,7 @@ public class V2WorkspaceController {
             value.put("action", action);
             value.put("shortcut", key);
             value.put("isCustom", true);
-            value.put("createdAt", Instant.now());
+            value.put("createdAt", now());
             userShortcuts.put(action, value);
         }
 
@@ -400,7 +402,7 @@ public class V2WorkspaceController {
 
     private int currentDurationSeconds(Map<String, Object> session) {
         Instant startedAt = (Instant) session.get("startedAt");
-        Instant endedAt = session.get("endedAt") instanceof Instant ended ? ended : Instant.now();
+        Instant endedAt = session.get("endedAt") instanceof Instant ended ? ended : now();
         return (int) Duration.between(startedAt, endedAt).toSeconds();
     }
 
@@ -432,7 +434,7 @@ public class V2WorkspaceController {
         data.put("action", action);
         data.put("shortcut", key);
         data.put("isCustom", custom);
-        data.put("createdAt", Instant.now());
+        data.put("createdAt", now());
         return data;
     }
 
@@ -517,7 +519,7 @@ public class V2WorkspaceController {
             if (nextValue >= target) {
                 goal.put("status", "completed");
             }
-            goal.put("updatedAt", Instant.now());
+            goal.put("updatedAt", now());
         }
     }
 
@@ -530,14 +532,18 @@ public class V2WorkspaceController {
         if (!(updatedObj instanceof Instant updatedAt)) {
             return;
         }
-        LocalDate updatedDay = updatedAt.atZone(ZoneId.systemDefault()).toLocalDate();
-        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        LocalDate updatedDay = timeProvider.toLocalDate(updatedAt);
+        LocalDate today = timeProvider.today();
         if (!updatedDay.isEqual(today)) {
             goal.put("currentValue", 0);
             if (!"archived".equalsIgnoreCase(str(goal.get("status"), ""))) {
                 goal.put("status", "active");
             }
-            goal.put("updatedAt", Instant.now());
+            goal.put("updatedAt", now());
         }
+    }
+
+    private Instant now() {
+        return timeProvider.nowInstant();
     }
 }

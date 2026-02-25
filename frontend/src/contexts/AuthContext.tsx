@@ -7,7 +7,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  acceptToken: (token: string) => void;
+  acceptToken: (token: string) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>; // V2: Refresh credits/check-in status
 }
@@ -18,6 +18,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const isAuthFailure = (error: unknown) => {
+    if (!(error instanceof Error)) return false;
+    return error.message.includes("401") || error.message.includes("403");
+  };
+
   const initAuth = async () => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -26,7 +31,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(userData);
       } catch (error) {
         console.error("Auth validation failed", error);
-        localStorage.removeItem("token");
+        if (isAuthFailure(error)) {
+          localStorage.removeItem("token");
+        }
       }
     }
     setIsLoading(false);
@@ -36,9 +43,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
   }, []);
 
-  const acceptToken = (token: string) => {
+  const acceptToken = async (token: string) => {
     localStorage.setItem("token", token);
-    setUser(null);
+    setIsLoading(true);
+    try {
+      const userData = await api.user.getProfile();
+      setUser(userData);
+    } catch (error) {
+      console.error("Token accept validation failed", error);
+      localStorage.removeItem("token");
+      setUser(null);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
@@ -52,6 +70,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(updatedUser);
     } catch (error) {
       console.error("Failed to refresh profile", error);
+      if (isAuthFailure(error)) {
+        localStorage.removeItem("token");
+        setUser(null);
+      }
     }
   };
 

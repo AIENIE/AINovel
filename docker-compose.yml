@@ -6,7 +6,7 @@ services:
     ports:
       - "${BACKEND_PORT:-11041}:10011"
     environment:
-      DB_URL: jdbc:mysql://${MYSQL_HOST:-192.168.1.4}:${MYSQL_PORT:-3306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+      DB_URL: jdbc:mysql://${MYSQL_HOST:-192.168.1.4}:${MYSQL_PORT:-3306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}
       DB_PASSWORD: ${MYSQL_PASSWORD:-ainovelpwd}
       REDIS_HOST: ${REDIS_HOST:-192.168.1.4}
@@ -34,15 +34,35 @@ services:
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
       USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-5000}
       USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://userservice.seekerhut.com:10001}
-      SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-false}
+      SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-true}
       SSO_CALLBACK_ORIGIN: ${SSO_CALLBACK_ORIGIN:-https://ainovel.seekerhut.com}
-      JAVA_OPTS: ""
+      EXTERNAL_PROJECT_KEY: ${EXTERNAL_PROJECT_KEY:-ainovel}
+      EXTERNAL_GRPC_TLS_ENABLED: ${EXTERNAL_GRPC_TLS_ENABLED:-false}
+      EXTERNAL_GRPC_PLAINTEXT_ENABLED: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:-true}
+      EXTERNAL_SECURITY_FAIL_FAST: ${EXTERNAL_SECURITY_FAIL_FAST:-true}
+      EXTERNAL_AI_HMAC_CALLER: ${EXTERNAL_AI_HMAC_CALLER:-integration-test}
+      EXTERNAL_AI_HMAC_SECRET: ${EXTERNAL_AI_HMAC_SECRET:-0f18f9c1548e4f5d8520c55f5c8d0b3d9e95bd5f81a40fbb8e2ffeb8b7f0d530}
+      EXTERNAL_USER_INTERNAL_GRPC_TOKEN: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:-local-userservice-internal-token}
+      EXTERNAL_PAY_SERVICE_JWT: ${EXTERNAL_PAY_SERVICE_JWT:-REPLACE_ME_PAY_SERVICE_JWT}
+      EXTERNAL_PAY_JWT_SECRET: ${EXTERNAL_PAY_JWT_SECRET:-}
+      EXTERNAL_PAY_JWT_ISSUER: ${EXTERNAL_PAY_JWT_ISSUER:-aienie-services}
+      EXTERNAL_PAY_JWT_AUDIENCE: ${EXTERNAL_PAY_JWT_AUDIENCE:-aienie-payservice-grpc}
+      EXTERNAL_PAY_JWT_ROLE: ${EXTERNAL_PAY_JWT_ROLE:-SERVICE}
+      EXTERNAL_PAY_JWT_SCOPES: ${EXTERNAL_PAY_JWT_SCOPES:-billing.read,billing.write}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Shanghai}
+      SPRINGDOC_API_DOCS_ENABLED: ${SPRINGDOC_API_DOCS_ENABLED:-false}
+      SPRINGDOC_SWAGGER_UI_ENABLED: ${SPRINGDOC_SWAGGER_UI_ENABLED:-false}
+      APP_SECURITY_CORS_ALLOWED_ORIGINS: ${APP_SECURITY_CORS_ALLOWED_ORIGINS:-https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040}
+      APP_SECURITY_CORS_ALLOWED_METHODS: ${APP_SECURITY_CORS_ALLOWED_METHODS:-GET,POST,PUT,DELETE,OPTIONS,PATCH}
+      APP_SECURITY_CORS_ALLOWED_HEADERS: ${APP_SECURITY_CORS_ALLOWED_HEADERS:-Authorization,Content-Type,Idempotency-Key,X-Requested-With}
+      JAVA_OPTS: ${JAVA_OPTS:--Duser.timezone=Asia/Shanghai}
     volumes:
       - ./backend/target/app.jar:/app/app.jar:ro
     extra_hosts:
-      - "userservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
-      - "payservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
-      - "aiservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.1.4}"
+      - "host.docker.internal:host-gateway"
+      - "userservice.seekerhut.com:${SERVICE_HOST_IP:-host-gateway}"
+      - "payservice.seekerhut.com:${SERVICE_HOST_IP:-host-gateway}"
+      - "aiservice.seekerhut.com:${SERVICE_HOST_IP:-host-gateway}"
     working_dir: /app
     command: ["sh", "-c", "java $${JAVA_OPTS} -jar /app/app.jar"]
 

@@ -8,6 +8,7 @@ import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiRefineRequest;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,13 +28,18 @@ public class StoryService {
     private CharacterCardRepository characterCardRepository;
     @Autowired
     private AiService aiService;
+    @Autowired
+    private ResourceAccessGuard accessGuard;
 
     public List<StoryDto> listStories(User user) {
+        accessGuard.assertCurrentUserEquals(user.getUsername());
         return storyRepository.findByUser(user).stream().map(this::toDto).toList();
     }
 
     public StoryDto getStory(UUID id) {
-        return toDto(storyRepository.findById(id).orElseThrow(() -> new RuntimeException("故事不存在")));
+        Story story = storyRepository.findById(id).orElseThrow(() -> new RuntimeException("故事不存在"));
+        accessGuard.assertOwner(story.getUser());
+        return toDto(story);
     }
 
     @Transactional
@@ -53,6 +59,7 @@ public class StoryService {
     @Transactional
     public StoryDto updateStory(UUID id, StoryUpdateRequest request) {
         Story story = storyRepository.findById(id).orElseThrow(() -> new RuntimeException("故事不存在"));
+        accessGuard.assertOwner(story.getUser());
         if (request.title() != null) story.setTitle(request.title());
         if (request.synopsis() != null) story.setSynopsis(request.synopsis());
         if (request.genre() != null) story.setGenre(request.genre());
@@ -65,18 +72,22 @@ public class StoryService {
 
     @Transactional
     public void deleteStory(UUID id) {
-        characterCardRepository.deleteAll(characterCardRepository.findByStory(storyRepository.findById(id).orElseThrow()));
-        storyRepository.deleteById(id);
+        Story story = storyRepository.findById(id).orElseThrow(() -> new RuntimeException("故事不存在"));
+        accessGuard.assertOwner(story.getUser());
+        characterCardRepository.deleteAll(characterCardRepository.findByStory(story));
+        storyRepository.delete(story);
     }
 
     public List<CharacterDto> listCharacters(UUID storyId) {
         Story story = storyRepository.findById(storyId).orElseThrow();
+        accessGuard.assertOwner(story.getUser());
         return characterCardRepository.findByStory(story).stream().map(this::toCharacterDto).toList();
     }
 
     @Transactional
     public CharacterDto addCharacter(UUID storyId, CharacterRequest request) {
         Story story = storyRepository.findById(storyId).orElseThrow();
+        accessGuard.assertOwner(story.getUser());
         CharacterCard card = new CharacterCard();
         card.setStory(story);
         card.setName(request.name());
@@ -90,6 +101,7 @@ public class StoryService {
     @Transactional
     public CharacterDto updateCharacter(UUID id, CharacterRequest request) {
         CharacterCard card = characterCardRepository.findById(id).orElseThrow(() -> new RuntimeException("角色不存在"));
+        accessGuard.assertOwner(card.getStory().getUser());
         if (request.name() != null) card.setName(request.name());
         card.setSynopsis(request.synopsis());
         card.setDetails(request.details());
@@ -100,15 +112,21 @@ public class StoryService {
 
     @Transactional
     public void deleteCharacter(UUID id) {
-        characterCardRepository.deleteById(id);
+        CharacterCard card = characterCardRepository.findById(id).orElseThrow(() -> new RuntimeException("角色不存在"));
+        accessGuard.assertOwner(card.getStory().getUser());
+        characterCardRepository.delete(card);
     }
 
     public String refineStory(User user, UUID storyId, RefineRequest request) {
+        Story story = storyRepository.findById(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        accessGuard.assertOwner(story.getUser());
         String instruction = request.instruction() == null ? "" : request.instruction();
         return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null)).result();
     }
 
     public String refineCharacter(User user, UUID characterId, RefineRequest request) {
+        CharacterCard card = characterCardRepository.findById(characterId).orElseThrow(() -> new RuntimeException("角色不存在"));
+        accessGuard.assertOwner(card.getStory().getUser());
         String instruction = request.instruction() == null ? "" : request.instruction();
         return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null)).result();
     }

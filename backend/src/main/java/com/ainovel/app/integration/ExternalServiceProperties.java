@@ -10,6 +10,8 @@ public class ExternalServiceProperties {
     private String projectKey = "ainovel";
     private long timeoutMs = 2500;
     private final Discovery discovery = new Discovery();
+    private final Grpc grpc = new Grpc();
+    private final Security security = new Security();
     private final ServiceTarget userserviceHttp = new ServiceTarget();
     private final ServiceTarget aiserviceGrpc = new ServiceTarget();
     private final ServiceTarget payserviceGrpc = new ServiceTarget();
@@ -41,6 +43,14 @@ public class ExternalServiceProperties {
 
     public Discovery getDiscovery() {
         return discovery;
+    }
+
+    public Grpc getGrpc() {
+        return grpc;
+    }
+
+    public Security getSecurity() {
+        return security;
     }
 
     public ServiceTarget getUserserviceHttp() {
@@ -130,6 +140,135 @@ public class ExternalServiceProperties {
 
         public void setFallback(String fallback) {
             this.fallback = fallback;
+        }
+    }
+
+    public static class Grpc {
+        private boolean tlsEnabled = true;
+        private boolean plaintextEnabled = true;
+
+        public boolean isTlsEnabled() {
+            return tlsEnabled;
+        }
+
+        public void setTlsEnabled(boolean tlsEnabled) {
+            this.tlsEnabled = tlsEnabled;
+        }
+
+        public boolean isPlaintextEnabled() {
+            return plaintextEnabled;
+        }
+
+        public void setPlaintextEnabled(boolean plaintextEnabled) {
+            this.plaintextEnabled = plaintextEnabled;
+        }
+    }
+
+    public static class Security {
+        private boolean failFast = true;
+        private final Ai ai = new Ai();
+        private final User user = new User();
+        private final Pay pay = new Pay();
+
+        public boolean isFailFast() {
+            return failFast;
+        }
+
+        public void setFailFast(boolean failFast) {
+            this.failFast = failFast;
+        }
+
+        public Ai getAi() {
+            return ai;
+        }
+
+        public User getUser() {
+            return user;
+        }
+
+        public Pay getPay() {
+            return pay;
+        }
+    }
+
+    public static class Ai {
+        private String hmacCaller = "";
+        private String hmacSecret = "";
+
+        public String getHmacCaller() {
+            return hmacCaller;
+        }
+
+        public void setHmacCaller(String hmacCaller) {
+            this.hmacCaller = hmacCaller;
+        }
+
+        public String getHmacSecret() {
+            return hmacSecret;
+        }
+
+        public void setHmacSecret(String hmacSecret) {
+            this.hmacSecret = hmacSecret;
+        }
+    }
+
+    public static class User {
+        private String internalGrpcToken = "";
+
+        public String getInternalGrpcToken() {
+            return internalGrpcToken;
+        }
+
+        public void setInternalGrpcToken(String internalGrpcToken) {
+            this.internalGrpcToken = internalGrpcToken;
+        }
+    }
+
+    public static class Pay {
+        private String serviceJwt = "";
+        private String jwtIssuer = "aienie-services";
+        private String jwtAudience = "aienie-payservice-grpc";
+        private String requiredRole = "SERVICE";
+        private String requiredScopes = "billing.read,billing.write";
+
+        public String getServiceJwt() {
+            return serviceJwt;
+        }
+
+        public void setServiceJwt(String serviceJwt) {
+            this.serviceJwt = serviceJwt;
+        }
+
+        public String getJwtIssuer() {
+            return jwtIssuer;
+        }
+
+        public void setJwtIssuer(String jwtIssuer) {
+            this.jwtIssuer = jwtIssuer;
+        }
+
+        public String getJwtAudience() {
+            return jwtAudience;
+        }
+
+        public void setJwtAudience(String jwtAudience) {
+            this.jwtAudience = jwtAudience;
+        }
+
+        public String getRequiredRole() {
+            return requiredRole;
+        }
+
+        public void setRequiredRole(String requiredRole) {
+            this.requiredRole = requiredRole;
+        }
+
+        public String getRequiredScopes() {
+            return requiredScopes;
+        }
+
+        public void setRequiredScopes(String requiredScopes) {
+            this.requiredScopes = requiredScopes;
         }
     }
 }

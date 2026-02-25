@@ -8,6 +8,7 @@ import com.ainovel.app.world.repo.WorldRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
@@ -26,6 +27,7 @@ class WorldPublishFlowTests {
     private WorldRepository worldRepository;
 
     @Test
+    @WithMockUser(username = "world_test_user", roles = {"USER"})
     void publishKeepsCompletedModulesAndActivationAfterGeneration() {
         User user = new User();
         user.setUsername("world_test_user");
@@ -63,4 +65,3 @@ class WorldPublishFlowTests {
         assertEquals("AI 生成的占位内容：限制", afterMagic.modules().get("magic_tech").get("limitations"));
     }
 }
-

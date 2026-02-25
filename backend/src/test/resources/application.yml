@@ -22,7 +22,7 @@ server:
 
 app:
   jwt:
-    secret: test-secret-change-me-1234567890abcdef-test-secret-change-me-1234567890
+    secret: 5bb2415cef5fc4d24e30609eece8515e8f2a9f6c4f6df6f9f70b8be85d9a0e11
     expiration-minutes: 120
 
 sso:

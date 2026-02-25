@@ -7,6 +7,7 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.ai.dto.AiRefineResponse;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ public class WorldService {
     private WorldRepository worldRepository;
     @Autowired
     private AiService aiService;
+    @Autowired
+    private ResourceAccessGuard accessGuard;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<WorldDefinitionDto> definitions() {
@@ -44,6 +47,7 @@ public class WorldService {
     }
 
     public List<WorldDto> list(User user) {
+        accessGuard.assertCurrentUserEquals(user.getUsername());
         return worldRepository.findByUser(user).stream()
                 .map(w -> new WorldDto(w.getId(), w.getName(), w.getTagline(), w.getStatus(), w.getVersion(), w.getUpdatedAt()))
                 .toList();
@@ -67,12 +71,15 @@ public class WorldService {
     }
 
     public WorldDetailDto get(UUID id) {
-        return toDetail(worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在")));
+        World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());
+        return toDetail(world);
     }
 
     @Transactional
     public WorldDetailDto update(UUID id, WorldUpdateRequest request) {
         World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());
         if (request.name() != null) world.setName(request.name());
         if (request.tagline() != null) world.setTagline(request.tagline());
         if (request.themes() != null) world.setThemesJson(writeJson(request.themes()));
@@ -85,6 +92,7 @@ public class WorldService {
     @Transactional
     public void delete(UUID id) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         if (!"draft".equalsIgnoreCase(world.getStatus())) {
             throw new RuntimeException("仅草稿世界可删除");
         }
@@ -94,6 +102,7 @@ public class WorldService {
     @Transactional
     public WorldDetailDto updateModules(UUID id, WorldModulesUpdateRequest request) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         if (request.modules() != null) modules.putAll(request.modules());
         world.setModulesJson(writeJson(modules));
@@ -104,6 +113,7 @@ public class WorldService {
     @Transactional
     public WorldDetailDto updateModule(UUID id, String moduleKey, WorldModuleUpdateRequest request) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         modules.put(moduleKey, request.fields());
         world.setModulesJson(writeJson(modules));
@@ -113,6 +123,8 @@ public class WorldService {
 
     @Transactional
     public AiRefineResponse refineField(User user, UUID id, String moduleKey, String fieldKey, String text, String instruction) {
+        World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());
         String prompt = (instruction == null ? "" : instruction).trim();
         if (prompt.isBlank()) {
             prompt = "请优化以下世界观字段表述，使其更清晰、更具细节且保持一致性。";
@@ -122,6 +134,7 @@ public class WorldService {
 
     public WorldPublishPreviewResponse preview(UUID id) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         List<String> missing = new ArrayList<>();
         List<String> toGenerate = new ArrayList<>();
@@ -147,6 +160,7 @@ public class WorldService {
     @Transactional
     public WorldDetailDto publish(UUID id) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
 
         Map<String, String> progress = new HashMap<>();
@@ -185,6 +199,7 @@ public class WorldService {
 
     public WorldGenerationStatus generationStatus(UUID id) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, String> progress = readProgress(world.getModuleProgressJson());
         List<WorldGenerationStatus.ModuleStatus> modules = progress.entrySet().stream()
                 .map(e -> new WorldGenerationStatus.ModuleStatus(e.getKey(), e.getValue(), 1, null))
@@ -195,6 +210,7 @@ public class WorldService {
     @Transactional
     public WorldDetailDto generateModule(UUID id, String moduleKey) {
         World world = worldRepository.findById(id).orElseThrow();
+        accessGuard.assertOwner(world.getUser());
         Map<String, String> progress = readProgress(world.getModuleProgressJson());
         progress.put(moduleKey, "COMPLETED");
         world.setModuleProgressJson(writeJson(progress));

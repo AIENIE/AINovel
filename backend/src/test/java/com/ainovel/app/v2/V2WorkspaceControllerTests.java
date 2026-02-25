@@ -1,11 +1,15 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.config.AppTimeProvider;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,7 +29,14 @@ class V2WorkspaceControllerTests {
     @BeforeEach
     void setUp() {
         accessGuard = mock(V2AccessGuard.class);
-        controller = new V2WorkspaceController(accessGuard);
+        AppTimeProvider timeProvider = mock(AppTimeProvider.class);
+        when(timeProvider.nowInstant()).thenReturn(Instant.now());
+        when(timeProvider.today()).thenReturn(LocalDate.now(ZoneId.of("Asia/Shanghai")));
+        when(timeProvider.zoneId()).thenReturn(ZoneId.of("Asia/Shanghai"));
+        when(timeProvider.toLocalDate(any())).thenAnswer(invocation ->
+                ((Instant) invocation.getArgument(0)).atZone(ZoneId.of("Asia/Shanghai")).toLocalDate()
+        );
+        controller = new V2WorkspaceController(accessGuard, timeProvider);
 
         principal = mock(UserDetails.class);
         user = new User();

@@ -14,6 +14,10 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+export DEPLOY_DOMAIN="${APP_PROD_DOMAIN:-ainovel.aienie.com}"
+export SSO_CALLBACK_ORIGIN="${SSO_CALLBACK_ORIGIN:-https://${DEPLOY_DOMAIN}}"
+export VITE_SSO_ENTRY_BASE_URL="${VITE_SSO_ENTRY_BASE_URL:-https://${DEPLOY_DOMAIN}}"
+
 if [[ "$INIT_MODE" == "true" ]]; then
   bash "$ROOT_DIR/build.sh" --init
 else

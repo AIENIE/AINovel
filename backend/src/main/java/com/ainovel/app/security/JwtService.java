@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -20,7 +22,8 @@ public class JwtService {
 
     public JwtService(@Value("${app.jwt.secret}") String secret,
                       @Value("${app.jwt.expiration-minutes}") long expirationMinutes) {
-        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+        validateSecret(secret);
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMinutes = expirationMinutes;
     }
 
@@ -37,5 +40,22 @@ public class JwtService {
 
     public Claims parseClaims(String token) {
         return Jwts.parserBuilder().setSigningKey(signingKey).build().parseClaimsJws(token).getBody();
+    }
+
+    private void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("app.jwt.secret must not be blank");
+        }
+        String normalized = secret.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("REPLACE_ME")
+                || normalized.contains("REPLACE_WITH_YOUR_OWN")
+                || normalized.contains("REPLACE-WITH-YOUR-OWN")
+                || normalized.contains("SUPER-SECRET-CHANGE-ME")
+                || normalized.contains("CHANGE_ME")) {
+            throw new IllegalStateException("app.jwt.secret must not use placeholder value");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("app.jwt.secret must be at least 32 bytes");
+        }
     }
 }

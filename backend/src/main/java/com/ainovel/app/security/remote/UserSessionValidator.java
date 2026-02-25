@@ -2,8 +2,11 @@ package com.ainovel.app.security.remote;
 
 import fireflychat.user.v1.UserAuthServiceGrpc;
 import fireflychat.user.v1.ValidateSessionRequest;
+import com.ainovel.app.integration.ExternalServiceProperties;
+import com.ainovel.app.integration.GrpcChannelFactory;
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,19 +32,30 @@ public class UserSessionValidator {
 
     private final ConsulUserGrpcEndpointResolver consulResolver;
     private final UserSessionValidationProperties properties;
+    private final ExternalServiceProperties externalServiceProperties;
+    private final GrpcChannelFactory channelFactory;
 
     private final ConcurrentMap<String, EndpointClient> endpointClients = new ConcurrentHashMap<>();
 
     public UserSessionValidator(
             ConsulUserGrpcEndpointResolver consulResolver,
-            UserSessionValidationProperties properties
+            UserSessionValidationProperties properties,
+            ExternalServiceProperties externalServiceProperties,
+            GrpcChannelFactory channelFactory
     ) {
         this.consulResolver = consulResolver;
         this.properties = properties;
+        this.externalServiceProperties = externalServiceProperties;
+        this.channelFactory = channelFactory;
     }
 
     public boolean validate(long userId, String sessionId) {
         if (userId <= 0 || sessionId == null || sessionId.isBlank()) {
+            return false;
+        }
+        String internalToken = externalServiceProperties.getSecurity().getUser().getInternalGrpcToken();
+        if (internalToken == null || internalToken.isBlank()) {
+            log.warn("Userservice session validation token is empty");
             return false;
         }
 
@@ -81,10 +95,19 @@ public class UserSessionValidator {
     private EndpointClient getOrCreateClient(ConsulUserGrpcEndpointResolver.Endpoint endpoint) {
         String key = endpoint.host() + ":" + endpoint.port();
         return endpointClients.computeIfAbsent(key, ignored -> {
-            ManagedChannel channel = ManagedChannelBuilder.forAddress(endpoint.host(), endpoint.port())
-                    .usePlaintext()
-                    .build();
-            return new EndpointClient(endpoint.host(), endpoint.port(), channel, UserAuthServiceGrpc.newBlockingStub(channel));
+            ManagedChannel channel = channelFactory.create(endpoint.host(), endpoint.port());
+            Metadata metadata = new Metadata();
+            metadata.put(
+                    Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER),
+                    externalServiceProperties.getSecurity().getUser().getInternalGrpcToken().trim()
+            );
+            return new EndpointClient(
+                    endpoint.host(),
+                    endpoint.port(),
+                    channel,
+                    UserAuthServiceGrpc.newBlockingStub(channel)
+                            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
+            );
         });
     }
 
