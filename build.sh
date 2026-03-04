@@ -315,6 +315,10 @@ server {
     location /api/ {
         proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        send_timeout 300s;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -340,6 +344,10 @@ server {
     location /api/ {
         proxy_pass http://127.0.0.1:${BACKEND_PORT};
         proxy_http_version 1.1;
+        proxy_connect_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        send_timeout 300s;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -379,7 +387,7 @@ ensure_local_deps() {
   export REDIS_HOST=host.docker.internal
   export REDIS_PORT=6381
   export QDRANT_HOST=http://host.docker.internal
-  export QDRANT_PORT=6335
+  export QDRANT_PORT=6345
 }
 
 prepare_dependencies() {
@@ -490,6 +498,7 @@ set_default SSO_SESSION_VALIDATION_ENABLED "true"
 set_default SSO_CALLBACK_ORIGIN "https://${DEPLOY_DOMAIN}"
 set_default VITE_SSO_ENTRY_BASE_URL "https://${DEPLOY_DOMAIN}"
 set_default EXTERNAL_PROJECT_KEY "ainovel"
+set_default EXTERNAL_TIMEOUT_MS "120000"
 set_default EXTERNAL_SECURITY_FAIL_FAST "true"
 set_default EXTERNAL_GRPC_TLS_ENABLED "false"
 set_default EXTERNAL_GRPC_PLAINTEXT_ENABLED "true"
@@ -507,6 +516,8 @@ set_default EXTERNAL_PAY_JWT_SCOPES "billing.read,billing.write"
 set_default EXTERNAL_PAY_JWT_TTL_SECONDS "3600"
 set_default APP_TIME_ZONE "Asia/Shanghai"
 set_default JAVA_OPTS "-Duser.timezone=Asia/Shanghai"
+set_default ADMIN_USERNAME "admin"
+set_default ADMIN_PASSWORD "change-me-admin-password"
 set_default SPRINGDOC_API_DOCS_ENABLED "false"
 set_default SPRINGDOC_SWAGGER_UI_ENABLED "false"
 set_default APP_SECURITY_CORS_ALLOWED_ORIGINS "https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040"

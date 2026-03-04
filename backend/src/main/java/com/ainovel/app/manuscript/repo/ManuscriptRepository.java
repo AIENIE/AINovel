@@ -13,6 +13,6 @@ import java.util.UUID;
 public interface ManuscriptRepository extends JpaRepository<Manuscript, UUID> {
     List<Manuscript> findByOutline(Outline outline);
 
-    @Query("select m from Manuscript m join fetch m.outline o join fetch o.story s where m.id = :id")
+    @Query("select m from Manuscript m join fetch m.outline o join fetch o.story s join fetch s.user where m.id = :id")
     Optional<Manuscript> findWithStoryById(@Param("id") UUID id);
 }

@@ -104,14 +104,14 @@ public class StoryController {
     @GetMapping("/story-cards/{storyId}/outlines")
     @Operation(summary = "获取大纲列表", description = "按故事 ID 查询所有大纲。")
     public List<OutlineDto> listOutlines(@PathVariable UUID storyId) {
-        Story entity = storyRepository.getReferenceById(storyId);
+        Story entity = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
         return outlineService.listByStory(entity);
     }
 
     @PostMapping("/story-cards/{storyId}/outlines")
     @Operation(summary = "创建大纲", description = "在故事下创建新的大纲草稿。")
     public OutlineDto createOutline(@PathVariable UUID storyId, @RequestBody OutlineCreateRequest request) {
-        Story story = storyRepository.getReferenceById(storyId);
+        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
         return outlineService.createOutline(story, request);
     }
 

@@ -19,7 +19,26 @@ import {
 
 const API_BASE = "/api";
 
-const getToken = () => localStorage.getItem("token");
+const USER_TOKEN_KEY = "token";
+const ADMIN_TOKEN_KEY = "admin_token";
+
+const getToken = () => localStorage.getItem(USER_TOKEN_KEY);
+const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
+
+function requireAdminToken(): string {
+  const token = getAdminToken();
+  if (!token) {
+    throw new Error("管理员未登录");
+  }
+  return token;
+}
+
+export const adminSession = {
+  tokenKey: ADMIN_TOKEN_KEY,
+  getToken: getAdminToken,
+  setToken: (token: string) => localStorage.setItem(ADMIN_TOKEN_KEY, token),
+  clearToken: () => localStorage.removeItem(ADMIN_TOKEN_KEY),
+};
 
 const FALLBACK_AI_MODELS: ModelConfig[] = [
   {
@@ -111,9 +130,10 @@ async function safeErrorMessage(resp: Response): Promise<string> {
 
 function normalizeModel(model: any, index: number): ModelConfig {
   const fallbackId = `model-${index + 1}`;
-  const id = String(model?.id ?? model?.modelKey ?? model?.name ?? fallbackId);
-  const name = String(model?.name ?? model?.modelKey ?? id);
-  const displayName = String(model?.displayName ?? model?.name ?? model?.modelKey ?? id);
+  const preferredKey = model?.modelKey ?? model?.name ?? model?.id ?? fallbackId;
+  const id = String(preferredKey);
+  const name = String(model?.modelKey ?? model?.name ?? model?.id ?? id);
+  const displayName = String(model?.displayName ?? model?.modelKey ?? model?.name ?? id);
   return {
     id,
     name,
@@ -229,6 +249,22 @@ function toManuscript(dto: any): Manuscript {
 }
 
 export const api = {
+  adminAuth: {
+    login: async (username: string, password: string): Promise<{ token: string; username: string; loggedInAt: string }> => {
+      return await requestJson<{ token: string; username: string; loggedInAt: string }>(
+        "/v1/admin-auth/login",
+        { method: "POST", body: JSON.stringify({ username, password }) },
+        "",
+      );
+    },
+    me: async (): Promise<{ username: string }> => {
+      return await requestJson<{ username: string }>("/v1/admin-auth/me", { method: "GET" }, requireAdminToken());
+    },
+    logout: async (): Promise<void> => {
+      await requestVoid("/v1/admin-auth/logout", { method: "POST", body: "{}" }, requireAdminToken());
+    },
+  },
+
   user: {
     getProfile: async () => {
       const profile = await requestJson<any>("/v1/user/profile", { method: "GET" });
@@ -316,10 +352,10 @@ export const api = {
 
   admin: {
     getDashboardStats: async (): Promise<AdminDashboardStats> => {
-      return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" });
+      return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" }, requireAdminToken());
     },
     getUsers: async (): Promise<User[]> => {
-      const users = await requestJson<any[]>("/v1/admin/users", { method: "GET" });
+      const users = await requestJson<any[]>("/v1/admin/users", { method: "GET" }, requireAdminToken());
       return users.map((u) => ({
         id: String(u.id),
         username: u.username,
@@ -334,19 +370,19 @@ export const api = {
       }));
     },
     banUser: async (userId: string) => {
-      return await requestJson<boolean>(`/v1/admin/users/${userId}/ban`, { method: "POST" });
+      return await requestJson<boolean>(`/v1/admin/users/${userId}/ban`, { method: "POST" }, requireAdminToken());
     },
     unbanUser: async (userId: string) => {
-      return await requestJson<boolean>(`/v1/admin/users/${userId}/unban`, { method: "POST" });
+      return await requestJson<boolean>(`/v1/admin/users/${userId}/unban`, { method: "POST" }, requireAdminToken());
     },
     getSystemConfig: async () => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "GET" });
+      return await requestJson<any>("/v1/admin/system-config", { method: "GET" }, requireAdminToken());
     },
     updateSystemConfig: async (payload: any) => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) });
+      return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) }, requireAdminToken());
     },
     listRedeemCodes: async () => {
-      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" });
+      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" }, requireAdminToken());
     },
     createRedeemCode: async (payload: {
       code: string;
@@ -358,16 +394,16 @@ export const api = {
       stackable?: boolean;
       description?: string;
     }) => {
-      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) });
+      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken());
     },
     grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
-      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) });
+      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken());
     },
     listConversionOrders: async () => {
-      return await requestJson<any[]>("/v1/admin/credits/conversions?page=0&size=50", { method: "GET" });
+      return await requestJson<any[]>("/v1/admin/credits/conversions?page=0&size=50", { method: "GET" }, requireAdminToken());
     },
     listCreditLedger: async () => {
-      return await requestJson<any[]>("/v1/admin/credits/ledger?page=0&size=50", { method: "GET" });
+      return await requestJson<any[]>("/v1/admin/credits/ledger?page=0&size=50", { method: "GET" }, requireAdminToken());
     },
   },
 

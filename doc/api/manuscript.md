@@ -1,4 +1,5 @@
 # Manuscript API
+
 - `GET /api/v1/outlines/{outlineId}/manuscripts`：按大纲获取稿件列表，返回 `ManuscriptDto[]`。
 - `POST /api/v1/outlines/{outlineId}/manuscripts`：创建稿件，Body `{title, worldId?}`，返回 `ManuscriptDto`。
 - `GET /api/v1/manuscripts/{id}`：稿件详情，返回 `ManuscriptDto`。
@@ -11,6 +12,15 @@
 - `GET /api/v1/manuscripts/{id}/character-change-logs/{characterId}`：指定角色的变化日志列表。
 - `POST /api/v1/ai/generate-dialogue`：对话生成，Body `{text, instruction?, contextType?}`，返回文本。
 
+## 正文生成门禁（当前实现）
+
+- 生成链路由 AI 直出正文，不再是固定占位文案。
+- 每节正文汉字数门禁：`2800-3200`。
+- 最多重试：`3` 次；每次会基于上次字数偏差自动加“扩写/压缩”约束。
+- 超长文本会在服务端裁剪到上限（3200 汉字）后再入库。
+- 连续失败会直接返回错误，提示当前字数与目标区间。
+
 ## 数据结构
+
 - `ManuscriptDto`：`{id, outlineId, title, worldId, sections, updatedAt}`，其中 `sections` 为 `sceneId -> content` 的映射。
 - `CharacterChangeLogDto`：`{id, characterId, summary, createdAt}`。

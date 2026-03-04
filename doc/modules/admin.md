@@ -3,7 +3,14 @@
 ## 入口与权限
 
 - 路由前缀：`/admin`
+- 登录页：`/admin/login`
 - 访问权限：`ROLE_ADMIN`
+
+## 认证模型
+
+- 管理员链路使用本地账号密码登录（`/api/v1/admin-auth/login`），不依赖 SSO 页面。
+- 登录成功后前端将 token 存在 `localStorage.admin_token`。
+- 每次进入管理路由时会调用 `/api/v1/admin-auth/me` 校验会话；失效则清理 token 并跳回 `/admin/login`。
 
 ## 页面与能力
 
@@ -18,5 +25,4 @@
 ## 数据来源
 
 - 用户域：`UserAdminRemoteClient`（user-service HTTP）
-- 积分域：`EconomyService`（AINovel 本地项目账本 + pay-service兑换结果）
-
+- 积分域：`EconomyService`（AINovel 本地项目账本 + pay-service 兑换结果）

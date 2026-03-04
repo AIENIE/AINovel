@@ -1,30 +1,34 @@
-# 集成/系统测试用例
+# 集成/系统测试用例（更新于 2026-03-04）
 
-- **端口与联调配置**：前端 `11040`、后端 `11041`；前端 `/api` 请求经 Vite/Nginx 转发到后端 `11041`。
-- **认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 先请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice（`/sso/login` 或 `/register`）→ 回跳 `/sso/callback#access_token=...&state=...` → 前端 `state` 校验通过后写入 `localStorage.token` → `/api/v1/user/profile` 返回 200；未登录时返回 403。
+- **端口与联调配置**：前端 `11040`、后端 `11041`；前端 `/api` 请求经 Nginx/Vite 转发到后端 `11041`。
+- **普通用户认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice → 回跳 `/sso/callback#access_token=...&state=...` → 前端 `state` 校验通过后写入 `localStorage.token`。
+- **管理员认证链路（本地账密）**：访问 `/admin/login`，调用 `/api/v1/admin-auth/login` 成功后写入 `localStorage.admin_token`，再通过 `/api/v1/admin-auth/me` 做路由守卫。
 - **SSO 安全回归**：篡改回跳 hash 中 `state` 后访问 `/sso/callback`，应拒绝落 token 并跳回 `/login`。
-- **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC 实例；发现失败时回退 `USER_GRPC_ADDR`，且应在超时内快速失败不阻塞请求。
-- **Dashboard**：登录后进入 `/dashboard`，统计来自 `/api/v1/user/summary` 正常展示；点击卡片跳转到 `/novels`、`/worlds`。
-- **后台全局配置**：管理员在 `/admin/settings` 配置注册开关、维护模式、签到区间与 SMTP（对应 `/api/v1/admin/system-config`），保存后回显一致。
-- **个人中心积分**：签到成功后项目积分增加并刷新；兑换码领取成功后项目积分增加；通用积分兑换成功后项目积分增加且通用积分减少；`POST /api/v1/user/password` 返回 501（密码由 SSO 管理）。
-- **积分流水**：`GET /api/v1/user/credits/ledger` 返回按时间倒序的本地积分流水（签到/兑换码/AI 扣费/兑换入账）。
-- **管理员加分与兑换码**：`POST /api/v1/admin/credits/grant` 可成功加发项目积分；`GET/POST /api/v1/admin/redeem-codes` 可查询和新增兑换码。
-- **后台管理权限**：普通用户无法访问 `/admin/*`，管理员可访问并操作。
-- **Swagger 文档**：访问 `/api/swagger-ui/index.html` 可加载接口文档；`/api/v3/api-docs` 返回 JSON。
-- **后台用户管理**：封禁/解封后列表状态刷新。
-- **后台系统设置**：注册开关、维护模式、签到积分区间保存后回显一致。
-- **小说管理**：`/novels` 列表加载、创建（`/novels/create`）、删除；点击卡片进入 `/workbench?id=...`。
-- **大纲保存**：创建大纲，新增章节/场景并保存，重新打开校验数据持久化。
-- **稿件编写**：在“小说创作”中选择场景，自动保存与手动保存均生效；生成场景正文可写入对应 sceneId。
-- **AI Copilot**：打开 Copilot 侧边栏，调用 `/api/v1/ai/chat` 返回内容并产生积分扣减与日志。
-- **素材流程**：创建素材→上传 TXT 轮询完成→在审核页批准→列表可见；检索接口返回得分排序。
-- **世界管理/编辑**：`/worlds` 列表加载与创建；`/world-editor?id=...` 保存模块字段；发布预检与生成流程可完成并更新版本/状态。
-- **设置/提示词**：读取、更新、重置提示词配置；元数据接口可被帮助页渲染。
-- **部署验证**：执行 `build_prod.sh` 后 docker 容器健康；浏览器通过域名正常访问；后端 `/api/*` 正常响应。
-- **公共依赖连通**：后端启动日志应出现 MySQL 连接成功；Redis 端口可连通并可响应 `PING`。
-- **v2 上下文记忆**：`/api/v2/context/lorebooks` 创建成功，`/api/v2/context/preview` 返回上下文预览。
-- **v2 风格画像**：`/api/v2/style/profiles` 可创建画像，`/api/v2/style/analyze` 返回风格分析结果。
-- **v2 分析链路**：`/api/v2/analysis/beta-reader` 与 `/api/v2/analysis/continuity` 均可返回分析内容。
-- **v2 版本管理**：`/api/v2/version/snapshots` 可新建并查询，自动保存配置可读写。
-- **v2 导出系统**：`/api/v2/export/tasks` 可发起导出并查询任务列表，模板列表接口可用。
-- **v2 多模型与工作区**：模型列表/对比接口可用，布局保存接口可用，会话开始与结束接口可用。
+- **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC；发现失败时回退 `USER_GRPC_ADDR`，应在超时内失败且不阻塞主请求。
+
+- **管理后台能力**：
+  - `/admin/dashboard` 指标加载成功。
+  - `/admin/users` 用户列表可查询，封禁/解封可执行。
+  - `/admin/settings` 注册/维护/签到区间与 SMTP 参数保存后回显一致。
+  - `/api/v1/admin/credits/grant`、`/api/v1/admin/redeem-codes` 可正常调用。
+
+- **用户侧主流程**：
+  - `/dashboard`、`/novels`、`/novels/create`、`/workbench`、`/worlds/create`、`/materials`、`/settings`、`/profile` 路由可达。
+  - 个人中心签到、兑换码、通用积分兑换链路可达，流水可查询。
+
+- **故事/大纲/稿件链路**：
+  - 一句话构思（`/api/v1/conception`）成功创建故事。
+  - 大纲生成支持 20 章，每章小节数强制 `5-7`。
+  - 正文生成（`/api/v1/manuscripts/{id}/scenes/{sceneId}/generate`）应满足 `2800-3200` 汉字门禁。
+
+- **AI Copilot**：
+  - `/api/v1/ai/chat` 可返回内容并产生积分扣减。
+  - 模型回退策略可避免默认命中 embedding/ocr 模型导致失败。
+
+- **素材流程**：创建素材→上传 TXT→轮询完成→审核通过→列表可见；检索接口返回得分排序。
+- **世界管理/编辑**：`/worlds` 列表加载、创建、编辑与发布预检可完成并更新状态。
+- **设置/提示词**：读取、更新、重置提示词配置；帮助元数据接口可用于渲染帮助页。
+
+- **部署验证**：执行 `sudo -E bash build.sh` 后，前后端容器可用，域名 `https://ainovel.seekerhut.com` 可访问。
+- **OpenAPI 验证**：默认 `SPRINGDOC_*` 为 `false`，仅在显式开启时才验证 `/api/v3/api-docs` 与 `/api/swagger-ui/*`。
+- **公共依赖连通**：MySQL、Redis、Qdrant 连通；在 16K page size 环境下，本地 qdrant 需使用 `v1.8.3`。

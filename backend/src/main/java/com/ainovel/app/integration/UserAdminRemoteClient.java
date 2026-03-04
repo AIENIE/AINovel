@@ -15,6 +15,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 @Component
 public class UserAdminRemoteClient {
@@ -22,6 +26,7 @@ public class UserAdminRemoteClient {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(2))
             .build();
+    private static final HttpClient INSECURE_HTTPS_CLIENT = buildInsecureHttpsClient();
 
     private final ExternalServiceProperties properties;
     private final ConsulServiceResolver resolver;
@@ -106,7 +111,8 @@ public class UserAdminRemoteClient {
                 case "DELETE" -> builder.DELETE().build();
                 default -> builder.GET().build();
             };
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpClient client = "https".equalsIgnoreCase(uri.getScheme()) ? INSECURE_HTTPS_CLIENT : HTTP_CLIENT;
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("UserService HTTP " + response.statusCode());
             }
@@ -122,13 +128,15 @@ public class UserAdminRemoteClient {
 
     private String resolveBaseUrl() {
         ExternalServiceProperties.ServiceTarget target = properties.getUserserviceHttp();
+        Optional<ConsulServiceResolver.Endpoint> endpoint = resolver.resolveOrFallback(target.getServiceName(), target.getFallback());
+        if (endpoint.isPresent()) {
+            return endpoint.get().toHttpBase();
+        }
         String preferred = normalizeHttpUrl(target.getFallback());
         if (preferred != null) {
             return preferred;
         }
-        Optional<ConsulServiceResolver.Endpoint> endpoint = resolver.resolveOrFallback(target.getServiceName(), target.getFallback());
-        return endpoint.map(ConsulServiceResolver.Endpoint::toHttpBase)
-                .orElseGet(() -> normalizeBaseUrl(target.getFallback()));
+        return normalizeBaseUrl(target.getFallback());
     }
 
     private String normalizeHttpUrl(String fallback) {
@@ -176,6 +184,38 @@ public class UserAdminRemoteClient {
 
     private String escapeJson(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static HttpClient buildInsecureHttpsClient() {
+        try {
+            TrustManager[] trustAll = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new java.security.cert.X509Certificate[0];
+                        }
+
+                        @Override
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+                    }
+            };
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAll, new java.security.SecureRandom());
+            SSLParameters sslParameters = new SSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("");
+            return HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(2))
+                    .sslContext(sslContext)
+                    .sslParameters(sslParameters)
+                    .build();
+        } catch (Exception ignored) {
+            return HTTP_CLIENT;
+        }
     }
 
     public record RemoteAdminUser(

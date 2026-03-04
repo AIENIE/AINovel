@@ -35,12 +35,11 @@ services:
       retries: 20
 
   qdrant:
-    image: qdrant/qdrant:v1.13.4
+    image: qdrant/qdrant:v1.8.3
     container_name: ainovel-local-qdrant
     restart: unless-stopped
     ports:
-      - "6335:6333"
-      - "6336:6334"
+      - "6345:6333"
     volumes:
       - ainovel_local_qdrant_data:/qdrant/storage
 

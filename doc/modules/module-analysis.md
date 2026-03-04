@@ -27,7 +27,7 @@
 
 ### 2.2 统一登录与会话态模块
 
-模块作用：前端只做 SSO 跳转与 token 接收，不做本地账号密码鉴权。
+模块作用：普通用户走 SSO，管理员走本地账密登录，两套 token 分离。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
@@ -291,7 +291,7 @@
   - 位置：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`
 - 素材查重与引用查询当前返回空列表。
   - 位置：`backend/src/main/java/com/ainovel/app/material/MaterialService.java`（`findDuplicates`、`citations`）
-- 大纲“生成章节”与稿件“生成场景”为占位生成文本，并非真实大模型生成。
+- 大纲“生成章节”与稿件“生成场景”均已接入 AI 生成；其中稿件生成有 2800-3200 汉字门禁与最多 3 次重试。
   - 位置：`backend/src/main/java/com/ainovel/app/story/OutlineService.java`（`addGeneratedChapter`）
   - 位置：`backend/src/main/java/com/ainovel/app/manuscript/ManuscriptService.java`（`generateForScene`）
 - 世界模块自动生成当前为占位填充文本，发布流程是“状态机 + 占位内容”实现。
@@ -326,5 +326,4 @@
 - 前端工作台新增 `v2工作台` 标签，入口：`frontend/src/pages/Workbench/tabs/V2Studio.tsx`。
 - 前端 API 层新增 `api.v2.*` 封装，位置：`frontend/src/lib/mock-api.ts`。
 - 稿件模型新增 `currentBranchId` 字段（版本控制模块所需），位置：`backend/src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`。
-
 

@@ -2,69 +2,61 @@
 
 > 当前基线端口：前端 `11040`，后端 `11041`。
 
-1. **统一登录（SSO）**
-   - 本地联调访问：`http://127.0.0.1:11040/`。
-   - 测试域名：`http://ainovel.seekerhut.com/`；生产域名：`https://ainovel.aienie.com/`。
-   - 登录：点击页面上的“登录”按钮或直接访问 `/login`，前端会先请求 `/api/v1/sso/login`，由后端 302 到 user-service 登录页。
-   - 注册：点击页面上的“注册/免费开始”按钮或直接访问 `/register`，前端会先请求 `/api/v1/sso/register`，由后端 302 到 user-service 注册页。
-   - 登录/注册成功后会回跳到 `/sso/callback`，前端从 URL hash 读取 `access_token`，并校验回跳 `state` 成功后再写入 LocalStorage。
-   - 安全校验：若 `state` 缺失或不匹配，前端会拒绝落地 token 并返回 `/login`。
-   - 管理员权限：由 userservice 下发的 token 里 `role=ADMIN` 决定（AINovel 后端据此映射为 `ROLE_ADMIN`）。
+1. **部署**
+   - 执行：`sudo -E bash build.sh`
+   - 访问：`https://ainovel.seekerhut.com/`
 
-2. **个人中心（积分/签到/兑换）**
-   - 进入 `/profile`，确认头像、邮箱与项目积分/通用积分/总余额展示。
-   - 点击“每日签到”，成功后余额增加、按钮禁用显示“今日已签到”。
-   - 输入兑换码（例如 `VIP888` / `WELCOME2026` / `TOPUP100`）点击“兑换”，余额增加，输入框清空。
-   - 输入“通用积分兑换为项目积分”的数量并点击“兑换”，确认项目积分增加、通用积分减少、总余额变化正确。
-   - 密码管理：由统一登录服务负责，本系统不提供改密功能（`POST /api/v1/user/password` 固定返回 501）。
+2. **普通用户登录（SSO）**
+   - 访问 `/login` 或点击首页“登录”，前端会请求 `/api/v1/sso/login` 并跳转 userservice。
+   - 成功后回跳 `/sso/callback`，前端校验 `state` 后写入 `localStorage.token`。
+   - 若 `state` 缺失/不匹配，前端拒绝落 token 并返回 `/login`。
 
-3. **后台管理（管理员账号）**
-   - 进入 `/admin/dashboard` 查看仪表盘指标。
-   - 进入 `/admin/users` 查看用户列表、封禁/解封。
-   - 进入 `/admin/settings`：
-     - 开关注册/维护模式、签到积分区间。
-     - 配置 **SMTP 全局参数**（Host/Port/Username/Password）。
-       - 参数来源：`SMTPandLLM.txt`（只在后台界面填写，不要写入代码或配置文件）。
+3. **管理员登录（本地账密）**
+   - 访问 `/admin/login`。
+   - 使用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 调用 `/api/v1/admin-auth/login`。
+   - 成功后写入 `localStorage.admin_token` 并进入 `/admin/dashboard`。
 
-4. **故事与大纲**
-   - 从 `/dashboard` 进入 `/novels`，点击“新建小说”进入 `/novels/create` 创建小说。
-   - 进入 `/workbench?id=...`：
-     - “故事管理”可查看并新增角色。
-     - “大纲编排”中新建大纲/章节/场景并保存。
+4. **个人中心（积分/签到/兑换）**
+   - 进入 `/profile`，确认项目积分/通用积分/总余额展示。
+   - 点击“每日签到”，确认积分增加与按钮状态变化。
+   - 输入兑换码执行兑换，确认余额变化。
+   - 执行“通用积分兑换项目积分”，确认前后余额正确。
+   - `POST /api/v1/user/password` 固定返回 501（密码由 SSO 管理）。
 
-5. **稿件与 AI Copilot**
-   - 工作台 → “小说创作”：
-     - 选择故事/大纲/稿件 → 选择场景 → 编辑正文（自动保存 + 手动保存）。
-     - 点击“生成本场景”触发占位生成。
-   - 打开右侧 AI Copilot，选择模型并发送消息；积分会随调用产生变化并写入日志。
-   - 编辑器选中文本 → 气泡菜单“润色”，会调用 AI 并产生积分扣减。
+5. **后台管理（管理员）**
+   - `/admin/dashboard`：看板指标。
+   - `/admin/users`：用户检索、封禁/解封。
+   - `/admin/credits`：兑换码与积分流水。
+   - `/admin/settings`：注册/维护/签到区间与 SMTP 配置。
 
-6. **素材库**
-   - 页面 `/materials`：在“创建素材”填写标题/正文/标签提交；列表自动刷新。
-   - “上传文件”选择 TXT → 开始上传 → 轮询状态完成后，待审列表会出现该素材；在“素材审核”中批准或驳回。
-   - 列表中可编辑/删除素材，查重合并、查看引用历史（当前为空）。
-   - 工作台“素材检索”标签可直接搜索同一后端的素材。
+6. **故事与大纲**
+   - `/novels/create` 创建故事。
+   - `/workbench?id=...` 执行故事管理、角色管理。
+   - 创建大纲并调用章节生成：目标 20 章，每章 5-7 节。
 
-7. **世界构建**
-   - 从 `/dashboard` 进入 `/worlds`，点击“新建世界”进入 `/worlds/create` 创建世界草稿。
-   - 进入 `/world-editor?id=...`：
-     - 编辑元信息与模块字段，点击“保存”持久化。
-     - 点击“预检/发布”可触发生成并更新模块内容（示例生成逻辑）。
+7. **稿件与 AI 生成**
+   - 创建稿件后逐节生成正文：`/api/v1/manuscripts/{id}/scenes/{sceneId}/generate`。
+   - 验证每节汉字数 `2800-3200`。
+   - 验证自动保存/手动保存与重新加载一致。
 
-8. **设置与提示词**
-   - 页面 `/settings`：提供“工作区提示词”与“世界观提示词”配置。
-   - 两个标签可编辑并保存模板；帮助按钮跳转至提示词帮助页查看变量/函数说明。
+8. **素材库**
+   - `/materials` 手工创建素材。
+   - 上传 TXT 并轮询完成，审核通过后列表可见。
+   - 可编辑/删除素材，工作台检索可命中。
 
-9. **登出**
-   - 头部用户菜单选择退出，或清除浏览器 LocalStorage 中的 `token`。
+9. **世界构建**
+   - `/worlds/create` 创建世界草稿。
+   - `/world-editor?id=...` 保存模块字段、预检/发布并检查状态更新。
 
-10. **后端接口连通性（可选）**
-   - 未登录时访问 `/api/v1/user/profile` 应返回 403；完成统一登录后再次访问应返回 200（包含 `id/username/role/projectCredits/publicCredits/totalCredits` 等）。
-   - 本地 OpenAPI 验证地址：`http://127.0.0.1:11041/api/v3/api-docs`。
-   - 本地 Swagger UI：`http://127.0.0.1:11041/api/swagger-ui/index.html`。
+10. **设置与提示词**
+   - `/settings` 更新工作区提示词与世界提示词。
+   - 验证帮助页路由与变量元数据可用。
 
-11. **v2 工作台能力验收（2026-02-17）**
-   - 优先入口：`http://ainovel.seekerhut.com/workbench`；若域名不可解析（如 `ERR_NAME_NOT_RESOLVED`），降级到 `http://127.0.0.1:11040/workbench`。
-   - 在“上下文记忆”中创建 Lorebook，填写功能相关文本（例如标题 `主角记忆缺口`，正文说明跨章节记忆约束）。
-   - 依次验证：风格画像、Beta Reader 与连续性检查、版本快照与自动保存、导出任务与模板、多模型对比、工作台布局与会话开始/结束。
-   - 每个操作都需观察右侧返回框或列表刷新，确认接口响应成功且状态可见。
+11. **可选接口烟测**
+   - 未登录访问 `/api/v1/user/profile` 应 403。
+   - 管理员登录后：`/api/v1/admin/users` 应 200。
+   - 角色列表：`/api/v1/story-cards/{id}/character-cards` 应 200。
+
+12. **网络代理注意事项**
+   - 若机器配置了 `http_proxy/https_proxy`，本地域名调试请使用：
+     - `curl --noproxy '*' -k https://ainovel.seekerhut.com/api/...`

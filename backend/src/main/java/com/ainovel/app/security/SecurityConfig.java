@@ -47,6 +47,8 @@ public class SecurityConfig {
                                 "/api/actuator/health",
                                 "/v1/sso/**",
                                 "/api/v1/sso/**",
+                                "/v1/admin-auth/login",
+                                "/api/v1/admin-auth/login",
                                 "/swagger-ui/**",
                                 "/api/swagger-ui/**",
                                 "/swagger-ui.html",

@@ -1,10 +1,14 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
+import com.ainovel.app.user.User;
+import com.ainovel.app.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,15 +23,19 @@ public class OutlineService {
     private OutlineRepository outlineRepository;
     @Autowired
     private ResourceAccessGuard accessGuard;
+    @Autowired
+    private AiService aiService;
+    @Autowired
+    private UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<OutlineDto> listByStory(Story story) {
         accessGuard.assertOwner(story.getUser());
-        return outlineRepository.findByStory(story).stream().map(this::toDto).toList();
+        return outlineRepository.findByStoryWithStoryUser(story).stream().map(this::toDto).toList();
     }
 
     public OutlineDto get(UUID id) {
-        Outline outline = outlineRepository.findById(id).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(id).orElseThrow(() -> new RuntimeException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         return toDto(outline);
     }
@@ -48,7 +56,7 @@ public class OutlineService {
 
     @Transactional
     public OutlineDto saveOutline(UUID outlineId, OutlineSaveRequest request) {
-        Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
         outline.setWorldId(request.worldId());
@@ -121,27 +129,32 @@ public class OutlineService {
 
     @Transactional
     public void deleteOutline(UUID outlineId) {
-        Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         outlineRepository.delete(outline);
     }
 
     @Transactional
     public OutlineDto addGeneratedChapter(UUID outlineId, OutlineChapterGenerateRequest request) {
-        Outline outline = outlineRepository.findById(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         OutlineDto dto = toDto(outline);
         int order = dto.chapters() == null ? 1 : dto.chapters().size() + 1;
         UUID chapterId = UUID.randomUUID();
+        int chapterNumber = request.chapterNumber() != null ? request.chapterNumber() : order;
+        int scenesCount = normalizeSectionsPerChapter(request.sectionsPerChapter());
+        GeneratedChapter generated = generateChapterByAi(outline.getStory(), chapterNumber, scenesCount, order);
         List<OutlineDto.SceneDto> scenes = new ArrayList<>();
-        int scenesCount = request.sectionsPerChapter() != null ? request.sectionsPerChapter() : 2;
         for (int i = 1; i <= scenesCount; i++) {
-            scenes.add(new OutlineDto.SceneDto(UUID.randomUUID(), "场景 " + i, "根据第 " + i + " 段生成的摘要", null, i));
+            GeneratedScene scene = i - 1 < generated.scenes().size() ? generated.scenes().get(i - 1) : null;
+            String sceneTitle = scene == null ? "第" + chapterNumber + "章 第" + i + "节" : safe(scene.title(), "第" + chapterNumber + "章 第" + i + "节");
+            String sceneSummary = scene == null ? "围绕章节主线推进关键冲突与人物关系。" : safe(scene.summary(), "围绕章节主线推进关键冲突与人物关系。");
+            scenes.add(new OutlineDto.SceneDto(UUID.randomUUID(), sceneTitle, sceneSummary, null, i));
         }
         OutlineDto.ChapterDto newChapter = new OutlineDto.ChapterDto(
                 chapterId,
-                "第" + (request.chapterNumber() != null ? request.chapterNumber() : order) + "章",
-                "AI 生成的章节摘要",
+                safe(generated.title(), "第" + chapterNumber + "章"),
+                safe(generated.summary(), "推进核心矛盾并强化人物成长线。"),
                 order,
                 scenes
         );
@@ -151,6 +164,107 @@ public class OutlineService {
                 updated.stream().map(c -> new OutlineSaveRequest.ChapterPayload(c.id(), c.title(), c.summary(), c.order(),
                         c.scenes().stream().map(s -> new OutlineSaveRequest.ScenePayload(s.id(), s.title(), s.summary(), s.content(), s.order())).toList())).toList());
         return saveOutline(outlineId, saveRequest);
+    }
+
+    private int normalizeSectionsPerChapter(Integer input) {
+        if (input == null) return 5;
+        return Math.max(5, Math.min(7, input));
+    }
+
+    private GeneratedChapter generateChapterByAi(Story story, int chapterNumber, int scenesCount, int order) {
+        try {
+            User currentUser = userRepository.findByUsername(accessGuard.currentUsername()).orElse(story.getUser());
+            String prompt = """
+                    你是长篇小说策划编辑。请生成第 %d 章的大纲信息，必须返回 JSON，不要 markdown：
+                    {
+                      "title":"章节标题",
+                      "summary":"章节摘要（80-140字）",
+                      "scenes":[
+                        {"title":"节标题","summary":"该节剧情摘要（60-120字）"}
+                      ]
+                    }
+                    约束：
+                    - scenes 数量必须为 %d
+                    - 章节需与已有章节数量 %d 保持连续推进
+                    - 题材：%s
+                    - 故事标题：%s
+                    - 故事梗概：%s
+                    """.formatted(
+                    chapterNumber,
+                    scenesCount,
+                    Math.max(order - 1, 0),
+                    safe(story.getGenre(), "未指定"),
+                    safe(story.getTitle(), "未命名故事"),
+                    safe(story.getSynopsis(), "无")
+            );
+            String content = aiService.chat(currentUser, new AiChatRequest(
+                    List.of(new AiChatRequest.Message("user", prompt)),
+                    null,
+                    null
+            )).content();
+            Map<String, Object> root = parseJson(content);
+            if (root == null) {
+                return new GeneratedChapter(null, null, List.of());
+            }
+            List<GeneratedScene> generatedScenes = new ArrayList<>();
+            Object rawScenes = root.get("scenes");
+            if (rawScenes instanceof List<?> list) {
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> map) {
+                        String title = safe(map.get("title") == null ? null : String.valueOf(map.get("title")), "");
+                        String summary = safe(map.get("summary") == null ? null : String.valueOf(map.get("summary")), "");
+                        if (!title.isBlank() || !summary.isBlank()) {
+                            generatedScenes.add(new GeneratedScene(title, summary));
+                        }
+                    }
+                }
+            }
+            return new GeneratedChapter(
+                    safe(root.get("title") == null ? null : String.valueOf(root.get("title")), null),
+                    safe(root.get("summary") == null ? null : String.valueOf(root.get("summary")), null),
+                    generatedScenes
+            );
+        } catch (Exception ignored) {
+            return new GeneratedChapter(null, null, List.of());
+        }
+    }
+
+    private Map<String, Object> parseJson(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String text = raw.trim();
+        if (text.startsWith("```")) {
+            int start = text.indexOf('{');
+            int end = text.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                text = text.substring(start, end + 1);
+            }
+        }
+        try {
+            return objectMapper.readValue(text, new TypeReference<>() {});
+        } catch (Exception ex) {
+            int start = text.indexOf('{');
+            int end = text.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                try {
+                    return objectMapper.readValue(text.substring(start, end + 1), new TypeReference<>() {});
+                } catch (Exception ignored) {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
+
+    private String safe(String value, String fallback) {
+        if (value == null) return fallback;
+        String text = value.trim();
+        return text.isBlank() ? fallback : text;
+    }
+
+    private record GeneratedChapter(String title, String summary, List<GeneratedScene> scenes) {
+    }
+
+    private record GeneratedScene(String title, String summary) {
     }
 
     private OutlineDto toDto(Outline outline) {
@@ -194,7 +308,7 @@ public class OutlineService {
     }
 
     private Outline findOutlineContainingChapter(UUID chapterId) {
-        for (Outline outline : outlineRepository.findAll()) {
+        for (Outline outline : outlineRepository.findAllWithStoryUser()) {
             Map<String, Object> content = readJson(outline.getContentJson());
             List<Map<String, Object>> chapters = objectMapper.convertValue(content.getOrDefault("chapters", new ArrayList<>()), List.class);
             for (Map<String, Object> c : chapters) {
@@ -206,7 +320,7 @@ public class OutlineService {
     }
 
     private Outline findOutlineContainingScene(UUID sceneId) {
-        for (Outline outline : outlineRepository.findAll()) {
+        for (Outline outline : outlineRepository.findAllWithStoryUser()) {
             Map<String, Object> content = readJson(outline.getContentJson());
             List<Map<String, Object>> chapters = objectMapper.convertValue(content.getOrDefault("chapters", new ArrayList<>()), List.class);
             for (Map<String, Object> c : chapters) {

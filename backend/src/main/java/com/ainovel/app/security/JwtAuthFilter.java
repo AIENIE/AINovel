@@ -59,7 +59,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            ParsedTokenClaims parsed = parseVerifiedClaims(token);
+            VerifiedClaims verifiedClaims = parseVerifiedClaims(token);
+            ParsedTokenClaims parsed = verifiedClaims == null ? null : verifiedClaims.claims();
             boolean verifiedBySignature = parsed != null;
             if (parsed == null) {
                 parsed = parseUnverifiedClaims(token);
@@ -72,7 +73,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             UserSessionValidator validator = userSessionValidatorProvider.getIfAvailable();
             if (verifiedBySignature) {
-                if (validator != null && !isSessionValid(validator, parsed.uid(), parsed.sid())) {
+                boolean localAdminToken = verifiedClaims != null && verifiedClaims.localAdminToken();
+                if (!localAdminToken && validator != null && !isSessionValid(validator, parsed.uid(), parsed.sid())) {
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -105,10 +107,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private ParsedTokenClaims parseVerifiedClaims(String token) {
+    private VerifiedClaims parseVerifiedClaims(String token) {
         try {
             Claims claims = jwtService.parseClaims(token);
-            return mapClaims(claims.getSubject(), claims.get("uid"), claims.get("sid"), claims.get("role"), claims.get("exp"));
+            ParsedTokenClaims parsed = mapClaims(claims.getSubject(), claims.get("uid"), claims.get("sid"), claims.get("role"), claims.get("exp"));
+            Object localAdminRaw = claims.get("local_admin");
+            boolean localAdminToken = Boolean.TRUE.equals(localAdminRaw)
+                    || (localAdminRaw instanceof String text && "true".equalsIgnoreCase(text.trim()));
+            return new VerifiedClaims(parsed, localAdminToken);
         } catch (Exception ignored) {
             return null;
         }
@@ -185,5 +191,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     private record ParsedTokenClaims(String username, Long uid, String sid, String role, Long expEpochSeconds) {
+    }
+
+    private record VerifiedClaims(ParsedTokenClaims claims, boolean localAdminToken) {
     }
 }

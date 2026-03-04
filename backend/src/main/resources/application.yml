@@ -43,6 +43,9 @@ server:
 
 app:
   time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+  admin-auth:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:}
   jwt:
     secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
     expiration-minutes: 120
@@ -52,7 +55,7 @@ app:
     api-key: ${AI_API_KEY:}
   external:
     project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
-    timeout-ms: ${EXTERNAL_TIMEOUT_MS:2500}
+    timeout-ms: ${EXTERNAL_TIMEOUT_MS:120000}
     grpc:
       tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:false}
       plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:true}

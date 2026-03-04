@@ -1,5 +1,20 @@
 # Admin API（需管理员权限）
 
+## 管理员本地登录（admin-auth）
+
+> 管理后台与普通用户登录链路分离：
+> - 普通用户：走 SSO（`/api/v1/sso/*`）
+> - 管理员：走本地账号密码（`/api/v1/admin-auth/*`）
+
+- `POST /api/v1/admin-auth/login`
+  - 请求：`{username,password}`
+  - 账号来源：`env.txt`（或环境变量）中的 `ADMIN_USERNAME` / `ADMIN_PASSWORD`
+  - 响应：`{token,username,loggedInAt}`
+- `GET /api/v1/admin-auth/me`
+  - 说明：校验管理员 token 并返回当前管理员信息
+- `POST /api/v1/admin-auth/logout`
+  - 说明：无状态 JWT，接口返回成功后前端仅需清理 `admin_token`
+
 ## 仪表盘
 
 - `GET /api/v1/admin/dashboard`
@@ -8,6 +23,7 @@
 ## 用户管理
 
 - `GET /api/v1/admin/users?search=demo`
+  - 说明：透传 user-service 管理员用户查询接口
 - `POST /api/v1/admin/users/{id}/ban?days=7&reason=违规行为`
 - `POST /api/v1/admin/users/{id}/unban`
 

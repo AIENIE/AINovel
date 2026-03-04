@@ -37,5 +37,8 @@ AINovel 对接以下基础组件与外部服务：
 
 - MySQL: `3308`
 - Redis: `6381`
-- Qdrant: `6335`
+- Qdrant: `6345`
 
+兼容性说明：
+
+- 在当前 ARM64 + 16K page size 环境中，本机 qdrant 使用 `qdrant/qdrant:v1.8.3` 以避免新版本 `jemalloc` page size 崩溃。

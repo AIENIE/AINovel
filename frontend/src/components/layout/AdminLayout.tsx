@@ -1,5 +1,5 @@
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
@@ -9,10 +9,37 @@ import {
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { adminSession, api } from "@/lib/mock-api";
 
 const AdminLayout = () => {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [username, setUsername] = useState("admin");
+
+  useEffect(() => {
+    let cancelled = false;
+    api.adminAuth
+      .me()
+      .then((res) => {
+        if (!cancelled) setUsername(res.username || "admin");
+      })
+      .catch(() => {
+        adminSession.clearToken();
+        if (!cancelled) navigate("/admin/login", { replace: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await api.adminAuth.logout();
+    } catch {
+      // Stateless logout, token cleanup on client side is enough.
+    }
+    adminSession.clearToken();
+    navigate("/admin/login", { replace: true });
+  };
 
   const navItems = [
     { title: "仪表盘", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -55,10 +82,10 @@ const AdminLayout = () => {
         <div className="p-4 border-t border-zinc-800">
           <div className="flex items-center gap-3 mb-4 px-2">
             <div className="h-8 w-8 rounded-full bg-zinc-700 flex items-center justify-center">
-              {user?.username[0]}
+              {username[0]?.toUpperCase() || "A"}
             </div>
             <div className="text-sm">
-              <div className="font-medium">{user?.username}</div>
+              <div className="font-medium">{username}</div>
               <div className="text-xs text-zinc-500">Administrator</div>
             </div>
           </div>
@@ -66,7 +93,7 @@ const AdminLayout = () => {
             variant="destructive" 
             className="w-full justify-start" 
             size="sm"
-            onClick={() => { logout(); navigate("/login"); }}
+            onClick={() => { void handleLogout(); }}
           >
             <LogOut className="mr-2 h-4 w-4" /> 退出管理
           </Button>

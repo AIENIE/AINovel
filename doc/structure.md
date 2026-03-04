@@ -17,6 +17,7 @@
 - `frontend/src/App.tsx`：路由与权限守卫入口。
 - `frontend/src/contexts/AuthContext.tsx`：登录态与用户资料上下文。
 - `frontend/src/pages/auth/*`：SSO 登录/注册跳转与回调页面。
+- `frontend/src/pages/Admin/Login.tsx`：管理员本地账密登录页（`/admin/login`）。
 - `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（签到/兑换/兑换历史/积分流水）。
 - `frontend/src/pages/Admin/*`：管理后台页面。
 - `frontend/src/lib/mock-api.ts`：统一 API 请求层。
@@ -25,6 +26,7 @@
 
 - `backend/src/main/resources/application.yml`：后端主配置（支持 env 覆盖）。
 - `backend/src/main/java/com/ainovel/app/auth/*`：SSO 中转。
+- `backend/src/main/java/com/ainovel/app/adminauth/*`：管理员本地登录接口（`/v1/admin-auth/*`）。
 - `backend/src/main/java/com/ainovel/app/security/*`：JWT、远程会话校验、资源访问控制（BOLA 防护）。
 - `backend/src/main/java/com/ainovel/app/integration/*`：Consul + 三服务客户端与外部安全启动校验。
 - `backend/src/main/java/com/ainovel/app/integration/ExternalSecurityStartupValidator.java`：三服务鉴权配置 fail-fast 校验。

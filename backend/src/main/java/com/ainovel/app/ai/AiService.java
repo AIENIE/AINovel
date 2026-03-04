@@ -4,6 +4,7 @@ import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
 import com.ainovel.app.user.User;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public class AiService {
 
     private final AiGatewayGrpcClient aiGatewayGrpcClient;
     private final EconomyService economyService;
+    @Value("${app.ai.model:gpt-4o}")
+    private String configuredDefaultModel;
 
     public AiService(AiGatewayGrpcClient aiGatewayGrpcClient, EconomyService economyService) {
         this.aiGatewayGrpcClient = aiGatewayGrpcClient;
@@ -27,11 +30,25 @@ public class AiService {
 
     public AiChatResponse chat(User user, AiChatRequest request) {
         Long remoteUid = resolveGatewayUserId(user);
-        String model = request.modelId();
+        String model = normalizeModelKey(request.modelId());
+        String fallbackModel = null;
         if (model == null || model.isBlank()) {
+            model = normalizeModelKey(configuredDefaultModel);
+        }
+        if (model != null && !model.isBlank()) {
+            fallbackModel = pickDefaultChatModel(listModels());
+        } else {
             model = pickDefaultChatModel(listModels());
         }
-        AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(remoteUid, model, request.messages());
+        AiGatewayGrpcClient.ChatResult result;
+        try {
+            result = aiGatewayGrpcClient.chatCompletions(remoteUid, model, request.messages());
+        } catch (RuntimeException ex) {
+            if (fallbackModel == null || fallbackModel.isBlank() || fallbackModel.equals(model)) {
+                throw ex;
+            }
+            result = aiGatewayGrpcClient.chatCompletions(remoteUid, fallbackModel, request.messages());
+        }
         EconomyService.AiChargeResult charge = economyService.chargeAiUsage(
                 user,
                 result.promptTokens(),
@@ -76,7 +93,14 @@ public class AiService {
             }
             String type = model.modelType() == null ? "" : model.modelType().trim().toLowerCase(Locale.ROOT);
             if ("text".equals(type)) {
-                return model.id();
+                String picked = normalizeModelKey(model.name());
+                if (picked != null && !picked.isBlank()) {
+                    return picked;
+                }
+                picked = normalizeModelKey(model.id());
+                if (picked != null && !picked.isBlank()) {
+                    return picked;
+                }
             }
         }
         for (AiModelDto model : models) {
@@ -90,8 +114,43 @@ public class AiService {
             if (normalized.contains("embedding") || normalized.contains("ocr")) {
                 continue;
             }
-            return model.id();
+            String picked = normalizeModelKey(model.name());
+            if (picked != null && !picked.isBlank()) {
+                return picked;
+            }
+            picked = normalizeModelKey(model.id());
+            if (picked != null && !picked.isBlank()) {
+                return picked;
+            }
         }
-        return models.get(0).id();
+        AiModelDto first = models.get(0);
+        String picked = normalizeModelKey(first.name());
+        if (picked != null && !picked.isBlank()) {
+            return picked;
+        }
+        return normalizeModelKey(first.id());
+    }
+
+    private String normalizeModelKey(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String model = raw.trim();
+        if (model.isBlank()) {
+            return null;
+        }
+        if (looksLikeUuid(model)) {
+            return null;
+        }
+        return model;
+    }
+
+    private boolean looksLikeUuid(String value) {
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }

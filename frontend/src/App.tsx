@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { adminSession, api } from "@/lib/mock-api";
 
 // Layouts
 import AppLayout from "@/components/layout/AppLayout";
@@ -14,6 +16,7 @@ import Index from "./pages/Index";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import SsoCallback from "./pages/auth/SsoCallback";
+import AdminLogin from "./pages/Admin/Login";
 import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 import DashboardHome from "./pages/Dashboard";
@@ -48,9 +51,37 @@ const ProtectedRoute = () => {
 
 // Admin Route Wrapper
 const AdminRoute = () => {
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
-  if (isLoading) return <div className="flex items-center justify-center h-screen bg-zinc-950 text-zinc-500">Loading...</div>;
-  return isAuthenticated && isAdmin ? <Outlet /> : <Navigate to="/workbench" replace />;
+  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized">("loading");
+  const location = useLocation();
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = adminSession.getToken();
+    if (!token) {
+      setStatus("unauthorized");
+      return () => {
+        cancelled = true;
+      };
+    }
+    setStatus("loading");
+    api.adminAuth
+      .me()
+      .then(() => {
+        if (!cancelled) setStatus("authorized");
+      })
+      .catch(() => {
+        adminSession.clearToken();
+        if (!cancelled) setStatus("unauthorized");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, location.search]);
+
+  if (status === "loading") return <div className="flex items-center justify-center h-screen bg-zinc-950 text-zinc-500">Loading...</div>;
+  if (status === "authorized") return <Outlet />;
+  const next = encodeURIComponent(`${location.pathname}${location.search}`);
+  return <Navigate to={`/admin/login?next=${next}`} replace />;
 };
 
 const App = () => (
@@ -66,6 +97,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/sso/callback" element={<SsoCallback />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/pricing" element={<Pricing />} />
 
             {/* User Protected Routes */}
