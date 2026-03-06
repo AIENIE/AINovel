@@ -38,4 +38,3 @@
 - `backend/src/main/java/com/ainovel/app/admin/*`：管理端接口。
 - `backend/src/main/proto/*`：ai/user/pay gRPC 协议。
 - `backend/sql/schema.sql`：数据库结构参考。
-- `backend/deploy/deps-compose.yml`：本机依赖容器编排（MySQL/Redis/Qdrant）。

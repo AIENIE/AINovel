@@ -34,7 +34,7 @@ sudo bash build.sh
 说明：
 - `build.sh` 会读取 `env.txt`，环境变量可覆盖。
 - 若手动执行 `docker compose`，先执行 `set -a; source env.txt; set +a`，避免容器使用到错误默认值（如 `JWT_SECRET` 不一致导致 SSO token 全部 403）。
-- 当远端 `MySQL/Redis/Qdrant` 不可用且 `DEPS_AUTO_BOOTSTRAP=true` 时，会自动拉起本机依赖容器（`backend/deploy/deps-compose.yml`）。
+- 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；部署脚本仅做依赖连通性检查。
 
 ## 关键配置
 
@@ -54,7 +54,6 @@ sudo bash build.sh
 - `frontend/`：前端代码
 - `backend/`：后端代码
 - `backend/sql/schema.sql`：数据库结构参考脚本
-- `backend/deploy/deps-compose.yml`：本机依赖容器编排（兜底用）
 - `doc/`：项目文档、API 文档、测试记录
 - `design-doc/`：设计与规划文档
 - `build.sh` / `build_prod.sh` / `build_local.ps1`：部署脚本

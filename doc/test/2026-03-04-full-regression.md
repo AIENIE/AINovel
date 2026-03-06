@@ -18,8 +18,8 @@
 1. 本地 qdrant 容器反复重启
 - 现象：`<jemalloc>: Unsupported system page size`
 - 原因：当前机器 page size 为 `16384`（16K），`qdrant/qdrant:v1.13.4` 不兼容。
-- 处理：`backend/deploy/deps-compose.yml` 将 qdrant 镜像切换为 `qdrant/qdrant:v1.8.3`。
-- 结果：`ainovel-local-qdrant` 稳定 `Up`。
+- 处理：将本地 Qdrant 依赖镜像切换为 `qdrant/qdrant:v1.8.3`。
+- 结果：本地 Qdrant 依赖实例稳定运行。
 
 2. 管理员用户列表链路
 - 验证接口：`GET /api/v1/admin/users`

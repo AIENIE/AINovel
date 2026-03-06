@@ -27,18 +27,8 @@ AINovel 对接以下基础组件与外部服务：
 - Qdrant: `http://192.168.1.4:6333`
 - Consul: `http://192.168.1.4:60000`
 
-## 本机兜底
+## 部署约束
 
-当远端依赖不可用且 `DEPS_AUTO_BOOTSTRAP=true`，`build.sh` 会自动启动：
-
-- `backend/deploy/deps-compose.yml`
-
-默认本机映射端口：
-
-- MySQL: `3308`
-- Redis: `6381`
-- Qdrant: `6345`
-
-兼容性说明：
-
-- 在当前 ARM64 + 16K page size 环境中，本机 qdrant 使用 `qdrant/qdrant:v1.8.3` 以避免新版本 `jemalloc` page size 崩溃。
+- `build.sh` 现在只校验 MySQL / Redis / Qdrant 连通性。
+- 依赖服务需由外部环境提前提供，部署脚本不再负责额外创建中间件实例。
+- 依赖地址统一来自 `env.txt` 中的 `MYSQL_*`、`REDIS_*`、`QDRANT_*` 配置。

@@ -13,8 +13,8 @@
 2. 本地 qdrant 兼容性
 - 时间：2026-03-04 10:38-10:39（Asia/Shanghai）
 - 问题：`qdrant/qdrant:v1.13.4` 在 16K page size 环境持续崩溃（`jemalloc Unsupported system page size`）。
-- 修复：`backend/deploy/deps-compose.yml` 切换为 `qdrant/qdrant:v1.8.3`。
-- 结果：`ainovel-local-qdrant` 稳定运行。
+- 修复：曾将本地 Qdrant 依赖镜像切换为 `qdrant/qdrant:v1.8.3`。
+- 结果：本地 Qdrant 依赖实例稳定运行。
 
 3. 管理端用户列表接口
 - 时间：2026-03-04 10:39-10:40（Asia/Shanghai）

@@ -48,12 +48,11 @@ sudo -E bash build.sh
 
 1. 读取 `env.txt`
 2. 校验并必要时自动重签发 `EXTERNAL_PAY_SERVICE_JWT`
-3. 检查远端依赖连通性（MySQL/Redis/Qdrant）
-4. 远端不可用时（`DEPS_AUTO_BOOTSTRAP=true`）自动拉起本机依赖容器
-5. 构建前端（测试+打包）与后端（测试+打包）
-6. 通过 `docker-compose.yml` 重建前后端容器
-7. 配置 hosts + nginx 反向代理（测试域名/正式域名）
-8. Nginx `/api` 反向代理超时固定为 `300s`
+3. 检查依赖连通性（MySQL/Redis/Qdrant）
+4. 构建前端（测试+打包）与后端（测试+打包）
+5. 通过 `docker-compose.yml` 重建前后端容器
+6. 配置 hosts + nginx 反向代理（测试域名/正式域名）
+7. Nginx `/api` 反向代理超时固定为 `300s`
 
 部署成功后：
 
@@ -62,22 +61,11 @@ sudo -E bash build.sh
 
 > `build_prod.sh` 是生产包装脚本，内部直接调用 `build.sh`，与 `build.sh` 逻辑保持同源；差异仅为默认域名切换到 `ainovel.aienie.com`。
 
-## 4. 本机依赖容器（可单独启动）
+## 4. 依赖服务准备
 
-```bash
-docker compose -f backend/deploy/deps-compose.yml up -d
-```
+部署前请先确保 `env.txt` 中配置的 MySQL、Redis、Qdrant 已经可达。
 
-默认映射端口：
-
-- MySQL: `3308`
-- Redis: `6381`
-- Qdrant: `6345`
-
-Qdrant 说明：
-
-- 当前 `deps-compose` 固定使用 `qdrant/qdrant:v1.8.3`，用于兼容本机 `16K` page size 环境。
-- 在该环境中，`v1.13.4` 会出现 `jemalloc Unsupported system page size` 并反复重启。
+> `build.sh` 现在只做依赖连通性检查，不再额外拉起本机 MySQL / Redis / Qdrant 容器。
 
 > 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请先加载配置：
 >

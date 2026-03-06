@@ -374,22 +374,6 @@ NGINX
   reload_nginx
 }
 
-ensure_local_deps() {
-  local compose_file="$ROOT_DIR/backend/deploy/deps-compose.yml"
-  if [[ ! -f "$compose_file" ]]; then
-    echo "Missing dependency compose file: $compose_file"
-    exit 1
-  fi
-  run_sudo docker compose -f "$compose_file" up -d
-
-  export MYSQL_HOST=host.docker.internal
-  export MYSQL_PORT=3308
-  export REDIS_HOST=host.docker.internal
-  export REDIS_PORT=6381
-  export QDRANT_HOST=http://host.docker.internal
-  export QDRANT_PORT=6345
-}
-
 prepare_dependencies() {
   local missing=false
   if ! port_open "$MYSQL_HOST" "$MYSQL_PORT"; then
@@ -405,11 +389,9 @@ prepare_dependencies() {
     echo "Dependency unavailable: Qdrant ${QDRANT_TCP_HOST}:${QDRANT_PORT}"
   fi
 
-  if [[ "$missing" == true && "${DEPS_AUTO_BOOTSTRAP,,}" == "true" ]]; then
-    echo "Remote dependencies unavailable, bootstrapping local Docker dependencies..."
-    ensure_local_deps
-  elif [[ "$missing" == true ]]; then
-    echo "Dependencies unavailable and DEPS_AUTO_BOOTSTRAP is disabled."
+  if [[ "$missing" == true ]]; then
+    echo "Required dependencies are unavailable."
+    echo "Please make sure MySQL, Redis, and Qdrant are already running and reachable from env.txt before deploying."
     exit 1
   fi
 }
@@ -523,8 +505,6 @@ set_default SPRINGDOC_SWAGGER_UI_ENABLED "false"
 set_default APP_SECURITY_CORS_ALLOWED_ORIGINS "https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040"
 set_default APP_SECURITY_CORS_ALLOWED_METHODS "GET,POST,PUT,DELETE,OPTIONS,PATCH"
 set_default APP_SECURITY_CORS_ALLOWED_HEADERS "Authorization,Content-Type,Idempotency-Key,X-Requested-With"
-set_default DEPS_AUTO_BOOTSTRAP "true"
-
 ensure_pay_service_jwt
 
 QDRANT_TCP_HOST="${QDRANT_HOST#http://}"
