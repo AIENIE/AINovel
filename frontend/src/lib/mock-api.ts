@@ -7,6 +7,7 @@ import {
   Manuscript,
   ModelConfig,
   Outline,
+  PlotPlanning,
   PromptTemplates,
   Story,
   UserSummary,
@@ -177,7 +178,89 @@ function toStory(dto: any): Story {
   };
 }
 
+function normalizeList(value: any): string[] {
+  return Array.isArray(value)
+    ? value.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : [];
+}
+
+function toPlotPlanning(dto: any): PlotPlanning | undefined {
+  if (!dto || typeof dto !== "object") return undefined;
+  const twistOptions = Array.isArray(dto.twistOptions)
+    ? dto.twistOptions
+        .map((item: any, index: number) => ({
+          id: String(item?.id ?? `twist-${index + 1}`),
+          label: String(item?.label ?? (index === 0 ? "灵感版" : "结构版")),
+          track: String(item?.track ?? (index === 0 ? "instinct" : "structure")) === "structure" ? "structure" : "instinct",
+          hook: String(item?.hook ?? item?.summary ?? ""),
+          hiddenTruth: String(item?.hiddenTruth ?? dto?.hiddenTruth ?? ""),
+          setup: normalizeList(item?.setup ?? item?.setupPoints),
+          misdirection: normalizeList(item?.misdirection ?? item?.misdirectionPoints),
+          revealBeat: String(item?.revealBeat ?? ""),
+          revealTiming: String(item?.revealTiming ?? ""),
+          payoff: String(item?.payoff ?? ""),
+          risk: String(item?.risk ?? item?.earlyRevealRisk ?? ""),
+        }))
+        .filter((item) => item.hook || item.hiddenTruth || item.setup.length || item.misdirection.length)
+    : [];
+  const rawForeshadows = Array.isArray(dto.foreshadowPlans) ? dto.foreshadowPlans : dto.foreshadowSeeds;
+  const foreshadowPlans = Array.isArray(rawForeshadows)
+    ? rawForeshadows
+        .map((item: any, index: number) => ({
+          id: String(item?.id ?? item?.entryKey ?? `foreshadow-${index + 1}`),
+          clue: String(item?.clue ?? item?.setup ?? ""),
+          disguise: String(item?.disguise ?? item?.coverLayer ?? item?.misdirectionLayer ?? ""),
+          payoff: String(item?.payoff ?? ""),
+          revealTiming: String(item?.revealTiming ?? ""),
+        }))
+        .filter((item) => item.clue || item.payoff)
+    : [];
+  const beats = Array.isArray(dto.beats)
+    ? dto.beats
+        .map((item: any, index: number) => ({
+          id: String(item?.id ?? `beat-${index + 1}`),
+          label: String(item?.label ?? `Beat ${index + 1}`),
+          summary: String(item?.summary ?? ""),
+        }))
+        .filter((item) => item.summary)
+    : [];
+  const planning: PlotPlanning = {
+    corePromise: String(dto.corePromise ?? ""),
+    centralQuestion: String(dto.centralQuestion ?? ""),
+    hiddenTruth: String(dto.hiddenTruth ?? ""),
+    readerMisdirect: String(dto.readerMisdirect ?? dto.readerExpectation ?? ""),
+    stakes: String(dto.stakes ?? ""),
+    beats,
+    twistOptions,
+    foreshadowPlans,
+    memeStrategy:
+      dto.memeStrategy && typeof dto.memeStrategy === "object"
+        ? {
+            reference: String(dto.memeStrategy.reference ?? dto.memeStrategy.sourceDomain ?? ""),
+            purpose: String(dto.memeStrategy.purpose ?? dto.memeStrategy.useCase ?? ""),
+            usage: String(dto.memeStrategy.usage ?? dto.memeStrategy.naturalVersion ?? ""),
+            caution: String(dto.memeStrategy.caution ?? dto.memeStrategy.immersionRisk ?? dto.memeStrategy.conservativeVersion ?? ""),
+          }
+        : undefined,
+    selectedTwistId: dto.selectedTwistId == null ? undefined : String(dto.selectedTwistId),
+    lorebookSeeds: Array.isArray(dto.lorebookSeeds) ? dto.lorebookSeeds : [],
+    graphSeeds: Array.isArray(dto.graphSeeds) ? dto.graphSeeds : [],
+    confidence: dto.confidence == null ? undefined : Number(dto.confidence),
+    warnings: normalizeList(dto.warnings),
+  };
+  return planning.corePromise ||
+    planning.centralQuestion ||
+    planning.hiddenTruth ||
+    planning.beats.length ||
+    planning.twistOptions.length ||
+    planning.foreshadowPlans.length ||
+    planning.memeStrategy
+    ? planning
+    : undefined;
+}
+
 function toOutline(dto: any): Outline {
+  const planning = toPlotPlanning(dto?.planning);
   return {
     id: dto.id,
     storyId: dto.storyId,
@@ -186,14 +269,40 @@ function toOutline(dto: any): Outline {
       id: c.id,
       title: c.title || "",
       summary: c.summary || "",
+      planning: c?.planning
+        ? {
+            purpose: c.planning.purpose || c.planning.tensionShift || "",
+            informationRelease: c.planning.informationRelease || c.planning.revealFocus || "",
+            twistRole: c.planning.twistRole || "",
+            selectedTwistId: c.planning.selectedTwistId || "",
+            revealFocus: c.planning.revealFocus || c.planning.informationRelease || "",
+            tensionShift: c.planning.tensionShift || c.planning.purpose || "",
+          }
+        : undefined,
       scenes: (c.scenes || []).map((s: any) => ({
         id: s.id,
         title: s.title || "",
         summary: s.summary || "",
         content: s.content || undefined,
+        planning: s?.planning
+          ? {
+              goal: s.planning.goal || s.planning.foreshadowHint || "",
+              conflict: s.planning.conflict || s.planning.misdirectionAction || "",
+              infoRelease: s.planning.infoRelease || s.planning.revealTrigger || "",
+              foreshadowId: s.planning.foreshadowId || "",
+              revealFor: s.planning.revealFor || "",
+              foreshadowHint: s.planning.foreshadowHint || "",
+              misdirectionAction: s.planning.misdirectionAction || "",
+              revealTrigger: s.planning.revealTrigger || "",
+              payoffPlan: s.planning.payoffPlan || "",
+              memeUsage: s.planning.memeUsage || "",
+            }
+          : undefined,
       })),
     })),
     updatedAt: dto.updatedAt || new Date().toISOString(),
+    planning,
+    activeTwistId: dto.activeTwistId || planning?.selectedTwistId || planning?.twistOptions[0]?.id,
   };
 }
 
@@ -417,7 +526,47 @@ export const api = {
       return toStory(dto);
     },
     conception: async (data: any) => {
-      return await requestJson<any>("/v1/conception", { method: "POST", body: JSON.stringify(data) });
+      const dto = await requestJson<any>("/v1/conception", { method: "POST", body: JSON.stringify(data) });
+      const plotPlanning =
+        toPlotPlanning(dto?.plotPlanning) ||
+        toPlotPlanning({
+          ...dto?.generated?.skeleton,
+          twistOptions: dto?.generated?.twistOptions,
+          foreshadowSeeds: dto?.generated?.foreshadowSeeds,
+          memeStrategy: dto?.generated?.memeStrategy,
+          lorebookSeeds: dto?.generated?.lorebookSeeds,
+          graphSeeds: dto?.generated?.graphSeeds,
+          selectedTwistId: dto?.generated?.outlineSuggestion?.planning?.selectedTwistId,
+        });
+      const outlineSeed = dto?.outlineSeed
+        ? {
+            title: String(dto.outlineSeed.title ?? "剧情骨架方案"),
+            chapters: Array.isArray(dto.outlineSeed.chapters) ? dto.outlineSeed.chapters : [],
+          }
+        : dto?.generated?.outlineSuggestion
+          ? {
+              title: String(dto.generated.outlineSuggestion.title ?? "剧情骨架方案"),
+              chapters: Array.isArray(dto.generated.outlineSuggestion.chapters) ? dto.generated.outlineSuggestion.chapters : [],
+            }
+          : undefined;
+      return {
+        ...dto,
+        storyCard: dto?.storyCard ? toStory(dto.storyCard) : undefined,
+        plotPlanning,
+        outlineSeed,
+        generated: dto?.generated
+          ? {
+              ...dto.generated,
+              skeleton: {
+                corePromise: String(dto.generated.skeleton?.corePromise ?? ""),
+                centralQuestion: String(dto.generated.skeleton?.centralQuestion ?? ""),
+                hiddenTruth: String(dto.generated.skeleton?.hiddenTruth ?? ""),
+                readerExpectation: String(dto.generated.skeleton?.readerExpectation ?? ""),
+              },
+              plotPlanning,
+            }
+          : undefined,
+      };
     },
     get: async (id: string) => {
       const dto = await requestJson<any>(`/v1/story-cards/${id}`, { method: "GET" });
@@ -451,7 +600,7 @@ export const api = {
       const data = await requestJson<any[]>(`/v1/story-cards/${storyId}/outlines`, { method: "GET" });
       return data.map(toOutline);
     },
-    create: async (storyId: string, data: { title?: string; worldId?: string } = {}) => {
+    create: async (storyId: string, data: { title?: string; worldId?: string; planning?: any } = {}) => {
       const dto = await requestJson<any>(`/v1/story-cards/${storyId}/outlines`, { method: "POST", body: JSON.stringify(data) });
       return toOutline(dto);
     },
@@ -463,17 +612,20 @@ export const api = {
       const payload = {
         title: outline.title,
         worldId: (outline as any).worldId,
+        planning: outline.planning,
         chapters: (outline.chapters || []).map((c: any, ci: number) => ({
           id: c.id,
           title: c.title,
           summary: c.summary,
           order: c.order ?? ci + 1,
+          planning: c.planning,
           scenes: (c.scenes || []).map((s: any, si: number) => ({
             id: s.id,
             title: s.title,
             summary: s.summary,
             content: s.content,
             order: s.order ?? si + 1,
+            planning: s.planning,
           })),
         })),
       };

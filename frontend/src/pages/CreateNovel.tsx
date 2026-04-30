@@ -20,6 +20,8 @@ const GENRES = [
   { value: "other", label: "其他" },
 ];
 
+const CACHE_PREFIX = "ainovel.plot-planner.conception";
+
 const CreateNovel = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -37,16 +39,23 @@ const CreateNovel = () => {
       if (aiInit) {
         const res = await api.stories.conception({ title: title.trim(), synopsis, genre, tone: "" });
         const storyId = res?.storyCard?.id;
+        if (storyId) {
+          try {
+            window.sessionStorage.setItem(`${CACHE_PREFIX}:${storyId}`, JSON.stringify(res));
+          } catch {
+            // Ignore session storage failures.
+          }
+        }
         showSuccess("小说创建成功！");
-        if (storyId) navigate(`/workbench?id=${storyId}`);
+        if (storyId) navigate(`/workbench?id=${storyId}&tab=conception`);
         else navigate("/novels");
       } else {
         const story = await api.stories.create({ title: title.trim(), synopsis, genre, tone: "" });
         showSuccess("小说创建成功！");
         navigate(`/workbench?id=${story.id}`);
       }
-    } catch (err: any) {
-      showError(err?.message || "创建失败");
+    } catch (err: unknown) {
+      showError(err instanceof Error ? err.message : "创建失败");
     } finally {
       setIsLoading(false);
     }
@@ -145,4 +154,3 @@ const CreateNovel = () => {
 };
 
 export default CreateNovel;
-

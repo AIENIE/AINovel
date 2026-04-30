@@ -9,6 +9,7 @@
 - `build.sh`：Linux 一键部署脚本（支持 hosts + nginx + HTTPS 代理）。
 - `build_prod.sh`：生产部署包装脚本（调用 `build.sh`）。
 - `build_local.ps1`：Windows 本地编译运行脚本。
+- `backend/deploy_local.sh`：Linux 宿主机后端本地启动脚本（`start|stop|restart|status|logs`）。
 - `docker-compose.yml`：AINovel 前后端容器编排。
 - `env.txt`：默认环境配置（可被进程环境变量覆盖）。
 
@@ -25,6 +26,10 @@
 ## backend 目录
 
 - `backend/src/main/resources/application.yml`：后端主配置（支持 env 覆盖）。
+- `backend/.vscode/launch.json`：VSCode Java F5 调试入口，直接启动 `com.ainovel.app.AiNovelApplication`。
+- `backend/.vscode/tasks.json`：调试前生成 `backend/target/vscode.env` 的预启动任务。
+- `backend/.vscode/prepare-env.sh`：按 `ENV_FILE` -> `backend/env.txt` -> 根 `env.txt` 解析环境并输出调试专用 env 文件。
+- `backend/scripts/runtime-env.sh`：宿主机启动/调试共用的环境解析、默认值补齐、JWT 派生逻辑。
 - `backend/src/main/java/com/ainovel/app/auth/*`：SSO 中转。
 - `backend/src/main/java/com/ainovel/app/adminauth/*`：管理员本地登录接口（`/v1/admin-auth/*`）。
 - `backend/src/main/java/com/ainovel/app/security/*`：JWT、远程会话校验、资源访问控制（BOLA 防护）。

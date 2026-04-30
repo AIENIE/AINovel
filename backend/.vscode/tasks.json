@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: prepare env.txt",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        ".vscode/prepare-env.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

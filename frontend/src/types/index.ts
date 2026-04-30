@@ -23,6 +23,80 @@ export interface Story {
   cover?: string;
 }
 
+export interface PlotBeat {
+  id: string;
+  label: string;
+  summary: string;
+}
+
+export interface TwistOption {
+  id: string;
+  label: string;
+  track: 'instinct' | 'structure';
+  hook: string;
+  hiddenTruth: string;
+  setup: string[];
+  misdirection: string[];
+  revealBeat?: string;
+  revealTiming: string;
+  payoff: string;
+  risk: string;
+}
+
+export interface ForeshadowPlan {
+  id: string;
+  clue: string;
+  disguise: string;
+  payoff: string;
+  revealTiming?: string;
+}
+
+export interface MemeStrategy {
+  reference: string;
+  purpose: string;
+  usage: string;
+  caution: string;
+}
+
+export interface PlotPlanning {
+  corePromise: string;
+  centralQuestion: string;
+  hiddenTruth: string;
+  readerMisdirect: string;
+  stakes: string;
+  beats: PlotBeat[];
+  twistOptions: TwistOption[];
+  foreshadowPlans: ForeshadowPlan[];
+  memeStrategy?: MemeStrategy;
+  selectedTwistId?: string;
+  lorebookSeeds?: Array<Record<string, unknown>>;
+  graphSeeds?: Array<Record<string, unknown>>;
+  confidence?: number;
+  warnings?: string[];
+}
+
+export interface ChapterPlanning {
+  purpose?: string;
+  informationRelease?: string;
+  twistRole?: string;
+  selectedTwistId?: string;
+  revealFocus?: string;
+  tensionShift?: string;
+}
+
+export interface ScenePlanning {
+  goal?: string;
+  conflict?: string;
+  infoRelease?: string;
+  foreshadowId?: string;
+  revealFor?: string;
+  foreshadowHint?: string;
+  misdirectionAction?: string;
+  revealTrigger?: string;
+  payoffPlan?: string;
+  memeUsage?: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -64,6 +138,7 @@ export interface Scene {
   title: string;
   summary: string;
   content?: string;
+  planning?: ScenePlanning;
 }
 
 export interface Chapter {
@@ -71,6 +146,7 @@ export interface Chapter {
   title: string;
   summary: string;
   scenes: Scene[];
+  planning?: ChapterPlanning;
 }
 
 export interface Outline {
@@ -79,6 +155,8 @@ export interface Outline {
   title: string;
   chapters: Chapter[];
   updatedAt: string;
+  planning?: PlotPlanning;
+  activeTwistId?: string;
 }
 
 export interface Manuscript {

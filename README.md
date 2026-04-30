@@ -36,23 +36,47 @@ sudo bash build.sh
 - 若手动执行 `docker compose`，先执行 `set -a; source env.txt; set +a`，避免容器使用到错误默认值（如 `JWT_SECRET` 不一致导致 SSO token 全部 403）。
 - 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；部署脚本仅做依赖连通性检查。
 
+## backend 宿主机调试 / 本地直启
+
+以 `backend/` 作为 VSCode 工作区时，可直接按 `F5` 选择 `Backend: Spring Boot (env.txt)`。预启动任务会按 `ENV_FILE` -> `backend/env.txt` -> 仓库根 `env.txt` 的顺序生成 `backend/target/vscode.env`，找不到环境文件会直接失败，避免落回过期默认值。
+
+Linux 宿主机单独启动后端时，使用：
+
+```bash
+bash backend/deploy_local.sh start
+```
+
+常用命令：
+
+- `bash backend/deploy_local.sh status`
+- `bash backend/deploy_local.sh logs`
+- `bash backend/deploy_local.sh stop`
+
+说明：
+
+- `start` / `restart` 同样按 `ENV_FILE` -> `backend/env.txt` -> `env.txt` 解析环境文件。
+- 若未显式提供 `JAVA_OPTS`，脚本会补 `-Duser.timezone=${APP_TIME_ZONE:-Asia/Shanghai}`。
+- 日志与 PID 写到 `tmp/local-run/backend.out.log`、`tmp/local-run/backend.err.log`、`tmp/local-run/backend.pid`。
+
 ## 关键配置
 
 统一写在 `env.txt`（可被 shell 环境变量覆盖）：
 
 - 依赖服务：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
-- Consul：`CONSUL_*`（默认对接 `192.168.1.4:60000`）
+- Consul：`CONSUL_*`（默认对接 `192.168.5.208:60000`）
 - 三服务名：
   - `USER_GRPC_SERVICE_NAME=aienie-userservice-grpc`
   - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
   - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
-- 三服务 fallback：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`（默认 `*.seekerhut.com`）
+- 三服务 fallback：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`（默认 `192.168.5.208` 对应宿主机依赖地址）
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 
 ## 目录说明
 
 - `frontend/`：前端代码
 - `backend/`：后端代码
+- `backend/.vscode/*`：后端宿主机 F5 调试配置与 `env.txt` 预处理脚本。
+- `backend/deploy_local.sh`：Linux 宿主机后端本地编译/启动/停服脚本。
 - `backend/sql/schema.sql`：数据库结构参考脚本
 - `doc/`：项目文档、API 文档、测试记录
 - `design-doc/`：设计与规划文档
@@ -62,6 +86,8 @@ sudo bash build.sh
 ## 验证建议
 
 - 后端测试：`cd backend && mvn -q test`
+- 后端宿主机 env 预处理：`cd backend && bash .vscode/prepare-env.sh`
+- 后端宿主机启动：`bash backend/deploy_local.sh start`
 - 前端测试：`cd frontend && npm ci && npm run test`
 - 前端构建：`cd frontend && npm run build`
 - 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.seekerhut.com/api/v3/api-docs`

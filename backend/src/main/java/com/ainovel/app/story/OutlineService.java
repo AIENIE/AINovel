@@ -44,6 +44,7 @@ public class OutlineService {
     public OutlineDto createOutline(Story story, OutlineCreateRequest request) {
         accessGuard.assertOwner(story.getUser());
         Map<String, Object> content = new HashMap<>();
+        content.put("planning", copyMap(request.planning()));
         content.put("chapters", new ArrayList<>());
         Outline outline = new Outline();
         outline.setStory(story);
@@ -62,6 +63,7 @@ public class OutlineService {
         outline.setWorldId(request.worldId());
         List<OutlineSaveRequest.ChapterPayload> normalized = normalizeChapters(request.chapters());
         Map<String, Object> content = new HashMap<>();
+        content.put("planning", copyMap(request.planning()));
         content.put("chapters", normalized);
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
@@ -85,13 +87,19 @@ public class OutlineService {
                         request.title() != null ? request.title() : c.title(),
                         request.summary() != null ? request.summary() : c.summary(),
                         request.order() != null ? request.order() : c.order(),
+                        copyMap(c.planning()),
                         c.scenes()
                 ));
             } else {
                 updated.add(c);
             }
         }
-        OutlineSaveRequest saveRequest = new OutlineSaveRequest(outline.getTitle(), outline.getWorldId(), normalizeChapters(updated));
+        OutlineSaveRequest saveRequest = new OutlineSaveRequest(
+                outline.getTitle(),
+                outline.getWorldId(),
+                copyMap(objectMapper.convertValue(content.get("planning"), new TypeReference<>() {})),
+                normalizeChapters(updated)
+        );
         return saveOutline(outline.getId(), saveRequest);
     }
 
@@ -115,15 +123,28 @@ public class OutlineService {
                             request.title() != null ? request.title() : s.title(),
                             request.summary() != null ? request.summary() : s.summary(),
                             request.content() != null ? request.content() : s.content(),
-                            request.order() != null ? request.order() : s.order()
+                            request.order() != null ? request.order() : s.order(),
+                            copyMap(s.planning())
                     ));
                 } else {
                     updatedScenes.add(s);
                 }
             }
-            updatedChapters.add(new OutlineSaveRequest.ChapterPayload(c.id(), c.title(), c.summary(), c.order(), updatedScenes));
+            updatedChapters.add(new OutlineSaveRequest.ChapterPayload(
+                    c.id(),
+                    c.title(),
+                    c.summary(),
+                    c.order(),
+                    copyMap(c.planning()),
+                    updatedScenes
+            ));
         }
-        OutlineSaveRequest saveRequest = new OutlineSaveRequest(outline.getTitle(), outline.getWorldId(), normalizeChapters(updatedChapters));
+        OutlineSaveRequest saveRequest = new OutlineSaveRequest(
+                outline.getTitle(),
+                outline.getWorldId(),
+                copyMap(objectMapper.convertValue(content.get("planning"), new TypeReference<>() {})),
+                normalizeChapters(updatedChapters)
+        );
         return saveOutline(outline.getId(), saveRequest);
     }
 
@@ -149,20 +170,54 @@ public class OutlineService {
             GeneratedScene scene = i - 1 < generated.scenes().size() ? generated.scenes().get(i - 1) : null;
             String sceneTitle = scene == null ? "第" + chapterNumber + "章 第" + i + "节" : safe(scene.title(), "第" + chapterNumber + "章 第" + i + "节");
             String sceneSummary = scene == null ? "围绕章节主线推进关键冲突与人物关系。" : safe(scene.summary(), "围绕章节主线推进关键冲突与人物关系。");
-            scenes.add(new OutlineDto.SceneDto(UUID.randomUUID(), sceneTitle, sceneSummary, null, i));
+            scenes.add(new OutlineDto.SceneDto(
+                    UUID.randomUUID(),
+                    sceneTitle,
+                    sceneSummary,
+                    null,
+                    i,
+                    Map.of(
+                            "foreshadowHint", i == 1 ? "埋下一个不完整信息点" : "",
+                            "misdirectionAction", i == scenesCount ? "收束前制造一次误判" : "",
+                            "revealTrigger", i == scenesCount ? "在本节末尾释放新的真相碎片" : "",
+                            "payoffPlan", i == scenesCount ? "为下一章的回收预留接口" : ""
+                    )
+            ));
         }
         OutlineDto.ChapterDto newChapter = new OutlineDto.ChapterDto(
                 chapterId,
                 safe(generated.title(), "第" + chapterNumber + "章"),
                 safe(generated.summary(), "推进核心矛盾并强化人物成长线。"),
                 order,
+                Map.of(
+                        "purpose", "推进核心矛盾",
+                        "informationRelease", "引入新的线索或障碍",
+                        "twistRole", order == 1 ? "setup" : "progression"
+                ),
                 scenes
         );
         List<OutlineDto.ChapterDto> updated = new ArrayList<>(dto.chapters() != null ? dto.chapters() : List.of());
         updated.add(newChapter);
-        OutlineSaveRequest saveRequest = new OutlineSaveRequest(outline.getTitle(), outline.getWorldId(),
-                updated.stream().map(c -> new OutlineSaveRequest.ChapterPayload(c.id(), c.title(), c.summary(), c.order(),
-                        c.scenes().stream().map(s -> new OutlineSaveRequest.ScenePayload(s.id(), s.title(), s.summary(), s.content(), s.order())).toList())).toList());
+        OutlineSaveRequest saveRequest = new OutlineSaveRequest(
+                outline.getTitle(),
+                outline.getWorldId(),
+                copyMap(dto.planning()),
+                updated.stream().map(c -> new OutlineSaveRequest.ChapterPayload(
+                        c.id(),
+                        c.title(),
+                        c.summary(),
+                        c.order(),
+                        copyMap(c.planning()),
+                        c.scenes().stream().map(s -> new OutlineSaveRequest.ScenePayload(
+                                s.id(),
+                                s.title(),
+                                s.summary(),
+                                s.content(),
+                                s.order(),
+                                copyMap(s.planning())
+                        )).toList()
+                )).toList()
+        );
         return saveOutline(outlineId, saveRequest);
     }
 
@@ -275,13 +330,21 @@ public class OutlineService {
         );
         List<OutlineDto.ChapterDto> chapterDtos = chapters.stream().map(c -> new OutlineDto.ChapterDto(
                 c.id() != null ? c.id() : UUID.randomUUID(),
-                c.title(), c.summary(), c.order(),
+                c.title(), c.summary(), c.order(), copyMap(c.planning()),
                 c.scenes() == null ? List.of() : c.scenes().stream().map(s -> new OutlineDto.SceneDto(
                         s.id() != null ? s.id() : UUID.randomUUID(),
-                        s.title(), s.summary(), s.content(), s.order()
+                        s.title(), s.summary(), s.content(), s.order(), copyMap(s.planning())
                 )).toList()
         )).toList();
-        return new OutlineDto(outline.getId(), outline.getStory().getId(), outline.getTitle(), outline.getWorldId(), chapterDtos, outline.getUpdatedAt());
+        return new OutlineDto(
+                outline.getId(),
+                outline.getStory().getId(),
+                outline.getTitle(),
+                outline.getWorldId(),
+                copyMap(objectMapper.convertValue(content.get("planning"), new TypeReference<>() {})),
+                chapterDtos,
+                outline.getUpdatedAt()
+        );
     }
 
     private List<OutlineSaveRequest.ChapterPayload> normalizeChapters(List<OutlineSaveRequest.ChapterPayload> chapters) {
@@ -299,12 +362,33 @@ public class OutlineService {
                     UUID sceneId = s.id() != null ? s.id() : UUID.randomUUID();
                     int so = s.order() != null ? s.order() : sceneOrder;
                     sceneOrder = Math.max(sceneOrder, so + 1);
-                    scenes.add(new OutlineSaveRequest.ScenePayload(sceneId, s.title(), s.summary(), s.content(), so));
+                    scenes.add(new OutlineSaveRequest.ScenePayload(
+                            sceneId,
+                            s.title(),
+                            s.summary(),
+                            s.content(),
+                            so,
+                            copyMap(s.planning())
+                    ));
                 }
             }
-            normalized.add(new OutlineSaveRequest.ChapterPayload(chapterId, c.title(), c.summary(), order, scenes));
+            normalized.add(new OutlineSaveRequest.ChapterPayload(
+                    chapterId,
+                    c.title(),
+                    c.summary(),
+                    order,
+                    copyMap(c.planning()),
+                    scenes
+            ));
         }
         return normalized;
+    }
+
+    private Map<String, Object> copyMap(Map<String, Object> source) {
+        if (source == null || source.isEmpty()) {
+            return new HashMap<>();
+        }
+        return new HashMap<>(source);
     }
 
     private Outline findOutlineContainingChapter(UUID chapterId) {
