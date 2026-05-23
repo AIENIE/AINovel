@@ -39,8 +39,8 @@ public class AiController {
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录")
     })
-    public List<AiModelDto> models() {
-        return aiService.listModels();
+    public List<AiModelDto> models(@AuthenticationPrincipal UserDetails principal) {
+        return aiService.listModels(currentUser(principal));
     }
 
     @PostMapping("/chat")

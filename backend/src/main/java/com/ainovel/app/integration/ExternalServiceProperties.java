@@ -22,7 +22,7 @@ public class ExternalServiceProperties {
         aiserviceGrpc.setServiceName("aienie-aiservice-grpc");
         aiserviceGrpc.setFallback("static://127.0.0.1:10011");
         payserviceGrpc.setServiceName("aienie-payservice-grpc");
-        payserviceGrpc.setFallback("static://127.0.0.1:20021");
+        payserviceGrpc.setFallback("static://127.0.0.1:10021");
     }
 
     public String getProjectKey() {

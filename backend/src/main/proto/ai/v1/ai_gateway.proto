@@ -4,7 +4,33 @@ package fireflychat.ai.v1;
 
 option java_multiple_files = true;
 option java_package = "fireflychat.ai.v1";
-option java_outer_classname = "AiGatewayProto";
+option java_outer_classname = "AiServiceProto";
+
+enum ModelType {
+  MODEL_TYPE_UNSPECIFIED = 0;
+  MODEL_TYPE_TEXT = 1;
+  MODEL_TYPE_IMAGE = 2;
+  MODEL_TYPE_EMBEDDING = 3;
+  MODEL_TYPE_AUDIO = 4;
+}
+
+message ModelOption {
+  int64 id = 1;
+  string display_name = 2;
+  string provider = 3;
+  double input_rate = 4;
+  double output_rate = 5;
+  ModelType type = 6;
+  bool supports_image_input = 7;
+}
+
+message ListModelsRequest {
+  int64 user_id = 1;
+}
+
+message ListModelsResponse {
+  repeated ModelOption models = 1;
+}
 
 message ChatMessage {
   string role = 1;
@@ -18,6 +44,7 @@ message ChatCompletionsRequest {
   string session_id = 4;
   string model = 5;
   repeated ChatMessage messages = 6;
+  string img = 7;
 }
 
 message ChatCompletionsResponse {
@@ -27,29 +54,7 @@ message ChatCompletionsResponse {
   int64 completion_tokens = 4;
 }
 
-message ListModelsRequest {
-}
-
-enum ModelType {
-  MODEL_TYPE_UNSPECIFIED = 0;
-  MODEL_TYPE_TEXT = 1;
-  MODEL_TYPE_EMBEDDING = 2;
-}
-
-message ModelOption {
-  int64 id = 1;
-  string display_name = 2;
-  string provider = 3;
-  double input_rate = 4;
-  double output_rate = 5;
-  ModelType type = 6;
-}
-
-message ListModelsResponse {
-  repeated ModelOption models = 1;
-}
-
 service AiGatewayService {
-  rpc ChatCompletions(ChatCompletionsRequest) returns (ChatCompletionsResponse);
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+  rpc ChatCompletions(ChatCompletionsRequest) returns (ChatCompletionsResponse);
 }

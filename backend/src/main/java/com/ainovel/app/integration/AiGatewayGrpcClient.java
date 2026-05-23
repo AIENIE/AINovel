@@ -49,10 +49,12 @@ public class AiGatewayGrpcClient {
         this.authInterceptor = new AiHmacAuthInterceptor(properties, Clock.systemUTC());
     }
 
-    public List<AiModelDto> listModels() {
+    public List<AiModelDto> listModels(long remoteUserId) {
         AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
         var response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .listModels(ListModelsRequest.getDefaultInstance());
+                .listModels(ListModelsRequest.newBuilder()
+                        .setUserId(remoteUserId)
+                        .build());
         List<AiModelDto> models = new ArrayList<>();
         response.getModelsList().forEach(m -> models.add(new AiModelDto(
                 String.valueOf(m.getId()),
@@ -62,7 +64,7 @@ public class AiGatewayGrpcClient {
                 m.getInputRate(),
                 m.getOutputRate(),
                 m.getProvider(),
-                true
+                m.getSupportsImageInput()
         )));
         return models;
     }
@@ -80,12 +82,12 @@ public class AiGatewayGrpcClient {
                 if (m == null) {
                     continue;
                 }
-                if (m.role() == null || m.content() == null) {
+                if (m.role() == null || m.role().isBlank() || m.content() == null || m.content().isBlank()) {
                     continue;
                 }
                 builder.addMessages(ChatMessage.newBuilder()
-                        .setRole(m.role())
-                        .setContent(m.content())
+                        .setRole(m.role().trim())
+                        .setContent(m.content().trim())
                         .build());
             }
         }
@@ -149,7 +151,9 @@ public class AiGatewayGrpcClient {
         }
         return switch (type) {
             case MODEL_TYPE_TEXT -> "text";
+            case MODEL_TYPE_IMAGE -> "image";
             case MODEL_TYPE_EMBEDDING -> "embedding";
+            case MODEL_TYPE_AUDIO -> "audio";
             default -> "unspecified";
         };
     }

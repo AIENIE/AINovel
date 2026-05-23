@@ -59,7 +59,7 @@ public class BillingGrpcClient {
         long total = balanceFromProject(response.getProjectBalance()) + publicBalance(remoteUserId);
         return new CheckinResult(
                 response.getSuccess(),
-                response.getTokensGranted(),
+                firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
                 total,
                 response.getAlreadyCheckedIn(),
                 response.getErrorMessage()
@@ -75,10 +75,11 @@ public class BillingGrpcClient {
                         .setProjectKey(properties.getProjectKey())
                         .setCode(code == null ? "" : code)
                         .build());
-        long total = balanceFromProject(response.getProjectBalance()) + response.getPublicPermanentTokens();
+        long total = balanceFromProject(response.getProjectBalance())
+                + firstPositive(response.getPublicPermanentCredits(), response.getPublicPermanentTokens());
         return new RedeemResult(
                 response.getSuccess(),
-                response.getTokensGranted(),
+                firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
                 total,
                 response.getErrorMessage()
         );
@@ -94,16 +95,19 @@ public class BillingGrpcClient {
         return new CheckinStatus(
                 response.getCheckedInToday(),
                 toInstant(response.getLastCheckinDate()),
-                response.getTokensGrantedToday()
+                firstPositive(response.getCreditsGrantedToday(), response.getTokensGrantedToday())
         );
     }
 
     public long totalBalance(long remoteUserId) {
         var balanceStub = stubs().balanceStub().withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS);
-        long publicTokens = balanceStub.getPublicBalance(GetPublicBalanceRequest.newBuilder()
+        var publicBalance = balanceStub.getPublicBalance(GetPublicBalanceRequest.newBuilder()
                         .setUserId(remoteUserId)
-                        .build())
-                .getPublicPermanentTokens();
+                        .build());
+        long publicTokens = firstPositive(
+                publicBalance.getPublicPermanentCredits(),
+                publicBalance.getPublicPermanentTokens()
+        );
         var project = balanceStub.getProjectBalance(GetProjectBalanceRequest.newBuilder()
                         .setProjectKey(properties.getProjectKey())
                         .setUserId(remoteUserId)
@@ -113,12 +117,12 @@ public class BillingGrpcClient {
     }
 
     public long publicBalance(long remoteUserId) {
-        return stubs().balanceStub()
+        var response = stubs().balanceStub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .getPublicBalance(GetPublicBalanceRequest.newBuilder()
                         .setUserId(remoteUserId)
-                        .build())
-                .getPublicPermanentTokens();
+                        .build());
+        return firstPositive(response.getPublicPermanentCredits(), response.getPublicPermanentTokens());
     }
 
     public ConversionResult convertPublicToProject(long remoteUserId, long amount, String requestId) {
@@ -129,9 +133,16 @@ public class BillingGrpcClient {
                             .setRequestId(requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId)
                             .setProjectKey(properties.getProjectKey())
                             .setUserId(remoteUserId)
+                            .setCredits(amount)
                             .setTokens(amount)
                             .build());
-            return new ConversionResult(true, amount, amount, response.getPublicPermanentTokens(), null);
+            return new ConversionResult(
+                    true,
+                    amount,
+                    amount,
+                    firstPositive(response.getPublicPermanentCredits(), response.getPublicPermanentTokens()),
+                    null
+            );
         } catch (StatusRuntimeException ex) {
             String message;
             if (ex.getStatus() == null) {
@@ -153,6 +164,7 @@ public class BillingGrpcClient {
                             .setRequestId(UUID.randomUUID().toString())
                             .setProjectKey(properties.getProjectKey())
                             .setUserId(remoteUserId)
+                            .setCredits(amount)
                             .setTokens(amount)
                             .setReason(reason == null ? "" : reason)
                             .build());
@@ -166,7 +178,15 @@ public class BillingGrpcClient {
         if (balance == null) {
             return 0L;
         }
+        long credits = balance.getTempCredits() + balance.getPermanentCredits();
+        if (credits > 0L) {
+            return credits;
+        }
         return balance.getTempTokens() + balance.getPermanentTokens();
+    }
+
+    private long firstPositive(long preferred, long fallback) {
+        return preferred > 0L ? preferred : fallback;
     }
 
     private Instant toInstant(Timestamp timestamp) {

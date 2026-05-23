@@ -87,7 +87,7 @@ app:
       fallback: ${AI_GRPC_ADDR:static://192.168.5.208:10011}
     payservice-grpc:
       service-name: ${PAY_GRPC_SERVICE_NAME:aienie-payservice-grpc}
-      fallback: ${PAY_GRPC_ADDR:static://192.168.5.208:20021}
+      fallback: ${PAY_GRPC_ADDR:static://payservice.seekerhut.com:10021}
 
 sso:
   callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.seekerhut.com}

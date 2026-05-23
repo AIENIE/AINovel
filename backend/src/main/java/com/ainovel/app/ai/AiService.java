@@ -24,21 +24,22 @@ public class AiService {
         this.economyService = economyService;
     }
 
-    public List<AiModelDto> listModels() {
-        return aiGatewayGrpcClient.listModels();
+    public List<AiModelDto> listModels(User user) {
+        return aiGatewayGrpcClient.listModels(resolveGatewayUserId(user));
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
         Long remoteUid = resolveGatewayUserId(user);
+        validateChatMessages(request.messages());
         String model = normalizeModelKey(request.modelId());
         String fallbackModel = null;
         if (model == null || model.isBlank()) {
             model = normalizeModelKey(configuredDefaultModel);
         }
         if (model != null && !model.isBlank()) {
-            fallbackModel = pickDefaultChatModel(listModels());
+            fallbackModel = pickDefaultChatModel(aiGatewayGrpcClient.listModels(remoteUid));
         } else {
-            model = pickDefaultChatModel(listModels());
+            model = pickDefaultChatModel(aiGatewayGrpcClient.listModels(remoteUid));
         }
         AiGatewayGrpcClient.ChatResult result;
         try {
@@ -80,7 +81,28 @@ public class AiService {
         if (remoteUid != null && remoteUid > 0) {
             return remoteUid;
         }
-        return Math.abs(user.getId().getMostSignificantBits() ^ user.getId().getLeastSignificantBits());
+        throw new RuntimeException("当前账号未绑定统一用户，无法调用 AI 服务");
+    }
+
+    private void validateChatMessages(List<AiChatRequest.Message> messages) {
+        if (messages == null || messages.isEmpty()) {
+            throw new RuntimeException("messages 至少需要一条非空 user 消息");
+        }
+        boolean hasUserMessage = false;
+        for (AiChatRequest.Message message : messages) {
+            if (message == null) {
+                continue;
+            }
+            String role = message.role() == null ? "" : message.role().trim().toLowerCase(Locale.ROOT);
+            String content = message.content() == null ? "" : message.content().trim();
+            if ("user".equals(role) && !content.isBlank()) {
+                hasUserMessage = true;
+                break;
+            }
+        }
+        if (!hasUserMessage) {
+            throw new RuntimeException("messages 至少需要一条非空 user 消息");
+        }
     }
 
     private String pickDefaultChatModel(List<AiModelDto> models) {

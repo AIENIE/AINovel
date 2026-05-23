@@ -63,12 +63,16 @@ bash backend/deploy_local.sh start
 统一写在 `env.txt`（可被 shell 环境变量覆盖）：
 
 - 依赖服务：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
-- Consul：`CONSUL_*`（默认对接 `192.168.5.208:60000`）
+- 默认测试部署不依赖 Consul，统一走静态域名 + 固定端口
 - 三服务名：
   - `USER_GRPC_SERVICE_NAME=aienie-userservice-grpc`
   - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
   - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
-- 三服务 fallback：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`（默认 `192.168.5.208` 对应宿主机依赖地址）
+- 三服务固定地址：
+  - `USER_HTTP_ADDR=https://userservice.seekerhut.com`
+  - `USER_GRPC_ADDR=static://userservice.seekerhut.com:10001`
+  - `PAY_GRPC_ADDR=static://payservice.seekerhut.com:10021`
+  - `AI_GRPC_ADDR=static://aiservice.seekerhut.com:10011`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 
 ## 目录说明

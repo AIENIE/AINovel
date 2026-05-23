@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.anyList;
@@ -29,7 +30,7 @@ class AiServiceTest {
         AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
         User user = user();
 
-        when(aiGatewayGrpcClient.listModels()).thenReturn(List.of(
+        when(aiGatewayGrpcClient.listModels(eq(9000003L))).thenReturn(List.of(
                 new AiModelDto("1", "1", "text-embedding-3-small", "embedding", 1, 1, "openai", true),
                 new AiModelDto("2", "2", "gemini-2.5-flash", "text", 1, 1, "google", true),
                 new AiModelDto("3", "3", "GLM OCR", "unspecified", 1, 1, "zhipu", true)
@@ -56,7 +57,7 @@ class AiServiceTest {
         AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
         User user = user();
 
-        when(aiGatewayGrpcClient.listModels()).thenReturn(List.of(
+        when(aiGatewayGrpcClient.listModels(eq(9000003L))).thenReturn(List.of(
                 new AiModelDto("1", "1", "GLM OCR", "unspecified", 1, 1, "zhipu", true),
                 new AiModelDto("3", "3", "text-embedding-3-small", "unspecified", 1, 1, "openai", true),
                 new AiModelDto("2", "2", "gemini-2.5-flash", "unspecified", 1, 1, "google", true)
@@ -72,6 +73,31 @@ class AiServiceTest {
         aiService.chat(user, request);
 
         verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("2"), anyList());
+    }
+
+    @Test
+    void shouldRejectUsersWithoutRemoteUid() {
+        AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
+        EconomyService economyService = mock(EconomyService.class);
+        AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
+        User user = user();
+        user.setRemoteUid(null);
+
+        AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "2", null);
+
+        assertThrows(RuntimeException.class, () -> aiService.chat(user, request));
+    }
+
+    @Test
+    void shouldRejectRequestsWithoutNonEmptyUserMessage() {
+        AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
+        EconomyService economyService = mock(EconomyService.class);
+        AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
+        User user = user();
+
+        AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("assistant", "你好")), "2", null);
+
+        assertThrows(RuntimeException.class, () -> aiService.chat(user, request));
     }
 
     private User user() {
