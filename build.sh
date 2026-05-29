@@ -257,7 +257,10 @@ ensure_nginx_installed() {
 
 reload_nginx() {
   run_sudo nginx -t
-  if command -v systemctl >/dev/null 2>&1; then
+  if run_sudo nginx -s reload >/dev/null 2>&1; then
+    return
+  fi
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
     if run_sudo systemctl is-active --quiet nginx; then
       run_sudo systemctl reload nginx
     else
@@ -277,7 +280,7 @@ ensure_hosts_entry() {
   fi
 
   local upstream_localhost="${PIN_UPSTREAM_SERVICES_TO_LOCALHOST,,}"
-  for domain in userservice.seekerhut.com payservice.seekerhut.com aiservice.seekerhut.com; do
+  for domain in userservice.localhut.com payservice.localhut.com aiservice.localhut.com; do
     if [[ "$upstream_localhost" == "true" ]]; then
       if ! grep -qE "^[^#]*[[:space:]]${domain}([[:space:]]|$)" /etc/hosts; then
         run_sudo sh -c "echo \"127.0.0.1 ${domain}\" >> /etc/hosts"
@@ -291,8 +294,8 @@ ensure_hosts_entry() {
 install_nginx_conf() {
   local conf_file="/etc/nginx/sites-available/ainovel.local.conf"
   local enabled_link="/etc/nginx/sites-enabled/ainovel.local.conf"
-  local cert="/etc/nginx/ssl/seekerhut.com.crt"
-  local key="/etc/nginx/ssl/seekerhut.com.key"
+  local cert="/etc/nginx/ssl/localhut.com.crt"
+  local key="/etc/nginx/ssl/localhut.com.key"
 
   local tmp
   tmp="$(mktemp)"
@@ -396,6 +399,76 @@ prepare_dependencies() {
   fi
 }
 
+ensure_java_25() {
+  local java_home_candidate=""
+  local version_line=""
+
+  java_bin_is_25() {
+    local java_bin="$1"
+    local line
+    line=$("$java_bin" -version 2>&1 | head -n 1)
+    if echo "$line" | grep -qE '"25(\.|\")'; then
+      version_line="$line"
+      return 0
+    fi
+    return 1
+  }
+
+  if [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]] && java_bin_is_25 "$JAVA_HOME/bin/java"; then
+    java_home_candidate="$JAVA_HOME"
+  fi
+
+  if [[ -z "$java_home_candidate" ]] && command -v java >/dev/null 2>&1; then
+    local current_java
+    current_java="$(command -v java)"
+    if java_bin_is_25 "$current_java"; then
+      java_home_candidate="$("$current_java" -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/ {print $2; exit}')"
+    fi
+  fi
+
+  if [[ -z "$java_home_candidate" ]]; then
+    local dir
+    for dir in /usr/lib/jvm/*25*; do
+      if [[ -x "$dir/bin/java" ]] && java_bin_is_25 "$dir/bin/java"; then
+        java_home_candidate="$dir"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$java_home_candidate" ]]; then
+    echo "需要 JDK 25，当前 Java 不满足要求。" >&2
+    exit 1
+  fi
+
+  export JAVA_HOME="$java_home_candidate"
+  export PATH="$JAVA_HOME/bin:$PATH"
+  echo "使用 JDK 25：$JAVA_HOME（$version_line）"
+
+  local mvn_java
+  mvn_java="$(run_user bash -c "mvn -v | sed -n 's/^Java version: //p' | head -n 1")"
+  if [[ -n "$mvn_java" && ! "$mvn_java" =~ ^25(\.|\"|$) ]]; then
+    echo "Maven 使用的 Java 版本为 $mvn_java，请切换到 JDK 25。" >&2
+    exit 1
+  fi
+}
+
+wait_for_http_ready() {
+  local url="$1"
+  local label="$2"
+  local tries="${3:-60}"
+  local delay="${4:-2}"
+  local i
+  for i in $(seq 1 "$tries"); do
+    if curl --silent --show-error --fail --output /dev/null "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay"
+  done
+  echo "${label} 未在预期时间内就绪: ${url}" >&2
+  exit 1
+}
+
 build_frontend() {
   local front_dir="$ROOT_DIR/frontend"
   run_user bash -c "cd '$front_dir' && npm ci --legacy-peer-deps || npm install --legacy-peer-deps"
@@ -436,7 +509,7 @@ rollout_app() {
 
 load_env_file
 
-set_default APP_TEST_DOMAIN "ainovel.seekerhut.com"
+set_default APP_TEST_DOMAIN "ainovel.localhut.com"
 set_default APP_PROD_DOMAIN "ainovel.aienie.com"
 set_default DEPLOY_DOMAIN "$APP_TEST_DOMAIN"
 set_default PIN_UPSTREAM_SERVICES_TO_LOCALHOST "false"
@@ -466,13 +539,13 @@ set_default CONSUL_DATACENTER ""
 set_default CONSUL_CACHE_SECONDS "0"
 
 set_default USER_HTTP_SERVICE_NAME "aienie-userservice-http"
-set_default USER_HTTP_ADDR "https://userservice.seekerhut.com"
+set_default USER_HTTP_ADDR "https://userservice.localhut.com"
 set_default USER_GRPC_SERVICE_NAME "aienie-userservice-grpc"
-set_default USER_GRPC_ADDR "static://userservice.seekerhut.com:10001"
+set_default USER_GRPC_ADDR "static://userservice.localhut.com:10001"
 set_default PAY_GRPC_SERVICE_NAME "aienie-payservice-grpc"
-set_default PAY_GRPC_ADDR "static://payservice.seekerhut.com:10021"
+set_default PAY_GRPC_ADDR "static://payservice.localhut.com:10021"
 set_default AI_GRPC_SERVICE_NAME "aienie-aiservice-grpc"
-set_default AI_GRPC_ADDR "static://aiservice.seekerhut.com:10011"
+set_default AI_GRPC_ADDR "static://aiservice.localhut.com:10011"
 
 set_default USER_SESSION_GRPC_TIMEOUT_MS "5000"
 set_default USER_GRPC_SERVICE_TAG ""
@@ -502,7 +575,7 @@ set_default ADMIN_USERNAME "admin"
 set_default ADMIN_PASSWORD "change-me-admin-password"
 set_default SPRINGDOC_API_DOCS_ENABLED "false"
 set_default SPRINGDOC_SWAGGER_UI_ENABLED "false"
-set_default APP_SECURITY_CORS_ALLOWED_ORIGINS "https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040"
+set_default APP_SECURITY_CORS_ALLOWED_ORIGINS "https://ainovel.localhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040"
 set_default APP_SECURITY_CORS_ALLOWED_METHODS "GET,POST,PUT,DELETE,OPTIONS,PATCH"
 set_default APP_SECURITY_CORS_ALLOWED_HEADERS "Authorization,Content-Type,Idempotency-Key,X-Requested-With"
 ensure_pay_service_jwt
@@ -512,9 +585,13 @@ QDRANT_TCP_HOST="${QDRANT_TCP_HOST#https://}"
 QDRANT_TCP_HOST="${QDRANT_TCP_HOST%%/*}"
 
 prepare_dependencies
+ensure_java_25
 build_frontend
 build_backend
 rollout_app
+
+wait_for_http_ready "http://127.0.0.1:${FRONTEND_PORT}/" "前端"
+wait_for_http_ready "http://127.0.0.1:${BACKEND_PORT}/api/v1/sso/login?next=%2F&state=state_1234567890abcd" "后端"
 
 if [[ "$INIT_MODE" == "true" ]] || ! is_windows; then
   ensure_nginx_installed

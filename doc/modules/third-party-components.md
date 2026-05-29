@@ -18,7 +18,7 @@ AINovel 对接以下基础组件与外部服务：
   - `aienie-userservice-grpc`
   - `aienie-payservice-grpc`
   - `aienie-aiservice-grpc`
-- fallback 地址优先使用域名（`*.seekerhut.com`），不在代码硬编码 IP。
+- fallback 地址优先使用域名（本地默认 `*.localhut.com`），不在代码硬编码 IP。
 
 ## 默认目标（可覆盖）
 

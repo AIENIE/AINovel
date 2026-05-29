@@ -3,9 +3,9 @@
 AINovel 是一个前后端分离的 AI 小说创作业务项目。
 
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
-- 后端：Spring Boot 3 + JPA + Redis + gRPC 客户端
+- 后端：Java 25 + Spring Boot 3 + JPA + Redis + gRPC 客户端
 - 对外端口：前端 `11040`，后端 `11041`
-- 测试域名：`ainovel.seekerhut.com`
+- 本地域名：`ainovel.localhut.com`
 - 正式域名：`ainovel.aienie.com`
 
 ## 当前能力概览
@@ -28,8 +28,8 @@ sudo bash build.sh
 ```
 
 3. 打开：
-- `https://ainovel.seekerhut.com`
-- `https://ainovel.seekerhut.com/api/v3/api-docs`
+- `https://ainovel.localhut.com`
+- `https://ainovel.localhut.com/api/v3/api-docs`
 
 说明：
 - `build.sh` 会读取 `env.txt`，环境变量可覆盖。
@@ -69,10 +69,10 @@ bash backend/deploy_local.sh start
   - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
   - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
 - 三服务固定地址：
-  - `USER_HTTP_ADDR=https://userservice.seekerhut.com`
-  - `USER_GRPC_ADDR=static://userservice.seekerhut.com:10001`
-  - `PAY_GRPC_ADDR=static://payservice.seekerhut.com:10021`
-  - `AI_GRPC_ADDR=static://aiservice.seekerhut.com:10011`
+  - `USER_HTTP_ADDR=https://userservice.localhut.com`
+  - `USER_GRPC_ADDR=static://userservice.localhut.com:10001`
+  - `PAY_GRPC_ADDR=static://payservice.localhut.com:10021`
+  - `AI_GRPC_ADDR=static://aiservice.localhut.com:10011`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 
 ## 目录说明
@@ -94,4 +94,4 @@ bash backend/deploy_local.sh start
 - 后端宿主机启动：`bash backend/deploy_local.sh start`
 - 前端测试：`cd frontend && npm ci && npm run test`
 - 前端构建：`cd frontend && npm run build`
-- 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.seekerhut.com/api/v3/api-docs`
+- 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.localhut.com/api/v3/api-docs`

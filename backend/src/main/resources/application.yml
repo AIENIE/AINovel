@@ -81,20 +81,20 @@ app:
       cache-seconds: ${CONSUL_CACHE_SECONDS:30}
     userservice-http:
       service-name: ${USER_HTTP_SERVICE_NAME:aienie-userservice-http}
-      fallback: ${USER_HTTP_ADDR:http://192.168.5.208:10000}
+      fallback: ${USER_HTTP_ADDR:https://userservice.localhut.com}
     aiservice-grpc:
       service-name: ${AI_GRPC_SERVICE_NAME:aienie-aiservice-grpc}
-      fallback: ${AI_GRPC_ADDR:static://192.168.5.208:10011}
+      fallback: ${AI_GRPC_ADDR:static://aiservice.localhut.com:10011}
     payservice-grpc:
       service-name: ${PAY_GRPC_SERVICE_NAME:aienie-payservice-grpc}
-      fallback: ${PAY_GRPC_ADDR:static://payservice.seekerhut.com:10021}
+      fallback: ${PAY_GRPC_ADDR:static://payservice.localhut.com:10021}
 
 sso:
-  callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.seekerhut.com}
+  callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.localhut.com}
   session-validation:
     enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
     timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:5000}
-    grpc-fallback-address: ${USER_GRPC_ADDR:static://192.168.5.208:10001}
+    grpc-fallback-address: ${USER_GRPC_ADDR:static://userservice.localhut.com:10001}
     consul:
       enabled: ${CONSUL_ENABLED:true}
       scheme: ${CONSUL_SCHEME:http}

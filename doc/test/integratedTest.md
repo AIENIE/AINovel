@@ -29,6 +29,6 @@
 - **世界管理/编辑**：`/worlds` 列表加载、创建、编辑与发布预检可完成并更新状态。
 - **设置/提示词**：读取、更新、重置提示词配置；帮助元数据接口可用于渲染帮助页。
 
-- **部署验证**：执行 `sudo -E bash build.sh` 后，前后端容器可用，域名 `https://ainovel.seekerhut.com` 可访问。
+- **部署验证**：执行 `sudo -E bash build.sh` 后，前后端容器可用，域名 `https://ainovel.localhut.com` 可访问。
 - **OpenAPI 验证**：默认 `SPRINGDOC_*` 为 `false`，仅在显式开启时才验证 `/api/v3/api-docs` 与 `/api/swagger-ui/*`。
 - **公共依赖连通**：MySQL、Redis、Qdrant 连通；在 16K page size 环境下，本地 qdrant 需使用 `v1.8.3`。

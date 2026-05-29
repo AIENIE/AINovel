@@ -1,7 +1,7 @@
 services:
   backend:
     container_name: ainovel-backend
-    image: eclipse-temurin:21-jre
+    image: eclipse-temurin:25-jre
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-11041}:10011"
@@ -25,17 +25,17 @@ services:
       CONSUL_DATACENTER: ${CONSUL_DATACENTER:-}
       CONSUL_CACHE_SECONDS: ${CONSUL_CACHE_SECONDS:-30}
       USER_HTTP_SERVICE_NAME: ${USER_HTTP_SERVICE_NAME:-aienie-userservice-http}
-      USER_HTTP_ADDR: ${USER_HTTP_ADDR:-https://userservice.seekerhut.com}
+      USER_HTTP_ADDR: ${USER_HTTP_ADDR:-https://userservice.localhut.com}
       AI_GRPC_SERVICE_NAME: ${AI_GRPC_SERVICE_NAME:-aienie-aiservice-grpc}
-      AI_GRPC_ADDR: ${AI_GRPC_ADDR:-static://aiservice.seekerhut.com:10011}
+      AI_GRPC_ADDR: ${AI_GRPC_ADDR:-static://aiservice.localhut.com:10011}
       PAY_GRPC_SERVICE_NAME: ${PAY_GRPC_SERVICE_NAME:-aienie-payservice-grpc}
-      PAY_GRPC_ADDR: ${PAY_GRPC_ADDR:-static://payservice.seekerhut.com:10021}
+      PAY_GRPC_ADDR: ${PAY_GRPC_ADDR:-static://payservice.localhut.com:10021}
       USER_GRPC_SERVICE_NAME: ${USER_GRPC_SERVICE_NAME:-aienie-userservice-grpc}
       USER_GRPC_SERVICE_TAG: ${USER_GRPC_SERVICE_TAG:-}
       USER_SESSION_GRPC_TIMEOUT_MS: ${USER_SESSION_GRPC_TIMEOUT_MS:-5000}
-      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://userservice.seekerhut.com:10001}
+      USER_GRPC_ADDR: ${USER_GRPC_ADDR:-static://userservice.localhut.com:10001}
       SSO_SESSION_VALIDATION_ENABLED: ${SSO_SESSION_VALIDATION_ENABLED:-true}
-      SSO_CALLBACK_ORIGIN: ${SSO_CALLBACK_ORIGIN:-https://ainovel.seekerhut.com}
+      SSO_CALLBACK_ORIGIN: ${SSO_CALLBACK_ORIGIN:-https://ainovel.localhut.com}
       EXTERNAL_PROJECT_KEY: ${EXTERNAL_PROJECT_KEY:-ainovel}
       EXTERNAL_TIMEOUT_MS: ${EXTERNAL_TIMEOUT_MS:-120000}
       EXTERNAL_GRPC_TLS_ENABLED: ${EXTERNAL_GRPC_TLS_ENABLED:-false}
@@ -55,7 +55,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin-password}
       SPRINGDOC_API_DOCS_ENABLED: ${SPRINGDOC_API_DOCS_ENABLED:-false}
       SPRINGDOC_SWAGGER_UI_ENABLED: ${SPRINGDOC_SWAGGER_UI_ENABLED:-false}
-      APP_SECURITY_CORS_ALLOWED_ORIGINS: ${APP_SECURITY_CORS_ALLOWED_ORIGINS:-https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040}
+      APP_SECURITY_CORS_ALLOWED_ORIGINS: ${APP_SECURITY_CORS_ALLOWED_ORIGINS:-https://ainovel.localhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040}
       APP_SECURITY_CORS_ALLOWED_METHODS: ${APP_SECURITY_CORS_ALLOWED_METHODS:-GET,POST,PUT,DELETE,OPTIONS,PATCH}
       APP_SECURITY_CORS_ALLOWED_HEADERS: ${APP_SECURITY_CORS_ALLOWED_HEADERS:-Authorization,Content-Type,Idempotency-Key,X-Requested-With}
       JAVA_OPTS: ${JAVA_OPTS:--Duser.timezone=Asia/Shanghai}
@@ -63,10 +63,10 @@ services:
       - ./backend/target/app.jar:/app/app.jar:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "base.seekerhut.com:${SERVICE_HOST_IP:-192.168.5.208}"
-      - "userservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.5.208}"
-      - "payservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.5.208}"
-      - "aiservice.seekerhut.com:${SERVICE_HOST_IP:-192.168.5.208}"
+      - "base.seekerhut.com:${BASESERVICE_HOST_IP:-192.168.5.208}"
+      - "userservice.localhut.com:${USERSERVICE_HOST_IP:-host-gateway}"
+      - "payservice.localhut.com:${PAYSERVICE_HOST_IP:-host-gateway}"
+      - "aiservice.localhut.com:${AISERVICE_HOST_IP:-host-gateway}"
     working_dir: /app
     command: ["sh", "-c", "java $${JAVA_OPTS} -jar /app/app.jar"]
 

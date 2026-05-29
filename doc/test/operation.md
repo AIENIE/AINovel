@@ -4,7 +4,7 @@
 
 1. **部署**
    - 执行：`sudo -E bash build.sh`
-   - 访问：`https://ainovel.seekerhut.com/`
+   - 访问：`https://ainovel.localhut.com/`
 
 2. **普通用户登录（SSO）**
    - 访问 `/login` 或点击首页“登录”，前端会请求 `/api/v1/sso/login` 并跳转 userservice。
@@ -59,4 +59,4 @@
 
 12. **网络代理注意事项**
    - 若机器配置了 `http_proxy/https_proxy`，本地域名调试请使用：
-     - `curl --noproxy '*' -k https://ainovel.seekerhut.com/api/...`
+     - `curl --noproxy '*' -k https://ainovel.localhut.com/api/...`

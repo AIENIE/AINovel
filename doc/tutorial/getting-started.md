@@ -3,7 +3,7 @@
 ## 1. 环境要求
 
 - Node.js 20+
-- JDK 21+
+- JDK 25
 - Maven 3.9+
 - Docker + Docker Compose
 - Linux 环境建议可用 `sudo`
@@ -56,8 +56,8 @@ sudo -E bash build.sh
 
 部署成功后：
 
-- `https://ainovel.seekerhut.com`
-- `https://ainovel.seekerhut.com/api/*`
+- `https://ainovel.localhut.com`
+- `https://ainovel.localhut.com/api/*`
 
 > `build_prod.sh` 是生产包装脚本，内部直接调用 `build.sh`，与 `build.sh` 逻辑保持同源；差异仅为默认域名切换到 `ainovel.aienie.com`。
 
@@ -98,7 +98,7 @@ npm run build
 管理员登录烟测：
 
 ```bash
-curl --noproxy '*' -k -X POST 'https://ainovel.seekerhut.com/api/v1/admin-auth/login' \
+curl --noproxy '*' -k -X POST 'https://ainovel.localhut.com/api/v1/admin-auth/login' \
   -H 'Content-Type: application/json' \
   --data '{"username":"admin","password":"<ADMIN_PASSWORD>"}'
 ```
@@ -106,7 +106,7 @@ curl --noproxy '*' -k -X POST 'https://ainovel.seekerhut.com/api/v1/admin-auth/l
 ## 6. 常见问题
 
 1. 域名打不开
-- 检查 `/etc/hosts` 是否有 `ainovel.seekerhut.com`。
+- 检查 `/etc/hosts` 是否有 `ainovel.localhut.com`。
 - 再检查 `nginx -t` 与服务状态。
 
 2. 普通用户 SSO 登录后 403
@@ -129,4 +129,4 @@ curl --noproxy '*' -k -X POST 'https://ainovel.seekerhut.com/api/v1/admin-auth/l
 
 5. `curl` 本地域名偶发 `SSL connect` / `Connection established` 异常
 - 通常是命令走了系统代理；请加 `--noproxy '*'`，例如：
-  - `curl --noproxy '*' -k https://ainovel.seekerhut.com/api/v1/admin-auth/me`
+  - `curl --noproxy '*' -k https://ainovel.localhut.com/api/v1/admin-auth/me`
