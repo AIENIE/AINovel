@@ -8,8 +8,7 @@
       "mainClass": "com.ainovel.app.AiNovelApplication",
       "projectName": "ai-novel-backend",
       "cwd": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/target/vscode.env",
-      "preLaunchTask": "Backend: prepare env.txt",
+      "envFile": "${workspaceFolder}/../env.txt",
       "console": "integratedTerminal"
     }
   ]

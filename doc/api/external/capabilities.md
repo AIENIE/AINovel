@@ -50,7 +50,7 @@
     - `aud` 包含 `aienie-payservice-grpc`
     - `scopes` 包含 `billing.read`、`billing.write`
   - AINovel 对应配置：`EXTERNAL_PAY_SERVICE_JWT`
-  - `build.sh` / `build_local.ps1` 支持在占位值、过期或 claim 不合法时自动重签发。
+  - JWT 需要由外部 secret/运维流程签发并注入；`build.sh` 不负责自动重签。
 
 ## AINovel 本地能力边界
 - `/api/v1/user/credits/convert`：先调用 pay-service 扣减通用积分，再写入本地项目积分账本。

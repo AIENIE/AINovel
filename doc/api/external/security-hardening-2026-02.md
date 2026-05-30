@@ -41,12 +41,9 @@
 - 校验 pay-service JWT 的结构与关键 claims。
 - 配置不合法时直接阻止服务启动（fail-fast）。
 
-## 构建脚本行为
-- `build.sh` / `build_local.ps1` 在以下场景会自动重签发 `EXTERNAL_PAY_SERVICE_JWT`：
-  - token 为空或占位值
-  - token claim 不合法
-  - token 已过期/即将过期
-- `build_prod.sh` 调用 `build.sh`，与 `build.sh` 逻辑保持同步，差异仅为域名默认值。
+## 部署脚本行为
+- `build.sh` 只执行 Docker Compose 构建与部署，不重签发 `EXTERNAL_PAY_SERVICE_JWT`。
+- `EXTERNAL_PAY_SERVICE_JWT` 为空、占位、claim 不合法或过期时，应由外部 secret/运维流程先签发并注入环境变量。
 
 ## 运行时说明
 - UserSession 校验优先走 Consul；失败时回退 `USER_GRPC_ADDR`。

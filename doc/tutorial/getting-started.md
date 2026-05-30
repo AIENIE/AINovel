@@ -59,13 +59,13 @@ sudo -E bash build.sh
 - `https://ainovel.localhut.com`
 - `https://ainovel.localhut.com/api/*`
 
-> `build_prod.sh` 是生产包装脚本，内部直接调用 `build.sh`，与 `build.sh` 逻辑保持同源；差异仅为默认域名切换到 `ainovel.aienie.com`。
+> 仓库仅保留 `build.sh`。正式环境域名、证书和反向代理由外部环境配置。
 
 ## 4. 依赖服务准备
 
 部署前请先确保 `env.txt` 中配置的 MySQL、Redis、Qdrant 已经可达。
 
-> `build.sh` 现在只做依赖连通性检查，不再额外拉起本机 MySQL / Redis / Qdrant 容器。
+> `build.sh` 只执行 Docker Compose 构建与部署，不拉起本机 MySQL / Redis / Qdrant 容器，也不做依赖连通性检查。
 
 > 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请先加载配置：
 >

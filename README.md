@@ -21,10 +21,10 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 ## 快速启动
 
 1. 准备 `env.txt`（仓库已提供默认模板，可直接改值）。
-2. Linux 一键部署（构建前后端 + docker compose 启动 + Nginx/hosts 代理）：
+2. Linux Docker Compose 部署：
 
 ```bash
-sudo bash build.sh
+bash build.sh
 ```
 
 3. 打开：
@@ -32,31 +32,13 @@ sudo bash build.sh
 - `https://ainovel.localhut.com/api/v3/api-docs`
 
 说明：
-- `build.sh` 会读取 `env.txt`，环境变量可覆盖。
-- 若手动执行 `docker compose`，先执行 `set -a; source env.txt; set +a`，避免容器使用到错误默认值（如 `JWT_SECRET` 不一致导致 SSO token 全部 403）。
-- 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；部署脚本仅做依赖连通性检查。
+- `build.sh` 仅执行本项目 Docker Compose 构建与部署。
+- 若根目录存在 `env.txt`，脚本会通过 `docker compose --env-file env.txt` 加载。
+- 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；依赖预检、hosts、Nginx、HTTPS 证书、健康检查和 E2E 不由 `build.sh` 处理。
 
-## backend 宿主机调试 / 本地直启
+## backend 宿主机调试
 
-以 `backend/` 作为 VSCode 工作区时，可直接按 `F5` 选择 `Backend: Spring Boot (env.txt)`。预启动任务会按 `ENV_FILE` -> `backend/env.txt` -> 仓库根 `env.txt` 的顺序生成 `backend/target/vscode.env`，找不到环境文件会直接失败，避免落回过期默认值。
-
-Linux 宿主机单独启动后端时，使用：
-
-```bash
-bash backend/deploy_local.sh start
-```
-
-常用命令：
-
-- `bash backend/deploy_local.sh status`
-- `bash backend/deploy_local.sh logs`
-- `bash backend/deploy_local.sh stop`
-
-说明：
-
-- `start` / `restart` 同样按 `ENV_FILE` -> `backend/env.txt` -> `env.txt` 解析环境文件。
-- 若未显式提供 `JAVA_OPTS`，脚本会补 `-Duser.timezone=${APP_TIME_ZONE:-Asia/Shanghai}`。
-- 日志与 PID 写到 `tmp/local-run/backend.out.log`、`tmp/local-run/backend.err.log`、`tmp/local-run/backend.pid`。
+以 `backend/` 作为 VSCode 工作区时，可直接按 `F5` 选择 `Backend: Spring Boot (env.txt)`。调试环境直接读取仓库根目录 `env.txt`。
 
 ## 关键配置
 
@@ -79,19 +61,16 @@ bash backend/deploy_local.sh start
 
 - `frontend/`：前端代码
 - `backend/`：后端代码
-- `backend/.vscode/*`：后端宿主机 F5 调试配置与 `env.txt` 预处理脚本。
-- `backend/deploy_local.sh`：Linux 宿主机后端本地编译/启动/停服脚本。
+- `backend/.vscode/*`：后端宿主机 F5 调试配置。
 - `backend/sql/schema.sql`：数据库结构参考脚本
 - `doc/`：项目文档、API 文档、测试记录
 - `design-doc/`：设计与规划文档
-- `build.sh` / `build_prod.sh` / `build_local.ps1`：部署脚本
+- `build.sh`：Docker Compose 构建与部署入口
 - `docker-compose.yml`：AINovel 前后端容器编排
 
 ## 验证建议
 
 - 后端测试：`cd backend && mvn -q test`
-- 后端宿主机 env 预处理：`cd backend && bash .vscode/prepare-env.sh`
-- 后端宿主机启动：`bash backend/deploy_local.sh start`
 - 前端测试：`cd frontend && npm ci && npm run test`
 - 前端构建：`cd frontend && npm run build`
 - 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.localhut.com/api/v3/api-docs`
