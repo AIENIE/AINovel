@@ -33,6 +33,7 @@ bash build.sh
 
 说明：
 - `build.sh` 仅执行本项目 Docker Compose 构建与部署。
+- 若发现 `ainovel-backend` / `ainovel-frontend` 已被其他工作目录的旧容器占用，脚本会先删除冲突容器，再部署当前仓库。
 - 若根目录存在 `env.txt`，脚本会通过 `docker compose --env-file env.txt` 加载。
 - 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；依赖预检、hosts、Nginx、HTTPS 证书、健康检查和 E2E 不由 `build.sh` 处理。
 

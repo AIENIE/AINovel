@@ -22,7 +22,7 @@ AINovel 对接以下基础组件与外部服务：
 
 ## 部署约束
 
-- `build.sh` 现在只校验 MySQL / Redis / Qdrant 连通性。
+- `build.sh` 只执行 Docker Compose 构建与部署；若 `ainovel-backend` / `ainovel-frontend` 已被其他工作目录的旧容器占用，会先删除冲突容器。
 - 依赖服务需由外部环境提前提供，部署脚本不再负责额外创建中间件实例。
 - 依赖地址统一来自 `env.txt` 中的 `MYSQL_*`、`REDIS_*`、`QDRANT_*` 配置。
 - 三服务直连地址统一来自 `USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`。
