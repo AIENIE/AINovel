@@ -114,21 +114,11 @@ public class UserSessionValidator {
     private List<ConsulUserGrpcEndpointResolver.Endpoint> resolveCandidates() {
         LinkedHashMap<String, ConsulUserGrpcEndpointResolver.Endpoint> ordered = new LinkedHashMap<>();
 
-        try {
-            Optional<ConsulUserGrpcEndpointResolver.Endpoint> fromConsul = consulResolver.resolve();
-            fromConsul.ifPresent(endpoint -> ordered.put(endpoint.host() + ":" + endpoint.port(), endpoint));
-        } catch (Exception ex) {
-            log.warn("Consul userservice discovery failed, fallback to USER_GRPC_ADDR: {}", ex.getMessage());
-        }
-
-        parseGrpcAddress(properties.getGrpcFallbackAddress())
-                .ifPresent(endpoint -> {
-                    String key = endpoint.host() + ":" + endpoint.port();
-                    if (!ordered.containsKey(key)) {
-                        log.info("Using fallback userservice grpc endpoint candidate: {}:{}", endpoint.host(), endpoint.port());
-                        ordered.put(key, endpoint);
-                    }
-                });
+        consulResolver.resolve().ifPresent(endpoint -> {
+            String key = endpoint.host() + ":" + endpoint.port();
+            log.info("Using configured userservice grpc endpoint candidate: {}:{}", endpoint.host(), endpoint.port());
+            ordered.put(key, endpoint);
+        });
 
         return List.copyOf(ordered.values());
     }

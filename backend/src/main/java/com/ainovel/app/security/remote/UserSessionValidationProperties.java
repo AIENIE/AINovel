@@ -9,8 +9,7 @@ public class UserSessionValidationProperties {
 
     private boolean enabled = true;
     private long timeoutMs = 2000;
-    private String grpcFallbackAddress = "static://127.0.0.1:10001";
-    private final Consul consul = new Consul();
+    private String grpcAddress = "static://userservice.localhut.com:10001";
 
     public boolean isEnabled() {
         return enabled;
@@ -28,90 +27,11 @@ public class UserSessionValidationProperties {
         this.timeoutMs = timeoutMs;
     }
 
-    public String getGrpcFallbackAddress() {
-        return grpcFallbackAddress;
+    public String getGrpcAddress() {
+        return grpcAddress;
     }
 
-    public void setGrpcFallbackAddress(String grpcFallbackAddress) {
-        this.grpcFallbackAddress = grpcFallbackAddress;
-    }
-
-    public Consul getConsul() {
-        return consul;
-    }
-
-    public static class Consul {
-        private boolean enabled = true;
-        private String scheme = "http";
-        private String host = "127.0.0.1";
-        private int port = 8502;
-        private String serviceName = "aienie-userservice-grpc";
-        private String datacenter = "";
-        private String tag = "";
-        private long cacheSeconds = 30;
-
-        public boolean isEnabled() {
-            return enabled;
-        }
-
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public String getScheme() {
-            return scheme;
-        }
-
-        public void setScheme(String scheme) {
-            this.scheme = scheme;
-        }
-
-        public String getHost() {
-            return host;
-        }
-
-        public void setHost(String host) {
-            this.host = host;
-        }
-
-        public int getPort() {
-            return port;
-        }
-
-        public void setPort(int port) {
-            this.port = port;
-        }
-
-        public String getServiceName() {
-            return serviceName;
-        }
-
-        public void setServiceName(String serviceName) {
-            this.serviceName = serviceName;
-        }
-
-        public String getDatacenter() {
-            return datacenter;
-        }
-
-        public void setDatacenter(String datacenter) {
-            this.datacenter = datacenter;
-        }
-
-        public String getTag() {
-            return tag;
-        }
-
-        public void setTag(String tag) {
-            this.tag = tag;
-        }
-
-        public long getCacheSeconds() {
-            return cacheSeconds;
-        }
-
-        public void setCacheSeconds(long cacheSeconds) {
-            this.cacheSeconds = cacheSeconds;
-        }
+    public void setGrpcAddress(String grpcAddress) {
+        this.grpcAddress = grpcAddress;
     }
 }

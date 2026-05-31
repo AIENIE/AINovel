@@ -33,18 +33,15 @@ import java.util.concurrent.TimeUnit;
 public class BillingGrpcClient {
 
     private final ExternalServiceProperties properties;
-    private final ConsulServiceResolver resolver;
     private final GrpcChannelFactory channelFactory;
 
     private volatile EndpointClient client;
 
     public BillingGrpcClient(
             ExternalServiceProperties properties,
-            ConsulServiceResolver resolver,
             GrpcChannelFactory channelFactory
     ) {
         this.properties = properties;
-        this.resolver = resolver;
         this.channelFactory = channelFactory;
     }
 
@@ -202,8 +199,7 @@ public class BillingGrpcClient {
 
     private synchronized EndpointClient getOrCreateClient() {
         ExternalServiceProperties.ServiceTarget target = properties.getPayserviceGrpc();
-        ConsulServiceResolver.Endpoint endpoint = resolver
-                .resolveOrFallback(target.getServiceName(), target.getFallback())
+        ConsulServiceResolver.Endpoint endpoint = ConsulServiceResolver.parseAddress(target.getAddress())
                 .orElseThrow(() -> new IllegalStateException("No endpoint for payservice-grpc"));
         EndpointClient existing = client;
         if (existing != null && existing.sameEndpoint(endpoint.host(), endpoint.port())) {

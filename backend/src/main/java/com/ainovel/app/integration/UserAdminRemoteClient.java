@@ -29,16 +29,13 @@ public class UserAdminRemoteClient {
     private static final HttpClient INSECURE_HTTPS_CLIENT = buildInsecureHttpsClient();
 
     private final ExternalServiceProperties properties;
-    private final ConsulServiceResolver resolver;
     private final ObjectMapper objectMapper;
 
     public UserAdminRemoteClient(
             ExternalServiceProperties properties,
-            ConsulServiceResolver resolver,
             ObjectMapper objectMapper
     ) {
         this.properties = properties;
-        this.resolver = resolver;
         this.objectMapper = objectMapper;
     }
 
@@ -128,22 +125,18 @@ public class UserAdminRemoteClient {
 
     private String resolveBaseUrl() {
         ExternalServiceProperties.ServiceTarget target = properties.getUserserviceHttp();
-        Optional<ConsulServiceResolver.Endpoint> endpoint = resolver.resolveOrFallback(target.getServiceName(), target.getFallback());
-        if (endpoint.isPresent()) {
-            return endpoint.get().toHttpBase();
-        }
-        String preferred = normalizeHttpUrl(target.getFallback());
+        String preferred = normalizeHttpUrl(target.getAddress());
         if (preferred != null) {
             return preferred;
         }
-        return normalizeBaseUrl(target.getFallback());
+        return normalizeBaseUrl(target.getAddress());
     }
 
-    private String normalizeHttpUrl(String fallback) {
-        if (fallback == null || fallback.isBlank()) {
+    private String normalizeHttpUrl(String address) {
+        if (address == null || address.isBlank()) {
             return null;
         }
-        String value = fallback.trim();
+        String value = address.trim();
         if (value.startsWith("http://") || value.startsWith("https://")) {
             if (value.endsWith("/")) {
                 return value.substring(0, value.length() - 1);
@@ -153,15 +146,15 @@ public class UserAdminRemoteClient {
         return null;
     }
 
-    private String normalizeBaseUrl(String fallback) {
-        if (fallback == null || fallback.isBlank()) {
-            throw new IllegalStateException("userservice-http fallback is empty");
+    private String normalizeBaseUrl(String address) {
+        if (address == null || address.isBlank()) {
+            throw new IllegalStateException("userservice-http address is empty");
         }
-        String value = fallback.trim();
+        String value = address.trim();
         if (!value.startsWith("http://") && !value.startsWith("https://")) {
             Optional<ConsulServiceResolver.Endpoint> endpoint = ConsulServiceResolver.parseAddress(value);
             if (endpoint.isEmpty()) {
-                throw new IllegalStateException("Invalid userservice-http fallback: " + fallback);
+                throw new IllegalStateException("Invalid userservice-http address: " + address);
             }
             return endpoint.get().toHttpBase();
         }

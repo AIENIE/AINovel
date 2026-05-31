@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 public class AiGatewayGrpcClient {
 
     private final ExternalServiceProperties properties;
-    private final ConsulServiceResolver resolver;
     private final GrpcChannelFactory channelFactory;
     private final ClientInterceptor authInterceptor;
 
@@ -40,11 +39,9 @@ public class AiGatewayGrpcClient {
 
     public AiGatewayGrpcClient(
             ExternalServiceProperties properties,
-            ConsulServiceResolver resolver,
             GrpcChannelFactory channelFactory
     ) {
         this.properties = properties;
-        this.resolver = resolver;
         this.channelFactory = channelFactory;
         this.authInterceptor = new AiHmacAuthInterceptor(properties, Clock.systemUTC());
     }
@@ -107,8 +104,7 @@ public class AiGatewayGrpcClient {
 
     private synchronized EndpointClient getOrCreateClient() {
         ExternalServiceProperties.ServiceTarget target = properties.getAiserviceGrpc();
-        ConsulServiceResolver.Endpoint endpoint = resolver
-                .resolveOrFallback(target.getServiceName(), target.getFallback())
+        ConsulServiceResolver.Endpoint endpoint = ConsulServiceResolver.parseAddress(target.getAddress())
                 .orElseThrow(() -> new IllegalStateException("No endpoint for aiservice-grpc"));
 
         EndpointClient existing = client;

@@ -1,38 +1,32 @@
 package com.ainovel.app.auth;
 
-import com.ainovel.app.integration.ConsulServiceResolver;
 import com.ainovel.app.integration.ExternalServiceProperties;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class SsoEntryServiceTest {
 
     @Test
-    void shouldPreferConfiguredHttpFallbackForLoginRedirect() {
+    void shouldUseConfiguredHttpsAddressForLoginRedirect() {
         ExternalServiceProperties properties = new ExternalServiceProperties();
-        properties.getUserserviceHttp().setServiceName("aienie-userservice-http");
-        properties.getUserserviceHttp().setFallback("http://fallback:10002");
-        ConsulServiceResolver resolver = mock(ConsulServiceResolver.class);
+        properties.getUserserviceHttp().setAddress("https://userservice.localhut.com");
 
-        SsoEntryService service = new SsoEntryService(properties, resolver);
+        SsoEntryService service = new SsoEntryService(properties);
         URI uri = service.buildLoginRedirectUri(
                 "https://ainovel.aienie.com/sso/callback?next=/workbench",
                 "state-abc"
         );
 
-        assertEquals("http", uri.getScheme());
-        assertEquals("fallback", uri.getHost());
-        assertEquals(10002, uri.getPort());
+        assertEquals("https", uri.getScheme());
+        assertEquals("userservice.localhut.com", uri.getHost());
+        assertEquals(-1, uri.getPort());
         assertEquals("/sso/login", uri.getPath());
         String query = URLDecoder.decode(uri.getRawQuery(), StandardCharsets.UTF_8);
         assertTrue(query.contains("redirect=https://ainovel.aienie.com/sso/callback?next=/workbench"));
@@ -40,15 +34,25 @@ class SsoEntryServiceTest {
     }
 
     @Test
-    void shouldRejectInvalidFallback() {
+    void shouldConvertHostPortAddressIntoHttpRedirectBase() {
         ExternalServiceProperties properties = new ExternalServiceProperties();
-        properties.getUserserviceHttp().setServiceName("aienie-userservice-http");
-        properties.getUserserviceHttp().setFallback("invalid");
-        ConsulServiceResolver resolver = mock(ConsulServiceResolver.class);
-        when(resolver.resolveOrFallback("aienie-userservice-http", "invalid"))
-                .thenReturn(Optional.empty());
+        properties.getUserserviceHttp().setAddress("userservice.localhut.com:10000");
 
-        SsoEntryService service = new SsoEntryService(properties, resolver);
+        SsoEntryService service = new SsoEntryService(properties);
+        URI uri = service.buildRegisterRedirectUri("https://ainovel.localhut.com/sso/callback", "state-xyz");
+
+        assertEquals("http", uri.getScheme());
+        assertEquals("userservice.localhut.com", uri.getHost());
+        assertEquals(10000, uri.getPort());
+        assertEquals("/register", uri.getPath());
+    }
+
+    @Test
+    void shouldRejectInvalidAddress() {
+        ExternalServiceProperties properties = new ExternalServiceProperties();
+        properties.getUserserviceHttp().setAddress("invalid");
+
+        SsoEntryService service = new SsoEntryService(properties);
         assertThrows(IllegalStateException.class,
                 () -> service.buildRegisterRedirectUri("http://ainovel.seekerhut.com/sso/callback?next=/workbench", "state"));
     }

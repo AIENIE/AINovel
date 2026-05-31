@@ -15,12 +15,7 @@
 重点配置项：
 
 - 依赖：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
-- 服务发现：`CONSUL_*`
-- 三服务名：
-  - `USER_GRPC_SERVICE_NAME=aienie-userservice-grpc`
-  - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
-  - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
-- 三服务 fallback：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
+- 三服务直连地址：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 - 管理员本地登录：`ADMIN_USERNAME`、`ADMIN_PASSWORD`
 - 外部安全配置（必填）：
@@ -119,7 +114,7 @@ curl --noproxy '*' -k -X POST 'https://ainovel.localhut.com/api/v1/admin-auth/lo
 - 检查请求路径是否为 `/api/v1/admin-auth/login`。
 
 4. 通用积分兑换失败
-- 检查 `PAY_GRPC_SERVICE_NAME` 与 Consul 是否能解析实例。
+- 检查 `PAY_GRPC_ADDR` 是否可连通。
 - 检查 `EXTERNAL_PROJECT_KEY` 是否与 pay-service 项目一致。
 - 检查 `EXTERNAL_PAY_SERVICE_JWT` claim 是否包含：
   - `role=SERVICE`

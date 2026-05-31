@@ -29,6 +29,7 @@ Thumbs.db
 .env.*
 .local.env
 .cap.env
+env.txt
 
 # Java build outputs
 /backend/target/
