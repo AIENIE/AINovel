@@ -61,6 +61,11 @@ services:
     volumes:
       - ${APP_LOG_DIR_HOST:-./logs/backend}:/app/logs
       - ${APP_RECORD_DIR_HOST:-./logs/records}:/app/records
+    networks:
+      - ainovel
+      - aienie_userservice_net
+      - aienie_payservice_net
+      - aienie_aiservice_net
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.15.3
@@ -75,17 +80,15 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_LOG_DIR: /app/logs
       APP_RECORD_DIR: /app/records
-      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS:-https://es.localhut.com:9200}
-      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-elastic}
-      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
-      ELASTICSEARCH_CA_CERT_PATH: ${ELASTICSEARCH_CA_CERT_PATH:-/usr/share/filebeat/certs/http_ca.crt}
+      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS:-http://local-elasticsearch:9200}
       FILEBEAT_INDEX_PREFIX: ${FILEBEAT_INDEX_PREFIX:-aienie-local-ainovel}
     volumes:
       - ./deploy/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ${APP_LOG_DIR_HOST:-./logs/backend}:/app/logs:ro
       - ${APP_RECORD_DIR_HOST:-./logs/records}:/app/records:ro
       - ${FILEBEAT_DATA_DIR:-./logs/filebeat-data}:/usr/share/filebeat/data
-      - ${ELASTICSEARCH_CA_CERT_DIR:-./deploy/filebeat/certs}:/usr/share/filebeat/certs:ro
+    networks:
+      - elasticsearch_default
 
   frontend:
     container_name: ainovel-frontend
@@ -95,3 +98,17 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-11040}:10010"
+    networks:
+      - ainovel
+
+networks:
+  ainovel:
+    driver: bridge
+  aienie_userservice_net:
+    external: true
+  aienie_payservice_net:
+    external: true
+  aienie_aiservice_net:
+    external: true
+  elasticsearch_default:
+    external: true

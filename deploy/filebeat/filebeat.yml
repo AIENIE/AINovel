@@ -30,10 +30,10 @@ processors:
 setup.ilm.enabled: false
 setup.template.name: "${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}"
 setup.template.pattern: "${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}-*"
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
 
 output.elasticsearch:
-  hosts: ["${ELASTICSEARCH_HOSTS:https://es.localhut.com:9200}"]
-  username: "${ELASTICSEARCH_USERNAME:elastic}"
-  password: "${ELASTICSEARCH_PASSWORD:}"
-  ssl.certificate_authorities: ["${ELASTICSEARCH_CA_CERT_PATH:/usr/share/filebeat/certs/http_ca.crt}"]
+  hosts: ["${ELASTICSEARCH_HOSTS:http://local-elasticsearch:9200}"]
   index: "${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}-%{+yyyy.MM.dd}"
