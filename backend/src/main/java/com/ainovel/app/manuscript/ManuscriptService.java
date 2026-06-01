@@ -6,6 +6,9 @@ import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.manuscript.dto.*;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
+import com.ainovel.app.quality.SlopQualityGate;
+import com.ainovel.app.quality.SlopQualityRequest;
+import com.ainovel.app.quality.SlopQualityResult;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.CharacterCard;
@@ -41,6 +44,8 @@ public class ManuscriptService {
     private AiService aiService;
     @Autowired
     private ResourceAccessGuard accessGuard;
+    @Autowired
+    private SlopQualityGate slopQualityGate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
@@ -251,7 +256,11 @@ public class ManuscriptService {
                 hanCount = countHanCharacters(normalized);
             }
             if (hanCount >= MIN_SECTION_HAN && hanCount <= MAX_SECTION_HAN) {
-                return toEditorHtml(normalized);
+                SlopQualityResult qualityResult = slopQualityGate.evaluateAndRepair(
+                        owner,
+                        buildQualityRequest(manuscript, story, sceneContext, characters, existingSections, normalized)
+                );
+                return toEditorHtml(qualityResult.acceptedText());
             }
             previousDraft = normalized;
             previousCount = hanCount;
@@ -260,6 +269,28 @@ public class ManuscriptService {
         throw new RuntimeException("场景正文生成失败：重试 " + MAX_GENERATION_ATTEMPTS
                 + " 次后仍未达到 " + MIN_SECTION_HAN + "-" + MAX_SECTION_HAN
                 + " 汉字（当前 " + previousCount + "）。请稍后重试。");
+    }
+
+    private SlopQualityRequest buildQualityRequest(Manuscript manuscript,
+                                                   Story story,
+                                                   SceneContext scene,
+                                                   List<CharacterCard> characters,
+                                                   Map<String, String> existingSections,
+                                                   String candidateText) {
+        return new SlopQualityRequest(
+                story.getId(),
+                manuscript.getId(),
+                scene.sceneId(),
+                safeText(story.getTitle(), "未命名故事"),
+                safeText(story.getGenre(), "未指定"),
+                safeText(story.getTone(), "沉浸、连贯"),
+                scene.chapterTitle(),
+                scene.sceneTitle(),
+                scene.sceneSummary(),
+                buildPreviousContext(scene, existingSections),
+                buildCharacterContext(characters),
+                candidateText
+        );
     }
 
     private SceneContext resolveSceneContext(Outline outline, UUID sceneId) {
@@ -295,6 +326,7 @@ public class ManuscriptService {
                         }
                     }
                     return new SceneContext(
+                            scene.id(),
                             safeText(chapter.title(), "未命名章节"),
                             safeText(chapter.summary(), ""),
                             chapter.order() == null ? 0 : chapter.order(),
@@ -308,6 +340,46 @@ public class ManuscriptService {
             }
         }
         throw new RuntimeException("场景不存在，无法生成正文");
+    }
+
+    private String buildCharacterContext(List<CharacterCard> characters) {
+        if (characters == null || characters.isEmpty()) {
+            return "暂无角色卡。";
+        }
+        StringBuilder characterInfo = new StringBuilder();
+        for (CharacterCard card : characters) {
+            if (card == null) {
+                continue;
+            }
+            characterInfo.append("- ").append(safeText(card.getName(), "角色")).append("：")
+                    .append(safeText(card.getSynopsis(), ""))
+                    .append(" 背景：").append(safeText(truncate(card.getDetails(), 180), ""))
+                    .append(" 关系：").append(safeText(truncate(card.getRelationships(), 160), ""))
+                    .append('\n');
+        }
+        return characterInfo.toString();
+    }
+
+    private String buildPreviousContext(SceneContext scene, Map<String, String> existingSections) {
+        if (scene.previousSceneIds() == null || scene.previousSceneIds().isEmpty()) {
+            return "暂无可用前文。";
+        }
+        StringBuilder continuity = new StringBuilder();
+        int kept = 0;
+        for (int i = scene.previousSceneIds().size() - 1; i >= 0 && kept < 2; i--) {
+            UUID previousId = scene.previousSceneIds().get(i);
+            String content = existingSections.get(previousId.toString());
+            if (content == null || content.isBlank()) {
+                continue;
+            }
+            String plain = truncate(stripHtml(content), 500);
+            if (plain.isBlank()) {
+                continue;
+            }
+            continuity.append("前文片段 ").append(kept + 1).append("：").append(plain).append("\n");
+            kept++;
+        }
+        return continuity.length() == 0 ? "暂无可用前文。" : continuity.toString();
     }
 
     private String buildScenePrompt(Story story,
@@ -527,6 +599,7 @@ public class ManuscriptService {
     }
 
     private record SceneContext(
+            UUID sceneId,
             String chapterTitle,
             String chapterSummary,
             Integer chapterOrder,

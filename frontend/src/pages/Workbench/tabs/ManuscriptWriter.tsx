@@ -36,7 +36,7 @@ import {
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/mock-api";
-import { Manuscript, Outline, Story } from "@/types";
+import { Manuscript, Outline, SlopQualityRun, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction, ShortcutMap, DEFAULT_SHORTCUTS, detectShortcutConflicts, matchesShortcut, isEditableTarget } from "@/lib/shortcuts";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -58,6 +58,20 @@ const sceneStatusClass: Record<SceneStatus, string> = {
   todo: "bg-zinc-300",
   in_progress: "bg-amber-400",
   done: "bg-emerald-500",
+};
+
+const qualityStatusText = (run?: SlopQualityRun | null) => {
+  if (!run) return "未运行质量门禁";
+  if (run.status === "REVISED" || run.revised) return "已自动修订";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "仍有建议";
+  return "质量门禁通过";
+};
+
+const qualityStatusClass = (run?: SlopQualityRun | null) => {
+  if (!run) return "border-zinc-300 text-zinc-500";
+  if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
+  return "border-emerald-300 bg-emerald-50 text-emerald-700";
 };
 
 const formatDateTime = (value: any) => {
@@ -141,6 +155,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWordCount, setSelectedWordCount] = useState(0);
+  const [qualityRunsByScene, setQualityRunsByScene] = useState<Record<string, SlopQualityRun | null>>({});
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(DEFAULT_SHORTCUTS);
   const [shortcutConflicts, setShortcutConflicts] = useState<Array<{ shortcut: string; actions: string[] }>>([]);
   const [characters, setCharacters] = useState<any[]>([]);
@@ -205,6 +220,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const selectedStory = useMemo(() => stories.find((s) => s.id === selectedStoryId) || null, [stories, selectedStoryId]);
   const selectedOutline = useMemo(() => outlines.find((o) => o.id === selectedOutlineId) || null, [outlines, selectedOutlineId]);
   const selectedManuscript = useMemo(() => manuscripts.find((m) => m.id === selectedManuscriptId) || null, [manuscripts, selectedManuscriptId]);
+  const selectedQualityRun = selectedSceneId ? qualityRunsByScene[selectedSceneId] : null;
   const sceneRows = useMemo(() => {
     const list: SceneRow[] = [];
     (outlineDraft?.chapters || []).forEach((chapter, chapterIndex) => {
@@ -580,6 +596,21 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setContent(html);
     sceneWordCacheRef.current[selectedSceneId] = countWords(stripHtml(html));
   }, [sceneDrafts, selectedManuscript, selectedSceneId]);
+
+  useEffect(() => {
+    if (!selectedManuscriptId || !selectedSceneId) return;
+    let cancelled = false;
+    api.v2.quality
+      .listRuns(selectedManuscriptId, selectedSceneId)
+      .then((runs) => {
+        if (cancelled) return;
+        setQualityRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedManuscriptId, selectedSceneId]);
 
   useEffect(() => {
     Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
@@ -1464,12 +1495,19 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                     size="sm"
                     onClick={async () => {
                       if (!selectedManuscriptId || !selectedSceneId) return;
+                      const sceneId = selectedSceneId;
                       setIsGenerating(true);
                       try {
-                        const saved = await api.manuscripts.generateScene(selectedManuscriptId, selectedSceneId);
+                        const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
                         setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
-                        setContent(saved.sections?.[selectedSceneId] || "");
-                        toast({ title: "已生成场景正文" });
+                        setContent(saved.sections?.[sceneId] || "");
+                        const qualityRuns = await api.v2.quality.listRuns(saved.id, sceneId).catch(() => []);
+                        const latestRun = qualityRuns[0] || null;
+                        setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
+                        toast({
+                          title: "已生成场景正文",
+                          description: qualityStatusText(latestRun),
+                        });
                       } catch (e: any) {
                         toast({ variant: "destructive", title: "生成失败", description: e.message });
                       } finally {
@@ -1487,6 +1525,20 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 </div>
               </div>
             )}
+
+            <div className="px-2 pb-2 flex flex-wrap items-center gap-2 text-xs">
+              <Badge variant="outline" className={cn("font-normal", qualityStatusClass(selectedQualityRun))}>
+                {qualityStatusText(selectedQualityRun)}
+              </Badge>
+              {selectedQualityRun ? (
+                <>
+                  <span className="text-muted-foreground">风险 {selectedQualityRun.overallRiskScore}</span>
+                  {selectedQualityRun.summary ? <span className="text-muted-foreground truncate max-w-[520px]">{selectedQualityRun.summary}</span> : null}
+                </>
+              ) : (
+                <span className="text-muted-foreground">生成场景后会自动记录反 slop 检查结果</span>
+              )}
+            </div>
 
             <div className="px-2 pb-2">
               <ScrollArea className="w-full whitespace-nowrap">

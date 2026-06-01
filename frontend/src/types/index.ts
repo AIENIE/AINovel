@@ -168,6 +168,31 @@ export interface Manuscript {
   updatedAt: string;
 }
 
+export interface SlopQualityIssue {
+  id: string;
+  dimension: string;
+  severity: string;
+  riskScore: number;
+  evidence?: string;
+  whyItMatters?: string;
+  minimalFix?: string;
+}
+
+export interface SlopQualityRun {
+  id: string;
+  storyId: string;
+  manuscriptId: string;
+  sceneId: string;
+  status: "ACCEPTED" | "REVISED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
+  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
+  overallRiskScore: number;
+  revised: boolean;
+  revisionCount: number;
+  summary?: string;
+  createdAt?: string;
+  issues: SlopQualityIssue[];
+}
+
 export interface UserSummary {
   novelCount: number;
   worldCount: number;

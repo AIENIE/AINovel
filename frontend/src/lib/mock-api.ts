@@ -9,6 +9,7 @@ import {
   Outline,
   PlotPlanning,
   PromptTemplates,
+  SlopQualityRun,
   Story,
   UserSummary,
   User,
@@ -354,6 +355,33 @@ function toManuscript(dto: any): Manuscript {
     worldId: dto.worldId || undefined,
     sections: dto.sections || {},
     updatedAt: dto.updatedAt || new Date().toISOString(),
+  };
+}
+
+function toSlopQualityRun(dto: any): SlopQualityRun {
+  return {
+    id: String(dto.id),
+    storyId: String(dto.storyId),
+    manuscriptId: String(dto.manuscriptId),
+    sceneId: String(dto.sceneId),
+    status: String(dto.status || "ACCEPTED"),
+    maxSeverity: String(dto.maxSeverity || "LOW"),
+    overallRiskScore: Number(dto.overallRiskScore || 0),
+    revised: Boolean(dto.revised),
+    revisionCount: Number(dto.revisionCount || 0),
+    summary: dto.summary || undefined,
+    createdAt: dto.createdAt || undefined,
+    issues: Array.isArray(dto.issues)
+      ? dto.issues.map((issue: any) => ({
+          id: String(issue.id),
+          dimension: String(issue.dimension || ""),
+          severity: String(issue.severity || "LOW"),
+          riskScore: Number(issue.riskScore || 0),
+          evidence: issue.evidence || undefined,
+          whyItMatters: issue.whyItMatters || undefined,
+          minimalFix: issue.minimalFix || undefined,
+        }))
+      : [],
   };
 }
 
@@ -864,6 +892,14 @@ export const api = {
           method: "PUT",
           body: JSON.stringify(payload),
         }),
+    },
+
+    quality: {
+      listRuns: async (manuscriptId: string, sceneId?: string): Promise<SlopQualityRun[]> => {
+        const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
+        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/quality-runs${query}`, { method: "GET" });
+        return list.map(toSlopQualityRun);
+      },
     },
 
     version: {

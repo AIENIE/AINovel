@@ -29,12 +29,13 @@ bash build.sh
 
 3. 打开：
 - `https://ainovel.localhut.com`
-- `https://ainovel.localhut.com/api/v3/api-docs`
+- `https://ainovel.localhut.com/api/v1/sso/login?next=/workbench&state=smoke`
 
 说明：
 - `build.sh` 仅执行本项目 Docker Compose 构建与部署。
 - 若发现 `ainovel-backend` / `ainovel-frontend` 已被其他工作目录的旧容器占用，脚本会先删除冲突容器，再部署当前仓库。
 - 若根目录存在 `env.txt`，脚本会通过 `docker compose --env-file env.txt` 加载。
+- Docker 部署中后端使用 host network 监听 `BACKEND_PORT`，前端 Nginx 通过 `host.docker.internal:11041` 转发 `/api`。
 - 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；依赖预检、hosts、Nginx、HTTPS 证书、健康检查和 E2E 不由 `build.sh` 处理。
 
 ## backend 宿主机调试
@@ -57,6 +58,7 @@ bash build.sh
   - `PAY_GRPC_ADDR=static://payservice.localhut.com:10021`
   - `AI_GRPC_ADDR=static://aiservice.localhut.com:10011`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
+- JPA：本地部署默认 `SPRING_JPA_HIBERNATE_DDL_AUTO=none`，数据库结构以 `backend/sql/schema.sql` 和显式变更为准，避免启动期扫描全库元数据。
 
 ## 目录说明
 
@@ -74,4 +76,4 @@ bash build.sh
 - 后端测试：`cd backend && mvn -q test`
 - 前端测试：`cd frontend && npm ci && npm run test`
 - 前端构建：`cd frontend && npm run build`
-- 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k https://ainovel.localhut.com/api/v3/api-docs`
+- 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k -I 'https://ainovel.localhut.com/api/v1/sso/login?next=/workbench&state=smoke'`

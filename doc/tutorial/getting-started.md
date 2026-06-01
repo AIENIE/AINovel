@@ -32,6 +32,8 @@
   - `JWT_SECRET`（至少 32 字节，不可占位值）
 - hosts 行为：
   - `PIN_UPSTREAM_SERVICES_TO_LOCALHOST=false`（默认不强制把 userservice/payservice/aiservice 写到 `127.0.0.1`）
+- JPA DDL：
+  - `SPRING_JPA_HIBERNATE_DDL_AUTO=none`（本地部署默认关闭自动 DDL，结构变更以 `backend/sql/schema.sql` 为准）
 
 ## 3. 一键部署（推荐）
 
@@ -42,12 +44,8 @@ sudo -E bash build.sh
 脚本会执行：
 
 1. 读取 `env.txt`
-2. 校验并必要时自动重签发 `EXTERNAL_PAY_SERVICE_JWT`
-3. 检查依赖连通性（MySQL/Redis/Qdrant）
-4. 构建前端（测试+打包）与后端（测试+打包）
-5. 通过 `docker-compose.yml` 重建前后端容器
-6. 配置 hosts + nginx 反向代理（测试域名/正式域名）
-7. Nginx `/api` 反向代理超时固定为 `300s`
+2. 构建前端与后端 Docker 镜像
+3. 通过 `docker-compose.yml` 重建前后端容器
 
 部署成功后：
 
@@ -55,6 +53,7 @@ sudo -E bash build.sh
 - `https://ainovel.localhut.com/api/*`
 
 > 仓库仅保留 `build.sh`。正式环境域名、证书和反向代理由外部环境配置。
+> Docker 部署中后端使用 host network 监听 `BACKEND_PORT`，前端容器通过 `host.docker.internal:11041` 转发 `/api`。
 
 ## 4. 依赖服务准备
 

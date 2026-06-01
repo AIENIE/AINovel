@@ -28,4 +28,17 @@ cleanup_conflicting_container() {
 cleanup_conflicting_container "ainovel-backend"
 cleanup_conflicting_container "ainovel-frontend"
 
-docker compose "${COMPOSE_ARGS[@]}" up -d --build --remove-orphans
+for attempt in 1 2 3; do
+  if docker compose "${COMPOSE_ARGS[@]}" up -d --build --pull never --remove-orphans; then
+    exit 0
+  fi
+
+  if [[ "$attempt" == "3" ]]; then
+    break
+  fi
+
+  echo "Docker Compose build failed; retrying ($((attempt + 1))/3)..." >&2
+  sleep 3
+done
+
+exit 1

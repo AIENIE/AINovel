@@ -5,8 +5,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-11041}:10011"
+    network_mode: host
     environment:
       DB_URL: jdbc:mysql://${MYSQL_HOST:-base.seekerhut.com}:${MYSQL_PORT:-23306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}
@@ -18,7 +17,7 @@ services:
       QDRANT_HOST: ${QDRANT_HOST:-http://base.seekerhut.com}
       QDRANT_PORT: ${QDRANT_PORT:-26333}
       QDRANT_ENABLED: ${QDRANT_ENABLED:-true}
-      PORT: 10011
+      PORT: ${BACKEND_PORT:-11041}
       JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
       USER_HTTP_ADDR: ${USER_HTTP_ADDR:-https://userservice.localhut.com}
       AI_GRPC_ADDR: ${AI_GRPC_ADDR:-static://aiservice.localhut.com:10011}
@@ -45,6 +44,8 @@ services:
       APP_LOG_DIR: ${APP_LOG_DIR:-/app/logs}
       APP_RECORD_DIR: ${APP_RECORD_DIR:-/app/records}
       LOGGING_FILE_NAME: ${LOGGING_FILE_NAME:-/app/logs/ainovel.log}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: ${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin-password}
       SPRINGDOC_API_DOCS_ENABLED: ${SPRINGDOC_API_DOCS_ENABLED:-false}
@@ -61,8 +62,6 @@ services:
     volumes:
       - ${APP_LOG_DIR_HOST:-./logs/backend}:/app/logs
       - ${APP_RECORD_DIR_HOST:-./logs/records}:/app/records
-    networks:
-      - ainovel
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.15.3
@@ -99,6 +98,8 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-11040}:10010"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - ainovel
 

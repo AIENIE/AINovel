@@ -1,5 +1,7 @@
 # 2026-04-22 backend 宿主机调试与本地直启验收
 
+> 历史记录：本文描述的是当时存在的宿主机直启脚本与 VSCode 预处理链路；当前仓库已不再以这些脚本作为现行契约。
+
 ## 1. 目标
 
 1. `backend/` 作为 VSCode 工作区时，可通过 `F5` 直接启动 `com.ainovel.app.AiNovelApplication`。

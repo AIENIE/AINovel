@@ -22,7 +22,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        GlobalSettings global = globalSettingsRepository.findTopByOrderByUpdatedAtDesc().orElseGet(GlobalSettings::new);
+        GlobalSettings global = loadGlobalSettingsWithRetry();
         if (global.getId() == null) {
             global.setRegistrationEnabled(true);
             global.setMaintenanceMode(false);
@@ -34,5 +34,26 @@ public class DataInitializer implements CommandLineRunner {
             if (defaultSmtpPassword != null && !defaultSmtpPassword.isBlank()) global.setSmtpPassword(defaultSmtpPassword);
             globalSettingsRepository.save(global);
         }
+    }
+
+    private GlobalSettings loadGlobalSettingsWithRetry() {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                return globalSettingsRepository.findTopByOrderByUpdatedAtDesc().orElseGet(GlobalSettings::new);
+            } catch (RuntimeException ex) {
+                lastFailure = ex;
+                if (attempt == 3) {
+                    break;
+                }
+                try {
+                    Thread.sleep(2000L * attempt);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw ex;
+                }
+            }
+        }
+        throw lastFailure;
     }
 }
