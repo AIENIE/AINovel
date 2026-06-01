@@ -35,5 +35,8 @@ setup.template.settings:
   index.number_of_replicas: 0
 
 output.elasticsearch:
-  hosts: ["${ELASTICSEARCH_HOSTS:http://local-elasticsearch:9200}"]
+  hosts: ["${ELASTICSEARCH_HOSTS:https://es.localhut.com:9200}"]
+  username: "${ELASTICSEARCH_USERNAME:elastic}"
+  password: "${ELASTICSEARCH_PASSWORD:}"
+  ssl.certificate_authorities: ["${ELASTICSEARCH_CA_CERT_PATH:/usr/share/filebeat/certs/http_ca.crt}"]
   index: "${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}-%{+yyyy.MM.dd}"
