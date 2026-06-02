@@ -9,6 +9,8 @@ import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.SlopQualityGate;
 import com.ainovel.app.quality.SlopQualityRequest;
 import com.ainovel.app.quality.SlopQualityResult;
+import com.ainovel.app.quality.PlotQualityRequest;
+import com.ainovel.app.quality.PlotQualityService;
 import com.ainovel.app.material.MaterialRetrievalService;
 import com.ainovel.app.material.dto.MaterialSearchRequest;
 import com.ainovel.app.material.dto.MaterialSearchResultDto;
@@ -53,6 +55,8 @@ public class ManuscriptService {
     private ResourceAccessGuard accessGuard;
     @Autowired
     private SlopQualityGate slopQualityGate;
+    @Autowired
+    private PlotQualityService plotQualityService;
     @Autowired
     private PromptAssemblyService promptAssemblyService;
     @Autowired
@@ -271,6 +275,7 @@ public class ManuscriptService {
                         owner,
                         buildQualityRequest(manuscript, story, sceneContext, characters, existingSections, normalized)
                 );
+                recordPlotQuality(owner, manuscript, story, sceneContext, characters, existingSections, qualityResult.acceptedText());
                 return toEditorHtml(qualityResult.acceptedText());
             }
             previousDraft = normalized;
@@ -302,6 +307,49 @@ public class ManuscriptService {
                 buildCharacterContext(characters),
                 candidateText
         );
+    }
+
+    private void recordPlotQuality(User owner,
+                                   Manuscript manuscript,
+                                   Story story,
+                                   SceneContext scene,
+                                   List<CharacterCard> characters,
+                                   Map<String, String> existingSections,
+                                   String acceptedText) {
+        try {
+            plotQualityService.analyze(owner, new PlotQualityRequest(
+                    story.getId(),
+                    manuscript.getId(),
+                    scene.sceneId(),
+                    safeText(story.getTitle(), "未命名故事"),
+                    safeText(story.getGenre(), "未指定"),
+                    safeText(story.getTone(), "沉浸、连贯"),
+                    scene.chapterTitle(),
+                    scene.chapterOrder(),
+                    scene.sceneTitle(),
+                    scene.sceneOrder(),
+                    scene.sceneSummary(),
+                    outlinePlanning(manuscript.getOutline()),
+                    buildPreviousContext(scene, existingSections),
+                    buildCharacterContext(characters),
+                    acceptedText
+            ));
+        } catch (RuntimeException ignored) {
+            // 剧情层诊断不能阻断正文生成；用户可稍后手动重新诊断。
+        }
+    }
+
+    private String outlinePlanning(Outline outline) {
+        if (outline == null || outline.getContentJson() == null || outline.getContentJson().isBlank()) {
+            return "暂无结构规划。";
+        }
+        try {
+            Map<String, Object> root = objectMapper.readValue(outline.getContentJson(), new TypeReference<>() {});
+            Object planning = root.get("planning");
+            return planning == null ? "暂无结构规划。" : objectMapper.writeValueAsString(planning);
+        } catch (Exception ex) {
+            return "暂无结构规划。";
+        }
     }
 
     private SceneContext resolveSceneContext(Outline outline, UUID sceneId) {

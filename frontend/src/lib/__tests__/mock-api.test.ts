@@ -155,4 +155,58 @@ describe("mock api", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("normalizes plot quality runs and trend payloads", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v2/manuscripts/m1/plot-quality-runs?sceneId=s1")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "run-1",
+              storyId: "story-1",
+              manuscriptId: "m1",
+              sceneId: "s1",
+              chapterTitle: "第一章",
+              sceneTitle: "雨夜门外",
+              chapterOrder: 1,
+              sceneOrder: 2,
+              status: "ACCEPTED_WITH_ISSUES",
+              maxSeverity: "HIGH",
+              overallRiskScore: 82,
+              summary: "角色动机跳变",
+              rewritePlanJson: "[\"补动机\"]",
+              surgicalFixesJson: "[\"补一拍权衡\"]",
+              revisionCandidateText: "修订候选",
+              revisionApplied: false,
+              issues: [{ id: "i1", dimension: "AGENCY", severity: "HIGH", riskScore: 82 }],
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v2/manuscripts/m1/plot-quality-trends")) {
+        return new Response(
+          JSON.stringify({
+            manuscriptId: "m1",
+            averageRisk: 62,
+            highRiskScenes: 1,
+            dimensionCounts: { AGENCY: 1 },
+            points: [{ runId: "run-1", sceneId: "s1", riskScore: 82, chapterOrder: 1, sceneOrder: 2 }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runs = await api.v2.plotQuality.listRuns("m1", "s1");
+    const trend = await api.v2.plotQuality.getTrend("m1");
+
+    expect(runs[0].issues[0].dimension).toBe("AGENCY");
+    expect(runs[0].rewritePlan).toEqual(["补动机"]);
+    expect(trend.points[0].riskScore).toBe(82);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

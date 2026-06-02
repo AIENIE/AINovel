@@ -36,7 +36,7 @@ import {
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/mock-api";
-import { Manuscript, Outline, SlopQualityRun, Story } from "@/types";
+import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction, ShortcutMap, DEFAULT_SHORTCUTS, detectShortcutConflicts, matchesShortcut, isEditableTarget } from "@/lib/shortcuts";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -51,7 +51,7 @@ interface ManuscriptWriterProps {
   initialStoryId?: string;
 }
 
-type SidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goals";
+type SidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goals" | "plot";
 type SceneStatus = "todo" | "in_progress" | "done";
 
 const sceneStatusClass: Record<SceneStatus, string> = {
@@ -72,6 +72,38 @@ const qualityStatusClass = (run?: SlopQualityRun | null) => {
   if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
+};
+
+const plotStatusText = (run?: PlotQualityRun | null) => {
+  if (!run) return "未运行剧情诊断";
+  if (run.revisionApplied) return "候选已采纳";
+  if (run.status === "DEGRADED") return "诊断降级";
+  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "剧情高风险";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "剧情需关注";
+  return "剧情风险低";
+};
+
+const plotStatusClass = (run?: PlotQualityRun | null) => {
+  if (!run) return "border-zinc-300 text-zinc-500";
+  if (run.revisionApplied) return "border-blue-300 bg-blue-50 text-blue-700";
+  if (run.status === "DEGRADED") return "border-zinc-300 bg-zinc-50 text-zinc-700";
+  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "border-red-300 bg-red-50 text-red-700";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "border-amber-300 bg-amber-50 text-amber-800";
+  return "border-emerald-300 bg-emerald-50 text-emerald-700";
+};
+
+const plotDimensionLabel = (dimension?: string) => {
+  const labels: Record<string, string> = {
+    GOAL_CONFLICT: "目标冲突",
+    CAUSALITY: "因果链",
+    AGENCY: "角色能动性",
+    STAKES: "风险收益",
+    FORESHADOW_PAYOFF: "伏笔回收",
+    REPETITION: "重复套路",
+    SCENE_FUNCTION: "场景功能",
+    READER_CURIOSITY: "读者悬念",
+  };
+  return labels[String(dimension || "")] || String(dimension || "未分类");
 };
 
 const formatDateTime = (value: any) => {
@@ -156,6 +188,10 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWordCount, setSelectedWordCount] = useState(0);
   const [qualityRunsByScene, setQualityRunsByScene] = useState<Record<string, SlopQualityRun | null>>({});
+  const [plotRunsByScene, setPlotRunsByScene] = useState<Record<string, PlotQualityRun | null>>({});
+  const [plotTrend, setPlotTrend] = useState<PlotQualityTrend | null>(null);
+  const [isPlotBusy, setIsPlotBusy] = useState(false);
+  const [isPlotRevisionBusy, setIsPlotRevisionBusy] = useState(false);
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(DEFAULT_SHORTCUTS);
   const [shortcutConflicts, setShortcutConflicts] = useState<Array<{ shortcut: string; actions: string[] }>>([]);
   const [characters, setCharacters] = useState<any[]>([]);
@@ -221,6 +257,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const selectedOutline = useMemo(() => outlines.find((o) => o.id === selectedOutlineId) || null, [outlines, selectedOutlineId]);
   const selectedManuscript = useMemo(() => manuscripts.find((m) => m.id === selectedManuscriptId) || null, [manuscripts, selectedManuscriptId]);
   const selectedQualityRun = selectedSceneId ? qualityRunsByScene[selectedSceneId] : null;
+  const selectedPlotRun = selectedSceneId ? plotRunsByScene[selectedSceneId] : null;
   const sceneRows = useMemo(() => {
     const list: SceneRow[] = [];
     (outlineDraft?.chapters || []).forEach((chapter, chapterIndex) => {
@@ -249,6 +286,18 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const showRightPanel = isSidebarOpen && !focusMode;
   const visibleVersions = useMemo(() => versions.slice(0, versionVisibleCount), [versionVisibleCount, versions]);
   const hasMoreVersions = versionVisibleCount < versions.length;
+  const plotTrendChartData = useMemo(
+    () =>
+      (plotTrend?.points || []).map((point) => ({
+        ...point,
+        label: `${point.chapterOrder + 1}-${point.sceneOrder + 1}`,
+      })),
+    [plotTrend],
+  );
+  const plotDimensionEntries = useMemo(
+    () => Object.entries(plotTrend?.dimensionCounts || {}).sort((a, b) => b[1] - a[1]),
+    [plotTrend],
+  );
 
   useEffect(() => {
     if (leftPanelVisibleRef.current === showLeftPanel) return;
@@ -605,6 +654,27 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
       .then((runs) => {
         if (cancelled) return;
         setQualityRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedManuscriptId, selectedSceneId]);
+
+  useEffect(() => {
+    if (!selectedManuscriptId || !selectedSceneId) {
+      setPlotTrend(null);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      api.v2.plotQuality.listRuns(selectedManuscriptId, selectedSceneId),
+      api.v2.plotQuality.getTrend(selectedManuscriptId),
+    ])
+      .then(([runs, trend]) => {
+        if (cancelled) return;
+        setPlotRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
+        setPlotTrend(trend);
       })
       .catch(() => undefined);
     return () => {
@@ -1072,6 +1142,84 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setDirtyScenes({});
   }, []);
 
+  const loadPlotQuality = useCallback(
+    async (sceneId = selectedSceneId) => {
+      if (!selectedManuscriptId || !sceneId) return;
+      const [runs, trend] = await Promise.all([
+        api.v2.plotQuality.listRuns(selectedManuscriptId, sceneId),
+        api.v2.plotQuality.getTrend(selectedManuscriptId),
+      ]);
+      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: runs[0] || null }));
+      setPlotTrend(trend);
+    },
+    [selectedManuscriptId, selectedSceneId],
+  );
+
+  const runPlotDiagnosis = async () => {
+    if (!selectedManuscriptId || !selectedSceneId) return;
+    const sceneId = selectedSceneId;
+    setIsPlotBusy(true);
+    try {
+      if (dirtyScenes[sceneId]) {
+        await persistSection(sceneId, content, true);
+      }
+      const run = await api.v2.plotQuality.analyzeScene(selectedManuscriptId, sceneId);
+      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      const trend = await api.v2.plotQuality.getTrend(selectedManuscriptId);
+      setPlotTrend(trend);
+      setSidebarTab("plot");
+      toast({ title: "剧情诊断已完成", description: plotStatusText(run) });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "剧情诊断失败", description: e.message });
+    } finally {
+      setIsPlotBusy(false);
+    }
+  };
+
+  const generatePlotRevisionCandidate = async () => {
+    if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
+    const sceneId = selectedSceneId;
+    setIsPlotRevisionBusy(true);
+    try {
+      if (dirtyScenes[sceneId]) {
+        await persistSection(sceneId, content, true);
+      }
+      const run = await api.v2.plotQuality.generateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id);
+      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      toast({ title: "候选修订已生成" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "生成候选失败", description: e.message });
+    } finally {
+      setIsPlotRevisionBusy(false);
+    }
+  };
+
+  const applyPlotRevision = async () => {
+    if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
+    const sceneId = selectedSceneId;
+    setIsPlotRevisionBusy(true);
+    try {
+      if (dirtyScenes[sceneId]) {
+        await persistSection(sceneId, content, true);
+      }
+      const run = await api.v2.plotQuality.applyRevision(selectedManuscriptId, selectedPlotRun.id);
+      const manuscript = await api.manuscripts.get(selectedManuscriptId);
+      applyFetchedManuscript(manuscript);
+      setContent(manuscript.sections?.[sceneId] || "");
+      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      await loadPlotQuality(sceneId);
+      toast({ title: "候选修订已采纳" });
+    } catch (e: any) {
+      toast({
+        variant: "destructive",
+        title: "采纳候选失败",
+        description: String(e.message || "").includes("409") ? "场景内容已变化，请重新诊断后再生成候选。" : e.message,
+      });
+    } finally {
+      setIsPlotRevisionBusy(false);
+    }
+  };
+
   const checkoutBranch = async (branchId: string) => {
     if (!selectedManuscriptId) return;
     try {
@@ -1285,13 +1433,48 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           </TabsContent>
           <TabsContent value="sidebar" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
             <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-              <TabsList className="grid grid-cols-3">
+              <TabsList className="grid grid-cols-4">
                 <TabsTrigger value="copilot">AI</TabsTrigger>
+                <TabsTrigger value="plot">剧情</TabsTrigger>
                 <TabsTrigger value="version">版本</TabsTrigger>
                 <TabsTrigger value="export">导出</TabsTrigger>
               </TabsList>
               <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
                 <CopilotSidebar context={contextData} className="h-full border-none" />
+              </TabsContent>
+              <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
+                <div className="flex gap-2 mb-2">
+                  <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
+                    {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                    诊断
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => void generatePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
+                    候选
+                  </Button>
+                  <Button size="sm" onClick={() => void applyPlotRevision()} disabled={isPlotRevisionBusy || !selectedPlotRun?.revisionCandidateText || selectedPlotRun?.revisionApplied}>
+                    采纳
+                  </Button>
+                </div>
+                <ScrollArea className="h-[calc(100%-2.2rem)]">
+                  <div className="space-y-2">
+                    <div className="rounded border p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{plotStatusText(selectedPlotRun)}</span>
+                        <Badge variant="outline" className={plotStatusClass(selectedPlotRun)}>风险 {selectedPlotRun?.overallRiskScore ?? "-"}</Badge>
+                      </div>
+                      {!!selectedPlotRun?.summary && <div className="mt-1 text-muted-foreground">{selectedPlotRun.summary}</div>}
+                    </div>
+                    {(selectedPlotRun?.issues || []).map((issue) => (
+                      <div key={issue.id} className="rounded border p-2">
+                        <div>{plotDimensionLabel(issue.dimension)} · {issue.severity}</div>
+                        {!!issue.minimalFix && <div className="text-muted-foreground mt-1">{issue.minimalFix}</div>}
+                      </div>
+                    ))}
+                    {!!selectedPlotRun?.revisionCandidateText && (
+                      <div className="rounded border p-2 whitespace-pre-wrap">{selectedPlotRun.revisionCandidateText}</div>
+                    )}
+                  </div>
+                </ScrollArea>
               </TabsContent>
               <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
                 <Button size="sm" variant="outline" className="mb-2" onClick={() => void loadVersions()}>刷新版本</Button>
@@ -1504,6 +1687,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                         const qualityRuns = await api.v2.quality.listRuns(saved.id, sceneId).catch(() => []);
                         const latestRun = qualityRuns[0] || null;
                         setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
+                        const plotRuns = await api.v2.plotQuality.listRuns(saved.id, sceneId).catch(() => []);
+                        setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: plotRuns[0] || null }));
+                        api.v2.plotQuality.getTrend(saved.id).then(setPlotTrend).catch(() => undefined);
                         toast({
                           title: "已生成场景正文",
                           description: qualityStatusText(latestRun),
@@ -1529,6 +1715,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             <div className="px-2 pb-2 flex flex-wrap items-center gap-2 text-xs">
               <Badge variant="outline" className={cn("font-normal", qualityStatusClass(selectedQualityRun))}>
                 {qualityStatusText(selectedQualityRun)}
+              </Badge>
+              <Badge variant="outline" className={cn("font-normal", plotStatusClass(selectedPlotRun))}>
+                {plotStatusText(selectedPlotRun)}
               </Badge>
               {selectedQualityRun ? (
                 <>
@@ -1625,9 +1814,10 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             >
               <div className={cn("h-full", !showRightPanel && "invisible")}>
               <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-                <TabsList className="grid grid-cols-6 mx-2 mt-2">
+                <TabsList className="grid grid-cols-7 mx-2 mt-2">
                   <TabsTrigger value="copilot">copilot</TabsTrigger>
                   <TabsTrigger value="context">context</TabsTrigger>
+                  <TabsTrigger value="plot">plot</TabsTrigger>
                   <TabsTrigger value="version">version</TabsTrigger>
                   <TabsTrigger value="export">export</TabsTrigger>
                   <TabsTrigger value="stats">stats</TabsTrigger>
@@ -1666,6 +1856,135 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                     <div className="rounded border p-2">
                       <div className="font-medium mb-1">前情摘要</div>
                       <div className="text-muted-foreground">{contextPreview?.recentSummary || "暂无"}</div>
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
+                      {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                      重新诊断
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => void generatePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
+                      {isPlotRevisionBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                      生成候选
+                    </Button>
+                    <Button size="sm" onClick={() => void applyPlotRevision()} disabled={isPlotRevisionBusy || !selectedPlotRun?.revisionCandidateText || selectedPlotRun?.revisionApplied}>
+                      采纳候选
+                    </Button>
+                  </div>
+
+                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 text-xs">
+                    <div className="space-y-3">
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium">{selectedPlotRun?.sceneTitle || sceneMap[selectedSceneId]?.scene?.title || "当前场景"}</div>
+                          <Badge variant="outline" className={cn("shrink-0", plotStatusClass(selectedPlotRun))}>{plotStatusText(selectedPlotRun)}</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">风险</div>
+                            <div className="text-lg font-semibold">{selectedPlotRun?.overallRiskScore ?? "-"}</div>
+                          </div>
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">等级</div>
+                            <div className="text-lg font-semibold">{selectedPlotRun?.maxSeverity || "-"}</div>
+                          </div>
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">问题</div>
+                            <div className="text-lg font-semibold">{selectedPlotRun?.issues?.length ?? 0}</div>
+                          </div>
+                        </div>
+                        {!!selectedPlotRun?.summary && <div className="text-muted-foreground leading-relaxed">{selectedPlotRun.summary}</div>}
+                        {!selectedPlotRun && <div className="text-muted-foreground">当前场景还没有剧情诊断记录。</div>}
+                      </div>
+
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="font-medium">问题清单</div>
+                        {(selectedPlotRun?.issues || []).map((issue) => (
+                          <div key={issue.id} className="rounded border p-2 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{plotDimensionLabel(issue.dimension)}</Badge>
+                              <Badge variant="outline">{issue.severity}</Badge>
+                              <span className="text-muted-foreground">风险 {issue.riskScore}</span>
+                            </div>
+                            {!!issue.evidence && <div>{issue.evidence}</div>}
+                            {!!issue.minimalFix && <div className="text-muted-foreground">{issue.minimalFix}</div>}
+                          </div>
+                        ))}
+                        {selectedPlotRun && !selectedPlotRun.issues.length && <div className="text-muted-foreground">暂无剧情问题。</div>}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        <div className="rounded border p-2 space-y-1">
+                          <div className="font-medium">重写计划</div>
+                          {(selectedPlotRun?.rewritePlan || []).map((item, index) => (
+                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
+                          ))}
+                          {selectedPlotRun && !selectedPlotRun.rewritePlan.length && <div className="text-muted-foreground">暂无</div>}
+                        </div>
+                        <div className="rounded border p-2 space-y-1">
+                          <div className="font-medium">微调动作</div>
+                          {(selectedPlotRun?.surgicalFixes || []).map((item, index) => (
+                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
+                          ))}
+                          {selectedPlotRun && !selectedPlotRun.surgicalFixes.length && <div className="text-muted-foreground">暂无</div>}
+                        </div>
+                      </div>
+
+                      {!!selectedPlotRun?.revisionCandidateText && (
+                        <div className="rounded border p-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium">候选修订</div>
+                            {selectedPlotRun.revisionApplied && <Badge variant="outline">已采纳</Badge>}
+                          </div>
+                          <div className="max-h-48 overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-2 leading-relaxed">
+                            {selectedPlotRun.revisionCandidateText}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">全稿趋势</div>
+                          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => void loadPlotQuality()}>刷新</Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">平均风险</div>
+                            <div className="text-lg font-semibold">{plotTrend ? Math.round(plotTrend.averageRisk) : "-"}</div>
+                          </div>
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">高风险场景</div>
+                            <div className="text-lg font-semibold">{plotTrend?.highRiskScenes ?? "-"}</div>
+                          </div>
+                        </div>
+                        <div className="h-[180px]">
+                          {plotTrendChartData.length ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={plotTrendChartData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                                <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                                <Tooltip />
+                                <Line type="monotone" dataKey="riskScore" stroke="#dc2626" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-full rounded bg-muted/50 flex items-center justify-center text-muted-foreground">暂无趋势数据</div>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          {plotDimensionEntries.map(([dimension, count]) => (
+                            <div key={dimension} className="flex items-center justify-between rounded border px-2 py-1">
+                              <span>{plotDimensionLabel(dimension)}</span>
+                              <span className="text-muted-foreground">{count}</span>
+                            </div>
+                          ))}
+                          {!plotDimensionEntries.length && <div className="text-muted-foreground">暂无维度统计</div>}
+                        </div>
+                      </div>
                     </div>
                   </ScrollArea>
                 </TabsContent>

@@ -16,10 +16,10 @@
 
 | 维度 | 数量 |
 |------|------|
-| 新增端点总数 | ~80 |
-| 涉及模块 | 7 |
-| GET 端点 | ~35 |
-| POST 端点 | ~25 |
+| 新增端点总数 | ~85 |
+| 涉及模块 | 8 |
+| GET 端点 | ~38 |
+| POST 端点 | ~28 |
 | PUT 端点 | ~15 |
 | DELETE 端点 | ~8 |
 
@@ -76,6 +76,12 @@
 | GET | `/v2/stories/{storyId}/analysis/reports/{reportId}` | Beta Reader | 获取完整报告 | 是 | 03 § 3.3 |
 | GET | `/v2/stories/{storyId}/analysis/continuity-issues` | 连续性检查 | 查询问题列表 | 是 | 03 § 3.3 |
 | PUT | `/v2/stories/{storyId}/analysis/continuity-issues/{issueId}` | 连续性检查 | 更新问题状态 | 是 | 03 § 3.3 |
+| GET | `/v2/manuscripts/{manuscriptId}/quality-runs` | 质量诊断 | 查询反 Slop 文本质量记录 | 是 | 实装扩展 |
+| GET | `/v2/manuscripts/{manuscriptId}/plot-quality-runs` | 质量诊断 | 查询剧情质量诊断记录 | 是 | 实装扩展 |
+| POST | `/v2/manuscripts/{manuscriptId}/scenes/{sceneId}/plot-quality-runs` | 质量诊断 | 触发场景剧情诊断 | 是 | 实装扩展 |
+| GET | `/v2/manuscripts/{manuscriptId}/plot-quality-trends` | 质量诊断 | 查询全稿剧情风险趋势 | 是 | 实装扩展 |
+| POST | `/v2/manuscripts/{manuscriptId}/plot-quality-runs/{runId}/revision-candidate` | 质量诊断 | 生成剧情修订候选 | 是 | 实装扩展 |
+| POST | `/v2/manuscripts/{manuscriptId}/plot-quality-runs/{runId}/apply-revision` | 质量诊断 | 采纳剧情修订候选 | 是 | 实装扩展 |
 | GET | `/v2/manuscripts/{manuscriptId}/versions` | 版本控制 | 获取版本列表 | 是 | 04 § 3.3 |
 | POST | `/v2/manuscripts/{manuscriptId}/versions` | 版本控制 | 创建手动快照 | 是 | 04 § 3.3 |
 | GET | `/v2/manuscripts/{manuscriptId}/versions/{versionId}` | 版本控制 | 获取版本详情 | 是 | 04 § 3.3 |
@@ -154,7 +160,16 @@
 - 触发分析 → 异步任务 → 轮询进度 → 查看报告
 - 连续性问题独立管理：筛选/确认/解决/标记误报
 
-### 3.4 版本控制系统（→ 见 `04-版本控制系统.md` § 3.3）
+### 3.4 质量诊断（实装扩展）
+
+6 个端点，覆盖文本反 slop 记录查询、场景级剧情诊断、全稿风险趋势、候选修订生成与采纳。
+
+核心流程：
+- 场景生成后自动记录文本质量门禁和剧情质量诊断
+- 作者可在工作台手动重新诊断当前场景
+- 剧情修订候选只保存为候选文本，采纳时校验正文哈希并复用文本质量门禁
+
+### 3.5 版本控制系统（→ 见 `04-版本控制系统.md` § 3.3）
 
 12 个端点，覆盖版本快照 CRUD、分支管理、差异对比、自动保存配置。
 
@@ -163,7 +178,7 @@
 - 分支：创建/更新/合并/废弃
 - 配置：自动保存间隔和上限
 
-### 3.5 稿件导出系统（→ 见 `05-稿件导出系统.md` § 3.3）
+### 3.6 稿件导出系统（→ 见 `05-稿件导出系统.md` § 3.3）
 
 8 个端点，覆盖导出任务管理和模板管理。
 
@@ -171,7 +186,7 @@
 - 发起导出 → 异步处理 → 轮询状态 → 下载文件
 - 模板：系统预设 + 用户自定义
 
-### 3.6 多模型协作（→ 见 `06-多模型协作.md` § 3.3）
+### 3.7 多模型协作（→ 见 `06-多模型协作.md` § 3.3）
 
 11 个端点，覆盖模型查询、路由管理（管理员）、用户偏好、用量统计、对比生成。
 
@@ -181,7 +196,7 @@
 - 用户偏好：覆盖系统默认
 - 对比生成：同一输入用两个模型生成，用户选择更好的结果
 
-### 3.7 工作台与体验优化（→ 见 `07-工作台与体验优化.md` § 3.3）
+### 3.8 工作台与体验优化（→ 见 `07-工作台与体验优化.md` § 3.3）
 
 16 个端点，覆盖布局管理、写作会话、写作目标、快捷键配置。
 

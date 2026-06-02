@@ -1,9 +1,10 @@
-# V2 Quality Gate API
+# V2 Quality API
 
 - 鉴权：Bearer Token（稿件所有者）
-- 基础路径：`/api/v2/manuscripts/{manuscriptId}/quality-runs`
+- 文本质量基础路径：`/api/v2/manuscripts/{manuscriptId}/quality-runs`
+- 剧情质量基础路径：`/api/v2/manuscripts/{manuscriptId}/plot-quality-runs`
 
-## 查询质量门禁记录
+## 文本质量门禁
 
 - `GET /quality-runs`：查询稿件最近 20 条反 slop 质量门禁记录。
 - `GET /quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
@@ -22,3 +23,38 @@
 - 中高风险：调用 AI 诊断 JSON，必要时执行一次保守修订。
 - 修订约束：不改变剧情事件、角色决策、人物关系和关键设定；只处理重复、套话、AI 输出伪迹、局部承接和轻量风格漂移。
 - 修订失败或风险未下降：保存最佳候选，并记录 `ACCEPTED_WITH_ISSUES` 供前端展示。
+
+## 剧情质量诊断
+
+- `GET /plot-quality-runs`：查询稿件最近 20 条剧情质量诊断记录。
+- `GET /plot-quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
+- `POST /scenes/{sceneId}/plot-quality-runs`：对当前场景生成一次剧情诊断。
+- `GET /plot-quality-trends`：按场景聚合每个场景最新诊断，返回平均风险、高风险场景数、维度计数和趋势点。
+- `POST /plot-quality-runs/{runId}/revision-candidate`：基于诊断结果生成一份候选修订文本，只保存候选，不自动写回稿件。
+- `POST /plot-quality-runs/{runId}/apply-revision`：采纳候选修订并写回对应场景正文。
+
+剧情诊断返回项包含：
+- `status`：`ACCEPTED` / `ACCEPTED_WITH_ISSUES` / `DEGRADED`。
+- `overallRiskScore`：0-100 剧情风险分。
+- `maxSeverity`：`LOW` / `MEDIUM` / `HIGH` / `BLOCKING`。
+- `chapterTitle` / `sceneTitle` / `chapterOrder` / `sceneOrder`：用于趋势排序和前端定位。
+- `summary`：本次诊断摘要。
+- `issues`：剧情维度、严重级别、证据、影响原因和最小修复建议。
+- `rewritePlan` / `surgicalFixes`：面向作者的重写计划和局部修正动作。
+- `revisionCandidateText` / `revisionApplied` / `revisionAppliedAt`：候选修订及采纳状态。
+
+剧情维度覆盖：
+- `GOAL_CONFLICT`：场景目标与冲突是否清楚。
+- `CAUSALITY`：事件因果链是否成立。
+- `AGENCY`：角色决策是否主动且符合设定。
+- `STAKES`：风险、收益和代价是否具体。
+- `FORESHADOW_PAYOFF`：伏笔与回收是否存在断裂。
+- `REPETITION`：是否重复同类桥段或套路。
+- `SCENE_FUNCTION`：场景是否承担推进、揭示或转折功能。
+- `READER_CURIOSITY`：悬念、问题和期待是否持续。
+
+## 候选修订安全规则
+
+- 生成候选和采纳候选都会校验 `sourceTextHash`，如果场景正文已经变化，应重新诊断后再生成候选。
+- 采纳候选前服务端会复用文本 `SlopQualityGate`，避免候选引入明显套话、重复和 AI 伪迹。
+- 前端工作台的 `plot` 侧栏只做人工确认入口；除用户点击“采纳候选”外，不会自动覆盖场景正文。

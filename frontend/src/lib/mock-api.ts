@@ -9,6 +9,8 @@ import {
   ModelConfig,
   Outline,
   PlotPlanning,
+  PlotQualityRun,
+  PlotQualityTrend,
   PromptTemplates,
   SlopQualityRun,
   Story,
@@ -394,6 +396,75 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
           evidence: issue.evidence || undefined,
           whyItMatters: issue.whyItMatters || undefined,
           minimalFix: issue.minimalFix || undefined,
+        }))
+      : [],
+  };
+}
+
+function parseJsonArray(value: any): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function toPlotQualityRun(dto: any): PlotQualityRun {
+  return {
+    id: String(dto.id),
+    storyId: String(dto.storyId),
+    manuscriptId: String(dto.manuscriptId),
+    sceneId: String(dto.sceneId),
+    chapterTitle: dto.chapterTitle || undefined,
+    sceneTitle: dto.sceneTitle || undefined,
+    chapterOrder: Number(dto.chapterOrder || 0),
+    sceneOrder: Number(dto.sceneOrder || 0),
+    status: String(dto.status || "ACCEPTED"),
+    maxSeverity: String(dto.maxSeverity || "LOW"),
+    overallRiskScore: Number(dto.overallRiskScore || 0),
+    summary: dto.summary || undefined,
+    rewritePlan: parseJsonArray(dto.rewritePlanJson ?? dto.rewritePlan),
+    surgicalFixes: parseJsonArray(dto.surgicalFixesJson ?? dto.surgicalFixes),
+    revisionCandidateText: dto.revisionCandidateText || undefined,
+    revisionApplied: Boolean(dto.revisionApplied),
+    revisionAppliedAt: dto.revisionAppliedAt || undefined,
+    createdAt: dto.createdAt || undefined,
+    issues: Array.isArray(dto.issues)
+      ? dto.issues.map((issue: any) => ({
+          id: String(issue.id),
+          dimension: String(issue.dimension || ""),
+          severity: String(issue.severity || "LOW"),
+          riskScore: Number(issue.riskScore || 0),
+          evidence: issue.evidence || undefined,
+          whyItMatters: issue.whyItMatters || undefined,
+          minimalFix: issue.minimalFix || undefined,
+        }))
+      : [],
+  };
+}
+
+function toPlotQualityTrend(dto: any): PlotQualityTrend {
+  return {
+    manuscriptId: String(dto.manuscriptId || ""),
+    averageRisk: Number(dto.averageRisk || 0),
+    highRiskScenes: Number(dto.highRiskScenes || 0),
+    dimensionCounts: Object.fromEntries(
+      Object.entries(dto.dimensionCounts || {}).map(([key, value]) => [key, Number(value || 0)])
+    ),
+    points: Array.isArray(dto.points)
+      ? dto.points.map((point: any) => ({
+          runId: String(point.runId || ""),
+          sceneId: String(point.sceneId || ""),
+          chapterTitle: point.chapterTitle || undefined,
+          sceneTitle: point.sceneTitle || undefined,
+          chapterOrder: Number(point.chapterOrder || 0),
+          sceneOrder: Number(point.sceneOrder || 0),
+          riskScore: Number(point.riskScore || 0),
+          maxSeverity: point.maxSeverity || undefined,
+          status: point.status || undefined,
         }))
       : [],
   };
@@ -895,6 +966,39 @@ export const api = {
         const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
         const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/quality-runs${query}`, { method: "GET" });
         return list.map(toSlopQualityRun);
+      },
+    },
+
+    plotQuality: {
+      listRuns: async (manuscriptId: string, sceneId?: string): Promise<PlotQualityRun[]> => {
+        const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
+        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs${query}`, { method: "GET" });
+        return list.map(toPlotQualityRun);
+      },
+      analyzeScene: async (manuscriptId: string, sceneId: string): Promise<PlotQualityRun> => {
+        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/plot-quality-runs`, {
+          method: "POST",
+          body: "{}",
+        });
+        return toPlotQualityRun(run);
+      },
+      getTrend: async (manuscriptId: string): Promise<PlotQualityTrend> => {
+        const trend = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-trends`, { method: "GET" });
+        return toPlotQualityTrend(trend);
+      },
+      generateRevisionCandidate: async (manuscriptId: string, runId: string): Promise<PlotQualityRun> => {
+        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/revision-candidate`, {
+          method: "POST",
+          body: "{}",
+        });
+        return toPlotQualityRun(run);
+      },
+      applyRevision: async (manuscriptId: string, runId: string): Promise<PlotQualityRun> => {
+        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/apply-revision`, {
+          method: "POST",
+          body: "{}",
+        });
+        return toPlotQualityRun(run);
       },
     },
 

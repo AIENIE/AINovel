@@ -411,6 +411,49 @@ CREATE TABLE `slop_quality_issues` (
   CONSTRAINT `fk_slop_issue_run` FOREIGN KEY (`run_id`) REFERENCES `slop_quality_runs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `plot_quality_runs` (
+  `id` binary(16) NOT NULL,
+  `story_id` binary(16) NOT NULL,
+  `manuscript_id` binary(16) NOT NULL,
+  `scene_id` binary(16) NOT NULL,
+  `chapter_title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scene_title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `chapter_order` int NOT NULL DEFAULT 0,
+  `scene_order` int NOT NULL DEFAULT 0,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `max_severity` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `overall_risk_score` int NOT NULL,
+  `source_text_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `summary` varchar(800) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rewrite_plan_json` longtext COLLATE utf8mb4_unicode_ci,
+  `surgical_fixes_json` longtext COLLATE utf8mb4_unicode_ci,
+  `revision_candidate_text` longtext COLLATE utf8mb4_unicode_ci,
+  `revision_applied` bit(1) NOT NULL,
+  `revision_applied_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_plot_run_story` (`story_id`),
+  KEY `idx_plot_run_manuscript` (`manuscript_id`),
+  KEY `idx_plot_run_scene` (`scene_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `plot_quality_issues` (
+  `id` binary(16) NOT NULL,
+  `run_id` binary(16) NOT NULL,
+  `dimension` varchar(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `severity` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `risk_score` int NOT NULL,
+  `evidence` varchar(800) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `why_it_matters` varchar(800) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `minimal_fix` varchar(800) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_plot_issue_run` (`run_id`),
+  KEY `idx_plot_issue_dimension` (`dimension`),
+  CONSTRAINT `fk_plot_issue_run` FOREIGN KEY (`run_id`) REFERENCES `plot_quality_runs` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `manuscript_branches` (
   `id` binary(16) NOT NULL,
   `manuscript_id` binary(16) NOT NULL,

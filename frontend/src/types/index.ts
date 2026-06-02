@@ -204,6 +204,58 @@ export interface SlopQualityRun {
   issues: SlopQualityIssue[];
 }
 
+export interface PlotQualityIssue {
+  id: string;
+  dimension: string;
+  severity: string;
+  riskScore: number;
+  evidence?: string;
+  whyItMatters?: string;
+  minimalFix?: string;
+}
+
+export interface PlotQualityRun {
+  id: string;
+  storyId: string;
+  manuscriptId: string;
+  sceneId: string;
+  chapterTitle?: string;
+  sceneTitle?: string;
+  chapterOrder: number;
+  sceneOrder: number;
+  status: "ACCEPTED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
+  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
+  overallRiskScore: number;
+  summary?: string;
+  rewritePlan: string[];
+  surgicalFixes: string[];
+  revisionCandidateText?: string;
+  revisionApplied: boolean;
+  revisionAppliedAt?: string;
+  createdAt?: string;
+  issues: PlotQualityIssue[];
+}
+
+export interface PlotQualityTrendPoint {
+  runId: string;
+  sceneId: string;
+  chapterTitle?: string;
+  sceneTitle?: string;
+  chapterOrder: number;
+  sceneOrder: number;
+  riskScore: number;
+  maxSeverity?: string;
+  status?: string;
+}
+
+export interface PlotQualityTrend {
+  manuscriptId: string;
+  averageRisk: number;
+  highRiskScenes: number;
+  dimensionCounts: Record<string, number>;
+  points: PlotQualityTrendPoint[];
+}
+
 export interface UserSummary {
   novelCount: number;
   worldCount: number;
