@@ -6,6 +6,9 @@ import fireflychat.ai.v1.AiGatewayServiceGrpc;
 import fireflychat.ai.v1.ChatCompletionsRequest;
 import fireflychat.ai.v1.ChatCompletionsResponse;
 import fireflychat.ai.v1.ChatMessage;
+import fireflychat.ai.v1.Embedding;
+import fireflychat.ai.v1.EmbeddingsRequest;
+import fireflychat.ai.v1.EmbeddingsResponse;
 import fireflychat.ai.v1.ListModelsRequest;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -94,8 +97,38 @@ public class AiGatewayGrpcClient {
                 response.getContent(),
                 response.getModelKey(),
                 response.getPromptTokens(),
-                response.getCompletionTokens()
+                response.getCompletionTokens(),
+                response.getCacheTokens()
         );
+    }
+
+    public EmbeddingResult embeddings(long remoteUserId, String model, List<String> input, boolean normalize) {
+        AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
+        EmbeddingsRequest.Builder builder = EmbeddingsRequest.newBuilder()
+                .setRequestId(UUID.randomUUID().toString())
+                .setProjectKey(properties.getProjectKey())
+                .setUserId(remoteUserId)
+                .setSessionId("")
+                .setModel(model == null ? "" : model)
+                .setNormalize(normalize);
+        if (input != null) {
+            for (String item : input) {
+                if (item != null && !item.isBlank()) {
+                    builder.addInput(item.trim());
+                }
+            }
+        }
+        EmbeddingsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .embeddings(builder.build());
+        List<float[]> vectors = new ArrayList<>();
+        for (Embedding embedding : response.getEmbeddingsList()) {
+            float[] vector = new float[embedding.getVectorCount()];
+            for (int i = 0; i < embedding.getVectorCount(); i++) {
+                vector[i] = embedding.getVector(i);
+            }
+            vectors.add(vector);
+        }
+        return new EmbeddingResult(response.getModelKey(), response.getDimensions(), vectors, response.getPromptTokens());
     }
 
     private AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub() {
@@ -138,7 +171,10 @@ public class AiGatewayGrpcClient {
         }
     }
 
-    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens) {
+    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens) {
+    }
+
+    public record EmbeddingResult(String modelKey, int dimensions, List<float[]> vectors, long promptTokens) {
     }
 
     private String toModelType(fireflychat.ai.v1.ModelType type) {

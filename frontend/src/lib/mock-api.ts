@@ -4,6 +4,7 @@ import {
   CreditLedgerItem,
   FileImportJob,
   Material,
+  MaterialSearchResult,
   Manuscript,
   ModelConfig,
   Outline,
@@ -344,6 +345,19 @@ function toMaterial(dto: any): Material {
     tags: dto.tags || [],
     status: dto.status || "pending",
     createdAt: dto.createdAt || undefined,
+  };
+}
+
+function toMaterialSearchResult(dto: any): MaterialSearchResult {
+  return {
+    materialId: String(dto.materialId ?? dto.id ?? ""),
+    chunkId: String(dto.chunkId ?? dto.materialId ?? dto.id ?? ""),
+    title: String(dto.title ?? "素材"),
+    snippet: String(dto.snippet ?? dto.content ?? ""),
+    score: Number(dto.score ?? 0),
+    chunkSeq: dto.chunkSeq == null ? undefined : Number(dto.chunkSeq),
+    source: String(dto.source ?? "keyword"),
+    matchReasons: Array.isArray(dto.matchReasons) ? dto.matchReasons.map((item: any) => String(item)) : [],
   };
 }
 
@@ -778,27 +792,9 @@ export const api = {
       await requestJson<any>(`/v1/materials/${id}/review/${path}`, { method: "POST", body: JSON.stringify({}) });
       return true;
     },
-    search: async (query: string): Promise<Material[]> => {
+    search: async (query: string): Promise<MaterialSearchResult[]> => {
       const results = await requestJson<any[]>("/v1/materials/search", { method: "POST", body: JSON.stringify({ query, limit: 10 }) });
-      const materials: Material[] = [];
-      for (const r of results) {
-        const id = r.materialId || r.id;
-        if (!id) continue;
-        try {
-          const dto = await requestJson<any>(`/v1/materials/${id}`, { method: "GET" });
-          materials.push(toMaterial(dto));
-        } catch {
-          materials.push({
-            id,
-            title: r.title || "素材",
-            type: "text",
-            content: r.snippet || "",
-            tags: [],
-            status: "approved",
-          });
-        }
-      }
-      return materials;
+      return results.map(toMaterialSearchResult).filter((item) => item.materialId && item.chunkId);
     },
   },
 

@@ -60,7 +60,13 @@ public class AiService {
         return new AiChatResponse(
                 "assistant",
                 result.content(),
-                new AiUsageDto((int) result.promptTokens(), (int) result.completionTokens(), charge.charged()),
+                new AiUsageDto(
+                        (int) result.promptTokens(),
+                        (int) result.completionTokens(),
+                        (int) result.cacheTokens(),
+                        cacheHitRate(result.promptTokens(), result.cacheTokens()),
+                        charge.charged()
+                ),
                 balance.totalCredits()
         );
     }
@@ -174,5 +180,12 @@ public class AiService {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    private double cacheHitRate(long promptTokens, long cacheTokens) {
+        if (promptTokens <= 0 || cacheTokens <= 0) {
+            return 0d;
+        }
+        return Math.max(0d, Math.min(1d, cacheTokens / (double) promptTokens));
     }
 }

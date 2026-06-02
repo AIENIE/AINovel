@@ -52,9 +52,32 @@ message ChatCompletionsResponse {
   string model_key = 2;
   int64 prompt_tokens = 3;
   int64 completion_tokens = 4;
+  int64 cache_tokens = 5;
+}
+
+message EmbeddingsRequest {
+  string request_id = 1;
+  string project_key = 2;
+  int64 user_id = 3;
+  string session_id = 4;
+  string model = 5;
+  repeated string input = 6;
+  optional bool normalize = 7;
+}
+
+message Embedding {
+  repeated float vector = 1;
+}
+
+message EmbeddingsResponse {
+  string model_key = 1;
+  int32 dimensions = 2;
+  repeated Embedding embeddings = 3;
+  int64 prompt_tokens = 4;
 }
 
 service AiGatewayService {
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
   rpc ChatCompletions(ChatCompletionsRequest) returns (ChatCompletionsResponse);
+  rpc Embeddings(EmbeddingsRequest) returns (EmbeddingsResponse);
 }

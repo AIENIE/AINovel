@@ -70,11 +70,15 @@ public class MaterialController {
 
     @PostMapping("/search")
     @Operation(summary = "搜索素材", description = "按关键词和规则进行素材检索。")
-    public List<MaterialSearchResultDto> search(@RequestBody MaterialSearchRequest request) { return materialService.search(request); }
+    public List<MaterialSearchResultDto> search(@AuthenticationPrincipal UserDetails principal, @RequestBody MaterialSearchRequest request) {
+        return materialService.search(currentUser(principal), request);
+    }
 
     @PostMapping("/editor/auto-hints")
     @Operation(summary = "编辑器自动提示", description = "根据上下文返回素材建议。")
-    public List<MaterialSearchResultDto> hints(@RequestBody AutoHintRequest request) { return materialService.autoHints(request); }
+    public List<MaterialSearchResultDto> hints(@AuthenticationPrincipal UserDetails principal, @RequestBody AutoHintRequest request) {
+        return materialService.autoHints(currentUser(principal), request);
+    }
 
     @PostMapping("/review/pending")
     @Operation(summary = "获取待审核素材", description = "返回待审核素材队列。")

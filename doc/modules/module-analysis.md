@@ -102,13 +102,14 @@
 | --- | --- | --- |
 | 对话助手 | 在写作上下文内发起 AI 对话 | 前端：`frontend/src/components/ai/CopilotSidebar.tsx`；后端：`backend/src/main/java/com/ainovel/app/ai/AiController.java`（`POST /v1/ai/chat`） |
 | 模型切换 | 读取并选择可用模型 | 前端：`CopilotSidebar.tsx`；后端：`AiController.java`（`GET /v1/ai/models`） |
+| 缓存命中可视化 | 展示 AI 响应的缓存 token 与命中率 | 前端：`CopilotSidebar.tsx`；后端：`AiService.java`、`AiGatewayGrpcClient.java` |
 | 文本润色弹窗 | 对选中文本润色并确认替换 | 前端：`frontend/src/components/editor/TiptapEditor.tsx`、`frontend/src/components/ai/AiRefineDialog.tsx`；后端：`AiController.java`（`POST /v1/ai/refine`） |
 
 ### 2.5.6 工作台素材检索
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
-| 关键词检索素材 | 在写作时快速查素材 | 前端：`frontend/src/pages/Workbench/tabs/MaterialSearchPanel.tsx`；后端：`backend/src/main/java/com/ainovel/app/material/MaterialController.java`（`POST /v1/materials/search`） |
+| 混合检索素材 | 在写作时查找 chunk 级素材，展示关键词/语义来源、分数、片段序号与命中原因 | 前端：`frontend/src/pages/Workbench/tabs/MaterialSearchPanel.tsx`；后端：`backend/src/main/java/com/ainovel/app/material/MaterialController.java`、`MaterialRetrievalService.java`（`POST /v1/materials/search`） |
 
 ### 2.6 世界构建模块
 
@@ -326,4 +327,3 @@
 - 前端工作台新增 `v2工作台` 标签，入口：`frontend/src/pages/Workbench/tabs/V2Studio.tsx`。
 - 前端 API 层新增 `api.v2.*` 封装，位置：`frontend/src/lib/mock-api.ts`。
 - 稿件模型新增 `currentBranchId` 字段（版本控制模块所需），位置：`backend/src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`。
-

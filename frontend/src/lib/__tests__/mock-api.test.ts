@@ -120,4 +120,39 @@ describe("mock api", () => {
     expect(result.plotPlanning?.foreshadowPlans[0]?.clue).toContain("案发现场");
     expect(result.plotPlanning?.selectedTwistId).toBe("twist-intuition");
   });
+
+  it("keeps material search as chunk-level results without detail fetches", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/materials/search")) {
+        return new Response(
+          JSON.stringify([
+            {
+              materialId: "m1",
+              chunkId: "m1-0",
+              title: "旧报纸摘录",
+              snippet: "陆家码头在雨夜停用，船灯在雾里闪了三次。",
+              score: 4.4,
+              chunkSeq: 0,
+              source: "keyword",
+              matchReasons: ["title", "content"],
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const results = await api.materials.search("陆家码头");
+
+    expect(results[0]).toMatchObject({
+      materialId: "m1",
+      chunkId: "m1-0",
+      source: "keyword",
+      matchReasons: ["title", "content"],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

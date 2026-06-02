@@ -36,7 +36,7 @@ class AiServiceTest {
                 new AiModelDto("3", "3", "GLM OCR", "unspecified", 1, 1, "zhipu", true)
         ));
         when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
-                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6));
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6, 0));
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
@@ -63,7 +63,7 @@ class AiServiceTest {
                 new AiModelDto("2", "2", "gemini-2.5-flash", "unspecified", 1, 1, "google", true)
         ));
         when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
-                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6));
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6, 0));
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
@@ -98,6 +98,29 @@ class AiServiceTest {
         AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("assistant", "你好")), "2", null);
 
         assertThrows(RuntimeException.class, () -> aiService.chat(user, request));
+    }
+
+    @Test
+    void shouldExposeCacheTokensFromGatewayUsage() {
+        AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
+        EconomyService economyService = mock(EconomyService.class);
+        AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
+        User user = user();
+
+        when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "gpt-cache", 100, 20, 60));
+        when(economyService.chargeAiUsage(eq(user), eq(100L), eq(20L), anyString()))
+                .thenReturn(new EconomyService.AiChargeResult(1, 99));
+        when(economyService.currentBalance(eq(user)))
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+
+        AiChatResponse response = aiService.chat(
+                user,
+                new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "gpt-cache", null)
+        );
+
+        assertEquals(60.0, response.usage().cacheTokens());
+        assertEquals(0.6d, response.usage().cacheHitRate());
     }
 
     private User user() {

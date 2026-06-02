@@ -15,6 +15,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   cost?: number;
+  cacheTokens?: number;
+  cacheHitRate?: number;
 }
 
 interface CopilotSidebarProps {
@@ -37,6 +39,11 @@ const pickDefaultChatModel = (models: ModelConfig[]): string => {
   if (nonEmbedding) return nonEmbedding.id;
 
   return candidates[0].id;
+};
+
+const formatPercent = (value?: number): string => {
+  if (value === undefined || Number.isNaN(value)) return "0%";
+  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
 };
 
 const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
@@ -98,7 +105,9 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
         content: response.content,
-        cost: response.usage.cost
+        cost: response.usage?.cost,
+        cacheTokens: response.usage?.cacheTokens,
+        cacheHitRate: response.usage?.cacheHitRate,
       };
       
       setMessages(prev => [...prev, aiMsg]);
@@ -174,9 +183,12 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
                   : "bg-muted/50 border"
               )}>
                 <div className="whitespace-pre-wrap">{msg.content}</div>
-                {msg.cost !== undefined && (
-                  <div className="mt-2 text-[10px] opacity-70 border-t border-border/50 pt-1 flex items-center gap-1">
-                    <span className="font-mono">-{msg.cost}</span> 积分
+                {(msg.cost !== undefined || (msg.cacheTokens !== undefined && msg.cacheTokens > 0)) && (
+                  <div className="mt-2 text-[10px] opacity-70 border-t border-border/50 pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {msg.cost !== undefined && <span><span className="font-mono">-{msg.cost}</span> 积分</span>}
+                    {msg.cacheTokens !== undefined && msg.cacheTokens > 0 && (
+                      <span>缓存命中 <span className="font-mono">{Math.round(msg.cacheTokens)}</span> token / {formatPercent(msg.cacheHitRate)}</span>
+                    )}
                   </div>
                 )}
               </div>

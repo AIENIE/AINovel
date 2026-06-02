@@ -125,6 +125,17 @@ export interface Material {
   createdAt?: string;
 }
 
+export interface MaterialSearchResult {
+  materialId: string;
+  chunkId: string;
+  title: string;
+  snippet: string;
+  score: number;
+  chunkSeq?: number;
+  source: 'keyword' | 'vector' | string;
+  matchReasons: string[];
+}
+
 export interface FileImportJob {
   id: string;
   fileName: string;

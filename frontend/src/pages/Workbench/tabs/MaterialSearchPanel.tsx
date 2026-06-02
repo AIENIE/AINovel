@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "@/lib/mock-api";
-import { Material } from "@/types";
+import { MaterialSearchResult } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Search, Loader2 } from "lucide-react";
 
 const MaterialSearchPanel = () => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Material[]>([]);
+  const [results, setResults] = useState<MaterialSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = async () => {
@@ -41,20 +41,28 @@ const MaterialSearchPanel = () => {
       <div className="space-y-4">
         {results.length > 0 ? (
           results.map(material => (
-            <Card key={material.id} className="hover:shadow-md transition-shadow">
+            <Card key={material.chunkId} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start gap-3">
                   <CardTitle className="text-lg">{material.title}</CardTitle>
-                  <Badge variant="outline">{material.type}</Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant={material.source === "vector" ? "default" : "outline"}>
+                      {material.source === "vector" ? "语义" : "关键词"}
+                    </Badge>
+                    <Badge variant="secondary">{material.score.toFixed(2)}</Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                  {material.content}
+                  {material.snippet}
                 </p>
-                <div className="flex gap-2">
-                  {material.tags.map(tag => (
-                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                <div className="flex flex-wrap gap-2">
+                  {material.chunkSeq !== undefined && (
+                    <Badge variant="outline" className="text-xs">片段 #{material.chunkSeq + 1}</Badge>
+                  )}
+                  {material.matchReasons.map(reason => (
+                    <Badge key={reason} variant="secondary" className="text-xs">{reason}</Badge>
                   ))}
                 </div>
               </CardContent>

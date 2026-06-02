@@ -25,6 +25,8 @@ public class MaterialService {
     private MaterialUploadJobRepository uploadJobRepository;
     @Autowired
     private ResourceAccessGuard accessGuard;
+    @Autowired
+    private MaterialRetrievalService materialRetrievalService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MaterialDto create(User user, MaterialCreateRequest request) {
@@ -37,6 +39,7 @@ public class MaterialService {
         material.setTagsJson(writeJson(request.tags()));
         material.setStatus("approved");
         materialRepository.save(material);
+        materialRetrievalService.indexMaterial(user, material);
         return toDto(material);
     }
 
@@ -63,6 +66,7 @@ public class MaterialService {
         if (request.status() != null) material.setStatus(request.status());
         if (request.entitiesJson() != null) material.setEntitiesJson(request.entitiesJson());
         materialRepository.save(material);
+        materialRetrievalService.indexMaterial(material.getUser(), material);
         return toDto(material);
     }
 
@@ -131,24 +135,24 @@ public class MaterialService {
         if (request.type() != null) material.setType(request.type());
         material.setStatus("approve".equalsIgnoreCase(action) ? "approved" : "rejected");
         materialRepository.save(material);
+        materialRetrievalService.indexMaterial(material.getUser(), material);
         return toDto(material);
     }
 
+    public List<MaterialSearchResultDto> search(User user, MaterialSearchRequest request) {
+        return materialRetrievalService.search(user, request);
+    }
+
     public List<MaterialSearchResultDto> search(MaterialSearchRequest request) {
-        String q = request.query() == null ? "" : request.query().toLowerCase();
-        int limit = request.limit() != null ? request.limit() : 10;
-        boolean admin = accessGuard.isCurrentUserAdmin();
-        String username = admin ? "" : accessGuard.currentUsername();
-        return materialRepository.findAll().stream()
-                .filter(m -> admin || (m.getUser() != null && username.equals(m.getUser().getUsername())))
-                .filter(m -> m.getTitle().toLowerCase().contains(q) || (m.getSummary() != null && m.getSummary().toLowerCase().contains(q)) || (m.getContent() != null && m.getContent().toLowerCase().contains(q)))
-                .limit(limit)
-                .map(m -> new MaterialSearchResultDto(m.getId(), m.getTitle(), snippet(m.getContent()), Math.random(), 0))
-                .toList();
+        return materialRetrievalService.search(null, request);
+    }
+
+    public List<MaterialSearchResultDto> autoHints(User user, AutoHintRequest request) {
+        return search(user, new MaterialSearchRequest(request.text(), request.limit() != null ? request.limit() : 5));
     }
 
     public List<MaterialSearchResultDto> autoHints(AutoHintRequest request) {
-        return search(new MaterialSearchRequest(request.text(), request.limit() != null ? request.limit() : 5));
+        return autoHints(null, request);
     }
 
     public List<Map<String, Object>> findDuplicates() {
@@ -201,8 +205,4 @@ public class MaterialService {
         try { return objectMapper.writeValueAsString(obj);} catch (Exception e) { return "[]"; }
     }
 
-    private String snippet(String content) {
-        if (content == null) return "";
-        return content.length() > 80 ? content.substring(0, 80) + "..." : content;
-    }
 }

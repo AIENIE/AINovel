@@ -6,8 +6,10 @@
   - 响应项包含 `modelType`（`text` / `embedding` / `unspecified`），用于默认模型筛选。
 
 ## Copilot 对话
-- `POST /api/v1/ai/chat`：请求 `{modelId,context?,messages:[{role,content}]}`，返回 `{role,content,usage:{inputTokens,outputTokens,cost},remainingCredits}`。
+- `POST /api/v1/ai/chat`：请求 `{modelId,context?,messages:[{role,content}]}`，返回 `{role,content,usage:{inputTokens,outputTokens,cacheTokens,cacheHitRate,cost},remainingCredits}`。
   - 当 `modelId` 为空时，服务端会优先选择 `modelType=text` 的模型，避免默认命中 embedding/ocr 模型导致对话失败。
+  - `cacheTokens` 为 AiService/模型供应商上报的缓存命中输入 token 数；`cacheHitRate = cacheTokens / inputTokens`，服务端限制在 `0-1`。
+  - 前端 Copilot 会在助手消息下显示缓存命中 token 和命中率，用于观察提示词缓存优化效果。
 
 ## 文本润色
 - `POST /api/v1/ai/refine`：请求 `{text,instruction?,modelId}`，返回 `{result,usage,remainingCredits}`。

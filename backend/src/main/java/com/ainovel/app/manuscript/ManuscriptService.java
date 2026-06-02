@@ -9,6 +9,13 @@ import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.SlopQualityGate;
 import com.ainovel.app.quality.SlopQualityRequest;
 import com.ainovel.app.quality.SlopQualityResult;
+import com.ainovel.app.material.MaterialRetrievalService;
+import com.ainovel.app.material.dto.MaterialSearchRequest;
+import com.ainovel.app.material.dto.MaterialSearchResultDto;
+import com.ainovel.app.prompt.AssembledPrompt;
+import com.ainovel.app.prompt.PromptAssemblyService;
+import com.ainovel.app.prompt.PromptReference;
+import com.ainovel.app.prompt.SceneGenerationPromptInput;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.CharacterCard;
@@ -46,6 +53,10 @@ public class ManuscriptService {
     private ResourceAccessGuard accessGuard;
     @Autowired
     private SlopQualityGate slopQualityGate;
+    @Autowired
+    private PromptAssemblyService promptAssemblyService;
+    @Autowired
+    private MaterialRetrievalService materialRetrievalService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
@@ -243,9 +254,9 @@ public class ManuscriptService {
         int previousCount = 0;
 
         for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
-            String prompt = buildScenePrompt(story, sceneContext, characters, existingSections, previousDraft, previousCount, attempt);
+            AssembledPrompt prompt = buildScenePrompt(story, sceneContext, characters, existingSections, previousDraft, previousCount, attempt, owner);
             String raw = aiService.chat(owner, new AiChatRequest(
-                    List.of(new AiChatRequest.Message("user", prompt)),
+                    prompt.messages(),
                     null,
                     null
             )).content();
@@ -382,51 +393,14 @@ public class ManuscriptService {
         return continuity.length() == 0 ? "暂无可用前文。" : continuity.toString();
     }
 
-    private String buildScenePrompt(Story story,
-                                    SceneContext scene,
-                                    List<CharacterCard> characters,
-                                    Map<String, String> existingSections,
-                                    String previousDraft,
-                                    int previousCount,
-                                    int attempt) {
-        String storyTitle = safeText(story == null ? null : story.getTitle(), "未命名故事");
-        String storyGenre = safeText(story == null ? null : story.getGenre(), "未指定");
-        String storyTone = safeText(story == null ? null : story.getTone(), "沉浸、连贯");
-        String storySynopsis = safeText(story == null ? null : story.getSynopsis(), "");
-
-        StringBuilder characterInfo = new StringBuilder();
-        if (characters != null && !characters.isEmpty()) {
-            for (CharacterCard card : characters) {
-                if (card == null) continue;
-                characterInfo.append("- ").append(safeText(card.getName(), "角色")).append("：")
-                        .append(safeText(card.getSynopsis(), ""))
-                        .append(" 背景：").append(safeText(truncate(card.getDetails(), 180), ""))
-                        .append(" 关系：").append(safeText(truncate(card.getRelationships(), 160), ""))
-                        .append('\n');
-            }
-        } else {
-            characterInfo.append("- 主角：围绕核心冲突持续成长\n");
-        }
-
-        StringBuilder continuity = new StringBuilder();
-        if (scene.previousSceneIds() != null) {
-            int kept = 0;
-            for (int i = scene.previousSceneIds().size() - 1; i >= 0 && kept < 2; i--) {
-                UUID previousId = scene.previousSceneIds().get(i);
-                String content = existingSections.get(previousId.toString());
-                if (content == null || content.isBlank()) {
-                    continue;
-                }
-                String plain = truncate(stripHtml(content), 500);
-                if (plain.isBlank()) {
-                    continue;
-                }
-                continuity.append("前文片段 ").append(kept + 1).append("：").append(plain).append("\n");
-                kept++;
-            }
-        }
-
-        String siblingSceneText = String.join(" / ", scene.siblingSceneTitles());
+    private AssembledPrompt buildScenePrompt(Story story,
+                                             SceneContext scene,
+                                             List<CharacterCard> characters,
+                                             Map<String, String> existingSections,
+                                             String previousDraft,
+                                             int previousCount,
+                                             int attempt,
+                                             User owner) {
         String retryInstruction = "";
         if (attempt > 1) {
             String direction = previousCount < MIN_SECTION_HAN ? "扩写" : "压缩";
@@ -437,54 +411,76 @@ public class ManuscriptService {
                     %s
                     """.formatted(attempt, previousCount, direction, MIN_SECTION_HAN, MAX_SECTION_HAN, truncate(previousDraft, 1200));
         }
-
-        return """
-                你是资深中文长篇小说作者，请为指定场景写出可直接进入正文编辑器的小说内容。
-                输出要求：
-                1) 只输出小说正文，不要解释、不要标题、不要 markdown、不要代码块。
-                2) 字数严格控制在 %d-%d 汉字。
-                3) 文风保持「%s」，叙事自然，场景推进明确，人物行动和心理一致。
-                4) 必须承接已有剧情，不允许与前文冲突。
-
-                故事信息：
-                - 标题：%s
-                - 类型：%s
-                - 概要：%s
-
-                章节信息：
-                - 章节：第%s章《%s》
-                - 章节摘要：%s
-                - 本节：第%s节《%s》
-                - 本节摘要：%s
-                - 本章节次序：%s
-
-                角色设定：
-                %s
-
-                本章其他节标题：
-                %s
-
-                已有前文：
-                %s
-                %s
-                """.formatted(
-                MIN_SECTION_HAN, MAX_SECTION_HAN,
-                storyTone,
-                storyTitle,
-                storyGenre,
-                truncate(storySynopsis, 800),
-                scene.chapterOrder() <= 0 ? "?" : String.valueOf(scene.chapterOrder()),
+        SceneGenerationPromptInput input = new SceneGenerationPromptInput(
+                safeText(story == null ? null : story.getTitle(), "未命名故事"),
+                safeText(story == null ? null : story.getGenre(), "未指定"),
+                safeText(story == null ? null : story.getTone(), "沉浸、连贯"),
+                safeText(story == null ? null : story.getSynopsis(), ""),
                 scene.chapterTitle(),
-                truncate(scene.chapterSummary(), 300),
-                scene.sceneOrder() <= 0 ? "?" : String.valueOf(scene.sceneOrder()),
+                scene.chapterSummary(),
+                scene.chapterOrder(),
                 scene.sceneTitle(),
-                truncate(scene.sceneSummary(), 260),
-                scene.sceneOrder() <= 0 ? "?" : String.valueOf(scene.sceneOrder()),
-                characterInfo,
-                siblingSceneText.isBlank() ? "暂无" : siblingSceneText,
-                continuity.length() == 0 ? "暂无可用前文，请按场景摘要起笔。" : continuity.toString(),
-                retryInstruction
+                scene.sceneSummary(),
+                scene.sceneOrder(),
+                buildCharacterContext(characters),
+                buildPreviousContext(scene, existingSections),
+                materialReferences(owner, story, scene),
+                recentAvoidExpressions(scene, existingSections),
+                MIN_SECTION_HAN,
+                MAX_SECTION_HAN,
+                retryInstruction,
+                128000
         );
+        return promptAssemblyService.assembleSceneDraft(input);
+    }
+
+    private List<PromptReference> materialReferences(User owner, Story story, SceneContext scene) {
+        String query = String.join(" ",
+                safeText(story == null ? null : story.getTitle(), ""),
+                safeText(story == null ? null : story.getGenre(), ""),
+                scene.chapterTitle(),
+                scene.chapterSummary(),
+                scene.sceneTitle(),
+                scene.sceneSummary()
+        ).trim();
+        if (query.isBlank()) {
+            return List.of();
+        }
+        List<MaterialSearchResultDto> results = materialRetrievalService.search(owner, new MaterialSearchRequest(query, 8));
+        List<PromptReference> references = new ArrayList<>();
+        for (MaterialSearchResultDto result : results) {
+            references.add(new PromptReference(
+                    "material",
+                    result.materialId(),
+                    result.title(),
+                    result.snippet(),
+                    result.score(),
+                    result.chunkSeq() == null ? 0 : result.chunkSeq()
+            ));
+        }
+        return references;
+    }
+
+    private List<String> recentAvoidExpressions(SceneContext scene, Map<String, String> existingSections) {
+        List<String> candidates = List.of(
+                "嘴角微微上扬",
+                "空气仿佛凝固",
+                "时间像是停了下来",
+                "眼神变得坚定",
+                "心中涌起一股",
+                "说不出的感觉",
+                "命运的齿轮",
+                "一切都在此刻改变",
+                "仿佛整个世界"
+        );
+        String recent = buildPreviousContext(scene, existingSections);
+        List<String> avoid = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (recent.contains(candidate)) {
+                avoid.add(candidate);
+            }
+        }
+        return avoid.size() > 8 ? avoid.subList(0, 8) : avoid;
     }
 
     private String normalizeGeneratedText(String raw) {
