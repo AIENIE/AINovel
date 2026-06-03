@@ -1,5 +1,6 @@
 package com.ainovel.app.user;
 
+import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +19,9 @@ class SsoUserProvisioningServiceTests {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ProjectCreditAccountRepository accountRepository;
+
     @Test
     @Transactional
     void createsUserOnFirstSsoLogin() {
@@ -33,6 +37,7 @@ class SsoUserProvisioningServiceTests {
         assertFalse(user.getPasswordHash().isBlank());
         assertEquals(42L, user.getRemoteUid());
         assertFalse(user.isBanned());
+        assertTrue(accountRepository.findByUser(user).isEmpty());
     }
 
     @Test

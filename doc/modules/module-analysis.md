@@ -151,26 +151,26 @@
 
 ### 2.9 个人中心与积分模块
 
-模块作用：展示用户信息与双余额（项目积分+通用积分），承接本地签到、兑换码与通用积分兑换。
+模块作用：展示用户信息与双余额（项目积分+通用积分），通过 AINovel BFF 承接 pay-service 签到、兑换码、扣费流水与通用积分兑换。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 资料展示 | 用户名、邮箱、角色、余额 | 前端：`frontend/src/pages/Profile/ProfilePage.tsx`；后端：`backend/src/main/java/com/ainovel/app/user/UserController.java`（`/profile`） |
-| 每日签到 | 在 AINovel 本地账本发放项目积分（北京时间日切）并刷新双余额 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
-| 兑换码 | 在 AINovel 本地兑换码表核销并入账项目积分 | 同上 |
-| 通用积分兑换 | 调用 PayService 扣减通用积分后，在本地账本入账项目积分（1:1） | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `EconomyService.java` + `BillingGrpcClient.java` |
+| 每日签到 | 调用 pay-service 发放项目积分并刷新双余额 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
+| 兑换码 | 调用 pay-service 核销兑换码并返回项目/通用积分余额 | 同上 |
+| 通用积分兑换 | 调用 pay-service 将通用积分兑换为项目积分（1:1），本地仅保留兼容展示所需订单快照 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `EconomyService.java` + `BillingGrpcClient.java` |
 | 安全说明 | 明确密码由 SSO 管理 | 前端：`ProfilePage.tsx`；后端：`UserController.java`（`/password` 返回 501） |
 
 ### 2.10 管理后台模块
 
-模块作用：提供管理员看板、用户封禁管理、系统开关配置，以及本地积分兑换码发放能力。
+模块作用：提供管理员看板、用户封禁管理、系统开关配置，以及 pay-service 项目积分发放入口。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 后台布局与路由 | 管理侧导航、子路由容器 | 前端：`frontend/src/components/layout/AdminLayout.tsx`、`frontend/src/App.tsx`（`/admin/*`） |
 | 看板统计 | 总用户、今日新增、待审素材等 | 前端：`frontend/src/pages/Admin/Dashboard.tsx`；后端：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`（`/dashboard`） |
 | 用户管理 | 查看用户并封禁/解封 | 前端：`frontend/src/pages/Admin/UserManager.tsx`；后端：`AdminController.java`（`/users`、`/users/{id}/ban`、`/users/{id}/unban`） |
-| 积分与兑换码 | 创建/查看本地兑换码、发放项目积分 | 前端：`frontend/src/pages/Admin/CreditsManager.tsx`；后端：`AdminController.java`（`/credits/grant`、`/redeem-codes`） |
+| 积分与兑换码 | 发放项目积分透传 pay-service；兑换码管理已迁移到 pay-service，本地未配置管理代理时返回明确错误 | 前端：`frontend/src/pages/Admin/CreditsManager.tsx`；后端：`AdminController.java`（`/credits/grant`、`/redeem-codes`） |
 | 系统设置 | 注册开关、维护模式、签到区间、SMTP 配置 | 前端：`frontend/src/pages/Admin/SystemSettings.tsx`；后端：`AdminController.java`（`/system-config`） |
 
 ### 2.11 前端共享基础模块

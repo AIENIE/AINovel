@@ -17,12 +17,12 @@
 - `仪表盘`：用户规模、新增、待审素材、消费指标概览
 - `用户管理`：用户检索、封禁/解封（透传 user-service）
 - `积分与兑换码`：
-  - 创建/查看本地兑换码
-  - 查看通用积分兑换订单（含前后余额快照）
-  - 查看全站项目积分流水
+  - 项目积分发放透传 pay-service
+  - 查看通用积分兑换订单快照（含前后余额）
+  - 兑换码管理与全站项目积分流水已迁移到 pay-service；本地未配置管理代理时返回明确错误
 - `系统设置`：注册开关、维护开关、签到区间、SMTP 参数
 
 ## 数据来源
 
 - 用户域：`UserAdminRemoteClient`（user-service HTTP）
-- 积分域：`EconomyService`（AINovel 本地项目账本 + pay-service 兑换结果）
+- 积分域：`EconomyService`（AINovel BFF 门面，运行时余额、签到、兑换、扣费与流水来自 pay-service）

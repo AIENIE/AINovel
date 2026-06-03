@@ -1,16 +1,7 @@
 package com.ainovel.app.economy;
 
-import com.ainovel.app.economy.model.ProjectCreditAccount;
-import com.ainovel.app.economy.model.RedeemCode;
-import com.ainovel.app.economy.repo.CheckInRecordRepository;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
-import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
-import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
-import com.ainovel.app.economy.repo.RedeemCodeRepository;
-import com.ainovel.app.economy.repo.RedeemCodeUsageRepository;
 import com.ainovel.app.integration.BillingGrpcClient;
-import com.ainovel.app.settings.SettingsService;
-import com.ainovel.app.settings.model.GlobalSettings;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,20 +9,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDate;
-import java.util.Optional;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,145 +32,125 @@ class EconomyServiceTests {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private ProjectCreditAccountRepository accountRepository;
-    @Mock
-    private ProjectCreditLedgerRepository ledgerRepository;
-    @Mock
-    private CheckInRecordRepository checkInRecordRepository;
-    @Mock
-    private RedeemCodeRepository redeemCodeRepository;
-    @Mock
-    private RedeemCodeUsageRepository redeemCodeUsageRepository;
-    @Mock
     private CreditConversionOrderRepository conversionOrderRepository;
-    @Mock
-    private SettingsService settingsService;
 
     private EconomyService economyService;
 
     @BeforeEach
     void setUp() {
-        PlatformTransactionManager transactionManager = new PlatformTransactionManager() {
-            @Override
-            public TransactionStatus getTransaction(TransactionDefinition definition) {
-                return new SimpleTransactionStatus();
-            }
-
-            @Override
-            public void commit(TransactionStatus status) {
-            }
-
-            @Override
-            public void rollback(TransactionStatus status) {
-            }
-        };
         economyService = new EconomyService(
                 billingGrpcClient,
                 userRepository,
-                accountRepository,
-                ledgerRepository,
-                checkInRecordRepository,
-                redeemCodeRepository,
-                redeemCodeUsageRepository,
-                conversionOrderRepository,
-                settingsService,
-                transactionManager
+                conversionOrderRepository
         );
     }
 
     @Test
-    void checkIn_shouldGrantLocalCredits() {
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setCredits(100);
-
-        ProjectCreditAccount account = new ProjectCreditAccount();
-        account.setUser(user);
-        account.setBalance(100);
-
-        GlobalSettings settings = new GlobalSettings();
-        settings.setCheckInMinPoints(10);
-        settings.setCheckInMaxPoints(10);
-
-        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
-        when(checkInRecordRepository.existsByUserAndCheckinDate(eq(user), any(LocalDate.class))).thenReturn(false);
-        when(settingsService.getGlobalSettings()).thenReturn(settings);
+    void checkIn_shouldDelegateToPayServiceWithoutLocalLedgerWrites() {
+        User user = remoteUser();
+        when(billingGrpcClient.checkin(42L))
+                .thenReturn(new BillingGrpcClient.CheckinResult(true, 10, 160, false, "CHECKIN_SUCCESS"));
+        when(billingGrpcClient.projectBalance(42L)).thenReturn(110L);
+        when(billingGrpcClient.publicBalance(42L)).thenReturn(50L);
 
         EconomyService.CreditChangeResult result = economyService.checkIn(user);
 
         assertTrue(result.success());
         assertEquals(10, result.points());
         assertEquals(110, result.projectCredits());
-        verify(accountRepository).save(any(ProjectCreditAccount.class));
-        verify(ledgerRepository).save(any());
-        verify(checkInRecordRepository).save(any());
+        assertEquals(50, result.publicCredits());
+        assertEquals(160, result.totalCredits());
     }
 
     @Test
-    void redeem_shouldThrowWhenCodeNotFound() {
-        User user = new User();
-        when(redeemCodeRepository.findByCode("INVALID")).thenReturn(Optional.empty());
-
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> economyService.redeem(user, "INVALID"));
-        assertEquals("兑换码无效", ex.getMessage());
-    }
-
-    @Test
-    void redeem_shouldApplyCodeWhenValid() {
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setCredits(80);
-
-        RedeemCode code = new RedeemCode();
-        code.setCode("VIP888");
-        code.setGrantAmount(50);
-        code.setEnabled(true);
-        code.setStackable(true);
-        code.setUsedCount(0);
-
-        ProjectCreditAccount account = new ProjectCreditAccount();
-        account.setUser(user);
-        account.setBalance(80);
-
-        when(redeemCodeRepository.findByCode("VIP888")).thenReturn(Optional.of(code));
-        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+    void redeem_shouldDelegateToPayServiceWithoutLocalRedeemCodeWrites() {
+        User user = remoteUser();
+        when(billingGrpcClient.redeem(42L, "VIP888"))
+                .thenReturn(new BillingGrpcClient.RedeemResult(true, 50, 210, null));
+        when(billingGrpcClient.projectBalance(42L)).thenReturn(160L);
+        when(billingGrpcClient.publicBalance(42L)).thenReturn(50L);
 
         EconomyService.CreditChangeResult result = economyService.redeem(user, "vip888");
 
         assertEquals(50, result.points());
-        assertEquals(130, result.projectCredits());
-        verify(redeemCodeRepository).save(any(RedeemCode.class));
-        verify(redeemCodeUsageRepository).save(any());
-        verify(ledgerRepository).save(any());
+        assertEquals(160, result.projectCredits());
+        assertEquals(210, result.totalCredits());
     }
 
     @Test
-    void convert_shouldThrowWhenRemoteUidMissing() {
-        User user = new User();
-        user.setId(UUID.randomUUID());
+    void convert_shouldUsePayServiceBalancesWithoutLocalAccountWrites() {
+        User user = remoteUser();
+        when(billingGrpcClient.projectBalance(42L)).thenReturn(100L, 130L);
+        when(billingGrpcClient.publicBalance(42L)).thenReturn(80L, 50L);
+        when(billingGrpcClient.convertPublicToProject(eq(42L), eq(30L), any()))
+                .thenReturn(new BillingGrpcClient.ConversionResult(true, 30, 30, 50, null));
 
-        RuntimeException ex = assertThrows(
-                RuntimeException.class,
-                () -> economyService.convertPublicToProject(user, 100, "k1")
-        );
-        assertEquals("当前账号未绑定统一用户，无法兑换通用积分", ex.getMessage());
+        EconomyService.ConversionResult result = economyService.convertPublicToProject(user, 30, "k1");
+
+        assertEquals(30, result.amount());
+        assertEquals(100, result.projectBefore());
+        assertEquals(130, result.projectAfter());
+        assertEquals(80, result.publicBefore());
+        assertEquals(50, result.publicAfter());
+        assertEquals(180, result.totalCredits());
     }
 
     @Test
-    void chargeAiUsage_shouldRejectInsufficientBalance() {
+    void chargeAiUsage_shouldDeductThroughPayService() {
+        User user = remoteUser();
+        when(billingGrpcClient.deductUsage(eq(42L), eq(1L), eq(0L), eq("ai-1")))
+                .thenReturn(new BillingGrpcClient.UsageDeductionResult(1L, 99L));
+
+        EconomyService.AiChargeResult result = economyService.chargeAiUsage(user, 100_000, 0, "ai-1");
+
+        assertEquals(1L, result.charged());
+        assertEquals(99L, result.remainingProjectCredits());
+    }
+
+    @Test
+    void listLedger_shouldReadPayServiceLedger() {
+        User user = remoteUser();
+        Instant createdAt = Instant.parse("2026-06-03T01:02:03Z");
+        when(billingGrpcClient.listLedgerEntries(42L, 0, 20))
+                .thenReturn(new BillingGrpcClient.LedgerPage(
+                        java.util.List.of(new BillingGrpcClient.LedgerEntryView(
+                                "1001",
+                                "AI_DEBIT",
+                                -1L,
+                                99L,
+                                "pay-service",
+                                "ai-1",
+                                "AI_DEBIT",
+                                createdAt
+                        )),
+                        1L
+                ));
+
+        var page = economyService.listLedger(user, PageRequest.of(0, 20));
+
+        assertEquals(1, page.getTotalElements());
+        assertEquals("AI_DEBIT", page.getContent().getFirst().type());
+        assertEquals(-1L, page.getContent().getFirst().delta());
+        assertEquals(99L, page.getContent().getFirst().balanceAfter());
+    }
+
+    @Test
+    void remoteUidMissing_shouldFailBeforeCallingPayService() {
         User user = new User();
         user.setId(UUID.randomUUID());
 
-        ProjectCreditAccount account = new ProjectCreditAccount();
-        account.setUser(user);
-        account.setBalance(0);
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> economyService.projectBalance(user));
 
-        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        assertEquals("当前账号未绑定统一用户，无法查询项目积分", ex.getMessage());
+        verify(billingGrpcClient, never()).projectBalance(anyLong());
+    }
 
-        RuntimeException ex = assertThrows(
-                RuntimeException.class,
-                () -> economyService.chargeAiUsage(user, 100_000, 0, "ai-1")
-        );
-        assertEquals("项目积分不足，请先兑换项目积分", ex.getMessage());
+    private User remoteUser() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("alice");
+        user.setRemoteUid(42L);
+        user.setCredits(0);
+        return user;
     }
 }

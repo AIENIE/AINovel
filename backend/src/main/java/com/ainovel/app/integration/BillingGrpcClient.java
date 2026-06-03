@@ -5,16 +5,24 @@ import fireflychat.billing.v1.BillingBalanceServiceGrpc;
 import fireflychat.billing.v1.BillingCheckinServiceGrpc;
 import fireflychat.billing.v1.BillingConversionServiceGrpc;
 import fireflychat.billing.v1.BillingGrantServiceGrpc;
+import fireflychat.billing.v1.BillingQueryServiceGrpc;
 import fireflychat.billing.v1.BillingRedeemCodeServiceGrpc;
+import fireflychat.billing.v1.BillingUsageServiceGrpc;
 import fireflychat.billing.v1.CheckinRequest;
 import fireflychat.billing.v1.CheckinResponse;
 import fireflychat.billing.v1.ConvertPublicToProjectRequest;
 import fireflychat.billing.v1.ConvertPublicToProjectResponse;
+import fireflychat.billing.v1.DeductUsageRequest;
+import fireflychat.billing.v1.DeductUsageResponse;
 import fireflychat.billing.v1.GetCheckinStatusRequest;
 import fireflychat.billing.v1.GetCheckinStatusResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
+import fireflychat.billing.v1.GrantProjectPermanentTokensRequest;
 import fireflychat.billing.v1.GrantPublicTokensRequest;
+import fireflychat.billing.v1.LedgerEntry;
+import fireflychat.billing.v1.ListLedgerEntriesRequest;
+import fireflychat.billing.v1.ListLedgerEntriesResponse;
 import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
@@ -26,6 +34,7 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -113,6 +122,16 @@ public class BillingGrpcClient {
         return publicTokens + balanceFromProject(project);
     }
 
+    public long projectBalance(long remoteUserId) {
+        var response = stubs().balanceStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .getProjectBalance(GetProjectBalanceRequest.newBuilder()
+                        .setProjectKey(properties.getProjectKey())
+                        .setUserId(remoteUserId)
+                        .build());
+        return balanceFromProject(response.getBalance());
+    }
+
     public long publicBalance(long remoteUserId) {
         var response = stubs().balanceStub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
@@ -171,6 +190,54 @@ public class BillingGrpcClient {
         }
     }
 
+    public ProjectGrantResult grantProjectCredits(long remoteUserId, long amount, String reason) {
+        var response = stubs().grantStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .grantProjectPermanentTokens(GrantProjectPermanentTokensRequest.newBuilder()
+                        .setRequestId(UUID.randomUUID().toString())
+                        .setProjectKey(properties.getProjectKey())
+                        .setUserId(remoteUserId)
+                        .setCredits(amount)
+                        .setTokens(amount)
+                        .setReason(reason == null ? "" : reason)
+                        .build());
+        return new ProjectGrantResult(balanceFromProject(response.getProjectBalance()));
+    }
+
+    public UsageDeductionResult deductUsage(long remoteUserId, long inputCredits, long outputCredits, String referenceId) {
+        DeductUsageResponse response = stubs().usageStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .deductUsage(DeductUsageRequest.newBuilder()
+                        .setRequestId(UUID.randomUUID().toString())
+                        .setProjectKey(properties.getProjectKey())
+                        .setUserId(remoteUserId)
+                        .setModelKey("ainovel-ai")
+                        .setInputCredits(Math.max(0L, inputCredits))
+                        .setOutputCredits(Math.max(0L, outputCredits))
+                        .setSessionId(referenceId == null ? "" : referenceId)
+                        .putMetadata("referenceId", referenceId == null ? "" : referenceId)
+                        .putMetadata("source", "AINovel")
+                        .build());
+        long deducted = firstPositive(response.getDeductedCredits(), response.getDeductedTokens());
+        return new UsageDeductionResult(deducted, balanceFromProject(response.getProjectBalance()));
+    }
+
+    public LedgerPage listLedgerEntries(long remoteUserId, int page, int size) {
+        ListLedgerEntriesResponse response = stubs().queryStub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .listLedgerEntries(ListLedgerEntriesRequest.newBuilder()
+                        .setUserId(remoteUserId)
+                        .setProjectKey(properties.getProjectKey())
+                        .setPage(Math.max(0, page))
+                        .setSize(Math.min(200, Math.max(1, size)))
+                        .build());
+        List<LedgerEntryView> entries = response.getEntriesList().stream()
+                .map(this::toLedgerEntryView)
+                .toList();
+        long total = response.hasPageInfo() ? response.getPageInfo().getTotal() : entries.size();
+        return new LedgerPage(entries, total);
+    }
+
     private long balanceFromProject(ProjectBalance balance) {
         if (balance == null) {
             return 0L;
@@ -191,6 +258,34 @@ public class BillingGrpcClient {
             return null;
         }
         return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
+
+    private LedgerEntryView toLedgerEntryView(LedgerEntry entry) {
+        long projectDelta = firstNonZero(
+                entry.getCreditDeltaTemp() + entry.getCreditDeltaPermanent(),
+                entry.getTokenDeltaTemp() + entry.getTokenDeltaPermanent()
+        );
+        long projectBalance = firstNonZero(
+                entry.getBalanceTempCredits() + entry.getBalancePermanentCredits(),
+                entry.getBalanceTemp() + entry.getBalancePermanent()
+        );
+        String referenceId = entry.getRequestId() == null || entry.getRequestId().isBlank()
+                ? String.valueOf(entry.getId())
+                : entry.getRequestId();
+        return new LedgerEntryView(
+                String.valueOf(entry.getId()),
+                entry.getType(),
+                projectDelta,
+                projectBalance,
+                entry.getSource(),
+                referenceId,
+                entry.getType(),
+                toInstant(entry.getCreatedAt())
+        );
+    }
+
+    private long firstNonZero(long preferred, long fallback) {
+        return preferred != 0L ? preferred : fallback;
     }
 
     private EndpointClient stubs() {
@@ -222,6 +317,10 @@ public class BillingGrpcClient {
                 BillingConversionServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingGrantServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                BillingUsageServiceGrpc.newBlockingStub(channel)
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                BillingQueryServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
         );
         if (existing != null) {
@@ -285,6 +384,27 @@ public class BillingGrpcClient {
     ) {
     }
 
+    public record ProjectGrantResult(long projectCredits) {
+    }
+
+    public record UsageDeductionResult(long chargedCredits, long remainingProjectCredits) {
+    }
+
+    public record LedgerEntryView(
+            String id,
+            String type,
+            long delta,
+            long balanceAfter,
+            String referenceType,
+            String referenceId,
+            String description,
+            Instant createdAt
+    ) {
+    }
+
+    public record LedgerPage(List<LedgerEntryView> entries, long totalElements) {
+    }
+
     private record EndpointClient(
             String host,
             int port,
@@ -293,7 +413,9 @@ public class BillingGrpcClient {
             BillingRedeemCodeServiceGrpc.BillingRedeemCodeServiceBlockingStub redeemStub,
             BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub,
             BillingConversionServiceGrpc.BillingConversionServiceBlockingStub conversionStub,
-            BillingGrantServiceGrpc.BillingGrantServiceBlockingStub grantStub
+            BillingGrantServiceGrpc.BillingGrantServiceBlockingStub grantStub,
+            BillingUsageServiceGrpc.BillingUsageServiceBlockingStub usageStub,
+            BillingQueryServiceGrpc.BillingQueryServiceBlockingStub queryStub
     ) {
         boolean sameEndpoint(String targetHost, int targetPort) {
             return host.equals(targetHost) && port == targetPort;

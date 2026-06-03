@@ -87,7 +87,7 @@ public class UserController {
     }
 
     @PostMapping("/check-in")
-    @Operation(summary = "每日签到", description = "在本项目本地账本执行每日签到并返回资产变动。")
+    @Operation(summary = "每日签到", description = "调用 pay-service 执行项目签到并返回资产变动。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -111,7 +111,7 @@ public class UserController {
     }
 
     @PostMapping("/redeem")
-    @Operation(summary = "兑换码兑换", description = "在本项目本地兑换码账本执行兑换并返回资产变动。")
+    @Operation(summary = "兑换码兑换", description = "调用 pay-service 执行兑换码核销并返回资产变动。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -136,7 +136,7 @@ public class UserController {
     }
 
     @PostMapping("/credits/convert")
-    @Operation(summary = "通用积分兑换项目积分", description = "按 1:1 将 payService 通用积分兑换为本项目专属积分。")
+    @Operation(summary = "通用积分兑换项目积分", description = "按 1:1 调用 pay-service 将通用积分兑换为本项目专属积分。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",

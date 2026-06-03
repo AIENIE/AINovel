@@ -199,7 +199,7 @@ public class AdminController {
     }
 
     @PostMapping("/credits/grant")
-    @Operation(summary = "管理员加发项目积分", description = "仅支持加分，不支持扣减。")
+    @Operation(summary = "管理员加发项目积分", description = "通过 pay-service 发放项目积分，仅支持加分，不支持扣减。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "发放成功"),
             @ApiResponse(responseCode = "400", description = "参数错误或用户不存在"),
@@ -229,7 +229,7 @@ public class AdminController {
     }
 
     @GetMapping("/redeem-codes")
-    @Operation(summary = "兑换码列表", description = "查询本地项目兑换码配置。")
+    @Operation(summary = "兑换码列表", description = "本地兑换码管理已迁移到 pay-service；未配置上游管理代理时返回明确错误。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
@@ -253,7 +253,7 @@ public class AdminController {
     }
 
     @PostMapping("/redeem-codes")
-    @Operation(summary = "创建兑换码", description = "创建本地项目兑换码（支持个人码/批次码）。")
+    @Operation(summary = "创建兑换码", description = "本地兑换码管理已迁移到 pay-service；未配置上游管理代理时返回明确错误。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "创建成功"),
             @ApiResponse(responseCode = "400", description = "参数错误"),
@@ -319,7 +319,7 @@ public class AdminController {
     }
 
     @GetMapping("/credits/ledger")
-    @Operation(summary = "查询项目积分流水", description = "分页查询全站项目积分流水。")
+    @Operation(summary = "查询项目积分流水", description = "全站项目积分流水由 pay-service 管理；未配置上游管理代理时返回明确错误。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
