@@ -1,0 +1,36 @@
+{
+  "projectName": "AINovel",
+  "devModel": "auto",
+  "repairModel": "auto",
+  "testModel": "gpt-5.3-codex-spark",
+  "testFallbackModel": "gpt-5.4-mini",
+  "setupCommands": [
+    "cd frontend && npm ci",
+    "cd backend && mvn -q -DskipTests test-compile"
+  ],
+  "testCommands": [
+    "cd backend && mvn -q test",
+    "cd frontend && npm run test",
+    "cd frontend && npm run build"
+  ],
+  "optionalAcceptanceCommands": [
+    "bash build.sh",
+    "curl --noproxy '*' -k -I 'https://ainovel.localhut.com/'",
+    "curl --noproxy '*' -k -I 'https://ainovel.localhut.com/api/v1/sso/login?next=/workbench&state=smoke'"
+  ],
+  "protectedPaths": [
+    "env.txt",
+    "avoid_slop_research.md",
+    "logs/",
+    "backend/target/",
+    "frontend/node_modules/",
+    "frontend/dist/"
+  ],
+  "acceptanceNotes": [
+    "Acceptance depends on Docker, env.txt, external MySQL/Redis/Qdrant, and localhut routing.",
+    "Port or local domain failures are env_issue."
+  ],
+  "notes": [
+    "build.sh is deployment only and is not part of the default test loop."
+  ]
+}

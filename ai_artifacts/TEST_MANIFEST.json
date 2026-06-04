@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "project": "AINovel",
+  "repo": "/home/duwei/aienie-projects/AINovel",
+  "generatedAt": "2026-06-04T03:30:51.454Z",
+  "acceptanceEnabled": false,
+  "models": {
+    "devModel": "auto",
+    "repairModel": "auto",
+    "testModel": "gpt-5.3-codex-spark",
+    "testFallbackModel": "gpt-5.4-mini"
+  },
+  "setupCommands": [
+    "cd frontend && npm ci",
+    "cd backend && mvn -q -DskipTests test-compile"
+  ],
+  "testCommands": [
+    "cd backend && mvn -q test",
+    "cd frontend && npm run test",
+    "cd frontend && npm run build"
+  ],
+  "optionalAcceptanceCommands": [],
+  "protectedPaths": [
+    "env.txt",
+    "avoid_slop_research.md",
+    "logs/",
+    "backend/target/",
+    "frontend/node_modules/",
+    "frontend/dist/"
+  ],
+  "allowedTestWritePaths": [
+    "ai_artifacts/",
+    ".codex/dev-test/runs/"
+  ],
+  "acceptanceNotes": [
+    "Acceptance depends on Docker, env.txt, external MySQL/Redis/Qdrant, and localhut routing.",
+    "Port or local domain failures are env_issue."
+  ]
+}
