@@ -1,6 +1,8 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.user.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +12,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2AnalysisController {
@@ -23,12 +26,16 @@ public class V2AnalysisController {
         this.accessGuard = accessGuard;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PostMapping("/stories/{storyId}/analysis/beta-reader")
     public Map<String, Object> triggerBetaReader(@AuthenticationPrincipal UserDetails principal,
                                                  @PathVariable UUID storyId,
                                                  @RequestBody(required = false) Map<String, Object> payload) {
         return createAnalysisJob(principal, storyId, payload, "beta_reader");
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/analysis/continuity-check")
     public Map<String, Object> triggerContinuityCheck(@AuthenticationPrincipal UserDetails principal,
@@ -39,6 +46,8 @@ public class V2AnalysisController {
         return job;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/analysis/jobs")
     public List<Map<String, Object>> listJobs(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID storyId) {
@@ -46,6 +55,8 @@ public class V2AnalysisController {
         accessGuard.requireOwnedStory(storyId, user);
         return new ArrayList<>(jobsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/stories/{storyId}/analysis/jobs/{jobId}")
     public Map<String, Object> getJob(@AuthenticationPrincipal UserDetails principal,
@@ -60,6 +71,8 @@ public class V2AnalysisController {
         return job;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/analysis/reports")
     public List<Map<String, Object>> listReports(@AuthenticationPrincipal UserDetails principal,
                                                  @PathVariable UUID storyId) {
@@ -67,6 +80,8 @@ public class V2AnalysisController {
         accessGuard.requireOwnedStory(storyId, user);
         return new ArrayList<>(reportsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/stories/{storyId}/analysis/reports/{reportId}")
     public Map<String, Object> getReport(@AuthenticationPrincipal UserDetails principal,
@@ -81,6 +96,8 @@ public class V2AnalysisController {
         return report;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/analysis/continuity-issues")
     public List<Map<String, Object>> listContinuityIssues(@AuthenticationPrincipal UserDetails principal,
                                                           @PathVariable UUID storyId) {
@@ -88,6 +105,8 @@ public class V2AnalysisController {
         accessGuard.requireOwnedStory(storyId, user);
         return new ArrayList<>(issuesByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/stories/{storyId}/analysis/continuity-issues/{issueId}")
     public Map<String, Object> updateContinuityIssue(@AuthenticationPrincipal UserDetails principal,

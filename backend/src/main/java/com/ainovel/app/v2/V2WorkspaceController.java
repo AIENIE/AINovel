@@ -2,6 +2,8 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.config.AppTimeProvider;
 import com.ainovel.app.user.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2WorkspaceController {
@@ -31,11 +34,15 @@ public class V2WorkspaceController {
         this.timeProvider = timeProvider;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/workspace-layouts")
     public List<Map<String, Object>> listLayouts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         return new ArrayList<>(layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/users/me/workspace-layouts")
     public Map<String, Object> createLayout(@AuthenticationPrincipal UserDetails principal,
@@ -62,6 +69,8 @@ public class V2WorkspaceController {
         return layout;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/users/me/workspace-layouts/{id}")
     public Map<String, Object> updateLayout(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID id,
@@ -83,6 +92,8 @@ public class V2WorkspaceController {
         return layout;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/users/me/workspace-layouts/{id}")
     public ResponseEntity<Void> deleteLayout(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable UUID id) {
@@ -90,6 +101,8 @@ public class V2WorkspaceController {
         layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/users/me/workspace-layouts/{id}/activate")
     public Map<String, Object> activateLayout(@AuthenticationPrincipal UserDetails principal,
@@ -108,6 +121,8 @@ public class V2WorkspaceController {
         layout.put("updatedAt", now());
         return layout;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/writing-sessions/start")
     public Map<String, Object> startSession(@AuthenticationPrincipal UserDetails principal,
@@ -136,6 +151,8 @@ public class V2WorkspaceController {
         return session;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/writing-sessions/{id}/heartbeat")
     public Map<String, Object> heartbeat(@AuthenticationPrincipal UserDetails principal,
                                          @PathVariable UUID id,
@@ -158,6 +175,8 @@ public class V2WorkspaceController {
         syncGoalProgress(user.getId(), session, wordsWritten - wordsDeleted - previousNet);
         return session;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/writing-sessions/{id}/end")
     public Map<String, Object> endSession(@AuthenticationPrincipal UserDetails principal,
@@ -184,6 +203,8 @@ public class V2WorkspaceController {
         }
         return session;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/writing-sessions/stats")
     public Map<String, Object> sessionStats(@AuthenticationPrincipal UserDetails principal) {
@@ -280,6 +301,8 @@ public class V2WorkspaceController {
         );
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/writing-goals")
     public List<Map<String, Object>> listGoals(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
@@ -287,6 +310,8 @@ public class V2WorkspaceController {
         goals.values().forEach(this::applyDailyResetIfNeeded);
         return new ArrayList<>(goals.values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/users/me/writing-goals")
     public Map<String, Object> createGoal(@AuthenticationPrincipal UserDetails principal,
@@ -314,6 +339,8 @@ public class V2WorkspaceController {
         return goal;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/users/me/writing-goals/{id}")
     public Map<String, Object> updateGoal(@AuthenticationPrincipal UserDetails principal,
                                           @PathVariable UUID id,
@@ -335,6 +362,8 @@ public class V2WorkspaceController {
         return goal;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/users/me/writing-goals/{id}")
     public ResponseEntity<Void> deleteGoal(@AuthenticationPrincipal UserDetails principal,
                                            @PathVariable UUID id) {
@@ -343,11 +372,15 @@ public class V2WorkspaceController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/shortcuts")
     public List<Map<String, Object>> listShortcuts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         return new ArrayList<>(shortcutsByUser.computeIfAbsent(user.getId(), uid -> defaultShortcuts(user.getId())).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/users/me/shortcuts")
     public List<Map<String, Object>> updateShortcuts(@AuthenticationPrincipal UserDetails principal,

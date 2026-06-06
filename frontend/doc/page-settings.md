@@ -15,23 +15,24 @@
 
 ## Tab2 工作区提示词（故事/大纲/正文/润色）
 - **对应文件**：`src/pages/Settings/tabs/WorkspacePrompts.tsx`
-- **UI**：五个多行输入（storyCreation/outlineChapter/manuscriptSection/refineWithInstruction/refineWithoutInstruction），“保存”“恢复默认”按钮；加载/错误提示。
+- **UI**：五个多行输入（storyCreation/outlineChapter/manuscriptSection/refineWithInstruction/refineWithoutInstruction），“保存”“恢复默认”按钮；从 metadata 展示模板变量提示。
 - **接口**：
   - 读取：`GET /api/v1/prompt-templates` → `PromptTemplatesResponse`。
+  - 读取元数据：`GET /api/v1/prompt-templates/metadata`。
   - 保存：`PUT /api/v1/prompt-templates` Body `PromptTemplatesUpdatePayload`（可部分字段）。
-  - 重置：`POST /api/v1/prompt-templates/reset` Body `{ keys: string[] }`。
+  - 重置：`POST /api/v1/prompt-templates/reset` Body `{}`。
 
 ## Tab3 世界观提示词
 - **对应文件**：`src/pages/Settings/tabs/WorldPrompts.tsx`
 - **UI**：三个子 Tab：
-  - **模块草稿**：选择模块 key，编辑模板文本；
-  - **最终模板**：同上；
-  - **字段精修**：单文本；并提供“恢复默认”。
+  - **模块生成模板**：按模块 key 编辑模板文本，并展示 metadata 中的模块中文名和字段；
+  - **最终整合模板**：编辑 `finalTemplates`；默认配置为空时显示未启用说明；
+  - **字段精修模板**：单文本；并提供“恢复默认”。
 - **接口**：
   - 读取元数据：`GET /api/v1/world-prompts/metadata`（帮助页使用）。
   - 读取模板：`GET /api/v1/world-prompts` → `{ modules, finalTemplates, fieldRefine }`。
   - 保存：`PUT /api/v1/world-prompts` Body `{ modules?, finalTemplates?, fieldRefine? }`。
-  - 重置：`POST /api/v1/world-prompts/reset` Body `{ keys: string[] }`。
+  - 重置：`POST /api/v1/world-prompts/reset` Body `{}`。
 
 ## 其他
 - **导航**：页内按钮跳转到 `/settings/prompt-guide` 与 `/settings/world-prompts/help`。
@@ -50,7 +51,8 @@
   - **测试连接**：测试请求应由**后端**发起（Backend-for-Frontend 模式），前端不应直接调用 OpenAI 接口，以免暴露 Key。
 
 ### 2. 提示词模板
-- **当前 Mock**：存储在 `MOCK_PROMPTS` 变量中。
-- **真实对接**：
-  - 提示词应持久化在数据库中，并支持按用户或工作区隔离。
-  - “恢复默认”功能需后端维护一套系统默认的 Prompt 模板。
+- **当前实现**：
+  - 提示词持久化在后端 `prompt_templates` 与 `world_prompt_templates`。
+  - 前端通过真实接口读取、保存、恢复默认，并通过 metadata 接口渲染帮助页与变量提示。
+- **对接约束**：
+  - 恢复默认由后端维护系统默认模板；前端不硬编码默认值。

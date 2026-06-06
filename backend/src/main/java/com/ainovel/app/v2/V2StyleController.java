@@ -1,6 +1,8 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.user.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +13,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2StyleController {
@@ -24,6 +27,8 @@ public class V2StyleController {
         this.accessGuard = accessGuard;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/style-profiles")
     public List<Map<String, Object>> listStyleProfiles(@AuthenticationPrincipal UserDetails principal,
                                                        @PathVariable UUID storyId) {
@@ -31,6 +36,8 @@ public class V2StyleController {
         accessGuard.requireOwnedStory(storyId, user);
         return listByStory(profileByStory, storyId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/style-profiles")
     public Map<String, Object> createStyleProfile(@AuthenticationPrincipal UserDetails principal,
@@ -58,6 +65,8 @@ public class V2StyleController {
         return profile;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/stories/{storyId}/style-profiles/{id}")
     public Map<String, Object> updateStyleProfile(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId,
@@ -80,6 +89,8 @@ public class V2StyleController {
         return profile;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/stories/{storyId}/style-profiles/{id}")
     public ResponseEntity<Void> deleteStyleProfile(@AuthenticationPrincipal UserDetails principal,
                                                    @PathVariable UUID storyId,
@@ -89,6 +100,8 @@ public class V2StyleController {
         profileByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).remove(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/style-profiles/{id}/activate")
     public Map<String, Object> activateStyleProfile(@AuthenticationPrincipal UserDetails principal,
@@ -109,6 +122,8 @@ public class V2StyleController {
         selected.put("updatedAt", Instant.now());
         return selected;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/style-analysis")
     public Map<String, Object> analyzeStyle(@AuthenticationPrincipal UserDetails principal,
@@ -148,6 +163,8 @@ public class V2StyleController {
         return job;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/character-voices")
     public List<Map<String, Object>> listCharacterVoices(@AuthenticationPrincipal UserDetails principal,
                                                          @PathVariable UUID storyId) {
@@ -155,6 +172,8 @@ public class V2StyleController {
         accessGuard.requireOwnedStory(storyId, user);
         return listByStory(voiceByStory, storyId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/character-voices")
     public Map<String, Object> createCharacterVoice(@AuthenticationPrincipal UserDetails principal,
@@ -182,6 +201,8 @@ public class V2StyleController {
         return voice;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/stories/{storyId}/character-voices/{id}")
     public Map<String, Object> updateCharacterVoice(@AuthenticationPrincipal UserDetails principal,
                                                     @PathVariable UUID storyId,
@@ -207,6 +228,8 @@ public class V2StyleController {
         return voice;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/stories/{storyId}/character-voices/{id}")
     public ResponseEntity<Void> deleteCharacterVoice(@AuthenticationPrincipal UserDetails principal,
                                                      @PathVariable UUID storyId,
@@ -216,6 +239,8 @@ public class V2StyleController {
         voiceByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).remove(id);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/character-voices/{id}/generate")
     public Map<String, Object> generateCharacterVoice(@AuthenticationPrincipal UserDetails principal,

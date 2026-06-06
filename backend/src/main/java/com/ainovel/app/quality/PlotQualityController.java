@@ -13,6 +13,8 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class PlotQualityController {
@@ -43,6 +46,8 @@ public class PlotQualityController {
         this.plotQualityService = plotQualityService;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/plot-quality-runs")
     public List<PlotQualityRunDto> listRuns(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID manuscriptId,
@@ -55,6 +60,8 @@ public class PlotQualityController {
         return runs.stream().map(PlotQualityMapper::toDto).toList();
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PostMapping("/manuscripts/{manuscriptId}/scenes/{sceneId}/plot-quality-runs")
     public PlotQualityRunDto analyzeScene(@AuthenticationPrincipal UserDetails principal,
                                           @PathVariable UUID manuscriptId,
@@ -64,6 +71,8 @@ public class PlotQualityController {
         return PlotQualityMapper.toDto(plotQualityService.analyze(user, buildRequest(manuscript, sceneId)));
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/plot-quality-trends")
     public PlotQualityTrend trend(@AuthenticationPrincipal UserDetails principal,
                                   @PathVariable UUID manuscriptId) {
@@ -71,6 +80,8 @@ public class PlotQualityController {
         accessGuard.requireOwnedManuscript(manuscriptId, user);
         return plotQualityService.buildTrend(manuscriptId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/plot-quality-runs/{runId}/revision-candidate")
     public PlotQualityRunDto generateRevisionCandidate(@AuthenticationPrincipal UserDetails principal,
@@ -80,6 +91,8 @@ public class PlotQualityController {
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
         return PlotQualityMapper.toDto(plotQualityService.generateRevisionCandidate(user, manuscript, runId));
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/plot-quality-runs/{runId}/apply-revision")
     public PlotQualityRunDto applyRevision(@AuthenticationPrincipal UserDetails principal,

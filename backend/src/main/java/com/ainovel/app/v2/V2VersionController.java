@@ -5,6 +5,8 @@ import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2VersionController {
@@ -35,6 +38,8 @@ public class V2VersionController {
         this.manuscriptRepository = manuscriptRepository;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/versions")
     public List<Map<String, Object>> listVersions(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID manuscriptId) {
@@ -43,6 +48,8 @@ public class V2VersionController {
         ensureMainBranchAndInitialVersion(manuscript, user);
         return sortedVersions(manuscriptId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/versions")
     public Map<String, Object> createVersion(@AuthenticationPrincipal UserDetails principal,
@@ -80,6 +87,8 @@ public class V2VersionController {
         return version;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/versions/{versionId}")
     public Map<String, Object> getVersion(@AuthenticationPrincipal UserDetails principal,
                                           @PathVariable UUID manuscriptId,
@@ -93,6 +102,8 @@ public class V2VersionController {
         }
         return version;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/versions/{versionId}/rollback")
     public Map<String, Object> rollback(@AuthenticationPrincipal UserDetails principal,
@@ -147,6 +158,8 @@ public class V2VersionController {
         result.put("updatedAt", Instant.now());
         return result;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/manuscripts/{manuscriptId}/versions/diff")
     public Map<String, Object> diff(@AuthenticationPrincipal UserDetails principal,
@@ -204,6 +217,8 @@ public class V2VersionController {
         return result;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/branches")
     public List<Map<String, Object>> listBranches(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID manuscriptId) {
@@ -212,6 +227,8 @@ public class V2VersionController {
         ensureMainBranchAndInitialVersion(manuscript, user);
         return sortedBranches(manuscriptId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/branches/{branchId}/checkout")
     public Map<String, Object> checkoutBranch(@AuthenticationPrincipal UserDetails principal,
@@ -240,6 +257,8 @@ public class V2VersionController {
                 "checkedOutAt", Instant.now()
         );
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/branches")
     public Map<String, Object> createBranch(@AuthenticationPrincipal UserDetails principal,
@@ -289,6 +308,8 @@ public class V2VersionController {
         return branch;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/manuscripts/{manuscriptId}/branches/{branchId}")
     public Map<String, Object> updateBranch(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID manuscriptId,
@@ -312,6 +333,8 @@ public class V2VersionController {
         branch.put("updatedAt", Instant.now());
         return branch;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/branches/{branchId}/merge")
     public Map<String, Object> mergeBranch(@AuthenticationPrincipal UserDetails principal,
@@ -411,6 +434,8 @@ public class V2VersionController {
         );
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/manuscripts/{manuscriptId}/branches/{branchId}")
     public ResponseEntity<Void> abandonBranch(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID manuscriptId,
@@ -426,11 +451,15 @@ public class V2VersionController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/auto-save-config")
     public Map<String, Object> getAutoSave(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         return autoSaveByUser.computeIfAbsent(user.getId(), uid -> defaultAutoSave(uid));
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/users/me/auto-save-config")
     public Map<String, Object> updateAutoSave(@AuthenticationPrincipal UserDetails principal,

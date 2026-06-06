@@ -135,9 +135,22 @@ public class SettingsService {
                                 new PromptMetadataResponse.Variable("genre", "string", "体裁"),
                                 new PromptMetadataResponse.Variable("tone", "string", "基调")
                         )),
+                        new PromptMetadataResponse.TemplateMetadata("outlineChapter", java.util.List.of(
+                                new PromptMetadataResponse.Variable("title", "string", "故事标题"),
+                                new PromptMetadataResponse.Variable("synopsis", "string", "故事梗概"),
+                                new PromptMetadataResponse.Variable("chapterNumber", "number", "当前章节号")
+                        )),
                         new PromptMetadataResponse.TemplateMetadata("manuscriptSection", java.util.List.of(
                                 new PromptMetadataResponse.Variable("sceneSummary", "string", "场景摘要"),
-                                new PromptMetadataResponse.Variable("worldContext", "string", "世界观描述")
+                                new PromptMetadataResponse.Variable("worldContext", "string", "世界观描述"),
+                                new PromptMetadataResponse.Variable("tone", "string", "基调风格")
+                        )),
+                        new PromptMetadataResponse.TemplateMetadata("refineWithInstruction", java.util.List.of(
+                                new PromptMetadataResponse.Variable("instruction", "string", "用户的修改指示"),
+                                new PromptMetadataResponse.Variable("text", "string", "待润色文本")
+                        )),
+                        new PromptMetadataResponse.TemplateMetadata("refineWithoutInstruction", java.util.List.of(
+                                new PromptMetadataResponse.Variable("text", "string", "待润色文本")
                         ))
                 ),
                 java.util.List.of(
@@ -150,7 +163,10 @@ public class SettingsService {
         return new WorldPromptMetadataResponse(
                 java.util.List.of(
                         new WorldPromptMetadataResponse.Variable("worldName", "string", "世界名称"),
-                        new WorldPromptMetadataResponse.Variable("themes", "string", "世界主题")
+                        new WorldPromptMetadataResponse.Variable("themes", "string", "世界主题"),
+                        new WorldPromptMetadataResponse.Variable("creativeIntent", "string", "创作意图"),
+                        new WorldPromptMetadataResponse.Variable("moduleName", "string", "当前模块名称"),
+                        new WorldPromptMetadataResponse.Variable("fieldLabel", "string", "当前字段名称")
                 ),
                 java.util.List.of(
                         new WorldPromptMetadataResponse.FunctionItem("history", "获取历史时间线", "{{fn:history worldId}}")
@@ -162,7 +178,13 @@ public class SettingsService {
                         )),
                         new WorldPromptMetadataResponse.Module("society", "社会体系", java.util.List.of(
                                 new WorldPromptMetadataResponse.ModuleField("politics", "政治体制", 150),
-                                new WorldPromptMetadataResponse.ModuleField("economy", "经济", 120)
+                                new WorldPromptMetadataResponse.ModuleField("economy", "经济", 120),
+                                new WorldPromptMetadataResponse.ModuleField("culture", "文化", 120)
+                        )),
+                        new WorldPromptMetadataResponse.Module("magic_tech", "魔法/科技", java.util.List.of(
+                                new WorldPromptMetadataResponse.ModuleField("system_name", "体系名称", 80),
+                                new WorldPromptMetadataResponse.ModuleField("rules", "规则", 150),
+                                new WorldPromptMetadataResponse.ModuleField("limitations", "限制", 120)
                         ))
                 ),
                 java.util.List.of("示例：请为 {worldName} 设计一段宗教体系描述。")
@@ -184,6 +206,7 @@ public class SettingsService {
         Map<String, String> modules = new HashMap<>();
         modules.put("geography", "描述地形、气候和关键地点");
         modules.put("society", "描述政治、经济、文化");
+        modules.put("magic_tech", "描述魔法或科技体系、规则和限制");
         WorldPromptTemplatesEntity entity = new WorldPromptTemplatesEntity();
         entity.setUser(user);
         entity.setModulesJson(mapToJson(modules));

@@ -4,6 +4,8 @@ import {
   CreditLedgerItem,
   FileImportJob,
   Material,
+  MaterialCitation,
+  MaterialDuplicateCandidate,
   MaterialSearchResult,
   Manuscript,
   ModelConfig,
@@ -11,6 +13,7 @@ import {
   PlotPlanning,
   PlotQualityRun,
   PlotQualityTrend,
+  PromptMetadata,
   PromptTemplates,
   SlopQualityRun,
   Story,
@@ -19,6 +22,7 @@ import {
   World,
   WorldDetail,
   WorldModuleDefinition,
+  WorldPromptMetadata,
   WorldPromptTemplates,
 } from "@/types";
 
@@ -867,6 +871,12 @@ export const api = {
       const results = await requestJson<any[]>("/v1/materials/search", { method: "POST", body: JSON.stringify({ query, limit: 10 }) });
       return results.map(toMaterialSearchResult).filter((item) => item.materialId && item.chunkId);
     },
+    findDuplicates: async (): Promise<MaterialDuplicateCandidate[]> => {
+      return await requestJson<MaterialDuplicateCandidate[]>("/v1/materials/find-duplicates", { method: "POST", body: "{}" });
+    },
+    getCitations: async (id: string): Promise<MaterialCitation[]> => {
+      return await requestJson<MaterialCitation[]>(`/v1/materials/${id}/citations`, { method: "GET" });
+    },
   },
 
   prompts: {
@@ -876,11 +886,23 @@ export const api = {
     updateWorkspace: async (data: Partial<PromptTemplates>): Promise<PromptTemplates> => {
       return await requestJson<PromptTemplates>("/v1/prompt-templates", { method: "PUT", body: JSON.stringify(data) });
     },
+    resetWorkspace: async (): Promise<PromptTemplates> => {
+      return await requestJson<PromptTemplates>("/v1/prompt-templates/reset", { method: "POST", body: "{}" });
+    },
+    getWorkspaceMetadata: async (): Promise<PromptMetadata> => {
+      return await requestJson<PromptMetadata>("/v1/prompt-templates/metadata", { method: "GET" });
+    },
     getWorld: async (): Promise<WorldPromptTemplates> => {
       return await requestJson<WorldPromptTemplates>("/v1/world-prompts", { method: "GET" });
     },
     updateWorld: async (data: Partial<WorldPromptTemplates>): Promise<WorldPromptTemplates> => {
       return await requestJson<WorldPromptTemplates>("/v1/world-prompts", { method: "PUT", body: JSON.stringify(data) });
+    },
+    resetWorld: async (): Promise<WorldPromptTemplates> => {
+      return await requestJson<WorldPromptTemplates>("/v1/world-prompts/reset", { method: "POST", body: "{}" });
+    },
+    getWorldMetadata: async (): Promise<WorldPromptMetadata> => {
+      return await requestJson<WorldPromptMetadata>("/v1/world-prompts/metadata", { method: "GET" });
     },
   },
 

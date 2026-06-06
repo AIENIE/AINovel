@@ -209,4 +209,111 @@ describe("mock api", () => {
     expect(trend.points[0].riskScore).toBe(82);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("exposes material duplicate and citation API contracts", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/materials/find-duplicates")) {
+        return new Response(
+          JSON.stringify([
+            {
+              sourceMaterialId: "m1",
+              targetMaterialId: "m2",
+              sourceTitle: "陆家码头旧报",
+              targetTitle: "陆家码头档案",
+              score: 0.82,
+              reasons: ["title", "tags"],
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v1/materials/m1/citations")) {
+        return new Response(
+          JSON.stringify([
+            {
+              materialId: "m1",
+              storyId: "s1",
+              storyTitle: "雨港迷案",
+              manuscriptId: "ms1",
+              sceneId: "scene1",
+              chapterTitle: "第一章",
+              sceneTitle: "旧码头",
+              snippet: "陆家码头的雨夜发现旧报。",
+              reason: "tag:陆家码头",
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const duplicates = await api.materials.findDuplicates();
+    const citations = await api.materials.getCitations("m1");
+
+    expect(duplicates[0].score).toBe(0.82);
+    expect(duplicates[0].reasons).toEqual(["title", "tags"]);
+    expect(citations[0].sceneTitle).toBe("旧码头");
+    expect(citations[0].snippet).toContain("陆家码头");
+  });
+
+  it("exposes prompt reset and metadata API contracts", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/prompt-templates/reset")) {
+        return new Response(
+          JSON.stringify({
+            storyCreation: "默认故事",
+            outlineChapter: "默认章节",
+            manuscriptSection: "默认正文",
+            refineWithInstruction: "默认指令润色",
+            refineWithoutInstruction: "默认润色",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v1/prompt-templates/metadata")) {
+        return new Response(
+          JSON.stringify({
+            syntaxTips: [{ name: "插值", description: "使用 {variable}" }],
+            functions: [{ name: "timeline", description: "输出时间线", example: "{{fn:timeline storyId}}" }],
+            templates: [{ key: "storyCreation", variables: [{ name: "idea", type: "string", description: "创意" }] }],
+            examples: ["示例"],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v1/world-prompts/reset")) {
+        return new Response(
+          JSON.stringify({ modules: { geography: "默认地理" }, finalTemplates: {}, fieldRefine: "默认精修" }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v1/world-prompts/metadata")) {
+        return new Response(
+          JSON.stringify({
+            variables: [{ name: "worldName", type: "string", description: "世界名称" }],
+            functions: [],
+            modules: [{ key: "geography", label: "地理环境", fields: [{ key: "terrain", label: "地形", maxLength: 150 }] }],
+            examples: ["示例"],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const resetWorkspace = await api.prompts.resetWorkspace();
+    const workspaceMetadata = await api.prompts.getWorkspaceMetadata();
+    const resetWorld = await api.prompts.resetWorld();
+    const worldMetadata = await api.prompts.getWorldMetadata();
+
+    expect(resetWorkspace.storyCreation).toBe("默认故事");
+    expect(workspaceMetadata.templates[0].variables[0].name).toBe("idea");
+    expect(resetWorld.modules.geography).toBe("默认地理");
+    expect(worldMetadata.modules[0].fields[0].key).toBe("terrain");
+  });
 });

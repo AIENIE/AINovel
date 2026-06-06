@@ -123,7 +123,7 @@
 | 模块字段编辑 | 按模块字段写入设定 | 前端：`frontend/src/pages/WorldBuilder/components/WorldModuleEditor.tsx`；后端：`WorldController.java`（`PUT /v1/worlds/{id}/modules`） |
 | 字段润色 | 对单字段发起 AI 润色 | 前端：`WorldModuleEditor.tsx`；后端：`WorldController.java`（`POST /modules/{moduleKey}/fields/{fieldKey}/refine`） |
 | 预检发布 | 检查缺失模块并触发发布流程 | 前端：`frontend/src/pages/Worlds.tsx`；后端：`WorldService.java`（`preview`、`publish`） |
-| 模块自动生成 | 对缺失模块填充占位内容并推进状态 | 前端：`Worlds.tsx`；后端：`WorldService.java`（`generateModule`、`retryModule`） |
+| 模块自动生成 | 对缺失模块调用 AI 生成字段；失败时记录 `FAILED` 和错误信息，不写入占位内容 | 前端：`Worlds.tsx`；后端：`WorldService.java`（`generateModule`、`retryModule`） |
 | 模块定义拉取 | 拉取模块字段定义用于动态表单 | 前端：`Worlds.tsx`；后端：`backend/src/main/java/com/ainovel/app/world/WorldDefinitionController.java` |
 
 ### 2.7 素材库模块
@@ -144,9 +144,9 @@
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
-| 工作区提示词编辑 | 编辑故事构思/章节/正文/润色模板 | 前端：`frontend/src/pages/Settings/tabs/WorkspacePrompts.tsx`；后端：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`（`/prompt-templates`） |
-| 世界观提示词编辑 | 编辑模块模板和字段精修模板 | 前端：`frontend/src/pages/Settings/tabs/WorldPrompts.tsx`；后端：`SettingsController.java`（`/world-prompts`） |
-| 提示词说明页 | 展示变量与示例说明 | 前端：`frontend/src/pages/Settings/PromptHelpPage.tsx`、`frontend/src/pages/Settings/WorldPromptHelpPage.tsx` |
+| 工作区提示词编辑 | 编辑故事构思/章节/正文/按指令润色/默认润色模板，支持恢复默认和变量提示 | 前端：`frontend/src/pages/Settings/tabs/WorkspacePrompts.tsx`；后端：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`（`/prompt-templates`） |
+| 世界观提示词编辑 | 编辑模块模板、最终整合模板和字段精修模板，支持恢复默认和模块字段元数据 | 前端：`frontend/src/pages/Settings/tabs/WorldPrompts.tsx`；后端：`SettingsController.java`（`/world-prompts`） |
+| 提示词说明页 | 从 metadata 接口展示变量、函数、模块字段与示例说明 | 前端：`frontend/src/pages/Settings/PromptHelpPage.tsx`、`frontend/src/pages/Settings/WorldPromptHelpPage.tsx` |
 | 模板默认值与重置 | 提供默认模板、更新、重置、元数据 | 后端：`backend/src/main/java/com/ainovel/app/settings/SettingsService.java` |
 
 ### 2.9 个人中心与积分模块
@@ -284,20 +284,20 @@
 
 完整参考：`backend/sql/schema.sql`
 
-## 6. 当前实现状态（已闭环与占位项）
+## 6. 当前实现状态（已闭环与待办项）
 
 以下是代码实扫后可确认的“占位/未完全闭环”点：
 
-- 管理看板的积分消耗与错误率当前为固定值（`0.0`），未接入真实统计源。
-  - 位置：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`
-- 素材查重与引用查询当前返回空列表。
+- 管理看板的积分消耗已接入项目积分流水汇总，错误率接入轻量请求指标。
+  - 位置：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`、`backend/src/main/java/com/ainovel/app/metrics/`
+- 素材查重与引用查询已接入真实逻辑。
   - 位置：`backend/src/main/java/com/ainovel/app/material/MaterialService.java`（`findDuplicates`、`citations`）
 - 大纲“生成章节”与稿件“生成场景”均已接入 AI 生成；其中稿件生成有 2800-3200 汉字门禁与最多 3 次重试。
   - 位置：`backend/src/main/java/com/ainovel/app/story/OutlineService.java`（`addGeneratedChapter`）
   - 位置：`backend/src/main/java/com/ainovel/app/manuscript/ManuscriptService.java`（`generateForScene`）
-- 世界模块自动生成当前为占位填充文本，发布流程是“状态机 + 占位内容”实现。
+- 世界模块自动生成已改为 AI 生成；失败时记录 `FAILED|错误信息`，不再写入“占位内容”。
   - 位置：`backend/src/main/java/com/ainovel/app/world/WorldService.java`（`publish`、`generateModule`）
-- 设置页前端目前只覆盖“读取/保存”，未暴露 reset/metadata 操作入口（后端已有接口）。
+- 设置页前端已暴露 reset/metadata 操作入口，帮助页改为接口驱动。
   - 前端：`frontend/src/pages/Settings/tabs/*.tsx`
   - 后端：`backend/src/main/java/com/ainovel/app/settings/SettingsController.java`
 - 存在兼容/遗留页面文件：`frontend/src/pages/Workbench.tsx`、`frontend/src/pages/Settings.tsx`、`frontend/src/pages/Materials.tsx`（仅做重定向），以及 `frontend/src/pages/WorldBuilder/WorldBuilderPage.tsx`（当前路由未使用）。

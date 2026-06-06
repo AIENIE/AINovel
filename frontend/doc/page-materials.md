@@ -33,8 +33,8 @@
 - **接口**：
   - 列表：`GET /api/v1/materials`。
   - 详情：`GET /api/v1/materials/{id}`；更新：`PUT /api/v1/materials/{id}` Body `{ title?, type?, summary?, tags?, content?, status?, entitiesJson? }`；删除：`DELETE /api/v1/materials/{id}`。
-  - 查重：`POST /api/v1/materials/find-duplicates`（空 body），返回候选对及片段相似度；合并：`POST /api/v1/materials/merge` Body `{ sourceMaterialId, targetMaterialId, mergeTags?, mergeSummaryWhenEmpty?, note? }`。
-  - 引用历史：`GET /api/v1/materials/{id}/citations`，返回被引用的文档/段落。
+  - 查重：`POST /api/v1/materials/find-duplicates`（空 body），返回候选对、分数和原因；合并：`POST /api/v1/materials/merge` Body `{ sourceMaterialId, targetMaterialId, mergeTags?, mergeSummaryWhenEmpty?, note? }`。
+  - 引用历史：`GET /api/v1/materials/{id}/citations`，返回被引用的故事、稿件、场景和命中片段。
 - **事件**：监听 `material:refresh` 以自动刷新表格。
 
 ## 公用：检索与自动提示
@@ -56,10 +56,10 @@
   - **异步处理**：由于大文件解析和向量化耗时较长，后端应返回 Job ID。前端需实现真实的轮询逻辑（建议间隔 1-2秒），直到状态变为 `COMPLETED` 或 `FAILED`。
 
 ### 2. 向量检索
-- **当前 Mock**：`api.materials.search` 仅做简单的字符串包含匹配。
-- **真实对接**：
-  - 后端应实现混合检索（Hybrid Search）：结合关键词匹配（BM25）和向量相似度（Cosine Similarity）。
-  - 前端展示结果时，应利用后端返回的 `score` 字段来排序或显示置信度。
+- **当前实现**：`api.materials.search` 直连后端混合检索接口，后端结合关键词和向量结果；向量服务不可用时保留关键词 fallback。
+- **前端展示**：
+  - 使用后端返回的 `score`、`source`、`chunkSeq` 和 `matchReasons` 展示命中质量。
+  - 查重和引用历史已直连后端，不再是空数据占位。
 
 ### 3. 审核流程
 - **当前 Mock**：审核操作仅修改内存中对象的 `status` 字段。

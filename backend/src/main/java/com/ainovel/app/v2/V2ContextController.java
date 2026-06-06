@@ -2,6 +2,8 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,6 +14,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2ContextController {
@@ -25,6 +28,8 @@ public class V2ContextController {
         this.accessGuard = accessGuard;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/lorebook")
     public List<Map<String, Object>> listLorebook(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId) {
@@ -32,6 +37,8 @@ public class V2ContextController {
         accessGuard.requireOwnedStory(storyId, user);
         return listLorebookInternal(storyId);
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/lorebook")
     public Map<String, Object> createLorebook(@AuthenticationPrincipal UserDetails principal,
@@ -61,6 +68,8 @@ public class V2ContextController {
         return entry;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/stories/{storyId}/lorebook/{entryId}")
     public Map<String, Object> updateLorebook(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID storyId,
@@ -87,6 +96,8 @@ public class V2ContextController {
         return entry;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/stories/{storyId}/lorebook/{entryId}")
     public ResponseEntity<Void> deleteLorebook(@AuthenticationPrincipal UserDetails principal,
                                                @PathVariable UUID storyId,
@@ -104,6 +115,8 @@ public class V2ContextController {
                 });
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/lorebook/import")
     public Map<String, Object> importLorebook(@AuthenticationPrincipal UserDetails principal,
@@ -128,6 +141,8 @@ public class V2ContextController {
                 "total", entries.size()
         );
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/stories/{storyId}/graph")
     public Map<String, Object> graph(@AuthenticationPrincipal UserDetails principal,
@@ -172,6 +187,8 @@ public class V2ContextController {
                 "generatedAt", Instant.now()
         );
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/stories/{storyId}/graph/query")
     public Map<String, Object> queryGraph(@AuthenticationPrincipal UserDetails principal,
@@ -222,6 +239,8 @@ public class V2ContextController {
         );
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PostMapping("/stories/{storyId}/graph/relationships")
     public Map<String, Object> createRelationship(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId,
@@ -253,6 +272,8 @@ public class V2ContextController {
         return relation;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/stories/{storyId}/graph/relationships/{relationshipId}")
     public ResponseEntity<Void> deleteRelationship(@AuthenticationPrincipal UserDetails principal,
                                                    @PathVariable UUID storyId,
@@ -262,6 +283,8 @@ public class V2ContextController {
         relationshipsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).remove(relationshipId);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/graph/sync")
     public Map<String, Object> syncGraph(@AuthenticationPrincipal UserDetails principal,
@@ -276,6 +299,8 @@ public class V2ContextController {
                 "edges", listRelationshipsInternal(storyId).size()
         );
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/extract-entities")
     public Map<String, Object> extractEntities(@AuthenticationPrincipal UserDetails principal,
@@ -307,6 +332,8 @@ public class V2ContextController {
         return extraction;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/stories/{storyId}/extractions")
     public List<Map<String, Object>> listExtractions(@AuthenticationPrincipal UserDetails principal,
                                                      @PathVariable UUID storyId) {
@@ -314,6 +341,8 @@ public class V2ContextController {
         accessGuard.requireOwnedStory(storyId, user);
         return new ArrayList<>(extractionByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/stories/{storyId}/extractions/{id}/review")
     public Map<String, Object> reviewExtraction(@AuthenticationPrincipal UserDetails principal,
@@ -339,6 +368,8 @@ public class V2ContextController {
         extraction.put("reviewedAt", Instant.now());
         return extraction;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/stories/{storyId}/context/preview")
     public Map<String, Object> previewContext(@AuthenticationPrincipal UserDetails principal,

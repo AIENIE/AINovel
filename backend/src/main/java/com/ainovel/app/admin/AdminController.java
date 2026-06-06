@@ -2,8 +2,10 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.*;
 import com.ainovel.app.economy.EconomyService;
+import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
 import com.ainovel.app.integration.UserAdminRemoteClient;
 import com.ainovel.app.material.repo.MaterialRepository;
+import com.ainovel.app.metrics.ApiRequestMetrics;
 import com.ainovel.app.settings.SettingsService;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
@@ -46,6 +48,8 @@ public class AdminController {
     private final SettingsService settingsService;
     private final GlobalSettingsRepository globalSettingsRepository;
     private final EconomyService economyService;
+    private final ProjectCreditLedgerRepository projectCreditLedgerRepository;
+    private final ApiRequestMetrics apiRequestMetrics;
 
     public AdminController(
             UserRepository userRepository,
@@ -53,7 +57,9 @@ public class AdminController {
             UserAdminRemoteClient userAdminRemoteClient,
             SettingsService settingsService,
             GlobalSettingsRepository globalSettingsRepository,
-            EconomyService economyService
+            EconomyService economyService,
+            ProjectCreditLedgerRepository projectCreditLedgerRepository,
+            ApiRequestMetrics apiRequestMetrics
     ) {
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
@@ -61,6 +67,8 @@ public class AdminController {
         this.settingsService = settingsService;
         this.globalSettingsRepository = globalSettingsRepository;
         this.economyService = economyService;
+        this.projectCreditLedgerRepository = projectCreditLedgerRepository;
+        this.apiRequestMetrics = apiRequestMetrics;
     }
 
     @GetMapping("/dashboard")
@@ -74,10 +82,10 @@ public class AdminController {
         Instant todayStart = LocalDate.now(ZONE).atStartOfDay(ZONE).toInstant();
         long totalUsers = userRepository.count();
         long todayNewUsers = userRepository.countByCreatedAtAfter(todayStart);
-        double totalConsumed = 0.0;
-        double todayConsumed = 0.0;
+        double totalConsumed = projectCreditLedgerRepository.sumNegativeDeltaAbs();
+        double todayConsumed = projectCreditLedgerRepository.sumNegativeDeltaAbsSince(todayStart);
         long pendingReviews = materialRepository.countByStatusIgnoreCase("pending");
-        double apiErrorRate = 0.0;
+        double apiErrorRate = apiRequestMetrics.errorRate();
         return ResponseEntity.ok(new AdminDashboardStatsResponse(totalUsers, todayNewUsers, totalConsumed, todayConsumed, apiErrorRate, pendingReviews));
     }
 

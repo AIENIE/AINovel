@@ -2,11 +2,11 @@
 
 - **路由/文件**：`/settings/world-prompts/help`
 - **对应设计稿文件**：`src/pages/Settings/WorldPromptHelpPage.tsx`
-- **布局**：卡片 + Anchor 目录；段落包含编写要点、可用变量表、函数表、模块字段表、示例、FAQ；右上“返回设置”。
+- **布局**：卡片表格；段落包含可用变量表、模块字段表、函数表和示例；顶部提供“返回设置”。
 - **接口**：`GET /api/v1/world-prompts/metadata`，返回：
-  - `variables[] { name, valueType, description }`
-  - `functions[] { name, description, usage }`
-  - `modules[] { key, label, fields[] { key, label, recommendedLength } }`
+  - `variables[] { name, type, description }`
+  - `functions[] { name, description, example }`
+  - `modules[] { key, label, fields[] { key, label, maxLength } }`
   - `examples[]` 文本片段。
 - **用途**：指导用户编写世界观的模块草稿模板、正式模板、字段精修模板。
 - **待完善**：
@@ -17,7 +17,5 @@
 ## 开发对接指南 (Mock vs Real)
 
 ### 1. 动态元数据
-- **当前 Mock**：变量列表是硬编码的。
-- **真实对接**：
-  - 同上，应从后端获取元数据。
-  - 特别是 `modules` 列表，应与世界观定义的模块保持一致。
+- **当前实现**：组件加载 `GET /api/v1/world-prompts/metadata` 后渲染变量、函数、模块字段和示例。
+- **维护约束**：`modules` 列表应与世界观定义的模块保持一致；新增模块时先补后端 metadata，再由前端自动展示。

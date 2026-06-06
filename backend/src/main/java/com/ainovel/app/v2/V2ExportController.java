@@ -5,6 +5,8 @@ import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,6 +29,7 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2ExportController {
@@ -41,6 +44,8 @@ public class V2ExportController {
         this.accessGuard = accessGuard;
         seedSystemTemplates();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/manuscripts/{manuscriptId}/export")
     public Map<String, Object> createExportJob(@AuthenticationPrincipal UserDetails principal,
@@ -97,6 +102,8 @@ public class V2ExportController {
         return job;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/export/jobs")
     public List<Map<String, Object>> listExportJobs(@AuthenticationPrincipal UserDetails principal,
                                                     @PathVariable UUID manuscriptId) {
@@ -110,6 +117,8 @@ public class V2ExportController {
         return jobs;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/manuscripts/{manuscriptId}/export/jobs/{jobId}")
     public Map<String, Object> getExportJob(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID manuscriptId,
@@ -122,6 +131,8 @@ public class V2ExportController {
         refreshJob(job, manuscript);
         return job;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/manuscripts/{manuscriptId}/export/jobs/{jobId}/download")
     public ResponseEntity<byte[]> download(@AuthenticationPrincipal UserDetails principal,
@@ -152,6 +163,8 @@ public class V2ExportController {
                 .body(bytes);
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/export-templates")
     public List<Map<String, Object>> listTemplates(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
@@ -163,6 +176,8 @@ public class V2ExportController {
         }
         return out;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/export-templates")
     public Map<String, Object> createTemplate(@AuthenticationPrincipal UserDetails principal,
@@ -185,6 +200,8 @@ public class V2ExportController {
         return tpl;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @PutMapping("/export-templates/{id}")
     public Map<String, Object> updateTemplate(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID id,
@@ -200,6 +217,8 @@ public class V2ExportController {
         tpl.put("updatedAt", Instant.now());
         return tpl;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @DeleteMapping("/export-templates/{id}")
     public ResponseEntity<Void> deleteTemplate(@AuthenticationPrincipal UserDetails principal,

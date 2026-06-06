@@ -4,6 +4,8 @@ import com.ainovel.app.quality.dto.SlopQualityRunDto;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class SlopQualityController {
@@ -21,6 +24,8 @@ public class SlopQualityController {
         this.accessGuard = accessGuard;
         this.runRepository = runRepository;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/manuscripts/{manuscriptId}/quality-runs")
     public List<SlopQualityRunDto> listRuns(@AuthenticationPrincipal UserDetails principal,

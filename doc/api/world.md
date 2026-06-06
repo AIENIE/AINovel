@@ -11,5 +11,5 @@
 - `GET /api/v1/worlds/{id}/publish/preview`：发布预检。
 - `POST /api/v1/worlds/{id}/publish`：进入生成状态。
 - `GET /api/v1/worlds/{id}/generation`：生成队列状态。
-- `POST /api/v1/worlds/{id}/generation/{moduleKey}`：生成单模块（示例逻辑）。
+- `POST /api/v1/worlds/{id}/generation/{moduleKey}`：调用 AI 生成单模块缺失字段。AI 返回空内容或调用失败时不会写入占位内容，会将模块状态记录为 `FAILED` 并在生成状态中返回错误信息。
 - `POST /api/v1/worlds/{id}/generation/{moduleKey}/retry`：重试生成。

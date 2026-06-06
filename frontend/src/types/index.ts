@@ -331,6 +331,41 @@ export interface WorldPromptTemplates {
   fieldRefine: string;
 }
 
+export interface PromptMetadata {
+  syntaxTips: { name: string; description: string }[];
+  functions: { name: string; description: string; example: string }[];
+  templates: { key: string; variables: { name: string; type: string; description: string }[] }[];
+  examples: string[];
+}
+
+export interface WorldPromptMetadata {
+  variables: { name: string; type: string; description: string }[];
+  functions: { name: string; description: string; example: string }[];
+  modules: { key: string; label: string; fields: { key: string; label: string; maxLength: number }[] }[];
+  examples: string[];
+}
+
+export interface MaterialDuplicateCandidate {
+  sourceMaterialId: string;
+  targetMaterialId: string;
+  sourceTitle: string;
+  targetTitle: string;
+  score: number;
+  reasons: string[];
+}
+
+export interface MaterialCitation {
+  materialId: string;
+  storyId: string;
+  storyTitle: string;
+  manuscriptId: string;
+  sceneId: string;
+  chapterTitle: string;
+  sceneTitle: string;
+  snippet: string;
+  reason: string;
+}
+
 // --- V2 Admin & Economy Types ---
 
 export interface ModelConfig {

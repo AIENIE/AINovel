@@ -2,6 +2,8 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+@Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2ModelController {
@@ -32,6 +35,8 @@ public class V2ModelController {
         seedRouting();
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/models")
     public List<Map<String, Object>> listModels(@AuthenticationPrincipal UserDetails principal) {
         accessGuard.currentUser(principal);
@@ -39,6 +44,8 @@ public class V2ModelController {
         list.sort(Comparator.comparingInt(model -> -intVal(model.get("priority"), 0)));
         return list;
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/models/{modelKey}")
     public Map<String, Object> getModel(@AuthenticationPrincipal UserDetails principal,
@@ -51,12 +58,16 @@ public class V2ModelController {
         return model;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/admin/model-routing")
     public List<Map<String, Object>> listRouting(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireAdmin(user);
         return new ArrayList<>(routingByTaskType.values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/admin/model-routing/{taskType}")
     public Map<String, Object> updateRouting(@AuthenticationPrincipal UserDetails principal,
@@ -85,11 +96,15 @@ public class V2ModelController {
         return rule;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/model-preferences")
     public List<Map<String, Object>> listPreferences(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         return new ArrayList<>(preferencesByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/users/me/model-preferences/{taskType}")
     public Map<String, Object> putPreference(@AuthenticationPrincipal UserDetails principal,
@@ -113,6 +128,8 @@ public class V2ModelController {
         return pref;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @DeleteMapping("/users/me/model-preferences/{taskType}")
     public ResponseEntity<Void> resetPreference(@AuthenticationPrincipal UserDetails principal,
                                                 @PathVariable String taskType) {
@@ -120,6 +137,8 @@ public class V2ModelController {
         preferencesByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(taskType);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/users/me/model-usage")
     public Map<String, Object> usageSummary(@AuthenticationPrincipal UserDetails principal) {
@@ -141,6 +160,8 @@ public class V2ModelController {
         return summary;
     }
 
+    @Operation(summary = "v2 API endpoint")
+
     @GetMapping("/users/me/model-usage/details")
     public List<Map<String, Object>> usageDetails(@AuthenticationPrincipal UserDetails principal,
                                                   @RequestParam(required = false, defaultValue = "100") int limit) {
@@ -149,6 +170,8 @@ public class V2ModelController {
         logs.sort((a, b) -> ((Instant) b.get("createdAt")).compareTo((Instant) a.get("createdAt")));
         return logs.subList(0, Math.min(Math.max(limit, 1), logs.size()));
     }
+
+    @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/compare-models")
     public Map<String, Object> compareModels(@AuthenticationPrincipal UserDetails principal,
