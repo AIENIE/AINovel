@@ -60,35 +60,8 @@ services:
       - "payservice.localhut.com:${PAYSERVICE_HOST_IP:-host-gateway}"
       - "aiservice.localhut.com:${AISERVICE_HOST_IP:-host-gateway}"
     volumes:
-      - ${APP_LOG_DIR_HOST:-./logs/backend}:/app/logs
-      - ${APP_RECORD_DIR_HOST:-./logs/records}:/app/records
-
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.15.3
-    container_name: ainovel-filebeat
-    user: root
-    restart: unless-stopped
-    depends_on:
-      - backend
-    command: ["filebeat", "-e", "--strict.perms=false"]
-    environment:
-      SERVICE_NAME: ${APP_SERVICE_NAME:-ainovel}
-      APP_ENV: ${APP_ENV:-local}
-      APP_LOG_DIR: /app/logs
-      APP_RECORD_DIR: /app/records
-      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS:-https://es.localhut.com:9200}
-      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-elastic}
-      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
-      ELASTICSEARCH_CA_CERT_PATH: ${ELASTICSEARCH_CA_CERT_PATH:-/usr/share/filebeat/certs/http_ca.crt}
-      FILEBEAT_INDEX_PREFIX: ${FILEBEAT_INDEX_PREFIX:-aienie-local-ainovel}
-    volumes:
-      - ./deploy/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - ${APP_LOG_DIR_HOST:-./logs/backend}:/app/logs:ro
-      - ${APP_RECORD_DIR_HOST:-./logs/records}:/app/records:ro
-      - ${FILEBEAT_DATA_DIR:-./logs/filebeat-data}:/usr/share/filebeat/data
-      - ${ELASTICSEARCH_CA_CERT_DIR:-./deploy/filebeat/certs}:/usr/share/filebeat/certs:ro
-    networks:
-      - ainovel
+      - ${APP_LOG_DIR_HOST:-/home/duwei/aienie-runtime/observability/data/ainovel/logs}:/app/logs
+      - ${APP_RECORD_DIR_HOST:-/home/duwei/aienie-runtime/observability/data/ainovel/records}:/app/records
 
   frontend:
     container_name: ainovel-frontend
