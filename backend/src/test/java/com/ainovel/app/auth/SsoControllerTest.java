@@ -26,7 +26,7 @@ class SsoControllerTest {
     @Test
     void shouldRedirectToLoginAndSanitizeNextPath() {
         SsoEntryService entryService = mock(SsoEntryService.class);
-        SsoController controller = new SsoController(entryService);
+        SsoController controller = new SsoController(entryService, mock(SsoTokenExchangeService.class));
         URI target = URI.create("http://127.0.0.1:10002/sso/login?redirect=r&state=s");
         when(entryService.buildLoginRedirectUri(anyString(), eq("state-1"))).thenReturn(target);
 
@@ -49,7 +49,7 @@ class SsoControllerTest {
     @Test
     void shouldRequireState() {
         SsoEntryService entryService = mock(SsoEntryService.class);
-        SsoController controller = new SsoController(entryService);
+        SsoController controller = new SsoController(entryService, mock(SsoTokenExchangeService.class));
         HttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/sso/login");
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class,
@@ -60,7 +60,7 @@ class SsoControllerTest {
     @Test
     void shouldReturnBadGatewayWhenUserServiceUnavailable() {
         SsoEntryService entryService = mock(SsoEntryService.class);
-        SsoController controller = new SsoController(entryService);
+        SsoController controller = new SsoController(entryService, mock(SsoTokenExchangeService.class));
         when(entryService.buildRegisterRedirectUri(anyString(), eq("state-2")))
                 .thenThrow(new IllegalStateException("down"));
 
@@ -77,7 +77,7 @@ class SsoControllerTest {
     @Test
     void shouldPreferRefererOriginWhenProxyHostIsBackendPort() {
         SsoEntryService entryService = mock(SsoEntryService.class);
-        SsoController controller = new SsoController(entryService);
+        SsoController controller = new SsoController(entryService, mock(SsoTokenExchangeService.class));
         URI target = URI.create("http://127.0.0.1:10002/sso/login?redirect=r&state=s");
         when(entryService.buildLoginRedirectUri(anyString(), eq("state-3"))).thenReturn(target);
 
@@ -99,7 +99,7 @@ class SsoControllerTest {
     @Test
     void shouldPreferConfiguredCallbackOrigin() {
         SsoEntryService entryService = mock(SsoEntryService.class);
-        SsoController controller = new SsoController(entryService);
+        SsoController controller = new SsoController(entryService, mock(SsoTokenExchangeService.class));
         ReflectionTestUtils.setField(controller, "callbackOrigin", "https://sso-callback.example.com");
         URI target = URI.create("http://127.0.0.1:10000/sso/login?redirect=r&state=s");
         when(entryService.buildLoginRedirectUri(anyString(), eq("state-4"))).thenReturn(target);

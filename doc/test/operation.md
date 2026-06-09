@@ -8,8 +8,8 @@
 
 2. **普通用户登录（SSO）**
    - 访问 `/login` 或点击首页“登录”，前端会请求 `/api/v1/sso/login` 并跳转 userservice。
-   - 成功后回跳 `/sso/callback`，前端校验 `state` 后写入 `localStorage.token`。
-   - 若 `state` 缺失/不匹配，前端拒绝落 token 并返回 `/login`。
+   - 成功后回跳 `/sso/callback?code=...&state=...`，前端校验 `state` 后调用 `/api/v1/sso/session` 兑换 token，再写入 `localStorage.token`。
+   - 若 `state` 缺失/不匹配，前端拒绝兑换 token 并返回 `/login`。
 
 3. **管理员登录（本地账密）**
    - 访问 `/admin/login`。

@@ -155,7 +155,7 @@ public class ExternalServiceProperties {
         private String jwtIssuer = "aienie-services";
         private String jwtAudience = "aienie-payservice-grpc";
         private String requiredRole = "SERVICE";
-        private String requiredScopes = "billing.read,billing.write";
+        private String requiredScopes = "billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read";
 
         public String getServiceJwt() {
             return serviceJwt;

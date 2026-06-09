@@ -43,6 +43,13 @@ public class SsoEntryService {
         return normalizeBaseUrl(target.getAddress());
     }
 
+    public URI buildTokenEndpointUri() {
+        return UriComponentsBuilder.fromHttpUrl(resolveUserServiceBaseUrl())
+                .path("/sso/token")
+                .build()
+                .toUri();
+    }
+
     private String normalizeHttpUrl(String address) {
         if (address == null || address.isBlank()) {
             return null;

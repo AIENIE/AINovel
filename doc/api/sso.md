@@ -13,13 +13,22 @@
 - `400`：`state` 为空（`STATE_REQUIRED`）。
 - `502`：无法解析 user-service 地址（`USER_SERVICE_UNAVAILABLE`）。
 
+## 回调换取会话
+- user-service 完成登录/注册后回跳 `/sso/callback?code=...&state=...`，不再在 URL fragment 中返回 `access_token`。
+- 前端先校验 `state`，再调用 `POST /api/v1/sso/session`。
+- 请求体：
+  - `code`：user-service 回跳的一次性授权码。
+  - `redirect`：发起登录时传给 user-service 的原始 callback URL；只移除回跳追加的 `code`、`state`，保留 `next`。
+- 后端用 `application/x-www-form-urlencoded` 调用 user-service `POST /sso/token`，表单字段为 `code` 与 `redirect`。
+- 成功响应透传 `accessToken/userId/username/sessionId/rememberDays/expiresIn`，前端沿用既有 `acceptToken` 建立本地登录态。
+
 ## 环境变量配置
 - `USER_HTTP_SERVICE_NAME` / `USER_HTTP_ADDR`：控制 user-service HTTP 入口解析（Consul 优先，fallback 兜底）。
 - `SSO_CALLBACK_ORIGIN`：可选。配置后，后端回调 `redirect` 固定使用该 origin；未配置时按请求头（`X-Forwarded-*`/`Origin`/`Referer`）推断。
 - `VITE_SSO_ENTRY_BASE_URL`：前端构建变量，控制 `buildSsoUrl()` 的后端入口基址；为空时使用当前页面 `window.location.origin`。
 
 ## 鉴权兼容说明
-- 回跳后的 `access_token` 由 user-service 签发，AINovel 在访问业务接口（如 `GET /api/v1/user/profile`）时会按以下顺序鉴权：
+- `/api/v1/sso/session` 换回的 `accessToken` 由 user-service 签发，AINovel 在访问业务接口（如 `GET /api/v1/user/profile`）时会按以下顺序鉴权：
   1. 优先按本地 JWT 密钥验签并解析；
   2. 若验签失败，但 token 中可解析到 `uid + sid`，且远程 `validateSession` 校验通过，则允许建立登录态；
   3. 未通过远程会话校验的 token 将被拒绝（`403`）。

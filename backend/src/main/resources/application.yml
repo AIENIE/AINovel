@@ -78,7 +78,7 @@ app:
         jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}
         jwt-audience: ${EXTERNAL_PAY_JWT_AUDIENCE:aienie-payservice-grpc}
         required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}
-        required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.read,billing.write}
+        required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read}
     userservice-http:
       address: ${USER_HTTP_ADDR:https://userservice.localhut.com}
     aiservice-grpc:

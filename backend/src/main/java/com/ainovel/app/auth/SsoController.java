@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,11 +26,13 @@ public class SsoController {
 
     private static final String DEFAULT_NEXT_PATH = "/workbench";
     private final SsoEntryService ssoEntryService;
+    private final SsoTokenExchangeService ssoTokenExchangeService;
     @Value("${sso.callback-origin:}")
     private String callbackOrigin;
 
-    public SsoController(SsoEntryService ssoEntryService) {
+    public SsoController(SsoEntryService ssoEntryService, SsoTokenExchangeService ssoTokenExchangeService) {
         this.ssoEntryService = ssoEntryService;
+        this.ssoTokenExchangeService = ssoTokenExchangeService;
     }
 
     @Operation(summary = "跳转统一登录页", description = "由后端生成 userservice 登录入口并 302 跳转。")
@@ -63,6 +67,11 @@ public class SsoController {
             HttpServletRequest request
     ) {
         return redirect("register", next, state, request);
+    }
+
+    @PostMapping("/session")
+    public ResponseEntity<SsoTokenExchangeResponse> exchangeSession(@RequestBody SsoTokenExchangeRequest request) {
+        return ResponseEntity.ok(ssoTokenExchangeService.exchange(request.code(), request.redirect()));
     }
 
     private ResponseEntity<Void> redirect(String mode, String next, String state, HttpServletRequest request) {

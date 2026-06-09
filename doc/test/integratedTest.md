@@ -1,9 +1,9 @@
 # 集成/系统测试用例（更新于 2026-03-04）
 
 - **端口与联调配置**：前端 `11040`、后端 `11041`；前端 `/api` 请求经 Nginx/Vite 转发到后端 `11041`。
-- **普通用户认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice → 回跳 `/sso/callback#access_token=...&state=...` → 前端 `state` 校验通过后写入 `localStorage.token`。
+- **普通用户认证链路（SSO）**：点击“登录/注册”或访问 `/login`/`/register` → 请求 AINovel 后端 `/api/v1/sso/login|register` → 后端 302 到 userservice → 回跳 `/sso/callback?code=...&state=...` → 前端 `state` 校验通过后调用 `/api/v1/sso/session` 兑换 token，再写入 `localStorage.token`。
 - **管理员认证链路（本地账密）**：访问 `/admin/login`，调用 `/api/v1/admin-auth/login` 成功后写入 `localStorage.admin_token`，再通过 `/api/v1/admin-auth/me` 做路由守卫。
-- **SSO 安全回归**：篡改回跳 hash 中 `state` 后访问 `/sso/callback`，应拒绝落 token 并跳回 `/login`。
+- **SSO 安全回归**：篡改回跳 query 中 `state` 后访问 `/sso/callback`，应拒绝兑换 token 并跳回 `/login`。
 - **微服务发现（Consul）**：会话校验优先通过 Consul `health/service` 发现 userservice gRPC；发现失败时回退 `USER_GRPC_ADDR`，应在超时内失败且不阻塞主请求。
 
 - **管理后台能力**：

@@ -17,7 +17,10 @@
   - `x-aienie-caller`
   - `x-aienie-ts`
   - `x-aienie-nonce`
+  - `x-aienie-body-sha256`
   - `x-aienie-signature`
+- 签名串为 `caller + "\n" + "/" + fullMethod + "\n" + ts + "\n" + nonce + "\n" + bodySha256`。
+- `bodySha256` 是 protobuf 请求字节的 SHA-256 小写十六进制摘要，必须与 `x-aienie-body-sha256` 一致。
 
 ### user-service
 - `EXTERNAL_USER_INTERNAL_GRPC_TOKEN`
@@ -33,7 +36,7 @@
   - `role=SERVICE`
   - `iss=aienie-services`
   - `aud` 包含 `aienie-payservice-grpc`
-  - `scopes` 包含 `billing.read,billing.write`
+  - `scopes` 包含 AINovel 实际调用需要的细粒度 scope：`billing.balance.read`、`billing.balance.convert`、`billing.grant.write`、`billing.usage.deduct`、`billing.checkin.read`、`billing.checkin.write`、`billing.redeem.write`、`billing.ledger.read`
   - `exp` 未过期
 
 ## 启动期校验（ExternalSecurityStartupValidator）

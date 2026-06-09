@@ -119,7 +119,7 @@ curl --noproxy '*' -k -X POST 'https://ainovel.localhut.com/api/v1/admin-auth/lo
   - `role=SERVICE`
   - `iss=aienie-services`
   - `aud` 包含 `aienie-payservice-grpc`
-  - `scopes` 包含 `billing.read,billing.write`
+  - `scopes` 至少包含 `billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read`
 
 5. `curl` 本地域名偶发 `SSL connect` / `Connection established` 异常
 - 通常是命令走了系统代理；请加 `--noproxy '*'`，例如：

@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ExternalSecurityStartupValidatorTests {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String PAY_SCOPES = "billing.balance.read billing.balance.convert billing.grant.write billing.usage.deduct billing.checkin.read billing.checkin.write billing.redeem.write billing.ledger.read";
 
 
     @Test
@@ -76,7 +77,7 @@ class ExternalSecurityStartupValidatorTests {
                 "role", "internal_service",
                 "iss", "aienie-services",
                 "aud", "aienie-payservice-grpc",
-                "scopes", "billing.read billing.write",
+                "scopes", PAY_SCOPES,
                 "exp", Instant.now().plusSeconds(1800).getEpochSecond()
         )));
 
@@ -95,7 +96,7 @@ class ExternalSecurityStartupValidatorTests {
                 "role", "SERVICE",
                 "iss", "aienie-services",
                 "aud", "aienie-payservice-grpc",
-                "scopes", "billing.read billing.write"
+                "scopes", PAY_SCOPES
         )));
 
         ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
@@ -107,7 +108,7 @@ class ExternalSecurityStartupValidatorTests {
                 "role", "SERVICE",
                 "iss", "aienie-services",
                 "aud", "aienie-payservice-grpc",
-                "scopes", "billing.read billing.write",
+                "scopes", PAY_SCOPES,
                 "exp", Instant.now().plusSeconds(1800).getEpochSecond()
         ));
     }

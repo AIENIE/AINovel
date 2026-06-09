@@ -10,6 +10,7 @@ import fireflychat.ai.v1.Embedding;
 import fireflychat.ai.v1.EmbeddingsRequest;
 import fireflychat.ai.v1.EmbeddingsResponse;
 import fireflychat.ai.v1.ListModelsRequest;
+import com.google.protobuf.MessageLite;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -23,7 +24,10 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -212,6 +216,8 @@ public class AiGatewayGrpcClient {
                 Metadata.Key.of("x-aienie-ts", Metadata.ASCII_STRING_MARSHALLER);
         private static final Metadata.Key<String> NONCE_KEY =
                 Metadata.Key.of("x-aienie-nonce", Metadata.ASCII_STRING_MARSHALLER);
+        private static final Metadata.Key<String> BODY_SHA256_KEY =
+                Metadata.Key.of("x-aienie-body-sha256", Metadata.ASCII_STRING_MARSHALLER);
         private static final Metadata.Key<String> SIGNATURE_KEY =
                 Metadata.Key.of("x-aienie-signature", Metadata.ASCII_STRING_MARSHALLER);
 
@@ -230,23 +236,96 @@ public class AiGatewayGrpcClient {
                 Channel next
         ) {
             return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+                private Listener<RespT> listener;
+                private Metadata pendingHeaders;
+                private boolean started;
+                private int pendingRequests;
+
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
+                    this.listener = responseListener;
+                    this.pendingHeaders = headers;
+                }
+
+                @Override
+                public void request(int numMessages) {
+                    if (started) {
+                        super.request(numMessages);
+                    } else {
+                        pendingRequests += numMessages;
+                    }
+                }
+
+                @Override
+                public void sendMessage(ReqT message) {
+                    ensureStarted(message);
+                    super.sendMessage(message);
+                }
+
+                private void ensureStarted(ReqT message) {
+                    if (started) {
+                        return;
+                    }
+                    Metadata headers = pendingHeaders == null ? new Metadata() : pendingHeaders;
                     String caller = properties.getSecurity().getAi().getHmacCaller().trim();
                     String secret = properties.getSecurity().getAi().getHmacSecret().trim();
                     long ts = clock.instant().getEpochSecond();
                     String nonce = UUID.randomUUID().toString().replace("-", "");
                     String fullMethod = method.getFullMethodName();
                     String methodPath = fullMethod.startsWith("/") ? fullMethod : "/" + fullMethod;
-                    String signature = sign(secret, caller + "\n" + methodPath + "\n" + ts + "\n" + nonce);
+                    String bodySha256 = sha256Hex(requestBytes(method, message));
+                    String signature = sign(secret, caller + "\n" + methodPath + "\n" + ts + "\n" + nonce + "\n" + bodySha256);
 
                     headers.put(CALLER_KEY, caller);
                     headers.put(TS_KEY, String.valueOf(ts));
                     headers.put(NONCE_KEY, nonce);
+                    headers.put(BODY_SHA256_KEY, bodySha256);
                     headers.put(SIGNATURE_KEY, signature);
-                    super.start(responseListener, headers);
+                    super.start(listener, headers);
+                    started = true;
+                    if (pendingRequests > 0) {
+                        super.request(pendingRequests);
+                        pendingRequests = 0;
+                    }
+                }
+
+                @Override
+                public void halfClose() {
+                    if (!started) {
+                        ensureStarted(null);
+                    }
+                    super.halfClose();
                 }
             };
+        }
+
+        private <ReqT> byte[] requestBytes(MethodDescriptor<ReqT, ?> method, ReqT message) {
+            if (message == null) {
+                return new byte[0];
+            }
+            if (message instanceof MessageLite protobuf) {
+                return protobuf.toByteArray();
+            }
+            try (InputStream in = method.getRequestMarshaller().stream(message);
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                in.transferTo(out);
+                return out.toByteArray();
+            } catch (Exception ex) {
+                throw new IllegalStateException("Serialize ai-service grpc request failed", ex);
+            }
+        }
+
+        private String sha256Hex(byte[] bytes) {
+            try {
+                byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+                StringBuilder sb = new StringBuilder(digest.length * 2);
+                for (byte b : digest) {
+                    sb.append(String.format("%02x", b));
+                }
+                return sb.toString();
+            } catch (Exception ex) {
+                throw new IllegalStateException("Compute ai-service request body hash failed", ex);
+            }
         }
 
         private String sign(String secret, String canonical) {

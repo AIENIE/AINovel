@@ -30,7 +30,9 @@
     - `x-aienie-caller`
     - `x-aienie-ts`
     - `x-aienie-nonce`
+    - `x-aienie-body-sha256`
     - `x-aienie-signature`
+  - 签名串必须包含 protobuf 请求体 SHA-256：`caller + "\n" + "/" + fullMethod + "\n" + ts + "\n" + nonce + "\n" + bodySha256`
   - AINovel 对应配置：`EXTERNAL_AI_HMAC_CALLER`、`EXTERNAL_AI_HMAC_SECRET`
 
 ## PayService
@@ -48,7 +50,7 @@
     - `role=SERVICE`
     - `iss=aienie-services`
     - `aud` 包含 `aienie-payservice-grpc`
-    - `scopes` 包含 `billing.read`、`billing.write`
+    - `scopes` 包含 `billing.balance.read`、`billing.balance.convert`、`billing.grant.write`、`billing.usage.deduct`、`billing.checkin.read`、`billing.checkin.write`、`billing.redeem.write`、`billing.ledger.read`
   - AINovel 对应配置：`EXTERNAL_PAY_SERVICE_JWT`
   - JWT 需要由外部 secret/运维流程签发并注入；`build.sh` 不负责自动重签。
 

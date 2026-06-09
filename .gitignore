@@ -63,6 +63,7 @@ SMTPandAPI.txt
 # Docker volumes / persistent data
 /deploy/**/data/**
 !/deploy/**/data/.gitkeep
+/logs/
 *.sock
 /backend/.settings
 /tmp
