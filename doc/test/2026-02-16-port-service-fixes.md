@@ -7,7 +7,7 @@
 - 修复：
   - 前端：`vite.config.ts` 改为 `10010`，并配置 `/api -> http://127.0.0.1:10011`。
   - 后端：`application.yml` 默认端口改为 `10011`。
-  - 部署：`docker-compose*.yml`、`frontend/nginx*.conf`、`build.sh`、`build_prod.sh`、`Dockerfile` 全量同步到 `10010/10011`。
+  - 部署：`docker-compose*.yml`、`frontend/nginx*.conf`、`build.sh`、`Dockerfile` 全量同步到 `10010/10011`。
 
 ## 2. 后端默认数据库地址与编码导致启动失败
 - 现象：

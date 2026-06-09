@@ -3,7 +3,7 @@
 ## 1. 变更目标
 
 1. 将项目环境文件统一为 `env.txt`（不再读取 `.env`）。
-2. `build.sh`、`build_prod.sh`、`build_local.ps1` 全部支持加载 `env.txt`。
+2. `build.sh` 统一加载 `env.txt`。
 3. 将 `ai-service`、`pay-service`、`user-service`、SSO 跳转入口/回调 origin 改为环境变量配置。
 
 ## 2. 执行步骤
@@ -13,7 +13,7 @@
 2. 运行后端 SSO 相关单测：
    - `mvn -q "-Dtest=SsoControllerTest,SsoEntryServiceTest" test`
 3. 执行本地重部署：
-   - `powershell -ExecutionPolicy Bypass -File .\build_local.ps1`
+   - `bash build.sh`
 4. 验收：
    - `http://127.0.0.1:11040` 可访问（200）。
    - `http://127.0.0.1:11041/api/v3/api-docs` 可访问（200）。

@@ -2,7 +2,7 @@
 
 ## 执行信息
 - 时间：2026-02-21（Asia/Shanghai）
-- 部署脚本：`build_local.ps1`（`SSO_SESSION_VALIDATION_ENABLED=false`）
+- 部署脚本：`SSO_SESSION_VALIDATION_ENABLED=false bash build.sh`
 - 访问地址：`http://127.0.0.1:11040`
 - 证据目录：`artifacts/test/2026-02-21-acceptance/`
 

@@ -2,12 +2,12 @@
 
 ## 执行信息
 - 时间：2026-02-20（Asia/Shanghai）
-- 部署脚本：`build_local.ps1`
+- 部署脚本：`bash build.sh`
 - 访问入口：`http://127.0.0.1:11040`
 - 证据目录：`artifacts/test/2026-02-20-local-billing/`
 
 ## 自测步骤
-1. 执行 `build_local.ps1`，完成前后端构建与启动。
+1. 执行 `bash build.sh`，完成前后端构建与启动。
 2. Playwright 访问首页 `http://127.0.0.1:11040/`，页面正常渲染。
 3. Playwright 访问 `http://127.0.0.1:11040/profile`，被重定向到 SSO 登录页。
 4. 使用 `admin/password` 尝试登录，SSO 返回 `USER_NOT_FOUND`，未能进入 `/profile`。

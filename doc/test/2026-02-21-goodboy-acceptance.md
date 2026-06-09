@@ -2,7 +2,7 @@
 
 ## 执行信息
 - 时间：2026-02-21（Asia/Shanghai）
-- 部署脚本：`build_local.ps1`
+- 部署脚本：`bash build.sh`
 - 访问地址：`http://ainovel.seekerhut.com`
 - 验收账号：`goodboy95 / superhs2cr1`
 - 证据目录：`artifacts/test/2026-02-21-goodboy-acceptance/`
