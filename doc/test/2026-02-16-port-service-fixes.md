@@ -2,12 +2,12 @@
 
 ## 1. 端口与调用地址不一致
 - 现象：
-  - 前端开发端口仍是 `8080`，Nginx/Compose 仍是 `10001/20001`。
-  - 后端默认端口 `8080`，与 AGENTS 基线（`10010/10011`）不一致。
+  - 前端开发端口、Nginx/Compose 与容器内端口曾经不一致。
+  - 后端默认端口曾与 AGENTS 基线（前端 `11040`、后端 `11041`）不一致。
 - 修复：
-  - 前端：`vite.config.ts` 改为 `10010`，并配置 `/api -> http://127.0.0.1:10011`。
-  - 后端：`application.yml` 默认端口改为 `10011`。
-  - 部署：`docker-compose*.yml`、`frontend/nginx*.conf`、`build.sh`、`Dockerfile` 全量同步到 `10010/10011`。
+  - 前端：本地、Nginx、Compose 与容器内端口统一为 `11040`。
+  - 后端：`application.yml` 与 Docker 暴露端口统一为 `11041`。
+  - 部署：`docker-compose*.yml`、`frontend/nginx*.conf`、`build.sh`、`Dockerfile` 全量同步到 `11040/11041`。
 
 ## 2. 后端默认数据库地址与编码导致启动失败
 - 现象：

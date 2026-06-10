@@ -70,7 +70,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-11040}:10010"
+      - "${FRONTEND_PORT:-11040}:${FRONTEND_PORT:-11040}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
