@@ -53,7 +53,7 @@ sudo -E bash build.sh
 - `https://ainovel.localhut.com/api/*`
 
 > 仓库仅保留 `build.sh`。正式环境域名、证书和反向代理由外部环境配置。
-> Docker 部署中后端使用 host network 监听 `BACKEND_PORT`，前端容器通过 `host.docker.internal:11041` 转发 `/api`。
+> Docker Compose 使用 bridge 网络；后端监听 `BACKEND_PORT` 后，由外层反代与服务名路由到后端 API。
 
 ## 4. 依赖服务准备
 

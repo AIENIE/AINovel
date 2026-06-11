@@ -5,7 +5,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "${BACKEND_PORT:-11041}:11041"
     environment:
       DB_URL: jdbc:mysql://${MYSQL_HOST:-base.seekerhut.com}:${MYSQL_PORT:-23306}/${MYSQL_DB:-ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
       DB_USERNAME: ${MYSQL_USER:-ainovel}

@@ -7,8 +7,9 @@ COPY . .
 RUN npm run build
 
 # Serve
-FROM nginx:1.27-alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+RUN npm install -g serve@14 --no-audit --no-fund
 EXPOSE 11040
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:11040"]

@@ -39,7 +39,7 @@ bash build.sh
 - `build.sh` 仅执行本项目 Docker Compose 构建与部署。
 - 若发现 `ainovel-backend` / `ainovel-frontend` 已被其他工作目录的旧容器占用，脚本会先删除冲突容器，再部署当前仓库。
 - 若根目录存在 `env.txt`，脚本会通过 `docker compose --env-file env.txt` 加载。
-- Docker 部署中后端使用 host network 监听 `BACKEND_PORT`，前端 Nginx 通过 `host.docker.internal:11041` 转发 `/api`。
+- Docker 部署中后端使用 bridge 网络监听 `BACKEND_PORT`，前端服务通过 compose 网络与后端服务名访问 `/api`。
 - 部署前需确保 `MySQL/Redis/Qdrant` 已按 `env.txt` 配置提前就绪；依赖预检、hosts、Nginx、HTTPS 证书、健康检查和 E2E 不由 `build.sh` 处理。
 
 ## backend 宿主机调试
