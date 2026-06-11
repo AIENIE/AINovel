@@ -2,7 +2,7 @@
 - 项目类型：业务项目
 - 前端技术栈: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - 后端技术栈: Java Spring boot
-- 本地域名: ainovel.localhut.com
+- 本地测试域名: ainovel.localhut.com
 - 正式服域名: ainovel.aienie.com
 - 前端对外端口: 11040
 - 后端对外端口: 11041
