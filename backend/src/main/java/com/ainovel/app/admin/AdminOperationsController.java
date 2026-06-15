@@ -1,5 +1,6 @@
 package com.ainovel.app.admin;
 
+import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.MaterialService;
@@ -42,6 +43,7 @@ public class AdminOperationsController {
     private final ManuscriptRepository manuscriptRepository;
     private final SlopQualityRunRepository slopQualityRunRepository;
     private final PlotQualityRunRepository plotQualityRunRepository;
+    private final OpsRecordFileSink recordFileSink;
 
     public AdminOperationsController(
             MaterialService materialService,
@@ -50,7 +52,8 @@ public class AdminOperationsController {
             WorldRepository worldRepository,
             ManuscriptRepository manuscriptRepository,
             SlopQualityRunRepository slopQualityRunRepository,
-            PlotQualityRunRepository plotQualityRunRepository
+            PlotQualityRunRepository plotQualityRunRepository,
+            OpsRecordFileSink recordFileSink
     ) {
         this.materialService = materialService;
         this.materialRepository = materialRepository;
@@ -59,6 +62,7 @@ public class AdminOperationsController {
         this.manuscriptRepository = manuscriptRepository;
         this.slopQualityRunRepository = slopQualityRunRepository;
         this.plotQualityRunRepository = plotQualityRunRepository;
+        this.recordFileSink = recordFileSink;
     }
 
     @GetMapping("/materials/pending")
@@ -70,13 +74,17 @@ public class AdminOperationsController {
     @PostMapping("/materials/{id}/approve")
     @Operation(summary = "通过素材审核")
     public MaterialDto approveMaterial(@PathVariable UUID id, @RequestBody MaterialReviewRequest request) {
-        return materialService.review(id, "approve", request);
+        MaterialDto result = materialService.review(id, "approve", request);
+        audit("material.approve", "material", String.valueOf(id));
+        return result;
     }
 
     @PostMapping("/materials/{id}/reject")
     @Operation(summary = "驳回素材审核")
     public MaterialDto rejectMaterial(@PathVariable UUID id, @RequestBody MaterialReviewRequest request) {
-        return materialService.review(id, "reject", request);
+        MaterialDto result = materialService.review(id, "reject", request);
+        audit("material.reject", "material", String.valueOf(id));
+        return result;
     }
 
     @PostMapping("/materials/duplicates")
@@ -88,7 +96,9 @@ public class AdminOperationsController {
     @PostMapping("/materials/merge")
     @Operation(summary = "合并素材")
     public MaterialDto mergeMaterial(@RequestBody MaterialMergeRequest request) {
-        return materialService.merge(request);
+        MaterialDto result = materialService.merge(request);
+        audit("material.merge", "material", result.id() == null ? "merged" : String.valueOf(result.id()));
+        return result;
     }
 
     @GetMapping("/materials/{id}/citations")
@@ -224,5 +234,17 @@ public class AdminOperationsController {
             return -1;
         }
         return 0;
+    }
+
+    private void audit(String action, String targetType, String targetId) {
+        recordFileSink.appendAudit(Map.of(
+                "category", "admin",
+                "action", action,
+                "actor", "admin",
+                "targetType", targetType,
+                "targetId", targetId,
+                "result", "SUCCESS",
+                "severity", "INFO"
+        ));
     }
 }

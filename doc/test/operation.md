@@ -29,6 +29,7 @@
    - `/admin/assets`：故事/世界观/稿件只读审计。
    - `/admin/quality`：质量巡检运行记录。
    - `/admin/credits`：本地项目专属兑换码与积分流水。
+   - `/admin/ops`：请求指标、依赖健康、结构化记录、派生告警与脱敏诊断。
    - `/admin/settings`：维护模式。
 
 6. **故事与大纲**
@@ -57,6 +58,9 @@
 11. **可选接口烟测**
    - 未登录访问 `/api/v1/user/profile` 应 403。
    - 管理员登录后：`/api/v1/admin/users` 应 200。
+   - 管理员登录后：`/api/v1/admin/ops/summary` 应 200。
+   - 管理员登录后：`/api/v1/admin/ops/dependencies` 应返回依赖状态列表。
+   - 管理员登录后：`/api/v1/admin/ops/events` 在 ES 不可用时应返回 `available=false`。
    - 角色列表：`/api/v1/story-cards/{id}/character-cards` 应 200。
 
 12. **网络代理注意事项**

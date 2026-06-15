@@ -40,8 +40,17 @@ logging:
     root: ${LOGGING_LEVEL_ROOT:INFO}
     com.ainovel: ${LOGGING_LEVEL_APP:INFO}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
 app:
   time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+  records:
+    dir: ${APP_RECORD_DIR:/app/records}
+    elasticsearch-query-enabled: ${APP_RECORD_ES_QUERY_ENABLED:true}
   admin-auth:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
@@ -95,3 +104,11 @@ springdoc:
     enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
   swagger-ui:
     enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
+
+elasticsearch:
+  hosts: ${ELASTICSEARCH_HOSTS:https://es.localhut.com:9200}
+  username: ${ELASTICSEARCH_USERNAME:elastic}
+  password: ${ELASTICSEARCH_PASSWORD:}
+
+filebeat:
+  index-prefix: ${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}

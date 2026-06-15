@@ -40,6 +40,7 @@ import CreditsManager from "./pages/Admin/CreditsManager";
 import MaterialsGovernance from "./pages/Admin/MaterialsGovernance";
 import AssetsAudit from "./pages/Admin/AssetsAudit";
 import QualityInspection from "./pages/Admin/QualityInspection";
+import OpsObservability from "./pages/Admin/OpsObservability";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,7 @@ const App = () => (
                 <Route path="assets" element={<AssetsAudit />} />
                 <Route path="quality" element={<QualityInspection />} />
                 <Route path="credits" element={<CreditsManager />} />
+                <Route path="ops" element={<OpsObservability />} />
                 <Route path="settings" element={<SystemSettingsPage />} />
               </Route>
             </Route>

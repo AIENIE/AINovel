@@ -1,6 +1,7 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.*;
+import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
@@ -34,6 +35,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -54,6 +56,7 @@ public class AdminController {
     private final StoryRepository storyRepository;
     private final WorldRepository worldRepository;
     private final ApiRequestMetrics apiRequestMetrics;
+    private final OpsRecordFileSink recordFileSink;
 
     public AdminController(
             UserRepository userRepository,
@@ -65,7 +68,8 @@ public class AdminController {
             ProjectCreditAccountRepository projectCreditAccountRepository,
             StoryRepository storyRepository,
             WorldRepository worldRepository,
-            ApiRequestMetrics apiRequestMetrics
+            ApiRequestMetrics apiRequestMetrics,
+            OpsRecordFileSink recordFileSink
     ) {
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
@@ -77,6 +81,7 @@ public class AdminController {
         this.storyRepository = storyRepository;
         this.worldRepository = worldRepository;
         this.apiRequestMetrics = apiRequestMetrics;
+        this.recordFileSink = recordFileSink;
     }
 
     @GetMapping("/dashboard")
@@ -143,10 +148,14 @@ public class AdminController {
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "403", description = "无管理员权限")
     })
-    public AdminSystemConfigResponse updateSystemConfig(@RequestBody AdminSystemConfigUpdateRequest request) {
+    public AdminSystemConfigResponse updateSystemConfig(
+            @AuthenticationPrincipal UserDetails principal,
+            @RequestBody AdminSystemConfigUpdateRequest request
+    ) {
         GlobalSettings g = settingsService.getGlobalSettings();
         if (request.maintenanceMode() != null) g.setMaintenanceMode(request.maintenanceMode());
         globalSettingsRepository.save(g);
+        audit(principal, "maintenance.update", "system-config", "global", "SUCCESS", "INFO");
         return systemConfig();
     }
 
@@ -169,6 +178,7 @@ public class AdminController {
                 request.reason(),
                 principal == null ? "admin" : principal.getUsername()
         );
+        audit(principal, "credits.grant", "user", String.valueOf(target.getId()), "SUCCESS", "INFO");
         return ResponseEntity.ok(new com.ainovel.app.user.dto.CreditChangeResponse(
                 result.success(),
                 result.points(),
@@ -212,7 +222,10 @@ public class AdminController {
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "403", description = "无管理员权限")
     })
-    public AdminRedeemCodeDto createRedeemCode(@Valid @RequestBody AdminRedeemCodeCreateRequest request) {
+    public AdminRedeemCodeDto createRedeemCode(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody AdminRedeemCodeCreateRequest request
+    ) {
         EconomyService.RedeemCodeView item = economyService.createRedeemCode(
                 request.code(),
                 request.grantAmount(),
@@ -223,6 +236,7 @@ public class AdminController {
                 request.stackable() == null || request.stackable(),
                 request.description()
         );
+        audit(principal, "redeem-code.create", "redeem-code", item.code(), "SUCCESS", "INFO");
         return new AdminRedeemCodeDto(
                 item.id(),
                 item.code(),
@@ -346,5 +360,17 @@ public class AdminController {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private void audit(UserDetails principal, String action, String targetType, String targetId, String result, String severity) {
+        recordFileSink.appendAudit(Map.of(
+                "category", "admin",
+                "action", action,
+                "actor", principal == null ? "admin" : principal.getUsername(),
+                "targetType", targetType,
+                "targetId", targetId,
+                "result", result,
+                "severity", severity
+        ));
     }
 }

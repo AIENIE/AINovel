@@ -10,7 +10,8 @@ import {
   FileCheck,
   Library,
   ShieldAlert,
-  Menu
+  Menu,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -23,6 +24,7 @@ const navItems = [
   { title: "创作资产", href: "/admin/assets", icon: Library },
   { title: "质量巡检", href: "/admin/quality", icon: ShieldAlert },
   { title: "专属积分", href: "/admin/credits", icon: Coins },
+  { title: "运维观测", href: "/admin/ops", icon: Activity },
   { title: "系统维护", href: "/admin/settings", icon: Settings },
 ];
 

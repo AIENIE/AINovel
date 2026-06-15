@@ -119,6 +119,16 @@ async function safeErrorMessage(resp: Response): Promise<string> {
   }
 }
 
+function queryString(params: Record<string, unknown>): string {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    qs.set(key, String(value));
+  });
+  const text = qs.toString();
+  return text ? `?${text}` : "";
+}
+
 function normalizeModel(model: any, index: number): ModelConfig {
   const fallbackId = `model-${index + 1}`;
   const preferredKey = model?.modelKey ?? model?.name ?? model?.id ?? fallbackId;
@@ -620,6 +630,24 @@ export const api = {
     },
     listQualityRuns: async () => {
       return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, requireAdminToken());
+    },
+    getOpsSummary: async () => {
+      return await requestJson<any>("/v1/admin/ops/summary", { method: "GET" }, requireAdminToken());
+    },
+    listDependencies: async () => {
+      return await requestJson<any[]>("/v1/admin/ops/dependencies", { method: "GET" }, requireAdminToken());
+    },
+    listOpsEvents: async (params: { severity?: string; category?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
+      return await requestJson<any>(`/v1/admin/ops/events${queryString(params)}`, { method: "GET" }, requireAdminToken());
+    },
+    listAuditRecords: async (params: { action?: string; actor?: string; targetType?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
+      return await requestJson<any>(`/v1/admin/ops/audit${queryString(params)}`, { method: "GET" }, requireAdminToken());
+    },
+    listOpsAlerts: async () => {
+      return await requestJson<any[]>("/v1/admin/ops/alerts", { method: "GET" }, requireAdminToken());
+    },
+    getOpsDiagnostics: async () => {
+      return await requestJson<any>("/v1/admin/ops/diagnostics", { method: "GET" }, requireAdminToken());
     },
   },
 

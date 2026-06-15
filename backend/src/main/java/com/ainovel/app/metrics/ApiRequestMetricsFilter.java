@@ -21,10 +21,12 @@ public class ApiRequestMetricsFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        long started = System.nanoTime();
         try {
             filterChain.doFilter(request, response);
         } finally {
-            metrics.record(response.getStatus());
+            long latencyMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+            metrics.record(response.getStatus(), latencyMs);
         }
     }
 }

@@ -371,4 +371,30 @@ describe("mock api", () => {
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/conversions?page=2&size=15"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/ledger?page=3&size=25"))).toBe(true);
   });
+
+  it("passes admin ops observability requests through the API wrapper", async () => {
+    localStorage.setItem("admin_token", "admin-token");
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      requestedUrls.push(String(url));
+      const headers = init?.headers as Headers;
+      expect(headers?.get("Authorization")).toBe("Bearer admin-token");
+      return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.admin.getOpsSummary();
+    await api.admin.listDependencies();
+    await api.admin.listOpsEvents({ severity: "WARN", category: "dependency", page: 2, size: 10 });
+    await api.admin.listAuditRecords({ action: "maintenance.update", actor: "admin", targetType: "system-config" });
+    await api.admin.listOpsAlerts();
+    await api.admin.getOpsDiagnostics();
+
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/summary"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/dependencies"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/events?severity=WARN&category=dependency&page=2&size=10"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/audit?action=maintenance.update&actor=admin&targetType=system-config"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/alerts"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/diagnostics"))).toBe(true);
+  });
 });

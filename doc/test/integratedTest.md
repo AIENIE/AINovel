@@ -13,7 +13,10 @@
   - `/admin/assets` 故事/世界观/稿件只读审计可用。
   - `/admin/quality` 质量巡检记录可加载。
   - `/admin/settings` 维护模式保存后回显一致。
+  - `/admin/ops` 运维观测页可加载，展示请求指标、依赖健康、派生告警、结构化记录和脱敏诊断。
   - `/api/v1/admin/credits/grant`、`/api/v1/admin/redeem-codes`、`/api/v1/admin/credits/ledger` 可正常调用本地项目专属积分链路。
+  - `/api/v1/admin/ops/summary`、`/dependencies`、`/alerts`、`/diagnostics` 均需管理员 token。
+  - ES 未配置或不可用时，`/api/v1/admin/ops/events` 与 `/audit` 应返回不可用状态而不是影响业务接口。
 
 - **用户侧主流程**：
   - `/dashboard`、`/novels`、`/novels/create`、`/workbench`、`/worlds/create`、`/materials`、`/settings`、`/profile` 路由可达。
@@ -35,3 +38,4 @@
 - **部署验证**：执行 `sudo -E bash build.sh` 后，前后端容器可用，域名 `https://ainovel.localhut.com` 可访问。
 - **OpenAPI 验证**：默认 `SPRINGDOC_*` 为 `false`，仅在显式开启时才验证 `/api/v3/api-docs` 与 `/api/swagger-ui/*`。
 - **公共依赖连通**：MySQL、Redis、Qdrant 连通；在 16K page size 环境下，本地 qdrant 需使用 `v1.8.3`。
+- **集中日志/记录同步**：AINovel 容器写 `/app/records/*.ndjson`，宿主机挂载到 `/home/duwei/aienie-runtime/observability/data/ainovel/records`，由集中 Filebeat 写入 `aienie-local-ainovel-*`。

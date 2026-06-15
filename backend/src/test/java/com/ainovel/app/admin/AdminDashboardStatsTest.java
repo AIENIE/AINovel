@@ -1,6 +1,7 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.AdminDashboardStatsResponse;
+import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
@@ -48,7 +49,8 @@ class AdminDashboardStatsTest {
                 mock(ProjectCreditAccountRepository.class),
                 mock(StoryRepository.class),
                 mock(WorldRepository.class),
-                requestMetrics
+                requestMetrics,
+                mock(OpsRecordFileSink.class)
         );
 
         ResponseEntity<AdminDashboardStatsResponse> response = controller.dashboard();
