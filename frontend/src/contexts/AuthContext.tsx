@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { api } from "@/lib/mock-api";
 
@@ -14,16 +14,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const isAuthFailure = (error: unknown) => {
+  if (!(error instanceof Error)) return false;
+  return error.message.includes("401") || error.message.includes("403");
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAuthFailure = (error: unknown) => {
-    if (!(error instanceof Error)) return false;
-    return error.message.includes("401") || error.message.includes("403");
-  };
-
-  const initAuth = async () => {
+  const initAuth = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
@@ -37,13 +37,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
     setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     initAuth();
-  }, []);
+  }, [initAuth]);
 
-  const acceptToken = async (token: string) => {
+  const acceptToken = useCallback(async (token: string) => {
     localStorage.setItem("token", token);
     setIsLoading(true);
     try {
@@ -57,14 +57,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("token");
     setUser(null);
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     try {
       const updatedUser = await api.user.getProfile();
       setUser(updatedUser);
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
       }
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider

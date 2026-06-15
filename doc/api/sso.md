@@ -19,6 +19,7 @@
 - 请求体：
   - `code`：user-service 回跳的一次性授权码。
   - `redirect`：发起登录时传给 user-service 的原始 callback URL；只移除回跳追加的 `code`、`state`，保留 `next`。
+- 注意：`redirect` 必须与授权码签发时绑定的 callback 字符串一致；前端重建该 URL 时保留 `next=/path` 中的路径斜杠，不应重新编码为 `next=%2Fpath`。
 - 后端用 `application/x-www-form-urlencoded` 调用 user-service `POST /sso/token`，表单字段为 `code` 与 `redirect`。
 - 成功响应透传 `accessToken/userId/username/sessionId/rememberDays/expiresIn`，前端沿用既有 `acceptToken` 建立本地登录态。
 

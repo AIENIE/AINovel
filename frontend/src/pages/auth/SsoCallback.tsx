@@ -1,18 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { validateSsoState } from "@/lib/sso";
-
-type SsoSessionResponse = {
-  accessToken: string;
-};
+import { buildSsoCallbackRedirectUrl, createSsoCallbackProcessor, type SsoSessionResponse } from "@/lib/sso-callback";
 
 const callbackRedirectUrl = (location: Location) => {
-  const url = new URL(`${window.location.origin}${location.pathname}${location.search}`);
-  url.searchParams.delete("code");
-  url.searchParams.delete("state");
-  return url.toString();
+  return buildSsoCallbackRedirectUrl(window.location.origin, location.pathname, location.search);
 };
 
 const exchangeSsoCode = async (code: string, redirect: string): Promise<SsoSessionResponse> => {
@@ -31,48 +25,32 @@ const SsoCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { acceptToken } = useAuth();
+  const processorRef = useRef<ReturnType<typeof createSsoCallbackProcessor> | null>(null);
+
+  if (!processorRef.current) {
+    processorRef.current = createSsoCallbackProcessor({
+      validateState: validateSsoState,
+      exchangeSsoCode,
+      acceptToken,
+      onSuccess: (nextPath) => {
+        window.history.replaceState(null, "", callbackRedirectUrl(window.location));
+        toast.success("单点登录成功");
+        navigate(nextPath, { replace: true });
+      },
+      onFailure: (message) => {
+        toast.error(message);
+        navigate("/login", { replace: true });
+      },
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
-    const handleCallback = async () => {
-      const params = new URLSearchParams(location.search);
-      const state = params.get("state");
-      const code = params.get("code") || "";
-
-      if (!validateSsoState(state)) {
-        toast.error("单点登录失败：state 校验未通过");
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (!code) {
-        toast.error("单点登录失败：未获取到授权码");
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      try {
-        const session = await exchangeSsoCode(code, callbackRedirectUrl(window.location));
-        await acceptToken(session.accessToken);
-      } catch {
-        if (!cancelled) {
-          toast.error("单点登录失败：会话校验未通过");
-          navigate("/login", { replace: true });
-        }
-        return;
-      }
-
-      if (cancelled) return;
-
-      const qs = new URLSearchParams(location.search);
-      const next = qs.get("next") || "/workbench";
-
-      window.history.replaceState(null, "", callbackRedirectUrl(window.location));
-      toast.success("单点登录成功");
-      navigate(next, { replace: true });
-    };
-
-    handleCallback().catch(() => {
+    processorRef.current?.({
+      search: location.search,
+      redirect: callbackRedirectUrl(window.location),
+      isCancelled: () => cancelled,
+    }).catch(() => {
       if (!cancelled) {
         toast.error("单点登录失败：回调处理异常");
         navigate("/login", { replace: true });
@@ -82,7 +60,7 @@ const SsoCallback = () => {
     return () => {
       cancelled = true;
     };
-  }, [acceptToken, location.pathname, location.search, navigate]);
+  }, [location.pathname, location.search, navigate]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center p-6">
