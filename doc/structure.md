@@ -16,7 +16,7 @@
 - `frontend/src/contexts/AuthContext.tsx`：登录态与用户资料上下文。
 - `frontend/src/pages/auth/*`：SSO 登录/注册跳转与回调页面。
 - `frontend/src/pages/Admin/Login.tsx`：管理员本地账密登录页（`/admin/login`）。
-- `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（签到/兑换/兑换历史/积分流水）。
+- `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（兑换码、通用转专属、兑换历史、积分流水）。
 - `frontend/src/pages/Admin/*`：管理后台页面。
 - `frontend/src/lib/mock-api.ts`：统一 API 请求层。
 

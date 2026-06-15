@@ -2,8 +2,8 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.*;
 import com.ainovel.app.economy.EconomyService;
+import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
-import com.ainovel.app.integration.UserAdminRemoteClient;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.metrics.ApiRequestMetrics;
 import com.ainovel.app.settings.SettingsService;
@@ -11,6 +11,8 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import com.ainovel.app.settings.model.GlobalSettings;
 import com.ainovel.app.settings.repo.GlobalSettingsRepository;
+import com.ainovel.app.story.repo.StoryRepository;
+import com.ainovel.app.world.repo.WorldRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -44,30 +46,36 @@ public class AdminController {
 
     private final UserRepository userRepository;
     private final MaterialRepository materialRepository;
-    private final UserAdminRemoteClient userAdminRemoteClient;
     private final SettingsService settingsService;
     private final GlobalSettingsRepository globalSettingsRepository;
     private final EconomyService economyService;
     private final ProjectCreditLedgerRepository projectCreditLedgerRepository;
+    private final ProjectCreditAccountRepository projectCreditAccountRepository;
+    private final StoryRepository storyRepository;
+    private final WorldRepository worldRepository;
     private final ApiRequestMetrics apiRequestMetrics;
 
     public AdminController(
             UserRepository userRepository,
             MaterialRepository materialRepository,
-            UserAdminRemoteClient userAdminRemoteClient,
             SettingsService settingsService,
             GlobalSettingsRepository globalSettingsRepository,
             EconomyService economyService,
             ProjectCreditLedgerRepository projectCreditLedgerRepository,
+            ProjectCreditAccountRepository projectCreditAccountRepository,
+            StoryRepository storyRepository,
+            WorldRepository worldRepository,
             ApiRequestMetrics apiRequestMetrics
     ) {
         this.userRepository = userRepository;
         this.materialRepository = materialRepository;
-        this.userAdminRemoteClient = userAdminRemoteClient;
         this.settingsService = settingsService;
         this.globalSettingsRepository = globalSettingsRepository;
         this.economyService = economyService;
         this.projectCreditLedgerRepository = projectCreditLedgerRepository;
+        this.projectCreditAccountRepository = projectCreditAccountRepository;
+        this.storyRepository = storyRepository;
+        this.worldRepository = worldRepository;
         this.apiRequestMetrics = apiRequestMetrics;
     }
 
@@ -90,73 +98,27 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "查询用户列表", description = "透传 UserService 管理端用户列表，支持关键字模糊查询。")
+    @Operation(summary = "查询项目用户运营列表", description = "返回 AINovel 本地用户镜像、专属积分和创作资产统计；不管理 UserService 全局账号能力。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "403", description = "无管理员权限")
     })
     public List<AdminUserDto> users(
-            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
-            @RequestHeader(value = "Authorization", required = false) String authorization,
             @Parameter(description = "用户名/邮箱关键字", example = "demo")
             @RequestParam(value = "search", required = false) String search
     ) {
-        return userAdminRemoteClient.listUsers(authorization, search).stream()
+        String keyword = search == null ? "" : search.trim().toLowerCase();
+        return userRepository.findAll().stream()
+                .filter(user -> keyword.isBlank()
+                        || safe(user.getUsername()).toLowerCase().contains(keyword)
+                        || safe(user.getEmail()).toLowerCase().contains(keyword))
                 .map(this::toUserDto)
                 .toList();
     }
 
-    @PostMapping("/users/{id}/ban")
-    @Operation(summary = "封禁用户", description = "调用 UserService 执行用户封禁，并同步本地用户快照状态。")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "封禁成功"),
-            @ApiResponse(responseCode = "400", description = "请求参数错误"),
-            @ApiResponse(responseCode = "401", description = "未登录"),
-            @ApiResponse(responseCode = "403", description = "无管理员权限")
-    })
-    public ResponseEntity<Boolean> ban(
-            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @Parameter(description = "目标用户 ID（UserService 侧 ID）", example = "1001")
-            @PathVariable long id,
-            @Parameter(description = "封禁天数", example = "7")
-            @RequestParam(value = "days", defaultValue = "7") int days,
-            @Parameter(description = "封禁原因", example = "违规行为")
-            @RequestParam(value = "reason", defaultValue = "管理员封禁") String reason
-    ) {
-        userAdminRemoteClient.banUser(authorization, id, days, reason);
-        userRepository.findByRemoteUid(id).ifPresent(u -> {
-            u.setBanned(true);
-            userRepository.save(u);
-        });
-        return ResponseEntity.ok(true);
-    }
-
-    @PostMapping("/users/{id}/unban")
-    @Operation(summary = "解封用户", description = "调用 UserService 解除封禁，并同步本地用户快照状态。")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "解封成功"),
-            @ApiResponse(responseCode = "400", description = "用户不存在"),
-            @ApiResponse(responseCode = "401", description = "未登录"),
-            @ApiResponse(responseCode = "403", description = "无管理员权限")
-    })
-    public ResponseEntity<Boolean> unban(
-            @Parameter(description = "管理员 JWT，透传给 UserService", example = "Bearer eyJhbGciOi...")
-            @RequestHeader(value = "Authorization", required = false) String authorization,
-            @Parameter(description = "目标用户 ID（UserService 侧 ID）", example = "1001")
-            @PathVariable long id
-    ) {
-        userAdminRemoteClient.unbanUser(authorization, id);
-        userRepository.findByRemoteUid(id).ifPresent(u -> {
-            u.setBanned(false);
-            userRepository.save(u);
-        });
-        return ResponseEntity.ok(true);
-    }
-
     @GetMapping("/system-config")
-    @Operation(summary = "读取系统配置", description = "返回注册开关、维护开关、签到范围与 SMTP 配置状态。")
+    @Operation(summary = "读取系统配置", description = "返回 AINovel 本地维护模式。SMTP、注册、签到和 AI 模型池配置由对应公共服务或业务链路负责。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "读取成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
@@ -164,27 +126,18 @@ public class AdminController {
     })
     public AdminSystemConfigResponse systemConfig() {
         GlobalSettings g = settingsService.getGlobalSettings();
-        return new AdminSystemConfigResponse(
-                g.isRegistrationEnabled(),
-                g.isMaintenanceMode(),
-                g.getCheckInMinPoints(),
-                g.getCheckInMaxPoints(),
-                g.getSmtpHost(),
-                g.getSmtpPort(),
-                g.getSmtpUsername(),
-                g.getSmtpPassword() != null && !g.getSmtpPassword().isBlank()
-        );
+        return new AdminSystemConfigResponse(g.isMaintenanceMode());
     }
 
     @PutMapping("/system-config")
-    @Operation(summary = "更新系统配置", description = "更新注册开关、维护开关、签到范围与 SMTP 配置。")
+    @Operation(summary = "更新系统配置", description = "仅更新 AINovel 本地维护模式。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "更新成功",
                     content = @Content(
                             schema = @Schema(implementation = AdminSystemConfigResponse.class),
-                            examples = @ExampleObject(value = "{\"registrationEnabled\":true,\"maintenanceMode\":false,\"checkInMinPoints\":10,\"checkInMaxPoints\":50,\"smtpHost\":\"smtp.example.com\",\"smtpPort\":587,\"smtpUsername\":\"noreply@example.com\",\"smtpPasswordIsSet\":true}")
+                            examples = @ExampleObject(value = "{\"maintenanceMode\":false}")
                     )
             ),
             @ApiResponse(responseCode = "401", description = "未登录"),
@@ -192,22 +145,13 @@ public class AdminController {
     })
     public AdminSystemConfigResponse updateSystemConfig(@RequestBody AdminSystemConfigUpdateRequest request) {
         GlobalSettings g = settingsService.getGlobalSettings();
-        if (request.registrationEnabled() != null) g.setRegistrationEnabled(request.registrationEnabled());
         if (request.maintenanceMode() != null) g.setMaintenanceMode(request.maintenanceMode());
-        if (request.checkInMinPoints() != null) g.setCheckInMinPoints(request.checkInMinPoints());
-        if (request.checkInMaxPoints() != null) g.setCheckInMaxPoints(request.checkInMaxPoints());
-
-        if (request.smtpHost() != null) g.setSmtpHost(request.smtpHost());
-        if (request.smtpPort() != null) g.setSmtpPort(request.smtpPort());
-        if (request.smtpUsername() != null) g.setSmtpUsername(request.smtpUsername());
-        if (request.smtpPassword() != null && !request.smtpPassword().isBlank()) g.setSmtpPassword(request.smtpPassword());
-
         globalSettingsRepository.save(g);
         return systemConfig();
     }
 
     @PostMapping("/credits/grant")
-    @Operation(summary = "管理员加发项目积分", description = "通过 pay-service 发放项目积分，仅支持加分，不支持扣减。")
+    @Operation(summary = "管理员加发项目专属积分", description = "写入 AINovel 本地专属积分账户与流水，仅支持加分。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "发放成功"),
             @ApiResponse(responseCode = "400", description = "参数错误或用户不存在"),
@@ -237,7 +181,7 @@ public class AdminController {
     }
 
     @GetMapping("/redeem-codes")
-    @Operation(summary = "兑换码列表", description = "本地兑换码管理已迁移到 pay-service；未配置上游管理代理时返回明确错误。")
+    @Operation(summary = "兑换码列表", description = "查询 AINovel 本地项目专属积分兑换码。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
@@ -261,7 +205,7 @@ public class AdminController {
     }
 
     @PostMapping("/redeem-codes")
-    @Operation(summary = "创建兑换码", description = "本地兑换码管理已迁移到 pay-service；未配置上游管理代理时返回明确错误。")
+    @Operation(summary = "创建兑换码", description = "创建 AINovel 本地项目专属积分兑换码。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "创建成功"),
             @ApiResponse(responseCode = "400", description = "参数错误"),
@@ -327,7 +271,7 @@ public class AdminController {
     }
 
     @GetMapping("/credits/ledger")
-    @Operation(summary = "查询项目积分流水", description = "全站项目积分流水由 pay-service 管理；未配置上游管理代理时返回明确错误。")
+    @Operation(summary = "查询项目专属积分流水", description = "分页查询 AINovel 本地项目专属积分流水。")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "查询成功"),
             @ApiResponse(responseCode = "401", description = "未登录"),
@@ -373,17 +317,34 @@ public class AdminController {
         }
     }
 
-    private AdminUserDto toUserDto(UserAdminRemoteClient.RemoteAdminUser remote) {
-        User local = userRepository.findByRemoteUid(remote.id()).orElse(null);
-        double credits = local != null ? local.getCredits() : 0.0;
+    private AdminUserDto toUserDto(User local) {
+        long projectCredits = projectCreditAccountRepository.findByUser(local)
+                .map(com.ainovel.app.economy.model.ProjectCreditAccount::getBalance)
+                .orElse(Math.round(local.getCredits()));
+        long publicCredits = 0L;
+        try {
+            publicCredits = economyService.currentBalance(local).publicCredits();
+        } catch (RuntimeException ignored) {
+            publicCredits = 0L;
+        }
         return new AdminUserDto(
-                String.valueOf(remote.id()),
-                remote.username(),
-                remote.email(),
-                "ADMIN".equalsIgnoreCase(remote.role()) ? "admin" : "user",
-                credits,
-                remote.banned(),
-                local == null ? null : local.getLastCheckInAt()
+                String.valueOf(local.getId()),
+                local.getRemoteUid(),
+                local.getUsername(),
+                local.getEmail(),
+                local.hasRole("ROLE_ADMIN") ? "admin" : "user",
+                projectCredits,
+                publicCredits,
+                projectCredits + publicCredits,
+                storyRepository.countByUser(local),
+                worldRepository.countByUser(local),
+                local.isBanned(),
+                local.getCreatedAt(),
+                local.getUpdatedAt()
         );
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
     }
 }

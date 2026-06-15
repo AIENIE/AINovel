@@ -8,13 +8,16 @@
 
 - **管理后台能力**：
   - `/admin/dashboard` 指标加载成功。
-  - `/admin/users` 用户列表可查询，封禁/解封可执行。
-  - `/admin/settings` 注册/维护/签到区间与 SMTP 参数保存后回显一致。
-  - `/api/v1/admin/credits/grant`、`/api/v1/admin/redeem-codes` 可正常调用。
+  - `/admin/users` 项目用户列表可查询，展示本地用户镜像、项目积分和创作资产数量。
+  - `/admin/materials` 待审素材、重复候选和审核动作可用。
+  - `/admin/assets` 故事/世界观/稿件只读审计可用。
+  - `/admin/quality` 质量巡检记录可加载。
+  - `/admin/settings` 维护模式保存后回显一致。
+  - `/api/v1/admin/credits/grant`、`/api/v1/admin/redeem-codes`、`/api/v1/admin/credits/ledger` 可正常调用本地项目专属积分链路。
 
 - **用户侧主流程**：
   - `/dashboard`、`/novels`、`/novels/create`、`/workbench`、`/worlds/create`、`/materials`、`/settings`、`/profile` 路由可达。
-  - 个人中心签到、兑换码、通用积分兑换链路可达，流水可查询。
+  - 个人中心兑换码、通用积分兑换链路可达，流水可查询。
 
 - **故事/大纲/稿件链路**：
   - 一句话构思（`/api/v1/conception`）成功创建故事。

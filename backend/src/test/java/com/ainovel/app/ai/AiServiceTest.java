@@ -35,7 +35,7 @@ class AiServiceTest {
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
-                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99));
 
         aiService.chat(
                 user,
@@ -72,7 +72,7 @@ class AiServiceTest {
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
-                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99));
 
         AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "", null);
         AiChatResponse response = aiService.chat(user, request);
@@ -94,7 +94,7 @@ class AiServiceTest {
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
-                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99));
 
         AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "", null);
         aiService.chat(user, request);
@@ -139,7 +139,7 @@ class AiServiceTest {
         when(economyService.chargeAiUsage(eq(user), eq(100L), eq(20L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
-                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99));
 
         AiChatResponse response = aiService.chat(
                 user,

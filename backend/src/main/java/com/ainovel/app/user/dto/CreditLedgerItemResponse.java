@@ -18,10 +18,9 @@ public record CreditLedgerItemResponse(
         String referenceType,
         @Schema(description = "引用 ID", example = "VIP888")
         String referenceId,
-        @Schema(description = "描述", example = "每日签到奖励")
+        @Schema(description = "描述", example = "AI 生成扣费")
         String description,
         @Schema(description = "创建时间")
         Instant createdAt
 ) {
 }
-

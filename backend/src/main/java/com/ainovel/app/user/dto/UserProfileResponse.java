@@ -2,7 +2,6 @@ package com.ainovel.app.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Schema(description = "用户资料响应")
@@ -26,7 +25,5 @@ public record UserProfileResponse(
         @Schema(description = "总余额（项目 + 通用）", example = "1500.0")
         double totalCredits,
         @Schema(description = "是否封禁", example = "false")
-        boolean isBanned,
-        @Schema(description = "最近签到时间", example = "2026-02-16T08:00:00Z")
-        Instant lastCheckIn
+        boolean isBanned
 ) {}

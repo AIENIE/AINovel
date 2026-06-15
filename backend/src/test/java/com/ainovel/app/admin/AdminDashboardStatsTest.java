@@ -2,13 +2,15 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.AdminDashboardStatsResponse;
 import com.ainovel.app.economy.EconomyService;
+import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
-import com.ainovel.app.integration.UserAdminRemoteClient;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.metrics.ApiRequestMetrics;
 import com.ainovel.app.settings.SettingsService;
 import com.ainovel.app.settings.repo.GlobalSettingsRepository;
+import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.user.UserRepository;
+import com.ainovel.app.world.repo.WorldRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
@@ -39,11 +41,13 @@ class AdminDashboardStatsTest {
         AdminController controller = new AdminController(
                 userRepository,
                 materialRepository,
-                mock(UserAdminRemoteClient.class),
                 mock(SettingsService.class),
                 mock(GlobalSettingsRepository.class),
                 mock(EconomyService.class),
                 ledgerRepository,
+                mock(ProjectCreditAccountRepository.class),
+                mock(StoryRepository.class),
+                mock(WorldRepository.class),
                 requestMetrics
         );
 

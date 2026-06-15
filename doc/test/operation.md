@@ -16,18 +16,20 @@
    - 使用 `ADMIN_USERNAME` / `ADMIN_PASSWORD` 调用 `/api/v1/admin-auth/login`。
    - 成功后写入 `localStorage.admin_token` 并进入 `/admin/dashboard`。
 
-4. **个人中心（积分/签到/兑换）**
+4. **个人中心（积分/兑换）**
    - 进入 `/profile`，确认项目积分/通用积分/总余额展示。
-   - 点击“每日签到”，确认积分增加与按钮状态变化。
    - 输入兑换码执行兑换，确认余额变化。
    - 执行“通用积分兑换项目积分”，确认前后余额正确。
    - `POST /api/v1/user/password` 固定返回 501（密码由 SSO 管理）。
 
 5. **后台管理（管理员）**
-   - `/admin/dashboard`：看板指标。
-   - `/admin/users`：用户检索、封禁/解封。
-   - `/admin/credits`：兑换码与积分流水。
-   - `/admin/settings`：注册/维护/签到区间与 SMTP 配置。
+   - `/admin/dashboard`：业务运营指标。
+   - `/admin/users`：项目用户与创作资产统计。
+   - `/admin/materials`：待审素材与重复候选。
+   - `/admin/assets`：故事/世界观/稿件只读审计。
+   - `/admin/quality`：质量巡检运行记录。
+   - `/admin/credits`：本地项目专属兑换码与积分流水。
+   - `/admin/settings`：维护模式。
 
 6. **故事与大纲**
    - `/novels/create` 创建故事。

@@ -9,7 +9,7 @@ interface AuthContextType {
   isLoading: boolean;
   acceptToken: (token: string) => Promise<void>;
   logout: () => void;
-  refreshProfile: () => Promise<void>; // V2: Refresh credits/check-in status
+  refreshProfile: () => Promise<void>; // V2: Refresh profile and credit status
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

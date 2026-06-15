@@ -34,8 +34,6 @@ public class User {
     @Column(name = "remote_uid", unique = true)
     private Long remoteUid;
 
-    private Instant lastCheckInAt;
-
     private String avatarUrl;
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -52,14 +50,13 @@ public class User {
     public User() {
     }
 
-    public User(UUID id, String username, String email, String passwordHash, double credits, boolean banned, Instant lastCheckInAt, String avatarUrl, Set<String> roles, Instant createdAt, Instant updatedAt) {
+    public User(UUID id, String username, String email, String passwordHash, double credits, boolean banned, String avatarUrl, Set<String> roles, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.credits = credits;
         this.banned = banned;
-        this.lastCheckInAt = lastCheckInAt;
         this.avatarUrl = avatarUrl;
         this.roles = roles;
         this.createdAt = createdAt;
@@ -80,8 +77,6 @@ public class User {
     public void setBanned(boolean banned) { this.banned = banned; }
     public Long getRemoteUid() { return remoteUid; }
     public void setRemoteUid(Long remoteUid) { this.remoteUid = remoteUid; }
-    public Instant getLastCheckInAt() { return lastCheckInAt; }
-    public void setLastCheckInAt(Instant lastCheckInAt) { this.lastCheckInAt = lastCheckInAt; }
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
     public Set<String> getRoles() { return roles; }

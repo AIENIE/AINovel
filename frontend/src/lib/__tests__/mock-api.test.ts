@@ -30,7 +30,6 @@ describe("mock api", () => {
               role: "admin",
               credits: 999,
               isBanned: false,
-              lastCheckIn: null,
             }),
             { status: 200, headers: { "content-type": "application/json" } }
           );

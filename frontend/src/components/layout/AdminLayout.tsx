@@ -6,7 +6,10 @@ import {
   Users, 
   Settings, 
   Coins,
-  LogOut
+  LogOut,
+  FileCheck,
+  Library,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminSession, api } from "@/lib/mock-api";
@@ -42,10 +45,13 @@ const AdminLayout = () => {
   };
 
   const navItems = [
-    { title: "仪表盘", href: "/admin/dashboard", icon: LayoutDashboard },
-    { title: "用户管理", href: "/admin/users", icon: Users },
-    { title: "积分与兑换码", href: "/admin/credits", icon: Coins },
-    { title: "系统设置", href: "/admin/settings", icon: Settings },
+    { title: "运营概览", href: "/admin/dashboard", icon: LayoutDashboard },
+    { title: "项目用户", href: "/admin/users", icon: Users },
+    { title: "素材治理", href: "/admin/materials", icon: FileCheck },
+    { title: "创作资产", href: "/admin/assets", icon: Library },
+    { title: "质量巡检", href: "/admin/quality", icon: ShieldAlert },
+    { title: "专属积分", href: "/admin/credits", icon: Coins },
+    { title: "系统维护", href: "/admin/settings", icon: Settings },
   ];
 
   return (

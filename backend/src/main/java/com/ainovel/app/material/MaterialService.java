@@ -212,7 +212,9 @@ public class MaterialService {
 
     public List<Map<String, Object>> citations(UUID materialId) {
         Material material = materialRepository.findById(materialId).orElseThrow(() -> new RuntimeException("素材不存在"));
-        accessGuard.assertOwner(material.getUser());
+        if (!accessGuard.isCurrentUserAdmin()) {
+            accessGuard.assertOwner(material.getUser());
+        }
         List<String> signals = citationSignals(material);
         if (signals.isEmpty()) {
             return List.of();

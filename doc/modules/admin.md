@@ -5,24 +5,28 @@
 - 路由前缀：`/admin`
 - 登录页：`/admin/login`
 - 访问权限：`ROLE_ADMIN`
+- 管理员认证：本地 `/api/v1/admin-auth/*`，普通用户仍走 SSO。
 
-## 认证模型
+## 第一批后台能力
 
-- 管理员链路使用本地账号密码登录（`/api/v1/admin-auth/login`），不依赖 SSO 页面。
-- 登录成功后前端将 token 存在 `localStorage.admin_token`。
-- 每次进入管理路由时会调用 `/api/v1/admin-auth/me` 校验会话；失效则清理 token 并跳回 `/admin/login`。
+- `运营概览`：真实用户、积分消耗、待审素材、创作资产和高风险质量记录。
+- `项目用户`：AINovel 本地用户镜像、项目专属积分、通用积分快照、故事/世界观数量；不提供 user-service 全局账号封禁、邮箱、短信或 SSO 管理。
+- `素材治理`：待审素材、通过/驳回、重复候选和素材引用查询。
+- `创作资产`：故事、世界观、稿件只读审计；后台不直接编辑或删除用户创作内容。
+- `质量巡检`：聚合反套路质量与剧情质量运行记录，按风险分定位待处理场景。
+- `专属积分`：AINovel 本地项目专属积分账户、兑换码、兑换订单快照和项目流水。
+- `系统维护`：仅保留 AINovel 本地维护模式。
 
-## 页面与能力
+## 服务边界
 
-- `仪表盘`：用户规模、新增、待审素材、消费指标概览
-- `用户管理`：用户检索、封禁/解封（透传 user-service）
-- `积分与兑换码`：
-  - 项目积分发放透传 pay-service
-  - 查看通用积分兑换订单快照（含前后余额）
-  - 兑换码管理与全站项目积分流水已迁移到 pay-service；本地未配置管理代理时返回明确错误
-- `系统设置`：注册开关、维护开关、签到区间、SMTP 参数
+- AINovel 本地负责：素材、创作资产、质量巡检、项目专属积分账户/兑换码/流水/通用转专属订单。
+- `user-service` 负责：账号、注册、邮箱、短信、SSO、全局用户管理。
+- `ai-service` 负责：模型池、API Key、调用方密钥、AI 成本和全局调用管理。
+- `pay-service` 负责：通用积分余额、通用积分扣减、充值、签到配置和全局账务后台。
 
 ## 数据来源
 
-- 用户域：`UserAdminRemoteClient`（user-service HTTP）
-- 积分域：`EconomyService`（AINovel BFF 门面，运行时余额、签到、兑换、扣费与流水来自 pay-service）
+- 用户域：`UserRepository` 本地用户镜像。
+- 专属积分域：`ProjectCreditAccount`、`ProjectCreditLedger`、`RedeemCode`、`RedeemCodeUsage`、`CreditConversionOrder`。
+- 通用积分域：`BillingGrpcClient.publicBalance` 与通用转专属扣减调用。
+- 素材/资产/质量域：本项目 JPA 仓库与 `MaterialService`。

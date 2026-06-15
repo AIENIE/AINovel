@@ -152,7 +152,6 @@ function toUser(profile: any): User {
     publicCredits,
     totalCredits,
     isBanned: Boolean(profile.isBanned ?? false),
-    lastCheckIn: profile.lastCheckIn || undefined,
   };
 }
 
@@ -478,17 +477,6 @@ export const api = {
       const profile = await requestJson<any>("/v1/user/profile", { method: "GET" });
       return toUser(profile);
     },
-    checkIn: async () => {
-      return await requestJson<{
-        success: boolean;
-        points: number;
-        newTotal: number;
-        projectCredits: number;
-        publicCredits: number;
-        totalCredits: number;
-        message?: string;
-      }>("/v1/user/check-in", { method: "POST", body: "{}" });
-    },
     redeem: async (code: string) => {
       return await requestJson<{
         success: boolean;
@@ -567,19 +555,14 @@ export const api = {
         username: u.username,
         email: u.email,
         role: u.role === "admin" ? "admin" : "user",
-        credits: Number(u.credits ?? 0),
-        projectCredits: Number(u.projectCredits ?? u.credits ?? 0),
+        credits: Number(u.projectCredits ?? 0),
+        projectCredits: Number(u.projectCredits ?? 0),
         publicCredits: Number(u.publicCredits ?? 0),
-        totalCredits: Number(u.totalCredits ?? ((u.projectCredits ?? u.credits ?? 0) + (u.publicCredits ?? 0))),
+        totalCredits: Number(u.totalCredits ?? ((u.projectCredits ?? 0) + (u.publicCredits ?? 0))),
         isBanned: Boolean(u.isBanned ?? false),
-        lastCheckIn: u.lastCheckIn || undefined,
+        storyCount: Number(u.storyCount ?? 0),
+        worldCount: Number(u.worldCount ?? 0),
       }));
-    },
-    banUser: async (userId: string) => {
-      return await requestJson<boolean>(`/v1/admin/users/${userId}/ban`, { method: "POST" }, requireAdminToken());
-    },
-    unbanUser: async (userId: string) => {
-      return await requestJson<boolean>(`/v1/admin/users/${userId}/unban`, { method: "POST" }, requireAdminToken());
     },
     getSystemConfig: async () => {
       return await requestJson<any>("/v1/admin/system-config", { method: "GET" }, requireAdminToken());
@@ -610,6 +593,31 @@ export const api = {
     },
     listCreditLedger: async () => {
       return await requestJson<any[]>("/v1/admin/credits/ledger?page=0&size=50", { method: "GET" }, requireAdminToken());
+    },
+    getAssetSummary: async () => {
+      return await requestJson<any>("/v1/admin/assets/summary", { method: "GET" }, requireAdminToken());
+    },
+    listPendingMaterials: async (): Promise<Material[]> => {
+      const data = await requestJson<any[]>("/v1/admin/materials/pending", { method: "GET" }, requireAdminToken());
+      return data.map(toMaterial);
+    },
+    approveMaterial: async (id: string, payload: any = {}) => {
+      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+    },
+    rejectMaterial: async (id: string, payload: any = {}) => {
+      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+    },
+    findMaterialDuplicates: async () => {
+      return await requestJson<any[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, requireAdminToken());
+    },
+    mergeMaterials: async (payload: any) => {
+      return toMaterial(await requestJson<any>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+    },
+    listAssets: async (kind: "stories" | "worlds" | "manuscripts") => {
+      return await requestJson<any[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, requireAdminToken());
+    },
+    listQualityRuns: async () => {
+      return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, requireAdminToken());
     },
   },
 

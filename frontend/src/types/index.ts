@@ -9,7 +9,6 @@ export interface User {
   publicCredits: number;
   totalCredits: number;
   isBanned: boolean;
-  lastCheckIn?: string; // ISO Date string
 }
 
 export interface Story {

@@ -13,4 +13,8 @@ public interface SlopQualityRunRepository extends JpaRepository<SlopQualityRun, 
 
     @EntityGraph(attributePaths = "issues")
     List<SlopQualityRun> findTop20ByManuscriptIdAndSceneIdOrderByCreatedAtDesc(UUID manuscriptId, UUID sceneId);
+
+    List<SlopQualityRun> findTop100ByOrderByCreatedAtDesc();
+
+    long countByOverallRiskScoreGreaterThanEqual(int riskScore);
 }

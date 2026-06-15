@@ -55,20 +55,19 @@ public class UserController {
     }
 
     @GetMapping("/profile")
-    @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色、资产与签到时间。")
+    @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色与资产。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
                     description = "查询成功",
-                    content = @Content(examples = @ExampleObject(value = "{\"id\":\"2f2ac8d9-3b9b-45f9-a4a0-6f1f0899a9d1\",\"username\":\"demo\",\"email\":\"demo@example.com\",\"avatar\":null,\"role\":\"user\",\"credits\":1200.0,\"isBanned\":false,\"lastCheckIn\":\"2026-02-16T08:00:00Z\"}"))
+                    content = @Content(examples = @ExampleObject(value = "{\"id\":\"2f2ac8d9-3b9b-45f9-a4a0-6f1f0899a9d1\",\"username\":\"demo\",\"email\":\"demo@example.com\",\"avatar\":null,\"role\":\"user\",\"credits\":1200.0,\"isBanned\":false}"))
             ),
             @ApiResponse(responseCode = "401", description = "未登录")
     })
     public ResponseEntity<UserProfileResponse> profile(@AuthenticationPrincipal UserDetails principal) {
         User user = currentUser(principal);
         EconomyService.BalanceSnapshot balance = economyService.currentBalance(user);
-        var lastCheckInAt = balance.lastCheckInAt();
-        return ResponseEntity.ok(toProfile(user, balance, lastCheckInAt));
+        return ResponseEntity.ok(toProfile(user, balance));
     }
 
     @GetMapping("/summary")
@@ -84,30 +83,6 @@ public class UserController {
         long totalWords = estimateTotalWords(user);
         long totalEntries = estimateWorldEntries(user);
         return ResponseEntity.ok(new UserSummaryResponse(novelCount, worldCount, totalWords, totalEntries));
-    }
-
-    @PostMapping("/check-in")
-    @Operation(summary = "每日签到", description = "调用 pay-service 执行项目签到并返回资产变动。")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "签到成功或今日已签到",
-                    content = @Content(examples = @ExampleObject(value = "{\"success\":true,\"points\":500.0,\"newTotal\":1500.0}"))
-            ),
-            @ApiResponse(responseCode = "401", description = "未登录")
-    })
-    public ResponseEntity<CreditChangeResponse> checkIn(@AuthenticationPrincipal UserDetails principal) {
-        User user = currentUser(principal);
-        EconomyService.CreditChangeResult result = economyService.checkIn(user);
-        return ResponseEntity.ok(new CreditChangeResponse(
-                result.success(),
-                result.points(),
-                result.totalCredits(),
-                result.projectCredits(),
-                result.publicCredits(),
-                result.totalCredits(),
-                result.message()
-        ));
     }
 
     @PostMapping("/redeem")
@@ -136,7 +111,7 @@ public class UserController {
     }
 
     @PostMapping("/credits/convert")
-    @Operation(summary = "通用积分兑换项目积分", description = "按 1:1 调用 pay-service 将通用积分兑换为本项目专属积分。")
+    @Operation(summary = "通用积分兑换项目积分", description = "按 1:1 调用 pay-service 扣减通用积分，再写入 AINovel 本地项目专属积分账本。")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
@@ -241,7 +216,7 @@ public class UserController {
         return ResponseEntity.status(501).body(new BasicResponse(false, "PASSWORD_MANAGED_BY_SSO"));
     }
 
-    private UserProfileResponse toProfile(User user, EconomyService.BalanceSnapshot balance, java.time.Instant lastCheckInAt) {
+    private UserProfileResponse toProfile(User user, EconomyService.BalanceSnapshot balance) {
         String role = user.hasRole("ROLE_ADMIN") ? "admin" : "user";
         return new UserProfileResponse(
                 user.getId(),
@@ -253,8 +228,7 @@ public class UserController {
                 balance.projectCredits(),
                 balance.publicCredits(),
                 balance.totalCredits(),
-                user.isBanned(),
-                lastCheckInAt
+                user.isBanned()
         );
     }
 

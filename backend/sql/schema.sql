@@ -28,19 +28,9 @@ CREATE TABLE `email_verification_codes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `global_settings` (
   `id` binary(16) NOT NULL,
-  `check_in_max_points` int NOT NULL,
-  `check_in_min_points` int NOT NULL,
   `created_at` datetime(6) DEFAULT NULL,
   `maintenance_mode` bit(1) NOT NULL,
-  `registration_enabled` bit(1) NOT NULL,
-  `smtp_host` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `smtp_password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `smtp_port` int DEFAULT NULL,
-  `smtp_username` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
-  `llm_api_key_encrypted` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `llm_base_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `llm_model_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE `manuscripts` (
@@ -136,7 +126,6 @@ CREATE TABLE `users` (
   `created_at` datetime(6) DEFAULT NULL,
   `credits` double NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_check_in_at` datetime(6) DEFAULT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
   `username` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,

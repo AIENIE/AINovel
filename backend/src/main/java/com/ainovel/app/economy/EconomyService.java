@@ -1,11 +1,21 @@
 package com.ainovel.app.economy;
 
 import com.ainovel.app.economy.model.ConversionOrderStatus;
+import com.ainovel.app.economy.model.CreditLedgerType;
 import com.ainovel.app.economy.model.CreditConversionOrder;
+import com.ainovel.app.economy.model.ProjectCreditAccount;
+import com.ainovel.app.economy.model.ProjectCreditLedger;
+import com.ainovel.app.economy.model.RedeemCode;
+import com.ainovel.app.economy.model.RedeemCodeUsage;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
+import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
+import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
+import com.ainovel.app.economy.repo.RedeemCodeRepository;
+import com.ainovel.app.economy.repo.RedeemCodeUsageRepository;
 import com.ainovel.app.integration.BillingGrpcClient;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -26,6 +36,14 @@ public class EconomyService {
     private final BillingGrpcClient billingGrpcClient;
     private final UserRepository userRepository;
     private final CreditConversionOrderRepository conversionOrderRepository;
+    @Autowired
+    private ProjectCreditAccountRepository accountRepository;
+    @Autowired
+    private ProjectCreditLedgerRepository ledgerRepository;
+    @Autowired
+    private RedeemCodeRepository redeemCodeRepository;
+    @Autowired
+    private RedeemCodeUsageRepository redeemCodeUsageRepository;
 
     public EconomyService(
             BillingGrpcClient billingGrpcClient,
@@ -37,7 +55,7 @@ public class EconomyService {
         this.conversionOrderRepository = conversionOrderRepository;
     }
 
-    public record BalanceSnapshot(long projectCredits, long publicCredits, long totalCredits, Instant lastCheckInAt) {
+    public record BalanceSnapshot(long projectCredits, long publicCredits, long totalCredits) {
     }
 
     public record CreditChangeResult(
@@ -46,7 +64,6 @@ public class EconomyService {
             long projectCredits,
             long publicCredits,
             long totalCredits,
-            Instant lastCheckInAt,
             String message
     ) {
     }
@@ -112,25 +129,7 @@ public class EconomyService {
 
     @Transactional
     public CreditChangeResult checkIn(User user) {
-        long remoteUid = remoteUidOrThrow(user, "执行签到");
-        BillingGrpcClient.CheckinResult remote = billingGrpcClient.checkin(remoteUid);
-        long projectCredits = billingGrpcClient.projectBalance(remoteUid);
-        long publicCredits = fetchPublicBalance(user);
-        Instant lastCheckInAt = remote.success() ? Instant.now() : fetchLastCheckInAt(user);
-        syncUserCreditSnapshot(user, projectCredits, lastCheckInAt);
-        String message = remote.errorMessage();
-        if (message == null || message.isBlank()) {
-            message = remote.alreadyCheckedIn() ? "TODAY_ALREADY_CHECKED_IN" : "CHECKIN_SUCCESS";
-        }
-        return new CreditChangeResult(
-                remote.success(),
-                remote.tokensGranted(),
-                projectCredits,
-                publicCredits,
-                projectCredits + publicCredits,
-                lastCheckInAt,
-                message
-        );
+        throw new IllegalStateException("CHECKIN_DISABLED");
     }
 
     @Transactional
@@ -139,68 +138,70 @@ public class EconomyService {
         if (normalized.isBlank()) {
             throw new RuntimeException("兑换码不能为空");
         }
-        long remoteUid = remoteUidOrThrow(user, "兑换积分");
-        BillingGrpcClient.RedeemResult remote = billingGrpcClient.redeem(remoteUid, normalized);
-        if (!remote.success()) {
-            throw new RuntimeException(normalizeRemoteError(remote.errorMessage(), "兑换码无效"));
+        RedeemCode redeemCode = redeemCodeRepository.findByCode(normalized)
+                .orElseThrow(() -> new RuntimeException("兑换码无效"));
+        Instant now = Instant.now();
+        if (!redeemCode.isEnabled()) {
+            throw new RuntimeException("兑换码已停用");
         }
-        long projectCredits = billingGrpcClient.projectBalance(remoteUid);
-        long publicCredits = fetchPublicBalance(user);
-        syncUserCreditSnapshot(user, projectCredits, user.getLastCheckInAt());
-        return new CreditChangeResult(
-                true,
-                remote.tokensGranted(),
-                projectCredits,
-                publicCredits,
-                projectCredits + publicCredits,
-                user.getLastCheckInAt(),
-                "REDEEM_SUCCESS"
+        if (redeemCode.getStartsAt() != null && redeemCode.getStartsAt().isAfter(now)) {
+            throw new RuntimeException("兑换码尚未生效");
+        }
+        if (redeemCode.getExpiresAt() != null && redeemCode.getExpiresAt().isBefore(now)) {
+            throw new RuntimeException("兑换码已过期");
+        }
+        if (redeemCode.getMaxUses() != null && redeemCode.getUsedCount() >= redeemCode.getMaxUses()) {
+            throw new RuntimeException("兑换码已用尽");
+        }
+        if (!redeemCode.isStackable() && redeemCodeUsageRepository.existsByRedeemCodeAndUser(redeemCode, user)) {
+            throw new RuntimeException("兑换码已使用");
+        }
+        ProjectCreditAccount account = accountForUpdate(user);
+        long projectCredits = addProjectCredits(
+                user,
+                account,
+                redeemCode.getGrantAmount(),
+                CreditLedgerType.REDEEM_CODE,
+                "REDEEM_CODE",
+                redeemCode.getCode(),
+                "兑换码 " + redeemCode.getCode(),
+                "redeem:" + redeemCode.getCode() + ":" + user.getId()
         );
+        redeemCode.setUsedCount(redeemCode.getUsedCount() + 1);
+        redeemCodeRepository.save(redeemCode);
+        RedeemCodeUsage usage = new RedeemCodeUsage();
+        usage.setRedeemCode(redeemCode);
+        usage.setUser(user);
+        redeemCodeUsageRepository.save(usage);
+        long publicCredits = fetchPublicBalance(user);
+        return new CreditChangeResult(true, redeemCode.getGrantAmount(), projectCredits, publicCredits, projectCredits + publicCredits, "REDEEM_SUCCESS");
     }
 
     @Transactional(readOnly = true)
     public BalanceSnapshot currentBalance(User user) {
-        long remoteUid = remoteUidOrThrow(user, "查询积分");
-        long project = billingGrpcClient.projectBalance(remoteUid);
+        long project = accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
         long pub = fetchPublicBalance(user);
-        return new BalanceSnapshot(project, pub, project + pub, fetchLastCheckInAt(user));
-    }
-
-    @Transactional(readOnly = true)
-    public Instant fetchLastCheckInAt(User user) {
-        Long remoteUid = user.getRemoteUid();
-        if (remoteUid == null || remoteUid <= 0) {
-            return user.getLastCheckInAt();
-        }
-        try {
-            BillingGrpcClient.CheckinStatus status = billingGrpcClient.checkinStatus(remoteUid);
-            return status.lastCheckinAt() == null ? user.getLastCheckInAt() : status.lastCheckinAt();
-        } catch (RuntimeException ex) {
-            log.warn("Failed to fetch checkin status for remoteUid={}, fallback to local snapshot reason={}", remoteUid, ex.getMessage());
-            return user.getLastCheckInAt();
-        }
+        return new BalanceSnapshot(project, pub, project + pub);
     }
 
     @Transactional(readOnly = true)
     public long projectBalance(User user) {
-        return billingGrpcClient.projectBalance(remoteUidOrThrow(user, "查询项目积分"));
+        return accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
     }
 
     @Transactional
     public AiChargeResult chargeAiUsage(User user, long inputTokens, long outputTokens, String referenceId) {
         long cost = calculateAiCost(inputTokens, outputTokens);
-        try {
-            BillingGrpcClient.UsageDeductionResult remote = billingGrpcClient.deductUsage(
-                    remoteUidOrThrow(user, "扣减 AI 用量"),
-                    cost,
-                    0L,
-                    referenceId
-            );
-            syncUserCreditSnapshot(user, remote.remainingProjectCredits(), user.getLastCheckInAt());
-            return new AiChargeResult(remote.chargedCredits(), remote.remainingProjectCredits());
-        } catch (RuntimeException ex) {
-            throw new RuntimeException(normalizeRemoteError(ex.getMessage(), "项目积分不足，请先兑换项目积分"), ex);
+        ProjectCreditAccount account = accountForUpdate(user);
+        if (account.getBalance() < cost) {
+            throw new RuntimeException("项目积分不足，请先兑换项目积分");
         }
+        long nextBalance = account.getBalance() - cost;
+        account.setBalance(nextBalance);
+        accountRepository.save(account);
+        syncUserCreditSnapshot(user, nextBalance);
+        writeLedger(user, CreditLedgerType.AI_DEBIT, -cost, nextBalance, "AI_USAGE", referenceId, "AI 生成扣费", "ai:" + referenceId);
+        return new AiChargeResult(cost, nextBalance);
     }
 
     public ConversionResult convertPublicToProject(User user, long amount, String idempotencyKey) {
@@ -233,7 +234,7 @@ public class EconomyService {
             throw new RuntimeException("该兑换请求正在处理或已失败，请更换 idempotencyKey");
         }
 
-        long projectBefore = billingGrpcClient.projectBalance(remoteUid);
+        long projectBefore = projectBalance(user);
         long publicBefore = fetchPublicBalance(user);
 
         String orderNo = "CVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase(Locale.ROOT);
@@ -268,7 +269,17 @@ public class EconomyService {
         }
 
         long converted = remote.convertedProjectTokens() > 0 ? remote.convertedProjectTokens() : amount;
-        long projectAfter = billingGrpcClient.projectBalance(remoteUid);
+        ProjectCreditAccount account = accountForUpdate(user);
+        long projectAfter = addProjectCredits(
+                user,
+                account,
+                converted,
+                CreditLedgerType.CONVERT_IN,
+                "CONVERSION",
+                orderNo,
+                "通用积分兑换项目专属积分",
+                "convert:" + idempotencyKey
+        );
         long publicAfter = remote.publicRemainingTokens() >= 0 ? remote.publicRemainingTokens() : fetchPublicBalance(user);
         order.setConvertedAmount(converted);
         order.setStatus(ConversionOrderStatus.SUCCESS);
@@ -276,7 +287,7 @@ public class EconomyService {
         order.setProjectAfter(projectAfter);
         order.setPublicAfter(publicAfter);
         conversionOrderRepository.save(order);
-        syncUserCreditSnapshot(user, projectAfter, user.getLastCheckInAt());
+        syncUserCreditSnapshot(user, projectAfter);
 
         return new ConversionResult(
                 orderNo,
@@ -294,44 +305,29 @@ public class EconomyService {
         if (amount <= 0) {
             throw new RuntimeException("发放积分必须大于 0");
         }
-        BillingGrpcClient.ProjectGrantResult remote = billingGrpcClient.grantProjectCredits(
-                remoteUidOrThrow(target, "管理员发放项目积分"),
+        ProjectCreditAccount account = accountForUpdate(target);
+        long nextBalance = addProjectCredits(
+                target,
+                account,
                 amount,
-                reason == null || reason.isBlank() ? "AINovel admin grant by " + operator : reason
+                CreditLedgerType.ADMIN_GRANT,
+                "ADMIN_GRANT",
+                operator,
+                reason == null || reason.isBlank() ? "AINovel admin grant by " + operator : reason,
+                "grant:" + operator + ":" + Instant.now().toEpochMilli()
         );
-        long nextBalance = remote.projectCredits();
-        syncUserCreditSnapshot(target, nextBalance, target.getLastCheckInAt());
         long publicCredits = fetchPublicBalance(target);
-        return new CreditChangeResult(true, amount, nextBalance, publicCredits, nextBalance + publicCredits, target.getLastCheckInAt(), "GRANT_SUCCESS");
+        return new CreditChangeResult(true, amount, nextBalance, publicCredits, nextBalance + publicCredits, "GRANT_SUCCESS");
     }
 
     @Transactional(readOnly = true)
     public Page<LedgerItem> listLedger(User user, Pageable pageable) {
-        BillingGrpcClient.LedgerPage remote = billingGrpcClient.listLedgerEntries(
-                remoteUidOrThrow(user, "查询项目积分流水"),
-                pageable.getPageNumber(),
-                pageable.getPageSize()
-        );
-        List<LedgerItem> items = remote.entries().stream()
-                .map(item -> new LedgerItem(
-                        item.id(),
-                        String.valueOf(user.getId()),
-                        user.getUsername(),
-                        item.type(),
-                        item.delta(),
-                        item.balanceAfter(),
-                        item.referenceType(),
-                        item.referenceId(),
-                        item.description(),
-                        item.createdAt()
-                ))
-                .toList();
-        return new PageImpl<>(items, pageable, remote.totalElements());
+        return ledgerRepository.findByUserOrderByCreatedAtDesc(user, pageable).map(this::toLedgerItem);
     }
 
     @Transactional(readOnly = true)
     public Page<LedgerItem> listLedger(Pageable pageable) {
-        throw new IllegalStateException("PAY_SERVICE_ADMIN_LEDGER_NOT_CONFIGURED");
+        return ledgerRepository.findByOrderByCreatedAtDesc(pageable).map(this::toLedgerItem);
     }
 
     @Transactional(readOnly = true)
@@ -376,7 +372,7 @@ public class EconomyService {
 
     @Transactional(readOnly = true)
     public List<RedeemCodeView> listRedeemCodes() {
-        throw new IllegalStateException("PAY_SERVICE_ADMIN_REDEEM_CODE_NOT_CONFIGURED");
+        return redeemCodeRepository.findAll().stream().map(this::toRedeemCodeView).toList();
     }
 
     @Transactional
@@ -390,7 +386,108 @@ public class EconomyService {
             boolean stackable,
             String description
     ) {
-        throw new IllegalStateException("PAY_SERVICE_ADMIN_REDEEM_CODE_NOT_CONFIGURED");
+        String normalized = normalizeRedeemCode(code);
+        if (normalized.isBlank()) {
+            throw new RuntimeException("兑换码不能为空");
+        }
+        if (grantAmount <= 0) {
+            throw new RuntimeException("兑换积分必须大于 0");
+        }
+        redeemCodeRepository.findByCode(normalized).ifPresent(existing -> {
+            throw new RuntimeException("兑换码已存在");
+        });
+        RedeemCode item = new RedeemCode();
+        item.setCode(normalized);
+        item.setGrantAmount(grantAmount);
+        item.setMaxUses(maxUses);
+        item.setStartsAt(startsAt);
+        item.setExpiresAt(expiresAt);
+        item.setEnabled(enabled);
+        item.setStackable(stackable);
+        item.setDescription(description);
+        return toRedeemCodeView(redeemCodeRepository.save(item));
+    }
+
+    private ProjectCreditAccount accountForUpdate(User user) {
+        ProjectCreditAccount account = accountRepository.findForUpdateByUserId(user.getId()).orElse(null);
+        if (account != null) {
+            return account;
+        }
+        ProjectCreditAccount created = new ProjectCreditAccount();
+        created.setUser(user);
+        created.setBalance(Math.max(0L, Math.round(user.getCredits())));
+        return accountRepository.save(created);
+    }
+
+    private long addProjectCredits(
+            User user,
+            ProjectCreditAccount account,
+            long amount,
+            CreditLedgerType type,
+            String referenceType,
+            String referenceId,
+            String description,
+            String idempotencyKey
+    ) {
+        long nextBalance = account.getBalance() + amount;
+        account.setBalance(nextBalance);
+        accountRepository.save(account);
+        syncUserCreditSnapshot(user, nextBalance);
+        writeLedger(user, type, amount, nextBalance, referenceType, referenceId, description, idempotencyKey);
+        return nextBalance;
+    }
+
+    private void writeLedger(
+            User user,
+            CreditLedgerType type,
+            long delta,
+            long balanceAfter,
+            String referenceType,
+            String referenceId,
+            String description,
+            String idempotencyKey
+    ) {
+        ProjectCreditLedger ledger = new ProjectCreditLedger();
+        ledger.setUser(user);
+        ledger.setEntryType(type);
+        ledger.setDelta(delta);
+        ledger.setBalanceAfter(balanceAfter);
+        ledger.setReferenceType(referenceType);
+        ledger.setReferenceId(referenceId);
+        ledger.setDescription(description);
+        ledger.setIdempotencyKey(idempotencyKey);
+        ledgerRepository.save(ledger);
+    }
+
+    private LedgerItem toLedgerItem(ProjectCreditLedger item) {
+        User user = item.getUser();
+        return new LedgerItem(
+                String.valueOf(item.getId()),
+                user == null ? "" : String.valueOf(user.getId()),
+                user == null ? "" : user.getUsername(),
+                item.getEntryType() == null ? "" : item.getEntryType().name(),
+                item.getDelta(),
+                item.getBalanceAfter(),
+                item.getReferenceType(),
+                item.getReferenceId(),
+                item.getDescription(),
+                item.getCreatedAt()
+        );
+    }
+
+    private RedeemCodeView toRedeemCodeView(RedeemCode item) {
+        return new RedeemCodeView(
+                String.valueOf(item.getId()),
+                item.getCode(),
+                item.getGrantAmount(),
+                item.getMaxUses(),
+                item.getUsedCount(),
+                item.getStartsAt(),
+                item.getExpiresAt(),
+                item.isEnabled(),
+                item.isStackable(),
+                item.getDescription()
+        );
     }
 
     private long calculateAiCost(long inputTokens, long outputTokens) {
@@ -437,11 +534,8 @@ public class EconomyService {
         return remoteUid;
     }
 
-    private void syncUserCreditSnapshot(User user, long projectCredits, Instant lastCheckInAt) {
+    private void syncUserCreditSnapshot(User user, long projectCredits) {
         user.setCredits(projectCredits);
-        if (lastCheckInAt != null) {
-            user.setLastCheckInAt(lastCheckInAt);
-        }
         userRepository.save(user);
     }
 

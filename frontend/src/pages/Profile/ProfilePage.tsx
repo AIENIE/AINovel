@@ -7,14 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
-import { Coins, CalendarCheck, Gift, Shield, Loader2, ArrowRightLeft } from "lucide-react";
+import { Coins, Gift, Shield, Loader2, ArrowRightLeft } from "lucide-react";
 import { CreditConversionRecord, CreditLedgerItem } from "@/types";
 
 const ProfilePage = () => {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [redeemCode, setRedeemCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [convertAmount, setConvertAmount] = useState("");
@@ -44,31 +43,6 @@ const ProfilePage = () => {
       loadRecords();
     }
   }, [user?.id]);
-
-  const isCheckedInToday = () => {
-    if (!user?.lastCheckIn) return false;
-    const last = new Date(user.lastCheckIn).toDateString();
-    const today = new Date().toDateString();
-    return last === today;
-  };
-
-  const handleCheckIn = async () => {
-    setIsCheckingIn(true);
-    try {
-      const res = await api.user.checkIn();
-      toast({ 
-        title: "签到成功", 
-        description: `获得 ${res.points} 积分！当前总余额: ${res.totalCredits ?? res.newTotal}`,
-        className: "bg-yellow-50 border-yellow-200 text-yellow-800"
-      });
-      await refreshProfile();
-      await loadRecords();
-    } catch (error) {
-      toast({ variant: "destructive", title: "签到失败" });
-    } finally {
-      setIsCheckingIn(false);
-    }
-  };
 
   const handleRedeem = async () => {
     if (!redeemCode) return;
@@ -144,21 +118,12 @@ const ProfilePage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+            <div className="p-4 bg-muted/30 rounded-lg">
               <div>
                 <div className="text-sm text-muted-foreground">项目专属积分</div>
                 <div className="text-3xl font-bold text-primary">{user.projectCredits.toLocaleString()}</div>
                 <div className="text-xs text-muted-foreground mt-1">1 积分 ≈ 100k Token</div>
               </div>
-              <Button 
-                size="lg" 
-                onClick={handleCheckIn} 
-                disabled={isCheckedInToday() || isCheckingIn}
-                className={isCheckedInToday() ? "bg-muted text-muted-foreground hover:bg-muted" : "bg-yellow-500 hover:bg-yellow-600 text-white"}
-              >
-                {isCheckingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="mr-2 h-4 w-4" />}
-                {isCheckedInToday() ? "今日已签到" : "每日签到"}
-              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

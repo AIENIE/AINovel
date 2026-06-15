@@ -56,4 +56,5 @@
 
 ## AINovel 本地能力边界
 - `/api/v1/user/credits/convert`：先调用 pay-service 扣减通用积分，再写入本地项目积分账本。
-- `/api/v1/user/check-in`、`/api/v1/user/redeem`：AINovel 本地账本链路。
+- `/api/v1/user/redeem`：AINovel 本地项目专属积分兑换码链路。
+- 签到功能已从 AINovel 废弃；签到配置属于 pay-service 全局后台，不在本项目暴露。

@@ -16,4 +16,8 @@ public interface PlotQualityRunRepository extends JpaRepository<PlotQualityRun, 
 
     @EntityGraph(attributePaths = "issues")
     List<PlotQualityRun> findTop200ByManuscriptIdOrderByCreatedAtDesc(UUID manuscriptId);
+
+    List<PlotQualityRun> findTop100ByOrderByCreatedAtDesc();
+
+    long countByOverallRiskScoreGreaterThanEqual(int riskScore);
 }

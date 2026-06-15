@@ -1,6 +1,5 @@
 package com.ainovel.app.settings;
 
-import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.settings.dto.*;
 import com.ainovel.app.settings.model.GlobalSettings;
 import com.ainovel.app.settings.model.PromptTemplatesEntity;
@@ -10,7 +9,6 @@ import com.ainovel.app.settings.repo.PromptTemplatesRepository;
 import com.ainovel.app.settings.repo.WorldPromptTemplatesRepository;
 import com.ainovel.app.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,20 +17,6 @@ import java.util.Map;
 
 @Service
 public class SettingsService {
-    @Value("${app.ai.base-url:}")
-    private String defaultAiBaseUrl;
-    @Value("${app.ai.model:" + AiModelPolicy.REQUIRED_TEXT_MODEL_KEY + "}")
-    private String defaultAiModel;
-    @Value("${app.ai.api-key:}")
-    private String defaultAiApiKey;
-    @Value("${spring.mail.host:}")
-    private String defaultSmtpHost;
-    @Value("${spring.mail.port:587}")
-    private Integer defaultSmtpPort;
-    @Value("${spring.mail.username:}")
-    private String defaultSmtpUsername;
-    @Value("${spring.mail.password:}")
-    private String defaultSmtpPassword;
     @Autowired
     private GlobalSettingsRepository globalSettingsRepository;
     @Autowired
@@ -45,17 +29,8 @@ public class SettingsService {
     }
 
     private GlobalSettings getOrCreateGlobalSettings() {
-        return globalSettingsRepository.findTopByOrderByUpdatedAtDesc().orElseGet(() -> {
-            GlobalSettings g = new GlobalSettings();
-            if (defaultSmtpHost != null && !defaultSmtpHost.isBlank()) g.setSmtpHost(defaultSmtpHost);
-            if (defaultSmtpPort != null) g.setSmtpPort(defaultSmtpPort);
-            if (defaultSmtpUsername != null && !defaultSmtpUsername.isBlank()) g.setSmtpUsername(defaultSmtpUsername);
-            if (defaultSmtpPassword != null && !defaultSmtpPassword.isBlank()) g.setSmtpPassword(defaultSmtpPassword);
-            if (defaultAiBaseUrl != null && !defaultAiBaseUrl.isBlank()) g.setLlmBaseUrl(defaultAiBaseUrl);
-            if (defaultAiModel != null && !defaultAiModel.isBlank()) g.setLlmModelName(defaultAiModel);
-            if (defaultAiApiKey != null && !defaultAiApiKey.isBlank()) g.setLlmApiKeyEncrypted(defaultAiApiKey);
-            return globalSettingsRepository.save(g);
-        });
+        return globalSettingsRepository.findTopByOrderByUpdatedAtDesc()
+                .orElseGet(() -> globalSettingsRepository.save(new GlobalSettings()));
     }
 
     public PromptTemplatesResponse getPromptTemplates(User user) {

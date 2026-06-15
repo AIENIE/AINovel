@@ -3,23 +3,20 @@
 ## 个人资料
 
 - `GET /api/v1/user/profile`
-  - 返回：`{id,username,email,avatar,role,credits,projectCredits,publicCredits,totalCredits,isBanned,lastCheckIn}`
+  - 返回：`{id,username,email,avatar,role,credits,projectCredits,publicCredits,totalCredits,isBanned}`
 - `GET /api/v1/user/summary`
   - 返回：`{novelCount,worldCount,totalWords,totalEntries}`
 
-## 项目积分与通用积分
-
-- `POST /api/v1/user/check-in`
-  - 功能：每日签到（pay-service 项目账本）
-  - 返回：`{success,points,newTotal,projectCredits,publicCredits,totalCredits,message}`
+## 项目专属积分与通用积分
 
 - `POST /api/v1/user/redeem`
-  - 功能：兑换码入账（pay-service 兑换码与项目账本）
+  - 功能：兑换 AINovel 本地项目专属积分兑换码
   - 请求：`{code}`
   - 返回：`{success,points,newTotal,projectCredits,publicCredits,totalCredits,message}`
 
 - `POST /api/v1/user/credits/convert`
-  - 功能：通用积分兑换项目积分（1:1，pay-service 执行）
+  - 功能：通用积分兑换 AINovel 项目专属积分（1:1）
+  - 边界：pay-service 扣减通用积分；AINovel 写入本地项目专属积分账户、流水和兑换订单快照。
   - 请求：`{amount,idempotencyKey}`
   - 返回：
     - `orderNo`
@@ -29,7 +26,7 @@
     - `totalCredits`
 
 - `GET /api/v1/user/credits/ledger?page=0&size=20`
-  - 功能：查询 pay-service 项目积分流水（签到/兑换码/AI扣费/转换入账/管理员加分）
+  - 功能：查询 AINovel 本地项目专属积分流水（兑换码、AI 扣费、转换入账、管理员加分）
   - 返回：数组（按时间倒序）
 
 - `GET /api/v1/user/credits/conversions?page=0&size=20`

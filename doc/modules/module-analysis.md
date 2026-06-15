@@ -151,27 +151,29 @@
 
 ### 2.9 个人中心与积分模块
 
-模块作用：展示用户信息与双余额（项目积分+通用积分），通过 AINovel BFF 承接 pay-service 签到、兑换码、扣费流水与通用积分兑换。
+模块作用：展示用户信息与双余额（项目专属积分+通用积分），通过 AINovel 本地项目积分账本承接兑换码、AI 扣费、流水与通用积分兑换。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 资料展示 | 用户名、邮箱、角色、余额 | 前端：`frontend/src/pages/Profile/ProfilePage.tsx`；后端：`backend/src/main/java/com/ainovel/app/user/UserController.java`（`/profile`） |
-| 每日签到 | 调用 pay-service 发放项目积分并刷新双余额 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
-| 兑换码 | 调用 pay-service 核销兑换码并返回项目/通用积分余额 | 同上 |
-| 通用积分兑换 | 调用 pay-service 将通用积分兑换为项目积分（1:1），本地仅保留兼容展示所需订单快照 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `EconomyService.java` + `BillingGrpcClient.java` |
+| 兑换码 | 核销 AINovel 本地兑换码并写入本地项目专属积分账户/流水 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `backend/src/main/java/com/ainovel/app/economy/EconomyService.java` |
+| 通用积分兑换 | 调用 pay-service 扣减通用积分，再写入 AINovel 本地项目专属积分账户/流水/订单快照 | 前端：`ProfilePage.tsx`；后端：`UserController.java` + `EconomyService.java` + `BillingGrpcClient.java` |
 | 安全说明 | 明确密码由 SSO 管理 | 前端：`ProfilePage.tsx`；后端：`UserController.java`（`/password` 返回 501） |
 
 ### 2.10 管理后台模块
 
-模块作用：提供管理员看板、用户封禁管理、系统开关配置，以及 pay-service 项目积分发放入口。
+模块作用：提供 AINovel 业务运营后台，包括素材治理、创作资产只读审计、质量巡检、项目用户运营、项目专属积分和本地维护模式。
 
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 后台布局与路由 | 管理侧导航、子路由容器 | 前端：`frontend/src/components/layout/AdminLayout.tsx`、`frontend/src/App.tsx`（`/admin/*`） |
-| 看板统计 | 总用户、今日新增、待审素材等 | 前端：`frontend/src/pages/Admin/Dashboard.tsx`；后端：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`（`/dashboard`） |
-| 用户管理 | 查看用户并封禁/解封 | 前端：`frontend/src/pages/Admin/UserManager.tsx`；后端：`AdminController.java`（`/users`、`/users/{id}/ban`、`/users/{id}/unban`） |
-| 积分与兑换码 | 发放项目积分透传 pay-service；兑换码管理已迁移到 pay-service，本地未配置管理代理时返回明确错误 | 前端：`frontend/src/pages/Admin/CreditsManager.tsx`；后端：`AdminController.java`（`/credits/grant`、`/redeem-codes`） |
-| 系统设置 | 注册开关、维护模式、签到区间、SMTP 配置 | 前端：`frontend/src/pages/Admin/SystemSettings.tsx`；后端：`AdminController.java`（`/system-config`） |
+| 看板统计 | 总用户、今日新增、待审素材、创作资产、高风险质量等 | 前端：`frontend/src/pages/Admin/Dashboard.tsx`；后端：`AdminController.java` + `AdminOperationsController.java` |
+| 项目用户 | AINovel 本地用户镜像、项目专属积分、通用积分快照、创作资产数量 | 前端：`frontend/src/pages/Admin/UserManager.tsx`；后端：`AdminController.java`（`/users`） |
+| 素材治理 | 待审、通过/驳回、重复检测、合并、引用查询 | 前端：`frontend/src/pages/Admin/MaterialsGovernance.tsx`；后端：`AdminOperationsController.java` |
+| 创作资产 | 故事、世界观、稿件只读审计 | 前端：`frontend/src/pages/Admin/AssetsAudit.tsx`；后端：`AdminOperationsController.java` |
+| 质量巡检 | 反套路与剧情质量运行记录聚合 | 前端：`frontend/src/pages/Admin/QualityInspection.tsx`；后端：`AdminOperationsController.java` |
+| 专属积分 | 本地发放、兑换码、通用转专属订单、项目流水 | 前端：`frontend/src/pages/Admin/CreditsManager.tsx`；后端：`AdminController.java` |
+| 系统维护 | AINovel 本地维护模式 | 前端：`frontend/src/pages/Admin/SystemSettings.tsx`；后端：`AdminController.java`（`/system-config`） |
 
 ### 2.11 前端共享基础模块
 
@@ -185,7 +187,7 @@
 
 ### 3.1 用户与资产域（`user` + `economy`）
 
-模块作用：用户资料、统计、项目积分账本、签到/兑换码/AI 扣费与通用积分兑换统一出口。
+模块作用：用户资料、统计、AINovel 项目专属积分账本、兑换码、AI 扣费与通用积分兑换统一出口。
 
 核心实现：
 - `backend/src/main/java/com/ainovel/app/user/UserController.java`
@@ -245,7 +247,7 @@
 
 核心实现：
 - API：`backend/src/main/java/com/ainovel/app/admin/AdminController.java`
-- 依赖：`backend/src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java`
+- API：`backend/src/main/java/com/ainovel/app/admin/AdminOperationsController.java`
 
 ### 3.8 AI 能力域（`ai`）
 
@@ -266,7 +268,6 @@
 | 系统守卫 | 封禁用户拦截、维护模式拦截 | `backend/src/main/java/com/ainovel/app/security/SystemGuardFilter.java` |
 | 安全配置 | 过滤链顺序、放行规则、CORS | `backend/src/main/java/com/ainovel/app/security/SecurityConfig.java` |
 | 外部服务发现 | 通用 Consul 解析与缓存 | `backend/src/main/java/com/ainovel/app/integration/ConsulServiceResolver.java` |
-| UserService 管理适配 | 管理端用户查询/封禁/解封 HTTP 适配 | `backend/src/main/java/com/ainovel/app/integration/UserAdminRemoteClient.java` |
 | Billing 适配 | 通用积分查询、通用->项目兑换、冲回补偿 gRPC 适配 | `backend/src/main/java/com/ainovel/app/integration/BillingGrpcClient.java` |
 | 公共异常处理 | 统一异常 -> `ApiError` 输出 | `backend/src/main/java/com/ainovel/app/common/GlobalExceptionHandler.java` |
 | 启动种子数据 | 初始化 admin、故事、世界、素材、系统配置 | `backend/src/main/java/com/ainovel/app/config/DataInitializer.java` |
