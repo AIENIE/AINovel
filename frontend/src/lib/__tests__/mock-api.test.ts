@@ -18,10 +18,11 @@ describe("mock api", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: any, init?: any) => {
+      vi.fn(async (url: unknown, init?: RequestInit) => {
         const u = String(url);
         if (u.endsWith("/api/v1/user/profile")) {
-          expect(init?.headers?.get?.("Authorization") || init?.headers?.Authorization).toContain("Bearer t");
+          const headers = init?.headers as Headers | undefined;
+          expect(headers?.get("Authorization")).toContain("Bearer t");
           return new Response(
             JSON.stringify({
               id: "u1",
@@ -340,5 +341,34 @@ describe("mock api", () => {
     expect(workspaceMetadata.templates[0].variables[0].name).toBe("idea");
     expect(resetWorld.modules.geography).toBe("默认地理");
     expect(worldMetadata.modules[0].fields[0].key).toBe("terrain");
+  });
+
+  it("passes admin list search and pagination parameters through the API wrapper", async () => {
+    localStorage.setItem("admin_token", "admin-token");
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      requestedUrls.push(String(url));
+      const headers = init?.headers as Headers;
+      expect(headers?.get("Authorization")).toBe("Bearer admin-token");
+      if (String(url).includes("/api/v1/admin/users")) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).includes("/api/v1/admin/credits/conversions")) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).includes("/api/v1/admin/credits/ledger")) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.admin.getUsers(" goodboy95 ");
+    await api.admin.listConversionOrders(2, 15);
+    await api.admin.listCreditLedger(3, 25);
+
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/users?search=goodboy95"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/conversions?page=2&size=15"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/ledger?page=3&size=25"))).toBe(true);
   });
 });

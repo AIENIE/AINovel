@@ -1,25 +1,42 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/mock-api";
 import { AdminDashboardStats } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Zap, AlertTriangle, FileClock, BookOpen, Globe2, ScrollText, ShieldAlert } from "lucide-react";
+import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPanel, adminPanelClass } from "./components/AdminChrome";
+import { getErrorMessage } from "./admin-list-utils";
 
-const statCardClass = "bg-zinc-900 border-zinc-800 text-zinc-100";
+type AssetSummary = {
+  stories?: number;
+  worlds?: number;
+  manuscripts?: number;
+  highRiskQualityRuns?: number;
+};
 
 const Dashboard = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
-  const [assets, setAssets] = useState<any | null>(null);
+  const [assets, setAssets] = useState<AssetSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    Promise.all([api.admin.getDashboardStats(), api.admin.getAssetSummary()]).then(([dashboard, summary]) => {
+  const load = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const [dashboard, summary] = await Promise.all([api.admin.getDashboardStats(), api.admin.getAssetSummary()]);
       setStats(dashboard);
       setAssets(summary);
-    });
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "运营概览加载失败"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
   }, []);
 
-  if (!stats || !assets) return <div className="text-zinc-500">Loading stats...</div>;
-
-  const cards = [
+  const cards = stats && assets ? [
     { label: "总用户数", value: stats.totalUsers, note: `今日新增 +${stats.todayNewUsers}`, icon: Users },
     { label: "今日积分消耗", value: stats.todayCreditsConsumed.toLocaleString(), note: `总消耗 ${stats.totalCreditsConsumed.toLocaleString()}`, icon: Zap },
     { label: "API 错误率", value: `${(stats.apiErrorRate * 100).toFixed(1)}%`, note: stats.apiErrorRate < 0.05 ? "状态良好" : "需要关注", icon: AlertTriangle },
@@ -28,49 +45,46 @@ const Dashboard = () => {
     { label: "世界观", value: assets.worlds ?? 0, note: "本地创作资产", icon: Globe2 },
     { label: "稿件", value: assets.manuscripts ?? 0, note: "本地创作资产", icon: ScrollText },
     { label: "高风险质量记录", value: assets.highRiskQualityRuns ?? 0, note: "风险分 >= 70", icon: ShieldAlert },
-  ];
+  ] : [];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">业务运营概览</h1>
-        <p className="text-sm text-zinc-500 mt-1">AINovel 本地业务对象与项目专属积分运营状态。</p>
-      </div>
+    <div className="space-y-6">
+      <AdminPageHeader title="业务运营概览" description="AINovel 本地业务对象与项目专属积分运营状态。" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {cards.map((item) => (
-          <Card key={item.label} className={statCardClass}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-400">{item.label}</CardTitle>
-              <item.icon className="h-4 w-4 text-zinc-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{item.value}</div>
-              <p className="text-xs text-zinc-500">{item.note}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {error ? <AdminErrorState message={error} onRetry={() => void load()} /> : null}
+      {isLoading ? <AdminLoadingState rows={4} /> : null}
+      {!isLoading && !error && cards.length === 0 ? <AdminEmptyState title="暂无运营数据" /> : null}
+      {!isLoading && !error && cards.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {cards.map((item) => (
+            <div key={item.label} className={`${adminPanelClass} rounded-lg border p-4`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-zinc-400">{item.label}</div>
+                <item.icon className="h-4 w-4 shrink-0 text-zinc-500" />
+              </div>
+              <div className="mt-3 text-2xl font-semibold text-zinc-50">{item.value}</div>
+              <p className="mt-1 text-xs text-zinc-500">{item.note}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
-      <Card className={statCardClass}>
-        <CardHeader>
-          <CardTitle>后台职责边界</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="rounded-md border border-zinc-800 p-3">
+      <AdminPanel title="后台职责边界">
+        <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+          <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
             <div className="font-medium">AINovel</div>
-            <div className="text-zinc-500 mt-1">素材、创作资产、质量巡检、项目专属积分</div>
+            <div className="mt-1 text-zinc-500">素材、创作资产、质量巡检、项目专属积分</div>
           </div>
-          <div className="rounded-md border border-zinc-800 p-3">
+          <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
             <div className="font-medium">user-service</div>
-            <div className="text-zinc-500 mt-1">账号、注册、邮箱、短信、SSO</div>
+            <div className="mt-1 text-zinc-500">账号、注册、邮箱、短信、SSO</div>
           </div>
-          <div className="rounded-md border border-zinc-800 p-3">
+          <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
             <div className="font-medium">ai-service / pay-service</div>
-            <div className="text-zinc-500 mt-1">模型池、调用方、通用积分、全局账务</div>
+            <div className="mt-1 text-zinc-500">模型池、调用方、通用积分、全局账务</div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AdminPanel>
     </div>
   );
 };

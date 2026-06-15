@@ -548,8 +548,10 @@ export const api = {
     getDashboardStats: async (): Promise<AdminDashboardStats> => {
       return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" }, requireAdminToken());
     },
-    getUsers: async (): Promise<User[]> => {
-      const users = await requestJson<any[]>("/v1/admin/users", { method: "GET" }, requireAdminToken());
+    getUsers: async (search?: string): Promise<User[]> => {
+      const keyword = search?.trim();
+      const path = keyword ? `/v1/admin/users?search=${encodeURIComponent(keyword)}` : "/v1/admin/users";
+      const users = await requestJson<any[]>(path, { method: "GET" }, requireAdminToken());
       return users.map((u) => ({
         id: String(u.id),
         username: u.username,
@@ -588,11 +590,11 @@ export const api = {
     grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
       return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken());
     },
-    listConversionOrders: async () => {
-      return await requestJson<any[]>("/v1/admin/credits/conversions?page=0&size=50", { method: "GET" }, requireAdminToken());
+    listConversionOrders: async (page = 0, size = 50) => {
+      return await requestJson<any[]>(`/v1/admin/credits/conversions?page=${page}&size=${size}`, { method: "GET" }, requireAdminToken());
     },
-    listCreditLedger: async () => {
-      return await requestJson<any[]>("/v1/admin/credits/ledger?page=0&size=50", { method: "GET" }, requireAdminToken());
+    listCreditLedger: async (page = 0, size = 50) => {
+      return await requestJson<any[]>(`/v1/admin/credits/ledger?page=${page}&size=${size}`, { method: "GET" }, requireAdminToken());
     },
     getAssetSummary: async () => {
       return await requestJson<any>("/v1/admin/assets/summary", { method: "GET" }, requireAdminToken());
