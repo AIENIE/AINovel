@@ -7,8 +7,8 @@
 - `doc/`：项目文档、API、测试记录。
 - `design-doc/`：设计方案与版本规划文档。
 - `build.sh`：Docker Compose 构建与部署入口。
-- `docker-compose.yml`：AINovel 前后端容器编排。
-- `env.txt`：可选部署环境配置。
+- `docker-compose.yml`：AINovel 前后端容器编排；Compose 使用 `env.txt` 做变量插值，后端容器启动时再加载完整运行时配置。
+- `env.txt`：可选部署环境配置，由 `build.sh` 传给 Compose，并以只读方式挂载给后端容器启动脚本。
 
 ## frontend 目录
 

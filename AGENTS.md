@@ -8,4 +8,4 @@
 - 后端对外端口: 11041
 
 在linux环境下，执行sudo的密码请从SUDO_PASSWORD环境变量获取。
-- 部署脚本: 本项目仅保留 build.sh；脚本只执行 Docker Compose 构建与部署，存在 env.txt 时通过 Compose --env-file 加载。
+- 部署脚本: 本项目仅保留 build.sh；脚本只执行 Docker Compose 构建与部署，存在 env.txt 时通过 Compose --env-file 做 Compose 插值，并挂载进后端容器由启动脚本加载运行时环境变量。

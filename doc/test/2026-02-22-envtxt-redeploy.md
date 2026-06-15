@@ -3,7 +3,7 @@
 ## 1. 变更目标
 
 1. 将项目环境文件统一为 `env.txt`（不再读取 `.env`）。
-2. `build.sh` 统一加载 `env.txt`。
+2. `build.sh` 统一通过 Compose `--env-file` 加载 `env.txt` 做部署插值，并由后端容器启动脚本加载完整运行时变量。
 3. 将 `ai-service`、`pay-service`、`user-service`、SSO 跳转入口/回调 origin 改为环境变量配置。
 
 ## 2. 执行步骤

@@ -43,9 +43,10 @@ sudo -E bash build.sh
 
 脚本会执行：
 
-1. 读取 `env.txt`
+1. 通过 Compose `--env-file env.txt` 读取部署插值变量
 2. 构建前端与后端 Docker 镜像
 3. 通过 `docker-compose.yml` 重建前后端容器
+4. 后端容器启动时只读挂载 `env.txt` 并加载完整运行时变量
 
 部署成功后：
 
@@ -61,12 +62,10 @@ sudo -E bash build.sh
 
 > `build.sh` 只执行 Docker Compose 构建与部署，不拉起本机 MySQL / Redis / Qdrant 容器，也不做依赖连通性检查。
 
-> 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请先加载配置：
+> 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请显式传入配置文件：
 >
 > ```bash
-> set -a
-> source env.txt
-> set +a
+> docker compose --env-file env.txt -f docker-compose.yml up -d --build --pull never --remove-orphans
 > ```
 >
 > 否则容器会回退到 compose 默认值，常见问题是 `JWT_SECRET` 不一致导致 token 全部 `403`。
