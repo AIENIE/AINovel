@@ -47,6 +47,32 @@ describe("mock api", () => {
     expect(user.username).toBe("admin");
   });
 
+  it("loads AI models from v1 ai-service endpoint only", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v2/models")) {
+        return new Response(
+          JSON.stringify([{ id: "legacy-gpt", modelKey: "gpt-4o", displayName: "GPT-4o" }]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (u.endsWith("/api/v1/ai/models")) {
+        return new Response(
+          JSON.stringify([{ id: "deepseek-v4-flash", name: "deepseek-v4-flash", displayName: "DeepSeek V4 Flash", modelType: "text" }]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const models = await api.ai.getModels();
+
+    expect(models).toHaveLength(1);
+    expect(models[0].id).toBe("deepseek-v4-flash");
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/api/v2/models"), expect.anything());
+  });
+
   it("normalizes conception planning payload for plot planner flow", async () => {
     vi.stubGlobal(
       "fetch",

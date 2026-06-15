@@ -24,19 +24,51 @@ import static org.mockito.Mockito.when;
 class AiServiceTest {
 
     @Test
-    void shouldPreferTextModelWhenModelIdIsBlank() {
+    void shouldForceDeepseekV4FlashWhenRequestAsksForAnotherModel() {
         AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
         EconomyService economyService = mock(EconomyService.class);
         AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
         User user = user();
 
-        when(aiGatewayGrpcClient.listModels(eq(9000003L))).thenReturn(List.of(
-                new AiModelDto("1", "1", "text-embedding-3-small", "embedding", 1, 1, "openai", true),
-                new AiModelDto("2", "2", "gemini-2.5-flash", "text", 1, 1, "google", true),
-                new AiModelDto("3", "3", "GLM OCR", "unspecified", 1, 1, "zhipu", true)
-        ));
         when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
-                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6, 0));
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "deepseek-v4-flash", 5, 6, 0));
+        when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
+                .thenReturn(new EconomyService.AiChargeResult(1, 99));
+        when(economyService.currentBalance(eq(user)))
+                .thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99, null));
+
+        aiService.chat(
+                user,
+                new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "gpt-4o", null)
+        );
+
+        verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("deepseek-v4-flash"), anyList());
+    }
+
+    @Test
+    void shouldExposeOnlyDeepseekV4FlashModel() {
+        AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
+        EconomyService economyService = mock(EconomyService.class);
+        AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
+        User user = user();
+
+        List<AiModelDto> models = aiService.listModels(user);
+
+        assertEquals(1, models.size());
+        assertEquals("deepseek-v4-flash", models.get(0).id());
+        assertEquals("deepseek-v4-flash", models.get(0).name());
+        assertEquals("DeepSeek V4 Flash", models.get(0).displayName());
+    }
+
+    @Test
+    void shouldForceDeepseekV4FlashWhenModelIdIsBlank() {
+        AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
+        EconomyService economyService = mock(EconomyService.class);
+        AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
+        User user = user();
+
+        when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "deepseek-v4-flash", 5, 6, 0));
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
@@ -45,25 +77,20 @@ class AiServiceTest {
         AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "", null);
         AiChatResponse response = aiService.chat(user, request);
 
-        verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("2"), anyList());
+        verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("deepseek-v4-flash"), anyList());
         assertEquals(1.0, response.usage().cost());
         assertEquals(99.0, response.remainingCredits());
     }
 
     @Test
-    void shouldSkipEmbeddingAndOcrWhenNoTypedTextModel() {
+    void shouldIgnoreLegacyModelListWhenModelIdIsBlank() {
         AiGatewayGrpcClient aiGatewayGrpcClient = mock(AiGatewayGrpcClient.class);
         EconomyService economyService = mock(EconomyService.class);
         AiService aiService = new AiService(aiGatewayGrpcClient, economyService);
         User user = user();
 
-        when(aiGatewayGrpcClient.listModels(eq(9000003L))).thenReturn(List.of(
-                new AiModelDto("1", "1", "GLM OCR", "unspecified", 1, 1, "zhipu", true),
-                new AiModelDto("3", "3", "text-embedding-3-small", "unspecified", 1, 1, "openai", true),
-                new AiModelDto("2", "2", "gemini-2.5-flash", "unspecified", 1, 1, "google", true)
-        ));
         when(aiGatewayGrpcClient.chatCompletions(anyLong(), anyString(), anyList()))
-                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "2", 5, 6, 0));
+                .thenReturn(new AiGatewayGrpcClient.ChatResult("ok", "deepseek-v4-flash", 5, 6, 0));
         when(economyService.chargeAiUsage(eq(user), eq(5L), eq(6L), anyString()))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
         when(economyService.currentBalance(eq(user)))
@@ -72,7 +99,7 @@ class AiServiceTest {
         AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "你好")), "", null);
         aiService.chat(user, request);
 
-        verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("2"), anyList());
+        verify(aiGatewayGrpcClient).chatCompletions(eq(9000003L), eq("deepseek-v4-flash"), anyList());
     }
 
     @Test

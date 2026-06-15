@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.story.model.Story;
+import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -255,9 +256,9 @@ public class V2ModelController {
     }
 
     private void seedModels() {
-        registerModel("gpt-4o", "GPT-4o", "openai", List.of("chat", "draft_generation", "analysis"), 128000, 16384, 0.005, 0.015, true, true, 100);
-        registerModel("deepseek-chat", "DeepSeek Chat", "deepseek", List.of("chat", "analysis"), 64000, 8192, 0.001, 0.002, true, true, 80);
-        registerModel("claude-sonnet", "Claude Sonnet", "anthropic", List.of("chat", "style", "analysis"), 200000, 8192, 0.003, 0.015, true, true, 90);
+        registerModel(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, AiModelPolicy.REQUIRED_TEXT_MODEL_DISPLAY_NAME,
+                "deepseek", List.of("chat", "draft_generation", "analysis", "style"), 64000, 8192,
+                0.001, 0.002, true, true, 100);
     }
 
     private void registerModel(String modelKey,
@@ -293,8 +294,8 @@ public class V2ModelController {
     }
 
     private void seedRouting() {
-        UUID recommended = uuid(findModelByKey("gpt-4o").get("id"));
-        UUID fallback = uuid(findModelByKey("deepseek-chat").get("id"));
+        UUID recommended = uuid(findModelByKey(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY).get("id"));
+        UUID fallback = recommended;
         Map<String, Object> routing = new HashMap<>();
         routing.put("id", UUID.randomUUID());
         routing.put("taskType", "draft_generation");

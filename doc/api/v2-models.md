@@ -4,11 +4,13 @@
 
 ## Model Registry
 - `GET /models`：可用模型列表。
+  - 当前 AINovel 只暴露 ai-service 文本模型 `deepseek-v4-flash`（`DeepSeek V4 Flash`）。
 - `GET /models/{modelKey}`：模型详情。
 
 ## Routing (Admin)
 - `GET /admin/model-routing`：查询任务路由规则。
 - `PUT /admin/model-routing/{taskType}`：更新路由规则。
+  - 默认路由的推荐模型与 fallback 模型都指向 `deepseek-v4-flash`。
 
 ## User Preferences
 - `GET /users/me/model-preferences`：用户偏好列表。

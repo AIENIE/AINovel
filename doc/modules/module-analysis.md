@@ -101,7 +101,7 @@
 | 功能点 | 功能点作用 | 实现位置 |
 | --- | --- | --- |
 | 对话助手 | 在写作上下文内发起 AI 对话 | 前端：`frontend/src/components/ai/CopilotSidebar.tsx`；后端：`backend/src/main/java/com/ainovel/app/ai/AiController.java`（`POST /v1/ai/chat`） |
-| 模型切换 | 读取并选择可用模型 | 前端：`CopilotSidebar.tsx`；后端：`AiController.java`（`GET /v1/ai/models`） |
+| 模型展示 | 读取当前允许的单一文本模型 `deepseek-v4-flash`；请求中的 `modelId` 仅兼容旧调用，后端强制使用该模型 | 前端：`CopilotSidebar.tsx`；后端：`AiController.java`（`GET /v1/ai/models`）、`AiService.java` |
 | 缓存命中可视化 | 展示 AI 响应的缓存 token 与命中率 | 前端：`CopilotSidebar.tsx`；后端：`AiService.java`、`AiGatewayGrpcClient.java` |
 | 文本润色弹窗 | 对选中文本润色并确认替换 | 前端：`frontend/src/components/editor/TiptapEditor.tsx`、`frontend/src/components/ai/AiRefineDialog.tsx`；后端：`AiController.java`（`POST /v1/ai/refine`） |
 

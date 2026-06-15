@@ -1,11 +1,12 @@
 package com.ainovel.app.settings;
 
+import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.settings.dto.*;
-import com.ainovel.app.settings.model.PromptTemplatesEntity;
 import com.ainovel.app.settings.model.GlobalSettings;
+import com.ainovel.app.settings.model.PromptTemplatesEntity;
 import com.ainovel.app.settings.model.WorldPromptTemplatesEntity;
-import com.ainovel.app.settings.repo.PromptTemplatesRepository;
 import com.ainovel.app.settings.repo.GlobalSettingsRepository;
+import com.ainovel.app.settings.repo.PromptTemplatesRepository;
 import com.ainovel.app.settings.repo.WorldPromptTemplatesRepository;
 import com.ainovel.app.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +19,9 @@ import java.util.Map;
 
 @Service
 public class SettingsService {
-    @Value("${app.ai.base-url:https://api.openai.com/v1}")
+    @Value("${app.ai.base-url:}")
     private String defaultAiBaseUrl;
-    @Value("${app.ai.model:gpt-4o}")
+    @Value("${app.ai.model:" + AiModelPolicy.REQUIRED_TEXT_MODEL_KEY + "}")
     private String defaultAiModel;
     @Value("${app.ai.api-key:}")
     private String defaultAiApiKey;

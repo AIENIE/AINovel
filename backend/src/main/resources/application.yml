@@ -57,8 +57,8 @@ app:
     secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
     expiration-minutes: 120
   ai:
-    model: ${AI_MODEL:gpt-4o}
-    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    model: ${AI_MODEL:deepseek-v4-flash}
+    base-url: ${AI_BASE_URL:}
     api-key: ${AI_API_KEY:}
   external:
     project-key: ${EXTERNAL_PROJECT_KEY:ainovel}

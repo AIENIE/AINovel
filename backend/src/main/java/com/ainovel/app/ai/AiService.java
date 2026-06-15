@@ -4,7 +4,6 @@ import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
 import com.ainovel.app.user.User;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,8 +15,6 @@ public class AiService {
 
     private final AiGatewayGrpcClient aiGatewayGrpcClient;
     private final EconomyService economyService;
-    @Value("${app.ai.model:gpt-4o}")
-    private String configuredDefaultModel;
 
     public AiService(AiGatewayGrpcClient aiGatewayGrpcClient, EconomyService economyService) {
         this.aiGatewayGrpcClient = aiGatewayGrpcClient;
@@ -25,31 +22,18 @@ public class AiService {
     }
 
     public List<AiModelDto> listModels(User user) {
-        return aiGatewayGrpcClient.listModels(resolveGatewayUserId(user));
+        resolveGatewayUserId(user);
+        return List.of(AiModelPolicy.requiredTextModel());
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
         Long remoteUid = resolveGatewayUserId(user);
         validateChatMessages(request.messages());
-        String model = normalizeModelKey(request.modelId());
-        String fallbackModel = null;
-        if (model == null || model.isBlank()) {
-            model = normalizeModelKey(configuredDefaultModel);
-        }
-        if (model != null && !model.isBlank()) {
-            fallbackModel = pickDefaultChatModel(aiGatewayGrpcClient.listModels(remoteUid));
-        } else {
-            model = pickDefaultChatModel(aiGatewayGrpcClient.listModels(remoteUid));
-        }
-        AiGatewayGrpcClient.ChatResult result;
-        try {
-            result = aiGatewayGrpcClient.chatCompletions(remoteUid, model, request.messages());
-        } catch (RuntimeException ex) {
-            if (fallbackModel == null || fallbackModel.isBlank() || fallbackModel.equals(model)) {
-                throw ex;
-            }
-            result = aiGatewayGrpcClient.chatCompletions(remoteUid, fallbackModel, request.messages());
-        }
+        AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(
+                remoteUid,
+                AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
+                request.messages()
+        );
         EconomyService.AiChargeResult charge = economyService.chargeAiUsage(
                 user,
                 result.promptTokens(),
@@ -108,77 +92,6 @@ public class AiService {
         }
         if (!hasUserMessage) {
             throw new RuntimeException("messages 至少需要一条非空 user 消息");
-        }
-    }
-
-    private String pickDefaultChatModel(List<AiModelDto> models) {
-        if (models == null || models.isEmpty()) {
-            return null;
-        }
-        for (AiModelDto model : models) {
-            if (model == null || model.id() == null || model.id().isBlank()) {
-                continue;
-            }
-            String type = model.modelType() == null ? "" : model.modelType().trim().toLowerCase(Locale.ROOT);
-            if ("text".equals(type)) {
-                String picked = normalizeModelKey(model.name());
-                if (picked != null && !picked.isBlank()) {
-                    return picked;
-                }
-                picked = normalizeModelKey(model.id());
-                if (picked != null && !picked.isBlank()) {
-                    return picked;
-                }
-            }
-        }
-        for (AiModelDto model : models) {
-            if (model == null || model.id() == null || model.id().isBlank()) {
-                continue;
-            }
-            String name = (model.displayName() == null ? "" : model.displayName())
-                    + " "
-                    + (model.name() == null ? "" : model.name());
-            String normalized = name.toLowerCase(Locale.ROOT);
-            if (normalized.contains("embedding") || normalized.contains("ocr")) {
-                continue;
-            }
-            String picked = normalizeModelKey(model.name());
-            if (picked != null && !picked.isBlank()) {
-                return picked;
-            }
-            picked = normalizeModelKey(model.id());
-            if (picked != null && !picked.isBlank()) {
-                return picked;
-            }
-        }
-        AiModelDto first = models.get(0);
-        String picked = normalizeModelKey(first.name());
-        if (picked != null && !picked.isBlank()) {
-            return picked;
-        }
-        return normalizeModelKey(first.id());
-    }
-
-    private String normalizeModelKey(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String model = raw.trim();
-        if (model.isBlank()) {
-            return null;
-        }
-        if (looksLikeUuid(model)) {
-            return null;
-        }
-        return model;
-    }
-
-    private boolean looksLikeUuid(String value) {
-        try {
-            UUID.fromString(value);
-            return true;
-        } catch (Exception ignored) {
-            return false;
         }
     }
 

@@ -49,35 +49,17 @@ export const adminSession = {
   clearToken: () => localStorage.removeItem(ADMIN_TOKEN_KEY),
 };
 
+const REQUIRED_AI_MODEL_KEY = "deepseek-v4-flash";
+
 const FALLBACK_AI_MODELS: ModelConfig[] = [
   {
-    id: "gpt-4o",
-    name: "gpt-4o",
-    displayName: "GPT-4o",
+    id: REQUIRED_AI_MODEL_KEY,
+    name: REQUIRED_AI_MODEL_KEY,
+    displayName: "DeepSeek V4 Flash",
     modelType: "text",
     inputMultiplier: 1,
     outputMultiplier: 1,
-    poolId: "default",
-    isEnabled: true,
-  },
-  {
-    id: "deepseek-chat",
-    name: "deepseek-chat",
-    displayName: "DeepSeek Chat",
-    modelType: "text",
-    inputMultiplier: 1,
-    outputMultiplier: 1,
-    poolId: "default",
-    isEnabled: true,
-  },
-  {
-    id: "claude-sonnet",
-    name: "claude-sonnet",
-    displayName: "Claude Sonnet",
-    modelType: "text",
-    inputMultiplier: 1,
-    outputMultiplier: 1,
-    poolId: "default",
+    poolId: "DeepSeek",
     isEnabled: true,
   },
 ];
@@ -549,7 +531,7 @@ export const api = {
   ai: {
     chat: async (messages: any[], modelId: string, context: any) => {
       const payload = {
-        modelId,
+        modelId: REQUIRED_AI_MODEL_KEY,
         context,
         messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
       };
@@ -558,19 +540,17 @@ export const api = {
     refine: async (text: string, instruction: string, modelId: string) => {
       return await requestJson<any>("/v1/ai/refine", {
         method: "POST",
-        body: JSON.stringify({ text, instruction, modelId }),
+        body: JSON.stringify({ text, instruction, modelId: REQUIRED_AI_MODEL_KEY }),
       });
     },
     getModels: async (): Promise<ModelConfig[]> => {
-      const candidateEndpoints = ["/v2/models", "/v1/ai/models"];
-      for (const endpoint of candidateEndpoints) {
-        try {
-          const models = await requestJson<any[]>(endpoint, { method: "GET" });
-          const normalized = (models || []).map((model, index) => normalizeModel(model, index));
-          if (normalized.length) return normalized;
-        } catch {
-          // fallback to the next endpoint
-        }
+      try {
+        const models = await requestJson<any[]>("/v1/ai/models", { method: "GET" });
+        const normalized = (models || []).map((model, index) => normalizeModel(model, index));
+        const required = normalized.filter((model) => model.name === REQUIRED_AI_MODEL_KEY || model.id === REQUIRED_AI_MODEL_KEY);
+        if (required.length) return required;
+      } catch {
+        // fallback to the required ai-service model descriptor
       }
       return FALLBACK_AI_MODELS;
     },
