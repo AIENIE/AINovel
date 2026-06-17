@@ -65,8 +65,8 @@ app:
     project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
     timeout-ms: ${EXTERNAL_TIMEOUT_MS:120000}
     grpc:
-      tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:false}
-      plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:true}
+      tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:true}
+      plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:false}
     security:
       fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
       ai:
@@ -81,18 +81,18 @@ app:
         required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}
         required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read}
     userservice-http:
-      address: ${USER_HTTP_ADDR:https://userservice.localhut.com}
+      address: ${USER_HTTP_ADDR:https://userservice.seekerhut.com}
     aiservice-grpc:
-      address: ${AI_GRPC_ADDR:static://aiservice.localhut.com:10011}
+      address: ${AI_GRPC_ADDR:static://aiservice.seekerhut.com:443}
     payservice-grpc:
-      address: ${PAY_GRPC_ADDR:static://payservice.localhut.com:10021}
+      address: ${PAY_GRPC_ADDR:static://payservice.seekerhut.com:443}
 
 sso:
   callback-origin: ${SSO_CALLBACK_ORIGIN:https://ainovel.localhut.com}
   session-validation:
     enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
     timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:5000}
-    grpc-address: ${USER_GRPC_ADDR:static://userservice.localhut.com:10001}
+    grpc-address: ${USER_GRPC_ADDR:static://userservice.seekerhut.com:443}
 
 qdrant:
   host: ${QDRANT_HOST:http://base.seekerhut.com}

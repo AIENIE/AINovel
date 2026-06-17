@@ -7,7 +7,7 @@
 - `build.sh` 继续在存在 `env.txt` 时通过 Compose `--env-file` 做部署变量插值。
 - `docker-compose.yml` 移除后端大段重复 `environment`，改为只读挂载 `env.txt`。
 - 后端容器启动时通过 `docker/load-env-file.sh` 加载 `/app/env.txt`，再启动 Spring Boot。
-- `USER_GRPC_ADDR` 本地默认改为 `static://userservice.localhut.com:10001`，与本地 localhut 服务入口一致。
+- `USER_GRPC_ADDR` 测试服默认改为 `static://userservice.seekerhut.com:443`，与当前 Nginx gRPC TLS 入口一致。
 - 补充后端容器内运行目录变量：`PORT`、`APP_LOG_DIR`、`APP_RECORD_DIR`、`LOGGING_FILE_NAME`。
 
 ## 已执行验证
@@ -33,4 +33,6 @@ curl --noproxy '*' -k https://ainovel.localhut.com/admin/ops
 - 后端 Java 主进程环境包含：
   - `PORT=11041`
   - `APP_RECORD_DIR=/app/records`
-  - `USER_GRPC_ADDR=static://userservice.localhut.com:10001`
+  - `USER_GRPC_ADDR=static://userservice.seekerhut.com:443`
+  - `EXTERNAL_GRPC_TLS_ENABLED=true`
+  - `EXTERNAL_GRPC_PLAINTEXT_ENABLED=false`

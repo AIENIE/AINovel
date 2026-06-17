@@ -16,9 +16,9 @@ public class ExternalServiceProperties {
     private final ServiceTarget payserviceGrpc = new ServiceTarget();
 
     public ExternalServiceProperties() {
-        userserviceHttp.setAddress("https://userservice.localhut.com");
-        aiserviceGrpc.setAddress("static://aiservice.localhut.com:10011");
-        payserviceGrpc.setAddress("static://payservice.localhut.com:10021");
+        userserviceHttp.setAddress("https://userservice.seekerhut.com");
+        aiserviceGrpc.setAddress("static://aiservice.seekerhut.com:443");
+        payserviceGrpc.setAddress("static://payservice.seekerhut.com:443");
     }
 
     public String getProjectKey() {
@@ -71,7 +71,7 @@ public class ExternalServiceProperties {
 
     public static class Grpc {
         private boolean tlsEnabled = true;
-        private boolean plaintextEnabled = true;
+        private boolean plaintextEnabled = false;
 
         public boolean isTlsEnabled() {
             return tlsEnabled;

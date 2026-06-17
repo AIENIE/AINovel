@@ -57,10 +57,12 @@ bash build.sh
   - `PAY_GRPC_SERVICE_NAME=aienie-payservice-grpc`
   - `AI_GRPC_SERVICE_NAME=aienie-aiservice-grpc`
 - 三服务固定地址：
-  - `USER_HTTP_ADDR=https://userservice.localhut.com`
-  - `USER_GRPC_ADDR=static://userservice.localhut.com:10001`
-  - `PAY_GRPC_ADDR=static://payservice.localhut.com:10021`
-  - `AI_GRPC_ADDR=static://aiservice.localhut.com:10011`
+  - `USER_HTTP_ADDR=https://userservice.seekerhut.com`
+  - `USER_GRPC_ADDR=static://userservice.seekerhut.com:443`
+  - `PAY_GRPC_ADDR=static://payservice.seekerhut.com:443`
+  - `AI_GRPC_ADDR=static://aiservice.seekerhut.com:443`
+  - `EXTERNAL_GRPC_TLS_ENABLED=true`
+  - `EXTERNAL_GRPC_PLAINTEXT_ENABLED=false`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
 - JPA：本地部署默认 `SPRING_JPA_HIBERNATE_DDL_AUTO=none`，数据库结构以 `backend/sql/schema.sql` 和显式变更为准，避免启动期扫描全库元数据。
 

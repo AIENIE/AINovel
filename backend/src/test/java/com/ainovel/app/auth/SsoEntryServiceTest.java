@@ -16,7 +16,7 @@ class SsoEntryServiceTest {
     @Test
     void shouldUseConfiguredHttpsAddressForLoginRedirect() {
         ExternalServiceProperties properties = new ExternalServiceProperties();
-        properties.getUserserviceHttp().setAddress("https://userservice.localhut.com");
+        properties.getUserserviceHttp().setAddress("https://userservice.seekerhut.com");
 
         SsoEntryService service = new SsoEntryService(properties);
         URI uri = service.buildLoginRedirectUri(
@@ -25,7 +25,7 @@ class SsoEntryServiceTest {
         );
 
         assertEquals("https", uri.getScheme());
-        assertEquals("userservice.localhut.com", uri.getHost());
+        assertEquals("userservice.seekerhut.com", uri.getHost());
         assertEquals(-1, uri.getPort());
         assertEquals("/sso/login", uri.getPath());
         String query = URLDecoder.decode(uri.getRawQuery(), StandardCharsets.UTF_8);
