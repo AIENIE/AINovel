@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 public class V2VersionController {
     private final V2AccessGuard accessGuard;
     private final ManuscriptRepository manuscriptRepository;
+    private final V2VersionPersistenceService versionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> branchByManuscript = new ConcurrentHashMap<>();
@@ -34,8 +36,16 @@ public class V2VersionController {
     private final ConcurrentMap<UUID, Object> initLocks = new ConcurrentHashMap<>();
 
     public V2VersionController(V2AccessGuard accessGuard, ManuscriptRepository manuscriptRepository) {
+        this(accessGuard, manuscriptRepository, null);
+    }
+
+    @Autowired
+    public V2VersionController(V2AccessGuard accessGuard,
+                               ManuscriptRepository manuscriptRepository,
+                               V2VersionPersistenceService versionService) {
         this.accessGuard = accessGuard;
         this.manuscriptRepository = manuscriptRepository;
+        this.versionService = versionService;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -45,6 +55,9 @@ public class V2VersionController {
                                                   @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.listVersions(manuscript, user);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
         return sortedVersions(manuscriptId);
     }
@@ -57,6 +70,9 @@ public class V2VersionController {
                                              @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.createVersion(manuscript, user, payload == null ? Map.of() : payload);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
 
         UUID branchId = manuscript.getCurrentBranchId();
@@ -95,6 +111,9 @@ public class V2VersionController {
                                           @PathVariable UUID versionId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.getVersion(manuscript, user, versionId);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
         Map<String, Object> version = versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).get(versionId);
         if (version == null) {
@@ -111,6 +130,9 @@ public class V2VersionController {
                                         @PathVariable UUID versionId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.rollback(manuscript, user, versionId);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
 
         Map<String, Object> version = versionByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).get(versionId);
@@ -168,6 +190,9 @@ public class V2VersionController {
                                     @RequestParam UUID toVersionId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.diff(manuscript, user, fromVersionId, toVersionId);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
 
         String cacheKey = fromVersionId + "->" + toVersionId;
@@ -224,6 +249,9 @@ public class V2VersionController {
                                                   @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.listBranches(manuscript, user);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
         return sortedBranches(manuscriptId);
     }
@@ -236,6 +264,9 @@ public class V2VersionController {
                                               @PathVariable UUID branchId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.checkoutBranch(manuscript, user, branchId);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
         Map<String, Object> branch = requireBranch(manuscriptId, branchId);
         if (!"active".equals(branch.get("status"))) {
@@ -266,6 +297,9 @@ public class V2VersionController {
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.createBranch(manuscript, user, payload);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
 
         String name = str(payload.get("name"), "branch-" + UUID.randomUUID().toString().substring(0, 8));
@@ -317,6 +351,9 @@ public class V2VersionController {
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.updateBranch(manuscriptId, branchId, payload);
+        }
         Map<String, Object> branch = requireBranch(manuscriptId, branchId);
         if (Boolean.TRUE.equals(branch.get("isMain")) && payload.containsKey("status") && "abandoned".equals(payload.get("status"))) {
             throw new RuntimeException("主分支不能废弃");
@@ -343,6 +380,9 @@ public class V2VersionController {
                                            @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            return versionService.mergeBranch(manuscript, user, branchId, payload == null ? Map.of() : payload);
+        }
         ensureMainBranchAndInitialVersion(manuscript, user);
         Map<String, Object> branch = requireBranch(manuscriptId, branchId);
         if (Boolean.TRUE.equals(branch.get("isMain"))) {
@@ -442,6 +482,10 @@ public class V2VersionController {
                                               @PathVariable UUID branchId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (versionService != null) {
+            versionService.abandonBranch(manuscriptId, branchId);
+            return ResponseEntity.noContent().build();
+        }
         Map<String, Object> branch = requireBranch(manuscriptId, branchId);
         if (Boolean.TRUE.equals(branch.get("isMain"))) {
             throw new RuntimeException("主分支不能废弃");
@@ -456,6 +500,9 @@ public class V2VersionController {
     @GetMapping("/users/me/auto-save-config")
     public Map<String, Object> getAutoSave(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (versionService != null) {
+            return versionService.getAutoSave(user);
+        }
         return autoSaveByUser.computeIfAbsent(user.getId(), uid -> defaultAutoSave(uid));
     }
 
@@ -465,6 +512,9 @@ public class V2VersionController {
     public Map<String, Object> updateAutoSave(@AuthenticationPrincipal UserDetails principal,
                                               @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (versionService != null) {
+            return versionService.updateAutoSave(user, payload);
+        }
         Map<String, Object> config = autoSaveByUser.computeIfAbsent(user.getId(), uid -> defaultAutoSave(uid));
         int interval = intVal(payload.get("autoSaveIntervalSeconds"), intVal(config.get("autoSaveIntervalSeconds"), 300));
         int maxAuto = intVal(payload.get("maxAutoVersions"), intVal(config.get("maxAutoVersions"), 100));

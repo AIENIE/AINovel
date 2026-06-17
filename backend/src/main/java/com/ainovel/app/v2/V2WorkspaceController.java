@@ -1,9 +1,11 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.config.AppTimeProvider;
+import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,6 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 public class V2WorkspaceController {
     private final V2AccessGuard accessGuard;
     private final AppTimeProvider timeProvider;
+    private final V2WorkspacePersistenceService persistenceService;
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> layoutsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> sessionsByUser = new ConcurrentHashMap<>();
@@ -30,8 +33,16 @@ public class V2WorkspaceController {
     private final ConcurrentMap<UUID, ConcurrentMap<String, Map<String, Object>>> shortcutsByUser = new ConcurrentHashMap<>();
 
     public V2WorkspaceController(V2AccessGuard accessGuard, AppTimeProvider timeProvider) {
+        this(accessGuard, timeProvider, null);
+    }
+
+    @Autowired
+    public V2WorkspaceController(V2AccessGuard accessGuard,
+                                 AppTimeProvider timeProvider,
+                                 V2WorkspacePersistenceService persistenceService) {
         this.accessGuard = accessGuard;
         this.timeProvider = timeProvider;
+        this.persistenceService = persistenceService;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -39,6 +50,9 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/workspace-layouts")
     public List<Map<String, Object>> listLayouts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.listLayouts(user);
+        }
         return new ArrayList<>(layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
     }
 
@@ -48,6 +62,9 @@ public class V2WorkspaceController {
     public Map<String, Object> createLayout(@AuthenticationPrincipal UserDetails principal,
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.createLayout(user, payload);
+        }
         UUID id = UUID.randomUUID();
         Map<String, Object> layout = new HashMap<>();
         layout.put("id", id);
@@ -76,6 +93,9 @@ public class V2WorkspaceController {
                                             @PathVariable UUID id,
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.updateLayout(user, id, payload);
+        }
         Map<String, Object> layout = requireLayout(user.getId(), id);
 
         mergeIfPresent(payload, layout, "name");
@@ -98,6 +118,10 @@ public class V2WorkspaceController {
     public ResponseEntity<Void> deleteLayout(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            persistenceService.deleteLayout(user, id);
+            return ResponseEntity.noContent().build();
+        }
         layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(id);
         return ResponseEntity.noContent().build();
     }
@@ -108,6 +132,9 @@ public class V2WorkspaceController {
     public Map<String, Object> activateLayout(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.activateLayout(user, id);
+        }
         ConcurrentMap<UUID, Map<String, Object>> userLayouts = layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
         Map<String, Object> layout = userLayouts.get(id);
         if (layout == null) {
@@ -132,7 +159,10 @@ public class V2WorkspaceController {
         if (storyId == null) {
             throw new RuntimeException("storyId 不能为空");
         }
-        accessGuard.requireOwnedStory(storyId, user);
+        Story story = accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.startSession(user, story, payload);
+        }
 
         UUID id = UUID.randomUUID();
         Map<String, Object> session = new HashMap<>();
@@ -158,6 +188,9 @@ public class V2WorkspaceController {
                                          @PathVariable UUID id,
                                          @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.updateSession(user, id, payload, false);
+        }
         Map<String, Object> session = requireSession(user.getId(), id);
         if (session.get("endedAt") != null) {
             throw new RuntimeException("会话已结束，无法继续心跳更新");
@@ -183,6 +216,9 @@ public class V2WorkspaceController {
                                           @PathVariable UUID id,
                                           @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.updateSession(user, id, payload == null ? Map.of() : payload, true);
+        }
         Map<String, Object> session = requireSession(user.getId(), id);
 
         if (session.get("endedAt") == null) {
@@ -209,7 +245,9 @@ public class V2WorkspaceController {
     @GetMapping("/writing-sessions/stats")
     public Map<String, Object> sessionStats(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        Collection<Map<String, Object>> sessions = sessionsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values();
+        Collection<Map<String, Object>> sessions = persistenceService == null
+                ? sessionsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values()
+                : persistenceService.listSessions(user);
 
         int totalSessions = sessions.size();
         int totalWritten = 0;
@@ -306,6 +344,9 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/writing-goals")
     public List<Map<String, Object>> listGoals(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.listGoals(user);
+        }
         ConcurrentMap<UUID, Map<String, Object>> goals = goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
         goals.values().forEach(this::applyDailyResetIfNeeded);
         return new ArrayList<>(goals.values());
@@ -319,7 +360,12 @@ public class V2WorkspaceController {
         User user = accessGuard.currentUser(principal);
         UUID storyId = uuid(payload.get("storyId"));
         if (storyId != null) {
-            accessGuard.requireOwnedStory(storyId, user);
+            Story story = accessGuard.requireOwnedStory(storyId, user);
+            if (persistenceService != null) {
+                return persistenceService.createGoal(user, story, payload);
+            }
+        } else if (persistenceService != null) {
+            return persistenceService.createGoal(user, null, payload);
         }
 
         UUID id = UUID.randomUUID();
@@ -346,6 +392,9 @@ public class V2WorkspaceController {
                                           @PathVariable UUID id,
                                           @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.updateGoal(user, id, payload);
+        }
         Map<String, Object> goal = goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).get(id);
         if (goal == null) {
             throw new RuntimeException("写作目标不存在");
@@ -368,6 +417,10 @@ public class V2WorkspaceController {
     public ResponseEntity<Void> deleteGoal(@AuthenticationPrincipal UserDetails principal,
                                            @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            persistenceService.deleteGoal(user, id);
+            return ResponseEntity.noContent().build();
+        }
         goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(id);
         return ResponseEntity.noContent().build();
     }
@@ -377,6 +430,9 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/shortcuts")
     public List<Map<String, Object>> listShortcuts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.listShortcuts(user);
+        }
         return new ArrayList<>(shortcutsByUser.computeIfAbsent(user.getId(), uid -> defaultShortcuts(user.getId())).values());
     }
 
@@ -391,6 +447,9 @@ public class V2WorkspaceController {
         Object shortcutsObj = payload.get("shortcuts");
         if (!(shortcutsObj instanceof List<?> list)) {
             throw new RuntimeException("shortcuts 必须为数组");
+        }
+        if (persistenceService != null) {
+            return persistenceService.updateShortcuts(user, list);
         }
 
         for (Object item : list) {

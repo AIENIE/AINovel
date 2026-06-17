@@ -5,6 +5,7 @@ import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,6 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RequestMapping("/v2")
 public class V2ModelController {
     private final V2AccessGuard accessGuard;
+    private final V2ModelPersistenceService persistenceService;
 
     private final ConcurrentMap<String, Map<String, Object>> modelsByKey = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Map<String, Object>> modelsById = new ConcurrentHashMap<>();
@@ -31,7 +33,13 @@ public class V2ModelController {
     private final ConcurrentMap<UUID, CopyOnWriteArrayList<Map<String, Object>>> usageByUser = new ConcurrentHashMap<>();
 
     public V2ModelController(V2AccessGuard accessGuard) {
+        this(accessGuard, null);
+    }
+
+    @Autowired
+    public V2ModelController(V2AccessGuard accessGuard, V2ModelPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
+        this.persistenceService = persistenceService;
         seedModels();
         seedRouting();
     }
@@ -41,6 +49,9 @@ public class V2ModelController {
     @GetMapping("/models")
     public List<Map<String, Object>> listModels(@AuthenticationPrincipal UserDetails principal) {
         accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.listModels();
+        }
         List<Map<String, Object>> list = new ArrayList<>(modelsByKey.values());
         list.sort(Comparator.comparingInt(model -> -intVal(model.get("priority"), 0)));
         return list;
@@ -52,6 +63,9 @@ public class V2ModelController {
     public Map<String, Object> getModel(@AuthenticationPrincipal UserDetails principal,
                                         @PathVariable String modelKey) {
         accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.findModel(modelKey);
+        }
         Map<String, Object> model = modelsByKey.get(modelKey);
         if (model == null) {
             throw new RuntimeException("模型不存在");
@@ -65,6 +79,9 @@ public class V2ModelController {
     public List<Map<String, Object>> listRouting(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireAdmin(user);
+        if (persistenceService != null) {
+            return persistenceService.listRouting();
+        }
         return new ArrayList<>(routingByTaskType.values());
     }
 
@@ -78,6 +95,15 @@ public class V2ModelController {
         accessGuard.requireAdmin(user);
 
         UUID recommendedId = uuid(payload.get("recommendedModelId"));
+        if (persistenceService != null) {
+            return persistenceService.updateRouting(
+                    taskType,
+                    recommendedId,
+                    uuid(payload.get("fallbackModelId")),
+                    str(payload.get("routingStrategy"), "fixed"),
+                    payload.getOrDefault("config", Map.of())
+            );
+        }
         if (recommendedId == null || !modelsById.containsKey(recommendedId)) {
             throw new RuntimeException("recommendedModelId 无效");
         }
@@ -102,6 +128,9 @@ public class V2ModelController {
     @GetMapping("/users/me/model-preferences")
     public List<Map<String, Object>> listPreferences(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.listPreferences(user);
+        }
         return new ArrayList<>(preferencesByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
     }
 
@@ -113,6 +142,9 @@ public class V2ModelController {
                                              @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         UUID preferredModelId = uuid(payload.get("preferredModelId"));
+        if (persistenceService != null) {
+            return persistenceService.savePreference(user, taskType, preferredModelId);
+        }
         if (preferredModelId != null && !modelsById.containsKey(preferredModelId)) {
             throw new RuntimeException("preferredModelId 无效");
         }
@@ -135,6 +167,10 @@ public class V2ModelController {
     public ResponseEntity<Void> resetPreference(@AuthenticationPrincipal UserDetails principal,
                                                 @PathVariable String taskType) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            persistenceService.resetPreference(user, taskType);
+            return ResponseEntity.noContent().build();
+        }
         preferencesByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(taskType);
         return ResponseEntity.noContent().build();
     }
@@ -144,6 +180,9 @@ public class V2ModelController {
     @GetMapping("/users/me/model-usage")
     public Map<String, Object> usageSummary(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.usageSummary(user);
+        }
         List<Map<String, Object>> logs = usageByUser.computeIfAbsent(user.getId(), uid -> new CopyOnWriteArrayList<>());
         int inputTokens = 0;
         int outputTokens = 0;
@@ -167,6 +206,9 @@ public class V2ModelController {
     public List<Map<String, Object>> usageDetails(@AuthenticationPrincipal UserDetails principal,
                                                   @RequestParam(required = false, defaultValue = "100") int limit) {
         User user = accessGuard.currentUser(principal);
+        if (persistenceService != null) {
+            return persistenceService.usageDetails(user, limit);
+        }
         List<Map<String, Object>> logs = new ArrayList<>(usageByUser.computeIfAbsent(user.getId(), uid -> new CopyOnWriteArrayList<>()));
         logs.sort((a, b) -> ((Instant) b.get("createdAt")).compareTo((Instant) a.get("createdAt")));
         return logs.subList(0, Math.min(Math.max(limit, 1), logs.size()));
@@ -180,6 +222,35 @@ public class V2ModelController {
                                              @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
+
+        if (persistenceService != null) {
+            List<Map<String, Object>> models = persistenceService.listModels();
+            Map<String, Object> modelA = models.get(0);
+            Map<String, Object> modelB = models.size() > 1 ? models.get(1) : models.get(0);
+            UUID modelAId = uuid(payload.get("modelAId"));
+            UUID modelBId = uuid(payload.get("modelBId"));
+            if (modelAId != null) {
+                modelA = models.stream().filter(model -> modelAId.equals(model.get("id"))).findFirst()
+                        .orElseThrow(() -> new RuntimeException("模型不存在"));
+            }
+            if (modelBId != null) {
+                modelB = models.stream().filter(model -> modelBId.equals(model.get("id"))).findFirst()
+                        .orElseThrow(() -> new RuntimeException("模型不存在"));
+            }
+            String taskType = str(payload.get("taskType"), "draft_generation");
+            String prompt = str(payload.get("prompt"), "请生成一段小说正文");
+            Map<String, Object> outputA = buildComparisonOutput(story, modelA, prompt, "A");
+            Map<String, Object> outputB = buildComparisonOutput(story, modelB, prompt, "B");
+            persistenceService.logUsage(user, story.getId(), (UUID) modelA.get("id"), taskType, 220, 340, 580, true, null);
+            persistenceService.logUsage(user, story.getId(), (UUID) modelB.get("id"), taskType, 210, 330, 560, true, null);
+            return Map.of(
+                    "storyId", storyId,
+                    "taskType", taskType,
+                    "prompt", prompt,
+                    "candidates", List.of(outputA, outputB),
+                    "generatedAt", Instant.now()
+            );
+        }
 
         Map<String, Object> routing = routingByTaskType.getOrDefault(str(payload.get("taskType"), "draft_generation"), Map.of());
         UUID defaultModelId = uuid(routing.get("recommendedModelId"));

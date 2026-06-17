@@ -232,6 +232,22 @@ CREATE TABLE `entity_extractions` (
   CONSTRAINT `fk_extraction_lorebook` FOREIGN KEY (`linked_lorebook_id`) REFERENCES `lorebook_entries` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `knowledge_graph_relationships` (
+  `id` binary(16) NOT NULL,
+  `story_id` binary(16) NOT NULL,
+  `source_lorebook_id` binary(16) NOT NULL,
+  `target_lorebook_id` binary(16) NOT NULL,
+  `relation_type` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_kg_story` (`story_id`),
+  KEY `idx_kg_source` (`source_lorebook_id`),
+  KEY `idx_kg_target` (`target_lorebook_id`),
+  CONSTRAINT `fk_kg_story` FOREIGN KEY (`story_id`) REFERENCES `stories` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_kg_source` FOREIGN KEY (`source_lorebook_id`) REFERENCES `lorebook_entries` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_kg_target` FOREIGN KEY (`target_lorebook_id`) REFERENCES `lorebook_entries` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `style_profiles` (
   `id` binary(16) NOT NULL,
   `user_id` binary(16) NOT NULL,

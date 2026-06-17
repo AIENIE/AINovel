@@ -5,7 +5,7 @@
 - **核心价值**：提供结构化创作流程、可复用的世界观与素材库、AI 生成与润色、角色状态追踪，降低设定跑偏与断更风险。
 
 ## 功能全景
-- **用户与权限**：注册/登录（JWT），`AuthContext` 全局守护；`ProtectedRoute` 保护工作台、素材库、世界观等页面；ACL 粒度到 Workspace / Material。
+- **用户与权限**：普通用户通过后端 SSO 跳转到 user-service 登录/注册，回调后兑换本项目 JWT；`AuthContext` 全局守护；`ProtectedRoute` 保护工作台、素材库、世界观等页面；ACL 粒度到 Workspace / Material。
 - **故事构思与管理**：一键生成故事卡+角色卡，支持手工创建/编辑/删除故事与角色，AI 润色字段。
 - **大纲工作台**：按章节生成场景树，支持世界观引用、章节/场景编辑、AI 润色、版本化保存。
 - **小说创作**：基于大纲的场景级写作；AI 生成正文、保存稿件、自动素材建议；角色变化分析、关系图谱、成长路径、记忆驱动对话。
@@ -21,7 +21,7 @@
 - **容器与部署**：`build.sh` 一键构建前后端并 `docker compose` 启动 (mysql 8.4 + qdrant 1.11.2 + backend + nginx 前端)，建议前后端分域部署，反向代理 `/api`。
 
 ## 已实现主要功能
-- JWT 认证链路与设置中心；API Key 校验测试接口。
+- SSO 普通用户认证链路、管理员本地登录链路与设置中心；API Key 校验测试接口。
 - 故事卡/角色卡 CRUD + AI 润色；故事自动生成（含角色）。
 - 大纲：按章节生成场景、树形查看、章节/场景表单编辑、世界引用、保存/删除。
 - 稿件：多稿件管理、场景级生成与保存、世界上下文、角色变化分析、对话生成、角色关系/成长视图、自动素材建议。
@@ -30,7 +30,7 @@
 - 提示词：故事/大纲/正文/润色模板读取、保存、重置；世界观模板的草稿/正式/字段精修管理；两份帮助页列出变量/函数/示例。
 
 ## 主要后端接口速览（与前端直连）
-- 认证与设置：`POST /api/v1/auth/login`、`POST /api/v1/auth/register`、`GET /api/auth/validate`、`GET/PUT /api/v1/settings`、`POST /api/v1/settings/test`。
+- 认证与设置：`GET /api/v1/sso/login`、`GET /api/v1/sso/register`、`GET /api/v1/sso/session`、`GET /api/auth/validate`、`GET/PUT /api/v1/settings`、`POST /api/v1/settings/test`。
 - 故事与角色：`GET /api/v1/story-cards`、`GET /api/v1/story-cards/{id}`、`GET /api/v1/story-cards/{id}/character-cards`、`PUT /api/v1/story-cards/{id}`、`POST /api/v1/story-cards/{id}/characters`、`PUT/DELETE /api/v1/character-cards/{id}`、`POST /api/v1/stories`、`DELETE /api/v1/stories/{id}`、`POST /api/v1/conception`、`POST /api/v1/story-cards/{id}/refine`、`POST /api/v1/character-cards/{id}/refine`。
 - 大纲：`GET /api/v1/story-cards/{storyId}/outlines`、`POST /api/v1/story-cards/{storyId}/outlines`、`GET/PUT/DELETE /api/v1/outlines/{id}`、`POST /api/v1/outlines/{outlineId}/chapters`、`PUT /api/v1/chapters/{id}`、`PUT /api/v1/scenes/{id}`、`POST /api/v1/outlines/scenes/{id}/refine`。
 - 稿件与角色分析：`GET /api/v1/outlines/{outlineId}/manuscripts`、`POST /api/v1/outlines/{outlineId}/manuscripts`、`DELETE /api/v1/manuscripts/{id}`、`GET /api/v1/manuscripts/{id}`、`POST /api/v1/manuscript/scenes/{sceneId}/generate`、`PUT /api/v1/manuscript/sections/{sectionId}`、`POST /api/v1/manuscripts/{id}/sections/analyze-character-changes`、`GET /api/v1/manuscripts/{id}/character-change-logs`、`GET /api/v1/manuscripts/{id}/character-change-logs/{characterId}`、`POST /api/v1/ai/generate-dialogue`。

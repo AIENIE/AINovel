@@ -10,9 +10,9 @@
 - `POST /lorebook/import`：批量导入条目，Body `{ entries: [...] }`。
 
 ## Graph
-- `GET /graph`：按当前 Lorebook 生成图谱节点集。
+- `GET /graph`：按当前 Lorebook 和已保存关系生成图谱节点集。
 - `GET /graph/query?keyword=&limit=`：按关键词筛选子图。
-- `POST /graph/sync`：触发图谱同步（当前实现为即时完成）。
+- `POST /graph/sync`：触发图谱同步（当前实现为即时完成，并保存关系元数据）。
 
 ## Entity Extraction
 - `POST /extract-entities`：从文本创建实体提取记录，Body 至少包含 `text`。
