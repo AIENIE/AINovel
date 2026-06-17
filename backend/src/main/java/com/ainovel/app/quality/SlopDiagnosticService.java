@@ -189,6 +189,7 @@ public class SlopDiagnosticService {
                 2) 每个判断必须引用原文证据；单个黑名单词只能作为弱信号。
                 3) 必须列出替代解释，如传统网文俗套、人工低水平写作、平台公式化、作者个人风格。
                 4) 修改优先级：元泄漏/事实矛盾/设定冲突 > 角色行为逻辑 > 后果/代价/关系变化 > 角色语域 > 表层套话。
+                5) voice_fit 只能基于下方“风格/角色声音语境”和正文证据判断；没有配置时不要虚构角色语域问题。
 
                 输出 JSON：
                 {
@@ -235,6 +236,7 @@ public class SlopDiagnosticService {
                 场景：%s
                 场景摘要：%s
                 角色上下文：%s
+                风格/角色声音语境：%s
                 前文：%s
 
                 当前正文：
@@ -249,6 +251,7 @@ public class SlopDiagnosticService {
                 safe(request.sceneTitle()),
                 truncate(request.sceneSummary(), 900),
                 truncate(request.characterContext(), 1400),
+                truncate(request.styleContext(), 1400),
                 truncate(request.previousContext(), 1200),
                 truncate(request.candidateText(), 7000)
         );

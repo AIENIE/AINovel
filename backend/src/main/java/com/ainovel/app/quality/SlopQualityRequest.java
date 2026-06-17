@@ -14,6 +14,7 @@ public record SlopQualityRequest(
         String sceneSummary,
         String previousContext,
         String characterContext,
+        String styleContext,
         String candidateText
 ) {
 }
