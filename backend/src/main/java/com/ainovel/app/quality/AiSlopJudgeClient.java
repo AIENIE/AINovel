@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,14 +30,20 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 null
         )).content();
         Map<String, Object> root = parseJson(content);
-        int risk = intVal(root.get("risk_score"), heuristicResult.overallRiskScore());
+        Map<String, Object> overall = map(root.get("overall"));
+        int risk = intVal(overall.get("overall_slop_risk"), intVal(root.get("risk_score"), heuristicResult.overallRiskScore()));
         boolean revisionRecommended = boolVal(root.get("revision_recommended"), risk >= 55);
         String hint = str(root.get("actionable_hint"), "优先处理重复、套话和格式伪迹。");
-        List<SlopIssueDraft> issues = parseIssues(root.get("issues"));
+        List<SlopIssueDraft> issues = parseIssues(root.containsKey("evidence_items") ? root.get("evidence_items") : root.get("issues"), request.candidateText());
         if (issues.isEmpty()) {
             issues = heuristicResult.issues();
         }
-        return new SlopJudgeResult(risk, revisionRecommended, issues, hint);
+        SlopSeverity maxSeverity = issues.stream()
+                .map(SlopIssueDraft::severity)
+                .max((left, right) -> Integer.compare(left.ordinal(), right.ordinal()))
+                .orElse(heuristicResult.maxSeverity());
+        SlopQualitySignals signals = parseSignals(root, overall, risk, maxSeverity, issues);
+        return new SlopJudgeResult(risk, revisionRecommended, issues, hint, signals);
     }
 
     private String buildPrompt(SlopQualityRequest request, SlopHeuristicResult heuristicResult) {
@@ -47,19 +54,40 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
 
                 必须输出 JSON，格式：
                 {
-                  "risk_score": 0-100,
+                  "overall": {
+                    "overall_slop_risk": 0-100,
+                    "risk_label": "low|medium|high|critical",
+                    "evidence_level": "E1|E2|E3|E4",
+                    "safe_claim": "该文本呈现...风险，但不能证明作者使用AI。"
+                  },
                   "revision_recommended": true|false,
                   "actionable_hint": "一句话说明先改什么",
-                  "issues": [
+                  "module_scores": {
+                    "surface_template": {"score": 0-100, "evidence_count": 0},
+                    "voice_fit": {"score": 0-100, "evidence_count": 0},
+                    "consistency_assimilation": {"score": 0-100, "evidence_count": 0},
+                    "breath_focus_pacing": {"score": 0-100, "evidence_count": 0},
+                    "human_trace": {"score": 0-100, "evidence_count": 0}
+                  },
+                  "evidence_items": [
                     {
-                      "dimension": "REPETITION|GENERICITY|ARTIFACT|LOCAL_COHERENCE|STYLE_DRIFT_LIGHT",
-                      "severity": "LOW|MEDIUM|HIGH|BLOCKING",
+                      "char_start": 0,
+                      "char_end": 0,
+                      "quote": "原文证据",
+                      "module": "surface_template|voice_fit|consistency_assimilation|breath_focus_pacing|human_trace",
+                      "pattern_id": "可为空",
+                      "issue_type": "phrase_pattern|register_mismatch|local_contradiction|event_conveyor_belt|human_trace_missing|meta_leak|repetition",
+                      "evidence_level": "E1|E2|E3|E4",
+                      "severity": "low|medium|high|blocking",
                       "risk_score": 0-100,
-                      "evidence": "原文证据片段",
-                      "why_it_matters": "为什么影响阅读",
-                      "minimal_fix": "最小修复建议"
+                      "risk_explanation": "为什么影响阅读",
+                      "alternative_explanations": ["传统网文俗套"],
+                      "repair_hint": "最小修复建议"
                     }
-                  ]
+                  ],
+                  "alternative_explanations": [],
+                  "revision_priorities": [],
+                  "rewrite_tasks": []
                 }
 
                 约束：
@@ -115,7 +143,48 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
         }
     }
 
-    private List<SlopIssueDraft> parseIssues(Object value) {
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> map(Object value) {
+        return value instanceof Map<?, ?> raw ? (Map<String, Object>) raw : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> list(Object value) {
+        return value instanceof List<?> raw ? (List<Object>) raw : List.of();
+    }
+
+    private SlopQualitySignals parseSignals(Map<String, Object> root,
+                                            Map<String, Object> overall,
+                                            int risk,
+                                            SlopSeverity maxSeverity,
+                                            List<SlopIssueDraft> issues) {
+        SlopQualitySignals fallback = SlopQualitySignals.fromIssues(risk, maxSeverity, issues);
+        return new SlopQualitySignals(
+                str(overall.get("risk_label"), fallback.riskLabel()),
+                str(overall.get("evidence_level"), fallback.evidenceLevel()),
+                str(overall.get("safe_claim"), fallback.safeClaim()),
+                map(root.get("module_scores")).isEmpty() ? fallback.moduleScores() : new LinkedHashMap<>(map(root.get("module_scores"))),
+                stringList(root.get("alternative_explanations"), fallback.alternativeExplanations()),
+                list(root.get("revision_priorities")).isEmpty() ? fallback.revisionPriorities() : list(root.get("revision_priorities")),
+                list(root.get("rewrite_tasks")).isEmpty() ? fallback.rewriteTasks() : list(root.get("rewrite_tasks"))
+        );
+    }
+
+    private List<String> stringList(Object value, List<String> fallback) {
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return fallback;
+        }
+        List<String> result = new ArrayList<>();
+        for (Object item : list) {
+            String text = str(item, "");
+            if (!text.isBlank()) {
+                result.add(text);
+            }
+        }
+        return result.isEmpty() ? fallback : result;
+    }
+
+    private List<SlopIssueDraft> parseIssues(Object value, String text) {
         List<SlopIssueDraft> issues = new ArrayList<>();
         if (!(value instanceof List<?> list)) {
             return issues;
@@ -124,13 +193,35 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
             if (!(item instanceof Map<?, ?> raw)) {
                 continue;
             }
+            String module = str(raw.get("module"), "");
+            String quote = str(raw.get("quote"), str(raw.get("evidence"), ""));
+            Integer start = nullableInt(raw.get("char_start"));
+            Integer end = nullableInt(raw.get("char_end"));
+            if ((start == null || end == null) && !quote.isBlank()) {
+                int found = text == null ? -1 : text.indexOf(quote);
+                if (found >= 0) {
+                    start = found;
+                    end = found + quote.length();
+                }
+            }
+            String explanation = str(raw.get("risk_explanation"), str(raw.get("why_it_matters"), ""));
+            String repairHint = str(raw.get("repair_hint"), str(raw.get("minimal_fix"), ""));
             issues.add(new SlopIssueDraft(
-                    dimension(raw.get("dimension")),
+                    module.isBlank() ? dimension(raw.get("dimension")) : dimensionForModule(module),
                     severity(raw.get("severity")),
                     intVal(raw.get("risk_score"), 50),
-                    str(raw.get("evidence"), ""),
-                    str(raw.get("why_it_matters"), ""),
-                    str(raw.get("minimal_fix"), "")
+                    quote,
+                    explanation,
+                    repairHint,
+                    start,
+                    end,
+                    quote,
+                    module.isBlank() ? moduleForDimension(dimension(raw.get("dimension"))) : module,
+                    str(raw.get("pattern_id"), ""),
+                    str(raw.get("issue_type"), ""),
+                    str(raw.get("evidence_level"), "E1"),
+                    writeJson(raw.containsKey("alternative_explanations") ? raw.get("alternative_explanations") : List.of()),
+                    repairHint
             ));
         }
         return issues;
@@ -138,17 +229,58 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
 
     private SlopDimension dimension(Object value) {
         try {
-            return SlopDimension.valueOf(str(value, "GENERICITY"));
+            return SlopDimension.valueOf(str(value, "GENERICITY").toUpperCase());
         } catch (Exception ignored) {
             return SlopDimension.GENERICITY;
         }
     }
 
+    private SlopDimension dimensionForModule(String module) {
+        return switch (str(module, "surface_template")) {
+            case "voice_fit" -> SlopDimension.STYLE_DRIFT_LIGHT;
+            case "consistency_assimilation" -> SlopDimension.LOCAL_COHERENCE;
+            case "breath_focus_pacing" -> SlopDimension.LOCAL_COHERENCE;
+            case "human_trace" -> SlopDimension.GENERICITY;
+            default -> SlopDimension.GENERICITY;
+        };
+    }
+
+    private String moduleForDimension(SlopDimension dimension) {
+        if (dimension == null) {
+            return "surface_template";
+        }
+        return switch (dimension) {
+            case ARTIFACT -> "consistency_assimilation";
+            case LOCAL_COHERENCE -> "breath_focus_pacing";
+            case STYLE_DRIFT_LIGHT -> "voice_fit";
+            case REPETITION, GENERICITY -> "surface_template";
+        };
+    }
+
     private SlopSeverity severity(Object value) {
         try {
-            return SlopSeverity.valueOf(str(value, "MEDIUM"));
+            return SlopSeverity.valueOf(str(value, "MEDIUM").toUpperCase());
         } catch (Exception ignored) {
             return SlopSeverity.MEDIUM;
+        }
+    }
+
+    private Integer nullableInt(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return "[]";
         }
     }
 

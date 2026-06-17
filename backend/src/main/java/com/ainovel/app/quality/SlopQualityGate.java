@@ -32,6 +32,7 @@ public class SlopQualityGate {
         int riskScore = heuristicResult.overallRiskScore();
         SlopSeverity maxSeverity = heuristicResult.maxSeverity();
         List<SlopIssueDraft> issues = new ArrayList<>(heuristicResult.issues());
+        SlopQualitySignals signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
         String summary = "本地规则低风险，直接接受。";
 
         if (heuristicResult.requiresAiReview()) {
@@ -39,6 +40,7 @@ public class SlopQualityGate {
             riskScore = Math.max(riskScore, judgeResult.riskScore());
             maxSeverity = maxSeverity(maxSeverity, judgeResult.issues());
             issues = new ArrayList<>(mergeIssues(issues, judgeResult.issues()));
+            signals = judgeResult.signals().withDefaults(riskScore, maxSeverity, issues);
             summary = judgeResult.actionableHint() == null || judgeResult.actionableHint().isBlank()
                     ? "AI 诊断建议保守修订。"
                     : judgeResult.actionableHint();
@@ -54,6 +56,7 @@ public class SlopQualityGate {
                         riskScore = Math.min(riskScore, revisedHeuristic.overallRiskScore());
                         maxSeverity = revisedHeuristic.maxSeverity();
                         issues = new ArrayList<>(revisedHeuristic.issues());
+                        signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
                         summary = "已执行一次保守修订。";
                     } else {
                         summary = "修订版风险未降低，保留原始候选。";
@@ -72,7 +75,8 @@ public class SlopQualityGate {
                 revisionCount,
                 status,
                 List.copyOf(issues),
-                summary
+                summary,
+                signals
         ));
         return new SlopQualityResult(runId, acceptedText, riskScore, maxSeverity, revised, revisionCount, status, List.copyOf(issues));
     }

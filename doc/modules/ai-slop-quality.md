@@ -2,17 +2,17 @@
 
 ## 后续分期 Backlog（继续开发优先读这里）
 
-1. Phase 2：增强自动生成门禁。把本期的证据等级、密度共振和 rewrite tasks 接入生成后的 `SlopQualityGate`，但仍保持“最多一次保守修订、不自动大改剧情”的安全边界。
-2. Phase 3：长篇 drift 巡检。按章节/字数窗口比较中后段断层、角色漂移、事件传送带和伏笔遗忘，输出全稿趋势，不推断“从某章开始用 AI”。
-3. Phase 4：风格/角色声音持久化整合。补齐 `style_profiles`、`character_voices`、`style_analysis_jobs` 的持久化实现，再把语域贴合和角色声音用于 slop 诊断。
-4. Phase 5：标注集和阈值校准。基于 `ai_novel_ai_taste_research/algorithms/12-annotation-guidelines.md` 建人工标注样本，校准 E1/E2 升级规则和平台/题材误伤。
+1. Phase 3：长篇 drift 巡检。按章节/字数窗口比较中后段断层、角色漂移、事件传送带和伏笔遗忘，输出全稿趋势，不推断“从某章开始用 AI”。
+2. Phase 4：风格/角色声音持久化整合。补齐 `style_profiles`、`character_voices`、`style_analysis_jobs` 的持久化实现，再把语域贴合和角色声音用于 slop 诊断。
+3. Phase 5：标注集和阈值校准。基于 `ai_novel_ai_taste_research/algorithms/12-annotation-guidelines.md` 建人工标注样本，校准 E1/E2 升级规则和平台/题材误伤。
 
 ## 本期能力
 
 - 工作台手动触发“文本 Slop 诊断”，服务端记录到 `slop_quality_runs`。
 - 输出对象是文本层面的模板化、工业化和 slop 风险，不输出 AI 概率，不判断作者是否使用 AI。
 - 诊断结果包含风险分、风险标签、证据等级、安全结论、模块分、证据表、替代解释、修改优先级和 rewrite tasks。
-- 手动诊断不修改正文；自动生成链路原有的轻量质量门禁仍保持独立。
+- 手动诊断不修改正文；自动生成链路会在 `generation_gate` 记录中保存同类证据等级、模块分、替代解释、修改优先级和 rewrite tasks。
+- 自动生成链路仍只允许最多一次保守修订，不自动大改剧情事件、角色决策、人物关系或关键设定。
 
 ## 诊断层级
 
@@ -39,6 +39,7 @@
 
 - 后端：`backend/src/main/java/com/ainovel/app/quality/SlopDiagnosticService.java`
 - API：`backend/src/main/java/com/ainovel/app/quality/SlopQualityController.java`
+- 生成门禁：`backend/src/main/java/com/ainovel/app/quality/SlopQualityGate.java`、`backend/src/main/java/com/ainovel/app/quality/AiSlopJudgeClient.java`、`backend/src/main/java/com/ainovel/app/quality/JpaSlopQualityRecorder.java`
 - 前端：`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
 - 类型与 API mapper：`frontend/src/types/index.ts`、`frontend/src/lib/mock-api.ts`
 - 研究来源：`ai_novel_ai_taste_research/algorithms/`

@@ -17,7 +17,7 @@
 - `revised` / `revisionCount`：是否执行过保守修订。
 - `issues`：维度、严重级别、证据片段、原因和最小修复建议。
 
-手动文本诊断扩展返回项：
+文本诊断扩展返回项：
 - `analysisMode`：`manual_scene` 表示工作台手动诊断；`generation_gate` 表示生成链路门禁记录。
 - `riskLabel`：`low` / `medium` / `high` / `critical`。
 - `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
@@ -26,6 +26,8 @@
 - `alternativeExplanationsJson`：替代解释，例如传统网文俗套、人工低水平写作、工作室公式化、题材/平台惯例、作者个人文风。
 - `revisionPrioritiesJson`：修改优先级。
 - `rewriteTasksJson`：证据驱动改写任务。
+
+`generation_gate` 记录会复用上述扩展字段。低风险本地规则记录可能只包含本地模块分和默认替代解释；触发 AI review 后会持久化 AI 返回的模块分、证据等级、修改优先级和 rewrite tasks。即使存在 rewrite tasks，生成链路也只允许最多一次保守修订。
 
 手动文本诊断的 `issues` 额外包含：
 - `charStart` / `charEnd`：证据在原文中的字符位置，可能为空。

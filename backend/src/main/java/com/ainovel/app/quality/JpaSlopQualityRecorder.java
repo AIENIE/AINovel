@@ -3,6 +3,7 @@ package com.ainovel.app.quality;
 import com.ainovel.app.quality.model.SlopQualityIssue;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,9 +16,11 @@ import java.util.UUID;
 @Component
 public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     private final SlopQualityRunRepository runRepository;
+    private final ObjectMapper objectMapper;
 
-    public JpaSlopQualityRecorder(SlopQualityRunRepository runRepository) {
+    public JpaSlopQualityRecorder(SlopQualityRunRepository runRepository, ObjectMapper objectMapper) {
         this.runRepository = runRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -36,13 +39,14 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
         run.setAcceptedTextHash(hash(record.acceptedText()));
         run.setSourceTextHash(hash(record.request().candidateText()));
         run.setAnalysisMode("generation_gate");
-        run.setRiskLabel(label(record.overallRiskScore()));
-        run.setEvidenceLevel(defaultEvidenceLevel(record.maxSeverity(), record.overallRiskScore()));
-        run.setSafeClaim("该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(run.getRiskLabel()));
-        run.setModuleScoresJson("{}");
-        run.setAlternativeExplanationsJson("[\"传统网文俗套\",\"人工低水平写作\",\"平台公式化\",\"作者个人文风\"]");
-        run.setRevisionPrioritiesJson("[]");
-        run.setRewriteTasksJson("[]");
+        SlopQualitySignals signals = record.signals().withDefaults(record.overallRiskScore(), record.maxSeverity(), record.issues());
+        run.setRiskLabel(signals.riskLabel());
+        run.setEvidenceLevel(signals.evidenceLevel());
+        run.setSafeClaim(truncate(signals.safeClaim(), 500));
+        run.setModuleScoresJson(writeJson(signals.moduleScores()));
+        run.setAlternativeExplanationsJson(writeJson(signals.alternativeExplanations()));
+        run.setRevisionPrioritiesJson(writeJson(signals.revisionPriorities()));
+        run.setRewriteTasksJson(writeJson(signals.rewriteTasks()));
         run.setSummary(truncate(record.summary(), 800));
         for (SlopIssueDraft draft : record.issues()) {
             SlopQualityIssue issue = new SlopQualityIssue();
@@ -84,23 +88,11 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
         return value.length() <= limit ? value : value.substring(0, limit);
     }
 
-    private String label(int riskScore) {
-        if (riskScore >= 85) {
-            return "critical";
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return "[]";
         }
-        if (riskScore >= 70) {
-            return "high";
-        }
-        if (riskScore >= 40) {
-            return "medium";
-        }
-        return "low";
-    }
-
-    private String defaultEvidenceLevel(SlopSeverity severity, int riskScore) {
-        if (severity == SlopSeverity.BLOCKING || severity == SlopSeverity.HIGH || riskScore >= 70) {
-            return "E2";
-        }
-        return "E1";
     }
 }
