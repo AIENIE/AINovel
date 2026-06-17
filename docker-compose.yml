@@ -8,11 +8,6 @@ services:
     ports:
       - "${BACKEND_PORT:-11041}:11041"
     entrypoint: ["sh", "-c", ". /app/bin/load-env-file.sh /app/env.txt && exec java $${JAVA_OPTS:-} -jar /app/app.jar"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-      - "userservice.localhut.com:${USERSERVICE_HOST_IP:-host-gateway}"
-      - "payservice.localhut.com:${PAYSERVICE_HOST_IP:-host-gateway}"
-      - "aiservice.localhut.com:${AISERVICE_HOST_IP:-host-gateway}"
     volumes:
       - ./env.txt:/app/env.txt:ro
       - ./docker/load-env-file.sh:/app/bin/load-env-file.sh:ro
@@ -29,8 +24,6 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-11040}:11040"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - ainovel
 
