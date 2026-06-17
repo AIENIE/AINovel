@@ -2,18 +2,19 @@
 
 ## 后续分期 Backlog（继续开发优先读这里）
 
-1. Phase 4：风格/角色声音持久化整合。补齐 `style_profiles`、`character_voices`、`style_analysis_jobs` 的持久化实现，再把语域贴合和角色声音用于 slop 诊断。
-2. Phase 5：标注集和阈值校准。基于 `ai_novel_ai_taste_research/algorithms/12-annotation-guidelines.md` 建人工标注样本，校准 E1/E2 升级规则和平台/题材误伤。
+1. Phase 5：标注集和阈值校准。基于 `ai_novel_ai_taste_research/algorithms/12-annotation-guidelines.md` 建人工标注样本，校准 E1/E2 升级规则和平台/题材误伤。
 
 ## 本期能力
 
 - 工作台手动触发“文本 Slop 诊断”，服务端记录到 `slop_quality_runs`。
 - 工作台质量分析页可触发“长篇 drift 巡检”，服务端按稿件窗口记录到 `slop_drift_runs`。
+- 设置页风格画像、场景风格覆盖、角色声音和风格分析任务已使用数据库持久化；同一故事同一时间只有一个 active 风格画像，同一角色只有一份声音设定。
 - 输出对象是文本层面的模板化、工业化和 slop 风险，不输出 AI 概率，不判断作者是否使用 AI。
 - 诊断结果包含风险分、风险标签、证据等级、安全结论、模块分、证据表、替代解释、修改优先级和 rewrite tasks。
 - 长篇 drift 巡检输出全稿窗口摘要、指标曲线、断层点、证据表、替代解释和 rewrite tasks；短稿会保存 `INSUFFICIENT_TEXT`，不调用 AI。
 - 手动诊断不修改正文；自动生成链路会在 `generation_gate` 记录中保存同类证据等级、模块分、替代解释、修改优先级和 rewrite tasks。
 - 自动生成链路仍只允许最多一次保守修订，不自动大改剧情事件、角色决策、人物关系或关键设定。
+- 手动诊断和自动生成门禁都会读取故事 active 风格画像和角色声音，用作 `voice_fit` 判断语境；未配置时不会虚构角色语域问题。
 
 ## 诊断层级
 
@@ -42,6 +43,7 @@
 - API：`backend/src/main/java/com/ainovel/app/quality/SlopQualityController.java`
 - 长篇 drift：`backend/src/main/java/com/ainovel/app/quality/SlopDriftService.java`、`backend/src/main/java/com/ainovel/app/quality/SlopDriftController.java`
 - 生成门禁：`backend/src/main/java/com/ainovel/app/quality/SlopQualityGate.java`、`backend/src/main/java/com/ainovel/app/quality/AiSlopJudgeClient.java`、`backend/src/main/java/com/ainovel/app/quality/JpaSlopQualityRecorder.java`
+- 风格/声音持久化：`backend/src/main/java/com/ainovel/app/style/StyleService.java`、`backend/src/main/java/com/ainovel/app/style/StyleContextProvider.java`
 - 前端：`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
 - 全稿分析前端：`frontend/src/pages/Workbench/tabs/AnalysisDashboard.tsx`
 - 类型与 API mapper：`frontend/src/types/index.ts`、`frontend/src/lib/mock-api.ts`

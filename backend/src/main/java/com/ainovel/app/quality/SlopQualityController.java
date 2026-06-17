@@ -7,6 +7,7 @@ import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
+import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -33,16 +34,19 @@ public class SlopQualityController {
     private final SlopQualityRunRepository runRepository;
     private final CharacterCardRepository characterCardRepository;
     private final SlopDiagnosticService diagnosticService;
+    private final StyleContextProvider styleContextProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SlopQualityController(V2AccessGuard accessGuard,
                                  SlopQualityRunRepository runRepository,
                                  CharacterCardRepository characterCardRepository,
-                                 SlopDiagnosticService diagnosticService) {
+                                 SlopDiagnosticService diagnosticService,
+                                 StyleContextProvider styleContextProvider) {
         this.accessGuard = accessGuard;
         this.runRepository = runRepository;
         this.characterCardRepository = characterCardRepository;
         this.diagnosticService = diagnosticService;
+        this.styleContextProvider = styleContextProvider;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -92,6 +96,7 @@ public class SlopQualityController {
                 scene.sceneSummary(),
                 previousContext(scene, sections),
                 characterContext(characterCardRepository.findByStory(story)),
+                styleContextProvider.buildSlopContext(story),
                 stripHtml(sections.get(sceneId.toString()))
         );
     }

@@ -2,11 +2,13 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.UUID;
 
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SlopDiagnosticServiceTest {
@@ -88,9 +91,16 @@ class SlopDiagnosticServiceTest {
                 "主角发现线索",
                 "上一场景发现铜扣",
                 "林烬：谨慎、重视证据",
+                "Active style profile: 冷峻悬疑画像\nCharacter voice: 林烬 speechPattern=短句、反问、重视证据",
                 "雨水砸在铁皮棚上，空气仿佛凝固。林烬心中涌起一股说不出的感觉。"
         ));
 
+        ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(aiService).chat(any(), requestCaptor.capture());
+        String prompt = requestCaptor.getValue().messages().get(0).content();
+        assertTrue(prompt.contains("风格/角色声音语境"));
+        assertTrue(prompt.contains("Active style profile: 冷峻悬疑画像"));
+        assertTrue(prompt.contains("Character voice: 林烬 speechPattern=短句、反问、重视证据"));
         assertEquals("manual_scene", run.getAnalysisMode());
         assertEquals("high", run.getRiskLabel());
         assertEquals("E2", run.getEvidenceLevel());

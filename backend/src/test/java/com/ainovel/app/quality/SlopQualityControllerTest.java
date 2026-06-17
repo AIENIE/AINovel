@@ -7,6 +7,7 @@ import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
+import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ class SlopQualityControllerTest {
     private SlopQualityRunRepository runRepository;
     private CharacterCardRepository characterCardRepository;
     private SlopDiagnosticService diagnosticService;
+    private StyleContextProvider styleContextProvider;
     private SlopQualityController controller;
     private UserDetails principal;
     private User user;
@@ -38,7 +40,8 @@ class SlopQualityControllerTest {
         runRepository = mock(SlopQualityRunRepository.class);
         characterCardRepository = mock(CharacterCardRepository.class);
         diagnosticService = mock(SlopDiagnosticService.class);
-        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService);
+        styleContextProvider = mock(StyleContextProvider.class);
+        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -68,6 +71,7 @@ class SlopQualityControllerTest {
         when(accessGuard.currentUser(any())).thenReturn(user);
         when(accessGuard.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
         when(characterCardRepository.findByStory(story)).thenReturn(List.of());
+        when(styleContextProvider.buildSlopContext(story)).thenReturn("Active style profile: 冷峻悬疑画像");
     }
 
     @Test
@@ -85,6 +89,7 @@ class SlopQualityControllerTest {
                         && request.sceneId().equals(sceneId)
                         && request.candidateText().contains("空气仿佛凝固")
                         && request.storyTitle().equals("雨城疑案")
+                        && request.styleContext().contains("冷峻悬疑画像")
         ));
     }
 
