@@ -363,6 +363,31 @@ CREATE TABLE `analysis_jobs` (
   CONSTRAINT `fk_analysis_job_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `slop_drift_runs` (
+  `id` binary(16) NOT NULL,
+  `story_id` binary(16) NOT NULL,
+  `manuscript_id` binary(16) NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `overall_risk_score` int NOT NULL,
+  `risk_label` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `safe_claim` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `summary` varchar(800) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `total_characters` int NOT NULL,
+  `window_count` int NOT NULL,
+  `source_text_hash` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `window_summaries_json` longtext COLLATE utf8mb4_unicode_ci,
+  `metric_curves_json` longtext COLLATE utf8mb4_unicode_ci,
+  `drift_points_json` longtext COLLATE utf8mb4_unicode_ci,
+  `evidence_items_json` longtext COLLATE utf8mb4_unicode_ci,
+  `alternative_explanations_json` longtext COLLATE utf8mb4_unicode_ci,
+  `rewrite_tasks_json` longtext COLLATE utf8mb4_unicode_ci,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_slop_drift_story` (`story_id`),
+  KEY `idx_slop_drift_manuscript` (`manuscript_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `slop_quality_runs` (
   `id` binary(16) NOT NULL,
   `story_id` binary(16) NOT NULL,

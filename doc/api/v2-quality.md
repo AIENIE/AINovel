@@ -2,6 +2,7 @@
 
 - 鉴权：Bearer Token（稿件所有者）
 - 文本质量基础路径：`/api/v2/manuscripts/{manuscriptId}/quality-runs`
+- 长篇 drift 基础路径：`/api/v2/manuscripts/{manuscriptId}/slop-drift-runs`
 - 剧情质量基础路径：`/api/v2/manuscripts/{manuscriptId}/plot-quality-runs`
 
 ## 文本质量门禁
@@ -37,6 +38,26 @@
 - `evidenceLevel`：单条证据等级。
 - `alternativeExplanationsJson`：单条证据替代解释。
 - `repairHint`：最小修复建议。
+
+## 长篇 drift 巡检
+
+- `GET /slop-drift-runs`：查询稿件最近 20 条长篇 drift 巡检记录。
+- `POST /slop-drift-runs`：按当前稿件正文构建多个章节/字数窗口，执行一次 LLM 窗口对比巡检。
+
+返回项包含：
+- `status`：`COMPLETED` / `INSUFFICIENT_TEXT` / `DEGRADED`。
+- `overallRiskScore`：0-100 长篇 drift 风险分。
+- `riskLabel`：`low` / `medium` / `high` / `critical` / `unavailable`。
+- `safeClaim`：安全结论，只评价文本中后段模板化、角色漂移、事件传送带、伏笔遗忘和叙事机制断层风险。
+- `totalCharacters` / `windowCount`：本次参与分析的正文字符数和窗口数。
+- `windowSummariesJson`：窗口观察摘要。
+- `metricCurvesJson`：指标曲线 JSON，建议覆盖 `template_density`、`causal_coherence`、`role_stability`、`foreshadow_memory`、`breath_score`。
+- `driftPointsJson`：断层点与变化指标。
+- `evidenceItemsJson`：可回溯证据。
+- `alternativeExplanationsJson`：替代解释，例如赶稿、换写手、剧情高潮、平台节奏、作者疲劳、题材/平台惯例。
+- `rewriteTasksJson`：面向作者的修复任务。
+
+短稿或无法形成至少 3 个有效窗口时，服务端保存 `INSUFFICIENT_TEXT`，不会调用 AI。巡检不修改正文，不生成自动修订，不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
 
 ## 生成链路行为
 

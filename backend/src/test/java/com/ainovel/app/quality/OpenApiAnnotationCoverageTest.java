@@ -27,6 +27,7 @@ class OpenApiAnnotationCoverageTest {
     void v2AndQualityControllersShouldHaveTagsAndOperationSummaries() {
         List<Class<?>> controllers = List.of(
                 SlopQualityController.class,
+                SlopDriftController.class,
                 PlotQualityController.class,
                 V2ContextController.class,
                 V2StyleController.class,

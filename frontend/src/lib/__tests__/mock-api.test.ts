@@ -294,6 +294,49 @@ describe("mock api", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("normalizes slop drift run payloads", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v2/manuscripts/m1/slop-drift-runs")) {
+        return new Response(
+          JSON.stringify({
+            id: "drift-run-1",
+            storyId: "story-1",
+            manuscriptId: "m1",
+            status: "COMPLETED",
+            overallRiskScore: 76,
+            riskLabel: "high",
+            safeClaim: "该稿件呈现叙事机制断层风险；这不能证明作者使用 AI。",
+            summary: "中后段模板化和事件传送带风险升高。",
+            totalCharacters: 25000,
+            windowCount: 3,
+            sourceTextHash: "abc",
+            windowSummariesJson: "[{\"label\":\"opening\",\"summary\":\"开头具体\"}]",
+            metricCurvesJson: "{\"template_density\":[{\"window\":\"opening\",\"score\":24}]}",
+            driftPointsJson: "[{\"from_window\":\"opening\",\"to_window\":\"latest\"}]",
+            evidenceItemsJson: "[{\"window\":\"latest\",\"module\":\"breath_focus_pacing\"}]",
+            alternativeExplanationsJson: "[\"赶稿\"]",
+            rewriteTasksJson: "[{\"task_id\":\"D1\",\"problem\":\"后段事件传送带\"}]",
+            createdAt: "2026-06-17T00:00:00Z",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const run = await api.v2.slopDrift.analyze("m1");
+
+    expect(run.riskLabel).toBe("high");
+    expect(run.windowSummaries[0]).toEqual({ label: "opening", summary: "开头具体" });
+    expect(run.metricCurves.template_density).toEqual([{ window: "opening", score: 24 }]);
+    expect(run.driftPoints[0].to_window).toBe("latest");
+    expect(run.evidenceItems[0].module).toBe("breath_focus_pacing");
+    expect(run.alternativeExplanations).toEqual(["赶稿"]);
+    expect(run.rewriteTasks[0].task_id).toBe("D1");
+  });
+
   it("exposes material duplicate and citation API contracts", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);

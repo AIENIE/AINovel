@@ -233,6 +233,27 @@ export interface SlopQualityRun {
   issues: SlopQualityIssue[];
 }
 
+export interface SlopDriftRun {
+  id: string;
+  storyId: string;
+  manuscriptId: string;
+  status: "COMPLETED" | "INSUFFICIENT_TEXT" | "DEGRADED" | string;
+  overallRiskScore: number;
+  riskLabel?: string;
+  safeClaim?: string;
+  summary?: string;
+  totalCharacters: number;
+  windowCount: number;
+  sourceTextHash?: string;
+  windowSummaries: any[];
+  metricCurves: Record<string, any>;
+  driftPoints: any[];
+  evidenceItems: any[];
+  alternativeExplanations: string[];
+  rewriteTasks: any[];
+  createdAt?: string;
+}
+
 export interface PlotQualityIssue {
   id: string;
   dimension: string;

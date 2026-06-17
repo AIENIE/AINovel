@@ -15,6 +15,7 @@ import {
   PlotQualityTrend,
   PromptMetadata,
   PromptTemplates,
+  SlopDriftRun,
   SlopQualityRun,
   Story,
   UserSummary,
@@ -410,6 +411,29 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
           repairHint: issue.repairHint || undefined,
         }))
       : [],
+  };
+}
+
+function toSlopDriftRun(dto: any): SlopDriftRun {
+  return {
+    id: String(dto.id),
+    storyId: String(dto.storyId),
+    manuscriptId: String(dto.manuscriptId),
+    status: String(dto.status || "COMPLETED"),
+    overallRiskScore: Number(dto.overallRiskScore || 0),
+    riskLabel: dto.riskLabel || undefined,
+    safeClaim: dto.safeClaim || undefined,
+    summary: dto.summary || undefined,
+    totalCharacters: Number(dto.totalCharacters || 0),
+    windowCount: Number(dto.windowCount || 0),
+    sourceTextHash: dto.sourceTextHash || undefined,
+    windowSummaries: parseJsonList(dto.windowSummariesJson ?? dto.windowSummaries),
+    metricCurves: parseJsonObject(dto.metricCurvesJson ?? dto.metricCurves),
+    driftPoints: parseJsonList(dto.driftPointsJson ?? dto.driftPoints),
+    evidenceItems: parseJsonList(dto.evidenceItemsJson ?? dto.evidenceItems),
+    alternativeExplanations: parseStringArray(dto.alternativeExplanationsJson ?? dto.alternativeExplanations),
+    rewriteTasks: parseJsonList(dto.rewriteTasksJson ?? dto.rewriteTasks),
+    createdAt: dto.createdAt || undefined,
   };
 }
 
@@ -1054,6 +1078,20 @@ export const api = {
           body: "{}",
         });
         return toSlopQualityRun(run);
+      },
+    },
+
+    slopDrift: {
+      listRuns: async (manuscriptId: string): Promise<SlopDriftRun[]> => {
+        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, { method: "GET" });
+        return list.map(toSlopDriftRun);
+      },
+      analyze: async (manuscriptId: string): Promise<SlopDriftRun> => {
+        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, {
+          method: "POST",
+          body: "{}",
+        });
+        return toSlopDriftRun(run);
       },
     },
 
