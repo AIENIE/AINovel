@@ -24,6 +24,14 @@ class LocalSlopHeuristicsTest {
         assertTrue(result.issues().stream().anyMatch(issue -> issue.dimension() == SlopDimension.REPETITION));
         assertTrue(result.issues().stream().anyMatch(issue -> issue.dimension() == SlopDimension.GENERICITY));
         assertTrue(result.issues().stream().anyMatch(issue -> issue.dimension() == SlopDimension.ARTIFACT));
+        SlopIssueDraft generic = result.issues().stream()
+                .filter(issue -> issue.dimension() == SlopDimension.GENERICITY)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("E1", generic.evidenceLevel());
+        assertTrue(generic.charStart() >= 0);
+        assertTrue(generic.charEnd() > generic.charStart());
+        assertEquals("surface_template", generic.module());
     }
 
     @Test

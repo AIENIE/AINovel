@@ -58,22 +58,43 @@ public class LocalSlopHeuristics {
         }
         int maxCount = counts.values().stream().mapToInt(Integer::intValue).max().orElse(0);
         if (maxCount >= 2 && compact.length() > 30) {
+            String snippet = repeatedSnippet(counts);
             issues.add(new SlopIssueDraft(
                     SlopDimension.REPETITION,
                     maxCount >= 3 ? SlopSeverity.HIGH : SlopSeverity.MEDIUM,
                     maxCount >= 3 ? 82 : 68,
-                    repeatedSnippet(counts),
+                    snippet,
                     "连续复用相同表达会让场景显得原地打转。",
+                    "保留一次核心信息，其余改为动作、结果或删减。",
+                    Math.max(0, compact.indexOf(snippet)),
+                    compact.indexOf(snippet) >= 0 ? compact.indexOf(snippet) + snippet.length() : null,
+                    snippet,
+                    "surface_template",
+                    "SURFACE_REPETITION_NGRAM",
+                    "repetition",
+                    maxCount >= 3 ? "E2" : "E1",
+                    "[\"作者刻意回环\",\"类型文强调句\",\"人工水字数\"]",
                     "保留一次核心信息，其余改为动作、结果或删减。"
             ));
         }
         if (text.contains("这是一个重要的时刻，这是一个重要的时刻")) {
+            String evidence = "这是一个重要的时刻";
+            int start = text.indexOf(evidence);
             issues.add(new SlopIssueDraft(
                     SlopDimension.REPETITION,
                     SlopSeverity.HIGH,
                     84,
-                    "这是一个重要的时刻",
+                    evidence,
                     "重复抽象判断会形成明显水字数。",
+                    "删除重复句，改写为具体可见的变化。",
+                    start,
+                    start >= 0 ? start + evidence.length() : null,
+                    evidence,
+                    "surface_template",
+                    "SURFACE_REPETITION_ABSTRACT",
+                    "repetition",
+                    "E2",
+                    "[\"人工水字数\",\"强调式修辞\"]",
                     "删除重复句，改写为具体可见的变化。"
             ));
         }
@@ -83,13 +104,23 @@ public class LocalSlopHeuristics {
     private List<SlopIssueDraft> detectGenericity(String text) {
         List<SlopIssueDraft> issues = new ArrayList<>();
         for (String pattern : GENERIC_PATTERNS) {
-            if (text.contains(pattern)) {
+            int start = text.indexOf(pattern);
+            if (start >= 0) {
                 issues.add(new SlopIssueDraft(
                         SlopDimension.GENERICITY,
                         SlopSeverity.HIGH,
                         78,
                         pattern,
                         "高频模板表达会削弱场景的具体性。",
+                        "替换为当前场景独有的动作、物件、声音或后果。",
+                        start,
+                        start + pattern.length(),
+                        pattern,
+                        "surface_template",
+                        "SURFACE_GENERIC_PHRASE",
+                        "phrase_pattern",
+                        "E1",
+                        "[\"传统网文俗套\",\"作者个人文风\",\"平台公式化表达\"]",
                         "替换为当前场景独有的动作、物件、声音或后果。"
                 ));
                 break;
@@ -101,13 +132,23 @@ public class LocalSlopHeuristics {
     private List<SlopIssueDraft> detectArtifacts(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
         for (String pattern : ARTIFACT_PATTERNS) {
-            if (lower.contains(pattern)) {
+            int start = lower.indexOf(pattern);
+            if (start >= 0) {
                 return List.of(new SlopIssueDraft(
                         SlopDimension.ARTIFACT,
                         SlopSeverity.HIGH,
                         88,
                         pattern,
                         "模型输出残留会直接破坏正文沉浸感。",
+                        "删除 markdown、解释语和 AI 标记，只保留小说正文。",
+                        start,
+                        start + pattern.length(),
+                        text.substring(start, Math.min(text.length(), start + pattern.length())),
+                        "consistency_assimilation",
+                        "ARTIFACT_META_LEAK",
+                        "meta_leak",
+                        "E4",
+                        "[]",
                         "删除 markdown、解释语和 AI 标记，只保留小说正文。"
                 ));
             }
@@ -126,12 +167,22 @@ public class LocalSlopHeuristics {
             }
         }
         if (abstractMarkers >= 3) {
+            String evidence = "突然/莫名/不知为何";
             return List.of(new SlopIssueDraft(
                     SlopDimension.LOCAL_COHERENCE,
                     SlopSeverity.MEDIUM,
                     58,
-                    "突然/莫名/不知为何",
+                    evidence,
                     "缺少桥接的转折容易造成动机跳变。",
+                    "补一句可见原因或角色判断，再进入转折。",
+                    null,
+                    null,
+                    evidence,
+                    "breath_focus_pacing",
+                    "BREATH_ABSTRACT_TURN",
+                    "motivation_jump",
+                    "E2",
+                    "[\"快节奏类型文\",\"作者刻意制造悬念\"]",
                     "补一句可见原因或角色判断，再进入转折。"
             ));
         }

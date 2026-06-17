@@ -6,6 +6,7 @@
 
 - `doc/modules/dashboard.md`
 - `doc/modules/workbench.md`
+- `doc/modules/ai-slop-quality.md`
 - `doc/modules/prompt-cache-material-retrieval.md`
 - `doc/modules/v2.md`
 - `doc/modules/profile.md`

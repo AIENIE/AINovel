@@ -8,6 +8,7 @@
 
 - `GET /quality-runs`：查询稿件最近 20 条反 slop 质量门禁记录。
 - `GET /quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
+- `POST /scenes/{sceneId}/quality-runs`：对当前场景执行一次手动文本 Slop 风险诊断。该接口只保存诊断记录，不修改正文。
 
 返回项包含：
 - `status`：`ACCEPTED` / `REVISED` / `ACCEPTED_WITH_ISSUES` / `DEGRADED`。
@@ -15,6 +16,25 @@
 - `maxSeverity`：`LOW` / `MEDIUM` / `HIGH` / `BLOCKING`。
 - `revised` / `revisionCount`：是否执行过保守修订。
 - `issues`：维度、严重级别、证据片段、原因和最小修复建议。
+
+手动文本诊断扩展返回项：
+- `analysisMode`：`manual_scene` 表示工作台手动诊断；`generation_gate` 表示生成链路门禁记录。
+- `riskLabel`：`low` / `medium` / `high` / `critical`。
+- `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
+- `safeClaim`：安全结论，只评价文本 slop 风险，不推断作者是否使用 AI。
+- `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`。
+- `alternativeExplanationsJson`：替代解释，例如传统网文俗套、人工低水平写作、工作室公式化、题材/平台惯例、作者个人文风。
+- `revisionPrioritiesJson`：修改优先级。
+- `rewriteTasksJson`：证据驱动改写任务。
+
+手动文本诊断的 `issues` 额外包含：
+- `charStart` / `charEnd`：证据在原文中的字符位置，可能为空。
+- `quote`：原文证据。
+- `module`：证据所属模块。
+- `patternId` / `issueType`：规则或语义问题标识。
+- `evidenceLevel`：单条证据等级。
+- `alternativeExplanationsJson`：单条证据替代解释。
+- `repairHint`：最小修复建议。
 
 ## 生成链路行为
 
@@ -58,3 +78,10 @@
 - 生成候选和采纳候选都会校验 `sourceTextHash`，如果场景正文已经变化，应重新诊断后再生成候选。
 - 采纳候选前服务端会复用文本 `SlopQualityGate`，避免候选引入明显套话、重复和 AI 伪迹。
 - 前端工作台的 `plot` 侧栏只做人工确认入口；除用户点击“采纳候选”外，不会自动覆盖场景正文。
+
+## 文本诊断安全规则
+
+- 文本诊断不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
+- 单点黑名单命中只能作为 `E1` 弱信号；短窗口密度或多信号共振才能升级为 `E2`。
+- 设定硬冲突和元提示残留优先于表层套话，分别按 `E3` / `E4` 处理。
+- 平台合规、AIGC 标识和商业风险不计入文本 slop 总分。

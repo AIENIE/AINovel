@@ -62,6 +62,11 @@ const sceneStatusClass: Record<SceneStatus, string> = {
 
 const qualityStatusText = (run?: SlopQualityRun | null) => {
   if (!run) return "未运行质量门禁";
+  if (run.analysisMode === "manual_scene") {
+    if (run.status === "DEGRADED") return "文本诊断降级";
+    if (run.status === "ACCEPTED_WITH_ISSUES" || ["high", "critical"].includes(run.riskLabel || "")) return "文本风险待处理";
+    return "文本诊断通过";
+  }
   if (run.status === "REVISED" || run.revised) return "已自动修订";
   if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "仍有建议";
   return "质量门禁通过";
@@ -69,10 +74,24 @@ const qualityStatusText = (run?: SlopQualityRun | null) => {
 
 const qualityStatusClass = (run?: SlopQualityRun | null) => {
   if (!run) return "border-zinc-300 text-zinc-500";
+  if (run.analysisMode === "manual_scene" && run.status === "DEGRADED") return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 };
+
+const slopModuleLabel = (module?: string) => {
+  switch (module) {
+    case "surface_template": return "表层模板";
+    case "voice_fit": return "语域贴合";
+    case "consistency_assimilation": return "设定吸收";
+    case "breath_focus_pacing": return "呼吸节奏";
+    case "human_trace": return "作者痕迹";
+    default: return module || "文本风险";
+  }
+};
+
+const slopRewriteTaskTitle = (task: any, index: number) => task?.task_id || task?.taskId || `R${index + 1}`;
 
 const plotStatusText = (run?: PlotQualityRun | null) => {
   if (!run) return "未运行剧情诊断";
@@ -190,6 +209,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [qualityRunsByScene, setQualityRunsByScene] = useState<Record<string, SlopQualityRun | null>>({});
   const [plotRunsByScene, setPlotRunsByScene] = useState<Record<string, PlotQualityRun | null>>({});
   const [plotTrend, setPlotTrend] = useState<PlotQualityTrend | null>(null);
+  const [isSlopBusy, setIsSlopBusy] = useState(false);
   const [isPlotBusy, setIsPlotBusy] = useState(false);
   const [isPlotRevisionBusy, setIsPlotRevisionBusy] = useState(false);
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(DEFAULT_SHORTCUTS);
@@ -1142,6 +1162,51 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setDirtyScenes({});
   }, []);
 
+  const loadSlopQuality = useCallback(
+    async (sceneId = selectedSceneId) => {
+      if (!selectedManuscriptId || !sceneId) return;
+      const runs = await api.v2.quality.listRuns(selectedManuscriptId, sceneId);
+      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: runs[0] || null }));
+    },
+    [selectedManuscriptId, selectedSceneId],
+  );
+
+  const runSlopDiagnosis = async () => {
+    if (!selectedManuscriptId || !selectedSceneId) return;
+    const sceneId = selectedSceneId;
+    setIsSlopBusy(true);
+    try {
+      if (dirtyScenes[sceneId]) {
+        await persistSection(sceneId, content, true);
+      }
+      const run = await api.v2.quality.analyzeScene(selectedManuscriptId, sceneId);
+      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      setSidebarTab("plot");
+      toast({ title: "文本 Slop 诊断已完成", description: run.safeClaim || qualityStatusText(run) });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "文本诊断失败", description: e.message });
+    } finally {
+      setIsSlopBusy(false);
+    }
+  };
+
+  const copySlopRewriteTask = async (task: any, index: number) => {
+    const title = slopRewriteTaskTitle(task, index);
+    const lines = [
+      `任务 ${title}`,
+      task?.problem ? `问题：${task.problem}` : "",
+      task?.repair_goal || task?.repairGoal ? `修复目标：${task.repair_goal || task.repairGoal}` : "",
+      Array.isArray(task?.constraints) && task.constraints.length ? `约束：${task.constraints.join("；")}` : "",
+      "请只针对目标片段做证据驱动改写，不要改变关键设定、人物关系和场景核心事件。",
+    ].filter(Boolean);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast({ title: "改写任务已复制" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "复制失败", description: e.message });
+    }
+  };
+
   const loadPlotQuality = useCallback(
     async (sceneId = selectedSceneId) => {
       if (!selectedManuscriptId || !sceneId) return;
@@ -1444,9 +1509,13 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               </TabsContent>
               <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
                 <div className="flex gap-2 mb-2">
+                  <Button size="sm" variant="outline" onClick={() => void runSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
+                    {isSlopBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                    文本
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
                     {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                    诊断
+                    剧情
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => void generatePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
                     候选
@@ -1457,6 +1526,21 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 </div>
                 <ScrollArea className="h-[calc(100%-2.2rem)]">
                   <div className="space-y-2">
+                    <div className="rounded border p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>{qualityStatusText(selectedQualityRun)}</span>
+                        <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>风险 {selectedQualityRun?.overallRiskScore ?? "-"}</Badge>
+                      </div>
+                      {!!selectedQualityRun?.safeClaim && <div className="mt-1 text-muted-foreground">{selectedQualityRun.safeClaim}</div>}
+                      {!!selectedQualityRun?.evidenceLevel && <div className="mt-1 text-muted-foreground">证据等级 {selectedQualityRun.evidenceLevel}</div>}
+                    </div>
+                    {(selectedQualityRun?.issues || []).slice(0, 3).map((issue) => (
+                      <div key={issue.id} className="rounded border p-2">
+                        <div>{slopModuleLabel(issue.module)} · {issue.evidenceLevel || issue.severity}</div>
+                        {!!issue.quote && <div className="mt-1">{issue.quote}</div>}
+                        {!!issue.repairHint && <div className="text-muted-foreground mt-1">{issue.repairHint}</div>}
+                      </div>
+                    ))}
                     <div className="rounded border p-2">
                       <div className="flex items-center justify-between gap-2">
                         <span>{plotStatusText(selectedPlotRun)}</span>
@@ -1862,6 +1946,10 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
                 <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
                   <div className="flex flex-wrap gap-2 mb-2">
+                    <Button size="sm" variant="outline" onClick={() => void runSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
+                      {isSlopBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
+                      文本 Slop 诊断
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
                       {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
                       重新诊断
@@ -1877,6 +1965,75 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
                   <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 text-xs">
                     <div className="space-y-3">
+                      <div className="rounded border p-2 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium">文本 Slop 风险</div>
+                          <Badge variant="outline" className={cn("shrink-0", qualityStatusClass(selectedQualityRun))}>{qualityStatusText(selectedQualityRun)}</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">风险</div>
+                            <div className="text-lg font-semibold">{selectedQualityRun?.overallRiskScore ?? "-"}</div>
+                          </div>
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">证据</div>
+                            <div className="text-lg font-semibold">{selectedQualityRun?.evidenceLevel || "-"}</div>
+                          </div>
+                          <div className="rounded bg-muted/60 p-2">
+                            <div className="text-muted-foreground">问题</div>
+                            <div className="text-lg font-semibold">{selectedQualityRun?.issues?.length ?? 0}</div>
+                          </div>
+                        </div>
+                        {!!selectedQualityRun?.safeClaim && <div className="text-muted-foreground leading-relaxed">{selectedQualityRun.safeClaim}</div>}
+                        {!selectedQualityRun && <div className="text-muted-foreground">点击“文本 Slop 诊断”后，会生成证据表、替代解释和改写任务；不会自动覆盖正文。</div>}
+                      </div>
+
+                      {!!selectedQualityRun && (
+                        <div className="rounded border p-2 space-y-2">
+                          <div className="font-medium">文本证据</div>
+                          {(selectedQualityRun.issues || []).map((issue) => (
+                            <div key={issue.id} className="rounded border p-2 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline">{slopModuleLabel(issue.module)}</Badge>
+                                <Badge variant="outline">{issue.evidenceLevel || issue.severity}</Badge>
+                                <span className="text-muted-foreground">风险 {issue.riskScore}</span>
+                                {issue.charStart !== undefined && issue.charEnd !== undefined && (
+                                  <span className="text-muted-foreground">位置 {issue.charStart}-{issue.charEnd}</span>
+                                )}
+                              </div>
+                              {!!(issue.quote || issue.evidence) && <div>{issue.quote || issue.evidence}</div>}
+                              {!!(issue.repairHint || issue.minimalFix) && <div className="text-muted-foreground">{issue.repairHint || issue.minimalFix}</div>}
+                            </div>
+                          ))}
+                          {!selectedQualityRun.issues.length && <div className="text-muted-foreground">暂无文本风险证据。</div>}
+                        </div>
+                      )}
+
+                      {!!selectedQualityRun?.alternativeExplanations?.length && (
+                        <div className="rounded border p-2 space-y-1">
+                          <div className="font-medium">替代解释</div>
+                          {selectedQualityRun.alternativeExplanations.map((item, index) => (
+                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {!!selectedQualityRun?.rewriteTasks?.length && (
+                        <div className="rounded border p-2 space-y-2">
+                          <div className="font-medium">改写任务</div>
+                          {selectedQualityRun.rewriteTasks.map((task, index) => (
+                            <div key={`${slopRewriteTaskTitle(task, index)}-${index}`} className="rounded border p-2 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge variant="outline">{slopRewriteTaskTitle(task, index)}</Badge>
+                                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => void copySlopRewriteTask(task, index)}>复制</Button>
+                              </div>
+                              {!!task.problem && <div>{task.problem}</div>}
+                              {!!(task.repair_goal || task.repairGoal) && <div className="text-muted-foreground">{task.repair_goal || task.repairGoal}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <div className="rounded border p-2 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <div className="font-medium">{selectedPlotRun?.sceneTitle || sceneMap[selectedSceneId]?.scene?.title || "当前场景"}</div>

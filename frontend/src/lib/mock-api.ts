@@ -381,6 +381,14 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
     revised: Boolean(dto.revised),
     revisionCount: Number(dto.revisionCount || 0),
     summary: dto.summary || undefined,
+    analysisMode: dto.analysisMode || undefined,
+    riskLabel: dto.riskLabel || undefined,
+    evidenceLevel: dto.evidenceLevel || undefined,
+    safeClaim: dto.safeClaim || undefined,
+    moduleScores: parseJsonObject(dto.moduleScoresJson ?? dto.moduleScores),
+    alternativeExplanations: parseStringArray(dto.alternativeExplanationsJson ?? dto.alternativeExplanations),
+    revisionPriorities: parseJsonList(dto.revisionPrioritiesJson ?? dto.revisionPriorities),
+    rewriteTasks: parseJsonList(dto.rewriteTasksJson ?? dto.rewriteTasks),
     createdAt: dto.createdAt || undefined,
     issues: Array.isArray(dto.issues)
       ? dto.issues.map((issue: any) => ({
@@ -391,9 +399,42 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
           evidence: issue.evidence || undefined,
           whyItMatters: issue.whyItMatters || undefined,
           minimalFix: issue.minimalFix || undefined,
+          charStart: issue.charStart === null || issue.charStart === undefined ? undefined : Number(issue.charStart),
+          charEnd: issue.charEnd === null || issue.charEnd === undefined ? undefined : Number(issue.charEnd),
+          quote: issue.quote || undefined,
+          module: issue.module || undefined,
+          patternId: issue.patternId || undefined,
+          issueType: issue.issueType || undefined,
+          evidenceLevel: issue.evidenceLevel || undefined,
+          alternativeExplanations: parseStringArray(issue.alternativeExplanationsJson ?? issue.alternativeExplanations),
+          repairHint: issue.repairHint || undefined,
         }))
       : [],
   };
+}
+
+function parseJsonValue(value: any): unknown {
+  if (typeof value !== "string") return value;
+  if (!value.trim()) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function parseJsonObject(value: any): Record<string, unknown> {
+  const parsed = parseJsonValue(value);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+}
+
+function parseJsonList(value: any): any[] {
+  const parsed = parseJsonValue(value);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function parseStringArray(value: any): string[] {
+  return parseJsonList(value).map((item) => String(item));
 }
 
 function parseJsonArray(value: any): string[] {
@@ -1006,6 +1047,13 @@ export const api = {
         const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
         const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/quality-runs${query}`, { method: "GET" });
         return list.map(toSlopQualityRun);
+      },
+      analyzeScene: async (manuscriptId: string, sceneId: string): Promise<SlopQualityRun> => {
+        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/quality-runs`, {
+          method: "POST",
+          body: "{}",
+        });
+        return toSlopQualityRun(run);
       },
     },
 

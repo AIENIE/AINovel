@@ -54,6 +54,33 @@ public class SlopQualityRun {
     @Column(name = "accepted_text_hash", length = 64)
     private String acceptedTextHash;
 
+    @Column(name = "source_text_hash", length = 64)
+    private String sourceTextHash;
+
+    @Column(name = "analysis_mode", length = 40)
+    private String analysisMode;
+
+    @Column(name = "risk_label", length = 32)
+    private String riskLabel;
+
+    @Column(name = "evidence_level", length = 8)
+    private String evidenceLevel;
+
+    @Column(name = "safe_claim", length = 500)
+    private String safeClaim;
+
+    @Column(name = "module_scores_json", columnDefinition = "longtext")
+    private String moduleScoresJson;
+
+    @Column(name = "alternative_explanations_json", columnDefinition = "longtext")
+    private String alternativeExplanationsJson;
+
+    @Column(name = "revision_priorities_json", columnDefinition = "longtext")
+    private String revisionPrioritiesJson;
+
+    @Column(name = "rewrite_tasks_json", columnDefinition = "longtext")
+    private String rewriteTasksJson;
+
     @Column(length = 800)
     private String summary;
 
@@ -90,6 +117,24 @@ public class SlopQualityRun {
     public void setCandidateTextHash(String candidateTextHash) { this.candidateTextHash = candidateTextHash; }
     public String getAcceptedTextHash() { return acceptedTextHash; }
     public void setAcceptedTextHash(String acceptedTextHash) { this.acceptedTextHash = acceptedTextHash; }
+    public String getSourceTextHash() { return sourceTextHash; }
+    public void setSourceTextHash(String sourceTextHash) { this.sourceTextHash = sourceTextHash; }
+    public String getAnalysisMode() { return analysisMode; }
+    public void setAnalysisMode(String analysisMode) { this.analysisMode = analysisMode; }
+    public String getRiskLabel() { return riskLabel; }
+    public void setRiskLabel(String riskLabel) { this.riskLabel = riskLabel; }
+    public String getEvidenceLevel() { return evidenceLevel; }
+    public void setEvidenceLevel(String evidenceLevel) { this.evidenceLevel = evidenceLevel; }
+    public String getSafeClaim() { return safeClaim; }
+    public void setSafeClaim(String safeClaim) { this.safeClaim = safeClaim; }
+    public String getModuleScoresJson() { return moduleScoresJson; }
+    public void setModuleScoresJson(String moduleScoresJson) { this.moduleScoresJson = moduleScoresJson; }
+    public String getAlternativeExplanationsJson() { return alternativeExplanationsJson; }
+    public void setAlternativeExplanationsJson(String alternativeExplanationsJson) { this.alternativeExplanationsJson = alternativeExplanationsJson; }
+    public String getRevisionPrioritiesJson() { return revisionPrioritiesJson; }
+    public void setRevisionPrioritiesJson(String revisionPrioritiesJson) { this.revisionPrioritiesJson = revisionPrioritiesJson; }
+    public String getRewriteTasksJson() { return rewriteTasksJson; }
+    public void setRewriteTasksJson(String rewriteTasksJson) { this.rewriteTasksJson = rewriteTasksJson; }
     public String getSummary() { return summary; }
     public void setSummary(String summary) { this.summary = summary; }
     public Instant getCreatedAt() { return createdAt; }

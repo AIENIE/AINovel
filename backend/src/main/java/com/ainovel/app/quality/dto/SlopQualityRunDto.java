@@ -15,6 +15,14 @@ public record SlopQualityRunDto(
         boolean revised,
         int revisionCount,
         String summary,
+        String analysisMode,
+        String riskLabel,
+        String evidenceLevel,
+        String safeClaim,
+        String moduleScoresJson,
+        String alternativeExplanationsJson,
+        String revisionPrioritiesJson,
+        String rewriteTasksJson,
         Instant createdAt,
         List<SlopQualityIssueDto> issues
 ) {

@@ -7,6 +7,7 @@
 - `structure.md`：项目结构与主要代码入口。
 - `modules/README.md`：业务模块索引。
 - `modules/`：后台、工作台、素材、设定、世界观、分析、远程安全等模块说明。
+- `modules/ai-slop-quality.md`：AI Slop 文本质量诊断、证据等级、安全边界与后续分期 Backlog。
 
 ## 接口文档
 

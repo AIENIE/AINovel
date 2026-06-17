@@ -34,6 +34,15 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
         run.setRevisionCount(record.revisionCount());
         run.setCandidateTextHash(hash(record.request().candidateText()));
         run.setAcceptedTextHash(hash(record.acceptedText()));
+        run.setSourceTextHash(hash(record.request().candidateText()));
+        run.setAnalysisMode("generation_gate");
+        run.setRiskLabel(label(record.overallRiskScore()));
+        run.setEvidenceLevel(defaultEvidenceLevel(record.maxSeverity(), record.overallRiskScore()));
+        run.setSafeClaim("该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(run.getRiskLabel()));
+        run.setModuleScoresJson("{}");
+        run.setAlternativeExplanationsJson("[\"传统网文俗套\",\"人工低水平写作\",\"平台公式化\",\"作者个人文风\"]");
+        run.setRevisionPrioritiesJson("[]");
+        run.setRewriteTasksJson("[]");
         run.setSummary(truncate(record.summary(), 800));
         for (SlopIssueDraft draft : record.issues()) {
             SlopQualityIssue issue = new SlopQualityIssue();
@@ -44,6 +53,15 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
             issue.setEvidence(truncate(draft.evidence(), 600));
             issue.setWhyItMatters(truncate(draft.whyItMatters(), 800));
             issue.setMinimalFix(truncate(draft.minimalFix(), 800));
+            issue.setCharStart(draft.charStart());
+            issue.setCharEnd(draft.charEnd());
+            issue.setQuote(truncate(draft.quote(), 800));
+            issue.setModule(truncate(draft.module(), 80));
+            issue.setPatternId(truncate(draft.patternId(), 80));
+            issue.setIssueType(truncate(draft.issueType(), 80));
+            issue.setEvidenceLevel(truncate(draft.evidenceLevel(), 8));
+            issue.setAlternativeExplanationsJson(draft.alternativeExplanationsJson());
+            issue.setRepairHint(truncate(draft.repairHint(), 800));
             run.getIssues().add(issue);
         }
         return runRepository.save(run).getId();
@@ -64,5 +82,25 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
             return null;
         }
         return value.length() <= limit ? value : value.substring(0, limit);
+    }
+
+    private String label(int riskScore) {
+        if (riskScore >= 85) {
+            return "critical";
+        }
+        if (riskScore >= 70) {
+            return "high";
+        }
+        if (riskScore >= 40) {
+            return "medium";
+        }
+        return "low";
+    }
+
+    private String defaultEvidenceLevel(SlopSeverity severity, int riskScore) {
+        if (severity == SlopSeverity.BLOCKING || severity == SlopSeverity.HIGH || riskScore >= 70) {
+            return "E2";
+        }
+        return "E1";
     }
 }

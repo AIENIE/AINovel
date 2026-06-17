@@ -9,6 +9,15 @@ public record SlopQualityIssueDto(
         int riskScore,
         String evidence,
         String whyItMatters,
-        String minimalFix
+        String minimalFix,
+        Integer charStart,
+        Integer charEnd,
+        String quote,
+        String module,
+        String patternId,
+        String issueType,
+        String evidenceLevel,
+        String alternativeExplanationsJson,
+        String repairHint
 ) {
 }

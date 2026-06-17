@@ -186,6 +186,28 @@ export interface SlopQualityIssue {
   evidence?: string;
   whyItMatters?: string;
   minimalFix?: string;
+  charStart?: number;
+  charEnd?: number;
+  quote?: string;
+  module?: string;
+  patternId?: string;
+  issueType?: string;
+  evidenceLevel?: string;
+  alternativeExplanations: string[];
+  repairHint?: string;
+}
+
+export interface SlopRewriteTask {
+  task_id?: string;
+  taskId?: string;
+  priority?: number;
+  target_span?: unknown;
+  problem?: string;
+  repair_goal?: string;
+  repairGoal?: string;
+  constraints?: string[];
+  suggested_method?: string;
+  suggestedMethod?: string;
 }
 
 export interface SlopQualityRun {
@@ -199,6 +221,14 @@ export interface SlopQualityRun {
   revised: boolean;
   revisionCount: number;
   summary?: string;
+  analysisMode?: string;
+  riskLabel?: string;
+  evidenceLevel?: string;
+  safeClaim?: string;
+  moduleScores: Record<string, unknown>;
+  alternativeExplanations: string[];
+  revisionPriorities: unknown[];
+  rewriteTasks: SlopRewriteTask[];
   createdAt?: string;
   issues: SlopQualityIssue[];
 }

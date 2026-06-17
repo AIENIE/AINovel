@@ -236,6 +236,64 @@ describe("mock api", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("normalizes manual slop diagnosis payloads", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v2/manuscripts/m1/scenes/s1/quality-runs")) {
+        return new Response(
+          JSON.stringify({
+            id: "slop-run-1",
+            storyId: "story-1",
+            manuscriptId: "m1",
+            sceneId: "s1",
+            status: "ACCEPTED_WITH_ISSUES",
+            maxSeverity: "HIGH",
+            overallRiskScore: 72,
+            revised: false,
+            revisionCount: 0,
+            analysisMode: "manual_scene",
+            riskLabel: "high",
+            evidenceLevel: "E2",
+            safeClaim: "该文本呈现较高模板化风险，但不能证明作者使用 AI。",
+            moduleScoresJson: "{\"surface_template\":{\"score\":78}}",
+            alternativeExplanationsJson: "[\"传统网文俗套\"]",
+            revisionPrioritiesJson: "[\"先修共振片段\"]",
+            rewriteTasksJson: "[{\"task_id\":\"R1\",\"problem\":\"模板句密集\",\"repair_goal\":\"换成具体动作\"}]",
+            issues: [
+              {
+                id: "e1",
+                dimension: "GENERICITY",
+                severity: "HIGH",
+                riskScore: 72,
+                evidence: "空气仿佛凝固",
+                charStart: 4,
+                charEnd: 10,
+                module: "surface_template",
+                patternId: "SURFACE_GENERIC_001",
+                issueType: "phrase_pattern",
+                evidenceLevel: "E2",
+                alternativeExplanationsJson: "[\"传统网文俗套\"]",
+                repairHint: "换成具体动作",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const run = await api.v2.quality.analyzeScene("m1", "s1");
+
+    expect(run.evidenceLevel).toBe("E2");
+    expect(run.moduleScores.surface_template).toEqual({ score: 78 });
+    expect(run.rewriteTasks[0].task_id).toBe("R1");
+    expect(run.issues[0].charStart).toBe(4);
+    expect(run.issues[0].alternativeExplanations).toEqual(["传统网文俗套"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("exposes material duplicate and citation API contracts", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);

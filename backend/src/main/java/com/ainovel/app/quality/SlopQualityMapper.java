@@ -21,6 +21,14 @@ public final class SlopQualityMapper {
                 run.isRevised(),
                 run.getRevisionCount(),
                 run.getSummary(),
+                run.getAnalysisMode(),
+                run.getRiskLabel(),
+                run.getEvidenceLevel(),
+                run.getSafeClaim(),
+                run.getModuleScoresJson(),
+                run.getAlternativeExplanationsJson(),
+                run.getRevisionPrioritiesJson(),
+                run.getRewriteTasksJson(),
                 run.getCreatedAt(),
                 run.getIssues().stream().map(SlopQualityMapper::toIssueDto).toList()
         );
@@ -34,7 +42,16 @@ public final class SlopQualityMapper {
                 issue.getRiskScore(),
                 issue.getEvidence(),
                 issue.getWhyItMatters(),
-                issue.getMinimalFix()
+                issue.getMinimalFix(),
+                issue.getCharStart(),
+                issue.getCharEnd(),
+                issue.getQuote(),
+                issue.getModule(),
+                issue.getPatternId(),
+                issue.getIssueType(),
+                issue.getEvidenceLevel(),
+                issue.getAlternativeExplanationsJson(),
+                issue.getRepairHint()
         );
     }
 }

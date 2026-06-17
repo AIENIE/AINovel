@@ -42,6 +42,33 @@ public class SlopQualityIssue {
     @Column(name = "minimal_fix", length = 800)
     private String minimalFix;
 
+    @Column(name = "char_start")
+    private Integer charStart;
+
+    @Column(name = "char_end")
+    private Integer charEnd;
+
+    @Column(length = 800)
+    private String quote;
+
+    @Column(length = 80)
+    private String module;
+
+    @Column(name = "pattern_id", length = 80)
+    private String patternId;
+
+    @Column(name = "issue_type", length = 80)
+    private String issueType;
+
+    @Column(name = "evidence_level", length = 8)
+    private String evidenceLevel;
+
+    @Column(name = "alternative_explanations_json", columnDefinition = "longtext")
+    private String alternativeExplanationsJson;
+
+    @Column(name = "repair_hint", length = 800)
+    private String repairHint;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;
@@ -62,5 +89,23 @@ public class SlopQualityIssue {
     public void setWhyItMatters(String whyItMatters) { this.whyItMatters = whyItMatters; }
     public String getMinimalFix() { return minimalFix; }
     public void setMinimalFix(String minimalFix) { this.minimalFix = minimalFix; }
+    public Integer getCharStart() { return charStart; }
+    public void setCharStart(Integer charStart) { this.charStart = charStart; }
+    public Integer getCharEnd() { return charEnd; }
+    public void setCharEnd(Integer charEnd) { this.charEnd = charEnd; }
+    public String getQuote() { return quote; }
+    public void setQuote(String quote) { this.quote = quote; }
+    public String getModule() { return module; }
+    public void setModule(String module) { this.module = module; }
+    public String getPatternId() { return patternId; }
+    public void setPatternId(String patternId) { this.patternId = patternId; }
+    public String getIssueType() { return issueType; }
+    public void setIssueType(String issueType) { this.issueType = issueType; }
+    public String getEvidenceLevel() { return evidenceLevel; }
+    public void setEvidenceLevel(String evidenceLevel) { this.evidenceLevel = evidenceLevel; }
+    public String getAlternativeExplanationsJson() { return alternativeExplanationsJson; }
+    public void setAlternativeExplanationsJson(String alternativeExplanationsJson) { this.alternativeExplanationsJson = alternativeExplanationsJson; }
+    public String getRepairHint() { return repairHint; }
+    public void setRepairHint(String repairHint) { this.repairHint = repairHint; }
     public Instant getCreatedAt() { return createdAt; }
 }
