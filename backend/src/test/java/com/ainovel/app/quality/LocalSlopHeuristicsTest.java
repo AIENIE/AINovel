@@ -28,7 +28,7 @@ class LocalSlopHeuristicsTest {
                 .filter(issue -> issue.dimension() == SlopDimension.GENERICITY)
                 .findFirst()
                 .orElseThrow();
-        assertEquals("E1", generic.evidenceLevel());
+        assertEquals("E2", generic.evidenceLevel());
         assertTrue(generic.charStart() >= 0);
         assertTrue(generic.charEnd() > generic.charStart());
         assertEquals("surface_template", generic.module());

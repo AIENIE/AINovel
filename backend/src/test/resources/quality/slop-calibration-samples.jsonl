@@ -1,0 +1,6 @@
+{"sample_id":"P1-template-density","text":"她的嘴角微微上扬，空气仿佛凝固。时间像是停了下来，她心中涌起一股说不出的感觉。命运的齿轮在这一刻转动，仿佛整个世界都安静下来。她的嘴角微微上扬，空气仿佛凝固，时间像是停了下来。","genre":"都市悬疑","tone":"冷峻","expected_evidence_level":"E2","expected_requires_ai_review":true,"min_risk_score":55}
+{"sample_id":"P2-meta-leak","text":"以下是修改版：\n### 第一章\n她推开门，看见桌上放着一枚铜扣。","genre":"悬疑","tone":"冷峻","expected_evidence_level":"E4","expected_requires_ai_review":true,"min_risk_score":75}
+{"sample_id":"N2-single-genre-cliche","text":"他眼神变得坚定，握紧了手里的旧刀。雨声很重，门外的人没有再说话。","genre":"传统网文爽文","tone":"快节奏","expected_evidence_level":"E1","expected_requires_ai_review":false,"max_risk_score":35}
+{"sample_id":"N3-reasonable-analysis-voice","text":"不是愤怒，而是证据链断裂后的职业反应。林烬把铜扣放进证物袋，重新核对门锁的划痕。","genre":"推理悬疑","tone":"侦探分析腔","character_context":"林烬：刑侦顾问，说话习惯是短句、证据链、排除法。","expected_evidence_level":"E1","expected_requires_ai_review":false,"max_risk_score":35}
+{"sample_id":"M1-human-low-skill","text":"她很难过，真的很难过。她不知道怎么办，只能站在那里。雨一直下，她觉得自己很没用。","genre":"现代言情","tone":"朴素","expected_evidence_level":"E1","expected_requires_ai_review":false,"max_risk_score":35}
+{"sample_id":"M2-platform-formula","text":"开局被退婚，他当场觉醒系统。所有人都冷笑，下一秒榜单刷新，资源倾斜，反派脸色大变。","genre":"平台爽文","tone":"强钩子快节奏","expected_evidence_level":"E1","expected_requires_ai_review":false,"max_risk_score":35}

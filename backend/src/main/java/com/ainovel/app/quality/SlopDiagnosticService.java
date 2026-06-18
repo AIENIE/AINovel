@@ -37,7 +37,7 @@ public class SlopDiagnosticService {
 
     @Transactional
     public SlopQualityRun analyze(User user, SlopQualityRequest request) {
-        SlopHeuristicResult heuristicResult = heuristics.evaluate(request.candidateText());
+        SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         try {
             Map<String, Object> root = parseJson(aiService.chat(user, new AiChatRequest(
                     List.of(new AiChatRequest.Message("user", buildPrompt(request, heuristicResult))),

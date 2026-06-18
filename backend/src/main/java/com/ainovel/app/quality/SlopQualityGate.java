@@ -25,7 +25,7 @@ public class SlopQualityGate {
     }
 
     public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request) {
-        SlopHeuristicResult heuristicResult = heuristics.evaluate(request.candidateText());
+        SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         String acceptedText = request.candidateText();
         boolean revised = false;
         int revisionCount = 0;
@@ -48,7 +48,7 @@ public class SlopQualityGate {
             if (judgeResult.revisionRecommended() && riskScore >= 55) {
                 String revisedText = safeRevise(user, request, judgeResult);
                 if (revisedText != null && !revisedText.isBlank()) {
-                    SlopHeuristicResult revisedHeuristic = heuristics.evaluate(revisedText);
+                    SlopHeuristicResult revisedHeuristic = heuristics.evaluate(SlopHeuristicInput.from(request, revisedText));
                     if (isSaferRevision(heuristicResult, revisedHeuristic)) {
                         acceptedText = revisedText.trim();
                         revised = true;

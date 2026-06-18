@@ -120,7 +120,7 @@ public record SlopQualitySignals(
         if (rank == 3) {
             return "E3";
         }
-        if (rank == 2 || issues.size() >= 2 || riskScore >= 70 || maxSeverity == SlopSeverity.HIGH || maxSeverity == SlopSeverity.BLOCKING) {
+        if (rank == 2 || riskScore >= 70 || maxSeverity == SlopSeverity.HIGH || maxSeverity == SlopSeverity.BLOCKING) {
             return "E2";
         }
         return "E1";

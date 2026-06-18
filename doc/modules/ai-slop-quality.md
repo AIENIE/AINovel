@@ -2,7 +2,15 @@
 
 ## 后续分期 Backlog（继续开发优先读这里）
 
-1. Phase 5：标注集和阈值校准。基于 `ai_novel_ai_taste_research/algorithms/12-annotation-guidelines.md` 建人工标注样本，校准 E1/E2 升级规则和平台/题材误伤。
+1. Phase 6（可选）：后台标注台和长期样本审核。基于 Phase 5 的 JSONL 样本格式，再决定是否新增管理端录入、审核、统计和阈值运营能力。
+
+## Phase 5：标注集和阈值校准（2026-06-18）
+
+- 已新增后端校准样本集 `backend/src/test/resources/quality/slop-calibration-samples.jsonl`，样本均为合成/脱敏文本，用于回归 E1/E2 升级和误伤边界。
+- `LocalSlopHeuristics` 新增上下文输入与阈值策略：手动诊断和生成门禁可传入题材、语气、角色/风格上下文；旧 `evaluate(String)` 入口保持可用。
+- 单个通用模板短句只作为 E1 弱信号并封顶低风险；短窗口多模板密集、重复或明确元泄漏才升级为 E2/E4。
+- `SlopQualitySignals` 不再因为多个低风险 E1 issue 自动升级 E2，避免把传统网文俗套、人工低水平或平台公式化直接判成高风险。
+- 本期不新增后台标注页面、不改数据库 schema、不改变 `/api/v2/*` 或质量诊断 HTTP 接口。
 
 ## 本期能力
 
@@ -15,6 +23,7 @@
 - 手动诊断不修改正文；自动生成链路会在 `generation_gate` 记录中保存同类证据等级、模块分、替代解释、修改优先级和 rewrite tasks。
 - 自动生成链路仍只允许最多一次保守修订，不自动大改剧情事件、角色决策、人物关系或关键设定。
 - 手动诊断和自动生成门禁都会读取故事 active 风格画像和角色声音，用作 `voice_fit` 判断语境；未配置时不会虚构角色语域问题。
+- 本地规则会使用题材/语气/角色语境做保守降权，降低传统网文俗套、分析腔、快节奏平台文的误伤。
 
 ## 诊断层级
 
@@ -47,4 +56,6 @@
 - 前端：`frontend/src/pages/Workbench/tabs/ManuscriptWriter.tsx`
 - 全稿分析前端：`frontend/src/pages/Workbench/tabs/AnalysisDashboard.tsx`
 - 类型与 API mapper：`frontend/src/types/index.ts`、`frontend/src/lib/mock-api.ts`
+- Phase 5 校准样本：`backend/src/test/resources/quality/slop-calibration-samples.jsonl`
+- Phase 5 测试：`backend/src/test/java/com/ainovel/app/quality/SlopCalibrationCorpusTest.java`、`backend/src/test/java/com/ainovel/app/quality/SlopQualitySignalsTest.java`
 - 研究来源：`ai_novel_ai_taste_research/algorithms/`
