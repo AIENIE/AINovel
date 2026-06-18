@@ -1,8 +1,10 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.user.User;
+import com.ainovel.app.story.model.Story;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,13 +19,20 @@ import java.util.concurrent.ConcurrentMap;
 @RequestMapping("/v2")
 public class V2AnalysisController {
     private final V2AccessGuard accessGuard;
+    private final V2AnalysisPersistenceService persistenceService;
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> jobsByStory = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> reportsByStory = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> issuesByStory = new ConcurrentHashMap<>();
 
     public V2AnalysisController(V2AccessGuard accessGuard) {
+        this(accessGuard, null);
+    }
+
+    @Autowired
+    public V2AnalysisController(V2AccessGuard accessGuard, V2AnalysisPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
+        this.persistenceService = persistenceService;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -53,6 +62,9 @@ public class V2AnalysisController {
                                               @PathVariable UUID storyId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.listJobs(storyId);
+        }
         return new ArrayList<>(jobsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
 
@@ -64,6 +76,9 @@ public class V2AnalysisController {
                                       @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.getJob(storyId, jobId);
+        }
         Map<String, Object> job = jobsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).get(jobId);
         if (job == null) {
             throw new RuntimeException("分析任务不存在");
@@ -78,6 +93,9 @@ public class V2AnalysisController {
                                                  @PathVariable UUID storyId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.listReports(storyId);
+        }
         return new ArrayList<>(reportsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
 
@@ -89,6 +107,9 @@ public class V2AnalysisController {
                                          @PathVariable UUID reportId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.getReport(storyId, reportId);
+        }
         Map<String, Object> report = reportsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).get(reportId);
         if (report == null) {
             throw new RuntimeException("分析报告不存在");
@@ -103,6 +124,9 @@ public class V2AnalysisController {
                                                           @PathVariable UUID storyId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.listContinuityIssues(storyId);
+        }
         return new ArrayList<>(issuesByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
     }
 
@@ -115,6 +139,9 @@ public class V2AnalysisController {
                                                      @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.updateContinuityIssue(storyId, issueId, payload);
+        }
         Map<String, Object> issue = issuesByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).get(issueId);
         if (issue == null) {
             throw new RuntimeException("连续性问题不存在");
@@ -139,7 +166,10 @@ public class V2AnalysisController {
                                                   Map<String, Object> payload,
                                                   String jobType) {
         User user = accessGuard.currentUser(principal);
-        accessGuard.requireOwnedStory(storyId, user);
+        Story story = accessGuard.requireOwnedStory(storyId, user);
+        if (persistenceService != null) {
+            return persistenceService.createAnalysisJob(user, story, payload, jobType);
+        }
         UUID reportId = UUID.randomUUID();
         UUID jobId = UUID.randomUUID();
 
@@ -183,6 +213,10 @@ public class V2AnalysisController {
     }
 
     private void createContinuityIssue(UUID storyId, UUID reportId, String text) {
+        if (persistenceService != null) {
+            persistenceService.createContinuityIssue(storyId, reportId, text);
+            return;
+        }
         UUID issueId = UUID.randomUUID();
         String snippet = text == null || text.isBlank() ? "未提供文本，建议补充上下文后重试" : text.substring(0, Math.min(text.length(), 60));
         Map<String, Object> issue = new HashMap<>();

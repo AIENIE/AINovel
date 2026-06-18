@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -35,14 +36,23 @@ import java.util.zip.ZipOutputStream;
 public class V2ExportController {
     private static final int MAX_CONCURRENT_JOBS = 3;
     private final V2AccessGuard accessGuard;
+    private final V2ExportPersistenceService exportService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final ConcurrentMap<UUID, Map<String, Object>> templates = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> jobsByManuscript = new ConcurrentHashMap<>();
 
     public V2ExportController(V2AccessGuard accessGuard) {
+        this(accessGuard, null);
+    }
+
+    @Autowired
+    public V2ExportController(V2AccessGuard accessGuard, V2ExportPersistenceService exportService) {
         this.accessGuard = accessGuard;
-        seedSystemTemplates();
+        this.exportService = exportService;
+        if (exportService == null) {
+            seedSystemTemplates();
+        }
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -53,12 +63,20 @@ public class V2ExportController {
                                                @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        cleanupExpiredJobs();
+        if (exportService != null) {
+            exportService.cleanupExpiredJobs();
+        } else {
+            cleanupExpiredJobs();
+        }
 
         String format = str(payload.get("format"), "txt").toLowerCase(Locale.ROOT);
         ensureSupportedFormat(format);
-        if (countActiveJobs(user.getId()) >= MAX_CONCURRENT_JOBS) {
+        int activeJobs = exportService == null ? countActiveJobs(user.getId()) : exportService.countActiveJobs(user.getId());
+        if (activeJobs >= MAX_CONCURRENT_JOBS) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "单用户最多同时运行 3 个导出任务");
+        }
+        if (exportService != null) {
+            return exportService.createJob(user, manuscript, payload, buildFileName(manuscript, format), contentType(format));
         }
 
         UUID templateId = payload.get("templateId") == null ? null : UUID.fromString(payload.get("templateId").toString());
@@ -109,6 +127,16 @@ public class V2ExportController {
                                                     @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (exportService != null) {
+            exportService.cleanupExpiredJobs();
+            List<Map<String, Object>> jobs = new ArrayList<>(exportService.listJobs(manuscriptId));
+            jobs.forEach(job -> {
+                refreshJob(job, manuscript);
+                persistJobState(job);
+            });
+            jobs.sort((a, b) -> ((Instant) b.get("createdAt")).compareTo((Instant) a.get("createdAt")));
+            return jobs;
+        }
         cleanupExpiredJobs();
 
         List<Map<String, Object>> jobs = new ArrayList<>(jobsByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).values());
@@ -125,6 +153,13 @@ public class V2ExportController {
                                             @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+        if (exportService != null) {
+            exportService.cleanupExpiredJobs();
+            Map<String, Object> job = exportService.getJob(manuscriptId, jobId);
+            refreshJob(job, manuscript);
+            persistJobState(job);
+            return job;
+        }
         cleanupExpiredJobs();
 
         Map<String, Object> job = requireJob(manuscriptId, jobId);
@@ -140,10 +175,16 @@ public class V2ExportController {
                                            @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        cleanupExpiredJobs();
+        if (exportService != null) {
+            exportService.cleanupExpiredJobs();
+        } else {
+            cleanupExpiredJobs();
+        }
 
-        Map<String, Object> job = requireJob(manuscriptId, jobId);
+        Map<String, Object> job = exportService == null ? requireJob(manuscriptId, jobId) : exportService.getJob(manuscriptId, jobId);
         refreshJob(job, manuscript);
+        ensureDownloadBytes(job, manuscript);
+        persistJobState(job);
 
         if (((Instant) job.get("expiresAt")).isBefore(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "导出文件已过期");
@@ -168,6 +209,9 @@ public class V2ExportController {
     @GetMapping("/export-templates")
     public List<Map<String, Object>> listTemplates(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
+        if (exportService != null) {
+            return exportService.listTemplates(user);
+        }
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map<String, Object> tpl : templates.values()) {
             if (tpl.get("userId") == null || Objects.equals(tpl.get("userId"), user.getId())) {
@@ -185,6 +229,9 @@ public class V2ExportController {
         User user = accessGuard.currentUser(principal);
         String format = str(payload.get("format"), "txt").toLowerCase(Locale.ROOT);
         ensureSupportedFormat(format);
+        if (exportService != null) {
+            return exportService.createTemplate(user, payload);
+        }
 
         Map<String, Object> tpl = new HashMap<>();
         tpl.put("id", UUID.randomUUID());
@@ -207,6 +254,12 @@ public class V2ExportController {
                                               @PathVariable UUID id,
                                               @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
+        if (exportService != null) {
+            if (payload.containsKey("format")) {
+                ensureSupportedFormat(str(payload.get("format"), "txt").toLowerCase(Locale.ROOT));
+            }
+            return exportService.updateTemplate(user, id, payload);
+        }
         Map<String, Object> tpl = requireTemplate(id);
         if (tpl.get("userId") == null || !Objects.equals(tpl.get("userId"), user.getId())) {
             throw new RuntimeException("无权修改该模板");
@@ -224,6 +277,10 @@ public class V2ExportController {
     public ResponseEntity<Void> deleteTemplate(@AuthenticationPrincipal UserDetails principal,
                                                @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
+        if (exportService != null) {
+            exportService.deleteTemplate(user, id);
+            return ResponseEntity.noContent().build();
+        }
         Map<String, Object> tpl = requireTemplate(id);
         if (tpl.get("userId") == null || !Objects.equals(tpl.get("userId"), user.getId())) {
             throw new RuntimeException("无权删除该模板");
@@ -275,6 +332,41 @@ public class V2ExportController {
             job.put("completedAt", Instant.now());
             job.put("errorMessage", ex.getMessage() == null ? "导出失败" : ex.getMessage());
         }
+    }
+
+    private void ensureDownloadBytes(Map<String, Object> job, Manuscript manuscript) {
+        if (!"completed".equalsIgnoreCase(str(job.get("status"), ""))) {
+            return;
+        }
+        byte[] existing = (byte[]) job.get("contentBytes");
+        if (existing != null && existing.length > 0) {
+            return;
+        }
+        try {
+            byte[] bytes = generateFile(manuscript, job);
+            job.put("contentBytes", bytes);
+            job.put("fileSizeBytes", (long) bytes.length);
+            job.putIfAbsent("filePath", "exports/" + manuscript.getId() + "/" + job.get("id") + "." + job.get("format"));
+            job.put("errorMessage", null);
+        } catch (Exception ex) {
+            job.put("status", "failed");
+            job.put("progress", 100);
+            job.put("errorMessage", ex.getMessage() == null ? "导出失败" : ex.getMessage());
+        }
+    }
+
+    private void persistJobState(Map<String, Object> job) {
+        if (exportService == null || job == null || job.get("id") == null || job.get("manuscriptId") == null) {
+            return;
+        }
+        Map<String, Object> patch = new HashMap<>();
+        patch.put("status", job.get("status"));
+        patch.put("progress", job.get("progress"));
+        patch.put("filePath", job.get("filePath"));
+        patch.put("fileSizeBytes", job.get("fileSizeBytes"));
+        patch.put("errorMessage", job.get("errorMessage"));
+        patch.put("expiresAt", job.get("expiresAt"));
+        exportService.updateJob(UUID.fromString(job.get("manuscriptId").toString()), UUID.fromString(job.get("id").toString()), patch);
     }
 
     private byte[] generateFile(Manuscript manuscript, Map<String, Object> job) throws Exception {

@@ -94,6 +94,7 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 - 只在证据明确时判高风险。
                 - 武侠/悬疑/奇幻等体裁表达不要机械误伤。
                 - 修订建议必须是保守修订，不改变剧情事件和角色决策。
+                - voice_fit 只能基于下方“风格/角色声音语境”和候选正文证据判断；没有配置时不要虚构角色语域问题。
 
                 故事：%s
                 类型：%s
@@ -102,6 +103,7 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 场景：%s
                 场景摘要：%s
                 角色上下文：%s
+                风格/角色声音语境：%s
                 前文：%s
                 本地规则风险：%d / %s
 
@@ -115,6 +117,7 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 safe(request.sceneTitle()),
                 safe(request.sceneSummary()),
                 truncate(request.characterContext(), 1000),
+                truncate(request.styleContext(), 1000),
                 truncate(request.previousContext(), 1000),
                 heuristicResult.overallRiskScore(),
                 heuristicResult.maxSeverity(),

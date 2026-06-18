@@ -3,11 +3,11 @@
 - 基础路径：`/api/v2`
 
 ## Versions
-- `GET /manuscripts/{manuscriptId}/versions`：版本列表（首次会自动初始化 `main` 分支 + 初始快照）。
+- `GET /manuscripts/{manuscriptId}/versions`：版本列表（首次会自动初始化 `main` 分支 + 初始快照，并持久化到 `manuscript_branches` / `manuscript_versions`）。
 - `POST /manuscripts/{manuscriptId}/versions`：创建快照（支持 `label/snapshotType/branchId`）。
 - `GET /manuscripts/{manuscriptId}/versions/{versionId}`：版本详情。
 - `POST /manuscripts/{manuscriptId}/versions/{versionId}/rollback`：回滚稿件到目标快照。
-- `GET /manuscripts/{manuscriptId}/versions/diff?fromVersionId=&toVersionId=`：差异统计。
+- `GET /manuscripts/{manuscriptId}/versions/diff?fromVersionId=&toVersionId=`：差异统计；结果缓存到 `version_diffs`。
 
 ## Branches
 - `GET /manuscripts/{manuscriptId}/branches`：分支列表。

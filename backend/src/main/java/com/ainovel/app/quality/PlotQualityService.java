@@ -135,6 +135,7 @@ public class PlotQualityService {
                 "",
                 "剧情修订采纳前的文本门禁",
                 "",
+                "剧情修订候选采纳前未加载风格画像；仅按候选文本执行保守门禁。",
                 run.getRevisionCandidateText()
         ));
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());

@@ -25,6 +25,7 @@ import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.dto.OutlineSaveRequest;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.story.repo.OutlineRepository;
+import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +62,8 @@ public class ManuscriptService {
     private PromptAssemblyService promptAssemblyService;
     @Autowired
     private MaterialRetrievalService materialRetrievalService;
+    @Autowired
+    private StyleContextProvider styleContextProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
@@ -305,6 +308,7 @@ public class ManuscriptService {
                 scene.sceneSummary(),
                 buildPreviousContext(scene, existingSections),
                 buildCharacterContext(characters),
+                styleContextProvider.buildSlopContext(story),
                 candidateText
         );
     }

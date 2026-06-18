@@ -328,3 +328,12 @@
 - 前端工作台新增 `v2工作台` 标签，入口：`frontend/src/pages/Workbench/tabs/V2Studio.tsx`。
 - 前端 API 层新增 `api.v2.*` 封装，位置：`frontend/src/lib/mock-api.ts`。
 - 稿件模型新增 `currentBranchId` 字段（版本控制模块所需），位置：`backend/src/main/java/com/ainovel/app/manuscript/model/Manuscript.java`。
+
+## 9. v2 持久化补齐（2026-06-18）
+
+本次继续处理早期 v2 只完成内存态联调的问题：
+
+- `V2ContextController`、`V2AnalysisController`、`V2ModelController`、`V2WorkspaceController` 在 Spring 运行时接入持久化服务，测试直接构造时保留内存 fallback。
+- `V2VersionController` 接入 `manuscript_branches`、`manuscript_versions`、`version_diffs`、`auto_save_config`。
+- `V2ExportController` 接入 `export_templates`、`export_jobs`；导出文件字节仍按下载请求即时生成，数据库只保存任务元数据。
+- `backend/sql/schema.sql` 补齐 `knowledge_graph_relationships`，并与 v2 实体列名保持一致。

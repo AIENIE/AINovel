@@ -1,10 +1,12 @@
 package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.UUID;
 
@@ -12,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AiSlopJudgeClientTest {
@@ -74,6 +77,13 @@ class AiSlopJudgeClientTest {
         assertEquals(1, result.issues().size());
         assertEquals("surface_template", result.issues().get(0).module());
         assertEquals("E2", result.issues().get(0).evidenceLevel());
+
+        ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(aiService).chat(any(), requestCaptor.capture());
+        String prompt = requestCaptor.getValue().messages().get(0).content();
+        assertTrue(prompt.contains("风格/角色声音语境"));
+        assertTrue(prompt.contains("Active style profile: 冷峻悬疑画像"));
+        assertTrue(prompt.contains("Character voice: 林烬 speechPattern=短句、反问、重视证据"));
     }
 
     private SlopQualityRequest request() {
@@ -89,6 +99,7 @@ class AiSlopJudgeClientTest {
                 "主角发现线索",
                 "前文暂无",
                 "林烬：谨慎、重视证据",
+                "Active style profile: 冷峻悬疑画像\nCharacter voice: 林烬 speechPattern=短句、反问、重视证据",
                 "雨水砸在铁皮棚上，空气仿佛凝固。林烬心中涌起一股说不出的感觉。"
         );
     }
