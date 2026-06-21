@@ -30,7 +30,11 @@
 
 ## Tab：素材列表（MaterialList）
 - **对应文件**：`src/pages/Material/tabs/MaterialList.tsx`
-- **布局**：表格（标题/类型/标签/状态/操作），抽屉查看或编辑详情；Modal 显示相似素材、引用历史。
+- **布局**：筛选/排序工具条 + 表格（标题/类型/标签/状态/操作），抽屉查看或编辑详情；Modal 显示相似素材、引用历史。
+- **筛选与排序**：
+  - 自由搜索匹配标题、概要、正文和标签。
+  - 支持按状态（全部/待审核/已入库/已驳回）、类型（全部/文本/图片/链接）和标签关键词筛选。
+  - 支持按创建时间或标题排序，并可切换升序/降序；当前素材类型仅包含 `createdAt`，未使用更新时间排序。
 - **接口**：
   - 列表：`GET /api/v1/materials`。
   - 详情：`GET /api/v1/materials/{id}`；更新：`PUT /api/v1/materials/{id}` Body `{ title?, type?, summary?, tags?, content?, status?, entitiesJson? }`；删除：`DELETE /api/v1/materials/{id}`。
@@ -43,7 +47,6 @@
 - **自动提示**：写作页 `useAutoSuggestions` → `POST /api/v1/materials/editor/auto-hints` Body `{ text, workspaceId?, limit? }`。
 
 ## 待完善
-- 列表筛选/排序（按状态、类型、标签、时间）；
 - 合并/删除操作的权限提示与审计；
 - 审核批量操作、评论记录。
 
