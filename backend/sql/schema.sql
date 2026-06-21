@@ -459,6 +459,42 @@ CREATE TABLE `slop_quality_issues` (
   CONSTRAINT `fk_slop_issue_run` FOREIGN KEY (`run_id`) REFERENCES `slop_quality_runs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `slop_review_samples` (
+  `id` binary(16) NOT NULL,
+  `source_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_run_id` binary(16) DEFAULT NULL,
+  `story_id` binary(16) DEFAULT NULL,
+  `manuscript_id` binary(16) DEFAULT NULL,
+  `scene_id` binary(16) DEFAULT NULL,
+  `sample_id` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `text` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `genre` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tone` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `chapter_title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scene_title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `character_context` longtext COLLATE utf8mb4_unicode_ci,
+  `style_context` longtext COLLATE utf8mb4_unicode_ci,
+  `expected_evidence_level` varchar(8) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expected_requires_ai_review` bit(1) NOT NULL,
+  `observed_evidence_level` varchar(8) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `observed_requires_ai_review` bit(1) NOT NULL,
+  `observed_risk_score` int NOT NULL,
+  `observed_max_severity` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `matches_expected` bit(1) NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reviewer_note` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewed_by` varchar(120) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewed_at` datetime(6) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_slop_review_source_run` (`source_type`,`source_run_id`),
+  KEY `idx_slop_review_status` (`status`),
+  KEY `idx_slop_review_source_run` (`source_type`,`source_run_id`),
+  KEY `idx_slop_review_evidence` (`expected_evidence_level`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `plot_quality_runs` (
   `id` binary(16) NOT NULL,
   `story_id` binary(16) NOT NULL,

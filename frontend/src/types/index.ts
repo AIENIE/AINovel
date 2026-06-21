@@ -416,6 +416,38 @@ export interface MaterialCitation {
   reason: string;
 }
 
+export interface AdminSlopReviewSample {
+  id: string;
+  sourceType: "MANUAL" | "SLOP_RUN" | string;
+  sourceRunId?: string | null;
+  storyId?: string | null;
+  manuscriptId?: string | null;
+  sceneId?: string | null;
+  sampleId?: string | null;
+  text: string;
+  textPreview?: string;
+  genre?: string;
+  tone?: string;
+  chapterTitle?: string;
+  sceneTitle?: string;
+  characterContext?: string;
+  styleContext?: string;
+  expectedEvidenceLevel: string;
+  expectedRequiresAiReview: boolean;
+  observedEvidenceLevel: string;
+  observedRequiresAiReview: boolean;
+  observedRiskScore: number;
+  observedMaxSeverity: string;
+  matchesExpected: boolean;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "NEEDS_DISCUSSION" | string;
+  reviewerNote?: string;
+  createdBy?: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
 // --- V2 Admin & Economy Types ---
 
 export interface ModelConfig {

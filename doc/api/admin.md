@@ -39,6 +39,20 @@
 
 - `GET /api/v1/admin/quality/runs`
   - 聚合 `slop_quality_runs` 与 `plot_quality_runs`。
+- `GET /api/v1/admin/quality/review-samples?status=PENDING&sourceType=MANUAL&evidenceLevel=E1`
+  - 查询后台 Slop 校准审核样本，最多返回最近 200 条。
+- `POST /api/v1/admin/quality/review-samples`
+  - 手工创建一条校准样本；请求字段包含 `text`、`genre`、`tone`、`characterContext`、`styleContext`、`expectedEvidenceLevel`、`expectedRequiresAiReview` 和 `reviewerNote`。
+- `POST /api/v1/admin/quality/runs/{runId}/review-sample`
+  - 从一条 `slop` 运行记录沉淀样本；同一运行记录重复提交会返回既有样本。
+- `PATCH /api/v1/admin/quality/review-samples/{id}`
+  - 更新样本期望等级、AI review 预期、审核备注或状态；状态支持 `PENDING`、`APPROVED`、`REJECTED`、`NEEDS_DISCUSSION`。
+
+### Slop 样本审核边界
+
+- 审核样本只供管理员长期校准，不自动修改诊断阈值。
+- 样本观测结果由本地 `LocalSlopHeuristics` 重新计算，不调用 AI。
+- 从运行记录沉淀样本仅支持文本 Slop 记录；剧情质量记录继续只读展示。
 
 ## 项目专属积分
 

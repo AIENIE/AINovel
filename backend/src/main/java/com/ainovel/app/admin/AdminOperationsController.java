@@ -1,6 +1,9 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
+import com.ainovel.app.admin.dto.SlopReviewSampleCreateRequest;
+import com.ainovel.app.admin.dto.SlopReviewSampleDto;
+import com.ainovel.app.admin.dto.SlopReviewSampleUpdateRequest;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.MaterialService;
@@ -12,6 +15,7 @@ import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
+import com.ainovel.app.quality.SlopReviewSampleService;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.world.model.World;
@@ -19,7 +23,10 @@ import com.ainovel.app.world.repo.WorldRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,6 +51,7 @@ public class AdminOperationsController {
     private final SlopQualityRunRepository slopQualityRunRepository;
     private final PlotQualityRunRepository plotQualityRunRepository;
     private final OpsRecordFileSink recordFileSink;
+    private final SlopReviewSampleService slopReviewSampleService;
 
     public AdminOperationsController(
             MaterialService materialService,
@@ -53,7 +61,8 @@ public class AdminOperationsController {
             ManuscriptRepository manuscriptRepository,
             SlopQualityRunRepository slopQualityRunRepository,
             PlotQualityRunRepository plotQualityRunRepository,
-            OpsRecordFileSink recordFileSink
+            OpsRecordFileSink recordFileSink,
+            SlopReviewSampleService slopReviewSampleService
     ) {
         this.materialService = materialService;
         this.materialRepository = materialRepository;
@@ -63,6 +72,7 @@ public class AdminOperationsController {
         this.slopQualityRunRepository = slopQualityRunRepository;
         this.plotQualityRunRepository = plotQualityRunRepository;
         this.recordFileSink = recordFileSink;
+        this.slopReviewSampleService = slopReviewSampleService;
     }
 
     @GetMapping("/materials/pending")
@@ -178,6 +188,51 @@ public class AdminOperationsController {
                 .toList();
     }
 
+    @GetMapping("/quality/review-samples")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Slop 校准审核样本列表")
+    public List<SlopReviewSampleDto> qualityReviewSamples(
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "sourceType", required = false) String sourceType,
+            @RequestParam(value = "evidenceLevel", required = false) String evidenceLevel
+    ) {
+        return slopReviewSampleService.list(status, sourceType, evidenceLevel);
+    }
+
+    @PostMapping("/quality/review-samples")
+    @Operation(summary = "创建 Slop 校准审核样本")
+    public SlopReviewSampleDto createQualityReviewSample(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody SlopReviewSampleCreateRequest request
+    ) {
+        SlopReviewSampleDto result = slopReviewSampleService.createManual(request, actor(principal));
+        audit("slop-review-sample.create", "slop-review-sample", String.valueOf(result.id()));
+        return result;
+    }
+
+    @PostMapping("/quality/runs/{runId}/review-sample")
+    @Operation(summary = "从 Slop 运行记录沉淀校准审核样本")
+    public SlopReviewSampleDto createQualityReviewSampleFromRun(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID runId
+    ) {
+        SlopReviewSampleDto result = slopReviewSampleService.createFromRun(runId, actor(principal));
+        audit("slop-review-sample.create-from-run", "slop-quality-run", String.valueOf(runId));
+        return result;
+    }
+
+    @PatchMapping("/quality/review-samples/{id}")
+    @Operation(summary = "更新 Slop 校准审核样本")
+    public SlopReviewSampleDto updateQualityReviewSample(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID id,
+            @RequestBody SlopReviewSampleUpdateRequest request
+    ) {
+        SlopReviewSampleDto result = slopReviewSampleService.update(id, request, actor(principal));
+        audit("slop-review-sample.update", "slop-review-sample", String.valueOf(id));
+        return result;
+    }
+
     private Map<String, Object> asset(String type, UUID id, String title, String status, String owner, Instant updatedAt) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("type", type);
@@ -246,5 +301,11 @@ public class AdminOperationsController {
                 "result", "SUCCESS",
                 "severity", "INFO"
         ));
+    }
+
+    private String actor(UserDetails principal) {
+        return principal == null || principal.getUsername() == null || principal.getUsername().isBlank()
+                ? "admin"
+                : principal.getUsername();
     }
 }
