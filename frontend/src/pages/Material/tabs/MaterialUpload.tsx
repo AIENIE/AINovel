@@ -6,6 +6,11 @@ import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/lib/mock-api";
 import { UploadCloud, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { FileImportJob } from "@/types";
+import {
+  MATERIAL_UPLOAD_ACCEPT,
+  SUPPORTED_MATERIAL_UPLOAD_LABEL,
+  isSupportedMaterialUploadFile,
+} from "../material-upload-options";
 
 const MaterialUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -16,8 +21,8 @@ const MaterialUpload = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.type !== "text/plain") {
-        toast({ variant: "destructive", title: "仅支持 .txt 文件" });
+      if (!isSupportedMaterialUploadFile(selectedFile)) {
+        toast({ variant: "destructive", title: `仅支持 ${SUPPORTED_MATERIAL_UPLOAD_LABEL} 文件` });
         return;
       }
       setFile(selectedFile);
@@ -49,20 +54,20 @@ const MaterialUpload = () => {
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>批量导入</CardTitle>
-        <CardDescription>上传 TXT 文件，系统将自动解析并切分素材。</CardDescription>
+        <CardDescription>上传 TXT、Markdown、PDF、DOC 或 DOCX 文件，系统将自动解析并切分素材。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-accent/50 transition-colors">
           <input 
             type="file" 
-            accept=".txt" 
+            accept={MATERIAL_UPLOAD_ACCEPT}
             onChange={handleFileChange} 
             className="hidden" 
             id="file-upload"
           />
           <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
             <UploadCloud className="h-10 w-10 text-muted-foreground" />
-            <span className="text-sm font-medium">点击选择文件 (仅支持 .txt)</span>
+            <span className="text-sm font-medium">点击选择文件 ({SUPPORTED_MATERIAL_UPLOAD_LABEL})</span>
             {file && (
               <div className="flex items-center gap-2 text-primary mt-2 bg-primary/10 px-3 py-1 rounded-full text-xs">
                 <FileText className="h-3 w-3" />

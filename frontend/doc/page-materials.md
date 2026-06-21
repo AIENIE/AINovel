@@ -12,12 +12,13 @@
 
 ## Tab：上传文件（MaterialUpload）
 - **对应文件**：`src/pages/Material/tabs/MaterialUpload.tsx`
-- **布局**：Dragger 上传 TXT、按钮“开始上传”、状态 Alert、最近一次上传信息卡片。
+- **布局**：文件选择区上传 TXT/Markdown/PDF/DOC/DOCX、按钮“开始上传”、状态进度条、最近一次上传信息。
 - **流程与接口**：
-  - 选文件（仅 `.txt`，不立即上传）。
+  - 选文件（支持 `.txt`、`.md`、`.pdf`、`.doc`、`.docx`，不立即上传）。
   - 点击上传 → `POST /api/v1/materials/upload`（FormData `file`）。返回 `FileImportJob { id,status,... }`。
   - 轮询 `GET /api/v1/materials/upload/{jobId}` 直到 status ∈ {COMPLETED,FAILED}。
   - 完成后派发 `material:refresh`。
+  - 后端解析前会校验扩展名与内容大小；当前素材解析上限默认 10MiB，超过限制会返回 400。
 
 ## Tab：素材审核（ReviewDashboard）
 - **对应文件**：`src/pages/Material/tabs/ReviewDashboard.tsx`
@@ -50,10 +51,8 @@
 ## 开发对接指南 (Mock vs Real)
 
 ### 1. 文件上传与解析
-- **当前 Mock**：`api.materials.upload` 仅返回一个假的 Job ID，`getUploadStatus` 使用 `setTimeout` 模拟进度从 0% 到 100%。
-- **真实对接**：
-  - **上传**：前端需使用 `FormData` 封装文件，调用后端接口。后端应使用 Apache Tika 等工具解析文本。
-  - **异步处理**：由于大文件解析和向量化耗时较长，后端应返回 Job ID。前端需实现真实的轮询逻辑（建议间隔 1-2秒），直到状态变为 `COMPLETED` 或 `FAILED`。
+- **当前实现**：`api.materials.upload` 使用 `FormData` 直连后端 `/api/v1/materials/upload`。后端对 `.txt`/`.md` 直接按 UTF-8 读取，对 `.pdf`/`.doc`/`.docx` 使用 Apache Tika 提取正文，生成待审素材并返回 Job ID。
+- **异步处理**：当前后端会先创建导入任务与待审素材，前端继续轮询 `GET /api/v1/materials/upload/{jobId}`，直到状态变为 `completed` 或 `failed`。
 
 ### 2. 向量检索
 - **当前实现**：`api.materials.search` 直连后端混合检索接口，后端结合关键词和向量结果；向量服务不可用时保留关键词 fallback。

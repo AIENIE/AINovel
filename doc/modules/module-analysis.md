@@ -134,7 +134,7 @@
 | --- | --- | --- |
 | 素材列表 | 查看素材与状态 | 前端：`frontend/src/pages/Material/tabs/MaterialList.tsx`；后端：`MaterialController.java`（`GET /v1/materials`） |
 | 手工创建 | 创建单条素材 | 前端：`frontend/src/pages/Material/tabs/MaterialCreateForm.tsx`；后端：`MaterialController.java`（`POST /v1/materials`） |
-| TXT 上传导入 | 上传文本并轮询导入任务 | 前端：`frontend/src/pages/Material/tabs/MaterialUpload.tsx`；后端：`MaterialController.java`（`/upload`、`/upload/{jobId}`） |
+| 文档上传导入 | 上传 TXT/Markdown/PDF/DOC/DOCX 并轮询导入任务；后端解析前校验扩展名与 10MiB 默认大小上限 | 前端：`frontend/src/pages/Material/tabs/MaterialUpload.tsx`；后端：`MaterialController.java`（`/upload`、`/upload/{jobId}`）、`MaterialFileParser.java` |
 | 审核台 | 审核 pending 素材（通过/驳回） | 前端：`frontend/src/pages/Material/tabs/ReviewDashboard.tsx`；后端：`MaterialController.java`（`/review/pending`、`/review/approve`、`/review/reject`） |
 | 自动提示/搜索/合并 | 编辑器提示、查重、合并、引用查询 | 后端：`MaterialController.java`、`MaterialService.java` |
 

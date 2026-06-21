@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +27,8 @@ import java.util.UUID;
 public class MaterialController {
     @Autowired
     private MaterialService materialService;
+    @Autowired
+    private MaterialFileParser materialFileParser;
     @Autowired
     private UserRepository userRepository;
 
@@ -58,10 +59,10 @@ public class MaterialController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) { materialService.delete(id); return ResponseEntity.noContent().build(); }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "上传素材文件", description = "上传文本文件并创建异步导入任务。")
+    @Operation(summary = "上传素材文件", description = "上传 TXT、Markdown、PDF、DOC 或 DOCX 文件并创建异步导入任务。")
     public FileImportJobDto upload(@AuthenticationPrincipal UserDetails principal, @RequestPart("file") MultipartFile file) throws IOException {
-        String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-        return materialService.createUploadJob(currentUser(principal), file.getOriginalFilename(), content);
+        MaterialFileParser.ParsedMaterialFile parsedFile = materialFileParser.parse(file);
+        return materialService.createUploadJob(currentUser(principal), parsedFile.fileName(), parsedFile.content());
     }
 
     @GetMapping("/upload/{jobId}")

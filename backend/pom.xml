@@ -17,6 +17,7 @@
         <java.version>25</java.version>
         <jjwt.version>0.11.5</jjwt.version>
         <mysql.version>9.1.0</mysql.version>
+        <tika.version>3.2.3</tika.version>
     </properties>
 
     <dependencies>
@@ -73,6 +74,16 @@
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <version>${mysql.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-parsers-standard-package</artifactId>
+            <version>${tika.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

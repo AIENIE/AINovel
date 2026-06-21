@@ -4,7 +4,7 @@
 - `GET /api/v1/materials/{id}`：素材详情。
 - `PUT /api/v1/materials/{id}`：更新素材。
 - `DELETE /api/v1/materials/{id}`：删除素材。
-- `POST /api/v1/materials/upload` (multipart) ：TXT 上传，返回任务 `{id,status,progress}`。
+- `POST /api/v1/materials/upload` (multipart) ：上传 TXT、Markdown、PDF、DOC 或 DOCX 文件，返回任务 `{id,status,progress}`。服务端会校验扩展名并在解析前限制文件大小，默认上限为 10MiB。
 - `GET /api/v1/materials/upload/{jobId}`：轮询任务状态，完成后附带 `progress=100`。
 - `POST /api/v1/materials/search`：Body `{query,limit?}`，返回 chunk 级检索结果列表。每项包含：
   - `materialId`：素材 ID。
