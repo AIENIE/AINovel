@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/mock-api";
-import { AdminSlopReviewSample } from "@/types";
+import { AdminSlopReviewSample, AdminSlopReviewSampleReport } from "@/types";
 import { Badge } from "@/components/ui/badge";
-import { Beaker, Check, FilePlus2, RefreshCcw, ShieldAlert, X } from "lucide-react";
+import { BarChart3, Beaker, Check, FilePlus2, RefreshCcw, ShieldAlert, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPager, AdminPanel, AdminSearchToolbar } from "./components/AdminChrome";
 import { getErrorMessage, matchesAdminSearch, pageCountFor, paginateItems } from "./admin-list-utils";
-import { ReviewSampleFilter, filterReviewSamples, reviewSampleSummary } from "./quality-review-utils";
+import { ReviewSampleFilter, buildReviewSampleJsonl, evidenceMatrixRows, filterReviewSamples, reviewSampleSummary } from "./quality-review-utils";
 
 const severityClass = (severity: string) => {
   if (severity === "BLOCKING" || severity === "HIGH") return "border-rose-900 text-rose-400";
@@ -51,10 +51,22 @@ const emptyForm = {
   reviewerNote: "",
 };
 
+const importExample = buildReviewSampleJsonl([
+  {
+    sampleId: "P7-001",
+    text: "空气仿佛凝固，时间像是停了下来。",
+    expectedEvidenceLevel: "E1",
+    expectedRequiresAiReview: false,
+    genre: "悬疑",
+    tone: "冷峻",
+  },
+]);
+
 const QualityInspection = () => {
   const { toast } = useToast();
   const [runs, setRuns] = useState<QualityRun[]>([]);
   const [samples, setSamples] = useState<AdminSlopReviewSample[]>([]);
+  const [report, setReport] = useState<AdminSlopReviewSampleReport | null>(null);
   const [search, setSearch] = useState("");
   const [sampleSearch, setSampleSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "open" | "high">("all");
@@ -66,17 +78,21 @@ const QualityInspection = () => {
   const [form, setForm] = useState(emptyForm);
   const [savingId, setSavingId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [importContent, setImportContent] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
 
   const load = async () => {
     setIsLoading(true);
     setError("");
     try {
-      const [qualityRuns, reviewSamples] = await Promise.all([
+      const [qualityRuns, reviewSamples, qualityReport] = await Promise.all([
         api.admin.listQualityRuns(),
         api.admin.listQualityReviewSamples(),
+        api.admin.getQualityReviewSampleReport(),
       ]);
       setRuns(qualityRuns);
       setSamples(reviewSamples);
+      setReport(qualityReport);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "质量巡检记录加载失败"));
     } finally {
@@ -127,6 +143,26 @@ const QualityInspection = () => {
     }
   };
 
+  const importSamples = async () => {
+    if (!importContent.trim()) {
+      toast({ variant: "destructive", title: "导入内容不能为空" });
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const result = await api.admin.importQualityReviewSamples(importContent);
+      toast({ title: "样本导入完成", description: `新增 ${result.imported} 条，跳过 ${result.skipped} 条，错误 ${result.errors.length} 条` });
+      if (result.errors.length === 0) {
+        setImportContent("");
+      }
+      await load();
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "导入失败", description: getErrorMessage(err, "JSONL 格式无效或请求失败") });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const updateSample = async (sample: AdminSlopReviewSample, status: string) => {
     setSavingId(sample.id);
     try {
@@ -158,6 +194,7 @@ const QualityInspection = () => {
   const samplePageCount = pageCountFor(filteredSamples.length, 8);
   const visibleSamples = paginateItems(filteredSamples, samplePage, 8);
   const sampleSummary = reviewSampleSummary(samples);
+  const matrixRows = evidenceMatrixRows(report?.evidenceMatrix);
 
   return (
     <div className="space-y-6">
@@ -265,6 +302,107 @@ const QualityInspection = () => {
           {!isLoading && filteredSamples.length > 0 ? (
             <AdminPager page={Math.min(samplePage, samplePageCount - 1)} pageCount={samplePageCount} total={filteredSamples.length} onPageChange={setSamplePage} />
           ) : null}
+        </div>
+      </AdminPanel>
+
+      <AdminPanel title="校准报表" description="基于已审核样本观察阈值表现；本页仅展示和导入样本，不让阈值在线生效。" actions={<BarChart3 className="h-5 w-5 text-emerald-400" />}>
+        <div className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Metric label="已审核" value={Number(report?.reviewed ?? 0)} />
+            <Metric label="已通过" value={Number(report?.approved ?? 0)} />
+            <Metric label="审核不匹配" value={Number(report?.mismatchedReviewed ?? 0)} />
+            <Metric label="高风险审核样本" value={Number(report?.highRiskReviewed ?? 0)} />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="overflow-hidden rounded-md border border-zinc-800">
+              <div className="border-b border-zinc-800 px-3 py-2 text-sm font-medium text-zinc-200">证据等级矩阵</div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead className="bg-zinc-950 text-xs text-zinc-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left">期望/观测</th>
+                      {["E1", "E2", "E3", "E4", "总计"].map((level) => (
+                        <th key={level} className="px-3 py-2 text-right">{level}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrixRows.map((row) => (
+                      <tr key={row.expected} className="border-t border-zinc-900">
+                        <td className="px-3 py-2 font-medium text-zinc-200">{row.expected}</td>
+                        <td className="px-3 py-2 text-right text-zinc-400">{row.E1}</td>
+                        <td className="px-3 py-2 text-right text-zinc-400">{row.E2}</td>
+                        <td className="px-3 py-2 text-right text-zinc-400">{row.E3}</td>
+                        <td className="px-3 py-2 text-right text-zinc-400">{row.E4}</td>
+                        <td className="px-3 py-2 text-right text-zinc-200">{row.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-zinc-800 p-4">
+              <div className="text-sm font-medium text-zinc-200">当前策略快照</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-500">
+                <span>AI review 阈值</span>
+                <span className="text-right text-zinc-200">{report?.currentPolicy?.aiReviewRiskThreshold ?? "-"}</span>
+                <span>中密度模板数</span>
+                <span className="text-right text-zinc-200">{report?.currentPolicy?.genericPhraseMediumDensityCount ?? "-"}</span>
+                <span>高密度模板数</span>
+                <span className="text-right text-zinc-200">{report?.currentPolicy?.genericPhraseHighDensityCount ?? "-"}</span>
+                <span>单点弱信号风险</span>
+                <span className="text-right text-zinc-200">{report?.currentPolicy?.singleWeakSignalRisk ?? "-"}</span>
+              </div>
+              <div className="mt-4 border-t border-zinc-800 pt-3 text-sm text-zinc-400">
+                AI review 混淆：期望触发但未触发 {report?.aiReviewMatrix?.expectedTrueObservedFalse ?? 0}，未期望但触发 {report?.aiReviewMatrix?.expectedFalseObservedTrue ?? 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+            <div className="rounded-md border border-zinc-800 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-zinc-200">批量导入 JSONL</div>
+                  <div className="mt-1 text-xs text-zinc-500">重复 sampleId 会跳过；导入样本保持待审核状态。</div>
+                </div>
+                <Button size="sm" variant="outline" className="border-zinc-800 text-zinc-300" onClick={() => setImportContent(importExample)}>
+                  填入示例
+                </Button>
+              </div>
+              <Textarea
+                value={importContent}
+                onChange={(event) => setImportContent(event.target.value)}
+                placeholder={importExample}
+                className="mt-3 min-h-32 border-zinc-800 bg-zinc-950 font-mono text-xs text-zinc-100 placeholder:text-zinc-700"
+              />
+              <Button className="mt-3 bg-emerald-600 text-white hover:bg-emerald-500" disabled={isImporting} onClick={() => void importSamples()}>
+                <Upload className="mr-2 h-4 w-4" />
+                导入样本
+              </Button>
+            </div>
+
+            <div className="rounded-md border border-zinc-800 p-4">
+              <div className="text-sm font-medium text-zinc-200">需复核样本</div>
+              <div className="mt-3 space-y-3">
+                {(report?.mismatchSamples || []).length === 0 ? (
+                  <div className="text-sm text-zinc-500">暂无已审核不匹配样本</div>
+                ) : (
+                  (report?.mismatchSamples || []).slice(0, 5).map((sample) => (
+                    <div key={sample.id} className="border-t border-zinc-900 pt-3 first:border-t-0 first:pt-0">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <Badge variant="outline" className="border-amber-900 text-amber-400">{sample.sampleId || sample.id}</Badge>
+                        <span className="text-zinc-500">期望 {sample.expectedEvidenceLevel} / 观测 {sample.observedEvidenceLevel} · 风险 {sample.observedRiskScore}</span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-sm text-zinc-500">{sample.textPreview}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </AdminPanel>
 

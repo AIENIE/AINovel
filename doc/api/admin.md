@@ -41,8 +41,13 @@
   - 聚合 `slop_quality_runs` 与 `plot_quality_runs`。
 - `GET /api/v1/admin/quality/review-samples?status=PENDING&sourceType=MANUAL&evidenceLevel=E1`
   - 查询后台 Slop 校准审核样本，最多返回最近 200 条。
+- `GET /api/v1/admin/quality/review-samples/report`
+  - 返回审核样本统计报表：状态计数、已审核匹配/不匹配数量、证据等级矩阵、AI review 触发混淆、当前本地 heuristic 策略快照和最多 20 条需复核样本。
 - `POST /api/v1/admin/quality/review-samples`
   - 手工创建一条校准样本；请求字段包含 `text`、`genre`、`tone`、`characterContext`、`styleContext`、`expectedEvidenceLevel`、`expectedRequiresAiReview` 和 `reviewerNote`。
+- `POST /api/v1/admin/quality/review-samples/import`
+  - 批量导入校准样本；请求体 `{ "content": "<jsonl or json array>" }`。每条样本支持 `sampleId`、`text`、`genre`、`tone`、`characterContext`、`styleContext`、`expectedEvidenceLevel`、`expectedRequiresAiReview` 和 `reviewerNote`。
+  - 重复 `sampleId` 会跳过；格式或字段错误会按行返回 `errors`，有效样本仍可导入。
 - `POST /api/v1/admin/quality/runs/{runId}/review-sample`
   - 从一条 `slop` 运行记录沉淀样本；同一运行记录重复提交会返回既有样本。
 - `PATCH /api/v1/admin/quality/review-samples/{id}`
@@ -52,6 +57,7 @@
 
 - 审核样本只供管理员长期校准，不自动修改诊断阈值。
 - 样本观测结果由本地 `LocalSlopHeuristics` 重新计算，不调用 AI。
+- Phase 7 报表只展示当前策略快照和审核样本统计，不让阈值在线生效。
 - 从运行记录沉淀样本仅支持文本 Slop 记录；剧情质量记录继续只读展示。
 
 ## 项目专属积分

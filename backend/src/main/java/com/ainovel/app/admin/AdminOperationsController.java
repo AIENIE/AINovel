@@ -3,6 +3,9 @@ package com.ainovel.app.admin;
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.admin.dto.SlopReviewSampleCreateRequest;
 import com.ainovel.app.admin.dto.SlopReviewSampleDto;
+import com.ainovel.app.admin.dto.SlopReviewSampleImportRequest;
+import com.ainovel.app.admin.dto.SlopReviewSampleImportResultDto;
+import com.ainovel.app.admin.dto.SlopReviewSampleReportDto;
 import com.ainovel.app.admin.dto.SlopReviewSampleUpdateRequest;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
@@ -199,6 +202,13 @@ public class AdminOperationsController {
         return slopReviewSampleService.list(status, sourceType, evidenceLevel);
     }
 
+    @GetMapping("/quality/review-samples/report")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Slop 校准审核样本统计报表")
+    public SlopReviewSampleReportDto qualityReviewSampleReport() {
+        return slopReviewSampleService.report();
+    }
+
     @PostMapping("/quality/review-samples")
     @Operation(summary = "创建 Slop 校准审核样本")
     public SlopReviewSampleDto createQualityReviewSample(
@@ -207,6 +217,17 @@ public class AdminOperationsController {
     ) {
         SlopReviewSampleDto result = slopReviewSampleService.createManual(request, actor(principal));
         audit("slop-review-sample.create", "slop-review-sample", String.valueOf(result.id()));
+        return result;
+    }
+
+    @PostMapping("/quality/review-samples/import")
+    @Operation(summary = "导入 Slop 校准审核样本")
+    public SlopReviewSampleImportResultDto importQualityReviewSamples(
+            @AuthenticationPrincipal UserDetails principal,
+            @Valid @RequestBody SlopReviewSampleImportRequest request
+    ) {
+        SlopReviewSampleImportResultDto result = slopReviewSampleService.importSamples(request, actor(principal));
+        audit("slop-review-sample.import", "slop-review-sample", "imported=" + result.imported() + ",skipped=" + result.skipped());
         return result;
     }
 

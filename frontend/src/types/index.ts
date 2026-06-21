@@ -448,6 +448,54 @@ export interface AdminSlopReviewSample {
   updatedAt?: string | null;
 }
 
+export interface AdminSlopReviewSampleReport {
+  total: number;
+  reviewed: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  needsDiscussion: number;
+  matchedReviewed: number;
+  mismatchedReviewed: number;
+  highRiskReviewed: number;
+  expectedEvidenceCounts: Record<string, number>;
+  observedEvidenceCounts: Record<string, number>;
+  evidenceMatrix: Record<string, Record<string, number>>;
+  aiReviewMatrix: {
+    expectedTrueObservedTrue: number;
+    expectedTrueObservedFalse: number;
+    expectedFalseObservedTrue: number;
+    expectedFalseObservedFalse: number;
+  };
+  currentPolicy: {
+    singleWeakSignalRisk: number;
+    expectedStyleWeakSignalRisk: number;
+    mediumDensityRisk: number;
+    highDensityRisk: number;
+    aiReviewRiskThreshold: number;
+    genericPhraseMediumDensityCount: number;
+    genericPhraseHighDensityCount: number;
+  };
+  mismatchSamples: Array<{
+    id: string;
+    sampleId?: string | null;
+    expectedEvidenceLevel: string;
+    observedEvidenceLevel: string;
+    expectedRequiresAiReview: boolean;
+    observedRequiresAiReview: boolean;
+    observedRiskScore: number;
+    status: string;
+    textPreview?: string;
+  }>;
+}
+
+export interface AdminSlopReviewSampleImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  samples: AdminSlopReviewSample[];
+}
+
 // --- V2 Admin & Economy Types ---
 
 export interface ModelConfig {

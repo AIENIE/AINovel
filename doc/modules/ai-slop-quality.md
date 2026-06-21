@@ -2,7 +2,14 @@
 
 ## 后续分期 Backlog（继续开发优先读这里）
 
-1. Phase 7（可选）：阈值运营与样本导入。基于 Phase 6 已审核样本，再决定是否新增批量导入、统计报表和线上阈值调整能力。
+当前 AI Slop 质量链路暂无必做分期。后续如继续扩展，应先基于 Phase 7 报表沉淀足够样本，再另行评估是否允许在线阈值调整。
+
+## Phase 7：阈值运营报表与样本导入（2026-06-21）
+
+- 后台 `/admin/quality` 新增“校准报表”区域，基于已审核样本展示样本总量、已审核/通过/驳回/需讨论状态、证据等级矩阵、AI review 触发混淆和需复核样本。
+- 新增管理员只读报表接口 `GET /api/v1/admin/quality/review-samples/report`，输出当前 `SlopHeuristicPolicy` 快照，便于运营观察阈值表现。
+- 新增管理员导入接口 `POST /api/v1/admin/quality/review-samples/import`，支持 JSONL 或 JSON 数组导入样本；重复 `sampleId` 会跳过，导入样本保持 `PENDING`，并用 `LocalSlopHeuristics` 重新计算观测结果。
+- 本期不做线上阈值实时调整，不改变手动诊断、生成门禁、长篇 drift 或已有样本审核语义；报表仅用于后续校准决策。
 
 ## Phase 6：后台标注台和长期样本审核（2026-06-21）
 
@@ -65,5 +72,5 @@
 - 类型与 API mapper：`frontend/src/types/index.ts`、`frontend/src/lib/mock-api.ts`
 - Phase 5 校准样本：`backend/src/test/resources/quality/slop-calibration-samples.jsonl`
 - Phase 5 测试：`backend/src/test/java/com/ainovel/app/quality/SlopCalibrationCorpusTest.java`、`backend/src/test/java/com/ainovel/app/quality/SlopQualitySignalsTest.java`
-- Phase 6 后台审核样本：`backend/src/main/java/com/ainovel/app/quality/SlopReviewSampleService.java`、`frontend/src/pages/Admin/QualityInspection.tsx`
+- Phase 6/7 后台审核样本、报表与导入：`backend/src/main/java/com/ainovel/app/quality/SlopReviewSampleService.java`、`frontend/src/pages/Admin/QualityInspection.tsx`
 - 研究来源：`ai_novel_ai_taste_research/algorithms/`

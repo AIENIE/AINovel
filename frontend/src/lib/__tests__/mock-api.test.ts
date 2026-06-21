@@ -498,4 +498,29 @@ describe("mock api", () => {
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/alerts"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/diagnostics"))).toBe(true);
   });
+
+  it("passes admin slop review report and import requests through the API wrapper", async () => {
+    localStorage.setItem("admin_token", "admin-token");
+    const requestedUrls: string[] = [];
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      requestedUrls.push(String(url));
+      const headers = init?.headers as Headers;
+      expect(headers?.get("Authorization")).toBe("Bearer admin-token");
+      if (String(url).endsWith("/api/v1/admin/quality/review-samples/import")) {
+        expect(init?.method).toBe("POST");
+        expect(init?.body).toBe(JSON.stringify({ content: "{\"sampleId\":\"P7-001\",\"text\":\"样本\"}" }));
+        return new Response(JSON.stringify({ imported: 1, skipped: 0, errors: [], samples: [] }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ total: 0, reviewed: 0, evidenceMatrix: {} }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const report = await api.admin.getQualityReviewSampleReport();
+    const result = await api.admin.importQualityReviewSamples("{\"sampleId\":\"P7-001\",\"text\":\"样本\"}");
+
+    expect(report.total).toBe(0);
+    expect(result.imported).toBe(1);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/quality/review-samples/report"))).toBe(true);
+    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/quality/review-samples/import"))).toBe(true);
+  });
 });

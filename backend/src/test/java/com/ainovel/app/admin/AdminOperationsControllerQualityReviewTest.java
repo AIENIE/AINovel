@@ -2,6 +2,9 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.SlopReviewSampleCreateRequest;
 import com.ainovel.app.admin.dto.SlopReviewSampleDto;
+import com.ainovel.app.admin.dto.SlopReviewSampleImportRequest;
+import com.ainovel.app.admin.dto.SlopReviewSampleImportResultDto;
+import com.ainovel.app.admin.dto.SlopReviewSampleReportDto;
 import com.ainovel.app.admin.dto.SlopReviewSampleUpdateRequest;
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
@@ -17,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,6 +78,51 @@ class AdminOperationsControllerQualityReviewTest {
         verify(sampleService).createManual(createRequest, "ops-admin");
         verify(sampleService).createFromRun(runId, "ops-admin");
         verify(sampleService).update(sampleId, updateRequest, "ops-admin");
+    }
+
+    @Test
+    void qualityReviewPhase7EndpointsShouldDelegateToService() {
+        SlopReviewSampleService sampleService = mock(SlopReviewSampleService.class);
+        AdminOperationsController controller = new AdminOperationsController(
+                mock(MaterialService.class),
+                mock(MaterialRepository.class),
+                mock(StoryRepository.class),
+                mock(WorldRepository.class),
+                mock(ManuscriptRepository.class),
+                mock(SlopQualityRunRepository.class),
+                mock(PlotQualityRunRepository.class),
+                mock(OpsRecordFileSink.class),
+                sampleService
+        );
+        UserDetails principal = mock(UserDetails.class);
+        when(principal.getUsername()).thenReturn("ops-admin");
+        SlopReviewSampleReportDto report = new SlopReviewSampleReportDto(
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                null,
+                null,
+                List.of()
+        );
+        SlopReviewSampleImportRequest request = new SlopReviewSampleImportRequest("{\"sampleId\":\"P7-001\",\"text\":\"样本\"}");
+        SlopReviewSampleImportResultDto importResult = new SlopReviewSampleImportResultDto(1, 0, List.of(), List.of(dto(UUID.randomUUID(), "MANUAL_IMPORT", null)));
+        when(sampleService.report()).thenReturn(report);
+        when(sampleService.importSamples(request, "ops-admin")).thenReturn(importResult);
+
+        assertEquals(report, controller.qualityReviewSampleReport());
+        assertEquals(importResult, controller.importQualityReviewSamples(principal, request));
+
+        verify(sampleService).report();
+        verify(sampleService).importSamples(request, "ops-admin");
     }
 
     private SlopReviewSampleDto dto(UUID id, String sourceType, UUID sourceRunId) {

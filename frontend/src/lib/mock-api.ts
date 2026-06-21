@@ -1,6 +1,8 @@
 import {
   AdminDashboardStats,
   AdminSlopReviewSample,
+  AdminSlopReviewSampleImportResult,
+  AdminSlopReviewSampleReport,
   CreditConversionRecord,
   CreditLedgerItem,
   FileImportJob,
@@ -700,6 +702,9 @@ export const api = {
     listQualityReviewSamples: async (params: { status?: string; sourceType?: string; evidenceLevel?: string } = {}): Promise<AdminSlopReviewSample[]> => {
       return await requestJson<AdminSlopReviewSample[]>(`/v1/admin/quality/review-samples${queryString(params)}`, { method: "GET" }, requireAdminToken());
     },
+    getQualityReviewSampleReport: async (): Promise<AdminSlopReviewSampleReport> => {
+      return await requestJson<AdminSlopReviewSampleReport>("/v1/admin/quality/review-samples/report", { method: "GET" }, requireAdminToken());
+    },
     createQualityReviewSample: async (payload: {
       sampleId?: string;
       text: string;
@@ -715,6 +720,9 @@ export const api = {
     },
     createQualityReviewSampleFromRun: async (runId: string): Promise<AdminSlopReviewSample> => {
       return await requestJson<AdminSlopReviewSample>(`/v1/admin/quality/runs/${runId}/review-sample`, { method: "POST", body: "{}" }, requireAdminToken());
+    },
+    importQualityReviewSamples: async (content: string): Promise<AdminSlopReviewSampleImportResult> => {
+      return await requestJson<AdminSlopReviewSampleImportResult>("/v1/admin/quality/review-samples/import", { method: "POST", body: JSON.stringify({ content }) }, requireAdminToken());
     },
     updateQualityReviewSample: async (id: string, payload: {
       status?: string;

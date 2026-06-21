@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface SlopReviewSampleRepository extends JpaRepository<SlopReviewSample, UUID> {
     Optional<SlopReviewSample> findBySourceTypeAndSourceRunId(String sourceType, UUID sourceRunId);
 
+    boolean existsBySampleId(String sampleId);
+
     List<SlopReviewSample> findTop200ByOrderByCreatedAtDesc();
 
     List<SlopReviewSample> findTop200ByStatusOrderByCreatedAtDesc(SlopReviewSampleStatus status);

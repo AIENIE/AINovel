@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterReviewSamples, reviewSampleSummary } from "../quality-review-utils";
+import { buildReviewSampleJsonl, evidenceMatrixRows, filterReviewSamples, reviewSampleSummary } from "../quality-review-utils";
 import { AdminSlopReviewSample } from "@/types";
 
 const sample = (overrides: Partial<AdminSlopReviewSample>): AdminSlopReviewSample => ({
@@ -44,5 +44,43 @@ describe("quality-review-utils", () => {
     expect(summary.pending).toBe(1);
     expect(summary.mismatch).toBe(2);
     expect(summary.highRisk).toBe(1);
+  });
+
+  it("maps report evidence matrix into stable display rows", () => {
+    const rows = evidenceMatrixRows({
+      E1: { E1: 2, E2: 1, E3: 0, E4: 0 },
+      E2: { E1: 1, E2: 3, E3: 0, E4: 0 },
+    });
+
+    expect(rows).toEqual([
+      { expected: "E1", E1: 2, E2: 1, E3: 0, E4: 0, total: 3 },
+      { expected: "E2", E1: 1, E2: 3, E3: 0, E4: 0, total: 4 },
+      { expected: "E3", E1: 0, E2: 0, E3: 0, E4: 0, total: 0 },
+      { expected: "E4", E1: 0, E2: 0, E3: 0, E4: 0, total: 0 },
+    ]);
+  });
+
+  it("builds JSONL import text from sample rows", () => {
+    const jsonl = buildReviewSampleJsonl([
+      {
+        sampleId: "P7-001",
+        text: "空气仿佛凝固。",
+        expectedEvidenceLevel: "E1",
+        expectedRequiresAiReview: false,
+        genre: "悬疑",
+        tone: "冷峻",
+      },
+      {
+        sampleId: "P7-002",
+        text: "以下是修改版：她推开门。",
+        expectedEvidenceLevel: "E4",
+        expectedRequiresAiReview: true,
+      },
+    ]);
+
+    expect(jsonl.split("\n")).toEqual([
+      "{\"sampleId\":\"P7-001\",\"text\":\"空气仿佛凝固。\",\"expectedEvidenceLevel\":\"E1\",\"expectedRequiresAiReview\":false,\"genre\":\"悬疑\",\"tone\":\"冷峻\"}",
+      "{\"sampleId\":\"P7-002\",\"text\":\"以下是修改版：她推开门。\",\"expectedEvidenceLevel\":\"E4\",\"expectedRequiresAiReview\":true}",
+    ]);
   });
 });
