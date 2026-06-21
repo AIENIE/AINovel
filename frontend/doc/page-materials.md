@@ -43,7 +43,6 @@
 - **自动提示**：写作页 `useAutoSuggestions` → `POST /api/v1/materials/editor/auto-hints` Body `{ text, workspaceId?, limit? }`。
 
 ## 待完善
-- 上传支持 PDF/Doc/Markdown；
 - 列表筛选/排序（按状态、类型、标签、时间）；
 - 合并/删除操作的权限提示与审计；
 - 审核批量操作、评论记录。
