@@ -7,6 +7,7 @@ import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
+import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
@@ -23,6 +24,8 @@ public class OutlineService {
     @Autowired
     private OutlineRepository outlineRepository;
     @Autowired
+    private StoryRepository storyRepository;
+    @Autowired
     private ResourceAccessGuard accessGuard;
     @Autowired
     private AiService aiService;
@@ -36,6 +39,11 @@ public class OutlineService {
     public List<OutlineDto> listByStory(Story story) {
         accessGuard.assertOwner(story.getUser());
         return outlineRepository.findByStoryWithStoryUser(story).stream().map(this::toDto).toList();
+    }
+
+    public List<OutlineDto> listByStoryId(UUID storyId) {
+        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        return listByStory(story);
     }
 
     public OutlineDto get(UUID id) {
@@ -57,6 +65,12 @@ public class OutlineService {
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
         return toDto(outline);
+    }
+
+    @Transactional
+    public OutlineDto createOutline(UUID storyId, OutlineCreateRequest request) {
+        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        return createOutline(story, request);
     }
 
     @Transactional

@@ -5,10 +5,7 @@ import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.story.dto.*;
-import com.ainovel.app.story.model.Story;
-import com.ainovel.app.story.repo.StoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,16 +24,21 @@ import java.util.UUID;
 @Tag(name = "Story", description = "故事卡、角色卡、大纲与章节场景接口")
 @SecurityRequirement(name = "bearerAuth")
 public class StoryController {
+    private final StoryService storyService;
+    private final OutlineService outlineService;
+    private final AiService aiService;
+    private final CurrentUserResolver currentUserResolver;
+
     @Autowired
-    private StoryService storyService;
-    @Autowired
-    private OutlineService outlineService;
-    @Autowired
-    private StoryRepository storyRepository;
-    @Autowired
-    private AiService aiService;
-    @Autowired
-    private CurrentUserResolver currentUserResolver;
+    public StoryController(StoryService storyService,
+                           OutlineService outlineService,
+                           AiService aiService,
+                           CurrentUserResolver currentUserResolver) {
+        this.storyService = storyService;
+        this.outlineService = outlineService;
+        this.aiService = aiService;
+        this.currentUserResolver = currentUserResolver;
+    }
 
     @GetMapping("/story-cards")
     @Operation(summary = "获取故事列表", description = "返回当前用户全部故事卡片。")
@@ -99,15 +101,13 @@ public class StoryController {
     @GetMapping("/story-cards/{storyId}/outlines")
     @Operation(summary = "获取大纲列表", description = "按故事 ID 查询所有大纲。")
     public List<OutlineDto> listOutlines(@PathVariable UUID storyId) {
-        Story entity = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
-        return outlineService.listByStory(entity);
+        return outlineService.listByStoryId(storyId);
     }
 
     @PostMapping("/story-cards/{storyId}/outlines")
     @Operation(summary = "创建大纲", description = "在故事下创建新的大纲草稿。")
     public OutlineDto createOutline(@PathVariable UUID storyId, @RequestBody OutlineCreateRequest request) {
-        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
-        return outlineService.createOutline(story, request);
+        return outlineService.createOutline(storyId, request);
     }
 
     @GetMapping("/outlines/{id}")
