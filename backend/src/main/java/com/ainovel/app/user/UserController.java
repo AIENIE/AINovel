@@ -1,19 +1,9 @@
 package com.ainovel.app.user;
 
 import com.ainovel.app.economy.EconomyService;
-import com.ainovel.app.manuscript.model.Manuscript;
-import com.ainovel.app.manuscript.repo.ManuscriptRepository;
-import com.ainovel.app.story.model.Outline;
-import com.ainovel.app.story.model.Story;
-import com.ainovel.app.story.repo.OutlineRepository;
-import com.ainovel.app.story.repo.StoryRepository;
-import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.user.dto.*;
-import com.ainovel.app.world.model.World;
-import com.ainovel.app.world.repo.WorldRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,32 +18,23 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.util.Map;
-
 @RestController
 @RequestMapping("/v1/user")
 @Tag(name = "User", description = "用户个人中心与资产接口")
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
+    private final EconomyService economyService;
+    private final CurrentUserResolver currentUserResolver;
+    private final UserSummaryQueryService summaryQueryService;
+
     @Autowired
-    private EconomyService economyService;
-    @Autowired
-    private StoryRepository storyRepository;
-    @Autowired
-    private WorldRepository worldRepository;
-    @Autowired
-    private OutlineRepository outlineRepository;
-    @Autowired
-    private ManuscriptRepository manuscriptRepository;
-    @Autowired
-    private CurrentUserResolver currentUserResolver;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private JsonColumnCodec jsonColumnCodec;
+    public UserController(EconomyService economyService,
+                          CurrentUserResolver currentUserResolver,
+                          UserSummaryQueryService summaryQueryService) {
+        this.economyService = economyService;
+        this.currentUserResolver = currentUserResolver;
+        this.summaryQueryService = summaryQueryService;
+    }
 
     @GetMapping("/profile")
     @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色与资产。")
@@ -79,11 +60,7 @@ public class UserController {
     })
     public ResponseEntity<UserSummaryResponse> summary(@AuthenticationPrincipal UserDetails principal) {
         User user = currentUserResolver.require(principal);
-        long novelCount = storyRepository.countByUser(user);
-        long worldCount = worldRepository.countByUser(user);
-        long totalWords = estimateTotalWords(user);
-        long totalEntries = estimateWorldEntries(user);
-        return ResponseEntity.ok(new UserSummaryResponse(novelCount, worldCount, totalWords, totalEntries));
+        return ResponseEntity.ok(summaryQueryService.summary(user));
     }
 
     @PostMapping("/redeem")
@@ -231,48 +208,5 @@ public class UserController {
                 balance.totalCredits(),
                 user.isBanned()
         );
-    }
-
-    private long estimateTotalWords(User user) {
-        long total = 0;
-        for (Story story : storyRepository.findByUser(user)) {
-            for (Outline outline : outlineRepository.findByStory(story)) {
-                for (Manuscript manuscript : manuscriptRepository.findByOutline(outline)) {
-                    total += estimateWordsFromSections(manuscript.getSectionsJson());
-                }
-            }
-        }
-        return total;
-    }
-
-    private long estimateWordsFromSections(String sectionsJson) {
-        Map<String, String> sections = jsonColumnCodec.read(sectionsJson, new TypeReference<>() {}, Map.of());
-        long total = 0;
-        for (String html : sections.values()) {
-            if (html == null) continue;
-            String plain = html.replaceAll("<[^>]*>", "");
-            total += plain.trim().length();
-        }
-        return total;
-    }
-
-    private long estimateWorldEntries(User user) {
-        long total = 0;
-        for (World world : worldRepository.findByUser(user)) {
-            total += countNonEmptyEntries(world.getModulesJson());
-        }
-        return total;
-    }
-
-    private long countNonEmptyEntries(String modulesJson) {
-        Map<String, Map<String, String>> modules = jsonColumnCodec.read(modulesJson, new TypeReference<>() {}, Map.of());
-        long total = 0;
-        for (Map<String, String> fields : modules.values()) {
-            if (fields == null) continue;
-            for (String v : fields.values()) {
-                if (v != null && !v.isBlank()) total++;
-            }
-        }
-        return total;
     }
 }
