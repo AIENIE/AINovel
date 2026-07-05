@@ -25,8 +25,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -40,13 +38,6 @@ public class V2ExportController {
     private final V2ExportPersistenceService exportService;
     private final ObjectMapper objectMapper;
 
-    private final ConcurrentMap<UUID, Map<String, Object>> templates = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> jobsByManuscript = new ConcurrentHashMap<>();
-
-    public V2ExportController(ResourceAccessGuard accessGuard, ObjectMapper objectMapper) {
-        this(accessGuard, null, objectMapper);
-    }
-
     @Autowired
     public V2ExportController(ResourceAccessGuard accessGuard,
                               V2ExportPersistenceService exportService,
@@ -54,9 +45,6 @@ public class V2ExportController {
         this.accessGuard = accessGuard;
         this.exportService = exportService;
         this.objectMapper = objectMapper;
-        if (exportService == null) {
-            seedSystemTemplates();
-        }
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -67,61 +55,15 @@ public class V2ExportController {
                                                @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        if (exportService != null) {
-            exportService.cleanupExpiredJobs();
-        } else {
-            cleanupExpiredJobs();
-        }
+        exportService.cleanupExpiredJobs();
 
         String format = str(payload.get("format"), "txt").toLowerCase(Locale.ROOT);
         ensureSupportedFormat(format);
-        int activeJobs = exportService == null ? countActiveJobs(user.getId()) : exportService.countActiveJobs(user.getId());
+        int activeJobs = exportService.countActiveJobs(user.getId());
         if (activeJobs >= MAX_CONCURRENT_JOBS) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "单用户最多同时运行 3 个导出任务");
         }
-        if (exportService != null) {
-            return exportService.createJob(user, manuscript, payload, buildFileName(manuscript, format), contentType(format));
-        }
-
-        UUID templateId = payload.get("templateId") == null ? null : UUID.fromString(payload.get("templateId").toString());
-        Map<String, Object> template = templateId == null ? null : templates.get(templateId);
-        if (templateId != null && template == null) {
-            throw new RuntimeException("导出模板不存在");
-        }
-
-        Object config = payload.get("config");
-        if (!(config instanceof Map<?, ?>) && template != null) {
-            config = template.get("config");
-        }
-        if (!(config instanceof Map<?, ?>)) {
-            config = defaultConfig(format);
-        }
-
-        UUID jobId = UUID.randomUUID();
-        Map<String, Object> job = new HashMap<>();
-        job.put("id", jobId);
-        job.put("userId", user.getId());
-        job.put("storyId", manuscript.getOutline().getStory().getId());
-        job.put("manuscriptId", manuscriptId);
-        job.put("templateId", templateId);
-        job.put("format", format);
-        job.put("config", config);
-        job.put("chapterRange", payload.getOrDefault("chapterRange", "all"));
-        job.put("status", "queued");
-        job.put("progress", 0);
-        job.put("fileName", buildFileName(manuscript, format));
-        job.put("filePath", null);
-        job.put("fileSizeBytes", 0L);
-        job.put("errorMessage", null);
-        job.put("contentType", contentType(format));
-        job.put("contentBytes", null);
-        job.put("expiresAt", Instant.now().plus(24, ChronoUnit.HOURS));
-        job.put("createdAt", Instant.now());
-        job.put("startedAt", null);
-        job.put("completedAt", null);
-
-        jobsByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).put(jobId, job);
-        return job;
+        return exportService.createJob(user, manuscript, payload, buildFileName(manuscript, format), contentType(format));
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -131,20 +73,12 @@ public class V2ExportController {
                                                     @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        if (exportService != null) {
-            exportService.cleanupExpiredJobs();
-            List<Map<String, Object>> jobs = new ArrayList<>(exportService.listJobs(manuscriptId));
-            jobs.forEach(job -> {
-                refreshJob(job, manuscript);
-                persistJobState(job);
-            });
-            jobs.sort((a, b) -> ((Instant) b.get("createdAt")).compareTo((Instant) a.get("createdAt")));
-            return jobs;
-        }
-        cleanupExpiredJobs();
-
-        List<Map<String, Object>> jobs = new ArrayList<>(jobsByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).values());
-        jobs.forEach(job -> refreshJob(job, manuscript));
+        exportService.cleanupExpiredJobs();
+        List<Map<String, Object>> jobs = new ArrayList<>(exportService.listJobs(manuscriptId));
+        jobs.forEach(job -> {
+            refreshJob(job, manuscript);
+            persistJobState(job);
+        });
         jobs.sort((a, b) -> ((Instant) b.get("createdAt")).compareTo((Instant) a.get("createdAt")));
         return jobs;
     }
@@ -157,17 +91,10 @@ public class V2ExportController {
                                             @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        if (exportService != null) {
-            exportService.cleanupExpiredJobs();
-            Map<String, Object> job = exportService.getJob(manuscriptId, jobId);
-            refreshJob(job, manuscript);
-            persistJobState(job);
-            return job;
-        }
-        cleanupExpiredJobs();
-
-        Map<String, Object> job = requireJob(manuscriptId, jobId);
+        exportService.cleanupExpiredJobs();
+        Map<String, Object> job = exportService.getJob(manuscriptId, jobId);
         refreshJob(job, manuscript);
+        persistJobState(job);
         return job;
     }
 
@@ -179,13 +106,9 @@ public class V2ExportController {
                                            @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        if (exportService != null) {
-            exportService.cleanupExpiredJobs();
-        } else {
-            cleanupExpiredJobs();
-        }
+        exportService.cleanupExpiredJobs();
 
-        Map<String, Object> job = exportService == null ? requireJob(manuscriptId, jobId) : exportService.getJob(manuscriptId, jobId);
+        Map<String, Object> job = exportService.getJob(manuscriptId, jobId);
         refreshJob(job, manuscript);
         ensureDownloadBytes(job, manuscript);
         persistJobState(job);
@@ -213,16 +136,7 @@ public class V2ExportController {
     @GetMapping("/export-templates")
     public List<Map<String, Object>> listTemplates(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        if (exportService != null) {
-            return exportService.listTemplates(user);
-        }
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (Map<String, Object> tpl : templates.values()) {
-            if (tpl.get("userId") == null || Objects.equals(tpl.get("userId"), user.getId())) {
-                out.add(tpl);
-            }
-        }
-        return out;
+        return exportService.listTemplates(user);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -233,22 +147,7 @@ public class V2ExportController {
         User user = accessGuard.currentUser(principal);
         String format = str(payload.get("format"), "txt").toLowerCase(Locale.ROOT);
         ensureSupportedFormat(format);
-        if (exportService != null) {
-            return exportService.createTemplate(user, payload);
-        }
-
-        Map<String, Object> tpl = new HashMap<>();
-        tpl.put("id", UUID.randomUUID());
-        tpl.put("userId", user.getId());
-        tpl.put("name", str(payload.get("name"), "自定义模板"));
-        tpl.put("description", str(payload.get("description"), ""));
-        tpl.put("format", format);
-        tpl.put("config", payload.getOrDefault("config", defaultConfig(format)));
-        tpl.put("isDefault", bool(payload.get("isDefault"), false));
-        tpl.put("createdAt", Instant.now());
-        tpl.put("updatedAt", Instant.now());
-        templates.put((UUID) tpl.get("id"), tpl);
-        return tpl;
+        return exportService.createTemplate(user, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -258,21 +157,10 @@ public class V2ExportController {
                                               @PathVariable UUID id,
                                               @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (exportService != null) {
-            if (payload.containsKey("format")) {
-                ensureSupportedFormat(str(payload.get("format"), "txt").toLowerCase(Locale.ROOT));
-            }
-            return exportService.updateTemplate(user, id, payload);
+        if (payload.containsKey("format")) {
+            ensureSupportedFormat(str(payload.get("format"), "txt").toLowerCase(Locale.ROOT));
         }
-        Map<String, Object> tpl = requireTemplate(id);
-        if (tpl.get("userId") == null || !Objects.equals(tpl.get("userId"), user.getId())) {
-            throw new RuntimeException("无权修改该模板");
-        }
-        copyIfPresent(payload, tpl, "name", "description", "format");
-        if (payload.containsKey("config")) tpl.put("config", payload.get("config"));
-        if (payload.containsKey("isDefault")) tpl.put("isDefault", bool(payload.get("isDefault"), false));
-        tpl.put("updatedAt", Instant.now());
-        return tpl;
+        return exportService.updateTemplate(user, id, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -281,15 +169,7 @@ public class V2ExportController {
     public ResponseEntity<Void> deleteTemplate(@AuthenticationPrincipal UserDetails principal,
                                                @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
-        if (exportService != null) {
-            exportService.deleteTemplate(user, id);
-            return ResponseEntity.noContent().build();
-        }
-        Map<String, Object> tpl = requireTemplate(id);
-        if (tpl.get("userId") == null || !Objects.equals(tpl.get("userId"), user.getId())) {
-            throw new RuntimeException("无权删除该模板");
-        }
-        templates.remove(id);
+        exportService.deleteTemplate(user, id);
         return ResponseEntity.noContent().build();
     }
 
@@ -360,7 +240,7 @@ public class V2ExportController {
     }
 
     private void persistJobState(Map<String, Object> job) {
-        if (exportService == null || job == null || job.get("id") == null || job.get("manuscriptId") == null) {
+        if (job == null || job.get("id") == null || job.get("manuscriptId") == null) {
             return;
         }
         Map<String, Object> patch = new HashMap<>();
@@ -562,28 +442,6 @@ public class V2ExportController {
         }
     }
 
-    private int countActiveJobs(UUID userId) {
-        int count = 0;
-        for (ConcurrentMap<UUID, Map<String, Object>> jobs : jobsByManuscript.values()) {
-            for (Map<String, Object> job : jobs.values()) {
-                if (!Objects.equals(job.get("userId"), userId)) continue;
-                String status = str(job.get("status"), "").toLowerCase(Locale.ROOT);
-                if (!List.of("completed", "failed", "expired", "cancelled").contains(status)) count++;
-            }
-        }
-        return count;
-    }
-
-    private void cleanupExpiredJobs() {
-        Instant now = Instant.now();
-        for (ConcurrentMap<UUID, Map<String, Object>> jobs : jobsByManuscript.values()) {
-            for (Map<String, Object> job : jobs.values()) {
-                Instant expiresAt = (Instant) job.get("expiresAt");
-                if (expiresAt != null && expiresAt.isBefore(now)) expireJob(job);
-            }
-        }
-    }
-
     private void expireJob(Map<String, Object> job) {
         job.put("status", "expired");
         job.put("progress", 100);
@@ -593,48 +451,10 @@ public class V2ExportController {
         job.put("completedAt", Instant.now());
     }
 
-    private Map<String, Object> requireJob(UUID manuscriptId, UUID jobId) {
-        Map<String, Object> job = jobsByManuscript.computeIfAbsent(manuscriptId, key -> new ConcurrentHashMap<>()).get(jobId);
-        if (job == null) throw new RuntimeException("导出任务不存在");
-        return job;
-    }
-
-    private Map<String, Object> requireTemplate(UUID id) {
-        Map<String, Object> tpl = templates.get(id);
-        if (tpl == null) throw new RuntimeException("导出模板不存在");
-        return tpl;
-    }
-
     private String buildFileName(Manuscript manuscript, String format) {
         String title = str(manuscript.getTitle(), "AINovel").replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
         if (title.isBlank()) title = "AINovel";
         return title + "-" + Instant.now().toEpochMilli() + "." + format;
-    }
-
-    private void seedSystemTemplates() {
-        for (String format : List.of("txt", "docx", "epub", "pdf")) {
-            Map<String, Object> tpl = new HashMap<>();
-            tpl.put("id", UUID.randomUUID());
-            tpl.put("userId", null);
-            tpl.put("name", "系统默认 " + format.toUpperCase(Locale.ROOT));
-            tpl.put("description", "系统预设模板");
-            tpl.put("format", format);
-            tpl.put("config", defaultConfig(format));
-            tpl.put("isDefault", true);
-            tpl.put("createdAt", Instant.now());
-            tpl.put("updatedAt", Instant.now());
-            templates.put((UUID) tpl.get("id"), tpl);
-        }
-    }
-
-    private Map<String, Object> defaultConfig(String format) {
-        return switch (format) {
-            case "txt" -> Map.of("encoding", "UTF-8", "lineEnding", "LF", "includeMetadata", true);
-            case "docx" -> Map.of("includeTitlePage", true, "includeToc", true);
-            case "epub" -> Map.of("includeTitlePage", true, "includeToc", true);
-            case "pdf" -> Map.of("includeTitlePage", true, "includeToc", true);
-            default -> Map.of();
-        };
     }
 
     private String contentType(String format) {
@@ -726,10 +546,6 @@ public class V2ExportController {
                 .replaceAll("<[^>]+>", "")
                 .replace("\r\n", "\n")
                 .trim();
-    }
-
-    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {
-        for (String key : keys) if (source.containsKey(key)) target.put(key, source.get(key));
     }
 
     private Map<String, Object> map(Object raw) {
