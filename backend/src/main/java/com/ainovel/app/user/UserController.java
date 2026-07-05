@@ -7,6 +7,7 @@ import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
 import com.ainovel.app.story.repo.StoryRepository;
+import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.user.dto.*;
 import com.ainovel.app.world.model.World;
 import com.ainovel.app.world.repo.WorldRepository;
@@ -37,8 +38,6 @@ import java.util.Map;
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
     private EconomyService economyService;
     @Autowired
     private StoryRepository storyRepository;
@@ -48,11 +47,9 @@ public class UserController {
     private OutlineRepository outlineRepository;
     @Autowired
     private ManuscriptRepository manuscriptRepository;
+    @Autowired
+    private CurrentUserResolver currentUserResolver;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    private User currentUser(UserDetails details) {
-        return userRepository.findByUsername(details.getUsername()).orElseThrow();
-    }
 
     @GetMapping("/profile")
     @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色与资产。")
@@ -65,7 +62,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "未登录")
     })
     public ResponseEntity<UserProfileResponse> profile(@AuthenticationPrincipal UserDetails principal) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         EconomyService.BalanceSnapshot balance = economyService.currentBalance(user);
         return ResponseEntity.ok(toProfile(user, balance));
     }
@@ -77,7 +74,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "未登录")
     })
     public ResponseEntity<UserSummaryResponse> summary(@AuthenticationPrincipal UserDetails principal) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         long novelCount = storyRepository.countByUser(user);
         long worldCount = worldRepository.countByUser(user);
         long totalWords = estimateTotalWords(user);
@@ -97,7 +94,7 @@ public class UserController {
             @ApiResponse(responseCode = "401", description = "未登录")
     })
     public ResponseEntity<CreditChangeResponse> redeem(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody RedeemRequest request) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         EconomyService.CreditChangeResult result = economyService.redeem(user, request.code());
         return ResponseEntity.ok(new CreditChangeResponse(
                 result.success(),
@@ -125,7 +122,7 @@ public class UserController {
             @AuthenticationPrincipal UserDetails principal,
             @Valid @RequestBody ConvertCreditsRequest request
     ) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         EconomyService.ConversionResult result = economyService.convertPublicToProject(user, request.amount(), request.idempotencyKey());
         return ResponseEntity.ok(new ConvertCreditsResponse(
                 result.orderNo(),
@@ -149,7 +146,7 @@ public class UserController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size
     ) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
         java.util.List<CreditConversionHistoryItemResponse> items = economyService
@@ -183,7 +180,7 @@ public class UserController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size
     ) {
-        User user = currentUser(principal);
+        User user = currentUserResolver.require(principal);
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
         java.util.List<CreditLedgerItemResponse> items = economyService

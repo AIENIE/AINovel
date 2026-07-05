@@ -1,8 +1,7 @@
 package com.ainovel.app.settings;
 
+import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.settings.dto.*;
-import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,29 +19,25 @@ public class SettingsController {
     @Autowired
     private SettingsService settingsService;
     @Autowired
-    private UserRepository userRepository;
-
-    private User currentUser(UserDetails userDetails) {
-        return userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
-    }
+    private CurrentUserResolver currentUserResolver;
 
     @GetMapping("/prompt-templates")
     @Operation(summary = "获取工作区提示词模板", description = "读取当前用户工作区提示词模板。")
     public ResponseEntity<PromptTemplatesResponse> getPrompts(@AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(settingsService.getPromptTemplates(currentUser(principal)));
+        return ResponseEntity.ok(settingsService.getPromptTemplates(currentUserResolver.require(principal)));
     }
 
     @PutMapping("/prompt-templates")
     @Operation(summary = "更新工作区提示词模板", description = "更新当前用户工作区提示词模板。")
     public ResponseEntity<PromptTemplatesResponse> updatePrompts(@AuthenticationPrincipal UserDetails principal,
                                                                  @RequestBody PromptTemplatesUpdateRequest request) {
-        return ResponseEntity.ok(settingsService.updatePromptTemplates(currentUser(principal), request));
+        return ResponseEntity.ok(settingsService.updatePromptTemplates(currentUserResolver.require(principal), request));
     }
 
     @PostMapping("/prompt-templates/reset")
     @Operation(summary = "重置工作区提示词模板", description = "将工作区提示词模板恢复为默认值。")
     public ResponseEntity<PromptTemplatesResponse> resetPrompts(@AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(settingsService.resetPromptTemplates(currentUser(principal)));
+        return ResponseEntity.ok(settingsService.resetPromptTemplates(currentUserResolver.require(principal)));
     }
 
     @GetMapping("/prompt-templates/metadata")
@@ -54,20 +49,20 @@ public class SettingsController {
     @GetMapping("/world-prompts")
     @Operation(summary = "获取世界观提示词模板", description = "读取当前用户世界观提示词模板。")
     public ResponseEntity<WorldPromptTemplatesResponse> worldPrompts(@AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(settingsService.getWorldPromptTemplates(currentUser(principal)));
+        return ResponseEntity.ok(settingsService.getWorldPromptTemplates(currentUserResolver.require(principal)));
     }
 
     @PutMapping("/world-prompts")
     @Operation(summary = "更新世界观提示词模板", description = "更新模块模板、终稿模板与字段润色模板。")
     public ResponseEntity<WorldPromptTemplatesResponse> updateWorldPrompts(@AuthenticationPrincipal UserDetails principal,
                                                                            @RequestBody WorldPromptTemplatesUpdateRequest request) {
-        return ResponseEntity.ok(settingsService.updateWorldPrompts(currentUser(principal), request));
+        return ResponseEntity.ok(settingsService.updateWorldPrompts(currentUserResolver.require(principal), request));
     }
 
     @PostMapping("/world-prompts/reset")
     @Operation(summary = "重置世界观提示词模板", description = "将世界观提示词模板恢复为默认值。")
     public ResponseEntity<WorldPromptTemplatesResponse> resetWorldPrompts(@AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.ok(settingsService.resetWorldPrompts(currentUser(principal)));
+        return ResponseEntity.ok(settingsService.resetWorldPrompts(currentUserResolver.require(principal)));
     }
 
     @GetMapping("/world-prompts/metadata")

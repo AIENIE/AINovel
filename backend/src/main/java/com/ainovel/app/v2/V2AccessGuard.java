@@ -1,11 +1,11 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -13,23 +13,20 @@ import java.util.UUID;
 
 @Component
 public class V2AccessGuard {
-    private final UserRepository userRepository;
+    private final CurrentUserResolver currentUserResolver;
     private final StoryRepository storyRepository;
     private final ManuscriptRepository manuscriptRepository;
 
-    public V2AccessGuard(UserRepository userRepository,
+    public V2AccessGuard(CurrentUserResolver currentUserResolver,
                          StoryRepository storyRepository,
                          ManuscriptRepository manuscriptRepository) {
-        this.userRepository = userRepository;
+        this.currentUserResolver = currentUserResolver;
         this.storyRepository = storyRepository;
         this.manuscriptRepository = manuscriptRepository;
     }
 
     public User currentUser(UserDetails details) {
-        if (details == null) {
-            throw new RuntimeException("未登录");
-        }
-        return userRepository.findByUsername(details.getUsername()).orElseThrow(() -> new RuntimeException("用户不存在"));
+        return currentUserResolver.require(details);
     }
 
     public Story requireOwnedStory(UUID storyId, User user) {

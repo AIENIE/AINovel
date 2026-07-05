@@ -1,10 +1,9 @@
 package com.ainovel.app.world;
 
-import com.ainovel.app.common.RefineRequest;
-import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
-import com.ainovel.app.world.dto.*;
 import com.ainovel.app.ai.dto.AiRefineResponse;
+import com.ainovel.app.common.CurrentUserResolver;
+import com.ainovel.app.common.RefineRequest;
+import com.ainovel.app.world.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,18 +25,16 @@ public class WorldController {
     @Autowired
     private WorldService worldService;
     @Autowired
-    private UserRepository userRepository;
-
-    private User currentUser(UserDetails details) { return userRepository.findByUsername(details.getUsername()).orElseThrow(); }
+    private CurrentUserResolver currentUserResolver;
 
     @GetMapping
     @Operation(summary = "获取世界观列表", description = "返回当前用户全部世界观卡片。")
-    public List<WorldDto> list(@AuthenticationPrincipal UserDetails principal) { return worldService.list(currentUser(principal)); }
+    public List<WorldDto> list(@AuthenticationPrincipal UserDetails principal) { return worldService.list(currentUserResolver.require(principal)); }
 
     @PostMapping
     @Operation(summary = "创建世界观", description = "创建新的世界观草稿。")
     public WorldDetailDto create(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody WorldCreateRequest request) {
-        return worldService.create(currentUser(principal), request);
+        return worldService.create(currentUserResolver.require(principal), request);
     }
 
     @GetMapping("/{id}")
@@ -63,7 +60,7 @@ public class WorldController {
     @PostMapping("/{id}/modules/{moduleKey}/fields/{fieldKey}/refine")
     @Operation(summary = "润色模块字段", description = "调用 AiService 润色世界观模块字段文本。")
     public ResponseEntity<AiRefineResponse> refineField(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @PathVariable String moduleKey, @PathVariable String fieldKey, @RequestBody RefineRequest request) {
-        return ResponseEntity.ok(worldService.refineField(currentUser(principal), id, moduleKey, fieldKey, request.text(), request.instruction()));
+        return ResponseEntity.ok(worldService.refineField(currentUserResolver.require(principal), id, moduleKey, fieldKey, request.text(), request.instruction()));
     }
 
     @GetMapping("/{id}/publish/preview")

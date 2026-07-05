@@ -1,13 +1,12 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.dto.AiRefineRequest;
+import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
-import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
-import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiRefineRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,20 +32,16 @@ public class StoryController {
     @Autowired
     private OutlineService outlineService;
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
     private StoryRepository storyRepository;
     @Autowired
     private AiService aiService;
-
-    private User currentUser(UserDetails details) {
-        return userRepository.findByUsername(details.getUsername()).orElseThrow();
-    }
+    @Autowired
+    private CurrentUserResolver currentUserResolver;
 
     @GetMapping("/story-cards")
     @Operation(summary = "获取故事列表", description = "返回当前用户全部故事卡片。")
     public List<StoryDto> listStories(@AuthenticationPrincipal UserDetails principal) {
-        return storyService.listStories(currentUser(principal));
+        return storyService.listStories(currentUserResolver.require(principal));
     }
 
     @GetMapping("/story-cards/{id}")
@@ -56,7 +51,7 @@ public class StoryController {
     @PostMapping("/stories")
     @Operation(summary = "创建故事", description = "创建新的故事卡并进入草稿状态。")
     public StoryDto createStory(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody StoryCreateRequest request) {
-        return storyService.createStory(currentUser(principal), request);
+        return storyService.createStory(currentUserResolver.require(principal), request);
     }
 
     @PutMapping("/story-cards/{id}")
@@ -86,19 +81,19 @@ public class StoryController {
     @PostMapping("/story-cards/{id}/refine")
     @Operation(summary = "润色故事文本", description = "调用 AiService 对故事文本执行润色。")
     public ResponseEntity<String> refineStory(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @RequestBody RefineRequest request) {
-        return ResponseEntity.ok(storyService.refineStory(currentUser(principal), id, request));
+        return ResponseEntity.ok(storyService.refineStory(currentUserResolver.require(principal), id, request));
     }
 
     @PostMapping("/character-cards/{id}/refine")
     @Operation(summary = "润色角色文本", description = "调用 AiService 对角色文本执行润色。")
     public ResponseEntity<String> refineCharacter(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @RequestBody RefineRequest request) {
-        return ResponseEntity.ok(storyService.refineCharacter(currentUser(principal), id, request));
+        return ResponseEntity.ok(storyService.refineCharacter(currentUserResolver.require(principal), id, request));
     }
 
     @PostMapping("/conception")
     @Operation(summary = "一键构思", description = "创建故事并生成初始角色草稿。")
     public ResponseEntity<Map<String, Object>> conception(@AuthenticationPrincipal UserDetails principal, @RequestBody StoryCreateRequest request) {
-        return ResponseEntity.ok(storyService.conception(currentUser(principal), request));
+        return ResponseEntity.ok(storyService.conception(currentUserResolver.require(principal), request));
     }
 
     @GetMapping("/story-cards/{storyId}/outlines")
@@ -149,6 +144,6 @@ public class StoryController {
     @Operation(summary = "润色场景文本", description = "调用 AiService 对场景文本执行润色。")
     public ResponseEntity<String> refineScene(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @RequestBody RefineRequest request) {
         String instruction = request.instruction() == null ? "" : request.instruction();
-        return ResponseEntity.ok(aiService.refine(currentUser(principal), new AiRefineRequest(request.text(), instruction, null)).result());
+        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), new AiRefineRequest(request.text(), instruction, null)).result());
     }
 }

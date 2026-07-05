@@ -1,8 +1,7 @@
 package com.ainovel.app.material;
 
+import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.material.dto.*;
-import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,21 +28,17 @@ public class MaterialController {
     @Autowired
     private MaterialService materialService;
     @Autowired
-    private UserRepository userRepository;
-
-    private User currentUser(UserDetails details) {
-        return userRepository.findByUsername(details.getUsername()).orElseThrow();
-    }
+    private CurrentUserResolver currentUserResolver;
 
     @PostMapping
     @Operation(summary = "创建素材", description = "创建单条文本素材。")
     public MaterialDto create(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody MaterialCreateRequest request) {
-        return materialService.create(currentUser(principal), request);
+        return materialService.create(currentUserResolver.require(principal), request);
     }
 
     @GetMapping
     @Operation(summary = "获取素材列表", description = "查询当前用户素材。")
-    public List<MaterialDto> list(@AuthenticationPrincipal UserDetails principal) { return materialService.list(currentUser(principal)); }
+    public List<MaterialDto> list(@AuthenticationPrincipal UserDetails principal) { return materialService.list(currentUserResolver.require(principal)); }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取素材详情", description = "按素材 ID 查询详情。")
@@ -61,7 +56,7 @@ public class MaterialController {
     @Operation(summary = "上传素材文件", description = "上传文本文件并创建异步导入任务。")
     public FileImportJobDto upload(@AuthenticationPrincipal UserDetails principal, @RequestPart("file") MultipartFile file) throws IOException {
         String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-        return materialService.createUploadJob(currentUser(principal), file.getOriginalFilename(), content);
+        return materialService.createUploadJob(currentUserResolver.require(principal), file.getOriginalFilename(), content);
     }
 
     @GetMapping("/upload/{jobId}")
@@ -71,13 +66,13 @@ public class MaterialController {
     @PostMapping("/search")
     @Operation(summary = "搜索素材", description = "按关键词和规则进行素材检索。")
     public List<MaterialSearchResultDto> search(@AuthenticationPrincipal UserDetails principal, @RequestBody MaterialSearchRequest request) {
-        return materialService.search(currentUser(principal), request);
+        return materialService.search(currentUserResolver.require(principal), request);
     }
 
     @PostMapping("/editor/auto-hints")
     @Operation(summary = "编辑器自动提示", description = "根据上下文返回素材建议。")
     public List<MaterialSearchResultDto> hints(@AuthenticationPrincipal UserDetails principal, @RequestBody AutoHintRequest request) {
-        return materialService.autoHints(currentUser(principal), request);
+        return materialService.autoHints(currentUserResolver.require(principal), request);
     }
 
     @GetMapping("/review/pending")

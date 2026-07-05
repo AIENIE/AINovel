@@ -1,8 +1,7 @@
 package com.ainovel.app.ai;
 
 import com.ainovel.app.ai.dto.*;
-import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
+import com.ainovel.app.common.CurrentUserResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -27,11 +26,7 @@ public class AiController {
     @Autowired
     private AiService aiService;
     @Autowired
-    private UserRepository userRepository;
-
-    private User currentUser(UserDetails details) {
-        return userRepository.findByUsername(details.getUsername()).orElseThrow();
-    }
+    private CurrentUserResolver currentUserResolver;
 
     @GetMapping("/models")
     @Operation(summary = "获取模型列表", description = "查询第三方 AiService 可用模型，用于前端模型选择。")
@@ -40,7 +35,7 @@ public class AiController {
             @ApiResponse(responseCode = "401", description = "未登录")
     })
     public List<AiModelDto> models(@AuthenticationPrincipal UserDetails principal) {
-        return aiService.listModels(currentUser(principal));
+        return aiService.listModels(currentUserResolver.require(principal));
     }
 
     @PostMapping("/chat")
@@ -55,7 +50,7 @@ public class AiController {
             @ApiResponse(responseCode = "400", description = "请求参数错误")
     })
     public ResponseEntity<AiChatResponse> chat(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody AiChatRequest request) {
-        return ResponseEntity.ok(aiService.chat(currentUser(principal), request));
+        return ResponseEntity.ok(aiService.chat(currentUserResolver.require(principal), request));
     }
 
     @PostMapping("/refine")
@@ -70,6 +65,6 @@ public class AiController {
             @ApiResponse(responseCode = "400", description = "请求参数错误")
     })
     public ResponseEntity<AiRefineResponse> refine(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody AiRefineRequest request) {
-        return ResponseEntity.ok(aiService.refine(currentUser(principal), request));
+        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request));
     }
 }
