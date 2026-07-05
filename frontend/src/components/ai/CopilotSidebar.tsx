@@ -62,21 +62,11 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
       .getModels()
       .then((data) => {
         setModels(data);
-        if (data.length > 0) setSelectedModelId(pickDefaultChatModel(data));
+        setSelectedModelId(data.length > 0 ? pickDefaultChatModel(data) : "");
       })
       .catch(() => {
-        setModels([
-          {
-            id: "fallback-model",
-            name: "fallback-model",
-            displayName: "本地降级模型",
-            inputMultiplier: 1,
-            outputMultiplier: 1,
-            poolId: "fallback",
-            isEnabled: true,
-          },
-        ]);
-        setSelectedModelId("fallback-model");
+        setModels([]);
+        setSelectedModelId("");
       });
   }, []);
 

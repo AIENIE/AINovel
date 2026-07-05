@@ -227,12 +227,14 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     if (!summary.trim()) return;
     try {
       const models = await api.ai.getModels();
+      const modelId = models[0]?.id;
+      if (!modelId) throw new Error("暂无可用 AI 模型");
       const response = await api.ai.refine(
         summary,
         selectedNode?.type === "scene"
           ? "润色当前场景摘要，使其更适合服务伏笔、误导和揭示节奏。"
           : "润色当前章节摘要，使其更清晰地体现结构作用和信息释放。",
-        models[0]?.id,
+        modelId,
       );
       setSummary(response.result);
     } catch (error: unknown) {

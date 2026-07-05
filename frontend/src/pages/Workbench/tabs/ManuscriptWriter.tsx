@@ -1065,7 +1065,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     })();
     try {
       const models = await api.ai.getModels();
-      const modelId = models[0]?.id || "fallback-model";
+      const modelId = models[0]?.id;
+      if (!modelId) throw new Error("暂无可用 AI 模型");
       const prompt = ["请用100字内总结以下改动：", JSON.stringify((diffResult.changes || []).slice(0, 6), null, 2)].join("\n");
       const result = await api.ai.chat([{ role: "user", content: prompt }], modelId, { manuscriptId: selectedManuscriptId });
       setAiDiffSummary(result.content || localSummary);

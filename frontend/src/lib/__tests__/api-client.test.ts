@@ -79,6 +79,110 @@ describe("api client", () => {
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/api/v2/models"), expect.anything());
   });
 
+  it("returns the full normalized AI model list from the backend", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown) => {
+        const u = String(url);
+        if (u.endsWith("/api/v1/ai/models")) {
+          return new Response(
+            JSON.stringify([
+              { id: "deepseek-v4-flash", name: "deepseek-v4-flash", displayName: "DeepSeek V4 Flash", modelType: "text" },
+              { id: "text-premium", name: "text-premium", displayName: "Text Premium", modelType: "text", inputMultiplier: 2, outputMultiplier: 3 },
+              { id: "embed-1", name: "embed-1", displayName: "Embed 1", modelType: "embedding" },
+            ]),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response("Not Found", { status: 404 });
+      }),
+    );
+
+    const models = await api.ai.getModels();
+
+    expect(models.map((model) => model.id)).toEqual(["deepseek-v4-flash", "text-premium", "embed-1"]);
+    expect(models[1]).toMatchObject({
+      id: "text-premium",
+      inputMultiplier: 2,
+      outputMultiplier: 3,
+    });
+  });
+
+  it("returns an empty AI model list when the backend model endpoint fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown) => {
+        const u = String(url);
+        if (u.endsWith("/api/v1/ai/models")) {
+          return new Response(JSON.stringify({ message: "temporary failure" }), {
+            status: 503,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      }),
+    );
+
+    await expect(api.ai.getModels()).resolves.toEqual([]);
+  });
+
+  it("preserves the caller-selected model for ai chat", async () => {
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/ai/chat")) {
+        return new Response(
+          JSON.stringify({
+            role: "assistant",
+            content: "ok",
+            usage: { promptTokens: 1, completionTokens: 1, cost: 0 },
+            remainingCredits: 100,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.ai.chat([{ role: "user", content: "继续写" }], "text-premium", { manuscriptId: "m-1" });
+
+    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/v1/ai/chat"));
+    expect(request).toBeTruthy();
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      modelId: "text-premium",
+      context: { manuscriptId: "m-1" },
+      messages: [{ role: "user", content: "继续写" }],
+    });
+  });
+
+  it("preserves the caller-selected model for ai refine", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/ai/refine")) {
+        return new Response(
+          JSON.stringify({
+            result: "润色结果",
+            usage: { promptTokens: 1, completionTokens: 1, cost: 0 },
+            remainingCredits: 100,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.ai.refine("原文", "更有张力", "text-premium");
+
+    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/v1/ai/refine"));
+    expect(request).toBeTruthy();
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      text: "原文",
+      instruction: "更有张力",
+      modelId: "text-premium",
+    });
+  });
+
   it("normalizes conception planning payload for plot planner flow", async () => {
     vi.stubGlobal(
       "fetch",

@@ -35,6 +35,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
           try {
             const models = await api.ai.getModels();
             const modelId = models[0]?.id;
+            if (!modelId) throw new Error("暂无可用 AI 模型");
             const contextText = editor.getText().slice(-1000);
             const resp = await api.ai.chat(
               [{ role: "user", content: "请根据上下文继续创作一段正文，保持中文小说风格。" }],

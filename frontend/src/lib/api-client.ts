@@ -120,21 +120,6 @@ export const adminSession = {
   clearToken: () => localStorage.removeItem(ADMIN_TOKEN_KEY),
 };
 
-const REQUIRED_AI_MODEL_KEY = "deepseek-v4-flash";
-
-const FALLBACK_AI_MODELS: ModelConfig[] = [
-  {
-    id: REQUIRED_AI_MODEL_KEY,
-    name: REQUIRED_AI_MODEL_KEY,
-    displayName: "DeepSeek V4 Flash",
-    modelType: "text",
-    inputMultiplier: 1,
-    outputMultiplier: 1,
-    poolId: "DeepSeek",
-    isEnabled: true,
-  },
-];
-
 async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
@@ -673,7 +658,7 @@ export const api = {
   ai: {
     chat: async (messages: any[], modelId: string, context: any) => {
       const payload = {
-        modelId: REQUIRED_AI_MODEL_KEY,
+        modelId,
         context,
         messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
       };
@@ -682,19 +667,16 @@ export const api = {
     refine: async (text: string, instruction: string, modelId: string) => {
       return await requestJson<any>("/v1/ai/refine", {
         method: "POST",
-        body: JSON.stringify({ text, instruction, modelId: REQUIRED_AI_MODEL_KEY }),
+        body: JSON.stringify({ text, instruction, modelId }),
       });
     },
     getModels: async (): Promise<ModelConfig[]> => {
       try {
         const models = await requestJson<any[]>("/v1/ai/models", { method: "GET" });
-        const normalized = (models || []).map((model, index) => normalizeModel(model, index));
-        const required = normalized.filter((model) => model.name === REQUIRED_AI_MODEL_KEY || model.id === REQUIRED_AI_MODEL_KEY);
-        if (required.length) return required;
+        return (models || []).map((model, index) => normalizeModel(model, index));
       } catch {
-        // fallback to the required ai-service model descriptor
+        return [];
       }
-      return FALLBACK_AI_MODELS;
     },
   },
 

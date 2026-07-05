@@ -176,7 +176,8 @@ const TiptapEditor = ({
     try {
       // Use default model for quick refine
       const models = await api.ai.getModels();
-      const modelId = models[0]?.id || "m1";
+      const modelId = models[0]?.id;
+      if (!modelId) throw new Error("暂无可用 AI 模型");
       
       const res = await api.ai.refine(text, "使其更具文学性", modelId);
       setRefinedText(res.result);
