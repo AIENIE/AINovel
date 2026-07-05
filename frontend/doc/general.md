@@ -18,7 +18,7 @@
 - **前端**：React 18 + TypeScript + Vite；UI 以 Ant Design 为主，辅以 Tailwind；路由 `react-router-dom`；状态通过 Context（Auth）+ Hooks；API 封装于 `src/services/api.ts` 并集中处理错误。
 - **后端**：Java 25 + Spring Boot（分层 Controller/Service/Repository）；Spring Security + JWT；Spring Retry/Async；OpenAI 集成；MySQL 主库；Qdrant 向量库；Apache Tika 解析 TXT；AOP 权限注解 `@CheckPermission`。
 - **向量与检索**：HybridSearchService 结合 Qdrant 语义向量与 MySQL FULLTEXT，RRF 融合 semantics/title/keywords/fulltext。
-- **容器与部署**：`build.sh` 一键构建前后端并 `docker compose` 启动 (mysql 8.4 + qdrant 1.11.2 + backend + nginx 前端)，建议前后端分域部署，反向代理 `/api`。
+- **容器与部署**：`build.sh` 一键构建前后端并 `docker compose` 启动 (backend + `serve@14` 静态前端容器；依赖外层反向代理统一承接 `/api`、gzip 与缓存头)。建议前后端分域部署，由外层代理终结公网流量。
 
 ## 已实现主要功能
 - SSO 普通用户认证链路、管理员本地登录链路与设置中心；API Key 校验测试接口。
