@@ -1,29 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api-client";
 import { useToast } from "@/components/ui/use-toast";
-import { ShortcutAction } from "@/lib/shortcuts";
 import { useManuscriptEditorState } from "@/pages/Workbench/hooks/useManuscriptEditorState";
 import { useManuscriptOutlineActions } from "@/pages/Workbench/hooks/useManuscriptOutlineActions";
 import { useManuscriptQuality } from "@/pages/Workbench/hooks/useManuscriptQuality";
+import { useManuscriptSceneGeneration } from "@/pages/Workbench/hooks/useManuscriptSceneGeneration";
 import { useManuscriptSelectionData } from "@/pages/Workbench/hooks/useManuscriptSelectionData";
+import { useManuscriptWorkspaceShell } from "@/pages/Workbench/hooks/useManuscriptWorkspaceShell";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
 import { useManuscriptSidebarData } from "@/pages/Workbench/hooks/useManuscriptSidebarData";
-import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
-import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
-import { useWritingSession } from "@/pages/Workbench/hooks/useWritingSession";
 import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
 import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
 import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
-import {
-  countWords,
-  qualityStatusText,
-  stripHtml,
-} from "./manuscript-writer/shared";
 
 interface ManuscriptWriterProps {
   initialStoryId?: string;
@@ -40,22 +32,15 @@ const sceneStatusClass: Record<SceneStatus, string> = {
 const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const { toast } = useToast();
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
-  const [focusMode, setFocusMode] = useState(false);
-  const [isCommandOpen, setIsCommandOpen] = useState(false);
-  const [commandQuery, setCommandQuery] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedWordCount, setSelectedWordCount] = useState(0);
   const [draggingChapterId, setDraggingChapterId] = useState("");
   const [dragOverChapterId, setDragOverChapterId] = useState("");
   const [draggingSceneId, setDraggingSceneId] = useState("");
   const [dragOverSceneId, setDragOverSceneId] = useState("");
   const [draggingTabId, setDraggingTabId] = useState("");
-  const [mobilePane, setMobilePane] = useState<"outline" | "editor" | "sidebar">("editor");
   const leftPanelRef = useRef<ImperativePanelHandle | null>(null);
   const rightPanelRef = useRef<ImperativePanelHandle | null>(null);
   const leftPanelVisibleRef = useRef<boolean | null>(null);
   const rightPanelVisibleRef = useRef<boolean | null>(null);
-  const focusRestoreRef = useRef<{ leftOpen: boolean; rightOpen: boolean } | null>(null);
 
   const {
     batchMoveChapterId,
@@ -116,18 +101,21 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     content,
     currentWordCount,
     dirtyScenes,
+    handleEditorChange,
     handleManualSave,
     isSaving,
     lastSavedAt,
     persistSection,
-    sceneDrafts,
-    scheduleSave,
+    sessionDurationSeconds,
+    sessionNetWords,
     setContent,
-    updateSceneDraft,
   } = useManuscriptEditorState({
+    autoSaveIntervalSeconds: autoSaveConfig?.autoSaveIntervalSeconds,
     replaceManuscript,
+    selectedManuscript,
     selectedManuscriptId,
     selectedSceneId,
+    selectedStoryId,
     toast,
   });
 
@@ -213,43 +201,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
   const activeGoal = goals.find((goal) => String(goal.status || "active").toLowerCase() !== "archived");
   const dailyHeatmap = useMemo(() => (workspaceStats?.dailySeries || []).slice(-30), [workspaceStats]);
-  const showLeftPanel = leftPanelOpen && !focusMode;
-  const showRightPanel = isSidebarOpen && !focusMode;
-
-  useEffect(() => {
-    if (leftPanelVisibleRef.current === showLeftPanel) return;
-    if (showLeftPanel) leftPanelRef.current?.expand();
-    else leftPanelRef.current?.collapse();
-    leftPanelVisibleRef.current = showLeftPanel;
-  }, [showLeftPanel]);
-
-  useEffect(() => {
-    if (rightPanelVisibleRef.current === showRightPanel) return;
-    if (showRightPanel) rightPanelRef.current?.expand();
-    else rightPanelRef.current?.collapse();
-    rightPanelVisibleRef.current = showRightPanel;
-  }, [showRightPanel]);
-
-  const measureSceneWords = useCallback((html: string) => countWords(stripHtml(html)), []);
-
-  const { primeSceneHtml, recordSceneHtml, sessionDurationSeconds, sessionNetWords } = useWritingSession({
-    selectedStoryId,
-    selectedManuscriptId,
-    selectedSceneId,
-    selectedSceneDirty: Boolean(selectedSceneId && dirtyScenes[selectedSceneId]),
-    autoSaveIntervalSeconds: autoSaveConfig?.autoSaveIntervalSeconds,
-    measureHtmlWords: measureSceneWords,
-  });
-
-  useEffect(() => {
-    if (!selectedManuscript || !selectedSceneId) {
-      setContent("");
-      return;
-    }
-    const html = sceneDrafts[selectedSceneId] ?? selectedManuscript.sections?.[selectedSceneId] ?? "";
-    setContent(html);
-    primeSceneHtml(selectedSceneId, html);
-  }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId, setContent]);
 
   const {
     applyPlotRevision,
@@ -290,17 +241,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     [plotTrend],
   );
 
-  const handleEditorChange = useCallback(
-    (html: string) => {
-      setContent(html);
-      if (!selectedSceneId) return;
-      recordSceneHtml(selectedSceneId, html);
-      updateSceneDraft(selectedSceneId, html);
-      scheduleSave(selectedSceneId, html);
-    },
-    [recordSceneHtml, scheduleSave, selectedSceneId, setContent, updateSceneDraft],
-  );
-
   const {
     batchDeleteScenes,
     batchMoveScenes,
@@ -324,96 +264,65 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toast,
   });
 
-  const jumpScene = useCallback((offset: number) => {
-    if (!sceneRows.length) return;
-    const currentIndex = sceneRows.findIndex((row) => row.id === selectedSceneId);
-    const nextIndex = currentIndex < 0 ? 0 : Math.max(0, Math.min(sceneRows.length - 1, currentIndex + offset));
-    const nextSceneId = sceneRows[nextIndex]?.id;
-    if (!nextSceneId) return;
-    setSelectedSceneId(nextSceneId);
-    setSelectedSceneIds([nextSceneId]);
-    setOpenSceneIds((prev) => (prev.includes(nextSceneId) ? prev : [...prev, nextSceneId]));
-  }, [sceneRows, selectedSceneId]);
-
-  const closeCurrentTab = useCallback(() => {
-    if (!selectedSceneId) return;
-    closeSceneTab(selectedSceneId);
-  }, [closeSceneTab, selectedSceneId]);
-
-  const focusNextTab = useCallback(() => {
-    if (!openSceneIds.length) return;
-    const currentIndex = openSceneIds.indexOf(selectedSceneId);
-    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % openSceneIds.length;
-    setSelectedSceneId(openSceneIds[nextIndex]);
-  }, [openSceneIds, selectedSceneId]);
-
-  const enterFocusMode = useCallback(() => {
-    if (focusMode) return;
-    focusRestoreRef.current = { leftOpen: leftPanelOpen, rightOpen: isSidebarOpen };
-    setLeftPanelOpen(false);
-    setIsSidebarOpen(false);
-    setFocusMode(true);
-  }, [focusMode, isSidebarOpen, leftPanelOpen]);
-
-  const exitFocusMode = useCallback(() => {
-    if (!focusMode) return;
-    const restore = focusRestoreRef.current || { leftOpen: true, rightOpen: true };
-    setFocusMode(false);
-    window.setTimeout(() => {
-      setLeftPanelOpen(Boolean(restore.leftOpen));
-      window.setTimeout(() => {
-        setIsSidebarOpen(Boolean(restore.rightOpen));
-      }, 80);
-    }, 0);
-  }, [focusMode]);
-
-  const toggleFocusMode = useCallback(() => {
-    if (focusMode) {
-      exitFocusMode();
-      return;
-    }
-    enterFocusMode();
-  }, [enterFocusMode, exitFocusMode, focusMode]);
-
-  const handleShortcutAction = useCallback((action: ShortcutAction) => {
-    if (action === "command_palette") setIsCommandOpen(true);
-    if (action === "save") void handleManualSave();
-    if (action === "focus_mode") toggleFocusMode();
-    if (action === "toggle_left_panel") setLeftPanelOpen((prev) => !prev);
-    if (action === "toggle_right_panel") setIsSidebarOpen((prev) => !prev);
-    if (action === "next_chapter") jumpScene(1);
-    if (action === "prev_chapter") jumpScene(-1);
-    if (action === "ai_refine") {
-      setIsSidebarOpen(true);
-      setSidebarTab("copilot");
-    }
-    if (action === "new_scene") void createSceneInCurrentChapter();
-    if (action === "search_manuscript" || action === "search_replace") setIsCommandOpen(true);
-    if (action === "export") {
-      setIsSidebarOpen(true);
-      setSidebarTab("export");
-    }
-    if (action === "close_tab") closeCurrentTab();
-    if (action === "next_tab") focusNextTab();
-  }, [closeCurrentTab, createSceneInCurrentChapter, focusNextTab, handleManualSave, jumpScene, toggleFocusMode]);
-
-  const { shortcuts } = useManuscriptShortcuts({
+  const {
+    commandQuery,
     focusMode,
-    onAction: handleShortcutAction,
-    onExitFocusMode: exitFocusMode,
-  });
-
-  const { isCompact, isMobile } = useWorkbenchViewport({
-    focusMode,
-    setLeftPanelOpen,
+    isCommandOpen,
+    isMobile,
+    jumpScene,
+    mobilePane,
+    selectedWordCount,
+    setCommandQuery,
+    setIsCommandOpen,
+    setMobilePane,
+    shortcuts,
+    toggleFocusMode,
+  } = useManuscriptWorkspaceShell({
+    closeSceneTab,
+    createSceneInCurrentChapter,
+    handleManualSave,
+    isSidebarOpen,
+    leftPanelOpen,
+    openSceneIds,
+    selectedSceneId,
+    sceneRows,
     setIsSidebarOpen,
+    setLeftPanelOpen,
+    setOpenSceneIds,
+    setSelectedSceneId,
+    setSelectedSceneIds,
+    setSidebarTab,
   });
+
+  const showLeftPanel = leftPanelOpen && !focusMode;
+  const showRightPanel = isSidebarOpen && !focusMode;
 
   useEffect(() => {
-    const selectionHandler = () => setSelectedWordCount(countWords(window.getSelection()?.toString() || ""));
-    document.addEventListener("selectionchange", selectionHandler);
-    return () => document.removeEventListener("selectionchange", selectionHandler);
-  }, []);
+    if (leftPanelVisibleRef.current === showLeftPanel) return;
+    if (showLeftPanel) leftPanelRef.current?.expand();
+    else leftPanelRef.current?.collapse();
+    leftPanelVisibleRef.current = showLeftPanel;
+  }, [showLeftPanel]);
+
+  useEffect(() => {
+    if (rightPanelVisibleRef.current === showRightPanel) return;
+    if (showRightPanel) rightPanelRef.current?.expand();
+    else rightPanelRef.current?.collapse();
+    rightPanelVisibleRef.current = showRightPanel;
+  }, [showRightPanel]);
+
+  const {
+    generateScene,
+    isGenerating,
+  } = useManuscriptSceneGeneration({
+    loadPlotQuality,
+    loadSlopQuality,
+    replaceManuscript,
+    selectedManuscriptId,
+    selectedSceneId,
+    setContent,
+    toast,
+  });
 
   const contextData = useMemo(() => {
     const currentChapter = outlineDraft?.chapters?.find((c) => c.scenes.some((s) => s.id === selectedSceneId));
@@ -531,26 +440,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             lastSavedAt={lastSavedAt}
             onCloseSceneTab={closeSceneTab}
             onEditorChange={handleEditorChange}
-            onGenerateScene={async () => {
-              if (!selectedManuscriptId || !selectedSceneId) return;
-              const sceneId = selectedSceneId;
-              setIsGenerating(true);
-              try {
-                const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
-                replaceManuscript(saved);
-                setContent(saved.sections?.[sceneId] || "");
-                const latestRun = await loadSlopQuality(sceneId, saved.id).catch(() => null);
-                await loadPlotQuality(sceneId, saved.id).catch(() => ({ run: null, trend: null }));
-                toast({
-                  title: "已生成场景正文",
-                  description: qualityStatusText(latestRun),
-                });
-              } catch (e: any) {
-                toast({ variant: "destructive", title: "生成失败", description: e.message });
-              } finally {
-                setIsGenerating(false);
-              }
-            }}
+            onGenerateScene={generateScene}
             onHandleManualSave={handleManualSave}
             onOpenVersionPanel={() => {
               setIsSidebarOpen(true);
