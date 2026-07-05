@@ -39,6 +39,7 @@ import { api } from "@/lib/api-client";
 import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction } from "@/lib/shortcuts";
+import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
 import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -175,9 +176,6 @@ type SceneRow = {
   id: string;
   displayName: string;
 };
-
-const WORKBENCH_LAYOUT_KEY = "ainovel.workbench.layout.v2";
-
 const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const { toast } = useToast();
   const [stories, setStories] = useState<Story[]>([]);
@@ -196,11 +194,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [content, setContent] = useState<string>("");
   const [dirtyScenes, setDirtyScenes] = useState<Record<string, boolean>>({});
   const [sceneDrafts, setSceneDrafts] = useState<Record<string, string>>({});
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-  const [leftPanelSize, setLeftPanelSize] = useState(24);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [rightPanelSize, setRightPanelSize] = useState(30);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("copilot");
   const [focusMode, setFocusMode] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
@@ -252,7 +245,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [txtEncoding, setTxtEncoding] = useState("UTF-8");
   const [exportAuthorName, setExportAuthorName] = useState("");
   const [mobilePane, setMobilePane] = useState<"outline" | "editor" | "sidebar">("editor");
-  const [activeLayoutId, setActiveLayoutId] = useState("");
   const [sessionStartedAt, setSessionStartedAt] = useState<number>(0);
   const [sessionWordsWritten, setSessionWordsWritten] = useState(0);
   const [sessionWordsDeleted, setSessionWordsDeleted] = useState(0);
@@ -269,7 +261,23 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const sceneWordCacheRef = useRef<Record<string, number>>({});
   const lastSelectedSceneRef = useRef("");
   const autoSnapshotRef = useRef(0);
-  const layoutSyncTimerRef = useRef<number | null>(null);
+
+  const {
+    activeLayoutId,
+    isSidebarOpen,
+    leftPanelOpen,
+    leftPanelSize,
+    rightPanelSize,
+    setIsSidebarOpen,
+    setLeftPanelOpen,
+    setLeftPanelSize,
+    setRightPanelSize,
+    setSidebarTab,
+    sidebarTab,
+  } = useWorkbenchLayoutPersistence({
+    selectedStoryId,
+    selectedManuscriptId,
+  });
 
   const selectedStory = useMemo(() => stories.find((s) => s.id === selectedStoryId) || null, [stories, selectedStoryId]);
   const selectedOutline = useMemo(() => outlines.find((o) => o.id === selectedOutlineId) || null, [outlines, selectedOutlineId]);
@@ -330,48 +338,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     else rightPanelRef.current?.collapse();
     rightPanelVisibleRef.current = showRightPanel;
   }, [showRightPanel]);
-
-  const layoutCacheKey = useMemo(
-    () => `${WORKBENCH_LAYOUT_KEY}:${selectedStoryId || "na"}:${selectedManuscriptId || "na"}`,
-    [selectedManuscriptId, selectedStoryId],
-  );
-
-  const saveLayoutLocal = useCallback(
-    (partial: Record<string, unknown>) => {
-      if (!selectedStoryId || !selectedManuscriptId) return;
-      const next = {
-        leftPanelOpen,
-        leftPanelSize,
-        rightPanelOpen: isSidebarOpen,
-        rightPanelSize,
-        sidebarTab,
-        ...partial,
-      };
-      localStorage.setItem(layoutCacheKey, JSON.stringify(next));
-    },
-    [isSidebarOpen, layoutCacheKey, leftPanelOpen, leftPanelSize, rightPanelSize, selectedManuscriptId, selectedStoryId, sidebarTab],
-  );
-
-  const applyLayoutPayload = useCallback((layout: any) => {
-    if (!layout || typeof layout !== "object") return;
-    const raw = layout.layout && typeof layout.layout === "object" ? layout.layout : layout;
-    if (typeof raw.leftPanelOpen === "boolean") setLeftPanelOpen(raw.leftPanelOpen);
-    if (typeof raw.leftPanelSize === "number") setLeftPanelSize(raw.leftPanelSize);
-    if (typeof raw.rightPanelOpen === "boolean") setIsSidebarOpen(raw.rightPanelOpen);
-    if (typeof raw.rightPanelSize === "number") setRightPanelSize(raw.rightPanelSize);
-    if (typeof raw.sidebarTab === "string") setSidebarTab(raw.sidebarTab as SidebarTab);
-  }, []);
-
-  const buildLayoutPayload = useCallback(
-    () => ({
-      leftPanelOpen,
-      leftPanelSize,
-      rightPanelOpen: isSidebarOpen,
-      rightPanelSize,
-      sidebarTab,
-    }),
-    [isSidebarOpen, leftPanelOpen, leftPanelSize, rightPanelSize, sidebarTab],
-  );
 
   const reorderOpenTabs = useCallback((fromId: string, toId: string) => {
     if (!fromId || !toId || fromId === toId) return;
@@ -545,65 +511,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setOpenSceneIds((prev) => prev.filter((id) => valid.has(id)));
     setSelectedSceneIds((prev) => prev.filter((id) => valid.has(id)));
   }, [sceneRows]);
-
-  useEffect(() => {
-    if (!layoutCacheKey || !selectedManuscriptId || !selectedStoryId) return;
-    let cancelled = false;
-
-    const loadLayout = async () => {
-      let localApplied = false;
-      try {
-        const cached = localStorage.getItem(layoutCacheKey);
-        if (cached) {
-          applyLayoutPayload(JSON.parse(cached));
-          localApplied = true;
-        }
-      } catch {
-        // ignore corrupted cache
-      }
-
-      try {
-        const layouts = await api.v2.workspace.listLayouts();
-        if (cancelled) return;
-        const activeLayout = layouts.find((layout: any) => Boolean(layout.isActive));
-        if (activeLayout?.id) setActiveLayoutId(String(activeLayout.id));
-        if (!localApplied && activeLayout?.layout) {
-          applyLayoutPayload(activeLayout.layout);
-        }
-      } catch {
-        // ignore server-side layout fetch failures
-      }
-    };
-
-    void loadLayout();
-    return () => {
-      cancelled = true;
-    };
-  }, [applyLayoutPayload, layoutCacheKey, selectedManuscriptId, selectedStoryId]);
-
-  useEffect(() => {
-    saveLayoutLocal({});
-  }, [isSidebarOpen, leftPanelOpen, leftPanelSize, rightPanelSize, saveLayoutLocal, sidebarTab]);
-
-  useEffect(() => {
-    if (!selectedStoryId || !selectedManuscriptId) return;
-    if (layoutSyncTimerRef.current) window.clearTimeout(layoutSyncTimerRef.current);
-    layoutSyncTimerRef.current = window.setTimeout(() => {
-      const payload = buildLayoutPayload();
-      const request = activeLayoutId
-        ? api.v2.workspace.updateLayout(activeLayoutId, { layout: payload, isActive: true })
-        : api.v2.workspace.createLayout({ name: "写作模式", layout: payload, isActive: true });
-      void request
-        .then((layout: any) => {
-          if (layout?.id) setActiveLayoutId(String(layout.id));
-        })
-        .catch(() => undefined);
-    }, 600);
-
-    return () => {
-      if (layoutSyncTimerRef.current) window.clearTimeout(layoutSyncTimerRef.current);
-    };
-  }, [activeLayoutId, buildLayoutPayload, selectedManuscriptId, selectedStoryId]);
 
   useEffect(() => {
     if (!selectedManuscript || !selectedSceneId) {
