@@ -3,9 +3,10 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
-import { Manuscript, Outline } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction } from "@/lib/shortcuts";
+import { useManuscriptEditorState } from "@/pages/Workbench/hooks/useManuscriptEditorState";
+import { useManuscriptOutlineActions } from "@/pages/Workbench/hooks/useManuscriptOutlineActions";
 import { useManuscriptQuality } from "@/pages/Workbench/hooks/useManuscriptQuality";
 import { useManuscriptSelectionData } from "@/pages/Workbench/hooks/useManuscriptSelectionData";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
@@ -39,14 +40,9 @@ const sceneStatusClass: Record<SceneStatus, string> = {
 const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const { toast } = useToast();
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
-  const [content, setContent] = useState<string>("");
-  const [dirtyScenes, setDirtyScenes] = useState<Record<string, boolean>>({});
-  const [sceneDrafts, setSceneDrafts] = useState<Record<string, string>>({});
   const [focusMode, setFocusMode] = useState(false);
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWordCount, setSelectedWordCount] = useState(0);
   const [draggingChapterId, setDraggingChapterId] = useState("");
@@ -55,7 +51,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [dragOverSceneId, setDragOverSceneId] = useState("");
   const [draggingTabId, setDraggingTabId] = useState("");
   const [mobilePane, setMobilePane] = useState<"outline" | "editor" | "sidebar">("editor");
-  const saveTimer = useRef<Record<string, number>>({});
   const leftPanelRef = useRef<ImperativePanelHandle | null>(null);
   const rightPanelRef = useRef<ImperativePanelHandle | null>(null);
   const leftPanelVisibleRef = useRef<boolean | null>(null);
@@ -116,11 +111,25 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     selectedManuscriptId,
   });
 
-  const applyFetchedManuscript = useCallback((manuscript: Manuscript) => {
-    replaceManuscript(manuscript);
-    setSceneDrafts(manuscript.sections || {});
-    setDirtyScenes({});
-  }, [replaceManuscript]);
+  const {
+    applyFetchedManuscript,
+    content,
+    currentWordCount,
+    dirtyScenes,
+    handleManualSave,
+    isSaving,
+    lastSavedAt,
+    persistSection,
+    sceneDrafts,
+    scheduleSave,
+    setContent,
+    updateSceneDraft,
+  } = useManuscriptEditorState({
+    replaceManuscript,
+    selectedManuscriptId,
+    selectedSceneId,
+    toast,
+  });
 
   const {
     aiDiffSummary,
@@ -202,7 +211,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toast,
   });
 
-  const currentWordCount = useMemo(() => countWords(stripHtml(content)), [content]);
   const activeGoal = goals.find((goal) => String(goal.status || "active").toLowerCase() !== "archived");
   const dailyHeatmap = useMemo(() => (workspaceStats?.dailySeries || []).slice(-30), [workspaceStats]);
   const showLeftPanel = leftPanelOpen && !focusMode;
@@ -221,59 +229,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     else rightPanelRef.current?.collapse();
     rightPanelVisibleRef.current = showRightPanel;
   }, [showRightPanel]);
-
-  const persistOutlineDraft = useCallback(
-    async (nextOutline: Outline) => {
-      if (!selectedOutlineId) return;
-      try {
-        const saved = await api.outlines.save(selectedOutlineId, nextOutline);
-        replaceOutline(saved);
-      } catch (e: any) {
-        toast({ variant: "destructive", title: "保存大纲顺序失败", description: e.message });
-      }
-    },
-    [replaceOutline, selectedOutlineId, toast],
-  );
-
-  const moveScene = useCallback(
-    async (sourceSceneId: string, targetSceneId: string) => {
-      if (!outlineDraft || !sourceSceneId || !targetSceneId || sourceSceneId === targetSceneId) return;
-      const sourceRow = sceneMap[sourceSceneId];
-      const targetRow = sceneMap[targetSceneId];
-      if (!sourceRow || !targetRow) return;
-
-      const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-      const sourceChapter = nextOutline.chapters.find((chapter) => chapter.id === sourceRow.chapterId);
-      const targetChapter = nextOutline.chapters.find((chapter) => chapter.id === targetRow.chapterId);
-      if (!sourceChapter || !targetChapter) return;
-
-      const sourceIndex = sourceChapter.scenes.findIndex((scene) => scene.id === sourceSceneId);
-      const targetIndex = targetChapter.scenes.findIndex((scene) => scene.id === targetSceneId);
-      if (sourceIndex < 0 || targetIndex < 0) return;
-
-      const [moved] = sourceChapter.scenes.splice(sourceIndex, 1);
-      targetChapter.scenes.splice(targetIndex, 0, moved);
-      setOutlineDraft(nextOutline);
-      await persistOutlineDraft(nextOutline);
-    },
-    [outlineDraft, persistOutlineDraft, sceneMap],
-  );
-
-  const moveChapter = useCallback(
-    async (sourceChapterId: string, targetChapterId: string) => {
-      if (!outlineDraft || !sourceChapterId || !targetChapterId || sourceChapterId === targetChapterId) return;
-      const sourceIndex = outlineDraft.chapters.findIndex((chapter) => chapter.id === sourceChapterId);
-      const targetIndex = outlineDraft.chapters.findIndex((chapter) => chapter.id === targetChapterId);
-      if (sourceIndex < 0 || targetIndex < 0) return;
-
-      const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-      const [moved] = nextOutline.chapters.splice(sourceIndex, 1);
-      nextOutline.chapters.splice(targetIndex, 0, moved);
-      setOutlineDraft(nextOutline);
-      await persistOutlineDraft(nextOutline);
-    },
-    [outlineDraft, persistOutlineDraft],
-  );
 
   const measureSceneWords = useCallback((html: string) => countWords(stripHtml(html)), []);
 
@@ -294,32 +249,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     const html = sceneDrafts[selectedSceneId] ?? selectedManuscript.sections?.[selectedSceneId] ?? "";
     setContent(html);
     primeSceneHtml(selectedSceneId, html);
-  }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId]);
-
-  useEffect(() => {
-    Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
-    return () => Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
-  }, []);
-
-  const persistSection = useCallback(
-    async (sceneId: string, html: string, silent = false) => {
-      if (!selectedManuscriptId || !sceneId) return;
-      setIsSaving(true);
-      try {
-        const saved = await api.manuscripts.saveSection(selectedManuscriptId, sceneId, html);
-        replaceManuscript(saved);
-        setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] || html }));
-        setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
-        setLastSavedAt(new Date().toLocaleTimeString());
-        if (!silent) toast({ title: "已保存" });
-      } catch (e: any) {
-        toast({ variant: "destructive", title: silent ? "自动保存失败" : "保存失败", description: e.message });
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [replaceManuscript, selectedManuscriptId, toast],
-  );
+  }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId, setContent]);
 
   const {
     applyPlotRevision,
@@ -360,32 +290,39 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     [plotTrend],
   );
 
-  const scheduleSave = useCallback(
-    (sceneId: string, html: string) => {
-      if (!selectedManuscriptId || !sceneId) return;
-      if (saveTimer.current[sceneId]) window.clearTimeout(saveTimer.current[sceneId]);
-      saveTimer.current[sceneId] = window.setTimeout(() => void persistSection(sceneId, html, true), 1200);
-    },
-    [persistSection, selectedManuscriptId],
-  );
-
-  const handleManualSave = useCallback(async () => {
-    if (!selectedSceneId) return;
-    if (saveTimer.current[selectedSceneId]) window.clearTimeout(saveTimer.current[selectedSceneId]);
-    await persistSection(selectedSceneId, content, false);
-  }, [content, persistSection, selectedSceneId]);
-
   const handleEditorChange = useCallback(
     (html: string) => {
       setContent(html);
       if (!selectedSceneId) return;
       recordSceneHtml(selectedSceneId, html);
-      setSceneDrafts((prev) => ({ ...prev, [selectedSceneId]: html }));
-      setDirtyScenes((prev) => ({ ...prev, [selectedSceneId]: true }));
+      updateSceneDraft(selectedSceneId, html);
       scheduleSave(selectedSceneId, html);
     },
-    [recordSceneHtml, scheduleSave, selectedSceneId],
+    [recordSceneHtml, scheduleSave, selectedSceneId, setContent, updateSceneDraft],
   );
+
+  const {
+    batchDeleteScenes,
+    batchMoveScenes,
+    createSceneInCurrentChapter,
+    deleteSceneFromOutline,
+    moveChapter,
+    moveScene,
+  } = useManuscriptOutlineActions({
+    batchMoveChapterId,
+    outlineDraft,
+    replaceOutline,
+    sceneMap,
+    sceneRows,
+    selectedOutlineId,
+    selectedSceneId,
+    selectedSceneIds,
+    setOpenSceneIds,
+    setOutlineDraft,
+    setSelectedSceneId,
+    setSelectedSceneIds,
+    toast,
+  });
 
   const jumpScene = useCallback((offset: number) => {
     if (!sceneRows.length) return;
@@ -409,24 +346,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % openSceneIds.length;
     setSelectedSceneId(openSceneIds[nextIndex]);
   }, [openSceneIds, selectedSceneId]);
-
-  const createSceneInCurrentChapter = useCallback(async () => {
-    if (!outlineDraft || !selectedOutlineId) return;
-    const row = sceneMap[selectedSceneId] || sceneRows[0];
-    const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-    const chapter = (row ? nextOutline.chapters.find((item) => item.id === row.chapterId) : null) || nextOutline.chapters[0];
-    if (!chapter) return;
-    const sceneId = `scene-${Date.now()}`;
-    chapter.scenes.push({
-      id: sceneId,
-      title: `新场景 ${chapter.scenes.length + 1}`,
-      summary: "",
-    });
-    setOutlineDraft(nextOutline);
-    await persistOutlineDraft(nextOutline);
-    setSelectedSceneId(sceneId);
-    setOpenSceneIds((prev) => (prev.includes(sceneId) ? prev : [...prev, sceneId]));
-  }, [outlineDraft, persistOutlineDraft, sceneMap, sceneRows, selectedOutlineId, selectedSceneId]);
 
   const enterFocusMode = useCallback(() => {
     if (focusMode) return;
@@ -511,58 +430,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
   const setSceneStatus = (sceneId: string, status: SceneStatus) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
-  };
-
-  const deleteSceneFromOutline = useCallback(
-    async (sceneId: string, chapterId: string) => {
-      if (!outlineDraft) return;
-      const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-      const targetChapter = nextOutline.chapters.find((item) => item.id === chapterId);
-      if (!targetChapter) return;
-      targetChapter.scenes = targetChapter.scenes.filter((item) => item.id !== sceneId);
-      setOutlineDraft(nextOutline);
-      setOpenSceneIds((prev) => prev.filter((id) => id !== sceneId));
-      if (selectedSceneId === sceneId) setSelectedSceneId("");
-      await persistOutlineDraft(nextOutline);
-    },
-    [outlineDraft, persistOutlineDraft, selectedSceneId],
-  );
-
-  const batchDeleteScenes = async () => {
-    if (!outlineDraft || !selectedSceneIds.length) return;
-    const ok = window.confirm(`确认删除已选 ${selectedSceneIds.length} 个场景？`);
-    if (!ok) return;
-    const selected = new Set(selectedSceneIds);
-    const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-    nextOutline.chapters.forEach((chapter) => {
-      chapter.scenes = chapter.scenes.filter((scene) => !selected.has(scene.id));
-    });
-    setOutlineDraft(nextOutline);
-    setOpenSceneIds((prev) => prev.filter((id) => !selected.has(id)));
-    setSelectedSceneIds([]);
-    setSelectedSceneId("");
-    await persistOutlineDraft(nextOutline);
-  };
-
-  const batchMoveScenes = async () => {
-    if (!outlineDraft || !selectedSceneIds.length || !batchMoveChapterId) return;
-    const selected = new Set(selectedSceneIds);
-    const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-    const moved: any[] = [];
-    nextOutline.chapters.forEach((chapter) => {
-      const keep: any[] = [];
-      chapter.scenes.forEach((scene) => {
-        if (selected.has(scene.id)) moved.push(scene);
-        else keep.push(scene);
-      });
-      chapter.scenes = keep;
-    });
-    const target = nextOutline.chapters.find((chapter) => chapter.id === batchMoveChapterId);
-    if (!target || !moved.length) return;
-    target.scenes.push(...moved);
-    setOutlineDraft(nextOutline);
-    await persistOutlineDraft(nextOutline);
-    toast({ title: `已移动 ${moved.length} 个场景` });
   };
 
   return (
