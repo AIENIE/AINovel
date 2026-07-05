@@ -39,18 +39,20 @@ import java.util.concurrent.TimeUnit;
 public class AiGatewayGrpcClient {
 
     private final ExternalServiceProperties properties;
-    private final GrpcChannelFactory channelFactory;
     private final ClientInterceptor authInterceptor;
-
-    private volatile EndpointClient client;
+    private final GrpcEndpointManager<EndpointClient> endpointManager;
 
     public AiGatewayGrpcClient(
             ExternalServiceProperties properties,
             GrpcChannelFactory channelFactory
     ) {
         this.properties = properties;
-        this.channelFactory = channelFactory;
         this.authInterceptor = new AiHmacAuthInterceptor(properties, Clock.systemUTC());
+        this.endpointManager = new GrpcEndpointManager<>(
+                properties.getAiserviceGrpc(),
+                "aiservice-grpc",
+                channelFactory
+        );
     }
 
     public List<AiModelDto> listModels(long remoteUserId) {
@@ -140,27 +142,12 @@ public class AiGatewayGrpcClient {
     }
 
     private synchronized EndpointClient getOrCreateClient() {
-        ExternalServiceProperties.ServiceTarget target = properties.getAiserviceGrpc();
-        ConsulServiceResolver.Endpoint endpoint = ConsulServiceResolver.parseAddress(target.getAddress())
-                .orElseThrow(() -> new IllegalStateException("No endpoint for aiservice-grpc"));
-
-        EndpointClient existing = client;
-        if (existing != null && existing.sameEndpoint(endpoint.host(), endpoint.port())) {
-            return existing;
-        }
-
-        ManagedChannel channel = channelFactory.create(endpoint.host(), endpoint.port());
-        EndpointClient next = new EndpointClient(
+        return endpointManager.getOrCreate((endpoint, channel) -> new EndpointClient(
                 endpoint.host(),
                 endpoint.port(),
                 channel,
                 AiGatewayServiceGrpc.newBlockingStub(channel).withInterceptors(authInterceptor)
-        );
-        if (existing != null) {
-            existing.close();
-        }
-        client = next;
-        return next;
+        ));
     }
 
     private long timeoutMs() {
@@ -169,10 +156,7 @@ public class AiGatewayGrpcClient {
 
     @PreDestroy
     public synchronized void shutdown() {
-        if (client != null) {
-            client.close();
-            client = null;
-        }
+        endpointManager.shutdown();
     }
 
     public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens) {
@@ -199,12 +183,8 @@ public class AiGatewayGrpcClient {
             int port,
             ManagedChannel channel,
             AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub
-    ) {
-        boolean sameEndpoint(String targetHost, int targetPort) {
-            return host.equals(targetHost) && port == targetPort;
-        }
-
-        void close() {
+    ) implements GrpcEndpointManager.ManagedClient {
+        public void close() {
             channel.shutdownNow();
         }
     }

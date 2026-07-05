@@ -42,16 +42,18 @@ import java.util.concurrent.TimeUnit;
 public class BillingGrpcClient {
 
     private final ExternalServiceProperties properties;
-    private final GrpcChannelFactory channelFactory;
-
-    private volatile EndpointClient client;
+    private final GrpcEndpointManager<EndpointClient> endpointManager;
 
     public BillingGrpcClient(
             ExternalServiceProperties properties,
             GrpcChannelFactory channelFactory
     ) {
         this.properties = properties;
-        this.channelFactory = channelFactory;
+        this.endpointManager = new GrpcEndpointManager<>(
+                properties.getPayserviceGrpc(),
+                "payservice-grpc",
+                channelFactory
+        );
     }
 
     public CheckinResult checkin(long remoteUserId) {
@@ -293,18 +295,9 @@ public class BillingGrpcClient {
     }
 
     private synchronized EndpointClient getOrCreateClient() {
-        ExternalServiceProperties.ServiceTarget target = properties.getPayserviceGrpc();
-        ConsulServiceResolver.Endpoint endpoint = ConsulServiceResolver.parseAddress(target.getAddress())
-                .orElseThrow(() -> new IllegalStateException("No endpoint for payservice-grpc"));
-        EndpointClient existing = client;
-        if (existing != null && existing.sameEndpoint(endpoint.host(), endpoint.port())) {
-            return existing;
-        }
-
-        ManagedChannel channel = channelFactory.create(endpoint.host(), endpoint.port());
         Metadata metadata = new Metadata();
         metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER), bearerToken());
-        EndpointClient next = new EndpointClient(
+        return endpointManager.getOrCreate((endpoint, channel) -> new EndpointClient(
                 endpoint.host(),
                 endpoint.port(),
                 channel,
@@ -322,12 +315,7 @@ public class BillingGrpcClient {
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingQueryServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
-        );
-        if (existing != null) {
-            existing.close();
-        }
-        client = next;
-        return next;
+        ));
     }
 
     private long timeoutMs() {
@@ -345,10 +333,7 @@ public class BillingGrpcClient {
 
     @PreDestroy
     public synchronized void shutdown() {
-        if (client != null) {
-            client.close();
-            client = null;
-        }
+        endpointManager.shutdown();
     }
 
     public record CheckinResult(
@@ -416,12 +401,8 @@ public class BillingGrpcClient {
             BillingGrantServiceGrpc.BillingGrantServiceBlockingStub grantStub,
             BillingUsageServiceGrpc.BillingUsageServiceBlockingStub usageStub,
             BillingQueryServiceGrpc.BillingQueryServiceBlockingStub queryStub
-    ) {
-        boolean sameEndpoint(String targetHost, int targetPort) {
-            return host.equals(targetHost) && port == targetPort;
-        }
-
-        void close() {
+    ) implements GrpcEndpointManager.ManagedClient {
+        public void close() {
             channel.shutdownNow();
         }
     }
