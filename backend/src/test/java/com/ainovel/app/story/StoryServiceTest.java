@@ -18,12 +18,15 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -158,6 +161,66 @@ class StoryServiceTest {
         verify(accessGuard).assertOwner(owner);
     }
 
+    @Test
+    void conceptionShouldPersistGeneratedStoryFieldsAndFallbackCharacter() {
+        StoryRepository storyRepository = mock(StoryRepository.class);
+        CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
+        ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
+        AiService aiService = mock(AiService.class);
+        StoryService service = service(storyRepository, characterCardRepository, accessGuard, aiService);
+        User owner = user("concept_author");
+        UUID storyId = UUID.randomUUID();
+        Story persistedStory = story(owner);
+        persistedStory.setId(storyId);
+
+        when(storyRepository.save(any(Story.class))).thenAnswer(invocation -> {
+            Story story = invocation.getArgument(0);
+            if (story.getId() == null) {
+                story.setId(storyId);
+            }
+            return story;
+        });
+        when(storyRepository.findByIdWithUser(any(UUID.class))).thenReturn(Optional.of(persistedStory));
+        when(characterCardRepository.save(any(CharacterCard.class))).thenAnswer(invocation -> {
+            CharacterCard card = invocation.getArgument(0);
+            if (card.getId() == null) {
+                card.setId(UUID.randomUUID());
+            }
+            return card;
+        });
+        when(aiService.chat(eq(owner), any())).thenReturn(new com.ainovel.app.ai.dto.AiChatResponse(
+                "assistant",
+                """
+                {"title":"AI 雨城疑案","synopsis":"更新后的梗概","genre":"悬疑","tone":"冷峻","characters":[]}
+                """,
+                null,
+                0
+        ));
+
+        Map<String, Object> result = service.conception(owner, new StoryCreateRequest(
+                "旧标题",
+                "旧梗概",
+                "都市悬疑",
+                "克制",
+                "world-9",
+                Map.of("corePromise", "错位真相")
+        ));
+
+        StoryDto storyCard = (StoryDto) result.get("storyCard");
+        @SuppressWarnings("unchecked")
+        List<CharacterDto> characters = (List<CharacterDto>) result.get("characterCards");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> generated = (Map<String, Object>) result.get("generated");
+
+        assertEquals("AI 雨城疑案", storyCard.title());
+        assertEquals("更新后的梗概", storyCard.synopsis());
+        assertEquals(2, characters.size());
+        assertEquals("主角", characters.get(0).name());
+        assertEquals("镜像角色", characters.get(1).name());
+        assertTrue(generated.containsKey("plotPlanning"));
+        assertTrue(generated.containsKey("outlineSeed"));
+    }
+
     private StoryService service(
             StoryRepository storyRepository,
             CharacterCardRepository characterCardRepository,
@@ -169,7 +232,17 @@ class StoryServiceTest {
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
         ReflectionTestUtils.setField(service, "aiService", aiService);
+        ReflectionTestUtils.setField(service, "storyConceptionService", storyConceptionService(aiService));
+        return service;
+    }
+
+    private StoryConceptionService storyConceptionService(AiService aiService) {
+        StoryConceptionService service = new StoryConceptionService();
+        ReflectionTestUtils.setField(service, "aiService", aiService);
         ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
+        ReflectionTestUtils.setField(service, "promptFactory", new StoryConceptionPromptFactory());
+        ReflectionTestUtils.setField(service, "projectionBuilder", new StoryConceptionProjectionBuilder());
+        ReflectionTestUtils.setField(service, "draftNormalizer", new StoryConceptionDraftNormalizer());
         return service;
     }
 

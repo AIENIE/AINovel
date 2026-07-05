@@ -5,6 +5,9 @@ import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.ManuscriptService;
+import com.ainovel.app.manuscript.SceneGenerationPromptBuilder;
+import com.ainovel.app.manuscript.SceneGenerationService;
+import com.ainovel.app.manuscript.ScenePlotQualitySupport;
 import com.ainovel.app.manuscript.dto.ManuscriptDto;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
@@ -212,16 +215,42 @@ class ManuscriptServiceTest {
         ManuscriptService service = new ManuscriptService();
         ReflectionTestUtils.setField(service, "manuscriptRepository", manuscriptRepository);
         ReflectionTestUtils.setField(service, "outlineRepository", outlineRepository);
+        ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
+        ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
+        ReflectionTestUtils.setField(service, "sceneGenerationService", sceneGenerationService(
+                characterCardRepository,
+                aiService,
+                slopQualityGate,
+                plotQualityService,
+                promptAssemblyService,
+                materialRetrievalService,
+                styleContextProvider
+        ));
+        return service;
+    }
+
+    private SceneGenerationService sceneGenerationService(
+            CharacterCardRepository characterCardRepository,
+            AiService aiService,
+            SlopQualityGate slopQualityGate,
+            PlotQualityService plotQualityService,
+            PromptAssemblyService promptAssemblyService,
+            MaterialRetrievalService materialRetrievalService,
+            StyleContextProvider styleContextProvider
+    ) {
+        SceneGenerationService service = new SceneGenerationService();
+        SceneGenerationPromptBuilder promptBuilder = new SceneGenerationPromptBuilder();
+        ScenePlotQualitySupport plotQualitySupport = new ScenePlotQualitySupport();
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);
         ReflectionTestUtils.setField(service, "aiService", aiService);
-        ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
         ReflectionTestUtils.setField(service, "slopQualityGate", slopQualityGate);
-        ReflectionTestUtils.setField(service, "plotQualityService", plotQualityService);
-        ReflectionTestUtils.setField(service, "promptAssemblyService", promptAssemblyService);
-        ReflectionTestUtils.setField(service, "materialRetrievalService", materialRetrievalService);
-        ReflectionTestUtils.setField(service, "styleContextProvider", styleContextProvider);
+        ReflectionTestUtils.setField(promptBuilder, "promptAssemblyService", promptAssemblyService);
+        ReflectionTestUtils.setField(promptBuilder, "materialRetrievalService", materialRetrievalService);
+        ReflectionTestUtils.setField(plotQualitySupport, "plotQualityService", plotQualityService);
+        ReflectionTestUtils.setField(plotQualitySupport, "styleContextProvider", styleContextProvider);
+        ReflectionTestUtils.setField(service, "sceneGenerationPromptBuilder", promptBuilder);
+        ReflectionTestUtils.setField(service, "scenePlotQualitySupport", plotQualitySupport);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
-        ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
         return service;
     }
 
