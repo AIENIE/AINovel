@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
@@ -264,7 +265,7 @@ public class V2ExportController {
             case "docx" -> renderDocx(text, data.title, data.author);
             case "epub" -> renderEpub(text, data.title, data.author);
             case "pdf" -> renderPdf(text, data.title);
-            default -> throw new RuntimeException("不支持的导出格式: " + format);
+            default -> throw new BusinessException("不支持的导出格式: " + format);
         };
     }
 
@@ -469,7 +470,7 @@ public class V2ExportController {
 
     private void ensureSupportedFormat(String format) {
         if (!List.of("txt", "docx", "epub", "pdf").contains(format)) {
-            throw new RuntimeException("不支持的导出格式: " + format);
+            throw new BusinessException("不支持的导出格式: " + format);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -177,7 +178,7 @@ public class V2VersionPersistenceService {
         ensureMainBranchAndInitialVersion(manuscript, user);
         V2ManuscriptBranch branch = requireBranch(manuscript.getId(), branchId);
         if (!"active".equals(branch.getStatus())) {
-            throw new RuntimeException("仅 active 分支可切换");
+            throw new BusinessException("仅 active 分支可切换");
         }
         manuscript.setCurrentBranchId(branchId);
         V2ManuscriptVersion latest = latestVersion(manuscript.getId(), branchId);
@@ -200,7 +201,7 @@ public class V2VersionPersistenceService {
         boolean duplicate = branchRepository.findByManuscriptId(manuscript.getId()).stream()
                 .anyMatch(existing -> name.equals(existing.getName()) && !"abandoned".equals(existing.getStatus()));
         if (duplicate) {
-            throw new RuntimeException("分支名称重复");
+            throw new BusinessException("分支名称重复");
         }
         UUID sourceVersionId = payload.get("sourceVersionId") == null
                 ? latestVersionId(manuscript.getId())
@@ -233,7 +234,7 @@ public class V2VersionPersistenceService {
     public Map<String, Object> updateBranch(UUID manuscriptId, UUID branchId, Map<String, Object> payload) {
         V2ManuscriptBranch branch = requireBranch(manuscriptId, branchId);
         if (branch.isMain() && payload.containsKey("status") && "abandoned".equals(payload.get("status"))) {
-            throw new RuntimeException("主分支不能废弃");
+            throw new BusinessException("主分支不能废弃");
         }
         if (payload.containsKey("name")) {
             branch.setName(payload.get("name").toString());
@@ -252,16 +253,16 @@ public class V2VersionPersistenceService {
         ensureMainBranchAndInitialVersion(manuscript, user);
         V2ManuscriptBranch sourceBranch = requireBranch(manuscript.getId(), branchId);
         if (sourceBranch.isMain()) {
-            throw new RuntimeException("主分支无需合并");
+            throw new BusinessException("主分支无需合并");
         }
         if (!"active".equals(sourceBranch.getStatus())) {
-            throw new RuntimeException("仅 active 分支可合并");
+            throw new BusinessException("仅 active 分支可合并");
         }
         UUID mainBranchId = mainBranchId(manuscript.getId());
         V2ManuscriptVersion sourceVersion = latestVersion(manuscript.getId(), branchId);
         V2ManuscriptVersion targetVersion = latestVersion(manuscript.getId(), mainBranchId);
         if (sourceVersion == null) {
-            throw new RuntimeException("分支没有可合并版本");
+            throw new BusinessException("分支没有可合并版本");
         }
         String strategy = str(payload == null ? null : payload.get("strategy"), "REPLACE_ALL");
         Map<String, String> sourceSections = parseSections(str(sourceVersion.getSectionsJson(), "{}"));
@@ -322,7 +323,7 @@ public class V2VersionPersistenceService {
     public void abandonBranch(UUID manuscriptId, UUID branchId) {
         V2ManuscriptBranch branch = requireBranch(manuscriptId, branchId);
         if (branch.isMain()) {
-            throw new RuntimeException("主分支不能废弃");
+            throw new BusinessException("主分支不能废弃");
         }
         branch.setStatus("abandoned");
         branchRepository.save(branch);
@@ -339,10 +340,10 @@ public class V2VersionPersistenceService {
         int interval = intVal(payload.get("autoSaveIntervalSeconds"), config.getAutoSaveIntervalSeconds());
         int maxAuto = intVal(payload.get("maxAutoVersions"), config.getMaxAutoVersions());
         if (interval < 30) {
-            throw new RuntimeException("autoSaveIntervalSeconds 不能小于 30");
+            throw new BusinessException("autoSaveIntervalSeconds 不能小于 30");
         }
         if (maxAuto < 10) {
-            throw new RuntimeException("maxAutoVersions 不能小于 10");
+            throw new BusinessException("maxAutoVersions 不能小于 10");
         }
         config.setAutoSaveIntervalSeconds(interval);
         config.setMaxAutoVersions(maxAuto);
@@ -439,11 +440,11 @@ public class V2VersionPersistenceService {
     }
 
     private V2ManuscriptVersion requireVersion(UUID manuscriptId, UUID versionId) {
-        return versionRepository.findByManuscriptIdAndId(manuscriptId, versionId).orElseThrow(() -> new RuntimeException("版本不存在"));
+        return versionRepository.findByManuscriptIdAndId(manuscriptId, versionId).orElseThrow(() -> new BusinessException("版本不存在"));
     }
 
     private V2ManuscriptBranch requireBranch(UUID manuscriptId, UUID branchId) {
-        return branchRepository.findByManuscriptIdAndId(manuscriptId, branchId).orElseThrow(() -> new RuntimeException("分支不存在"));
+        return branchRepository.findByManuscriptIdAndId(manuscriptId, branchId).orElseThrow(() -> new BusinessException("分支不存在"));
     }
 
     private List<V2ManuscriptBranch> sortedBranches(UUID manuscriptId) {

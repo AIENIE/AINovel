@@ -1,5 +1,6 @@
 package com.ainovel.app.manuscript;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -71,14 +72,14 @@ public class ManuscriptService {
     private JsonColumnCodec jsonColumnCodec;
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         return manuscriptRepository.findByOutline(outline).stream().map(this::toDto).toList();
     }
 
     @Transactional
     public ManuscriptDto create(UUID outlineId, ManuscriptCreateRequest request) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         Manuscript manuscript = new Manuscript();
         manuscript.setOutline(outline);
@@ -91,21 +92,21 @@ public class ManuscriptService {
     }
 
     public ManuscriptDto get(UUID id) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(id).orElseThrow(() -> new RuntimeException("稿件不存在"));
+        Manuscript manuscript = manuscriptRepository.findWithStoryById(id).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         return toDto(manuscript);
     }
 
     @Transactional
     public void delete(UUID id) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(id).orElseThrow(() -> new RuntimeException("稿件不存在"));
+        Manuscript manuscript = manuscriptRepository.findWithStoryById(id).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         manuscriptRepository.delete(manuscript);
     }
 
     @Transactional
     public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new RuntimeException("稿件不存在"));
+        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         String generatedHtml = generateSceneSectionHtml(manuscript, sceneId, sections);
@@ -117,7 +118,7 @@ public class ManuscriptService {
 
     @Transactional
     public ManuscriptDto updateSection(UUID manuscriptId, UUID sceneId, SectionUpdateRequest request) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new RuntimeException("稿件不存在"));
+        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         sections.put(sceneId.toString(), request.content());
@@ -131,7 +132,7 @@ public class ManuscriptService {
         Manuscript manuscript = manuscriptRepository.findAll().stream()
                 .filter(m -> isCurrentUserOwner(ownerOf(m)))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("请先创建稿件"));
+                .orElseThrow(() -> new BusinessException("请先创建稿件"));
         return generateForScene(manuscript.getId(), sceneId);
     }
 
@@ -140,7 +141,7 @@ public class ManuscriptService {
         Manuscript manuscript = manuscriptRepository.findAll().stream()
                 .filter(m -> isCurrentUserOwner(ownerOf(m)))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("请先创建稿件"));
+                .orElseThrow(() -> new BusinessException("请先创建稿件"));
         return updateSection(manuscript.getId(), sectionId, request);
     }
 
@@ -352,7 +353,7 @@ public class ManuscriptService {
 
     private SceneContext resolveSceneContext(Outline outline, UUID sceneId) {
         if (outline == null) {
-            throw new RuntimeException("大纲不存在，无法生成正文");
+            throw new BusinessException("大纲不存在，无法生成正文");
         }
         List<OutlineSaveRequest.ChapterPayload> chapters;
         try {
@@ -365,7 +366,7 @@ public class ManuscriptService {
                     new TypeReference<List<OutlineSaveRequest.ChapterPayload>>() {}
             );
         } catch (Exception ex) {
-            throw new RuntimeException("大纲内容异常，无法生成正文");
+            throw new RuntimeException("大纲内容异常，无法生成正文", ex);
         }
 
         for (OutlineSaveRequest.ChapterPayload chapter : chapters) {
@@ -396,7 +397,7 @@ public class ManuscriptService {
                 }
             }
         }
-        throw new RuntimeException("场景不存在，无法生成正文");
+        throw new BusinessException("场景不存在，无法生成正文");
     }
 
     private String buildCharacterContext(List<CharacterCard> characters) {

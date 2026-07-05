@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.config.AppTimeProvider;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
@@ -88,7 +89,7 @@ public class V2WorkspaceController {
         User user = accessGuard.currentUser(principal);
         UUID storyId = uuid(payload.get("storyId"));
         if (storyId == null) {
-            throw new RuntimeException("storyId 不能为空");
+            throw new BusinessException("storyId 不能为空");
         }
         Story story = accessGuard.requireOwnedStory(storyId, user);
         return persistenceService.startSession(user, story, payload);
@@ -269,7 +270,7 @@ public class V2WorkspaceController {
         User user = accessGuard.currentUser(principal);
         Object shortcutsObj = payload.get("shortcuts");
         if (!(shortcutsObj instanceof List<?> list)) {
-            throw new RuntimeException("shortcuts 必须为数组");
+            throw new BusinessException("shortcuts 必须为数组");
         }
         return persistenceService.updateShortcuts(user, list);
     }

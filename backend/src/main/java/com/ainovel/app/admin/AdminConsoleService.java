@@ -1,5 +1,6 @@
 package com.ainovel.app.admin;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.admin.dto.AdminDashboardStatsResponse;
 import com.ainovel.app.admin.dto.AdminSystemConfigResponse;
 import com.ainovel.app.admin.dto.AdminUserDto;
@@ -113,18 +114,18 @@ public class AdminConsoleService {
     public User resolveTargetUser(String userId) {
         String value = userId == null ? "" : userId.trim();
         if (value.isBlank()) {
-            throw new RuntimeException("目标用户不能为空");
+            throw new BusinessException("目标用户不能为空");
         }
         try {
             return userRepository.findById(UUID.fromString(value))
-                    .orElseThrow(() -> new RuntimeException("用户不存在"));
+                    .orElseThrow(() -> new BusinessException("用户不存在"));
         } catch (IllegalArgumentException ignore) {
             try {
                 long remoteUid = Long.parseLong(value);
                 return userRepository.findByRemoteUid(remoteUid)
-                        .orElseThrow(() -> new RuntimeException("用户不存在"));
+                        .orElseThrow(() -> new BusinessException("用户不存在"));
             } catch (NumberFormatException ex) {
-                throw new RuntimeException("用户 ID 格式错误");
+                throw new BusinessException("用户 ID 格式错误");
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
@@ -52,7 +53,7 @@ public class V2ModelPersistenceService {
     @Transactional
     public Map<String, Object> findModel(String modelKey) {
         ensureSeeded();
-        return modelMap(modelRepository.findByModelKey(modelKey).orElseThrow(() -> new RuntimeException("模型不存在")));
+        return modelMap(modelRepository.findByModelKey(modelKey).orElseThrow(() -> new BusinessException("模型不存在")));
     }
 
     @Transactional
@@ -66,8 +67,8 @@ public class V2ModelPersistenceService {
         ensureSeeded();
         V2TaskModelRouting routing = routingRepository.findByTaskType(taskType).orElseGet(V2TaskModelRouting::new);
         routing.setTaskType(taskType);
-        routing.setRecommendedModel(modelRepository.findById(recommendedModelId).orElseThrow(() -> new RuntimeException("recommendedModelId 无效")));
-        routing.setFallbackModel(fallbackModelId == null ? null : modelRepository.findById(fallbackModelId).orElseThrow(() -> new RuntimeException("fallbackModelId 无效")));
+        routing.setRecommendedModel(modelRepository.findById(recommendedModelId).orElseThrow(() -> new BusinessException("recommendedModelId 无效")));
+        routing.setFallbackModel(fallbackModelId == null ? null : modelRepository.findById(fallbackModelId).orElseThrow(() -> new BusinessException("fallbackModelId 无效")));
         routing.setRoutingStrategy(blank(strategy, "fixed"));
         routing.setConfigJson(v2Json.write(config == null ? Map.of() : config));
         return routingMap(routingRepository.save(routing));
@@ -84,7 +85,7 @@ public class V2ModelPersistenceService {
         V2UserModelPreference pref = preferenceRepository.findByUserIdAndTaskType(user.getId(), taskType).orElseGet(V2UserModelPreference::new);
         pref.setUser(user);
         pref.setTaskType(taskType);
-        pref.setPreferredModel(preferredModelId == null ? null : modelRepository.findById(preferredModelId).orElseThrow(() -> new RuntimeException("preferredModelId 无效")));
+        pref.setPreferredModel(preferredModelId == null ? null : modelRepository.findById(preferredModelId).orElseThrow(() -> new BusinessException("preferredModelId 无效")));
         return preferenceMap(preferenceRepository.save(pref));
     }
 
@@ -97,7 +98,7 @@ public class V2ModelPersistenceService {
     public void logUsage(User user, UUID storyId, UUID modelId, String taskType, int inputTokens, int outputTokens,
                          int latencyMs, boolean success, String errorMessage) {
         ensureSeeded();
-        V2ModelRegistry model = modelRepository.findById(modelId).orElseThrow(() -> new RuntimeException("模型不存在"));
+        V2ModelRegistry model = modelRepository.findById(modelId).orElseThrow(() -> new BusinessException("模型不存在"));
         V2ModelUsageLog log = new V2ModelUsageLog();
         log.setUser(user);
         Story story = storyId == null ? null : storyRepository.findById(storyId).orElse(null);

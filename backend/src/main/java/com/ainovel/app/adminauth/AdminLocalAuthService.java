@@ -1,5 +1,6 @@
 package com.ainovel.app.adminauth;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.security.JwtService;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
@@ -39,7 +40,7 @@ public class AdminLocalAuthService {
         ensureConfigured(expectedUsername, expectedPassword);
 
         if (!secureEquals(normalize(username), expectedUsername) || !secureEquals(password == null ? "" : password, expectedPassword)) {
-            throw new RuntimeException("用户名或密码错误");
+            throw new BusinessException("用户名或密码错误");
         }
 
         User adminUser = ensureAdminUser(expectedUsername, expectedPassword);

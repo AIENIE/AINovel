@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -52,7 +53,7 @@ public class V2ExportPersistenceService {
     public Map<String, Object> updateTemplate(User user, UUID id, Map<String, Object> payload) {
         V2ExportTemplate template = requireTemplate(id);
         if (template.getUser() == null || !Objects.equals(template.getUser().getId(), user.getId())) {
-            throw new RuntimeException("无权修改该模板");
+            throw new BusinessException("无权修改该模板");
         }
         if (payload.containsKey("name")) template.setName(str(payload.get("name"), template.getName()));
         if (payload.containsKey("description")) template.setDescription(str(payload.get("description"), ""));
@@ -66,7 +67,7 @@ public class V2ExportPersistenceService {
     public void deleteTemplate(User user, UUID id) {
         V2ExportTemplate template = requireTemplate(id);
         if (template.getUser() == null || !Objects.equals(template.getUser().getId(), user.getId())) {
-            throw new RuntimeException("无权删除该模板");
+            throw new BusinessException("无权删除该模板");
         }
         templateRepository.delete(template);
     }
@@ -88,7 +89,7 @@ public class V2ExportPersistenceService {
         job.setUser(user);
         Story story = manuscript.getOutline() == null ? null : manuscript.getOutline().getStory();
         if (story == null) {
-            throw new RuntimeException("稿件缺少所属故事，无法导出");
+            throw new BusinessException("稿件缺少所属故事，无法导出");
         }
         job.setStory(story);
         job.setManuscript(manuscript);
@@ -169,11 +170,11 @@ public class V2ExportPersistenceService {
     }
 
     private V2ExportTemplate requireTemplate(UUID id) {
-        return templateRepository.findById(id).orElseThrow(() -> new RuntimeException("导出模板不存在"));
+        return templateRepository.findById(id).orElseThrow(() -> new BusinessException("导出模板不存在"));
     }
 
     private V2ExportJob requireJob(UUID manuscriptId, UUID id) {
-        return jobRepository.findByManuscriptIdAndId(manuscriptId, id).orElseThrow(() -> new RuntimeException("导出任务不存在"));
+        return jobRepository.findByManuscriptIdAndId(manuscriptId, id).orElseThrow(() -> new BusinessException("导出任务不存在"));
     }
 
     private Map<String, Object> templateMap(V2ExportTemplate template) {

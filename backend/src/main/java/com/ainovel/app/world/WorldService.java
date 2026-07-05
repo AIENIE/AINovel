@@ -1,5 +1,6 @@
 package com.ainovel.app.world;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.world.dto.*;
 import com.ainovel.app.world.model.World;
@@ -81,14 +82,14 @@ public class WorldService {
 
     @Transactional(readOnly = true)
     public WorldDetailDto get(UUID id) {
-        World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        World world = worldRepository.findById(id).orElseThrow(() -> new BusinessException("世界不存在"));
         accessGuard.assertOwner(world.getUser());
         return toDetail(world);
     }
 
     @Transactional
     public WorldDetailDto update(UUID id, WorldUpdateRequest request) {
-        World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        World world = worldRepository.findById(id).orElseThrow(() -> new BusinessException("世界不存在"));
         accessGuard.assertOwner(world.getUser());
         if (request.name() != null) world.setName(request.name());
         if (request.tagline() != null) world.setTagline(request.tagline());
@@ -104,7 +105,7 @@ public class WorldService {
         World world = worldRepository.findById(id).orElseThrow();
         accessGuard.assertOwner(world.getUser());
         if (!"draft".equalsIgnoreCase(world.getStatus())) {
-            throw new RuntimeException("仅草稿世界可删除");
+            throw new BusinessException("仅草稿世界可删除");
         }
         worldRepository.delete(world);
     }
@@ -133,7 +134,7 @@ public class WorldService {
 
     @Transactional
     public AiRefineResponse refineField(User user, UUID id, String moduleKey, String fieldKey, String text, String instruction) {
-        World world = worldRepository.findById(id).orElseThrow(() -> new RuntimeException("世界不存在"));
+        World world = worldRepository.findById(id).orElseThrow(() -> new BusinessException("世界不存在"));
         accessGuard.assertOwner(world.getUser());
         String prompt = (instruction == null ? "" : instruction).trim();
         if (prompt.isBlank()) {
@@ -226,7 +227,7 @@ public class WorldService {
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         Optional<WorldDefinitionDto> moduleDef = definitions().stream().filter(d -> d.key().equals(moduleKey)).findFirst();
         if (moduleDef.isEmpty()) {
-            throw new RuntimeException("世界模块不存在：" + moduleKey);
+            throw new BusinessException("世界模块不存在：" + moduleKey);
         }
         try {
             Map<String, String> fields = new HashMap<>(modules.getOrDefault(moduleKey, new HashMap<>()));

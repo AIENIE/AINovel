@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -127,7 +128,7 @@ public class V2ModelController {
 
         List<Map<String, Object>> models = persistenceService.listModels();
         if (models.isEmpty()) {
-            throw new RuntimeException("缺少可用模型");
+            throw new BusinessException("缺少可用模型");
         }
         Map<String, Object> modelA = models.get(0);
         Map<String, Object> modelB = models.size() > 1 ? models.get(1) : models.get(0);
@@ -135,11 +136,11 @@ public class V2ModelController {
         UUID modelBId = uuid(payload.get("modelBId"));
         if (modelAId != null) {
             modelA = models.stream().filter(model -> modelAId.equals(model.get("id"))).findFirst()
-                    .orElseThrow(() -> new RuntimeException("模型不存在"));
+                    .orElseThrow(() -> new BusinessException("模型不存在"));
         }
         if (modelBId != null) {
             modelB = models.stream().filter(model -> modelBId.equals(model.get("id"))).findFirst()
-                    .orElseThrow(() -> new RuntimeException("模型不存在"));
+                    .orElseThrow(() -> new BusinessException("模型不存在"));
         }
 
         String taskType = str(payload.get("taskType"), "draft_generation");

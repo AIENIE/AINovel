@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -391,7 +392,7 @@ public class PlotQualityService {
                 }
             }
         }
-        throw new RuntimeException("场景不存在，无法进行剧情诊断");
+        throw new BusinessException("场景不存在，无法进行剧情诊断");
     }
 
     private String outlinePlanning(Outline outline) {

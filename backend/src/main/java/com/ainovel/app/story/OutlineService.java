@@ -1,5 +1,6 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.ai.dto.AiChatRequest;
@@ -42,12 +43,12 @@ public class OutlineService {
     }
 
     public List<OutlineDto> listByStoryId(UUID storyId) {
-        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new BusinessException("故事不存在"));
         return listByStory(story);
     }
 
     public OutlineDto get(UUID id) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(id).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(id).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         return toDto(outline);
     }
@@ -69,13 +70,13 @@ public class OutlineService {
 
     @Transactional
     public OutlineDto createOutline(UUID storyId, OutlineCreateRequest request) {
-        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new BusinessException("故事不存在"));
         return createOutline(story, request);
     }
 
     @Transactional
     public OutlineDto saveOutline(UUID outlineId, OutlineSaveRequest request) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
         outline.setWorldId(request.worldId());
@@ -168,14 +169,14 @@ public class OutlineService {
 
     @Transactional
     public void deleteOutline(UUID outlineId) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         outlineRepository.delete(outline);
     }
 
     @Transactional
     public OutlineDto addGeneratedChapter(UUID outlineId, OutlineChapterGenerateRequest request) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
         OutlineDto dto = toDto(outline);
         int order = dto.chapters() == null ? 1 : dto.chapters().size() + 1;
@@ -418,7 +419,7 @@ public class OutlineService {
                 if (id != null && chapterId.toString().equals(id.toString())) return outline;
             }
         }
-        throw new RuntimeException("章节不存在");
+        throw new BusinessException("章节不存在");
     }
 
     private Outline findOutlineContainingScene(UUID sceneId) {
@@ -435,7 +436,7 @@ public class OutlineService {
                 }
             }
         }
-        throw new RuntimeException("场景不存在");
+        throw new BusinessException("场景不存在");
     }
 
     private Map<String, Object> readJson(String json) {

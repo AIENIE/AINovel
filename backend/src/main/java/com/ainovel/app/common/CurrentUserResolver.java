@@ -15,9 +15,9 @@ public class CurrentUserResolver {
 
     public User require(UserDetails details) {
         if (details == null) {
-            throw new RuntimeException("未登录");
+            throw new BusinessException("未登录");
         }
         return userRepository.findByUsername(details.getUsername())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> new BusinessException("用户不存在"));
     }
 }

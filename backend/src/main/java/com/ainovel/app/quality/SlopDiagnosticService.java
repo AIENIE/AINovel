@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -128,7 +129,7 @@ public class SlopDiagnosticService {
                 }
             }
         }
-        throw new RuntimeException("场景不存在，无法进行文本 slop 诊断");
+        throw new BusinessException("场景不存在，无法进行文本 slop 诊断");
     }
 
     private String previousContext(SceneContext scene, Map<String, String> sections) {

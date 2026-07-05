@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.model.V2EntityExtraction;
@@ -82,7 +83,7 @@ public class V2ContextPersistenceService {
     public Map<String, Object> createExtraction(Story story, Map<String, Object> payload) {
         String text = blank(payload.get("text"), "");
         if (text.isBlank()) {
-            throw new RuntimeException("text 不能为空");
+            throw new BusinessException("text 不能为空");
         }
         V2EntityExtraction extraction = new V2EntityExtraction();
         extraction.setStory(story);
@@ -104,7 +105,7 @@ public class V2ContextPersistenceService {
     @Transactional
     public Map<String, Object> reviewExtraction(UUID storyId, UUID extractionId, Map<String, Object> payload) {
         V2EntityExtraction extraction = extractionRepository.findByStoryIdAndId(storyId, extractionId)
-                .orElseThrow(() -> new RuntimeException("提取记录不存在"));
+                .orElseThrow(() -> new BusinessException("提取记录不存在"));
         extraction.setReviewed(true);
         extraction.setReviewAction(blank(payload.get("reviewAction"), "approved"));
         if (payload.get("linkedLorebookId") != null) {
@@ -128,7 +129,7 @@ public class V2ContextPersistenceService {
 
     private V2LorebookEntry requireLorebook(UUID storyId, UUID id) {
         return lorebookRepository.findByStoryIdAndId(storyId, id)
-                .orElseThrow(() -> new RuntimeException("Lorebook 条目不存在"));
+                .orElseThrow(() -> new BusinessException("Lorebook 条目不存在"));
     }
 
     private Map<String, Object> entryMap(V2LorebookEntry entry) {

@@ -1,5 +1,6 @@
 package com.ainovel.app.security;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
@@ -79,28 +80,28 @@ public class ResourceAccessGuard {
     }
 
     public Story requireOwnedStory(UUID storyId, User user) {
-        Story story = storyRepository.findById(storyId).orElseThrow(() -> new RuntimeException("故事不存在"));
+        Story story = storyRepository.findById(storyId).orElseThrow(() -> new BusinessException("故事不存在"));
         if (story.getUser() == null || !story.getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("无权访问该故事");
+            throw new BusinessException("无权访问该故事");
         }
         return story;
     }
 
     public Manuscript requireOwnedManuscript(UUID manuscriptId, User user) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
-                .orElseThrow(() -> new RuntimeException("稿件不存在"));
+                .orElseThrow(() -> new BusinessException("稿件不存在"));
         if (manuscript.getOutline() == null
                 || manuscript.getOutline().getStory() == null
                 || manuscript.getOutline().getStory().getUser() == null
                 || !manuscript.getOutline().getStory().getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("无权访问该稿件");
+            throw new BusinessException("无权访问该稿件");
         }
         return manuscript;
     }
 
     public void requireAdmin(User user) {
         if (!user.hasRole("ROLE_ADMIN") && !user.hasRole("ADMIN")) {
-            throw new RuntimeException("无管理员权限");
+            throw new BusinessException("无管理员权限");
         }
     }
 }

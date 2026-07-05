@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -207,10 +208,10 @@ public class V2ContextController {
         UUID sourceId = uuidVal(payload.get("source"), null);
         UUID targetId = uuidVal(payload.get("target"), null);
         if (sourceId == null || targetId == null) {
-            throw new RuntimeException("source/target 不能为空");
+            throw new BusinessException("source/target 不能为空");
         }
         if (sourceId.equals(targetId)) {
-            throw new RuntimeException("source/target 不能相同");
+            throw new BusinessException("source/target 不能相同");
         }
         return persistenceService.createRelationship(story, sourceId, targetId, str(payload.get("relationType"), "related_to"));
     }
@@ -253,7 +254,7 @@ public class V2ContextController {
         Story story = accessGuard.requireOwnedStory(storyId, user);
         String text = str(payload.get("text"), "").trim();
         if (text.isEmpty()) {
-            throw new RuntimeException("text 不能为空");
+            throw new BusinessException("text 不能为空");
         }
         return persistenceService.createExtraction(story, payload);
     }

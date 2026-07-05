@@ -1,5 +1,6 @@
 package com.ainovel.app.economy;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.economy.model.ConversionOrderStatus;
 import com.ainovel.app.economy.model.CreditLedgerType;
 import com.ainovel.app.economy.model.CreditConversionOrder;
@@ -136,25 +137,25 @@ public class EconomyService {
     public CreditChangeResult redeem(User user, String code) {
         String normalized = normalizeRedeemCode(code);
         if (normalized.isBlank()) {
-            throw new RuntimeException("兑换码不能为空");
+            throw new BusinessException("兑换码不能为空");
         }
         RedeemCode redeemCode = redeemCodeRepository.findByCode(normalized)
-                .orElseThrow(() -> new RuntimeException("兑换码无效"));
+                .orElseThrow(() -> new BusinessException("兑换码无效"));
         Instant now = Instant.now();
         if (!redeemCode.isEnabled()) {
-            throw new RuntimeException("兑换码已停用");
+            throw new BusinessException("兑换码已停用");
         }
         if (redeemCode.getStartsAt() != null && redeemCode.getStartsAt().isAfter(now)) {
-            throw new RuntimeException("兑换码尚未生效");
+            throw new BusinessException("兑换码尚未生效");
         }
         if (redeemCode.getExpiresAt() != null && redeemCode.getExpiresAt().isBefore(now)) {
-            throw new RuntimeException("兑换码已过期");
+            throw new BusinessException("兑换码已过期");
         }
         if (redeemCode.getMaxUses() != null && redeemCode.getUsedCount() >= redeemCode.getMaxUses()) {
-            throw new RuntimeException("兑换码已用尽");
+            throw new BusinessException("兑换码已用尽");
         }
         if (!redeemCode.isStackable() && redeemCodeUsageRepository.existsByRedeemCodeAndUser(redeemCode, user)) {
-            throw new RuntimeException("兑换码已使用");
+            throw new BusinessException("兑换码已使用");
         }
         ProjectCreditAccount account = accountForUpdate(user);
         long projectCredits = addProjectCredits(
@@ -194,7 +195,7 @@ public class EconomyService {
         long cost = calculateAiCost(inputTokens, outputTokens);
         ProjectCreditAccount account = accountForUpdate(user);
         if (account.getBalance() < cost) {
-            throw new RuntimeException("项目积分不足，请先兑换项目积分");
+            throw new BusinessException("项目积分不足，请先兑换项目积分");
         }
         long nextBalance = account.getBalance() - cost;
         account.setBalance(nextBalance);
@@ -206,14 +207,14 @@ public class EconomyService {
 
     public ConversionResult convertPublicToProject(User user, long amount, String idempotencyKey) {
         if (amount <= 0) {
-            throw new RuntimeException("兑换积分必须大于 0");
+            throw new BusinessException("兑换积分必须大于 0");
         }
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new RuntimeException("缺少 idempotencyKey");
+            throw new BusinessException("缺少 idempotencyKey");
         }
         Long remoteUid = user.getRemoteUid();
         if (remoteUid == null || remoteUid <= 0) {
-            throw new RuntimeException("当前账号未绑定统一用户，无法兑换通用积分");
+            throw new BusinessException("当前账号未绑定统一用户，无法兑换通用积分");
         }
 
         CreditConversionOrder existing = conversionOrderRepository.findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
@@ -231,7 +232,7 @@ public class EconomyService {
                         projectAfter + publicAfter
                 );
             }
-            throw new RuntimeException("该兑换请求正在处理或已失败，请更换 idempotencyKey");
+            throw new BusinessException("该兑换请求正在处理或已失败，请更换 idempotencyKey");
         }
 
         long projectBefore = projectBalance(user);
@@ -265,7 +266,7 @@ public class EconomyService {
             order.setStatus(ConversionOrderStatus.FAILED);
             order.setRemoteMessage(remote.errorMessage());
             conversionOrderRepository.save(order);
-            throw new RuntimeException(remote.errorMessage() == null || remote.errorMessage().isBlank() ? "通用积分兑换失败" : remote.errorMessage());
+            throw new BusinessException(remote.errorMessage() == null || remote.errorMessage().isBlank() ? "通用积分兑换失败" : remote.errorMessage());
         }
 
         long converted = remote.convertedProjectTokens() > 0 ? remote.convertedProjectTokens() : amount;
@@ -303,7 +304,7 @@ public class EconomyService {
     @Transactional
     public CreditChangeResult grantProjectCredits(User target, long amount, String reason, String operator) {
         if (amount <= 0) {
-            throw new RuntimeException("发放积分必须大于 0");
+            throw new BusinessException("发放积分必须大于 0");
         }
         ProjectCreditAccount account = accountForUpdate(target);
         long nextBalance = addProjectCredits(
@@ -388,13 +389,13 @@ public class EconomyService {
     ) {
         String normalized = normalizeRedeemCode(code);
         if (normalized.isBlank()) {
-            throw new RuntimeException("兑换码不能为空");
+            throw new BusinessException("兑换码不能为空");
         }
         if (grantAmount <= 0) {
-            throw new RuntimeException("兑换积分必须大于 0");
+            throw new BusinessException("兑换积分必须大于 0");
         }
         redeemCodeRepository.findByCode(normalized).ifPresent(existing -> {
-            throw new RuntimeException("兑换码已存在");
+            throw new BusinessException("兑换码已存在");
         });
         RedeemCode item = new RedeemCode();
         item.setCode(normalized);
@@ -529,7 +530,7 @@ public class EconomyService {
     private long remoteUidOrThrow(User user, String action) {
         Long remoteUid = user == null ? null : user.getRemoteUid();
         if (remoteUid == null || remoteUid <= 0) {
-            throw new RuntimeException("当前账号未绑定统一用户，无法" + action);
+            throw new BusinessException("当前账号未绑定统一用户，无法" + action);
         }
         return remoteUid;
     }

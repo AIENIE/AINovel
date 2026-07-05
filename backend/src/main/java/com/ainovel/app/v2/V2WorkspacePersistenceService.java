@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.config.AppTimeProvider;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -64,7 +65,7 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public Map<String, Object> updateLayout(User user, UUID id, Map<String, Object> payload) {
-        V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("布局不存在"));
+        V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("布局不存在"));
         if (payload.containsKey("name")) layout.setName(str(payload.get("name"), layout.getName()));
         if (payload.containsKey("layout")) layout.setLayoutJson(v2Json.write(payload.get("layout")));
         if (payload.containsKey("isActive") && boolVal(payload.get("isActive"), false)) {
@@ -78,7 +79,7 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public void deleteLayout(User user, UUID id) {
-        layoutRepository.delete(layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("布局不存在")));
+        layoutRepository.delete(layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("布局不存在")));
     }
 
     @Transactional
@@ -86,7 +87,7 @@ public class V2WorkspacePersistenceService {
         for (V2WorkspaceLayout existing : layoutRepository.findByUserId(user.getId())) {
             existing.setActive(false);
         }
-        V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("布局不存在"));
+        V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("布局不存在"));
         layout.setActive(true);
         return layoutMap(layoutRepository.save(layout));
     }
@@ -107,9 +108,9 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public Map<String, Object> updateSession(User user, UUID id, Map<String, Object> payload, boolean end) {
-        V2WritingSession session = sessionRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("写作会话不存在"));
+        V2WritingSession session = sessionRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("写作会话不存在"));
         if (!end && session.getEndedAt() != null) {
-            throw new RuntimeException("会话已结束，无法继续心跳更新");
+            throw new BusinessException("会话已结束，无法继续心跳更新");
         }
         int previousNet = session.getNetWords();
         int written = intVal(payload.get("wordsWritten"), session.getWordsWritten());
@@ -153,7 +154,7 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public Map<String, Object> updateGoal(User user, UUID id, Map<String, Object> payload) {
-        V2WritingGoal goal = goalRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("写作目标不存在"));
+        V2WritingGoal goal = goalRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("写作目标不存在"));
         if (payload.containsKey("goalType")) goal.setGoalType(str(payload.get("goalType"), goal.getGoalType()));
         if (payload.containsKey("targetValue")) goal.setTargetValue(intVal(payload.get("targetValue"), goal.getTargetValue()));
         if (payload.containsKey("currentValue")) goal.setCurrentValue(intVal(payload.get("currentValue"), goal.getCurrentValue()));
@@ -164,7 +165,7 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public void deleteGoal(User user, UUID id) {
-        goalRepository.delete(goalRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("写作目标不存在")));
+        goalRepository.delete(goalRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("写作目标不存在")));
     }
 
     @Transactional

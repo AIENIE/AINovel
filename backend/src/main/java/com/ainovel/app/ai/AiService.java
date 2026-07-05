@@ -1,5 +1,6 @@
 package com.ainovel.app.ai;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
@@ -71,12 +72,12 @@ public class AiService {
         if (remoteUid != null && remoteUid > 0) {
             return remoteUid;
         }
-        throw new RuntimeException("当前账号未绑定统一用户，无法调用 AI 服务");
+        throw new BusinessException("当前账号未绑定统一用户，无法调用 AI 服务");
     }
 
     private void validateChatMessages(List<AiChatRequest.Message> messages) {
         if (messages == null || messages.isEmpty()) {
-            throw new RuntimeException("messages 至少需要一条非空 user 消息");
+            throw new BusinessException("messages 至少需要一条非空 user 消息");
         }
         boolean hasUserMessage = false;
         for (AiChatRequest.Message message : messages) {
@@ -91,7 +92,7 @@ public class AiService {
             }
         }
         if (!hasUserMessage) {
-            throw new RuntimeException("messages 至少需要一条非空 user 消息");
+            throw new BusinessException("messages 至少需要一条非空 user 消息");
         }
     }
 

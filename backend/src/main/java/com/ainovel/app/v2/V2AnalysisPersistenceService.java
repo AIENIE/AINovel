@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.model.V2AnalysisJob;
@@ -70,7 +71,7 @@ public class V2AnalysisPersistenceService {
     @Transactional
     public V2AnalysisDtos.ContinuityIssueResponse createContinuityIssue(UUID storyId, UUID reportId, String text) {
         V2BetaReaderReport report = reportRepository.findByStoryIdAndId(storyId, reportId)
-                .orElseThrow(() -> new RuntimeException("分析报告不存在"));
+                .orElseThrow(() -> new BusinessException("分析报告不存在"));
         V2ContinuityIssue issue = new V2ContinuityIssue();
         issue.setStory(report.getStory());
         issue.setReport(report);
@@ -91,7 +92,7 @@ public class V2AnalysisPersistenceService {
 
     @Transactional(readOnly = true)
     public V2AnalysisDtos.AnalysisJobResponse getJob(UUID storyId, UUID jobId) {
-        return jobResponse(jobRepository.findByStoryIdAndId(storyId, jobId).orElseThrow(() -> new RuntimeException("分析任务不存在")));
+        return jobResponse(jobRepository.findByStoryIdAndId(storyId, jobId).orElseThrow(() -> new BusinessException("分析任务不存在")));
     }
 
     @Transactional(readOnly = true)
@@ -101,7 +102,7 @@ public class V2AnalysisPersistenceService {
 
     @Transactional(readOnly = true)
     public V2AnalysisDtos.AnalysisReportResponse getReport(UUID storyId, UUID reportId) {
-        return reportResponse(reportRepository.findByStoryIdAndId(storyId, reportId).orElseThrow(() -> new RuntimeException("分析报告不存在")));
+        return reportResponse(reportRepository.findByStoryIdAndId(storyId, reportId).orElseThrow(() -> new BusinessException("分析报告不存在")));
     }
 
     @Transactional(readOnly = true)
@@ -112,7 +113,7 @@ public class V2AnalysisPersistenceService {
     @Transactional
     public V2AnalysisDtos.ContinuityIssueResponse updateContinuityIssue(UUID storyId, UUID issueId, Map<String, Object> payload) {
         V2ContinuityIssue issue = issueRepository.findByStoryIdAndId(storyId, issueId)
-                .orElseThrow(() -> new RuntimeException("连续性问题不存在"));
+                .orElseThrow(() -> new BusinessException("连续性问题不存在"));
         if (payload.containsKey("status")) issue.setStatus(str(payload.get("status"), issue.getStatus()));
         if (payload.containsKey("suggestion")) issue.setSuggestion(str(payload.get("suggestion"), issue.getSuggestion()));
         if (payload.containsKey("severity")) issue.setSeverity(str(payload.get("severity"), issue.getSeverity()));
