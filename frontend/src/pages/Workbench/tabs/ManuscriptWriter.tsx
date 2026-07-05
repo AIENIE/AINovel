@@ -38,9 +38,9 @@ import { ExportSidebarPanel } from "./manuscript-writer/ExportSidebarPanel";
 import { StatsSidebarPanel } from "./manuscript-writer/StatsSidebarPanel";
 import { GoalsSidebarPanel } from "./manuscript-writer/GoalsSidebarPanel";
 import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
+import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
 import {
   countWords,
-  formatDateTime,
   plotStatusClass,
   plotStatusText,
   qualityStatusClass,
@@ -1174,133 +1174,33 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   return (
     <div className="relative h-[calc(100vh-180px)]">
       {isMobile ? (
-        <Tabs value={mobilePane} onValueChange={(value) => setMobilePane(value as "outline" | "editor" | "sidebar")} className="h-full rounded-lg border bg-background p-2">
-          <TabsList className="grid grid-cols-3">
-            <TabsTrigger value="outline">大纲</TabsTrigger>
-            <TabsTrigger value="editor">编辑</TabsTrigger>
-            <TabsTrigger value="sidebar">参考</TabsTrigger>
-          </TabsList>
-          <TabsContent value="outline" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
-            <ScrollArea className="h-full rounded border p-2">
-              {(outlineDraft?.chapters || []).map((chapter, ci) => (
-                <div key={chapter.id} className="mb-2">
-                  <div className="text-xs font-semibold text-muted-foreground mb-1">{`第${ci + 1}章 ${chapter.title}`}</div>
-                  <div className="space-y-1">
-                    {chapter.scenes.map((scene, si) => (
-                      <button
-                        key={scene.id}
-                        className={cn("w-full rounded border px-2 py-1 text-left text-xs", selectedSceneId === scene.id ? "bg-secondary border-primary/40" : "hover:bg-muted")}
-                        onClick={(event) => {
-                          handleSceneSelect(scene.id, event);
-                          setMobilePane("editor");
-                        }}
-                      >
-                        {`Sc.${si + 1} ${scene.title}`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </ScrollArea>
-          </TabsContent>
-          <TabsContent value="editor" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
-            <div className="h-full border rounded overflow-hidden">
-              <TiptapEditor
-                key={`mobile-editor-${focusMode ? "zen" : "normal"}`}
-                content={content}
-                onChange={handleEditorChange}
-                className="h-full"
-                editable={!!selectedSceneId}
-                zenMode={focusMode}
-              />
-            </div>
-          </TabsContent>
-          <TabsContent value="sidebar" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
-            <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-              <TabsList className="grid grid-cols-4">
-                <TabsTrigger value="copilot">AI</TabsTrigger>
-                <TabsTrigger value="plot">剧情</TabsTrigger>
-                <TabsTrigger value="version">版本</TabsTrigger>
-                <TabsTrigger value="export">导出</TabsTrigger>
-              </TabsList>
-              <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
-                <CopilotSidebar context={contextData} className="h-full border-none" />
-              </TabsContent>
-              <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
-                <div className="flex gap-2 mb-2">
-                  <Button size="sm" variant="outline" onClick={() => void runSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
-                    {isSlopBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                    文本
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
-                    {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                    剧情
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void generatePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
-                    候选
-                  </Button>
-                  <Button size="sm" onClick={() => void applyPlotRevision()} disabled={isPlotRevisionBusy || !selectedPlotRun?.revisionCandidateText || selectedPlotRun?.revisionApplied}>
-                    采纳
-                  </Button>
-                </div>
-                <ScrollArea className="h-[calc(100%-2.2rem)]">
-                  <div className="space-y-2">
-                    <div className="rounded border p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>{qualityStatusText(selectedQualityRun)}</span>
-                        <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>风险 {selectedQualityRun?.overallRiskScore ?? "-"}</Badge>
-                      </div>
-                      {!!selectedQualityRun?.safeClaim && <div className="mt-1 text-muted-foreground">{selectedQualityRun.safeClaim}</div>}
-                      {!!selectedQualityRun?.evidenceLevel && <div className="mt-1 text-muted-foreground">证据等级 {selectedQualityRun.evidenceLevel}</div>}
-                    </div>
-                    {(selectedQualityRun?.issues || []).slice(0, 3).map((issue) => (
-                      <div key={issue.id} className="rounded border p-2">
-                        <div>{slopModuleLabel(issue.module)} · {issue.evidenceLevel || issue.severity}</div>
-                        {!!issue.quote && <div className="mt-1">{issue.quote}</div>}
-                        {!!issue.repairHint && <div className="text-muted-foreground mt-1">{issue.repairHint}</div>}
-                      </div>
-                    ))}
-                    <div className="rounded border p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>{plotStatusText(selectedPlotRun)}</span>
-                        <Badge variant="outline" className={plotStatusClass(selectedPlotRun)}>风险 {selectedPlotRun?.overallRiskScore ?? "-"}</Badge>
-                      </div>
-                      {!!selectedPlotRun?.summary && <div className="mt-1 text-muted-foreground">{selectedPlotRun.summary}</div>}
-                    </div>
-                    {(selectedPlotRun?.issues || []).map((issue) => (
-                      <div key={issue.id} className="rounded border p-2">
-                        <div>{plotDimensionLabel(issue.dimension)} · {issue.severity}</div>
-                        {!!issue.minimalFix && <div className="text-muted-foreground mt-1">{issue.minimalFix}</div>}
-                      </div>
-                    ))}
-                    {!!selectedPlotRun?.revisionCandidateText && (
-                      <div className="rounded border p-2 whitespace-pre-wrap">{selectedPlotRun.revisionCandidateText}</div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-              <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
-                <Button size="sm" variant="outline" className="mb-2" onClick={() => void loadVersions()}>刷新版本</Button>
-                <ScrollArea className="h-[calc(100%-2.2rem)]">
-                  {versions.map((version) => (
-                    <div key={version.id} className="rounded border p-2 mb-2">
-                      <div>{version.label}</div>
-                      <div className="text-muted-foreground">{formatDateTime(version.createdAt)}</div>
-                    </div>
-                  ))}
-                </ScrollArea>
-              </TabsContent>
-              <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
-                <Button size="sm" onClick={() => void createExportJob()} className="mb-2">创建导出任务</Button>
-                <ScrollArea className="h-[calc(100%-2.2rem)]">
-                  {exportJobs.map((job) => (
-                    <div key={job.id} className="rounded border p-2 mb-2">{job.fileName || job.id}</div>
-                  ))}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-        </Tabs>
+        <MobileWorkbenchPanel
+          content={content}
+          contextData={contextData}
+          exportJobs={exportJobs}
+          focusMode={focusMode}
+          isPlotBusy={isPlotBusy}
+          isPlotRevisionBusy={isPlotRevisionBusy}
+          isSlopBusy={isSlopBusy}
+          mobilePane={mobilePane}
+          onApplyPlotRevision={applyPlotRevision}
+          onChangeMobilePane={setMobilePane}
+          onChangeSidebarTab={(value) => setSidebarTab(value as SidebarTab)}
+          onCreateExportJob={createExportJob}
+          onEditorChange={handleEditorChange}
+          onGeneratePlotRevisionCandidate={generatePlotRevisionCandidate}
+          onLoadVersions={loadVersions}
+          onRunPlotDiagnosis={runPlotDiagnosis}
+          onRunSlopDiagnosis={runSlopDiagnosis}
+          onSelectOutlineScene={handleSceneSelect}
+          outlineChapters={outlineDraft?.chapters || []}
+          selectedManuscriptId={selectedManuscriptId}
+          selectedPlotRun={selectedPlotRun}
+          selectedQualityRun={selectedQualityRun}
+          selectedSceneId={selectedSceneId}
+          sidebarTab={sidebarTab}
+          versions={versions}
+        />
       ) : (
         <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border bg-background">
           <ResizablePanel
