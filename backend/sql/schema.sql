@@ -15,17 +15,8 @@ CREATE TABLE `character_cards` (
   KEY `FK8fl6goog1m0be12r3huk0cxbu` (`story_id`),
   CONSTRAINT `FK8fl6goog1m0be12r3huk0cxbu` FOREIGN KEY (`story_id`) REFERENCES `stories` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-CREATE TABLE `email_verification_codes` (
-  `id` binary(16) NOT NULL,
-  `code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` datetime(6) DEFAULT NULL,
-  `email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `expires_at` datetime(6) DEFAULT NULL,
-  `purpose` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `used` bit(1) NOT NULL,
-  `used_at` datetime(6) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- `email_verification_codes` was removed from the runtime schema reference on 2026-07-06.
+-- Current email verification is handled by `user-service` via gRPC; this repo has no Java/runtime usage for a local table.
 CREATE TABLE `global_settings` (
   `id` binary(16) NOT NULL,
   `created_at` datetime(6) DEFAULT NULL,
@@ -191,25 +182,8 @@ CREATE TABLE `lorebook_entries` (
   CONSTRAINT `fk_lorebook_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `context_snapshots` (
-  `id` binary(16) NOT NULL,
-  `story_id` binary(16) NOT NULL,
-  `manuscript_id` binary(16) DEFAULT NULL,
-  `chapter_index` int NOT NULL,
-  `scene_index` int NOT NULL,
-  `active_characters_json` longtext COLLATE utf8mb4_unicode_ci,
-  `active_locations_json` longtext COLLATE utf8mb4_unicode_ci,
-  `timeline_position` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `summary` longtext COLLATE utf8mb4_unicode_ci,
-  `emotional_tone` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `word_count` int NOT NULL DEFAULT 0,
-  `created_at` datetime(6) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_context_story` (`story_id`),
-  KEY `idx_context_story_chapter_scene` (`story_id`,`chapter_index`,`scene_index`),
-  CONSTRAINT `fk_context_story` FOREIGN KEY (`story_id`) REFERENCES `stories` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_context_manuscript` FOREIGN KEY (`manuscript_id`) REFERENCES `manuscripts` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- `context_snapshots` remained a v2 design-only reservation and was removed from the runtime schema reference on 2026-07-06.
+-- Reintroduce it only with live persistence code plus explicit migration governance.
 
 CREATE TABLE `entity_extractions` (
   `id` binary(16) NOT NULL,
