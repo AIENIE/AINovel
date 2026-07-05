@@ -39,6 +39,8 @@ import { StatsSidebarPanel } from "./manuscript-writer/StatsSidebarPanel";
 import { GoalsSidebarPanel } from "./manuscript-writer/GoalsSidebarPanel";
 import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
 import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
+import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
+import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import {
   countWords,
   plotStatusClass,
@@ -1257,132 +1259,62 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           <ResizableHandle withHandle className={cn(!showLeftPanel && "pointer-events-none opacity-0")} />
 
         <ResizablePanel minSize={35}>
-          <div className="h-full flex flex-col min-w-0 transition-all duration-300">
-            {!focusMode && (
-              <div className="flex items-center justify-between mb-2 px-2 pt-2">
-                <div className="text-sm text-muted-foreground">
-                  {isSaving ? "正在保存..." : lastSavedAt ? `上次保存: ${lastSavedAt}` : "未保存"}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => { setIsSidebarOpen(true); setSidebarTab("version"); }}><History className="mr-2 h-4 w-4" /> 历史版本</Button>
-                  <Button size="sm" onClick={() => void handleManualSave()} disabled={!selectedManuscriptId || !selectedSceneId}>
-                    <Save className="mr-2 h-4 w-4" /> 保存
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      if (!selectedManuscriptId || !selectedSceneId) return;
-                      const sceneId = selectedSceneId;
-                      setIsGenerating(true);
-                      try {
-                        const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
-                        setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
-                        setContent(saved.sections?.[sceneId] || "");
-                        const qualityRuns = await api.v2.quality.listRuns(saved.id, sceneId).catch(() => []);
-                        const latestRun = qualityRuns[0] || null;
-                        setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
-                        const plotRuns = await api.v2.plotQuality.listRuns(saved.id, sceneId).catch(() => []);
-                        setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: plotRuns[0] || null }));
-                        api.v2.plotQuality.getTrend(saved.id).then(setPlotTrend).catch(() => undefined);
-                        toast({
-                          title: "已生成场景正文",
-                          description: qualityStatusText(latestRun),
-                        });
-                      } catch (e: any) {
-                        toast({ variant: "destructive", title: "生成失败", description: e.message });
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                    disabled={isGenerating || !selectedSceneId || !selectedManuscriptId}
-                  >
-                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                    生成本场景
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="ml-2" title={isSidebarOpen ? "收起右栏" : "展开右栏"}>
-                    {isSidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="px-2 pb-2 flex flex-wrap items-center gap-2 text-xs">
-              <Badge variant="outline" className={cn("font-normal", qualityStatusClass(selectedQualityRun))}>
-                {qualityStatusText(selectedQualityRun)}
-              </Badge>
-              <Badge variant="outline" className={cn("font-normal", plotStatusClass(selectedPlotRun))}>
-                {plotStatusText(selectedPlotRun)}
-              </Badge>
-              {selectedQualityRun ? (
-                <>
-                  <span className="text-muted-foreground">风险 {selectedQualityRun.overallRiskScore}</span>
-                  {selectedQualityRun.summary ? <span className="text-muted-foreground truncate max-w-[520px]">{selectedQualityRun.summary}</span> : null}
-                </>
-              ) : (
-                <span className="text-muted-foreground">生成场景后会自动记录反 slop 检查结果</span>
-              )}
-            </div>
-
-            <div className="px-2 pb-2">
-              <ScrollArea className="w-full whitespace-nowrap">
-                <div className="flex gap-2">
-                  {openSceneIds.map((sceneId) => {
-                    const scene = sceneMap[sceneId]?.scene;
-                    if (!scene) return null;
-                    return (
-                      <div
-                        key={sceneId}
-                        draggable
-                        onDragStart={() => setDraggingTabId(sceneId)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          reorderOpenTabs(draggingTabId, sceneId);
-                          setDraggingTabId("");
-                        }}
-                        className={cn(
-                          "rounded-md border flex items-center",
-                          selectedSceneId === sceneId ? "bg-secondary border-primary/40" : "bg-muted/40",
-                        )}
-                      >
-                        <button type="button" className="px-2 py-1 text-sm" onClick={() => setSelectedSceneId(sceneId)}>
-                          {scene.title}
-                          {dirtyScenes[sceneId] ? " *" : ""}
-                        </button>
-                        {openSceneIds.length > 1 && <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => closeSceneTab(sceneId)}><X className="h-3 w-3" /></Button>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-
-            <div className="flex-1 border rounded-lg overflow-hidden bg-background shadow-sm mx-2">
-              <TiptapEditor
-                key={`desktop-editor-${focusMode ? "zen" : "normal"}`}
-                content={content}
-                onChange={handleEditorChange}
-                className="h-full"
-                editable={!!selectedSceneId}
-                zenMode={focusMode}
-              />
-            </div>
-
-            {!focusMode && (
-              <div className="h-8 mt-2 border-t px-3 flex items-center justify-between text-xs text-muted-foreground bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <span>字数 {currentWordCount}</span>
-                  <span>选中 {selectedWordCount}</span>
-                  <span>会话 {Math.floor(sessionDurationSeconds / 60)}m{sessionDurationSeconds % 60}s</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span>净增 {sessionNetWords}</span>
-                  {!!activeGoal && <span>目标 {activeGoal.currentValue || 0}/{activeGoal.targetValue || 0}</span>}
-                </div>
-              </div>
-            )}
-          </div>
+          <DesktopEditorPanel
+            activeGoal={activeGoal}
+            content={content}
+            currentWordCount={currentWordCount}
+            dirtyScenes={dirtyScenes}
+            draggingTabId={draggingTabId}
+            focusMode={focusMode}
+            isGenerating={isGenerating}
+            isSaving={isSaving}
+            isSidebarOpen={isSidebarOpen}
+            lastSavedAt={lastSavedAt}
+            onCloseSceneTab={closeSceneTab}
+            onEditorChange={handleEditorChange}
+            onGenerateScene={async () => {
+              if (!selectedManuscriptId || !selectedSceneId) return;
+              const sceneId = selectedSceneId;
+              setIsGenerating(true);
+              try {
+                const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
+                setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
+                setContent(saved.sections?.[sceneId] || "");
+                const qualityRuns = await api.v2.quality.listRuns(saved.id, sceneId).catch(() => []);
+                const latestRun = qualityRuns[0] || null;
+                setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
+                const plotRuns = await api.v2.plotQuality.listRuns(saved.id, sceneId).catch(() => []);
+                setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: plotRuns[0] || null }));
+                api.v2.plotQuality.getTrend(saved.id).then(setPlotTrend).catch(() => undefined);
+                toast({
+                  title: "已生成场景正文",
+                  description: qualityStatusText(latestRun),
+                });
+              } catch (e: any) {
+                toast({ variant: "destructive", title: "生成失败", description: e.message });
+              } finally {
+                setIsGenerating(false);
+              }
+            }}
+            onHandleManualSave={handleManualSave}
+            onOpenVersionPanel={() => {
+              setIsSidebarOpen(true);
+              setSidebarTab("version");
+            }}
+            onReorderOpenTabs={reorderOpenTabs}
+            onSelectScene={setSelectedSceneId}
+            onSetDraggingTabId={setDraggingTabId}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            openSceneIds={openSceneIds}
+            sceneMap={sceneMap}
+            selectedManuscriptId={selectedManuscriptId}
+            selectedPlotRun={selectedPlotRun}
+            selectedQualityRun={selectedQualityRun}
+            selectedSceneId={selectedSceneId}
+            selectedWordCount={selectedWordCount}
+            sessionDurationSeconds={sessionDurationSeconds}
+            sessionNetWords={sessionNetWords}
+          />
         </ResizablePanel>
 
             <ResizableHandle withHandle className={cn(!showRightPanel && "pointer-events-none opacity-0")} />
@@ -1395,119 +1327,98 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               maxSize={45}
               onResize={(size) => setRightPanelSize(Math.round(size))}
             >
-              <div className={cn("h-full", !showRightPanel && "invisible")}>
-              <Tabs value={sidebarTab} onValueChange={(value) => setSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-                <TabsList className="grid grid-cols-7 mx-2 mt-2">
-                  <TabsTrigger value="copilot">copilot</TabsTrigger>
-                  <TabsTrigger value="context">context</TabsTrigger>
-                  <TabsTrigger value="plot">plot</TabsTrigger>
-                  <TabsTrigger value="version">version</TabsTrigger>
-                  <TabsTrigger value="export">export</TabsTrigger>
-                  <TabsTrigger value="stats">stats</TabsTrigger>
-                  <TabsTrigger value="goals">goals</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData} className="h-full border-none" /></TabsContent>
-                <ContextSidebarPanel contextPreview={contextPreview} onRefresh={loadContextPreview} />
-
-                <PlotSidebarPanel
-                  isPlotBusy={isPlotBusy}
-                  isPlotRevisionBusy={isPlotRevisionBusy}
-                  isSlopBusy={isSlopBusy}
-                  onApplyPlotRevision={applyPlotRevision}
-                  onCopySlopRewriteTask={copySlopRewriteTask}
-                  onGeneratePlotRevisionCandidate={generatePlotRevisionCandidate}
-                  onRefreshPlotQuality={loadPlotQuality}
-                  onRunPlotDiagnosis={runPlotDiagnosis}
-                  onRunSlopDiagnosis={runSlopDiagnosis}
-                  plotDimensionEntries={plotDimensionEntries}
-                  plotTrend={plotTrend}
-                  plotTrendChartData={plotTrendChartData}
-                  selectedManuscriptId={selectedManuscriptId}
-                  selectedPlotRun={selectedPlotRun}
-                  selectedQualityRun={selectedQualityRun}
-                  selectedSceneId={selectedSceneId}
-                  selectedSceneTitle={sceneMap[selectedSceneId]?.scene?.title || ""}
-                />
-
-                <VersionSidebarPanel
-                  aiDiffSummary={aiDiffSummary}
-                  autoSaveConfig={autoSaveConfig}
-                  branches={branches}
-                  createBranch={createBranch}
-                  createManualVersion={createManualVersion}
-                  checkoutBranch={checkoutBranch}
-                  currentBranchId={currentBranchId}
-                  diffResult={diffResult}
-                  diffViewMode={diffViewMode}
-                  hasMoreVersions={hasMoreVersions}
-                  loadVersions={loadVersions}
-                  mergeBranchId={mergeBranchId}
-                  mergeConflicts={mergeConflicts}
-                  mergeSelectedBranch={mergeSelectedBranch}
-                  mergeStrategy={mergeStrategy}
-                  newBranchName={newBranchName}
-                  rollbackVersion={rollbackVersion}
-                  runVersionDiff={runVersionDiff}
-                  saveAutoSaveConfig={saveAutoSaveConfig}
-                  sceneResolutions={sceneResolutions}
-                  selectedDiffVersions={selectedDiffVersions}
-                  selectedManuscriptId={selectedManuscriptId}
-                  setAutoSaveConfig={setAutoSaveConfig}
-                  setDiffViewMode={setDiffViewMode}
-                  setMergeBranchId={setMergeBranchId}
-                  setMergeStrategy={setMergeStrategy}
-                  setNewBranchName={setNewBranchName}
-                  setSceneResolutions={setSceneResolutions}
-                  setVersionVisibleCount={setVersionVisibleCount}
-                  summarizeDiff={summarizeDiff}
-                  toggleVersionSelection={toggleVersionSelection}
-                  versionPageSize={VERSION_PAGE_SIZE}
-                  visibleVersions={visibleVersions}
-                />
-
-                <ExportSidebarPanel
-                  chapterRange={chapterRange}
-                  createExportJob={createExportJob}
-                  createTemplate={createTemplate}
-                  deleteTemplate={deleteTemplate}
-                  exportAuthorName={exportAuthorName}
-                  exportFormat={exportFormat}
-                  exportJobs={exportJobs}
-                  exportTemplateId={exportTemplateId}
-                  exportTemplates={exportTemplates}
-                  includeTableOfContents={includeTableOfContents}
-                  includeTitlePage={includeTitlePage}
-                  selectedManuscriptId={selectedManuscriptId}
-                  setChapterRange={setChapterRange}
-                  setExportAuthorName={setExportAuthorName}
-                  setExportFormat={setExportFormat}
-                  setExportTemplateId={setExportTemplateId}
-                  setIncludeTableOfContents={setIncludeTableOfContents}
-                  setIncludeTitlePage={setIncludeTitlePage}
-                  setTemplateDescription={setTemplateDescription}
-                  setTemplateName={setTemplateName}
-                  setTxtEncoding={setTxtEncoding}
-                  templateDescription={templateDescription}
-                  templateName={templateName}
-                  txtEncoding={txtEncoding}
-                  updateTemplate={updateTemplate}
-                />
-
-                <StatsSidebarPanel dailyHeatmap={dailyHeatmap} onRefresh={loadStats} workspaceStats={workspaceStats} />
-
-                <GoalsSidebarPanel
-                  createGoal={createGoal}
-                  deleteGoal={deleteGoal}
-                  goalTargetValue={goalTargetValue}
-                  goalType={goalType}
-                  goals={goals}
-                  setGoalTargetValue={setGoalTargetValue}
-                  setGoalType={setGoalType}
-                  updateGoal={updateGoal}
-                />
-              </Tabs>
-              </div>
+              <DesktopSidebarPanel
+                aiDiffSummary={aiDiffSummary}
+                applyPlotRevision={applyPlotRevision}
+                autoSaveConfig={autoSaveConfig}
+                branches={branches}
+                chapterRange={chapterRange}
+                checkoutBranch={checkoutBranch}
+                contextData={contextData}
+                contextPreview={contextPreview}
+                copySlopRewriteTask={copySlopRewriteTask}
+                createBranch={createBranch}
+                createExportJob={createExportJob}
+                createGoal={createGoal}
+                createManualVersion={createManualVersion}
+                createTemplate={createTemplate}
+                currentBranchId={currentBranchId}
+                dailyHeatmap={dailyHeatmap}
+                deleteGoal={deleteGoal}
+                deleteTemplate={deleteTemplate}
+                diffResult={diffResult}
+                diffViewMode={diffViewMode}
+                exportAuthorName={exportAuthorName}
+                exportFormat={exportFormat}
+                exportJobs={exportJobs}
+                exportTemplateId={exportTemplateId}
+                exportTemplates={exportTemplates}
+                generatePlotRevisionCandidate={generatePlotRevisionCandidate}
+                goalTargetValue={goalTargetValue}
+                goalType={goalType}
+                goals={goals}
+                hasMoreVersions={hasMoreVersions}
+                includeTableOfContents={includeTableOfContents}
+                includeTitlePage={includeTitlePage}
+                isPlotBusy={isPlotBusy}
+                isPlotRevisionBusy={isPlotRevisionBusy}
+                isSlopBusy={isSlopBusy}
+                loadContextPreview={loadContextPreview}
+                loadPlotQuality={loadPlotQuality}
+                loadStats={loadStats}
+                loadVersions={loadVersions}
+                mergeBranchId={mergeBranchId}
+                mergeConflicts={mergeConflicts}
+                mergeSelectedBranch={mergeSelectedBranch}
+                mergeStrategy={mergeStrategy}
+                newBranchName={newBranchName}
+                onChangeSidebarTab={(value) => setSidebarTab(value as SidebarTab)}
+                plotDimensionEntries={plotDimensionEntries}
+                plotTrend={plotTrend}
+                plotTrendChartData={plotTrendChartData}
+                rollbackVersion={rollbackVersion}
+                runPlotDiagnosis={runPlotDiagnosis}
+                runSlopDiagnosis={runSlopDiagnosis}
+                runVersionDiff={runVersionDiff}
+                saveAutoSaveConfig={saveAutoSaveConfig}
+                sceneResolutions={sceneResolutions}
+                selectedDiffVersions={selectedDiffVersions}
+                selectedManuscriptId={selectedManuscriptId}
+                selectedPlotRun={selectedPlotRun}
+                selectedQualityRun={selectedQualityRun}
+                selectedSceneId={selectedSceneId}
+                selectedSceneTitle={sceneMap[selectedSceneId]?.scene?.title || ""}
+                setAutoSaveConfig={setAutoSaveConfig}
+                setChapterRange={setChapterRange}
+                setDiffViewMode={setDiffViewMode}
+                setExportAuthorName={setExportAuthorName}
+                setExportFormat={setExportFormat}
+                setExportTemplateId={setExportTemplateId}
+                setGoalTargetValue={setGoalTargetValue}
+                setGoalType={setGoalType}
+                setIncludeTableOfContents={setIncludeTableOfContents}
+                setIncludeTitlePage={setIncludeTitlePage}
+                setMergeBranchId={setMergeBranchId}
+                setMergeStrategy={setMergeStrategy}
+                setNewBranchName={setNewBranchName}
+                setSceneResolutions={setSceneResolutions}
+                setTemplateDescription={setTemplateDescription}
+                setTemplateName={setTemplateName}
+                setTxtEncoding={setTxtEncoding}
+                setVersionVisibleCount={setVersionVisibleCount}
+                showRightPanel={showRightPanel}
+                sidebarTab={sidebarTab}
+                summarizeDiff={summarizeDiff}
+                templateDescription={templateDescription}
+                templateName={templateName}
+                toggleVersionSelection={toggleVersionSelection}
+                txtEncoding={txtEncoding}
+                updateGoal={updateGoal}
+                updateTemplate={updateTemplate}
+                versionPageSize={VERSION_PAGE_SIZE}
+                visibleVersions={visibleVersions}
+                workspaceStats={workspaceStats}
+              />
             </ResizablePanel>
         </ResizablePanelGroup>
       )}
