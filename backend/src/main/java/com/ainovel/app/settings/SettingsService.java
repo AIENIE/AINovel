@@ -8,6 +8,7 @@ import com.ainovel.app.settings.repo.GlobalSettingsRepository;
 import com.ainovel.app.settings.repo.PromptTemplatesRepository;
 import com.ainovel.app.settings.repo.WorldPromptTemplatesRepository;
 import com.ainovel.app.user.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,8 @@ public class SettingsService {
     private PromptTemplatesRepository promptTemplatesRepository;
     @Autowired
     private WorldPromptTemplatesRepository worldPromptTemplatesRepository;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public GlobalSettings getGlobalSettings() {
         return getOrCreateGlobalSettings();
@@ -194,7 +197,7 @@ public class SettingsService {
     private Map<String, String> jsonToMap(String json) {
         if (json == null || json.isBlank()) return new HashMap<>();
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, Map.class);
+            return objectMapper.readValue(json, Map.class);
         } catch (Exception e) {
             return new HashMap<>();
         }
@@ -202,7 +205,7 @@ public class SettingsService {
 
     private String mapToJson(Map<String, String> map) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(map);
+            return objectMapper.writeValueAsString(map);
         } catch (Exception e) {
             return "{}";
         }
