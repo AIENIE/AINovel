@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
@@ -22,14 +20,6 @@ import java.util.concurrent.ConcurrentMap;
 public class V2ContextController {
     private final ResourceAccessGuard accessGuard;
     private final V2ContextPersistenceService persistenceService;
-
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> lorebookByStory = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> extractionByStory = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> relationshipsByStory = new ConcurrentHashMap<>();
-
-    public V2ContextController(ResourceAccessGuard accessGuard) {
-        this(accessGuard, null);
-    }
 
     @Autowired
     public V2ContextController(ResourceAccessGuard accessGuard, V2ContextPersistenceService persistenceService) {
@@ -44,9 +34,6 @@ public class V2ContextController {
                                                   @PathVariable UUID storyId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.listLorebook(storyId);
-        }
         return listLorebookInternal(storyId);
     }
 
@@ -58,29 +45,7 @@ public class V2ContextController {
                                               @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.createLorebook(user, story, payload);
-        }
-
-        Map<String, Object> entry = new HashMap<>();
-        UUID id = UUID.randomUUID();
-        entry.put("id", id);
-        entry.put("storyId", storyId);
-        entry.put("userId", user.getId());
-        entry.put("entryKey", str(payload.get("entryKey"), "entry-" + id.toString().substring(0, 8)));
-        entry.put("displayName", str(payload.get("displayName"), "未命名条目"));
-        entry.put("category", str(payload.get("category"), "custom"));
-        entry.put("content", str(payload.get("content"), ""));
-        entry.put("keywords", list(payload.get("keywords")));
-        entry.put("priority", intVal(payload.get("priority"), 0));
-        entry.put("enabled", boolVal(payload.get("enabled"), true));
-        entry.put("insertionPosition", str(payload.get("insertionPosition"), "before_scene"));
-        entry.put("tokenBudget", intVal(payload.get("tokenBudget"), 500));
-        entry.put("createdAt", Instant.now());
-        entry.put("updatedAt", Instant.now());
-
-        lorebookByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).put(id, entry);
-        return entry;
+        return persistenceService.createLorebook(user, story, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -92,26 +57,7 @@ public class V2ContextController {
                                               @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.updateLorebook(storyId, entryId, payload);
-        }
-
-        Map<String, Object> entry = requireLorebook(storyId, entryId);
-        mergeIfPresent(payload, entry, "entryKey", "displayName", "category", "content", "insertionPosition");
-        if (payload.containsKey("keywords")) {
-            entry.put("keywords", list(payload.get("keywords")));
-        }
-        if (payload.containsKey("priority")) {
-            entry.put("priority", intVal(payload.get("priority"), 0));
-        }
-        if (payload.containsKey("enabled")) {
-            entry.put("enabled", boolVal(payload.get("enabled"), true));
-        }
-        if (payload.containsKey("tokenBudget")) {
-            entry.put("tokenBudget", intVal(payload.get("tokenBudget"), 500));
-        }
-        entry.put("updatedAt", Instant.now());
-        return entry;
+        return persistenceService.updateLorebook(storyId, entryId, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -122,19 +68,7 @@ public class V2ContextController {
                                                @PathVariable UUID entryId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            persistenceService.deleteLorebook(storyId, entryId);
-            return ResponseEntity.noContent().build();
-        }
-        lorebookByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).remove(entryId);
-        relationshipsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>())
-                .entrySet()
-                .removeIf(entry -> {
-                    Map<String, Object> relation = entry.getValue();
-                    UUID sourceId = uuidVal(relation.get("source"), null);
-                    UUID targetId = uuidVal(relation.get("target"), null);
-                    return entryId.equals(sourceId) || entryId.equals(targetId);
-                });
+        persistenceService.deleteLorebook(storyId, entryId);
         return ResponseEntity.noContent().build();
     }
 
@@ -147,19 +81,6 @@ public class V2ContextController {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
         List<Object> entries = list(payload.get("entries"));
-        if (persistenceService != null) {
-            int imported = 0;
-            for (Object item : entries) {
-                if (!(item instanceof Map<?, ?> itemMap)) {
-                    continue;
-                }
-                @SuppressWarnings("unchecked")
-                Map<String, Object> source = new HashMap<>((Map<String, Object>) itemMap);
-                persistenceService.createLorebook(user, story, source);
-                imported++;
-            }
-            return Map.of("storyId", storyId, "imported", imported, "total", entries.size());
-        }
         int imported = 0;
         for (Object item : entries) {
             if (!(item instanceof Map<?, ?> itemMap)) {
@@ -167,7 +88,7 @@ public class V2ContextController {
             }
             @SuppressWarnings("unchecked")
             Map<String, Object> source = new HashMap<>((Map<String, Object>) itemMap);
-            createLorebook(principal, storyId, source);
+            persistenceService.createLorebook(user, story, source);
             imported++;
         }
         return Map.of(
@@ -291,23 +212,7 @@ public class V2ContextController {
         if (sourceId.equals(targetId)) {
             throw new RuntimeException("source/target 不能相同");
         }
-        if (persistenceService != null) {
-            return persistenceService.createRelationship(story, sourceId, targetId, str(payload.get("relationType"), "related_to"));
-        }
-        requireLorebook(storyId, sourceId);
-        requireLorebook(storyId, targetId);
-
-        Map<String, Object> relation = new HashMap<>();
-        UUID id = UUID.randomUUID();
-        relation.put("id", id);
-        relation.put("storyId", storyId);
-        relation.put("source", sourceId);
-        relation.put("target", targetId);
-        relation.put("relationType", str(payload.get("relationType"), "related_to"));
-        relation.put("createdAt", Instant.now());
-
-        relationshipsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).put(id, relation);
-        return relation;
+        return persistenceService.createRelationship(story, sourceId, targetId, str(payload.get("relationType"), "related_to"));
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -318,11 +223,7 @@ public class V2ContextController {
                                                    @PathVariable UUID relationshipId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            persistenceService.deleteRelationship(storyId, relationshipId);
-            return ResponseEntity.noContent().build();
-        }
-        relationshipsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).remove(relationshipId);
+        persistenceService.deleteRelationship(storyId, relationshipId);
         return ResponseEntity.noContent().build();
     }
 
@@ -354,27 +255,7 @@ public class V2ContextController {
         if (text.isEmpty()) {
             throw new RuntimeException("text 不能为空");
         }
-        if (persistenceService != null) {
-            return persistenceService.createExtraction(story, payload);
-        }
-
-        UUID id = UUID.randomUUID();
-        Map<String, Object> extraction = new HashMap<>();
-        extraction.put("id", id);
-        extraction.put("storyId", storyId);
-        extraction.put("manuscriptId", payload.get("manuscriptId"));
-        extraction.put("entityName", str(payload.get("entityName"), text.substring(0, Math.min(12, text.length()))));
-        extraction.put("entityType", str(payload.get("entityType"), "concept"));
-        extraction.put("attributes", payload.getOrDefault("attributes", Map.of("source", "ai")));
-        extraction.put("sourceText", text.substring(0, Math.min(text.length(), 200)));
-        extraction.put("confidence", doubleVal(payload.get("confidence"), 0.82d));
-        extraction.put("reviewed", false);
-        extraction.put("reviewAction", "pending");
-        extraction.put("linkedLorebookId", null);
-        extraction.put("createdAt", Instant.now());
-
-        extractionByStory.computeIfAbsent(story.getId(), key -> new ConcurrentHashMap<>()).put(id, extraction);
-        return extraction;
+        return persistenceService.createExtraction(story, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -384,10 +265,7 @@ public class V2ContextController {
                                                      @PathVariable UUID storyId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.listExtractions(storyId);
-        }
-        return new ArrayList<>(extractionByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
+        return persistenceService.listExtractions(storyId);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -399,25 +277,7 @@ public class V2ContextController {
                                                 @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.reviewExtraction(storyId, id, payload);
-        }
-
-        Map<String, Object> extraction = extractionByStory
-                .computeIfAbsent(storyId, key -> new ConcurrentHashMap<>())
-                .get(id);
-        if (extraction == null) {
-            throw new RuntimeException("提取记录不存在");
-        }
-
-        String action = str(payload.get("reviewAction"), "approved");
-        extraction.put("reviewed", true);
-        extraction.put("reviewAction", action);
-        if (payload.containsKey("linkedLorebookId")) {
-            extraction.put("linkedLorebookId", payload.get("linkedLorebookId"));
-        }
-        extraction.put("reviewedAt", Instant.now());
-        return extraction;
+        return persistenceService.reviewExtraction(storyId, id, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -447,9 +307,7 @@ public class V2ContextController {
         }
 
         List<Map<String, Object>> pendingExtractions = new ArrayList<>();
-        List<Map<String, Object>> extractions = persistenceService == null
-                ? new ArrayList<>(extractionByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values())
-                : persistenceService.listExtractions(storyId);
+        List<Map<String, Object>> extractions = persistenceService.listExtractions(storyId);
         for (Map<String, Object> extraction : extractions) {
             if (!boolVal(extraction.get("reviewed"), false)) {
                 pendingExtractions.add(extraction);
@@ -527,42 +385,14 @@ public class V2ContextController {
         return response;
     }
 
-    private Map<String, Object> requireLorebook(UUID storyId, UUID entryId) {
-        if (persistenceService != null) {
-            return persistenceService.listLorebook(storyId).stream()
-                    .filter(entry -> entryId.equals(uuidVal(entry.get("id"), null)))
-                    .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Lorebook 条目不存在"));
-        }
-        Map<String, Object> entry = lorebookByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).get(entryId);
-        if (entry == null) {
-            throw new RuntimeException("Lorebook 条目不存在");
-        }
-        return entry;
-    }
-
     private List<Map<String, Object>> listLorebookInternal(UUID storyId) {
-        if (persistenceService != null) {
-            return persistenceService.listLorebook(storyId);
-        }
-        List<Map<String, Object>> entries = new ArrayList<>(lorebookByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
+        List<Map<String, Object>> entries = new ArrayList<>(persistenceService.listLorebook(storyId));
         entries.sort(Comparator.comparingInt((Map<String, Object> entry) -> intVal(entry.get("priority"), 0)).reversed());
         return entries;
     }
 
     private List<Map<String, Object>> listRelationshipsInternal(UUID storyId) {
-        if (persistenceService != null) {
-            return persistenceService.listRelationships(storyId);
-        }
-        return new ArrayList<>(relationshipsByStory.computeIfAbsent(storyId, key -> new ConcurrentHashMap<>()).values());
-    }
-
-    private void mergeIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {
-        for (String key : keys) {
-            if (source.containsKey(key)) {
-                target.put(key, source.get(key));
-            }
-        }
+        return new ArrayList<>(persistenceService.listRelationships(storyId));
     }
 
     private String str(Object value, String fallback) {
@@ -597,20 +427,6 @@ public class V2ContextController {
         try {
             return UUID.fromString(value.toString());
         } catch (IllegalArgumentException ex) {
-            return fallback;
-        }
-    }
-
-    private double doubleVal(Object value, double fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Number n) {
-            return n.doubleValue();
-        }
-        try {
-            return Double.parseDouble(value.toString());
-        } catch (NumberFormatException ex) {
             return fallback;
         }
     }

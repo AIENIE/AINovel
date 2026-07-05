@@ -7,18 +7,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class V2ContextControllerTests {
 
     private ResourceAccessGuard accessGuard;
+    private V2ContextPersistenceService persistenceService;
     private V2ContextController controller;
     private UserDetails principal;
     private User user;
@@ -27,7 +32,8 @@ class V2ContextControllerTests {
     @BeforeEach
     void setUp() {
         accessGuard = mock(ResourceAccessGuard.class);
-        controller = new V2ContextController(accessGuard);
+        persistenceService = mock(V2ContextPersistenceService.class);
+        controller = new V2ContextController(accessGuard, persistenceService);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -43,18 +49,12 @@ class V2ContextControllerTests {
 
     @Test
     void previewShouldRespectTokenBudget() {
-        controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "角色设定",
-                "content", "内容A",
-                "tokenBudget", 200,
-                "priority", 10
+        when(persistenceService.listLorebook(storyId)).thenReturn(List.of(
+                lorebookEntry("角色设定", "character", 200, 10, "before_scene"),
+                lorebookEntry("地点设定", "location", 180, 8, "before_scene")
         ));
-        controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "地点设定",
-                "content", "内容B",
-                "tokenBudget", 180,
-                "priority", 8
-        ));
+        when(persistenceService.listExtractions(storyId)).thenReturn(List.of());
+        when(persistenceService.listRelationships(storyId)).thenReturn(List.of());
 
         Map<String, Object> preview = controller.previewContext(principal, storyId, 1, 1, 250);
         int tokenUsed = ((Number) preview.get("tokenUsed")).intValue();
@@ -63,81 +63,71 @@ class V2ContextControllerTests {
 
         assertTrue(tokenUsed <= 250);
         assertEquals(1, selected.size(), "预算不足时应仅注入一个条目");
+        verify(persistenceService).listLorebook(storyId);
+        verify(persistenceService).listExtractions(storyId);
+        verify(persistenceService).listRelationships(storyId);
     }
 
     @Test
     void reviewExtractionShouldMarkReviewed() {
-        Map<String, Object> extraction = controller.extractEntities(principal, storyId, Map.of(
-                "text", "林逸在青云山发现了古老石碑"
-        ));
+        UUID extractionId = UUID.randomUUID();
+        Map<String, Object> reviewedPayload = new HashMap<>();
+        reviewedPayload.put("id", extractionId);
+        reviewedPayload.put("reviewed", true);
+        reviewedPayload.put("reviewAction", "approved");
+        when(persistenceService.reviewExtraction(storyId, extractionId, Map.of(
+                "reviewAction", "approved"
+        ))).thenReturn(reviewedPayload);
 
-        UUID extractionId = (UUID) extraction.get("id");
         Map<String, Object> reviewed = controller.reviewExtraction(principal, storyId, extractionId, Map.of(
                 "reviewAction", "approved"
         ));
 
         assertEquals(true, reviewed.get("reviewed"));
         assertEquals("approved", reviewed.get("reviewAction"));
+        verify(persistenceService).reviewExtraction(storyId, extractionId, Map.of("reviewAction", "approved"));
     }
 
     @Test
-    void graphShouldContainRelationshipAndCascadeOnNodeDelete() {
-        Map<String, Object> nodeA = controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "林烬",
-                "category", "character",
-                "tokenBudget", 80
+    void graphShouldContainPersistedRelationshipBetweenEnabledNodes() {
+        UUID nodeAId = UUID.randomUUID();
+        UUID nodeBId = UUID.randomUUID();
+        UUID disabledNodeId = UUID.randomUUID();
+        when(persistenceService.listLorebook(storyId)).thenReturn(List.of(
+                lorebookEntry(nodeAId, "林烬", "character", 80, 10, "before_scene", true),
+                lorebookEntry(nodeBId, "夜雨港", "location", 80, 8, "before_scene", true),
+                lorebookEntry(disabledNodeId, "废弃设定", "concept", 40, 1, "before_scene", false)
         ));
-        Map<String, Object> nodeB = controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "夜雨港",
-                "category", "location",
-                "tokenBudget", 80
-        ));
-
-        UUID nodeAId = (UUID) nodeA.get("id");
-        UUID nodeBId = (UUID) nodeB.get("id");
-        controller.createRelationship(principal, storyId, Map.of(
-                "source", nodeAId.toString(),
-                "target", nodeBId.toString(),
-                "relationType", "located_at"
+        when(persistenceService.listRelationships(storyId)).thenReturn(List.of(
+                relationship(nodeAId, nodeBId, "located_at"),
+                relationship(nodeAId, disabledNodeId, "ignored")
         ));
 
         Map<String, Object> graph = controller.graph(principal, storyId);
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> edges = (List<Map<String, Object>>) graph.get("edges");
         assertEquals(1, edges.size());
-
-        controller.deleteLorebook(principal, storyId, nodeAId);
-        Map<String, Object> graphAfterDelete = controller.graph(principal, storyId);
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> edgesAfterDelete = (List<Map<String, Object>>) graphAfterDelete.get("edges");
-        assertEquals(0, edgesAfterDelete.size());
+        assertEquals("located_at", edges.get(0).get("relationType"));
+        verify(persistenceService).listLorebook(storyId);
+        verify(persistenceService).listRelationships(storyId);
     }
 
     @Test
     void previewShouldExposeSegmentedContextSections() {
-        Map<String, Object> character = controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "林烬",
-                "category", "character",
-                "tokenBudget", 80,
-                "insertionPosition", "before_scene"
+        UUID characterId = UUID.randomUUID();
+        UUID systemRuleId = UUID.randomUUID();
+        UUID afterHintId = UUID.randomUUID();
+        when(persistenceService.listLorebook(storyId)).thenReturn(List.of(
+                lorebookEntry(characterId, "林烬", "character", 80, 10, "before_scene", true),
+                lorebookEntry(systemRuleId, "世界规则", "concept", 60, 9, "system_prompt", true),
+                lorebookEntry(afterHintId, "收束提示", "event", 50, 8, "after_scene", true)
         ));
-        Map<String, Object> systemRule = controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "世界规则",
-                "category", "concept",
-                "tokenBudget", 60,
-                "insertionPosition", "system_prompt"
+        when(persistenceService.listRelationships(storyId)).thenReturn(List.of(
+                relationship(characterId, systemRuleId, "knows")
         ));
-        Map<String, Object> afterHint = controller.createLorebook(principal, storyId, Map.of(
-                "displayName", "收束提示",
-                "category", "event",
-                "tokenBudget", 50,
-                "insertionPosition", "after_scene"
-        ));
-
-        controller.createRelationship(principal, storyId, Map.of(
-                "source", character.get("id").toString(),
-                "target", systemRule.get("id").toString(),
-                "relationType", "knows"
+        when(persistenceService.listExtractions(storyId)).thenReturn(List.of(
+                extraction(false, "pending"),
+                extraction(true, "approved")
         ));
 
         Map<String, Object> preview = controller.previewContext(principal, storyId, 3, 1, 300);
@@ -158,5 +148,68 @@ class V2ContextControllerTests {
         assertFalse(graphRelations.isEmpty());
         assertTrue(activeCharacters.contains("林烬"));
         assertNotNull(preview.get("recentSummary"));
+        assertEquals(1, ((List<?>) preview.get("pendingExtractions")).size());
+        verify(persistenceService).listExtractions(storyId);
+    }
+
+    @Test
+    void importLorebookShouldDelegateEachEntryToPersistenceService() {
+        controller.importLorebook(principal, storyId, Map.of(
+                "entries", List.of(
+                        Map.of("displayName", "角色设定", "category", "character"),
+                        Map.of("displayName", "地点设定", "category", "location"),
+                        "ignored"
+                )
+        ));
+
+        verify(persistenceService).createLorebook(eq(user), any(Story.class), eq(new HashMap<>(Map.of(
+                "displayName", "角色设定",
+                "category", "character"
+        ))));
+        verify(persistenceService).createLorebook(eq(user), any(Story.class), eq(new HashMap<>(Map.of(
+                "displayName", "地点设定",
+                "category", "location"
+        ))));
+    }
+
+    private Map<String, Object> lorebookEntry(String displayName, String category, int tokenBudget, int priority, String insertionPosition) {
+        return lorebookEntry(UUID.randomUUID(), displayName, category, tokenBudget, priority, insertionPosition, true);
+    }
+
+    private Map<String, Object> lorebookEntry(UUID id,
+                                              String displayName,
+                                              String category,
+                                              int tokenBudget,
+                                              int priority,
+                                              String insertionPosition,
+                                              boolean enabled) {
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("id", id);
+        entry.put("displayName", displayName);
+        entry.put("category", category);
+        entry.put("tokenBudget", tokenBudget);
+        entry.put("priority", priority);
+        entry.put("insertionPosition", insertionPosition);
+        entry.put("enabled", enabled);
+        entry.put("content", displayName + " 内容");
+        return entry;
+    }
+
+    private Map<String, Object> relationship(UUID source, UUID target, String relationType) {
+        Map<String, Object> relation = new HashMap<>();
+        relation.put("id", UUID.randomUUID());
+        relation.put("source", source);
+        relation.put("target", target);
+        relation.put("relationType", relationType);
+        return relation;
+    }
+
+    private Map<String, Object> extraction(boolean reviewed, String reviewAction) {
+        Map<String, Object> extraction = new HashMap<>();
+        extraction.put("id", UUID.randomUUID());
+        extraction.put("reviewed", reviewed);
+        extraction.put("reviewAction", reviewAction);
+        extraction.put("createdAt", Instant.now());
+        return extraction;
     }
 }
