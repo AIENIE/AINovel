@@ -40,6 +40,7 @@ import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, 
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction } from "@/lib/shortcuts";
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
+import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ContextMenu,
@@ -250,8 +251,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [includeTableOfContents, setIncludeTableOfContents] = useState(true);
   const [txtEncoding, setTxtEncoding] = useState("UTF-8");
   const [exportAuthorName, setExportAuthorName] = useState("");
-  const [isCompact, setIsCompact] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [mobilePane, setMobilePane] = useState<"outline" | "editor" | "sidebar">("editor");
   const [activeLayoutId, setActiveLayoutId] = useState("");
   const [sessionStartedAt, setSessionStartedAt] = useState<number>(0);
@@ -548,29 +547,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   }, [sceneRows]);
 
   useEffect(() => {
-    const syncViewport = () => {
-      const width = window.innerWidth;
-      setIsMobile(width < 768);
-      setIsCompact(width < 1280);
-    };
-    syncViewport();
-    window.addEventListener("resize", syncViewport);
-    return () => window.removeEventListener("resize", syncViewport);
-  }, []);
-
-  useEffect(() => {
-    if (focusMode) return;
-    if (isMobile) {
-      setLeftPanelOpen(false);
-      setIsSidebarOpen(false);
-      return;
-    }
-    if (isCompact) {
-      setIsSidebarOpen(false);
-    }
-  }, [focusMode, isCompact, isMobile]);
-
-  useEffect(() => {
     if (!layoutCacheKey || !selectedManuscriptId || !selectedStoryId) return;
     let cancelled = false;
 
@@ -810,6 +786,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     focusMode,
     onAction: handleShortcutAction,
     onExitFocusMode: exitFocusMode,
+  });
+
+  const { isCompact, isMobile } = useWorkbenchViewport({
+    focusMode,
+    setLeftPanelOpen,
+    setIsSidebarOpen,
   });
 
   useEffect(() => {
