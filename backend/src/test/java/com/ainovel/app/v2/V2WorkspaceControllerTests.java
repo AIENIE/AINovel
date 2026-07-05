@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.config.AppTimeProvider;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +21,7 @@ import static org.mockito.Mockito.when;
 
 class V2WorkspaceControllerTests {
 
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private V2WorkspaceController controller;
     private UserDetails principal;
     private User user;
@@ -28,7 +29,7 @@ class V2WorkspaceControllerTests {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         AppTimeProvider timeProvider = mock(AppTimeProvider.class);
         when(timeProvider.nowInstant()).thenReturn(Instant.now());
         when(timeProvider.today()).thenReturn(LocalDate.now(ZoneId.of("Asia/Shanghai")));

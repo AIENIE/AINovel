@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.config.AppTimeProvider;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +24,7 @@ import java.util.concurrent.ConcurrentMap;
 @RestController
 @RequestMapping("/v2")
 public class V2WorkspaceController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final AppTimeProvider timeProvider;
     private final V2WorkspacePersistenceService persistenceService;
 
@@ -32,12 +33,12 @@ public class V2WorkspaceController {
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> goalsByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<String, Map<String, Object>>> shortcutsByUser = new ConcurrentHashMap<>();
 
-    public V2WorkspaceController(V2AccessGuard accessGuard, AppTimeProvider timeProvider) {
+    public V2WorkspaceController(ResourceAccessGuard accessGuard, AppTimeProvider timeProvider) {
         this(accessGuard, timeProvider, null);
     }
 
     @Autowired
-    public V2WorkspaceController(V2AccessGuard accessGuard,
+    public V2WorkspaceController(ResourceAccessGuard accessGuard,
                                  AppTimeProvider timeProvider,
                                  V2WorkspacePersistenceService persistenceService) {
         this.accessGuard = accessGuard;

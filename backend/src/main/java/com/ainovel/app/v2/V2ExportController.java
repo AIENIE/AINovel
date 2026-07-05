@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,19 +36,19 @@ import java.util.zip.ZipOutputStream;
 @RequestMapping("/v2")
 public class V2ExportController {
     private static final int MAX_CONCURRENT_JOBS = 3;
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final V2ExportPersistenceService exportService;
     private final ObjectMapper objectMapper;
 
     private final ConcurrentMap<UUID, Map<String, Object>> templates = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> jobsByManuscript = new ConcurrentHashMap<>();
 
-    public V2ExportController(V2AccessGuard accessGuard, ObjectMapper objectMapper) {
+    public V2ExportController(ResourceAccessGuard accessGuard, ObjectMapper objectMapper) {
         this(accessGuard, null, objectMapper);
     }
 
     @Autowired
-    public V2ExportController(V2AccessGuard accessGuard,
+    public V2ExportController(ResourceAccessGuard accessGuard,
                               V2ExportPersistenceService exportService,
                               ObjectMapper objectMapper) {
         this.accessGuard = accessGuard;

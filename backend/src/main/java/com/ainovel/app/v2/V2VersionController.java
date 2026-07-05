@@ -2,6 +2,7 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 @RestController
 @RequestMapping("/v2")
 public class V2VersionController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final ManuscriptRepository manuscriptRepository;
     private final V2VersionPersistenceService versionService;
     private final ObjectMapper objectMapper;
@@ -35,12 +36,12 @@ public class V2VersionController {
     private final ConcurrentMap<UUID, Map<String, Object>> autoSaveByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Object> initLocks = new ConcurrentHashMap<>();
 
-    public V2VersionController(V2AccessGuard accessGuard, ManuscriptRepository manuscriptRepository, ObjectMapper objectMapper) {
+    public V2VersionController(ResourceAccessGuard accessGuard, ManuscriptRepository manuscriptRepository, ObjectMapper objectMapper) {
         this(accessGuard, manuscriptRepository, null, objectMapper);
     }
 
     @Autowired
-    public V2VersionController(V2AccessGuard accessGuard,
+    public V2VersionController(ResourceAccessGuard accessGuard,
                                ManuscriptRepository manuscriptRepository,
                                V2VersionPersistenceService versionService,
                                ObjectMapper objectMapper) {

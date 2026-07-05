@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,7 @@ import static org.mockito.Mockito.when;
 
 class V2AnalysisControllerTests {
 
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private V2AnalysisPersistenceService persistenceService;
     private V2AnalysisController controller;
     private UserDetails principal;
@@ -28,7 +29,7 @@ class V2AnalysisControllerTests {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         persistenceService = mock(V2AnalysisPersistenceService.class);
         controller = new V2AnalysisController(accessGuard, persistenceService);
 

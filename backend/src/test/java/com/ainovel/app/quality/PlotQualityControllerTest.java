@@ -6,11 +6,11 @@ import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.dto.PlotQualityRunDto;
 import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class PlotQualityControllerTest {
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private ManuscriptRepository manuscriptRepository;
     private CharacterCardRepository characterCardRepository;
     private PlotQualityRunRepository runRepository;
@@ -38,7 +38,7 @@ class PlotQualityControllerTest {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         manuscriptRepository = mock(ManuscriptRepository.class);
         characterCardRepository = mock(CharacterCardRepository.class);
         runRepository = mock(PlotQualityRunRepository.class);

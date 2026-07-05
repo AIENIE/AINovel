@@ -2,6 +2,7 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 class V2VersionControllerTests {
 
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private ManuscriptRepository manuscriptRepository;
     private V2VersionController controller;
     private UserDetails principal;
@@ -33,7 +34,7 @@ class V2VersionControllerTests {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         manuscriptRepository = mock(ManuscriptRepository.class);
         controller = new V2VersionController(accessGuard, manuscriptRepository, new ObjectMapper());
 

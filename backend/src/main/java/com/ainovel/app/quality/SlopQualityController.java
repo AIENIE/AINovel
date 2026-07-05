@@ -4,13 +4,13 @@ import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopQualityRunDto;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 public class SlopQualityController {
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final SlopQualityRunRepository runRepository;
     private final CharacterCardRepository characterCardRepository;
     private final SlopDiagnosticService diagnosticService;
@@ -39,7 +39,7 @@ public class SlopQualityController {
     private final ObjectMapper objectMapper;
     private final JsonColumnCodec jsonColumnCodec;
 
-    public SlopQualityController(V2AccessGuard accessGuard,
+    public SlopQualityController(ResourceAccessGuard accessGuard,
                                  SlopQualityRunRepository runRepository,
                                  CharacterCardRepository characterCardRepository,
                                  SlopDiagnosticService diagnosticService,

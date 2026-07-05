@@ -5,12 +5,12 @@ import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopQualityRunDto;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class SlopQualityControllerTest {
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private SlopQualityRunRepository runRepository;
     private CharacterCardRepository characterCardRepository;
     private SlopDiagnosticService diagnosticService;
@@ -38,7 +38,7 @@ class SlopQualityControllerTest {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         runRepository = mock(SlopQualityRunRepository.class);
         characterCardRepository = mock(CharacterCardRepository.class);
         diagnosticService = mock(SlopDiagnosticService.class);

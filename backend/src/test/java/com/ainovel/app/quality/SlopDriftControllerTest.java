@@ -4,10 +4,10 @@ import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopDriftRunDto;
 import com.ainovel.app.quality.model.SlopDriftRun;
 import com.ainovel.app.quality.repo.SlopDriftRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,7 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SlopDriftControllerTest {
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private SlopDriftRunRepository repository;
     private SlopDriftService service;
     private SlopDriftController controller;
@@ -35,7 +35,7 @@ class SlopDriftControllerTest {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         repository = mock(SlopDriftRunRepository.class);
         service = mock(SlopDriftService.class);
         controller = new SlopDriftController(accessGuard, repository, service);

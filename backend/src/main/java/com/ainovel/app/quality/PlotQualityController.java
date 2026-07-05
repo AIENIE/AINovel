@@ -6,12 +6,12 @@ import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.dto.PlotQualityRunDto;
 import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 @RequestMapping("/v2")
 public class PlotQualityController {
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final ManuscriptRepository manuscriptRepository;
     private final CharacterCardRepository characterCardRepository;
     private final PlotQualityRunRepository runRepository;
@@ -36,7 +36,7 @@ public class PlotQualityController {
     private final ObjectMapper objectMapper;
     private final JsonColumnCodec jsonColumnCodec;
 
-    public PlotQualityController(V2AccessGuard accessGuard,
+    public PlotQualityController(ResourceAccessGuard accessGuard,
                                  ManuscriptRepository manuscriptRepository,
                                  CharacterCardRepository characterCardRepository,
                                  PlotQualityRunRepository runRepository,

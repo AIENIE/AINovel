@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,7 +17,7 @@ class V2ModelControllerTest {
 
     @Test
     void shouldExposeOnlyDeepseekV4FlashModel() {
-        V2AccessGuard accessGuard = mock(V2AccessGuard.class);
+        ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
         UserDetails principal = mock(UserDetails.class);
         when(accessGuard.currentUser(principal)).thenReturn(user());
         V2ModelController controller = new V2ModelController(accessGuard);

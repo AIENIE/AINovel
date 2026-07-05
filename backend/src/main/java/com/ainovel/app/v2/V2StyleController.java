@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.style.StyleService;
 import com.ainovel.app.user.User;
@@ -18,10 +19,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v2")
 public class V2StyleController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final StyleService styleService;
 
-    public V2StyleController(V2AccessGuard accessGuard, StyleService styleService) {
+    public V2StyleController(ResourceAccessGuard accessGuard, StyleService styleService) {
         this.accessGuard = accessGuard;
         this.styleService = styleService;
     }

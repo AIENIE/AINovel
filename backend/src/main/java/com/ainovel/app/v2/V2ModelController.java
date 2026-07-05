@@ -2,6 +2,7 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.ai.AiModelPolicy;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @RestController
 @RequestMapping("/v2")
 public class V2ModelController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final V2ModelPersistenceService persistenceService;
 
     private final ConcurrentMap<String, Map<String, Object>> modelsByKey = new ConcurrentHashMap<>();
@@ -32,12 +33,12 @@ public class V2ModelController {
     private final ConcurrentMap<UUID, ConcurrentMap<String, Map<String, Object>>> preferencesByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, CopyOnWriteArrayList<Map<String, Object>>> usageByUser = new ConcurrentHashMap<>();
 
-    public V2ModelController(V2AccessGuard accessGuard) {
+    public V2ModelController(ResourceAccessGuard accessGuard) {
         this(accessGuard, null);
     }
 
     @Autowired
-    public V2ModelController(V2AccessGuard accessGuard, V2ModelPersistenceService persistenceService) {
+    public V2ModelController(ResourceAccessGuard accessGuard, V2ModelPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
         seedModels();

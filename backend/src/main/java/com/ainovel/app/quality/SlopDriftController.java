@@ -3,8 +3,8 @@ package com.ainovel.app.quality;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopDriftRunDto;
 import com.ainovel.app.quality.repo.SlopDriftRunRepository;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
-import com.ainovel.app.v2.V2AccessGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,11 +22,11 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v2")
 public class SlopDriftController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final SlopDriftRunRepository runRepository;
     private final SlopDriftService driftService;
 
-    public SlopDriftController(V2AccessGuard accessGuard,
+    public SlopDriftController(ResourceAccessGuard accessGuard,
                                SlopDriftRunRepository runRepository,
                                SlopDriftService driftService) {
         this.accessGuard = accessGuard;

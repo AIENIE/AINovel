@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.ainovel.app.story.model.Story;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,10 +17,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v2")
 public class V2AnalysisController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final V2AnalysisPersistenceService persistenceService;
 
-    public V2AnalysisController(V2AccessGuard accessGuard, V2AnalysisPersistenceService persistenceService) {
+    public V2AnalysisController(ResourceAccessGuard accessGuard, V2AnalysisPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
     }

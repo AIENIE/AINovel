@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,19 +20,19 @@ import java.util.concurrent.ConcurrentMap;
 @RestController
 @RequestMapping("/v2")
 public class V2ContextController {
-    private final V2AccessGuard accessGuard;
+    private final ResourceAccessGuard accessGuard;
     private final V2ContextPersistenceService persistenceService;
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> lorebookByStory = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> extractionByStory = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> relationshipsByStory = new ConcurrentHashMap<>();
 
-    public V2ContextController(V2AccessGuard accessGuard) {
+    public V2ContextController(ResourceAccessGuard accessGuard) {
         this(accessGuard, null);
     }
 
     @Autowired
-    public V2ContextController(V2AccessGuard accessGuard, V2ContextPersistenceService persistenceService) {
+    public V2ContextController(ResourceAccessGuard accessGuard, V2ContextPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
     }

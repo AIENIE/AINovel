@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
+import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -24,7 +25,7 @@ import static org.mockito.Mockito.when;
 
 class V2ExportControllerTests {
 
-    private V2AccessGuard accessGuard;
+    private ResourceAccessGuard accessGuard;
     private V2ExportController controller;
     private UserDetails principal;
     private User user;
@@ -33,7 +34,7 @@ class V2ExportControllerTests {
 
     @BeforeEach
     void setUp() {
-        accessGuard = mock(V2AccessGuard.class);
+        accessGuard = mock(ResourceAccessGuard.class);
         controller = new V2ExportController(accessGuard, new ObjectMapper());
 
         principal = mock(UserDetails.class);
