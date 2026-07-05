@@ -1,17 +1,12 @@
 package com.ainovel.app.quality;
 
-import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
-import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.dto.PlotQualityRunDto;
 import com.ainovel.app.quality.model.PlotQualityRun;
-import com.ainovel.app.quality.repo.PlotQualityRunRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
-import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,9 +20,6 @@ import static org.mockito.Mockito.*;
 
 class PlotQualityControllerTest {
     private ResourceAccessGuard accessGuard;
-    private ManuscriptRepository manuscriptRepository;
-    private CharacterCardRepository characterCardRepository;
-    private PlotQualityRunRepository runRepository;
     private PlotQualityService service;
     private PlotQualityController controller;
     private UserDetails principal;
@@ -39,11 +31,8 @@ class PlotQualityControllerTest {
     @BeforeEach
     void setUp() {
         accessGuard = mock(ResourceAccessGuard.class);
-        manuscriptRepository = mock(ManuscriptRepository.class);
-        characterCardRepository = mock(CharacterCardRepository.class);
-        runRepository = mock(PlotQualityRunRepository.class);
         service = mock(PlotQualityService.class);
-        controller = new PlotQualityController(accessGuard, manuscriptRepository, characterCardRepository, runRepository, service, new ObjectMapper(), new JsonColumnCodec(new ObjectMapper()));
+        controller = new PlotQualityController(accessGuard, service);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -72,24 +61,35 @@ class PlotQualityControllerTest {
 
         when(accessGuard.currentUser(any())).thenReturn(user);
         when(accessGuard.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
-        when(characterCardRepository.findByStory(story)).thenReturn(List.of());
-        when(manuscriptRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
     void analyzeSceneShouldReturnRunDto() {
         PlotQualityRun run = run();
-        when(service.analyze(any(), any())).thenReturn(run);
+        when(service.analyzeScene(user, manuscript, sceneId)).thenReturn(run);
 
         PlotQualityRunDto dto = controller.analyzeScene(principal, manuscriptId, sceneId);
 
         assertEquals(run.getId(), dto.id());
         assertEquals(sceneId, dto.sceneId());
-        verify(service).analyze(eq(user), any(PlotQualityRequest.class));
+        verify(service).analyzeScene(user, manuscript, sceneId);
     }
 
     @Test
-    void applyRevisionShouldPersistMutatedManuscript() {
+    void listRunsShouldDelegateToPlotQualityService() {
+        PlotQualityRun run = run();
+        when(service.listRuns(manuscriptId, sceneId)).thenReturn(List.of(run));
+
+        List<PlotQualityRunDto> dtos = controller.listRuns(principal, manuscriptId, sceneId);
+
+        assertEquals(1, dtos.size());
+        assertEquals(run.getId(), dtos.get(0).id());
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(service).listRuns(manuscriptId, sceneId);
+    }
+
+    @Test
+    void applyRevisionShouldDelegatePersistenceToService() {
         PlotQualityRun run = run();
         UUID runId = run.getId();
         when(service.applyRevision(user, manuscript, runId)).thenReturn(run);
@@ -97,7 +97,7 @@ class PlotQualityControllerTest {
         PlotQualityRunDto dto = controller.applyRevision(principal, manuscriptId, runId);
 
         assertEquals(runId, dto.id());
-        verify(manuscriptRepository).save(manuscript);
+        verify(service).applyRevision(user, manuscript, runId);
     }
 
     private PlotQualityRun run() {

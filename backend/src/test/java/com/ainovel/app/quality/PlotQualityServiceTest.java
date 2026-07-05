@@ -2,14 +2,20 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
+import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
+import com.ainovel.app.story.model.CharacterCard;
+import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
+import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -19,19 +25,33 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PlotQualityServiceTest {
 
     @Test
-    void analyzeShouldParsePlotIssuesAndRewritePlan() {
+    void analyzeSceneShouldBuildContextAndParsePlotIssues() {
         AiService aiService = mock(AiService.class);
+        ManuscriptRepository manuscriptRepository = mock(ManuscriptRepository.class);
+        CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
         SlopQualityGate slopQualityGate = mock(SlopQualityGate.class);
-        PlotQualityService service = new PlotQualityService(aiService, new ObjectMapper(), repository, slopQualityGate, new JsonColumnCodec(new ObjectMapper()));
+        PlotQualityService service = new PlotQualityService(
+                aiService,
+                new ObjectMapper(),
+                manuscriptRepository,
+                characterCardRepository,
+                repository,
+                slopQualityGate,
+                new JsonColumnCodec(new ObjectMapper())
+        );
         User user = user();
-        UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
+        UUID previousSceneId = UUID.randomUUID();
+        Manuscript manuscript = manuscriptWithSceneContext(sceneId, previousSceneId, "上一场景发现铜扣。", "林烬突然放弃追查，转身离开雨巷。");
+        Story story = manuscript.getOutline().getStory();
+        when(characterCardRepository.findByStory(story)).thenReturn(List.of(characterCard()));
 
         when(aiService.chat(any(), any())).thenReturn(new AiChatResponse("assistant", """
                 {
@@ -62,23 +82,7 @@ class PlotQualityServiceTest {
             return run;
         });
 
-        PlotQualityRun run = service.analyze(user, new PlotQualityRequest(
-                UUID.randomUUID(),
-                manuscriptId,
-                sceneId,
-                "雨城疑案",
-                "悬疑",
-                "冷峻",
-                "第一章",
-                1,
-                "雨夜门外",
-                1,
-                "主角追查副将复活线索",
-                "主线是追查副将复活真相",
-                "上一场景发现铜扣",
-                "林烬：谨慎，重视证据",
-                "林烬突然放弃追查，转身离开雨巷。"
-        ));
+        PlotQualityRun run = service.analyzeScene(user, manuscript, sceneId);
 
         assertEquals(PlotQualityStatus.ACCEPTED_WITH_ISSUES, run.getStatus());
         assertEquals(76, run.getOverallRiskScore());
@@ -86,12 +90,27 @@ class PlotQualityServiceTest {
         assertEquals(1, run.getIssues().size());
         assertEquals(PlotQualityDimension.AGENCY, run.getIssues().get(0).getDimension());
         assertTrue(run.getRewritePlanJson().contains("保留主角追查目标"));
+        ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
+        verify(aiService).chat(any(), requestCaptor.capture());
+        String prompt = requestCaptor.getValue().messages().get(0).content();
+        assertTrue(prompt.contains("雨城疑案"));
+        assertTrue(prompt.contains("主线是追查副将复活真相"));
+        assertTrue(prompt.contains("上一场景发现铜扣"));
+        assertTrue(prompt.contains("林烬"));
     }
 
     @Test
     void trendShouldAggregateLatestSceneRunsInChapterOrder() {
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
-        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class), new JsonColumnCodec(new ObjectMapper()));
+        PlotQualityService service = new PlotQualityService(
+                mock(AiService.class),
+                new ObjectMapper(),
+                mock(ManuscriptRepository.class),
+                mock(CharacterCardRepository.class),
+                repository,
+                mock(SlopQualityGate.class),
+                new JsonColumnCodec(new ObjectMapper())
+        );
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneA = UUID.randomUUID();
         UUID sceneB = UUID.randomUUID();
@@ -115,7 +134,15 @@ class PlotQualityServiceTest {
     @Test
     void applyRevisionShouldRejectWhenCurrentTextHashChanged() {
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
-        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class), new JsonColumnCodec(new ObjectMapper()));
+        PlotQualityService service = new PlotQualityService(
+                mock(AiService.class),
+                new ObjectMapper(),
+                mock(ManuscriptRepository.class),
+                mock(CharacterCardRepository.class),
+                repository,
+                mock(SlopQualityGate.class),
+                new JsonColumnCodec(new ObjectMapper())
+        );
         UUID runId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();
         run.setId(runId);
@@ -133,6 +160,54 @@ class PlotQualityServiceTest {
         assertEquals(409, ex.getStatusCode().value());
     }
 
+    @Test
+    void applyRevisionShouldPersistAcceptedTextIntoManuscript() {
+        ManuscriptRepository manuscriptRepository = mock(ManuscriptRepository.class);
+        PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
+        SlopQualityGate slopQualityGate = mock(SlopQualityGate.class);
+        PlotQualityService service = new PlotQualityService(
+                mock(AiService.class),
+                new ObjectMapper(),
+                manuscriptRepository,
+                mock(CharacterCardRepository.class),
+                repository,
+                slopQualityGate,
+                new JsonColumnCodec(new ObjectMapper())
+        );
+        UUID runId = UUID.randomUUID();
+        UUID sceneId = UUID.randomUUID();
+        PlotQualityRun run = new PlotQualityRun();
+        run.setId(runId);
+        run.setSceneId(sceneId);
+        run.setManuscriptId(UUID.randomUUID());
+        run.setSourceTextHash(PlotQualityService.hashText("旧正文"));
+        run.setRevisionCandidateText("修订候选");
+        Manuscript manuscript = manuscriptWithSection(sceneId, "旧正文");
+        manuscript.setId(run.getManuscriptId());
+
+        when(repository.findById(runId)).thenReturn(Optional.of(run));
+        when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.save(any(PlotQualityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(slopQualityGate.evaluateAndRepair(any(), any())).thenReturn(new SlopQualityResult(
+                runId,
+                "修订后正文",
+                18,
+                SlopSeverity.LOW,
+                false,
+                0,
+                SlopQualityStatus.ACCEPTED,
+                List.of()
+        ));
+
+        PlotQualityRun revised = service.applyRevision(user(), manuscript, runId);
+
+        assertTrue(revised.isRevisionApplied());
+        assertEquals(PlotQualityService.hashText("修订后正文"), revised.getSourceTextHash());
+        assertTrue(manuscript.getSectionsJson().contains("<p>修订后正文</p>"));
+        verify(manuscriptRepository).save(manuscript);
+        verify(repository).save(run);
+    }
+
     private PlotQualityRun run(UUID manuscriptId, UUID sceneId, int chapterOrder, int sceneOrder, int risk, PlotQualitySeverity severity) {
         PlotQualityRun run = new PlotQualityRun();
         run.setId(UUID.randomUUID());
@@ -148,13 +223,43 @@ class PlotQualityServiceTest {
     }
 
     private Manuscript manuscriptWithSection(UUID sceneId, String text) {
-        Story story = new Story();
-        story.setId(UUID.randomUUID());
         Manuscript manuscript = new Manuscript();
         manuscript.setId(UUID.randomUUID());
         manuscript.setOutline(null);
         manuscript.setSectionsJson("{\"" + sceneId + "\":\"<p>" + text + "</p>\"}");
         return manuscript;
+    }
+
+    private Manuscript manuscriptWithSceneContext(UUID sceneId, UUID previousSceneId, String previousText, String currentText) {
+        Story story = new Story();
+        story.setId(UUID.randomUUID());
+        story.setTitle("雨城疑案");
+        story.setGenre("悬疑");
+        story.setTone("冷峻");
+        Outline outline = new Outline();
+        outline.setStory(story);
+        outline.setContentJson("""
+                {"planning":{"corePromise":"主线是追查副将复活真相"},"chapters":[{"title":"第一章","order":1,"scenes":[
+                  {"id":"%s","title":"雨巷","summary":"发现铜扣","order":1},
+                  {"id":"%s","title":"雨夜门外","summary":"主角追查副将复活线索","order":2}
+                ]}]}
+                """.formatted(previousSceneId, sceneId));
+        Manuscript manuscript = new Manuscript();
+        manuscript.setId(UUID.randomUUID());
+        manuscript.setOutline(outline);
+        manuscript.setSectionsJson("""
+                {"%s":"<p>%s</p>","%s":"<p>%s</p>"}
+                """.formatted(previousSceneId, previousText, sceneId, currentText));
+        return manuscript;
+    }
+
+    private CharacterCard characterCard() {
+        CharacterCard card = new CharacterCard();
+        card.setName("林烬");
+        card.setSynopsis("谨慎、重视证据");
+        card.setDetails("习惯先观察现场，再决定下一步。");
+        card.setRelationships("与副将旧案有私人牵连。");
+        return card;
     }
 
     private User user() {

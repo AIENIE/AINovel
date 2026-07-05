@@ -2,7 +2,6 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopDriftRunDto;
-import com.ainovel.app.quality.repo.SlopDriftRunRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,14 +22,11 @@ import java.util.UUID;
 @RequestMapping("/v2")
 public class SlopDriftController {
     private final ResourceAccessGuard accessGuard;
-    private final SlopDriftRunRepository runRepository;
     private final SlopDriftService driftService;
 
     public SlopDriftController(ResourceAccessGuard accessGuard,
-                               SlopDriftRunRepository runRepository,
                                SlopDriftService driftService) {
         this.accessGuard = accessGuard;
-        this.runRepository = runRepository;
         this.driftService = driftService;
     }
 
@@ -40,7 +36,7 @@ public class SlopDriftController {
                                       @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId)
+        return driftService.listRuns(manuscriptId)
                 .stream()
                 .map(SlopDriftMapper::toDto)
                 .toList();

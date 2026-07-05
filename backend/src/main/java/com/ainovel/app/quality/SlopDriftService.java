@@ -47,6 +47,10 @@ public class SlopDriftService {
         this.jsonColumnCodec = jsonColumnCodec;
     }
 
+    public List<SlopDriftRun> listRuns(UUID manuscriptId) {
+        return runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId);
+    }
+
     @Transactional
     public SlopDriftRun analyze(User user, Manuscript manuscript) {
         DriftInput input = buildInput(manuscript);

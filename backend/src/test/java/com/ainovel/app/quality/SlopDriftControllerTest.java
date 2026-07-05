@@ -3,7 +3,6 @@ package com.ainovel.app.quality;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopDriftRunDto;
 import com.ainovel.app.quality.model.SlopDriftRun;
-import com.ainovel.app.quality.repo.SlopDriftRunRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
@@ -24,7 +23,6 @@ import static org.mockito.Mockito.when;
 
 class SlopDriftControllerTest {
     private ResourceAccessGuard accessGuard;
-    private SlopDriftRunRepository repository;
     private SlopDriftService service;
     private SlopDriftController controller;
     private UserDetails principal;
@@ -36,9 +34,8 @@ class SlopDriftControllerTest {
     @BeforeEach
     void setUp() {
         accessGuard = mock(ResourceAccessGuard.class);
-        repository = mock(SlopDriftRunRepository.class);
         service = mock(SlopDriftService.class);
-        controller = new SlopDriftController(accessGuard, repository, service);
+        controller = new SlopDriftController(accessGuard, service);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -80,14 +77,14 @@ class SlopDriftControllerTest {
     @Test
     void listShouldReturnRecentRunsForOwnedManuscript() {
         SlopDriftRun run = run();
-        when(repository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId)).thenReturn(List.of(run));
+        when(service.listRuns(manuscriptId)).thenReturn(List.of(run));
 
         List<SlopDriftRunDto> dtos = controller.list(principal, manuscriptId);
 
         assertEquals(1, dtos.size());
         assertEquals(run.getId(), dtos.get(0).id());
         verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
-        verify(repository).findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId);
+        verify(service).listRuns(manuscriptId);
     }
 
     private SlopDriftRun run() {

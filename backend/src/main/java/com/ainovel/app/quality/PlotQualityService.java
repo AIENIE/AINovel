@@ -4,9 +4,14 @@ import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
+import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.model.PlotQualityIssue;
 import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
+import com.ainovel.app.story.model.CharacterCard;
+import com.ainovel.app.story.model.Outline;
+import com.ainovel.app.story.model.Story;
+import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,20 +32,37 @@ public class PlotQualityService {
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private final AiService aiService;
     private final ObjectMapper objectMapper;
+    private final ManuscriptRepository manuscriptRepository;
+    private final CharacterCardRepository characterCardRepository;
     private final PlotQualityRunRepository runRepository;
     private final SlopQualityGate slopQualityGate;
     private final JsonColumnCodec jsonColumnCodec;
 
     public PlotQualityService(AiService aiService,
                               ObjectMapper objectMapper,
+                              ManuscriptRepository manuscriptRepository,
+                              CharacterCardRepository characterCardRepository,
                               PlotQualityRunRepository runRepository,
                               SlopQualityGate slopQualityGate,
                               JsonColumnCodec jsonColumnCodec) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
+        this.manuscriptRepository = manuscriptRepository;
+        this.characterCardRepository = characterCardRepository;
         this.runRepository = runRepository;
         this.slopQualityGate = slopQualityGate;
         this.jsonColumnCodec = jsonColumnCodec;
+    }
+
+    public List<PlotQualityRun> listRuns(UUID manuscriptId, UUID sceneId) {
+        return sceneId == null
+                ? runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId)
+                : runRepository.findTop20ByManuscriptIdAndSceneIdOrderByCreatedAtDesc(manuscriptId, sceneId);
+    }
+
+    @Transactional
+    public PlotQualityRun analyzeScene(User user, Manuscript manuscript, UUID sceneId) {
+        return analyze(user, buildRequest(manuscript, sceneId));
     }
 
     @Transactional
@@ -62,6 +84,30 @@ public class PlotQualityService {
             degraded.setSurgicalFixesJson("[]");
             return runRepository.save(degraded);
         }
+    }
+
+    private PlotQualityRequest buildRequest(Manuscript manuscript, UUID sceneId) {
+        Outline outline = manuscript.getOutline();
+        Story story = outline.getStory();
+        Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
+        SceneContext scene = resolveScene(outline, sceneId);
+        return new PlotQualityRequest(
+                story.getId(),
+                manuscript.getId(),
+                sceneId,
+                safe(story.getTitle(), "未命名故事"),
+                safe(story.getGenre(), "未指定"),
+                safe(story.getTone(), "沉浸、连贯"),
+                scene.chapterTitle(),
+                scene.chapterOrder(),
+                scene.sceneTitle(),
+                scene.sceneOrder(),
+                scene.sceneSummary(),
+                outlinePlanning(outline),
+                previousContext(scene, sections),
+                characterContext(characterCardRepository.findByStory(story)),
+                stripHtml(sections.get(sceneId.toString()))
+        );
     }
 
     public PlotQualityTrend buildTrend(UUID manuscriptId) {
@@ -148,6 +194,7 @@ public class PlotQualityService {
         run.setRevisionApplied(true);
         run.setRevisionAppliedAt(Instant.now());
         run.setSourceTextHash(hashText(textGate.acceptedText()));
+        manuscriptRepository.save(manuscript);
         return runRepository.save(run);
     }
 
@@ -319,6 +366,79 @@ public class PlotQualityService {
         }
     }
 
+    private SceneContext resolveScene(Outline outline, UUID sceneId) {
+        Map<String, Object> root = readObjectMap(outline.getContentJson());
+        List<Map<String, Object>> chapters = listOfMap(root.get("chapters"));
+        for (int chapterIndex = 0; chapterIndex < chapters.size(); chapterIndex++) {
+            Map<String, Object> chapter = chapters.get(chapterIndex);
+            List<Map<String, Object>> scenes = listOfMap(chapter.get("scenes"));
+            List<UUID> previousSceneIds = new ArrayList<>();
+            for (int sceneIndex = 0; sceneIndex < scenes.size(); sceneIndex++) {
+                Map<String, Object> scene = scenes.get(sceneIndex);
+                UUID id = uuid(scene.get("id"));
+                if (id != null && id.equals(sceneId)) {
+                    return new SceneContext(
+                            safe(str(chapter.get("title"), ""), "未命名章节"),
+                            intVal(chapter.get("order"), chapterIndex + 1),
+                            safe(str(scene.get("title"), ""), "未命名场景"),
+                            intVal(scene.get("order"), sceneIndex + 1),
+                            safe(str(scene.get("summary"), ""), ""),
+                            previousSceneIds
+                    );
+                }
+                if (id != null) {
+                    previousSceneIds.add(id);
+                }
+            }
+        }
+        throw new RuntimeException("场景不存在，无法进行剧情诊断");
+    }
+
+    private String outlinePlanning(Outline outline) {
+        Map<String, Object> root = readObjectMap(outline.getContentJson());
+        Object planning = root.get("planning");
+        if (planning == null) {
+            return "暂无结构规划。";
+        }
+        try {
+            return objectMapper.writeValueAsString(planning);
+        } catch (Exception ex) {
+            return String.valueOf(planning);
+        }
+    }
+
+    private String previousContext(SceneContext scene, Map<String, String> sections) {
+        if (scene.previousSceneIds().isEmpty()) {
+            return "暂无可用前文。";
+        }
+        StringBuilder builder = new StringBuilder();
+        int kept = 0;
+        for (int i = scene.previousSceneIds().size() - 1; i >= 0 && kept < 2; i--) {
+            String plain = stripHtml(sections.get(scene.previousSceneIds().get(i).toString()));
+            if (plain.isBlank()) {
+                continue;
+            }
+            builder.append("前文片段 ").append(kept + 1).append("：").append(truncate(plain, 600)).append('\n');
+            kept++;
+        }
+        return builder.length() == 0 ? "暂无可用前文。" : builder.toString();
+    }
+
+    private String characterContext(List<CharacterCard> cards) {
+        if (cards == null || cards.isEmpty()) {
+            return "暂无角色卡。";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (CharacterCard card : cards) {
+            builder.append("- ").append(safe(card.getName(), "角色"))
+                    .append("：").append(safe(card.getSynopsis(), ""))
+                    .append(" 背景：").append(truncate(safe(card.getDetails(), ""), 180))
+                    .append(" 关系：").append(truncate(safe(card.getRelationships(), ""), 160))
+                    .append('\n');
+        }
+        return builder.toString();
+    }
+
     private String currentPlainText(Manuscript manuscript, UUID sceneId) {
         return stripHtml(readSectionMap(manuscript.getSectionsJson()).get(sceneId.toString()));
     }
@@ -351,6 +471,24 @@ public class PlotQualityService {
 
     private Map<String, String> readSectionMap(String json) {
         return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
+    }
+
+    private Map<String, Object> readObjectMap(String json) {
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> listOfMap(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                out.add(new HashMap<>((Map<String, Object>) map));
+            }
+        }
+        return out;
     }
 
     private String writeJson(Object value) {
@@ -393,6 +531,17 @@ public class PlotQualityService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private UUID uuid(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value.toString());
         } catch (Exception ex) {
             return null;
         }
@@ -442,5 +591,15 @@ public class PlotQualityService {
             return "";
         }
         return value.length() <= limit ? value : value.substring(0, limit);
+    }
+
+    private record SceneContext(
+            String chapterTitle,
+            int chapterOrder,
+            String sceneTitle,
+            int sceneOrder,
+            String sceneSummary,
+            List<UUID> previousSceneIds
+    ) {
     }
 }

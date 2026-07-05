@@ -1,17 +1,12 @@
 package com.ainovel.app.quality;
 
-import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopQualityRunDto;
 import com.ainovel.app.quality.model.SlopQualityRun;
-import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
-import com.ainovel.app.story.repo.CharacterCardRepository;
-import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,10 +20,7 @@ import static org.mockito.Mockito.*;
 
 class SlopQualityControllerTest {
     private ResourceAccessGuard accessGuard;
-    private SlopQualityRunRepository runRepository;
-    private CharacterCardRepository characterCardRepository;
     private SlopDiagnosticService diagnosticService;
-    private StyleContextProvider styleContextProvider;
     private SlopQualityController controller;
     private UserDetails principal;
     private User user;
@@ -39,11 +31,8 @@ class SlopQualityControllerTest {
     @BeforeEach
     void setUp() {
         accessGuard = mock(ResourceAccessGuard.class);
-        runRepository = mock(SlopQualityRunRepository.class);
-        characterCardRepository = mock(CharacterCardRepository.class);
         diagnosticService = mock(SlopDiagnosticService.class);
-        styleContextProvider = mock(StyleContextProvider.class);
-        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider, new ObjectMapper(), new JsonColumnCodec(new ObjectMapper()));
+        controller = new SlopQualityController(accessGuard, diagnosticService);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -72,27 +61,32 @@ class SlopQualityControllerTest {
 
         when(accessGuard.currentUser(any())).thenReturn(user);
         when(accessGuard.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
-        when(characterCardRepository.findByStory(story)).thenReturn(List.of());
-        when(styleContextProvider.buildSlopContext(story)).thenReturn("Active style profile: 冷峻悬疑画像");
     }
 
     @Test
-    void analyzeSceneShouldBuildManualSlopRequest() {
+    void listRunsShouldDelegateToDiagnosticService() {
         SlopQualityRun run = run();
-        when(diagnosticService.analyze(eq(user), any(SlopQualityRequest.class))).thenReturn(run);
+        when(diagnosticService.listRuns(manuscriptId, sceneId)).thenReturn(List.of(run));
+
+        List<SlopQualityRunDto> dtos = controller.listRuns(principal, manuscriptId, sceneId);
+
+        assertEquals(1, dtos.size());
+        assertEquals(run.getId(), dtos.get(0).id());
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(diagnosticService).listRuns(manuscriptId, sceneId);
+    }
+
+    @Test
+    void analyzeSceneShouldDelegateToDiagnosticService() {
+        SlopQualityRun run = run();
+        when(diagnosticService.analyzeScene(user, manuscript, sceneId)).thenReturn(run);
 
         SlopQualityRunDto dto = controller.analyzeScene(principal, manuscriptId, sceneId);
 
         assertEquals(run.getId(), dto.id());
         assertEquals("E2", dto.evidenceLevel());
         assertEquals("high", dto.riskLabel());
-        verify(diagnosticService).analyze(eq(user), org.mockito.ArgumentMatchers.<SlopQualityRequest>argThat(request ->
-                request.manuscriptId().equals(manuscriptId)
-                        && request.sceneId().equals(sceneId)
-                        && request.candidateText().contains("空气仿佛凝固")
-                        && request.storyTitle().equals("雨城疑案")
-                        && request.styleContext().contains("冷峻悬疑画像")
-        ));
+        verify(diagnosticService).analyzeScene(user, manuscript, sceneId);
     }
 
     private SlopQualityRun run() {
