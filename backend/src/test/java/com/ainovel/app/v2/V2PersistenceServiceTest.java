@@ -3,9 +3,12 @@ package com.ainovel.app.v2;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import com.ainovel.app.config.AppTimeProvider;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 import java.util.List;
@@ -21,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
         V2AnalysisPersistenceService.class,
         V2VersionPersistenceService.class,
         V2ExportPersistenceService.class,
-        AppTimeProvider.class
+        AppTimeProvider.class,
+        V2PersistenceServiceTest.TestBeans.class
 })
 class V2PersistenceServiceTest {
     @Autowired
@@ -44,6 +48,14 @@ class V2PersistenceServiceTest {
 
     @Autowired
     private V2ExportPersistenceService exportService;
+
+    @TestConfiguration
+    static class TestBeans {
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+    }
 
     @Test
     void contextRecordsShouldPersistAndReloadFromRepositories() {

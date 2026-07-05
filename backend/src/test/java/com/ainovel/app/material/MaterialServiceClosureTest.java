@@ -9,9 +9,9 @@ import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -36,12 +36,14 @@ class MaterialServiceClosureTest {
         materialRepository = mock(MaterialRepository.class);
         manuscriptRepository = mock(ManuscriptRepository.class);
         accessGuard = mock(ResourceAccessGuard.class);
-        service = new MaterialService();
-        ReflectionTestUtils.setField(service, "materialRepository", materialRepository);
-        ReflectionTestUtils.setField(service, "uploadJobRepository", mock(MaterialUploadJobRepository.class));
-        ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
-        ReflectionTestUtils.setField(service, "materialRetrievalService", mock(MaterialRetrievalService.class));
-        ReflectionTestUtils.setField(service, "manuscriptRepository", manuscriptRepository);
+        service = new MaterialService(
+                materialRepository,
+                mock(MaterialUploadJobRepository.class),
+                accessGuard,
+                mock(MaterialRetrievalService.class),
+                manuscriptRepository,
+                new ObjectMapper()
+        );
 
         user = new User();
         user.setId(UUID.randomUUID());

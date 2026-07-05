@@ -35,18 +35,20 @@ public class SlopQualityController {
     private final CharacterCardRepository characterCardRepository;
     private final SlopDiagnosticService diagnosticService;
     private final StyleContextProvider styleContextProvider;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public SlopQualityController(V2AccessGuard accessGuard,
                                  SlopQualityRunRepository runRepository,
                                  CharacterCardRepository characterCardRepository,
                                  SlopDiagnosticService diagnosticService,
-                                 StyleContextProvider styleContextProvider) {
+                                 StyleContextProvider styleContextProvider,
+                                 ObjectMapper objectMapper) {
         this.accessGuard = accessGuard;
         this.runRepository = runRepository;
         this.characterCardRepository = characterCardRepository;
         this.diagnosticService = diagnosticService;
         this.styleContextProvider = styleContextProvider;
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "v2 API endpoint")

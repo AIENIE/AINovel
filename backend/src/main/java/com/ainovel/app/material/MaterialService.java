@@ -22,18 +22,30 @@ import java.util.regex.Pattern;
 
 @Service
 public class MaterialService {
-    @Autowired
-    private MaterialRepository materialRepository;
-    @Autowired
-    private MaterialUploadJobRepository uploadJobRepository;
-    @Autowired
-    private ResourceAccessGuard accessGuard;
-    @Autowired
-    private MaterialRetrievalService materialRetrievalService;
-    @Autowired
-    private ManuscriptRepository manuscriptRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
+    private final MaterialRepository materialRepository;
+    private final MaterialUploadJobRepository uploadJobRepository;
+    private final ResourceAccessGuard accessGuard;
+    private final MaterialRetrievalService materialRetrievalService;
+    private final ManuscriptRepository manuscriptRepository;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    public MaterialService(
+            MaterialRepository materialRepository,
+            MaterialUploadJobRepository uploadJobRepository,
+            ResourceAccessGuard accessGuard,
+            MaterialRetrievalService materialRetrievalService,
+            ManuscriptRepository manuscriptRepository,
+            ObjectMapper objectMapper
+    ) {
+        this.materialRepository = materialRepository;
+        this.uploadJobRepository = uploadJobRepository;
+        this.accessGuard = accessGuard;
+        this.materialRetrievalService = materialRetrievalService;
+        this.manuscriptRepository = manuscriptRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public MaterialDto create(User user, MaterialCreateRequest request) {
         Material material = new Material();

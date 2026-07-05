@@ -3,6 +3,7 @@ package com.ainovel.app.v2;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.user.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -34,7 +35,7 @@ class V2VersionControllerTests {
     void setUp() {
         accessGuard = mock(V2AccessGuard.class);
         manuscriptRepository = mock(ManuscriptRepository.class);
-        controller = new V2VersionController(accessGuard, manuscriptRepository);
+        controller = new V2VersionController(accessGuard, manuscriptRepository, new ObjectMapper());
 
         principal = mock(UserDetails.class);
         user = new User();

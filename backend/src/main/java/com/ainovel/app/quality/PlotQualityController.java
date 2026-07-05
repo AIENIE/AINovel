@@ -32,18 +32,20 @@ public class PlotQualityController {
     private final CharacterCardRepository characterCardRepository;
     private final PlotQualityRunRepository runRepository;
     private final PlotQualityService plotQualityService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public PlotQualityController(V2AccessGuard accessGuard,
                                  ManuscriptRepository manuscriptRepository,
                                  CharacterCardRepository characterCardRepository,
                                  PlotQualityRunRepository runRepository,
-                                 PlotQualityService plotQualityService) {
+                                 PlotQualityService plotQualityService,
+                                 ObjectMapper objectMapper) {
         this.accessGuard = accessGuard;
         this.manuscriptRepository = manuscriptRepository;
         this.characterCardRepository = characterCardRepository;
         this.runRepository = runRepository;
         this.plotQualityService = plotQualityService;
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "v2 API endpoint")

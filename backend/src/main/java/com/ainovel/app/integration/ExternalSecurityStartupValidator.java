@@ -20,12 +20,12 @@ import java.util.stream.Collectors;
 @Component
 @Profile("!test")
 public class ExternalSecurityStartupValidator implements ApplicationRunner {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private final ExternalServiceProperties properties;
+    private final ObjectMapper objectMapper;
 
-    public ExternalSecurityStartupValidator(ExternalServiceProperties properties) {
+    public ExternalSecurityStartupValidator(ExternalServiceProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -104,7 +104,7 @@ public class ExternalSecurityStartupValidator implements ApplicationRunner {
         }
         try {
             byte[] payloadBytes = Base64.getUrlDecoder().decode(padBase64(parts[1]));
-            JsonNode payload = OBJECT_MAPPER.readTree(new String(payloadBytes, StandardCharsets.UTF_8));
+            JsonNode payload = objectMapper.readTree(new String(payloadBytes, StandardCharsets.UTF_8));
 
             if (!matchesIgnoreCase(payload.path("role").asText(""), pay.getRequiredRole())) {
                 return false;

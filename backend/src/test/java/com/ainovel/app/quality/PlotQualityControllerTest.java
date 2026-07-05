@@ -10,6 +10,7 @@ import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -41,7 +42,7 @@ class PlotQualityControllerTest {
         characterCardRepository = mock(CharacterCardRepository.class);
         runRepository = mock(PlotQualityRunRepository.class);
         service = mock(PlotQualityService.class);
-        controller = new PlotQualityController(accessGuard, manuscriptRepository, characterCardRepository, runRepository, service);
+        controller = new PlotQualityController(accessGuard, manuscriptRepository, characterCardRepository, runRepository, service, new ObjectMapper());
 
         principal = mock(UserDetails.class);
         user = new User();

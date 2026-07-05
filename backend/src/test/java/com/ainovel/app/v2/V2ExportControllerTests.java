@@ -4,6 +4,7 @@ import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,7 @@ class V2ExportControllerTests {
     @BeforeEach
     void setUp() {
         accessGuard = mock(V2AccessGuard.class);
-        controller = new V2ExportController(accessGuard);
+        controller = new V2ExportController(accessGuard, new ObjectMapper());
 
         principal = mock(UserDetails.class);
         user = new User();

@@ -10,6 +10,7 @@ import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.style.StyleContextProvider;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2AccessGuard;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -41,7 +42,7 @@ class SlopQualityControllerTest {
         characterCardRepository = mock(CharacterCardRepository.class);
         diagnosticService = mock(SlopDiagnosticService.class);
         styleContextProvider = mock(StyleContextProvider.class);
-        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider);
+        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider, new ObjectMapper());
 
         principal = mock(UserDetails.class);
         user = new User();

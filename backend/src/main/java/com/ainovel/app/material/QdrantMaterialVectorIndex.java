@@ -18,17 +18,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 @ConditionalOnProperty(prefix = "qdrant", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().build();
     private final String baseUrl;
     private final String collection;
     private final AtomicInteger ensuredDimensions = new AtomicInteger(0);
 
     public QdrantMaterialVectorIndex(
+            ObjectMapper objectMapper,
             @Value("${qdrant.host:http://base.seekerhut.com}") String host,
             @Value("${qdrant.http-port:26333}") int port,
             @Value("${qdrant.material-collection:ainovel_material_chunks}") String collection
     ) {
+        this.objectMapper = objectMapper;
         String normalized = host == null || host.isBlank() ? "http://base.seekerhut.com" : host.trim();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);

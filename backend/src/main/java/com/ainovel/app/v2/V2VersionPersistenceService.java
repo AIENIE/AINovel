@@ -28,18 +28,20 @@ public class V2VersionPersistenceService {
     private final V2VersionDiffRepository diffRepository;
     private final V2AutoSaveConfigRepository autoSaveRepository;
     private final ManuscriptRepository manuscriptRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public V2VersionPersistenceService(V2ManuscriptBranchRepository branchRepository,
                                        V2ManuscriptVersionRepository versionRepository,
                                        V2VersionDiffRepository diffRepository,
                                        V2AutoSaveConfigRepository autoSaveRepository,
-                                       ManuscriptRepository manuscriptRepository) {
+                                       ManuscriptRepository manuscriptRepository,
+                                       ObjectMapper objectMapper) {
         this.branchRepository = branchRepository;
         this.versionRepository = versionRepository;
         this.diffRepository = diffRepository;
         this.autoSaveRepository = autoSaveRepository;
         this.manuscriptRepository = manuscriptRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional

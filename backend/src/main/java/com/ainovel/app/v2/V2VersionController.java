@@ -27,7 +27,7 @@ public class V2VersionController {
     private final V2AccessGuard accessGuard;
     private final ManuscriptRepository manuscriptRepository;
     private final V2VersionPersistenceService versionService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> branchByManuscript = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> versionByManuscript = new ConcurrentHashMap<>();
@@ -35,17 +35,19 @@ public class V2VersionController {
     private final ConcurrentMap<UUID, Map<String, Object>> autoSaveByUser = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Object> initLocks = new ConcurrentHashMap<>();
 
-    public V2VersionController(V2AccessGuard accessGuard, ManuscriptRepository manuscriptRepository) {
-        this(accessGuard, manuscriptRepository, null);
+    public V2VersionController(V2AccessGuard accessGuard, ManuscriptRepository manuscriptRepository, ObjectMapper objectMapper) {
+        this(accessGuard, manuscriptRepository, null, objectMapper);
     }
 
     @Autowired
     public V2VersionController(V2AccessGuard accessGuard,
                                ManuscriptRepository manuscriptRepository,
-                               V2VersionPersistenceService versionService) {
+                               V2VersionPersistenceService versionService,
+                               ObjectMapper objectMapper) {
         this.accessGuard = accessGuard;
         this.manuscriptRepository = manuscriptRepository;
         this.versionService = versionService;
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "v2 API endpoint")

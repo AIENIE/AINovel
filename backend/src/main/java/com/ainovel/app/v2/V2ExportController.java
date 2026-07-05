@@ -37,19 +37,22 @@ public class V2ExportController {
     private static final int MAX_CONCURRENT_JOBS = 3;
     private final V2AccessGuard accessGuard;
     private final V2ExportPersistenceService exportService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     private final ConcurrentMap<UUID, Map<String, Object>> templates = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> jobsByManuscript = new ConcurrentHashMap<>();
 
-    public V2ExportController(V2AccessGuard accessGuard) {
-        this(accessGuard, null);
+    public V2ExportController(V2AccessGuard accessGuard, ObjectMapper objectMapper) {
+        this(accessGuard, null, objectMapper);
     }
 
     @Autowired
-    public V2ExportController(V2AccessGuard accessGuard, V2ExportPersistenceService exportService) {
+    public V2ExportController(V2AccessGuard accessGuard,
+                              V2ExportPersistenceService exportService,
+                              ObjectMapper objectMapper) {
         this.accessGuard = accessGuard;
         this.exportService = exportService;
+        this.objectMapper = objectMapper;
         if (exportService == null) {
             seedSystemTemplates();
         }

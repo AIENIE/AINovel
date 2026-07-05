@@ -22,7 +22,7 @@ class ExternalSecurityStartupValidatorTests {
     void shouldFailFastWhenRequiredSecurityValuesMissing() {
         ExternalServiceProperties properties = new ExternalServiceProperties();
         properties.getSecurity().setFailFast(true);
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
 
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
@@ -36,7 +36,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
         properties.getSecurity().getPay().setServiceJwt(validPayJwt());
 
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
         assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
@@ -49,7 +49,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().getUser().setInternalGrpcToken("REPLACE_ME_USER_INTERNAL_GRPC_TOKEN");
         properties.getSecurity().getPay().setServiceJwt("REPLACE_ME_PAY_SERVICE_JWT");
 
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
@@ -62,7 +62,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
         properties.getSecurity().getPay().setServiceJwt("not-a-jwt");
 
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
@@ -81,7 +81,7 @@ class ExternalSecurityStartupValidatorTests {
                 "exp", Instant.now().plusSeconds(1800).getEpochSecond()
         )));
 
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
@@ -99,7 +99,7 @@ class ExternalSecurityStartupValidatorTests {
                 "scopes", PAY_SCOPES
         )));
 
-        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties);
+        ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments(new String[0])));
     }
 
