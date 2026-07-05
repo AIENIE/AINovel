@@ -25,13 +25,7 @@ import {
   PanelLeftOpen,
   Focus,
   Download,
-  Flag,
-  Split,
-  ArrowDownUp,
-  RotateCcw,
-  GitBranch,
   GripVertical,
-  Clock3,
 } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { cn } from "@/lib/utils";
@@ -42,6 +36,7 @@ import { ShortcutAction } from "@/lib/shortcuts";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
 import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
+import { useWritingSession } from "@/pages/Workbench/hooks/useWritingSession";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ContextMenu,
@@ -49,6 +44,18 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { PlotSidebarPanel } from "./manuscript-writer/PlotSidebarPanel";
+import { VersionSidebarPanel } from "./manuscript-writer/VersionSidebarPanel";
+import {
+  countWords,
+  formatDateTime,
+  plotStatusClass,
+  plotStatusText,
+  qualityStatusClass,
+  qualityStatusText,
+  slopRewriteTaskTitle,
+  stripHtml,
+} from "./manuscript-writer/shared";
 
 interface ManuscriptWriterProps {
   initialStoryId?: string;
@@ -63,109 +70,7 @@ const sceneStatusClass: Record<SceneStatus, string> = {
   done: "bg-emerald-500",
 };
 
-const qualityStatusText = (run?: SlopQualityRun | null) => {
-  if (!run) return "未运行质量门禁";
-  if (run.analysisMode === "manual_scene") {
-    if (run.status === "DEGRADED") return "文本诊断降级";
-    if (run.status === "ACCEPTED_WITH_ISSUES" || ["high", "critical"].includes(run.riskLabel || "")) return "文本风险待处理";
-    return "文本诊断通过";
-  }
-  if (run.status === "REVISED" || run.revised) return "已自动修订";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "仍有建议";
-  return "质量门禁通过";
-};
-
-const qualityStatusClass = (run?: SlopQualityRun | null) => {
-  if (!run) return "border-zinc-300 text-zinc-500";
-  if (run.analysisMode === "manual_scene" && run.status === "DEGRADED") return "border-amber-300 bg-amber-50 text-amber-800";
-  if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
-  return "border-emerald-300 bg-emerald-50 text-emerald-700";
-};
-
-const slopModuleLabel = (module?: string) => {
-  switch (module) {
-    case "surface_template": return "表层模板";
-    case "voice_fit": return "语域贴合";
-    case "consistency_assimilation": return "设定吸收";
-    case "breath_focus_pacing": return "呼吸节奏";
-    case "human_trace": return "作者痕迹";
-    default: return module || "文本风险";
-  }
-};
-
-const slopRewriteTaskTitle = (task: any, index: number) => task?.task_id || task?.taskId || `R${index + 1}`;
-
-const plotStatusText = (run?: PlotQualityRun | null) => {
-  if (!run) return "未运行剧情诊断";
-  if (run.revisionApplied) return "候选已采纳";
-  if (run.status === "DEGRADED") return "诊断降级";
-  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "剧情高风险";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "剧情需关注";
-  return "剧情风险低";
-};
-
-const plotStatusClass = (run?: PlotQualityRun | null) => {
-  if (!run) return "border-zinc-300 text-zinc-500";
-  if (run.revisionApplied) return "border-blue-300 bg-blue-50 text-blue-700";
-  if (run.status === "DEGRADED") return "border-zinc-300 bg-zinc-50 text-zinc-700";
-  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "border-red-300 bg-red-50 text-red-700";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "border-amber-300 bg-amber-50 text-amber-800";
-  return "border-emerald-300 bg-emerald-50 text-emerald-700";
-};
-
-const plotDimensionLabel = (dimension?: string) => {
-  const labels: Record<string, string> = {
-    GOAL_CONFLICT: "目标冲突",
-    CAUSALITY: "因果链",
-    AGENCY: "角色能动性",
-    STAKES: "风险收益",
-    FORESHADOW_PAYOFF: "伏笔回收",
-    REPETITION: "重复套路",
-    SCENE_FUNCTION: "场景功能",
-    READER_CURIOSITY: "读者悬念",
-  };
-  return labels[String(dimension || "")] || String(dimension || "未分类");
-};
-
-const formatDateTime = (value: any) => {
-  if (!value) return "-";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
-};
-
-const stripHtml = (html: string) => {
-  const div = document.createElement("div");
-  div.innerHTML = html || "";
-  return (div.textContent || div.innerText || "").trim();
-};
-
-const countWords = (text: string) => {
-  if (!text) return 0;
-  return text.replace(/\s+/g, "").trim().length;
-};
-
 const VERSION_PAGE_SIZE = 10;
-
-const versionWordCount = (version: any) => {
-  const fromMeta = Number(version?.metadata?.word_count ?? version?.metadata?.wordCount);
-  if (Number.isFinite(fromMeta) && fromMeta >= 0) return Math.round(fromMeta);
-  try {
-    const sections = typeof version?.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version?.sectionsJson;
-    if (!sections || typeof sections !== "object") return 0;
-    return Object.values(sections).reduce((total, scene) => total + countWords(stripHtml(String(scene || ""))), 0);
-  } catch {
-    return 0;
-  }
-};
-
-const snapshotTypeLabel = (snapshotType: any) => {
-  const type = String(snapshotType || "manual").toLowerCase();
-  if (type === "auto") return "自动";
-  if (type === "branch_point") return "分支点";
-  if (type === "merge") return "合并";
-  return "手动";
-};
 
 type SceneRow = {
   chapterId: string;
@@ -245,22 +150,13 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [txtEncoding, setTxtEncoding] = useState("UTF-8");
   const [exportAuthorName, setExportAuthorName] = useState("");
   const [mobilePane, setMobilePane] = useState<"outline" | "editor" | "sidebar">("editor");
-  const [sessionStartedAt, setSessionStartedAt] = useState<number>(0);
-  const [sessionWordsWritten, setSessionWordsWritten] = useState(0);
-  const [sessionWordsDeleted, setSessionWordsDeleted] = useState(0);
-  const [tick, setTick] = useState(0);
   const saveTimer = useRef<Record<string, number>>({});
   const leftPanelRef = useRef<ImperativePanelHandle | null>(null);
   const rightPanelRef = useRef<ImperativePanelHandle | null>(null);
   const leftPanelVisibleRef = useRef<boolean | null>(null);
   const rightPanelVisibleRef = useRef<boolean | null>(null);
   const focusRestoreRef = useRef<{ leftOpen: boolean; rightOpen: boolean } | null>(null);
-  const sessionIdRef = useRef("");
-  const sessionWordsWrittenRef = useRef(0);
-  const sessionWordsDeletedRef = useRef(0);
-  const sceneWordCacheRef = useRef<Record<string, number>>({});
   const lastSelectedSceneRef = useRef("");
-  const autoSnapshotRef = useRef(0);
 
   const {
     activeLayoutId,
@@ -302,8 +198,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     return list;
   }, [outlineDraft]);
   const sceneMap = useMemo(() => Object.fromEntries(sceneRows.map((row) => [row.id, row])), [sceneRows]);
-  const sessionNetWords = sessionWordsWritten - sessionWordsDeleted;
-  const sessionDurationSeconds = sessionStartedAt ? Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000)) : 0;
   const currentWordCount = useMemo(() => countWords(stripHtml(content)), [content]);
   const chapters = outlineDraft?.chapters || [];
   const activeGoal = goals.find((goal) => String(goal.status || "active").toLowerCase() !== "archived");
@@ -512,6 +406,17 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setSelectedSceneIds((prev) => prev.filter((id) => valid.has(id)));
   }, [sceneRows]);
 
+  const measureSceneWords = useCallback((html: string) => countWords(stripHtml(html)), []);
+
+  const { primeSceneHtml, recordSceneHtml, sessionDurationSeconds, sessionNetWords } = useWritingSession({
+    selectedStoryId,
+    selectedManuscriptId,
+    selectedSceneId,
+    selectedSceneDirty: Boolean(selectedSceneId && dirtyScenes[selectedSceneId]),
+    autoSaveIntervalSeconds: autoSaveConfig?.autoSaveIntervalSeconds,
+    measureHtmlWords: measureSceneWords,
+  });
+
   useEffect(() => {
     if (!selectedManuscript || !selectedSceneId) {
       setContent("");
@@ -519,8 +424,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     }
     const html = sceneDrafts[selectedSceneId] ?? selectedManuscript.sections?.[selectedSceneId] ?? "";
     setContent(html);
-    sceneWordCacheRef.current[selectedSceneId] = countWords(stripHtml(html));
-  }, [sceneDrafts, selectedManuscript, selectedSceneId]);
+    primeSceneHtml(selectedSceneId, html);
+  }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId]);
 
   useEffect(() => {
     if (!selectedManuscriptId || !selectedSceneId) return;
@@ -597,6 +502,18 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     if (saveTimer.current[selectedSceneId]) window.clearTimeout(saveTimer.current[selectedSceneId]);
     await persistSection(selectedSceneId, content, false);
   }, [content, persistSection, selectedSceneId]);
+
+  const handleEditorChange = useCallback(
+    (html: string) => {
+      setContent(html);
+      if (!selectedSceneId) return;
+      recordSceneHtml(selectedSceneId, html);
+      setSceneDrafts((prev) => ({ ...prev, [selectedSceneId]: html }));
+      setDirtyScenes((prev) => ({ ...prev, [selectedSceneId]: true }));
+      scheduleSave(selectedSceneId, html);
+    },
+    [recordSceneHtml, scheduleSave, selectedSceneId],
+  );
 
   const jumpScene = useCallback((offset: number) => {
     if (!sceneRows.length) return;
@@ -707,57 +624,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     return () => document.removeEventListener("selectionchange", selectionHandler);
   }, []);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick((prev) => prev + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    sessionWordsWrittenRef.current = sessionWordsWritten;
-    sessionWordsDeletedRef.current = sessionWordsDeleted;
-  }, [sessionWordsDeleted, sessionWordsWritten]);
-
-  useEffect(() => {
-    if (!selectedStoryId) return;
-    api.v2.workspace.startSession({ storyId: selectedStoryId }).then((session) => {
-      sessionIdRef.current = String(session.id || "");
-      setSessionStartedAt(new Date(session.startedAt || Date.now()).getTime());
-      setSessionWordsWritten(Number(session.wordsWritten || 0));
-      setSessionWordsDeleted(Number(session.wordsDeleted || 0));
-    }).catch(() => undefined);
-    return () => {
-      if (!sessionIdRef.current) return;
-      void api.v2.workspace.endSession(sessionIdRef.current, {
-        wordsWritten: sessionWordsWrittenRef.current,
-        wordsDeleted: sessionWordsDeletedRef.current,
-      });
-      sessionIdRef.current = "";
-    };
-  }, [selectedStoryId]);
-
-  useEffect(() => {
-    if (!sessionIdRef.current) return;
-    const timer = window.setInterval(() => {
-      void api.v2.workspace.heartbeatSession(sessionIdRef.current, {
-        wordsWritten: sessionWordsWrittenRef.current,
-        wordsDeleted: sessionWordsDeletedRef.current,
-      });
-    }, 30000);
-    return () => window.clearInterval(timer);
-  }, [selectedStoryId]);
-
-  useEffect(() => {
-    const onBeforeUnload = () => {
-      if (!sessionIdRef.current) return;
-      void api.v2.workspace.endSession(sessionIdRef.current, {
-        wordsWritten: sessionWordsWrittenRef.current,
-        wordsDeleted: sessionWordsDeletedRef.current,
-      });
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
-
   const loadContextPreview = useCallback(async () => {
     if (!selectedStoryId) return;
     try {
@@ -789,6 +655,23 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
       toast({ variant: "destructive", title: "加载版本失败", description: e.message });
     }
   }, [mergeBranchId, selectedManuscriptId, toast]);
+
+  const createManualVersion = useCallback(async () => {
+    if (!selectedManuscriptId) return;
+    const label = window.prompt("检查点标签", `manual-${Date.now()}`)?.trim();
+    if (!label) return;
+    await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
+    await loadVersions();
+  }, [loadVersions, selectedManuscriptId]);
+
+  const saveAutoSaveConfig = useCallback(async () => {
+    if (!autoSaveConfig) return;
+    await api.v2.version.updateAutoSave({
+      autoSaveIntervalSeconds: Number(autoSaveConfig.autoSaveIntervalSeconds || 300),
+      maxAutoVersions: Number(autoSaveConfig.maxAutoVersions || 100),
+    });
+    toast({ title: "自动快照配置已更新" });
+  }, [autoSaveConfig, toast]);
 
   const loadExport = useCallback(async () => {
     if (!selectedManuscriptId) return;
@@ -1277,19 +1160,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toast({ title: `已移动 ${moved.length} 个场景` });
   };
 
-  useEffect(() => {
-    if (!autoSaveConfig?.autoSaveIntervalSeconds || !selectedManuscriptId || !selectedSceneId) return;
-    if (!dirtyScenes[selectedSceneId]) return;
-    const intervalMs = Math.max(30000, Number(autoSaveConfig.autoSaveIntervalSeconds) * 1000);
-    const now = Date.now();
-    if (now - autoSnapshotRef.current < intervalMs) return;
-    autoSnapshotRef.current = now;
-    void api.v2.version.createVersion(selectedManuscriptId, {
-      snapshotType: "auto",
-      label: `auto-${new Date().toLocaleTimeString()}`,
-    }).catch(() => undefined);
-  }, [autoSaveConfig, dirtyScenes, selectedManuscriptId, selectedSceneId, tick]);
-
   return (
     <div className="relative h-[calc(100vh-180px)]">
       {isMobile ? (
@@ -1327,19 +1197,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               <TiptapEditor
                 key={`mobile-editor-${focusMode ? "zen" : "normal"}`}
                 content={content}
-                onChange={(html) => {
-                  setContent(html);
-                  if (!selectedSceneId) return;
-                  const previousWordCount = sceneWordCacheRef.current[selectedSceneId] ?? 0;
-                  const nextWordCount = countWords(stripHtml(html));
-                  const delta = nextWordCount - previousWordCount;
-                  sceneWordCacheRef.current[selectedSceneId] = nextWordCount;
-                  if (delta > 0) setSessionWordsWritten((value) => value + delta);
-                  if (delta < 0) setSessionWordsDeleted((value) => value + Math.abs(delta));
-                  setSceneDrafts((prev) => ({ ...prev, [selectedSceneId]: html }));
-                  setDirtyScenes((prev) => ({ ...prev, [selectedSceneId]: true }));
-                  scheduleSave(selectedSceneId, html);
-                }}
+                onChange={handleEditorChange}
                 className="h-full"
                 editable={!!selectedSceneId}
                 zenMode={focusMode}
@@ -1701,19 +1559,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               <TiptapEditor
                 key={`desktop-editor-${focusMode ? "zen" : "normal"}`}
                 content={content}
-                onChange={(html) => {
-                  setContent(html);
-                  if (!selectedSceneId) return;
-                  const previousWordCount = sceneWordCacheRef.current[selectedSceneId] ?? 0;
-                  const nextWordCount = countWords(stripHtml(html));
-                  const delta = nextWordCount - previousWordCount;
-                  sceneWordCacheRef.current[selectedSceneId] = nextWordCount;
-                  if (delta > 0) setSessionWordsWritten((value) => value + delta);
-                  if (delta < 0) setSessionWordsDeleted((value) => value + Math.abs(delta));
-                  setSceneDrafts((prev) => ({ ...prev, [selectedSceneId]: html }));
-                  setDirtyScenes((prev) => ({ ...prev, [selectedSceneId]: true }));
-                  scheduleSave(selectedSceneId, html);
-                }}
+                onChange={handleEditorChange}
                 className="h-full"
                 editable={!!selectedSceneId}
                 zenMode={focusMode}
@@ -1794,348 +1640,61 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                   </ScrollArea>
                 </TabsContent>
 
-                <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    <Button size="sm" variant="outline" onClick={() => void runSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
-                      {isSlopBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                      文本 Slop 诊断
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void runPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
-                      {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                      重新诊断
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => void generatePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
-                      {isPlotRevisionBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                      生成候选
-                    </Button>
-                    <Button size="sm" onClick={() => void applyPlotRevision()} disabled={isPlotRevisionBusy || !selectedPlotRun?.revisionCandidateText || selectedPlotRun?.revisionApplied}>
-                      采纳候选
-                    </Button>
-                  </div>
+                <PlotSidebarPanel
+                  isPlotBusy={isPlotBusy}
+                  isPlotRevisionBusy={isPlotRevisionBusy}
+                  isSlopBusy={isSlopBusy}
+                  onApplyPlotRevision={applyPlotRevision}
+                  onCopySlopRewriteTask={copySlopRewriteTask}
+                  onGeneratePlotRevisionCandidate={generatePlotRevisionCandidate}
+                  onRefreshPlotQuality={loadPlotQuality}
+                  onRunPlotDiagnosis={runPlotDiagnosis}
+                  onRunSlopDiagnosis={runSlopDiagnosis}
+                  plotDimensionEntries={plotDimensionEntries}
+                  plotTrend={plotTrend}
+                  plotTrendChartData={plotTrendChartData}
+                  selectedManuscriptId={selectedManuscriptId}
+                  selectedPlotRun={selectedPlotRun}
+                  selectedQualityRun={selectedQualityRun}
+                  selectedSceneId={selectedSceneId}
+                  selectedSceneTitle={sceneMap[selectedSceneId]?.scene?.title || ""}
+                />
 
-                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 text-xs">
-                    <div className="space-y-3">
-                      <div className="rounded border p-2 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-medium">文本 Slop 风险</div>
-                          <Badge variant="outline" className={cn("shrink-0", qualityStatusClass(selectedQualityRun))}>{qualityStatusText(selectedQualityRun)}</Badge>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">风险</div>
-                            <div className="text-lg font-semibold">{selectedQualityRun?.overallRiskScore ?? "-"}</div>
-                          </div>
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">证据</div>
-                            <div className="text-lg font-semibold">{selectedQualityRun?.evidenceLevel || "-"}</div>
-                          </div>
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">问题</div>
-                            <div className="text-lg font-semibold">{selectedQualityRun?.issues?.length ?? 0}</div>
-                          </div>
-                        </div>
-                        {!!selectedQualityRun?.safeClaim && <div className="text-muted-foreground leading-relaxed">{selectedQualityRun.safeClaim}</div>}
-                        {!selectedQualityRun && <div className="text-muted-foreground">点击“文本 Slop 诊断”后，会生成证据表、替代解释和改写任务；不会自动覆盖正文。</div>}
-                      </div>
-
-                      {!!selectedQualityRun && (
-                        <div className="rounded border p-2 space-y-2">
-                          <div className="font-medium">文本证据</div>
-                          {(selectedQualityRun.issues || []).map((issue) => (
-                            <div key={issue.id} className="rounded border p-2 space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant="outline">{slopModuleLabel(issue.module)}</Badge>
-                                <Badge variant="outline">{issue.evidenceLevel || issue.severity}</Badge>
-                                <span className="text-muted-foreground">风险 {issue.riskScore}</span>
-                                {issue.charStart !== undefined && issue.charEnd !== undefined && (
-                                  <span className="text-muted-foreground">位置 {issue.charStart}-{issue.charEnd}</span>
-                                )}
-                              </div>
-                              {!!(issue.quote || issue.evidence) && <div>{issue.quote || issue.evidence}</div>}
-                              {!!(issue.repairHint || issue.minimalFix) && <div className="text-muted-foreground">{issue.repairHint || issue.minimalFix}</div>}
-                            </div>
-                          ))}
-                          {!selectedQualityRun.issues.length && <div className="text-muted-foreground">暂无文本风险证据。</div>}
-                        </div>
-                      )}
-
-                      {!!selectedQualityRun?.alternativeExplanations?.length && (
-                        <div className="rounded border p-2 space-y-1">
-                          <div className="font-medium">替代解释</div>
-                          {selectedQualityRun.alternativeExplanations.map((item, index) => (
-                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
-                          ))}
-                        </div>
-                      )}
-
-                      {!!selectedQualityRun?.rewriteTasks?.length && (
-                        <div className="rounded border p-2 space-y-2">
-                          <div className="font-medium">改写任务</div>
-                          {selectedQualityRun.rewriteTasks.map((task, index) => (
-                            <div key={`${slopRewriteTaskTitle(task, index)}-${index}`} className="rounded border p-2 space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <Badge variant="outline">{slopRewriteTaskTitle(task, index)}</Badge>
-                                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => void copySlopRewriteTask(task, index)}>复制</Button>
-                              </div>
-                              {!!task.problem && <div>{task.problem}</div>}
-                              {!!(task.repair_goal || task.repairGoal) && <div className="text-muted-foreground">{task.repair_goal || task.repairGoal}</div>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="rounded border p-2 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="font-medium">{selectedPlotRun?.sceneTitle || sceneMap[selectedSceneId]?.scene?.title || "当前场景"}</div>
-                          <Badge variant="outline" className={cn("shrink-0", plotStatusClass(selectedPlotRun))}>{plotStatusText(selectedPlotRun)}</Badge>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">风险</div>
-                            <div className="text-lg font-semibold">{selectedPlotRun?.overallRiskScore ?? "-"}</div>
-                          </div>
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">等级</div>
-                            <div className="text-lg font-semibold">{selectedPlotRun?.maxSeverity || "-"}</div>
-                          </div>
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">问题</div>
-                            <div className="text-lg font-semibold">{selectedPlotRun?.issues?.length ?? 0}</div>
-                          </div>
-                        </div>
-                        {!!selectedPlotRun?.summary && <div className="text-muted-foreground leading-relaxed">{selectedPlotRun.summary}</div>}
-                        {!selectedPlotRun && <div className="text-muted-foreground">当前场景还没有剧情诊断记录。</div>}
-                      </div>
-
-                      <div className="rounded border p-2 space-y-2">
-                        <div className="font-medium">问题清单</div>
-                        {(selectedPlotRun?.issues || []).map((issue) => (
-                          <div key={issue.id} className="rounded border p-2 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">{plotDimensionLabel(issue.dimension)}</Badge>
-                              <Badge variant="outline">{issue.severity}</Badge>
-                              <span className="text-muted-foreground">风险 {issue.riskScore}</span>
-                            </div>
-                            {!!issue.evidence && <div>{issue.evidence}</div>}
-                            {!!issue.minimalFix && <div className="text-muted-foreground">{issue.minimalFix}</div>}
-                          </div>
-                        ))}
-                        {selectedPlotRun && !selectedPlotRun.issues.length && <div className="text-muted-foreground">暂无剧情问题。</div>}
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2">
-                        <div className="rounded border p-2 space-y-1">
-                          <div className="font-medium">重写计划</div>
-                          {(selectedPlotRun?.rewritePlan || []).map((item, index) => (
-                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
-                          ))}
-                          {selectedPlotRun && !selectedPlotRun.rewritePlan.length && <div className="text-muted-foreground">暂无</div>}
-                        </div>
-                        <div className="rounded border p-2 space-y-1">
-                          <div className="font-medium">微调动作</div>
-                          {(selectedPlotRun?.surgicalFixes || []).map((item, index) => (
-                            <div key={`${item}-${index}`} className="text-muted-foreground">{index + 1}. {item}</div>
-                          ))}
-                          {selectedPlotRun && !selectedPlotRun.surgicalFixes.length && <div className="text-muted-foreground">暂无</div>}
-                        </div>
-                      </div>
-
-                      {!!selectedPlotRun?.revisionCandidateText && (
-                        <div className="rounded border p-2 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium">候选修订</div>
-                            {selectedPlotRun.revisionApplied && <Badge variant="outline">已采纳</Badge>}
-                          </div>
-                          <div className="max-h-48 overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-2 leading-relaxed">
-                            {selectedPlotRun.revisionCandidateText}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="rounded border p-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">全稿趋势</div>
-                          <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => void loadPlotQuality()}>刷新</Button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">平均风险</div>
-                            <div className="text-lg font-semibold">{plotTrend ? Math.round(plotTrend.averageRisk) : "-"}</div>
-                          </div>
-                          <div className="rounded bg-muted/60 p-2">
-                            <div className="text-muted-foreground">高风险场景</div>
-                            <div className="text-lg font-semibold">{plotTrend?.highRiskScenes ?? "-"}</div>
-                          </div>
-                        </div>
-                        <div className="h-[180px]">
-                          {plotTrendChartData.length ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={plotTrendChartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                                <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="riskScore" stroke="#dc2626" strokeWidth={2} dot={false} />
-                              </LineChart>
-                            </ResponsiveContainer>
-                          ) : (
-                            <div className="h-full rounded bg-muted/50 flex items-center justify-center text-muted-foreground">暂无趋势数据</div>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          {plotDimensionEntries.map(([dimension, count]) => (
-                            <div key={dimension} className="flex items-center justify-between rounded border px-2 py-1">
-                              <span>{plotDimensionLabel(dimension)}</span>
-                              <span className="text-muted-foreground">{count}</span>
-                            </div>
-                          ))}
-                          {!plotDimensionEntries.length && <div className="text-muted-foreground">暂无维度统计</div>}
-                        </div>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-
-                <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <div className="space-y-2 mb-2">
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => void loadVersions()}>刷新</Button>
-                      <Button size="sm" onClick={async () => {
-                        if (!selectedManuscriptId) return;
-                        const label = window.prompt("检查点标签", `manual-${Date.now()}`)?.trim();
-                        if (!label) return;
-                        await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
-                        await loadVersions();
-                      }}><Flag className="h-3.5 w-3.5 mr-1" />检查点</Button>
-                      <Button size="sm" variant="secondary" onClick={() => void runVersionDiff()} disabled={selectedDiffVersions.length !== 2}>对比</Button>
-                    </div>
-                    <div className="rounded border p-2 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">分支管理</span>
-                        <Badge variant="outline">当前 {currentBranchId ? currentBranchId.slice(0, 8) : "-"}</Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Input value={newBranchName} onChange={(event) => setNewBranchName(event.target.value)} placeholder="分支名称" className="h-8" />
-                        <Button size="sm" onClick={() => void createBranch()}><GitBranch className="h-3.5 w-3.5 mr-1" />新建分支</Button>
-                      </div>
-                      <div className="space-y-1">
-                        {branches.map((branch) => (
-                          <div key={String(branch.id)} className="flex items-center justify-between rounded border p-1">
-                            <div className="truncate mr-2">
-                              <span className="font-medium">{branch.name}</span>
-                              <span className="text-muted-foreground ml-1">{branch.status}</span>
-                            </div>
-                            <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => void checkoutBranch(String(branch.id))} disabled={String(branch.status) !== "active"}>
-                              切换
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Select value={mergeBranchId} onValueChange={setMergeBranchId}>
-                          <SelectTrigger className="h-8"><SelectValue placeholder="选择分支" /></SelectTrigger>
-                          <SelectContent>
-                            {branches.filter((branch) => !branch.isMain && String(branch.status) === "active").map((branch) => (
-                              <SelectItem key={String(branch.id)} value={String(branch.id)}>{branch.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select value={mergeStrategy} onValueChange={(value) => setMergeStrategy(value as "REPLACE_ALL" | "SCENE_SELECT")}>
-                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="REPLACE_ALL">整体替换</SelectItem>
-                            <SelectItem value="SCENE_SELECT">逐场景选择</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button size="sm" variant="secondary" onClick={() => void mergeSelectedBranch()} disabled={!mergeBranchId}>合并到主线</Button>
-                      {!!mergeConflicts.length && (
-                        <div className="space-y-2 rounded border border-amber-300 bg-amber-50 p-2">
-                          <div className="text-amber-700">检测到冲突，请逐场景选择保留版本。</div>
-                          {mergeConflicts.map((conflict) => (
-                            <div key={conflict.sceneId} className="rounded border p-2">
-                              <div className="font-medium">{conflict.sceneId}</div>
-                              <Select
-                                value={sceneResolutions[conflict.sceneId] || ""}
-                                onValueChange={(value) => setSceneResolutions((prev) => ({ ...prev, [conflict.sceneId]: value as "target" | "source" }))}
-                              >
-                                <SelectTrigger className="h-7 mt-1"><SelectValue placeholder="选择保留主线或分支" /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="target">保留主线</SelectItem>
-                                  <SelectItem value="source">保留分支</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ))}
-                          <Button size="sm" onClick={() => void mergeSelectedBranch(sceneResolutions)}>提交冲突解决</Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2">
-                    {visibleVersions.map((version, index) => (
-                      <div key={String(version.id)} className="flex gap-2 text-xs">
-                        <div className="flex flex-col items-center pt-0.5">
-                          <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
-                          {index < visibleVersions.length - 1 && <div className="mt-1 w-px flex-1 min-h-4 bg-border" />}
-                        </div>
-                        <div className="flex-1 rounded border p-2 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Checkbox checked={selectedDiffVersions.includes(String(version.id))} onCheckedChange={() => toggleVersionSelection(String(version.id))} />
-                            <span className="font-medium">{`v${Number(version.versionNumber || index + 1)} ${version.label || "未命名版本"}`}</span>
-                            <Badge variant="outline">{snapshotTypeLabel(version.snapshotType)}</Badge>
-                            <Button size="sm" variant="ghost" className="ml-auto h-6 px-2" onClick={() => void rollbackVersion(String(version.id))}>
-                              <RotateCcw className="h-3 w-3 mr-1" />回滚
-                            </Button>
-                          </div>
-                          <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${versionWordCount(version)} 字`}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {hasMoreVersions && (
-                      <Button size="sm" variant="outline" className="w-full h-7" onClick={() => setVersionVisibleCount((prev) => prev + VERSION_PAGE_SIZE)}>
-                        加载更多版本
-                      </Button>
-                    )}
-                    {!!diffResult && (
-                      <div className="rounded border p-2 space-y-2 text-xs">
-                        <div className="flex gap-1">
-                          <Button size="sm" variant={diffViewMode === "split" ? "default" : "outline"} className="h-6 px-2" onClick={() => setDiffViewMode("split")}><Split className="h-3 w-3 mr-1" />并排</Button>
-                          <Button size="sm" variant={diffViewMode === "unified" ? "default" : "outline"} className="h-6 px-2" onClick={() => setDiffViewMode("unified")}><ArrowDownUp className="h-3 w-3 mr-1" />统一</Button>
-                          <Button size="sm" variant="secondary" className="h-6 px-2" onClick={() => void summarizeDiff()}>AI 总结</Button>
-                        </div>
-                        {!!aiDiffSummary && <div className="rounded bg-muted p-2">{aiDiffSummary}</div>}
-                        {(diffResult.changes || []).slice(0, 6).map((change: any) => (
-                          <div key={change.sceneId} className="rounded border p-2">
-                            <div className="font-medium mb-1">场景 {change.sceneId}</div>
-                            {diffViewMode === "split" ? (
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-rose-50/40 rounded p-1 whitespace-pre-wrap">{change.beforeContent || "<empty>"}</div>
-                                <div className="bg-emerald-50/40 rounded p-1 whitespace-pre-wrap">{change.afterContent || "<empty>"}</div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                <div className="text-rose-600 whitespace-pre-wrap">- {change.beforeContent || "<empty>"}</div>
-                                <div className="text-emerald-600 whitespace-pre-wrap">+ {change.afterContent || "<empty>"}</div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {!!autoSaveConfig && (
-                      <div className="rounded border p-2 text-xs space-y-2">
-                        <div className="font-medium">自动快照</div>
-                        <Input type="number" value={Number(autoSaveConfig.autoSaveIntervalSeconds || 300)} onChange={(e) => setAutoSaveConfig((prev: any) => ({ ...prev, autoSaveIntervalSeconds: Number(e.target.value || 300) }))} />
-                        <Input type="number" value={Number(autoSaveConfig.maxAutoVersions || 100)} onChange={(e) => setAutoSaveConfig((prev: any) => ({ ...prev, maxAutoVersions: Number(e.target.value || 100) }))} />
-                        <Button size="sm" onClick={async () => {
-                          await api.v2.version.updateAutoSave({ autoSaveIntervalSeconds: Number(autoSaveConfig.autoSaveIntervalSeconds || 300), maxAutoVersions: Number(autoSaveConfig.maxAutoVersions || 100) });
-                          toast({ title: "自动快照配置已更新" });
-                        }}>保存配置</Button>
-                      </div>
-                    )}
-                  </ScrollArea>
-                </TabsContent>
+                <VersionSidebarPanel
+                  aiDiffSummary={aiDiffSummary}
+                  autoSaveConfig={autoSaveConfig}
+                  branches={branches}
+                  createBranch={createBranch}
+                  createManualVersion={createManualVersion}
+                  checkoutBranch={checkoutBranch}
+                  currentBranchId={currentBranchId}
+                  diffResult={diffResult}
+                  diffViewMode={diffViewMode}
+                  hasMoreVersions={hasMoreVersions}
+                  loadVersions={loadVersions}
+                  mergeBranchId={mergeBranchId}
+                  mergeConflicts={mergeConflicts}
+                  mergeSelectedBranch={mergeSelectedBranch}
+                  mergeStrategy={mergeStrategy}
+                  newBranchName={newBranchName}
+                  rollbackVersion={rollbackVersion}
+                  runVersionDiff={runVersionDiff}
+                  saveAutoSaveConfig={saveAutoSaveConfig}
+                  sceneResolutions={sceneResolutions}
+                  selectedDiffVersions={selectedDiffVersions}
+                  selectedManuscriptId={selectedManuscriptId}
+                  setAutoSaveConfig={setAutoSaveConfig}
+                  setDiffViewMode={setDiffViewMode}
+                  setMergeBranchId={setMergeBranchId}
+                  setMergeStrategy={setMergeStrategy}
+                  setNewBranchName={setNewBranchName}
+                  setSceneResolutions={setSceneResolutions}
+                  setVersionVisibleCount={setVersionVisibleCount}
+                  summarizeDiff={summarizeDiff}
+                  toggleVersionSelection={toggleVersionSelection}
+                  versionPageSize={VERSION_PAGE_SIZE}
+                  visibleVersions={visibleVersions}
+                />
 
                 <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
                   <div className="grid grid-cols-2 gap-2 mb-2">
