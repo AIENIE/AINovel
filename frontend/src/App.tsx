@@ -25,7 +25,7 @@ import CreateNovel from "./pages/CreateNovel";
 import Workbench from "./pages/Workbench/Workbench";
 import WorldManager from "./pages/WorldManager";
 import CreateWorld from "./pages/CreateWorld";
-import Worlds from "./pages/Worlds";
+import WorldEditor from "./pages/WorldEditor";
 import MaterialPage from "./pages/Material/MaterialPage";
 import Settings from "./pages/Settings/Settings";
 import PromptHelpPage from "./pages/Settings/PromptHelpPage";
@@ -111,7 +111,7 @@ const App = () => (
               <Route path="/novels/create" element={<CreateNovel />} />
               <Route path="/worlds" element={<WorldManager />} />
               <Route path="/worlds/create" element={<CreateWorld />} />
-              <Route path="/world-editor" element={<Worlds />} />
+              <Route path="/world-editor" element={<WorldEditor />} />
 
               <Route element={<AppLayout />}>
                 <Route path="/workbench" element={<Workbench />} />

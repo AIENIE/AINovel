@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/mock-api";
-import { Manuscript, Outline, SlopDriftRun, Story } from "@/types";
+import { Manuscript, Outline, SlopDriftRun, Story, V2AnalysisJob, V2AnalysisReport, V2ContinuityIssue } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -31,9 +31,9 @@ const AnalysisDashboard = () => {
   const [selectedOutlineId, setSelectedOutlineId] = useState("");
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [selectedManuscriptId, setSelectedManuscriptId] = useState("");
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [issues, setIssues] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<V2AnalysisJob[]>([]);
+  const [reports, setReports] = useState<V2AnalysisReport[]>([]);
+  const [issues, setIssues] = useState<V2ContinuityIssue[]>([]);
   const [driftRuns, setDriftRuns] = useState<SlopDriftRun[]>([]);
   const [selectedDriftRunId, setSelectedDriftRunId] = useState("");
   const [selectedReportId, setSelectedReportId] = useState("");

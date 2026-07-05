@@ -10,6 +10,7 @@
 | 提示词帮助 | `/settings/prompt-guide` | `src/pages/Settings/PromptHelpPage.tsx` | 展示故事/大纲/正文/润色模板的变量、函数、示例。 | 从设置页按钮返回。 |
 | 世界提示词帮助 | `/settings/world-prompts/help` | `src/pages/Settings/WorldPromptHelpPage.tsx` | 展示世界构建模板的变量、函数、字段说明与 FAQ。 | 从设置页按钮返回。 |
 | 素材库 | `/materials` | `src/pages/Material/MaterialPage.tsx` | 素材创建、上传、审核、列表/查重/引用。 | 首页/工作台按钮进入；内部 Tab 切换功能子区。 |
-| 世界构建 | `/worlds` | `src/pages/WorldBuilder/WorldBuilderPage.tsx` | 世界观草稿/发布、模块编辑、自动生成流水线、发布。 | 首页/头部入口；世界可在故事/大纲/稿件、素材引用组件中被选择。 |
+| 世界列表 | `/worlds` | `src/pages/WorldManager.tsx` | 世界观草稿/发布状态的列表页，支持进入编辑、删除和新建。 | 首页/头部入口；进入 `/worlds/create` 新建，进入 `/world-editor?id=...` 编辑。 |
+| 世界编辑 | `/world-editor` | `src/pages/WorldEditor.tsx` | 单个世界的元数据编辑、模块填写、字段润色与预检发布入口。 | 从世界列表或新建流程进入；编辑结果会被故事/大纲/稿件流程引用。 |
 
-关系摘要：`AuthProvider` 提供登录态；`ProtectedRoute` 将未认证用户重定向到 `/login`；工作台内部 Tab 与 URL 同步；素材库与世界观为独立受保护页面；设置页链接两份帮助文档；首页提供所有入口的外显导航。
+关系摘要：`AuthProvider` 提供登录态；`ProtectedRoute` 将未认证用户重定向到 `/login`；工作台内部 Tab 与 URL 同步；素材库、世界列表与世界编辑器为独立受保护页面；设置页链接两份帮助文档；首页提供所有入口的外显导航。

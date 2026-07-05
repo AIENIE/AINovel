@@ -20,6 +20,11 @@ import {
   Story,
   UserSummary,
   User,
+  V2AnalysisJob,
+  V2AnalysisReport,
+  V2AnalysisTriggerRequest,
+  V2ContinuityIssue,
+  V2ContinuityIssueUpdateRequest,
   World,
   WorldDetail,
   WorldModuleDefinition,
@@ -1047,20 +1052,22 @@ export const api = {
     },
 
     analysis: {
-      triggerBetaReader: async (storyId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/stories/${storyId}/analysis/beta-reader`, { method: "POST", body: JSON.stringify(payload) }),
-      triggerContinuity: async (storyId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/stories/${storyId}/analysis/continuity-check`, { method: "POST", body: JSON.stringify(payload) }),
-      listJobs: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/analysis/jobs`, { method: "GET" }),
-      getJob: async (storyId: string, jobId: string) =>
-        requestJson<any>(`/v2/stories/${storyId}/analysis/jobs/${jobId}`, { method: "GET" }),
-      listReports: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/analysis/reports`, { method: "GET" }),
-      getReport: async (storyId: string, reportId: string) =>
-        requestJson<any>(`/v2/stories/${storyId}/analysis/reports/${reportId}`, { method: "GET" }),
-      listIssues: async (storyId: string) =>
-        requestJson<any[]>(`/v2/stories/${storyId}/analysis/continuity-issues`, { method: "GET" }),
-      updateIssue: async (storyId: string, issueId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/analysis/continuity-issues/${issueId}`, {
+      triggerBetaReader: async (storyId: string, payload: V2AnalysisTriggerRequest = {}): Promise<V2AnalysisJob> =>
+        requestJson<V2AnalysisJob>(`/v2/stories/${storyId}/analysis/beta-reader`, { method: "POST", body: JSON.stringify(payload) }),
+      triggerContinuity: async (storyId: string, payload: V2AnalysisTriggerRequest = {}): Promise<V2AnalysisJob> =>
+        requestJson<V2AnalysisJob>(`/v2/stories/${storyId}/analysis/continuity-check`, { method: "POST", body: JSON.stringify(payload) }),
+      listJobs: async (storyId: string): Promise<V2AnalysisJob[]> =>
+        requestJson<V2AnalysisJob[]>(`/v2/stories/${storyId}/analysis/jobs`, { method: "GET" }),
+      getJob: async (storyId: string, jobId: string): Promise<V2AnalysisJob> =>
+        requestJson<V2AnalysisJob>(`/v2/stories/${storyId}/analysis/jobs/${jobId}`, { method: "GET" }),
+      listReports: async (storyId: string): Promise<V2AnalysisReport[]> =>
+        requestJson<V2AnalysisReport[]>(`/v2/stories/${storyId}/analysis/reports`, { method: "GET" }),
+      getReport: async (storyId: string, reportId: string): Promise<V2AnalysisReport> =>
+        requestJson<V2AnalysisReport>(`/v2/stories/${storyId}/analysis/reports/${reportId}`, { method: "GET" }),
+      listIssues: async (storyId: string): Promise<V2ContinuityIssue[]> =>
+        requestJson<V2ContinuityIssue[]>(`/v2/stories/${storyId}/analysis/continuity-issues`, { method: "GET" }),
+      updateIssue: async (storyId: string, issueId: string, payload: V2ContinuityIssueUpdateRequest): Promise<V2ContinuityIssue> =>
+        requestJson<V2ContinuityIssue>(`/v2/stories/${storyId}/analysis/continuity-issues/${issueId}`, {
           method: "PUT",
           body: JSON.stringify(payload),
         }),

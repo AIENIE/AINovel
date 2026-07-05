@@ -254,6 +254,81 @@ export interface SlopDriftRun {
   createdAt?: string;
 }
 
+export interface V2AnalysisSummary {
+  focus: string;
+  highlights: string[];
+  risks: string[];
+}
+
+export interface V2AnalysisJob {
+  id: string;
+  storyId: string;
+  userId: string;
+  jobType: string;
+  scope: string;
+  scopeReference?: string | null;
+  status: string;
+  progress?: number | null;
+  progressMessage?: string | null;
+  resultReference: string;
+  errorMessage?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface V2AnalysisReport {
+  id: string;
+  storyId: string;
+  userId: string;
+  scope: string;
+  scopeReference?: string | null;
+  status: string;
+  analysis: V2AnalysisSummary;
+  summary?: string;
+  scoreOverall?: number | null;
+  scorePacing?: number | null;
+  scoreCharacters?: number | null;
+  scoreDialogue?: number | null;
+  scoreConsistency?: number | null;
+  scoreEngagement?: number | null;
+  tokenCost?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface V2ContinuityEvidence {
+  chapter?: number | null;
+  note: string;
+}
+
+export interface V2ContinuityIssue {
+  id: string;
+  storyId: string;
+  reportId?: string | null;
+  issueType: string;
+  severity: string;
+  description: string;
+  evidence: V2ContinuityEvidence[];
+  suggestion?: string | null;
+  status: string;
+  resolvedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface V2AnalysisTriggerRequest {
+  scope?: string;
+  scopeReference?: string;
+  focus?: string;
+  estimatedTokenCost?: number;
+  text?: string;
+}
+
+export interface V2ContinuityIssueUpdateRequest {
+  status?: string;
+  suggestion?: string;
+  severity?: string;
+}
+
 export interface PlotQualityIssue {
   id: string;
   dimension: string;

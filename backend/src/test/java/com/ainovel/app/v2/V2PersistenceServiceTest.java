@@ -116,8 +116,8 @@ class V2PersistenceServiceTest {
         User user = persistUser("v2-analysis");
         Story story = persistStory(user);
 
-        Map<String, Object> job = analysisService.createAnalysisJob(user, story, Map.of("focus", "continuity"), "continuity_check");
-        analysisService.createContinuityIssue(story.getId(), (java.util.UUID) job.get("resultReference"), "先后顺序冲突");
+        V2AnalysisDtos.AnalysisJobResponse job = analysisService.createAnalysisJob(user, story, Map.of("focus", "continuity"), "continuity_check");
+        analysisService.createContinuityIssue(story.getId(), job.resultReference(), "先后顺序冲突");
 
         entityManager.flush();
         entityManager.clear();
@@ -125,6 +125,8 @@ class V2PersistenceServiceTest {
         assertEquals(1, analysisService.listJobs(story.getId()).size());
         assertEquals(1, analysisService.listReports(story.getId()).size());
         assertEquals(1, analysisService.listContinuityIssues(story.getId()).size());
+        assertEquals("continuity", analysisService.listReports(story.getId()).get(0).analysis().focus());
+        assertEquals("timeline_error", analysisService.listContinuityIssues(story.getId()).get(0).issueType());
     }
 
     @Test

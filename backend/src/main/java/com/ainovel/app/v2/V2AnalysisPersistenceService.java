@@ -29,14 +29,17 @@ public class V2AnalysisPersistenceService {
     }
 
     @Transactional
-    public Map<String, Object> createAnalysisJob(User user, Story story, Map<String, Object> payload, String jobType) {
+    public V2AnalysisDtos.AnalysisJobResponse createAnalysisJob(User user, Story story, Map<String, Object> payload, String jobType) {
+        Map<String, Object> safePayload = payload == null ? Map.of() : payload;
+        V2AnalysisDtos.AnalysisSummaryResponse analysis = buildReportAnalysis(safePayload);
+
         V2BetaReaderReport report = new V2BetaReaderReport();
         report.setStory(story);
         report.setUser(user);
-        report.setScope(str(payload == null ? null : payload.get("scope"), "full_manuscript"));
-        report.setScopeReference(payload == null || payload.get("scopeReference") == null ? null : payload.get("scopeReference").toString());
+        report.setScope(str(safePayload.get("scope"), "full_manuscript"));
+        report.setScopeReference(safePayload.get("scopeReference") == null ? null : safePayload.get("scopeReference").toString());
         report.setStatus("completed");
-        report.setAnalysisJson(V2Json.write(buildReportAnalysis(payload)));
+        report.setAnalysisJson(V2Json.write(analysis));
         report.setSummary("分析已完成，可查看建议与风险项。");
         report.setScoreOverall(80);
         report.setScorePacing(78);
@@ -51,18 +54,18 @@ public class V2AnalysisPersistenceService {
         job.setStory(story);
         job.setUser(user);
         job.setJobType(jobType);
-        job.setScope(str(payload == null ? null : payload.get("scope"), "full"));
-        job.setScopeReference(payload == null || payload.get("scopeReference") == null ? null : payload.get("scopeReference").toString());
+        job.setScope(str(safePayload.get("scope"), "full"));
+        job.setScopeReference(safePayload.get("scopeReference") == null ? null : safePayload.get("scopeReference").toString());
         job.setStatus("completed");
         job.setProgress(100);
         job.setProgressMessage("分析完成");
         job.setResultReference(report.getId());
         job.setErrorMessage(null);
-        return jobMap(jobRepository.save(job));
+        return jobResponse(jobRepository.save(job));
     }
 
     @Transactional
-    public Map<String, Object> createContinuityIssue(UUID storyId, UUID reportId, String text) {
+    public V2AnalysisDtos.ContinuityIssueResponse createContinuityIssue(UUID storyId, UUID reportId, String text) {
         V2BetaReaderReport report = reportRepository.findByStoryIdAndId(storyId, reportId)
                 .orElseThrow(() -> new RuntimeException("分析报告不存在"));
         V2ContinuityIssue issue = new V2ContinuityIssue();
@@ -72,110 +75,162 @@ public class V2AnalysisPersistenceService {
         issue.setSeverity("warning");
         String snippet = text == null || text.isBlank() ? "未提供文本，建议补充上下文后重试" : text.substring(0, Math.min(text.length(), 60));
         issue.setDescription("时间线存在潜在冲突：" + snippet);
-        issue.setEvidenceJson(V2Json.write(List.of(Map.of("chapter", 1, "note", "事件顺序可能前后颠倒"))));
+        issue.setEvidenceJson(V2Json.write(List.of(new V2AnalysisDtos.ContinuityEvidenceItem(1, "事件顺序可能前后颠倒"))));
         issue.setSuggestion("补充过渡段并在下一章回收冲突细节");
         issue.setStatus("open");
-        return issueMap(issueRepository.save(issue));
+        return issueResponse(issueRepository.save(issue));
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listJobs(UUID storyId) {
-        return jobRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::jobMap).toList();
+    public List<V2AnalysisDtos.AnalysisJobResponse> listJobs(UUID storyId) {
+        return jobRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::jobResponse).toList();
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getJob(UUID storyId, UUID jobId) {
-        return jobMap(jobRepository.findByStoryIdAndId(storyId, jobId).orElseThrow(() -> new RuntimeException("分析任务不存在")));
+    public V2AnalysisDtos.AnalysisJobResponse getJob(UUID storyId, UUID jobId) {
+        return jobResponse(jobRepository.findByStoryIdAndId(storyId, jobId).orElseThrow(() -> new RuntimeException("分析任务不存在")));
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listReports(UUID storyId) {
-        return reportRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::reportMap).toList();
+    public List<V2AnalysisDtos.AnalysisReportResponse> listReports(UUID storyId) {
+        return reportRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::reportResponse).toList();
     }
 
     @Transactional(readOnly = true)
-    public Map<String, Object> getReport(UUID storyId, UUID reportId) {
-        return reportMap(reportRepository.findByStoryIdAndId(storyId, reportId).orElseThrow(() -> new RuntimeException("分析报告不存在")));
+    public V2AnalysisDtos.AnalysisReportResponse getReport(UUID storyId, UUID reportId) {
+        return reportResponse(reportRepository.findByStoryIdAndId(storyId, reportId).orElseThrow(() -> new RuntimeException("分析报告不存在")));
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> listContinuityIssues(UUID storyId) {
-        return issueRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::issueMap).toList();
+    public List<V2AnalysisDtos.ContinuityIssueResponse> listContinuityIssues(UUID storyId) {
+        return issueRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::issueResponse).toList();
     }
 
     @Transactional
-    public Map<String, Object> updateContinuityIssue(UUID storyId, UUID issueId, Map<String, Object> payload) {
+    public V2AnalysisDtos.ContinuityIssueResponse updateContinuityIssue(UUID storyId, UUID issueId, Map<String, Object> payload) {
         V2ContinuityIssue issue = issueRepository.findByStoryIdAndId(storyId, issueId)
                 .orElseThrow(() -> new RuntimeException("连续性问题不存在"));
         if (payload.containsKey("status")) issue.setStatus(str(payload.get("status"), issue.getStatus()));
         if (payload.containsKey("suggestion")) issue.setSuggestion(str(payload.get("suggestion"), issue.getSuggestion()));
         if (payload.containsKey("severity")) issue.setSeverity(str(payload.get("severity"), issue.getSeverity()));
         if ("resolved".equals(issue.getStatus())) issue.setResolvedAt(Instant.now());
-        return issueMap(issueRepository.save(issue));
+        return issueResponse(issueRepository.save(issue));
     }
 
-    private Map<String, Object> jobMap(V2AnalysisJob job) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", job.getId());
-        out.put("storyId", job.getStory().getId());
-        out.put("userId", job.getUser().getId());
-        out.put("jobType", job.getJobType());
-        out.put("scope", job.getScope());
-        out.put("scopeReference", job.getScopeReference());
-        out.put("status", job.getStatus());
-        out.put("progress", job.getProgress());
-        out.put("progressMessage", job.getProgressMessage());
-        out.put("resultReference", job.getResultReference());
-        out.put("errorMessage", job.getErrorMessage());
-        out.put("createdAt", job.getCreatedAt());
-        out.put("updatedAt", job.getUpdatedAt());
-        return out;
-    }
-
-    private Map<String, Object> reportMap(V2BetaReaderReport report) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", report.getId());
-        out.put("storyId", report.getStory().getId());
-        out.put("userId", report.getUser().getId());
-        out.put("scope", report.getScope());
-        out.put("scopeReference", report.getScopeReference());
-        out.put("status", report.getStatus());
-        out.put("analysis", V2Json.map(report.getAnalysisJson()));
-        out.put("summary", report.getSummary());
-        out.put("scoreOverall", report.getScoreOverall());
-        out.put("scorePacing", report.getScorePacing());
-        out.put("scoreCharacters", report.getScoreCharacters());
-        out.put("scoreDialogue", report.getScoreDialogue());
-        out.put("scoreConsistency", report.getScoreConsistency());
-        out.put("scoreEngagement", report.getScoreEngagement());
-        out.put("tokenCost", report.getTokenCost());
-        out.put("createdAt", report.getCreatedAt());
-        out.put("updatedAt", report.getUpdatedAt());
-        return out;
-    }
-
-    private Map<String, Object> issueMap(V2ContinuityIssue issue) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", issue.getId());
-        out.put("storyId", issue.getStory().getId());
-        out.put("reportId", issue.getReport() == null ? null : issue.getReport().getId());
-        out.put("issueType", issue.getIssueType());
-        out.put("severity", issue.getSeverity());
-        out.put("description", issue.getDescription());
-        out.put("evidence", V2Json.list(issue.getEvidenceJson()));
-        out.put("suggestion", issue.getSuggestion());
-        out.put("status", issue.getStatus());
-        out.put("resolvedAt", issue.getResolvedAt());
-        out.put("createdAt", issue.getCreatedAt());
-        return out;
-    }
-
-    private Map<String, Object> buildReportAnalysis(Map<String, Object> payload) {
-        return Map.of(
-                "focus", payload == null ? "overall" : str(payload.get("focus"), "overall"),
-                "highlights", List.of("角色动机较清晰", "章节节奏总体稳定"),
-                "risks", List.of("个别场景承接略跳跃", "伏笔回收密度偏低")
+    private V2AnalysisDtos.AnalysisJobResponse jobResponse(V2AnalysisJob job) {
+        return new V2AnalysisDtos.AnalysisJobResponse(
+                job.getId(),
+                job.getStory().getId(),
+                job.getUser().getId(),
+                job.getJobType(),
+                job.getScope(),
+                job.getScopeReference(),
+                job.getStatus(),
+                job.getProgress(),
+                job.getProgressMessage(),
+                job.getResultReference(),
+                job.getErrorMessage(),
+                job.getCreatedAt(),
+                job.getUpdatedAt()
         );
+    }
+
+    private V2AnalysisDtos.AnalysisReportResponse reportResponse(V2BetaReaderReport report) {
+        return new V2AnalysisDtos.AnalysisReportResponse(
+                report.getId(),
+                report.getStory().getId(),
+                report.getUser().getId(),
+                report.getScope(),
+                report.getScopeReference(),
+                report.getStatus(),
+                analysisSummary(report.getAnalysisJson()),
+                report.getSummary(),
+                report.getScoreOverall(),
+                report.getScorePacing(),
+                report.getScoreCharacters(),
+                report.getScoreDialogue(),
+                report.getScoreConsistency(),
+                report.getScoreEngagement(),
+                report.getTokenCost(),
+                report.getCreatedAt(),
+                report.getUpdatedAt()
+        );
+    }
+
+    private V2AnalysisDtos.ContinuityIssueResponse issueResponse(V2ContinuityIssue issue) {
+        return new V2AnalysisDtos.ContinuityIssueResponse(
+                issue.getId(),
+                issue.getStory().getId(),
+                issue.getReport() == null ? null : issue.getReport().getId(),
+                issue.getIssueType(),
+                issue.getSeverity(),
+                issue.getDescription(),
+                evidenceItems(issue.getEvidenceJson()),
+                issue.getSuggestion(),
+                issue.getStatus(),
+                issue.getResolvedAt(),
+                issue.getCreatedAt()
+        );
+    }
+
+    private V2AnalysisDtos.AnalysisSummaryResponse buildReportAnalysis(Map<String, Object> payload) {
+        return new V2AnalysisDtos.AnalysisSummaryResponse(
+                str(payload.get("focus"), "overall"),
+                List.of("角色动机较清晰", "章节节奏总体稳定"),
+                List.of("个别场景承接略跳跃", "伏笔回收密度偏低")
+        );
+    }
+
+    private V2AnalysisDtos.AnalysisSummaryResponse analysisSummary(String json) {
+        Map<String, Object> raw = V2Json.map(json);
+        return new V2AnalysisDtos.AnalysisSummaryResponse(
+                str(raw.get("focus"), "overall"),
+                stringList(raw.get("highlights")),
+                stringList(raw.get("risks"))
+        );
+    }
+
+    private List<V2AnalysisDtos.ContinuityEvidenceItem> evidenceItems(String json) {
+        return V2Json.list(json).stream()
+                .map(this::evidenceItem)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private V2AnalysisDtos.ContinuityEvidenceItem evidenceItem(Object raw) {
+        if (raw instanceof Map<?, ?> map) {
+            return new V2AnalysisDtos.ContinuityEvidenceItem(
+                    integerValue(map.get("chapter")),
+                    str(map.get("note"), "")
+            );
+        }
+        return new V2AnalysisDtos.ContinuityEvidenceItem(null, str(raw, ""));
+    }
+
+    private List<String> stringList(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .map(String::trim)
+                .filter(text -> !text.isEmpty())
+                .toList();
+    }
+
+    private Integer integerValue(Object raw) {
+        if (raw instanceof Number number) {
+            return number.intValue();
+        }
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(raw.toString().trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private static String str(Object value, String fallback) {

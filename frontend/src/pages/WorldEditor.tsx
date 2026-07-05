@@ -9,7 +9,7 @@ import WorldMetadataForm from "@/pages/WorldBuilder/components/WorldMetadataForm
 import WorldModuleEditor from "@/pages/WorldBuilder/components/WorldModuleEditor";
 import { useAuth } from "@/contexts/AuthContext";
 
-const Worlds = () => {
+const WorldEditor = () => {
   const [params] = useSearchParams();
   const id = params.get("id");
   const { toast } = useToast();
@@ -185,4 +185,4 @@ const Worlds = () => {
   );
 };
 
-export default Worlds;
+export default WorldEditor;

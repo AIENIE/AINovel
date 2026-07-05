@@ -1,21 +1,21 @@
-# 世界构建页（WorldBuilderPage）
+# 世界编辑页（WorldEditor）
 
-- **路由/文件**：`/worlds`
-- **对应设计稿文件**：`src/pages/WorldBuilder/WorldBuilderPage.tsx`
+- **路由/文件**：`/world-editor` -> `src/pages/WorldEditor.tsx`
+- **列表入口**：`/worlds` -> `src/pages/WorldManager.tsx`
 - **子组件目录**：`src/pages/WorldBuilder/components/`
 - **布局**：
-  - 顶部/左侧 `WorldSelectorPanel`：世界下拉、草稿抽屉、状态徽标；按钮“新建世界”。
-  - 中部表单区：`MetadataForm`（基础信息：名称/标语/主题/创作意图/备注）；下方 `ModuleTabs` 逐模块编辑字段（卡片形式，支持字段精修）。
-  - 底部 `StickyFooterBar`：显示保存状态、提供“保存”“预览发布”“发布/继续生成”“停止生成”等按钮；`GenerationProgressModal` 展示生成队列进度。
+  - 顶部 Header：返回世界列表、保存、预检/发布。
+  - 中部表单区：`WorldMetadataForm`（基础信息）+ `WorldModuleEditor`（逐模块编辑与字段润色）。
+  - 无独立左侧 selector；世界选择在列表页完成。
 - **页面初始化**：
   - 读取元数据：`GET /api/v1/world-building/definitions`（模块列表、字段规则、AI 模板说明）。
-  - 读取世界列表：`GET /api/v1/worlds`（含 status/version/moduleProgress）。
+  - 根据 URL 中的 `id` 读取世界详情：`GET /api/v1/worlds/{id}`。
 
 ## 世界 CRUD 与基础信息
-- 新建草稿：`POST /api/v1/worlds` Body `{ name, tagline, themes[], creativeIntent, notes? }` → 返回 `WorldDetail`；草稿自动设为选中。
-- 选择世界：`GET /api/v1/worlds/{id}` 获取详情（world + modules）。
+- 新建草稿：由 `/worlds/create` 处理，成功后跳转到 `/world-editor?id=...`。
+- 选择世界：由 `/worlds` 列表页处理，再跳转到编辑页。
 - 重命名草稿：通过 `PUT /api/v1/worlds/{id}` 更新 name/fields。
-- 删除草稿：`DELETE /api/v1/worlds/{id}`（仅草稿可删）。
+- 删除草稿：在 `/worlds` 列表页触发 `DELETE /api/v1/worlds/{id}`（仅草稿可删）。
 - 保存基础信息：`PUT /api/v1/worlds/{id}` Body `{ name, tagline, themes[], creativeIntent, notes? }`。
 
 ## 模块编辑
@@ -33,7 +33,7 @@
 
 ## 发布与版本
 - 世界状态：`DRAFT / GENERATING / ACTIVE / ARCHIVED`；`moduleProgress` 按模块标记 `EMPTY/IN_PROGRESS/READY/AWAITING_GENERATION/GENERATING/COMPLETED/FAILED`。
-- 发布后版本号递增；`WorldSelectorPanel` 展示版本与时间戳。
+- 发布后版本号递增；版本与状态主要在 `/worlds` 列表页呈现。
 
 ## 与其他模块的耦合
 - `WorldSelect` 组件在故事构思、大纲生成、稿件生成、素材检索中复用，用于引用已发布世界。
@@ -54,7 +54,7 @@
   - 这样后端可以动态调整世界观的模块结构（例如新增“宗教”、“魔法”模块），而无需重新部署前端。
 
 ### 2. 自动生成流水线
-- **当前 Mock**：点击“AI 生成此模块”仅弹出一个 Toast 提示。
+- **当前 Mock**：编辑页能调用真实的发布预检和模块生成接口，但仍是串行、同步式流程。
 - **真实对接**：
   - 这是一个复杂的异步流程。
   - 前端需实现 `GenerationProgressModal`，通过轮询 `GET /api/v1/worlds/{id}/generation` 接口来实时展示每个模块的生成状态（等待中、生成中、完成、失败）。
