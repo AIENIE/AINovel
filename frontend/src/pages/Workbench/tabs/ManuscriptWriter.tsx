@@ -3,9 +3,10 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
-import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, Story } from "@/types";
+import { Manuscript, Outline, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction } from "@/lib/shortcuts";
+import { useManuscriptQuality } from "@/pages/Workbench/hooks/useManuscriptQuality";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
 import { useManuscriptSidebarData } from "@/pages/Workbench/hooks/useManuscriptSidebarData";
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
@@ -18,9 +19,7 @@ import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
 import {
   countWords,
-  plotStatusText,
   qualityStatusText,
-  slopRewriteTaskTitle,
   stripHtml,
 } from "./manuscript-writer/shared";
 
@@ -70,12 +69,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWordCount, setSelectedWordCount] = useState(0);
-  const [qualityRunsByScene, setQualityRunsByScene] = useState<Record<string, SlopQualityRun | null>>({});
-  const [plotRunsByScene, setPlotRunsByScene] = useState<Record<string, PlotQualityRun | null>>({});
-  const [plotTrend, setPlotTrend] = useState<PlotQualityTrend | null>(null);
-  const [isSlopBusy, setIsSlopBusy] = useState(false);
-  const [isPlotBusy, setIsPlotBusy] = useState(false);
-  const [isPlotRevisionBusy, setIsPlotRevisionBusy] = useState(false);
   const [characters, setCharacters] = useState<any[]>([]);
   const [batchMoveChapterId, setBatchMoveChapterId] = useState("");
   const [draggingChapterId, setDraggingChapterId] = useState("");
@@ -197,8 +190,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const selectedStory = useMemo(() => stories.find((s) => s.id === selectedStoryId) || null, [stories, selectedStoryId]);
   const selectedOutline = useMemo(() => outlines.find((o) => o.id === selectedOutlineId) || null, [outlines, selectedOutlineId]);
   const selectedManuscript = useMemo(() => manuscripts.find((m) => m.id === selectedManuscriptId) || null, [manuscripts, selectedManuscriptId]);
-  const selectedQualityRun = selectedSceneId ? qualityRunsByScene[selectedSceneId] : null;
-  const selectedPlotRun = selectedSceneId ? plotRunsByScene[selectedSceneId] : null;
   const sceneRows = useMemo(() => {
     const list: SceneRow[] = [];
     (outlineDraft?.chapters || []).forEach((chapter, chapterIndex) => {
@@ -223,18 +214,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const dailyHeatmap = useMemo(() => (workspaceStats?.dailySeries || []).slice(-30), [workspaceStats]);
   const showLeftPanel = leftPanelOpen && !focusMode;
   const showRightPanel = isSidebarOpen && !focusMode;
-  const plotTrendChartData = useMemo(
-    () =>
-      (plotTrend?.points || []).map((point) => ({
-        ...point,
-        label: `${point.chapterOrder + 1}-${point.sceneOrder + 1}`,
-      })),
-    [plotTrend],
-  );
-  const plotDimensionEntries = useMemo(
-    () => Object.entries(plotTrend?.dimensionCounts || {}).sort((a, b) => b[1] - a[1]),
-    [plotTrend],
-  );
 
   useEffect(() => {
     if (leftPanelVisibleRef.current === showLeftPanel) return;
@@ -436,42 +415,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId]);
 
   useEffect(() => {
-    if (!selectedManuscriptId || !selectedSceneId) return;
-    let cancelled = false;
-    api.v2.quality
-      .listRuns(selectedManuscriptId, selectedSceneId)
-      .then((runs) => {
-        if (cancelled) return;
-        setQualityRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedManuscriptId, selectedSceneId]);
-
-  useEffect(() => {
-    if (!selectedManuscriptId || !selectedSceneId) {
-      setPlotTrend(null);
-      return;
-    }
-    let cancelled = false;
-    Promise.all([
-      api.v2.plotQuality.listRuns(selectedManuscriptId, selectedSceneId),
-      api.v2.plotQuality.getTrend(selectedManuscriptId),
-    ])
-      .then(([runs, trend]) => {
-        if (cancelled) return;
-        setPlotRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
-        setPlotTrend(trend);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedManuscriptId, selectedSceneId]);
-
-  useEffect(() => {
     Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
     return () => Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
   }, []);
@@ -494,6 +437,45 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
       }
     },
     [selectedManuscriptId, toast],
+  );
+
+  const {
+    applyPlotRevision,
+    copySlopRewriteTask,
+    generatePlotRevisionCandidate,
+    isPlotBusy,
+    isPlotRevisionBusy,
+    isSlopBusy,
+    loadPlotQuality,
+    loadSlopQuality,
+    plotTrend,
+    runPlotDiagnosis,
+    runSlopDiagnosis,
+    selectedPlotRun,
+    selectedQualityRun,
+  } = useManuscriptQuality({
+    applyFetchedManuscript,
+    content,
+    dirtyScenes,
+    persistSection,
+    selectedManuscriptId,
+    selectedSceneId,
+    setContent,
+    setSidebarTab,
+    toast,
+  });
+
+  const plotTrendChartData = useMemo(
+    () =>
+      (plotTrend?.points || []).map((point) => ({
+        ...point,
+        label: `${point.chapterOrder + 1}-${point.sceneOrder + 1}`,
+      })),
+    [plotTrend],
+  );
+  const plotDimensionEntries = useMemo(
+    () => Object.entries(plotTrend?.dimensionCounts || {}).sort((a, b) => b[1] - a[1]),
+    [plotTrend],
   );
 
   const scheduleSave = useCallback(
@@ -673,129 +655,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     });
   };
 
-  const loadSlopQuality = useCallback(
-    async (sceneId = selectedSceneId) => {
-      if (!selectedManuscriptId || !sceneId) return;
-      const runs = await api.v2.quality.listRuns(selectedManuscriptId, sceneId);
-      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: runs[0] || null }));
-    },
-    [selectedManuscriptId, selectedSceneId],
-  );
-
-  const runSlopDiagnosis = async () => {
-    if (!selectedManuscriptId || !selectedSceneId) return;
-    const sceneId = selectedSceneId;
-    setIsSlopBusy(true);
-    try {
-      if (dirtyScenes[sceneId]) {
-        await persistSection(sceneId, content, true);
-      }
-      const run = await api.v2.quality.analyzeScene(selectedManuscriptId, sceneId);
-      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
-      setSidebarTab("plot");
-      toast({ title: "文本 Slop 诊断已完成", description: run.safeClaim || qualityStatusText(run) });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "文本诊断失败", description: e.message });
-    } finally {
-      setIsSlopBusy(false);
-    }
-  };
-
-  const copySlopRewriteTask = async (task: any, index: number) => {
-    const title = slopRewriteTaskTitle(task, index);
-    const lines = [
-      `任务 ${title}`,
-      task?.problem ? `问题：${task.problem}` : "",
-      task?.repair_goal || task?.repairGoal ? `修复目标：${task.repair_goal || task.repairGoal}` : "",
-      Array.isArray(task?.constraints) && task.constraints.length ? `约束：${task.constraints.join("；")}` : "",
-      "请只针对目标片段做证据驱动改写，不要改变关键设定、人物关系和场景核心事件。",
-    ].filter(Boolean);
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"));
-      toast({ title: "改写任务已复制" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "复制失败", description: e.message });
-    }
-  };
-
-  const loadPlotQuality = useCallback(
-    async (sceneId = selectedSceneId) => {
-      if (!selectedManuscriptId || !sceneId) return;
-      const [runs, trend] = await Promise.all([
-        api.v2.plotQuality.listRuns(selectedManuscriptId, sceneId),
-        api.v2.plotQuality.getTrend(selectedManuscriptId),
-      ]);
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: runs[0] || null }));
-      setPlotTrend(trend);
-    },
-    [selectedManuscriptId, selectedSceneId],
-  );
-
-  const runPlotDiagnosis = async () => {
-    if (!selectedManuscriptId || !selectedSceneId) return;
-    const sceneId = selectedSceneId;
-    setIsPlotBusy(true);
-    try {
-      if (dirtyScenes[sceneId]) {
-        await persistSection(sceneId, content, true);
-      }
-      const run = await api.v2.plotQuality.analyzeScene(selectedManuscriptId, sceneId);
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
-      const trend = await api.v2.plotQuality.getTrend(selectedManuscriptId);
-      setPlotTrend(trend);
-      setSidebarTab("plot");
-      toast({ title: "剧情诊断已完成", description: plotStatusText(run) });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "剧情诊断失败", description: e.message });
-    } finally {
-      setIsPlotBusy(false);
-    }
-  };
-
-  const generatePlotRevisionCandidate = async () => {
-    if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
-    const sceneId = selectedSceneId;
-    setIsPlotRevisionBusy(true);
-    try {
-      if (dirtyScenes[sceneId]) {
-        await persistSection(sceneId, content, true);
-      }
-      const run = await api.v2.plotQuality.generateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id);
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
-      toast({ title: "候选修订已生成" });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "生成候选失败", description: e.message });
-    } finally {
-      setIsPlotRevisionBusy(false);
-    }
-  };
-
-  const applyPlotRevision = async () => {
-    if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
-    const sceneId = selectedSceneId;
-    setIsPlotRevisionBusy(true);
-    try {
-      if (dirtyScenes[sceneId]) {
-        await persistSection(sceneId, content, true);
-      }
-      const run = await api.v2.plotQuality.applyRevision(selectedManuscriptId, selectedPlotRun.id);
-      const manuscript = await api.manuscripts.get(selectedManuscriptId);
-      applyFetchedManuscript(manuscript);
-      setContent(manuscript.sections?.[sceneId] || "");
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
-      await loadPlotQuality(sceneId);
-      toast({ title: "候选修订已采纳" });
-    } catch (e: any) {
-      toast({
-        variant: "destructive",
-        title: "采纳候选失败",
-        description: String(e.message || "").includes("409") ? "场景内容已变化，请重新诊断后再生成候选。" : e.message,
-      });
-    } finally {
-      setIsPlotRevisionBusy(false);
-    }
-  };
-
   const setSceneStatus = (sceneId: string, status: SceneStatus) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
   };
@@ -963,12 +822,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
                 setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
                 setContent(saved.sections?.[sceneId] || "");
-                const qualityRuns = await api.v2.quality.listRuns(saved.id, sceneId).catch(() => []);
-                const latestRun = qualityRuns[0] || null;
-                setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
-                const plotRuns = await api.v2.plotQuality.listRuns(saved.id, sceneId).catch(() => []);
-                setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: plotRuns[0] || null }));
-                api.v2.plotQuality.getTrend(saved.id).then(setPlotTrend).catch(() => undefined);
+                const latestRun = await loadSlopQuality(sceneId, saved.id).catch(() => null);
+                await loadPlotQuality(sceneId, saved.id).catch(() => ({ run: null, trend: null }));
                 toast({
                   title: "已生成场景正文",
                   description: qualityStatusText(latestRun),
