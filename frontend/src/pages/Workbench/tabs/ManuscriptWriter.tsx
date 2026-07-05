@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -37,7 +36,6 @@ import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbe
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
 import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
 import { useWritingSession } from "@/pages/Workbench/hooks/useWritingSession";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -46,6 +44,10 @@ import {
 } from "@/components/ui/context-menu";
 import { PlotSidebarPanel } from "./manuscript-writer/PlotSidebarPanel";
 import { VersionSidebarPanel } from "./manuscript-writer/VersionSidebarPanel";
+import { ContextSidebarPanel } from "./manuscript-writer/ContextSidebarPanel";
+import { ExportSidebarPanel } from "./manuscript-writer/ExportSidebarPanel";
+import { StatsSidebarPanel } from "./manuscript-writer/StatsSidebarPanel";
+import { GoalsSidebarPanel } from "./manuscript-writer/GoalsSidebarPanel";
 import {
   countWords,
   formatDateTime,
@@ -1605,40 +1607,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 </TabsList>
 
                 <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData} className="h-full border-none" /></TabsContent>
-                <TabsContent value="context" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <Button size="sm" variant="outline" className="mb-2" onClick={() => void loadContextPreview()}>刷新上下文</Button>
-                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 text-xs space-y-2">
-                    <div>{`Token: ${contextPreview?.tokenUsed || 0}/${contextPreview?.tokenBudget || 0}`}</div>
-                    <div>{`生成时间: ${formatDateTime(contextPreview?.generatedAt)}`}</div>
-                    <div className="rounded border p-2">
-                      <div className="font-medium mb-1">System Prompt</div>
-                      {(contextPreview?.systemPromptEntries || []).map((entry: any) => (
-                        <div key={entry.id} className="mb-1 last:mb-0">{entry.displayName}</div>
-                      ))}
-                      {!(contextPreview?.systemPromptEntries || []).length && <div className="text-muted-foreground">暂无</div>}
-                    </div>
-                    <div className="rounded border p-2">
-                      <div className="font-medium mb-1">场景前 / 场景后</div>
-                      <div>{`前: ${(contextPreview?.beforeSceneEntries || []).length} 条`}</div>
-                      <div>{`后: ${(contextPreview?.afterSceneEntries || []).length} 条`}</div>
-                    </div>
-                    <div className="rounded border p-2">
-                      <div className="font-medium mb-1">图谱关系</div>
-                      {(contextPreview?.graphRelations || []).map((relation: string, index: number) => (
-                        <div key={`${relation}-${index}`} className="mb-1 last:mb-0">{relation}</div>
-                      ))}
-                      {!(contextPreview?.graphRelations || []).length && <div className="text-muted-foreground">暂无</div>}
-                    </div>
-                    <div className="rounded border p-2">
-                      <div className="font-medium mb-1">活跃角色</div>
-                      <div>{(contextPreview?.activeCharacters || []).join("、") || "暂无"}</div>
-                    </div>
-                    <div className="rounded border p-2">
-                      <div className="font-medium mb-1">前情摘要</div>
-                      <div className="text-muted-foreground">{contextPreview?.recentSummary || "暂无"}</div>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
+                <ContextSidebarPanel contextPreview={contextPreview} onRefresh={loadContextPreview} />
 
                 <PlotSidebarPanel
                   isPlotBusy={isPlotBusy}
@@ -1696,209 +1665,46 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                   visibleVersions={visibleVersions}
                 />
 
-                <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <Select value={exportFormat} onValueChange={setExportFormat}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="txt">TXT</SelectItem>
-                        <SelectItem value="docx">DOCX</SelectItem>
-                        <SelectItem value="epub">EPUB</SelectItem>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={exportTemplateId} onValueChange={setExportTemplateId}>
-                      <SelectTrigger className="h-8"><SelectValue placeholder="模板" /></SelectTrigger>
-                      <SelectContent>{exportTemplates.map((tpl) => <SelectItem key={tpl.id} value={String(tpl.id)}>{tpl.name || tpl.id}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <Input
-                      className="h-8"
-                      value={chapterRange}
-                      onChange={(event) => setChapterRange(event.target.value)}
-                      placeholder="章节范围：如 3-7"
-                    />
-                    <Input
-                      className="h-8"
-                      value={exportAuthorName}
-                      onChange={(event) => setExportAuthorName(event.target.value)}
-                      placeholder="作者名（标题页）"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 mb-2 rounded border p-2 text-xs">
-                    <label className="flex items-center gap-2">
-                      <Checkbox checked={includeTitlePage} onCheckedChange={(checked) => setIncludeTitlePage(checked === true)} />
-                      标题页
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <Checkbox checked={includeTableOfContents} onCheckedChange={(checked) => setIncludeTableOfContents(checked === true)} />
-                      目录
-                    </label>
-                    <div className="col-span-2 grid grid-cols-[56px_1fr] items-center gap-2">
-                      <span>编码</span>
-                      <Select value={txtEncoding} onValueChange={setTxtEncoding}>
-                        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="UTF-8">UTF-8</SelectItem>
-                          <SelectItem value="GBK">GBK</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="rounded border p-2 space-y-2 mb-2 text-xs">
-                    <div className="font-medium">模板管理</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input className="h-8" value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="模板名称" />
-                      <Input className="h-8" value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="模板说明" />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => void createTemplate()}>新建模板</Button>
-                      <Button size="sm" variant="secondary" onClick={() => void createExportJob()}>创建导出任务</Button>
-                    </div>
-                    <div className="space-y-1">
-                      {exportTemplates.map((template) => (
-                        <div key={template.id} className="flex items-center justify-between rounded border p-1">
-                          <div className="truncate mr-2">{template.name}</div>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2"
-                              onClick={() => void updateTemplate(template)}
-                              disabled={!template.userId}
-                            >
-                              更新
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-6 px-2"
-                              onClick={() => void deleteTemplate(String(template.id))}
-                              disabled={!template.userId}
-                            >
-                              删除
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2 text-xs">
-                    {exportJobs.map((job) => (
-                      <div key={job.id} className="rounded border p-2">
-                        <div className="flex items-center justify-between">
-                          <span>{job.fileName || `${job.id}.${job.format || exportFormat}`}</span>
-                          <Badge variant="outline">{job.status || "pending"}</Badge>
-                        </div>
-                        <Progress className="mt-1" value={Number(job.progress || 0)} />
-                        {String(job.status).toLowerCase() === "completed" && (
-                          <a className="inline-flex items-center gap-1 text-primary mt-1" target="_blank" rel="noreferrer" href={api.v2.export.downloadUrl(selectedManuscriptId, String(job.id))}>
-                            <Download className="h-3 w-3" />下载
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </TabsContent>
+                <ExportSidebarPanel
+                  chapterRange={chapterRange}
+                  createExportJob={createExportJob}
+                  createTemplate={createTemplate}
+                  deleteTemplate={deleteTemplate}
+                  exportAuthorName={exportAuthorName}
+                  exportFormat={exportFormat}
+                  exportJobs={exportJobs}
+                  exportTemplateId={exportTemplateId}
+                  exportTemplates={exportTemplates}
+                  includeTableOfContents={includeTableOfContents}
+                  includeTitlePage={includeTitlePage}
+                  selectedManuscriptId={selectedManuscriptId}
+                  setChapterRange={setChapterRange}
+                  setExportAuthorName={setExportAuthorName}
+                  setExportFormat={setExportFormat}
+                  setExportTemplateId={setExportTemplateId}
+                  setIncludeTableOfContents={setIncludeTableOfContents}
+                  setIncludeTitlePage={setIncludeTitlePage}
+                  setTemplateDescription={setTemplateDescription}
+                  setTemplateName={setTemplateName}
+                  setTxtEncoding={setTxtEncoding}
+                  templateDescription={templateDescription}
+                  templateName={templateName}
+                  txtEncoding={txtEncoding}
+                  updateTemplate={updateTemplate}
+                />
 
-                <TabsContent value="stats" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <Button size="sm" variant="outline" className="mb-2" onClick={() => void loadStats()}>刷新统计</Button>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                    <div className="rounded border p-2">会话数 {workspaceStats?.totalSessions ?? 0}</div>
-                    <div className="rounded border p-2">净字数 {workspaceStats?.totalNetWords ?? 0}</div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="h-[180px] rounded border p-2">
-                      <div className="text-xs text-muted-foreground mb-1">日维度</div>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={workspaceStats?.dailySeries || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="netWords" stroke="#2f855a" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="h-[160px] rounded border p-2">
-                      <div className="text-xs text-muted-foreground mb-1">周维度</div>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={workspaceStats?.weeklySeries || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="weekStart" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="netWords" stroke="#8b6f4e" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="h-[160px] rounded border p-2">
-                      <div className="text-xs text-muted-foreground mb-1">月维度</div>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={workspaceStats?.monthlySeries || []}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="netWords" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="rounded border p-2">
-                      <div className="text-xs text-muted-foreground mb-2">近30天热力图</div>
-                      <div className="grid grid-cols-10 gap-1">
-                        {dailyHeatmap.map((item: any) => {
-                          const words = Number(item.netWords || 0);
-                          const level = words <= 0 ? 0 : words < 500 ? 1 : words < 1200 ? 2 : words < 2500 ? 3 : 4;
-                          const cls = ["bg-muted", "bg-emerald-100", "bg-emerald-200", "bg-emerald-400", "bg-emerald-600"][level];
-                          return (
-                            <div
-                              key={item.date}
-                              title={`${item.date}: ${words} 字`}
-                              className={cn("h-4 rounded-sm border", cls)}
-                            />
-                          );
-                        })}
-                        {!dailyHeatmap.length && <div className="text-xs text-muted-foreground">暂无热力图数据</div>}
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
+                <StatsSidebarPanel dailyHeatmap={dailyHeatmap} onRefresh={loadStats} workspaceStats={workspaceStats} />
 
-                <TabsContent value="goals" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <Select value={goalType} onValueChange={setGoalType}>
-                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="daily_words">日更字数</SelectItem>
-                        <SelectItem value="session_words">单次会话</SelectItem>
-                        <SelectItem value="total_words">全书总字数</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input type="number" value={goalTargetValue} onChange={(e) => setGoalTargetValue(Number(e.target.value || 0))} />
-                  </div>
-                  <Button size="sm" onClick={() => void createGoal()} className="mb-2">创建目标</Button>
-                  <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2 text-xs">
-                    {goals.map((goal) => (
-                      <div key={goal.id} className="rounded border p-2">
-                        <div className="flex items-center justify-between">
-                          <span>{goal.goalType}</span>
-                          <Badge variant={goal.status === "completed" ? "default" : "outline"}>{goal.status || "active"}</Badge>
-                        </div>
-                        <div className="text-muted-foreground mt-1">{`${goal.currentValue || 0}/${goal.targetValue || 0}`}</div>
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                          <Button size="sm" variant="outline" className="h-7" onClick={() => void updateGoal(String(goal.id), { status: goal.status === "completed" ? "active" : "completed" })}>
-                            切换状态
-                          </Button>
-                          <Button size="sm" variant="destructive" className="h-7" onClick={() => void deleteGoal(String(goal.id))}>
-                            删除
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </TabsContent>
+                <GoalsSidebarPanel
+                  createGoal={createGoal}
+                  deleteGoal={deleteGoal}
+                  goalTargetValue={goalTargetValue}
+                  goalType={goalType}
+                  goals={goals}
+                  setGoalTargetValue={setGoalTargetValue}
+                  setGoalType={setGoalType}
+                  updateGoal={updateGoal}
+                />
               </Tabs>
               </div>
             </ResizablePanel>

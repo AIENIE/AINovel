@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Tabs } from "@/components/ui/tabs";
 import ManuscriptWriter from "../ManuscriptWriter";
+import { ContextSidebarPanel } from "./ContextSidebarPanel";
+import { ExportSidebarPanel } from "./ExportSidebarPanel";
+import { GoalsSidebarPanel } from "./GoalsSidebarPanel";
 import { PlotSidebarPanel } from "./PlotSidebarPanel";
+import { StatsSidebarPanel } from "./StatsSidebarPanel";
 import { VersionSidebarPanel } from "./VersionSidebarPanel";
 
 vi.mock("recharts", () => {
@@ -96,5 +100,89 @@ describe("manuscript writer sidebar panels", () => {
 
     expect(screen.getByText("分支管理")).toBeTruthy();
     expect(screen.getByText("自动快照")).toBeTruthy();
+  });
+
+  it("renders context and export sidebar controls", () => {
+    const { rerender } = render(
+      <Tabs value="context" onValueChange={() => undefined}>
+        <ContextSidebarPanel
+          contextPreview={{
+            tokenUsed: 120,
+            tokenBudget: 1200,
+            generatedAt: "2026-07-06T00:00:00Z",
+            systemPromptEntries: [],
+            beforeSceneEntries: [],
+            afterSceneEntries: [],
+            graphRelations: [],
+            activeCharacters: [],
+            recentSummary: "",
+          }}
+          onRefresh={vi.fn()}
+        />
+      </Tabs>,
+    );
+
+    expect(screen.getByText("刷新上下文")).toBeTruthy();
+
+    rerender(
+      <Tabs value="export" onValueChange={() => undefined}>
+        <ExportSidebarPanel
+          chapterRange=""
+          createExportJob={vi.fn()}
+          createTemplate={vi.fn()}
+          deleteTemplate={vi.fn()}
+          exportAuthorName=""
+          exportFormat="txt"
+          exportJobs={[]}
+          exportTemplateId=""
+          exportTemplates={[]}
+          includeTableOfContents={true}
+          includeTitlePage={true}
+          selectedManuscriptId="manuscript-1"
+          setChapterRange={vi.fn()}
+          setExportAuthorName={vi.fn()}
+          setExportFormat={vi.fn()}
+          setExportTemplateId={vi.fn()}
+          setIncludeTableOfContents={vi.fn()}
+          setIncludeTitlePage={vi.fn()}
+          setTemplateDescription={vi.fn()}
+          setTemplateName={vi.fn()}
+          setTxtEncoding={vi.fn()}
+          templateDescription=""
+          templateName=""
+          txtEncoding="UTF-8"
+          updateTemplate={vi.fn()}
+        />
+      </Tabs>,
+    );
+
+    expect(screen.getByText("模板管理")).toBeTruthy();
+  });
+
+  it("renders stats and goals sidebar controls", () => {
+    const { rerender } = render(
+      <Tabs value="stats" onValueChange={() => undefined}>
+        <StatsSidebarPanel dailyHeatmap={[]} onRefresh={vi.fn()} workspaceStats={{ totalSessions: 0, totalNetWords: 0 }} />
+      </Tabs>,
+    );
+
+    expect(screen.getByText("刷新统计")).toBeTruthy();
+
+    rerender(
+      <Tabs value="goals" onValueChange={() => undefined}>
+        <GoalsSidebarPanel
+          createGoal={vi.fn()}
+          deleteGoal={vi.fn()}
+          goalTargetValue={2000}
+          goalType="daily_words"
+          goals={[]}
+          setGoalTargetValue={vi.fn()}
+          setGoalType={vi.fn()}
+          updateGoal={vi.fn()}
+        />
+      </Tabs>,
+    );
+
+    expect(screen.getByText("创建目标")).toBeTruthy();
   });
 });
