@@ -80,7 +80,7 @@ public class MaterialController {
         return materialService.autoHints(currentUser(principal), request);
     }
 
-    @PostMapping("/review/pending")
+    @GetMapping("/review/pending")
     @Operation(summary = "获取待审核素材", description = "返回待审核素材队列。")
     public List<MaterialDto> pending() { return materialService.pending(); }
 

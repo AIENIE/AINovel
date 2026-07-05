@@ -16,7 +16,7 @@
   - `source`：`keyword` 或 `vector`，表示最终采用的命中来源。
   - `matchReasons`：命中原因，如 `title` / `tags` / `summary` / `content` / `semantic`。
 - `POST /api/v1/materials/editor/auto-hints`：正文自动提示，Body `{text,workspaceId?,limit?}`。
-- `POST /api/v1/materials/review/pending`：待审核列表。
+- `GET /api/v1/materials/review/pending`：待审核列表。
 - `POST /api/v1/materials/{id}/review/approve|reject`：审核操作。
 - `POST /api/v1/materials/find-duplicates`：管理员查重，返回候选对。候选基于标题、标签、摘要/正文的中文 token 与 n-gram 重合评分，每项包含 `sourceMaterialId`、`targetMaterialId`、`sourceTitle`、`targetTitle`、`score`、`reasons`。
 - `POST /api/v1/materials/merge`：合并素材，Body `{sourceMaterialId,targetMaterialId,mergeTags?,mergeSummaryWhenEmpty?,note?}`。

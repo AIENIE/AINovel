@@ -947,7 +947,7 @@ export const api = {
       return await requestJson<FileImportJob>(`/v1/materials/upload/${jobId}`, { method: "GET" });
     },
     getPending: async (): Promise<Material[]> => {
-      const data = await requestJson<any[]>("/v1/materials/review/pending", { method: "POST", body: "{}" });
+      const data = await requestJson<any[]>("/v1/materials/review/pending", { method: "GET" });
       return data.map(toMaterial);
     },
     review: async (id: string, action: "approve" | "reject") => {

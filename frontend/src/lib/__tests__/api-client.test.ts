@@ -182,6 +182,36 @@ describe("api client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("loads pending materials with GET semantics", async () => {
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const u = String(url);
+      if (u.endsWith("/api/v1/materials/review/pending")) {
+        expect(init?.method).toBe("GET");
+        return new Response(
+          JSON.stringify([
+            {
+              id: "m-pending",
+              title: "待审素材",
+              type: "text",
+              content: "待审核正文",
+              tags: ["pending"],
+              status: "pending",
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const materials = await api.materials.getPending();
+
+    expect(materials).toHaveLength(1);
+    expect(materials[0].status).toBe("pending");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("normalizes plot quality runs and trend payloads", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);
