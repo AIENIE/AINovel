@@ -44,20 +44,48 @@ import OpsObservability from "./pages/Admin/OpsObservability";
 
 const queryClient = new QueryClient();
 
-// Protected Route Wrapper
-const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const location = useLocation();
-  if (isLoading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  const next = encodeURIComponent(`${location.pathname}${location.search}`);
-  return isAuthenticated ? <Outlet /> : <Navigate to={`/login?next=${next}`} replace />;
+type GuardStatus = "loading" | "authorized" | "unauthorized";
+type GuardLocation = ReturnType<typeof useLocation>;
+
+type GuardedRouteOptions = {
+  loginPath: string;
+  loadingClassName: string;
+  useGuardStatus: (location: GuardLocation) => GuardStatus;
 };
 
-// Admin Route Wrapper
-const AdminRoute = () => {
-  const [status, setStatus] = useState<"loading" | "authorized" | "unauthorized">("loading");
-  const location = useLocation();
+const buildGuardRedirect = (loginPath: string, location: GuardLocation) => {
+  const next = encodeURIComponent(`${location.pathname}${location.search}`);
+  return `${loginPath}?next=${next}`;
+};
 
+const createGuardedRoute = ({ loginPath, loadingClassName, useGuardStatus }: GuardedRouteOptions) => {
+  const GuardedRoute = () => {
+    const location = useLocation();
+    const status = useGuardStatus(location);
+
+    if (status === "loading") {
+      return <div className={loadingClassName}>Loading...</div>;
+    }
+
+    if (status === "authorized") {
+      return <Outlet />;
+    }
+
+    return <Navigate to={buildGuardRedirect(loginPath, location)} replace />;
+  };
+
+  GuardedRoute.displayName = `GuardedRoute(${loginPath})`;
+  return GuardedRoute;
+};
+
+const useProtectedRouteStatus = (_location: GuardLocation): GuardStatus => {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return "loading";
+  return isAuthenticated ? "authorized" : "unauthorized";
+};
+
+const useAdminRouteStatus = (location: GuardLocation): GuardStatus => {
+  const [status, setStatus] = useState<GuardStatus>("loading");
   useEffect(() => {
     let cancelled = false;
     const token = adminSession.getToken();
@@ -82,11 +110,20 @@ const AdminRoute = () => {
     };
   }, [location.pathname, location.search]);
 
-  if (status === "loading") return <div className="flex items-center justify-center h-screen bg-zinc-950 text-zinc-500">Loading...</div>;
-  if (status === "authorized") return <Outlet />;
-  const next = encodeURIComponent(`${location.pathname}${location.search}`);
-  return <Navigate to={`/admin/login?next=${next}`} replace />;
+  return status;
 };
+
+const ProtectedRoute = createGuardedRoute({
+  loginPath: "/login",
+  loadingClassName: "flex items-center justify-center h-screen",
+  useGuardStatus: useProtectedRouteStatus,
+});
+
+const AdminRoute = createGuardedRoute({
+  loginPath: "/admin/login",
+  loadingClassName: "flex items-center justify-center h-screen bg-zinc-950 text-zinc-500",
+  useGuardStatus: useAdminRouteStatus,
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
