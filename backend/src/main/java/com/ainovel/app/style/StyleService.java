@@ -1,5 +1,6 @@
 package com.ainovel.app.style;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
@@ -28,17 +29,20 @@ public class StyleService {
     private final StyleAnalysisJobRepository styleAnalysisJobRepository;
     private final CharacterCardRepository characterCardRepository;
     private final ObjectMapper objectMapper;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public StyleService(StyleProfileRepository styleProfileRepository,
                         CharacterVoiceRepository characterVoiceRepository,
                         StyleAnalysisJobRepository styleAnalysisJobRepository,
                         CharacterCardRepository characterCardRepository,
-                        ObjectMapper objectMapper) {
+                        ObjectMapper objectMapper,
+                        JsonColumnCodec jsonColumnCodec) {
         this.styleProfileRepository = styleProfileRepository;
         this.characterVoiceRepository = characterVoiceRepository;
         this.styleAnalysisJobRepository = styleAnalysisJobRepository;
         this.characterCardRepository = characterCardRepository;
         this.objectMapper = objectMapper;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Transactional(readOnly = true)
@@ -382,21 +386,10 @@ public class StyleService {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value == null ? Map.of() : value);
-        } catch (Exception ex) {
-            return "{}";
-        }
+        return jsonColumnCodec.write(value == null ? Map.of() : value, "{}");
     }
 
     private Object readJson(String json, Object fallback) {
-        if (json == null || json.isBlank()) {
-            return fallback;
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return fallback;
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, fallback);
     }
 }

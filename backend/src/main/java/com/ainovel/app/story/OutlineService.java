@@ -1,6 +1,7 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Outline;
@@ -29,6 +30,8 @@ public class OutlineService {
     private UserRepository userRepository;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private JsonColumnCodec jsonColumnCodec;
 
     public List<OutlineDto> listByStory(Story story) {
         accessGuard.assertOwner(story.getUser());
@@ -422,19 +425,10 @@ public class OutlineService {
     }
 
     private Map<String, Object> readJson(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private String writeJson(Object obj) {
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (Exception e) {
-            return "{}";
-        }
+        return jsonColumnCodec.write(obj, "{}");
     }
 }

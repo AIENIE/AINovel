@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.model.SlopDriftRun;
 import com.ainovel.app.quality.repo.SlopDriftRunRepository;
@@ -27,7 +28,7 @@ class SlopDriftServiceTest {
     void analyzeShouldPersistLlmWindowComparison() {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
-        SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository);
+        SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
         Manuscript manuscript = manuscriptWithRepeatedSections("雨水砸在铁皮棚上，林烬记住了铜扣的划痕。", 12);
 
         when(aiService.chat(any(), any())).thenReturn(new AiChatResponse("assistant", """
@@ -95,7 +96,7 @@ class SlopDriftServiceTest {
     void analyzeShouldSkipAiWhenTextHasTooFewWindows() {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
-        SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository);
+        SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
         Manuscript manuscript = manuscriptWithRepeatedSections("短稿。", 2);
 
         when(repository.save(any(SlopDriftRun.class))).thenAnswer(invocation -> invocation.getArgument(0));

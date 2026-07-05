@@ -1,5 +1,6 @@
 package com.ainovel.app.world;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.world.dto.*;
 import com.ainovel.app.world.model.World;
 import com.ainovel.app.world.repo.WorldRepository;
@@ -31,6 +32,8 @@ public class WorldService {
     private PlatformTransactionManager transactionManager;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private JsonColumnCodec jsonColumnCodec;
 
     public List<WorldDefinitionDto> definitions() {
         return List.of(
@@ -349,21 +352,18 @@ public class WorldService {
     }
 
     private List<String> readThemes(String json) {
-        if (json == null || json.isBlank()) return new ArrayList<>();
-        try { return objectMapper.readValue(json, new TypeReference<>() {});} catch (Exception e) { return new ArrayList<>(); }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new ArrayList<>());
     }
 
     private Map<String, Map<String, String>> readModules(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try { return objectMapper.readValue(json, new TypeReference<>() {});} catch (Exception e) { return new HashMap<>(); }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private Map<String, String> readProgress(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try { return objectMapper.readValue(json, new TypeReference<>() {});} catch (Exception e) { return new HashMap<>(); }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private String writeJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj);} catch (Exception e) { return "{}"; }
+        return jsonColumnCodec.write(obj, "{}");
     }
 }

@@ -2,6 +2,7 @@ package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.manuscript.dto.*;
 import com.ainovel.app.manuscript.model.Manuscript;
@@ -66,6 +67,8 @@ public class ManuscriptService {
     private StyleContextProvider styleContextProvider;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private JsonColumnCodec jsonColumnCodec;
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));
@@ -191,21 +194,11 @@ public class ManuscriptService {
     }
 
     private Map<String, String> readSectionMap(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private List<Map<String, Object>> readLogs(String json) {
-        if (json == null || json.isBlank()) return new ArrayList<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new ArrayList<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new ArrayList<>());
     }
 
     private List<CharacterChangeLogDto> mapLogs(List<Map<String, Object>> logs) {
@@ -225,7 +218,7 @@ public class ManuscriptService {
     }
 
     private String writeJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj);} catch (Exception e) { return "{}";}
+        return jsonColumnCodec.write(obj, "{}");
     }
 
     private User ownerOf(Manuscript manuscript) {

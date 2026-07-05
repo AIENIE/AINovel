@@ -2,6 +2,7 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.model.V2AutoSaveConfig;
 import com.ainovel.app.v2.model.V2ManuscriptBranch;
@@ -30,6 +31,7 @@ public class V2VersionPersistenceService {
     private final ManuscriptRepository manuscriptRepository;
     private final ObjectMapper objectMapper;
     private final V2Json v2Json;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public V2VersionPersistenceService(V2ManuscriptBranchRepository branchRepository,
                                        V2ManuscriptVersionRepository versionRepository,
@@ -37,7 +39,8 @@ public class V2VersionPersistenceService {
                                        V2AutoSaveConfigRepository autoSaveRepository,
                                        ManuscriptRepository manuscriptRepository,
                                        ObjectMapper objectMapper,
-                                       V2Json v2Json) {
+                                       V2Json v2Json,
+                                       JsonColumnCodec jsonColumnCodec) {
         this.branchRepository = branchRepository;
         this.versionRepository = versionRepository;
         this.diffRepository = diffRepository;
@@ -45,6 +48,7 @@ public class V2VersionPersistenceService {
         this.manuscriptRepository = manuscriptRepository;
         this.objectMapper = objectMapper;
         this.v2Json = v2Json;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Transactional
@@ -540,22 +544,11 @@ public class V2VersionPersistenceService {
     }
 
     private Map<String, String> parseSections(String json) {
-        if (json == null || json.isBlank()) {
-            return new LinkedHashMap<>();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return new LinkedHashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new LinkedHashMap<>());
     }
 
     private String writeSections(Map<String, String> sections) {
-        try {
-            return objectMapper.writeValueAsString(sections);
-        } catch (Exception ex) {
-            return "{}";
-        }
+        return jsonColumnCodec.write(sections, "{}");
     }
 
     private Map<String, Object> map(Object value) {

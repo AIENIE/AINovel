@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.dto.SlopQualityRunDto;
 import com.ainovel.app.quality.model.SlopQualityRun;
@@ -42,7 +43,7 @@ class SlopQualityControllerTest {
         characterCardRepository = mock(CharacterCardRepository.class);
         diagnosticService = mock(SlopDiagnosticService.class);
         styleContextProvider = mock(StyleContextProvider.class);
-        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider, new ObjectMapper());
+        controller = new SlopQualityController(accessGuard, runRepository, characterCardRepository, diagnosticService, styleContextProvider, new ObjectMapper(), new JsonColumnCodec(new ObjectMapper()));
 
         principal = mock(UserDetails.class);
         user = new User();

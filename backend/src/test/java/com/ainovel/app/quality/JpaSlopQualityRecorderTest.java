@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ class JpaSlopQualityRecorderTest {
             run.setId(UUID.randomUUID());
             return run;
         });
-        JpaSlopQualityRecorder recorder = new JpaSlopQualityRecorder(repository, new ObjectMapper());
+        JpaSlopQualityRecorder recorder = new JpaSlopQualityRecorder(repository, new JsonColumnCodec(new ObjectMapper()));
         SlopQualitySignals signals = new SlopQualitySignals(
                 "high",
                 "E2",

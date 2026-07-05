@@ -3,6 +3,7 @@ package com.ainovel.app.quality;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.user.User;
@@ -29,7 +30,8 @@ class SlopDiagnosticServiceTest {
                 aiService,
                 new ObjectMapper(),
                 new LocalSlopHeuristics(),
-                repository
+                repository,
+                new JsonColumnCodec(new ObjectMapper())
         );
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();

@@ -1,5 +1,6 @@
 package com.ainovel.app.style;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
@@ -30,7 +31,8 @@ class StyleServiceTest {
                 mock(CharacterVoiceRepository.class),
                 mock(StyleAnalysisJobRepository.class),
                 mock(CharacterCardRepository.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();
         StyleProfile selected = profile(UUID.randomUUID(), "目标画像", false);
@@ -57,7 +59,8 @@ class StyleServiceTest {
                 voiceRepository,
                 mock(StyleAnalysisJobRepository.class),
                 cardRepository,
-                new ObjectMapper()
+                new ObjectMapper(),
+                new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();
         CharacterCard card = new CharacterCard();

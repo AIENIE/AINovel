@@ -1,5 +1,6 @@
 package com.ainovel.app.material;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.model.Material;
@@ -42,7 +43,8 @@ class MaterialServiceClosureTest {
                 accessGuard,
                 mock(MaterialRetrievalService.class),
                 manuscriptRepository,
-                new ObjectMapper()
+                new ObjectMapper(),
+                new JsonColumnCodec(new ObjectMapper())
         );
 
         user = new User();

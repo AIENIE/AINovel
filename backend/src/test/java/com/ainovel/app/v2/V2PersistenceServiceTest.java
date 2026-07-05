@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import com.ainovel.app.config.AppTimeProvider;
@@ -18,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @Import({
+        JsonColumnCodec.class,
         V2Json.class,
         V2ContextPersistenceService.class,
         V2ModelPersistenceService.class,

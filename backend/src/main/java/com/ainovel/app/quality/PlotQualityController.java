@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.dto.PlotQualityRunDto;
@@ -33,19 +34,22 @@ public class PlotQualityController {
     private final PlotQualityRunRepository runRepository;
     private final PlotQualityService plotQualityService;
     private final ObjectMapper objectMapper;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public PlotQualityController(V2AccessGuard accessGuard,
                                  ManuscriptRepository manuscriptRepository,
                                  CharacterCardRepository characterCardRepository,
                                  PlotQualityRunRepository runRepository,
                                  PlotQualityService plotQualityService,
-                                 ObjectMapper objectMapper) {
+                                 ObjectMapper objectMapper,
+                                 JsonColumnCodec jsonColumnCodec) {
         this.accessGuard = accessGuard;
         this.manuscriptRepository = manuscriptRepository;
         this.characterCardRepository = characterCardRepository;
         this.runRepository = runRepository;
         this.plotQualityService = plotQualityService;
         this.objectMapper = objectMapper;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -205,25 +209,11 @@ public class PlotQualityController {
     }
 
     private Map<String, String> readSectionMap(String json) {
-        if (json == null || json.isBlank()) {
-            return new HashMap<>();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private Map<String, Object> readObjectMap(String json) {
-        if (json == null || json.isBlank()) {
-            return new HashMap<>();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     @SuppressWarnings("unchecked")

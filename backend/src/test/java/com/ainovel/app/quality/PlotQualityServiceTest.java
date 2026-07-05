@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.model.PlotQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
@@ -27,7 +28,7 @@ class PlotQualityServiceTest {
         AiService aiService = mock(AiService.class);
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
         SlopQualityGate slopQualityGate = mock(SlopQualityGate.class);
-        PlotQualityService service = new PlotQualityService(aiService, new ObjectMapper(), repository, slopQualityGate);
+        PlotQualityService service = new PlotQualityService(aiService, new ObjectMapper(), repository, slopQualityGate, new JsonColumnCodec(new ObjectMapper()));
         User user = user();
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
@@ -90,7 +91,7 @@ class PlotQualityServiceTest {
     @Test
     void trendShouldAggregateLatestSceneRunsInChapterOrder() {
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
-        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class));
+        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class), new JsonColumnCodec(new ObjectMapper()));
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneA = UUID.randomUUID();
         UUID sceneB = UUID.randomUUID();
@@ -114,7 +115,7 @@ class PlotQualityServiceTest {
     @Test
     void applyRevisionShouldRejectWhenCurrentTextHashChanged() {
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
-        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class));
+        PlotQualityService service = new PlotQualityService(mock(AiService.class), new ObjectMapper(), repository, mock(SlopQualityGate.class), new JsonColumnCodec(new ObjectMapper()));
         UUID runId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();
         run.setId(runId);

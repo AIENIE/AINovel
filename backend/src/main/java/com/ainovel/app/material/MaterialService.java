@@ -7,6 +7,7 @@ import com.ainovel.app.material.model.Material;
 import com.ainovel.app.material.model.MaterialUploadJob;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.material.repo.MaterialUploadJobRepository;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,6 +30,7 @@ public class MaterialService {
     private final MaterialRetrievalService materialRetrievalService;
     private final ManuscriptRepository manuscriptRepository;
     private final ObjectMapper objectMapper;
+    private final JsonColumnCodec jsonColumnCodec;
 
     @Autowired
     public MaterialService(
@@ -37,7 +39,8 @@ public class MaterialService {
             ResourceAccessGuard accessGuard,
             MaterialRetrievalService materialRetrievalService,
             ManuscriptRepository manuscriptRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            JsonColumnCodec jsonColumnCodec
     ) {
         this.materialRepository = materialRepository;
         this.uploadJobRepository = uploadJobRepository;
@@ -45,6 +48,7 @@ public class MaterialService {
         this.materialRetrievalService = materialRetrievalService;
         this.manuscriptRepository = manuscriptRepository;
         this.objectMapper = objectMapper;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     public MaterialDto create(User user, MaterialCreateRequest request) {
@@ -405,21 +409,11 @@ public class MaterialService {
     }
 
     private Map<String, String> readStringMap(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private Map<String, Object> readObjectMap(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     @SuppressWarnings("unchecked")
@@ -441,16 +435,11 @@ public class MaterialService {
     }
 
     private List<String> readTags(String json) {
-        if (json == null || json.isBlank()) return new ArrayList<>();
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
-            return new ArrayList<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new ArrayList<>());
     }
 
     private String writeJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj);} catch (Exception e) { return "[]"; }
+        return jsonColumnCodec.write(obj, "[]");
     }
 
 }

@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.quality.model.SlopQualityIssue;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
@@ -24,15 +25,18 @@ public class SlopDiagnosticService {
     private final ObjectMapper objectMapper;
     private final LocalSlopHeuristics heuristics;
     private final SlopQualityRunRepository runRepository;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public SlopDiagnosticService(AiService aiService,
                                  ObjectMapper objectMapper,
                                  LocalSlopHeuristics heuristics,
-                                 SlopQualityRunRepository runRepository) {
+                                 SlopQualityRunRepository runRepository,
+                                 JsonColumnCodec jsonColumnCodec) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
         this.heuristics = heuristics;
         this.runRepository = runRepository;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Transactional
@@ -277,11 +281,7 @@ public class SlopDiagnosticService {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return "[]";
-        }
+        return jsonColumnCodec.write(value, "[]");
     }
 
     private Map<String, Object> localModuleScores(SlopHeuristicResult result) {

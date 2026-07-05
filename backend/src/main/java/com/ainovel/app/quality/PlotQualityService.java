@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.model.PlotQualityIssue;
 import com.ainovel.app.quality.model.PlotQualityRun;
@@ -28,15 +29,18 @@ public class PlotQualityService {
     private final ObjectMapper objectMapper;
     private final PlotQualityRunRepository runRepository;
     private final SlopQualityGate slopQualityGate;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public PlotQualityService(AiService aiService,
                               ObjectMapper objectMapper,
                               PlotQualityRunRepository runRepository,
-                              SlopQualityGate slopQualityGate) {
+                              SlopQualityGate slopQualityGate,
+                              JsonColumnCodec jsonColumnCodec) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
         this.runRepository = runRepository;
         this.slopQualityGate = slopQualityGate;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Transactional
@@ -346,22 +350,11 @@ public class PlotQualityService {
     }
 
     private Map<String, String> readSectionMap(String json) {
-        if (json == null || json.isBlank()) {
-            return new HashMap<>();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return new HashMap<>();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return "[]";
-        }
+        return jsonColumnCodec.write(value, "[]");
     }
 
     private String stripHtml(String html) {

@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.quality.dto.PlotQualityRunDto;
@@ -42,7 +43,7 @@ class PlotQualityControllerTest {
         characterCardRepository = mock(CharacterCardRepository.class);
         runRepository = mock(PlotQualityRunRepository.class);
         service = mock(PlotQualityService.class);
-        controller = new PlotQualityController(accessGuard, manuscriptRepository, characterCardRepository, runRepository, service, new ObjectMapper());
+        controller = new PlotQualityController(accessGuard, manuscriptRepository, characterCardRepository, runRepository, service, new ObjectMapper(), new JsonColumnCodec(new ObjectMapper()));
 
         principal = mock(UserDetails.class);
         user = new User();

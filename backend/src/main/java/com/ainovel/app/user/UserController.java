@@ -7,6 +7,7 @@ import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
 import com.ainovel.app.story.repo.StoryRepository;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.user.dto.*;
 import com.ainovel.app.world.model.World;
@@ -51,6 +52,8 @@ public class UserController {
     private CurrentUserResolver currentUserResolver;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private JsonColumnCodec jsonColumnCodec;
 
     @GetMapping("/profile")
     @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色与资产。")
@@ -243,19 +246,14 @@ public class UserController {
     }
 
     private long estimateWordsFromSections(String sectionsJson) {
-        if (sectionsJson == null || sectionsJson.isBlank()) return 0;
-        try {
-            Map<String, String> sections = objectMapper.readValue(sectionsJson, new TypeReference<>() {});
-            long total = 0;
-            for (String html : sections.values()) {
-                if (html == null) continue;
-                String plain = html.replaceAll("<[^>]*>", "");
-                total += plain.trim().length();
-            }
-            return total;
-        } catch (Exception ignored) {
-            return 0;
+        Map<String, String> sections = jsonColumnCodec.read(sectionsJson, new TypeReference<>() {}, Map.of());
+        long total = 0;
+        for (String html : sections.values()) {
+            if (html == null) continue;
+            String plain = html.replaceAll("<[^>]*>", "");
+            total += plain.trim().length();
         }
+        return total;
     }
 
     private long estimateWorldEntries(User user) {
@@ -267,19 +265,14 @@ public class UserController {
     }
 
     private long countNonEmptyEntries(String modulesJson) {
-        if (modulesJson == null || modulesJson.isBlank()) return 0;
-        try {
-            Map<String, Map<String, String>> modules = objectMapper.readValue(modulesJson, new TypeReference<>() {});
-            long total = 0;
-            for (Map<String, String> fields : modules.values()) {
-                if (fields == null) continue;
-                for (String v : fields.values()) {
-                    if (v != null && !v.isBlank()) total++;
-                }
+        Map<String, Map<String, String>> modules = jsonColumnCodec.read(modulesJson, new TypeReference<>() {}, Map.of());
+        long total = 0;
+        for (Map<String, String> fields : modules.values()) {
+            if (fields == null) continue;
+            for (String v : fields.values()) {
+                if (v != null && !v.isBlank()) total++;
             }
-            return total;
-        } catch (Exception ignored) {
-            return 0;
         }
+        return total;
     }
 }

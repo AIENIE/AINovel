@@ -1,9 +1,9 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.quality.model.SlopQualityIssue;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,11 +16,11 @@ import java.util.UUID;
 @Component
 public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     private final SlopQualityRunRepository runRepository;
-    private final ObjectMapper objectMapper;
+    private final JsonColumnCodec jsonColumnCodec;
 
-    public JpaSlopQualityRecorder(SlopQualityRunRepository runRepository, ObjectMapper objectMapper) {
+    public JpaSlopQualityRecorder(SlopQualityRunRepository runRepository, JsonColumnCodec jsonColumnCodec) {
         this.runRepository = runRepository;
-        this.objectMapper = objectMapper;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Override
@@ -89,10 +89,6 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return "[]";
-        }
+        return jsonColumnCodec.write(value, "[]");
     }
 }

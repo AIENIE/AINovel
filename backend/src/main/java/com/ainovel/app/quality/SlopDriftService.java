@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.model.SlopDriftRun;
 import com.ainovel.app.quality.repo.SlopDriftRunRepository;
@@ -34,13 +35,16 @@ public class SlopDriftService {
     private final AiService aiService;
     private final ObjectMapper objectMapper;
     private final SlopDriftRunRepository runRepository;
+    private final JsonColumnCodec jsonColumnCodec;
 
     public SlopDriftService(AiService aiService,
                             ObjectMapper objectMapper,
-                            SlopDriftRunRepository runRepository) {
+                            SlopDriftRunRepository runRepository,
+                            JsonColumnCodec jsonColumnCodec) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
         this.runRepository = runRepository;
+        this.jsonColumnCodec = jsonColumnCodec;
     }
 
     @Transactional
@@ -319,25 +323,11 @@ public class SlopDriftService {
     }
 
     private Map<String, String> readSectionMap(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return Map.of();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
     }
 
     private Map<String, Object> readObjectMap(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception ex) {
-            return Map.of();
-        }
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
     }
 
     @SuppressWarnings("unchecked")
@@ -360,11 +350,7 @@ public class SlopDriftService {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return "[]";
-        }
+        return jsonColumnCodec.write(value, "[]");
     }
 
     private List<String> defaultAlternatives() {
