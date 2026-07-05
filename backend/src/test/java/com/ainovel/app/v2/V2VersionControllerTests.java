@@ -1,31 +1,30 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.manuscript.model.Manuscript;
-import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.lang.reflect.Field;
-import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class V2VersionControllerTests {
 
     private ResourceAccessGuard accessGuard;
-    private ManuscriptRepository manuscriptRepository;
+    private V2VersionPersistenceService versionService;
     private V2VersionController controller;
     private UserDetails principal;
     private User user;
@@ -35,8 +34,8 @@ class V2VersionControllerTests {
     @BeforeEach
     void setUp() {
         accessGuard = mock(ResourceAccessGuard.class);
-        manuscriptRepository = mock(ManuscriptRepository.class);
-        controller = new V2VersionController(accessGuard, manuscriptRepository, new ObjectMapper());
+        versionService = mock(V2VersionPersistenceService.class);
+        controller = new V2VersionController(accessGuard, versionService);
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -45,123 +44,103 @@ class V2VersionControllerTests {
         manuscript = new Manuscript();
         manuscriptId = UUID.randomUUID();
         manuscript.setId(manuscriptId);
-        manuscript.setSectionsJson("{\"scene-1\":\"hello\"}");
 
         when(accessGuard.currentUser(any())).thenReturn(user);
         when(accessGuard.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
-        when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
-    void createVersionShouldBootstrapMainBranchAndInitialVersion() {
-        controller.listVersions(principal, manuscriptId);
-        manuscript.setSectionsJson("{\"scene-1\":\"checkpoint-content\"}");
-        Map<String, Object> created = controller.createVersion(principal, manuscriptId, Map.of("label", "checkpoint"));
-        List<Map<String, Object>> versions = controller.listVersions(principal, manuscriptId);
+    void controllerShouldNotKeepInMemoryFallbackState() {
+        List<String> fieldNames = Arrays.stream(V2VersionController.class.getDeclaredFields())
+                .map(Field::getName)
+                .toList();
 
-        assertNotNull(manuscript.getCurrentBranchId(), "应自动初始化 main 分支");
-        assertEquals("checkpoint", created.get("label"));
-        assertEquals(2, versions.size(), "应包含初始版本与新建版本");
+        assertFalse(fieldNames.contains("branchByManuscript"));
+        assertFalse(fieldNames.contains("versionByManuscript"));
+        assertFalse(fieldNames.contains("diffCache"));
+        assertFalse(fieldNames.contains("autoSaveByUser"));
+        assertFalse(fieldNames.contains("initLocks"));
     }
 
     @Test
-    void updateAutoSaveShouldValidateLowerBound() {
-        RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                controller.updateAutoSave(principal, Map.of(
-                        "autoSaveIntervalSeconds", 10,
-                        "maxAutoVersions", 100
-                ))
-        );
-        assertTrue(ex.getMessage().contains("不能小于 30"));
+    void createVersionShouldDelegateEmptyPayloadWhenBodyMissing() {
+        Map<String, Object> version = Map.of("id", UUID.randomUUID(), "label", "v1");
+        when(versionService.createVersion(manuscript, user, Map.of())).thenReturn(version);
+
+        Map<String, Object> result = controller.createVersion(principal, manuscriptId, null);
+
+        assertEquals(version.get("id"), result.get("id"));
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(versionService).createVersion(manuscript, user, Map.of());
     }
 
     @Test
-    void mergeMainBranchShouldFail() {
-        List<Map<String, Object>> branches = controller.listBranches(principal, manuscriptId);
-        UUID mainBranchId = (UUID) branches.get(0).get("id");
+    void rollbackShouldDelegateWithResolvedManuscript() {
+        UUID versionId = UUID.randomUUID();
+        Map<String, Object> rollback = Map.of("rolledBackTo", versionId, "status", "completed");
+        when(versionService.rollback(manuscript, user, versionId)).thenReturn(rollback);
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                controller.mergeBranch(principal, manuscriptId, mainBranchId, Map.of())
-        );
-        assertTrue(ex.getMessage().contains("主分支无需合并"));
+        Map<String, Object> result = controller.rollback(principal, manuscriptId, versionId);
+
+        assertEquals("completed", result.get("status"));
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(versionService).rollback(manuscript, user, versionId);
     }
 
     @Test
-    void rollbackShouldCreateBackupAndRollbackRecord() {
-        List<Map<String, Object>> initial = controller.listVersions(principal, manuscriptId);
-        UUID targetVersionId = (UUID) initial.get(0).get("id");
+    void updateBranchShouldCheckOwnershipAndDelegate() {
+        UUID branchId = UUID.randomUUID();
+        Map<String, Object> payload = Map.of("name", "rewrite");
+        Map<String, Object> branch = Map.of("id", branchId, "name", "rewrite");
+        when(versionService.updateBranch(manuscriptId, branchId, payload)).thenReturn(branch);
 
-        manuscript.setSectionsJson("{\"scene-1\":\"changed\"}");
-        controller.createVersion(principal, manuscriptId, Map.of("label", "changed"));
+        Map<String, Object> result = controller.updateBranch(principal, manuscriptId, branchId, payload);
 
-        Map<String, Object> rollback = controller.rollback(principal, manuscriptId, targetVersionId);
-        List<Map<String, Object>> versions = controller.listVersions(principal, manuscriptId);
-
-        assertNotNull(rollback.get("backupVersionId"));
-        assertNotNull(rollback.get("rollbackVersionId"));
-        assertEquals("{\"scene-1\":\"hello\"}", manuscript.getSectionsJson());
-        assertTrue(versions.size() >= 4, "应包含初始版本、变更版本、回滚备份和回滚记录");
+        assertEquals("rewrite", result.get("name"));
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(versionService).updateBranch(manuscriptId, branchId, payload);
     }
 
     @Test
-    void autoSnapshotsShouldRespectMaxLimit() {
-        controller.updateAutoSave(principal, Map.of(
+    void mergeBranchShouldDelegateEmptyPayloadWhenBodyMissing() {
+        UUID branchId = UUID.randomUUID();
+        UUID mergeVersionId = UUID.randomUUID();
+        Map<String, Object> merged = Map.of("mergeVersionId", mergeVersionId, "status", "merged");
+        when(versionService.mergeBranch(manuscript, user, branchId, Map.of())).thenReturn(merged);
+
+        Map<String, Object> result = controller.mergeBranch(principal, manuscriptId, branchId, null);
+
+        assertEquals("merged", result.get("status"));
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(versionService).mergeBranch(manuscript, user, branchId, Map.of());
+    }
+
+    @Test
+    void abandonBranchShouldDelegateAndReturnNoContent() {
+        UUID branchId = UUID.randomUUID();
+
+        var response = controller.abandonBranch(principal, manuscriptId, branchId);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
+        verify(versionService).abandonBranch(manuscriptId, branchId);
+    }
+
+    @Test
+    void updateAutoSaveShouldDelegatePayload() {
+        Map<String, Object> payload = Map.of(
                 "autoSaveIntervalSeconds", 30,
                 "maxAutoVersions", 10
-        ));
+        );
+        Map<String, Object> config = Map.of(
+                "autoSaveIntervalSeconds", 30,
+                "maxAutoVersions", 10
+        );
+        when(versionService.updateAutoSave(user, payload)).thenReturn(config);
 
-        for (int i = 0; i < 15; i++) {
-            manuscript.setSectionsJson("{\"scene-1\":\"auto-" + i + "\"}");
-            controller.createVersion(principal, manuscriptId, Map.of(
-                    "snapshotType", "auto",
-                    "label", "auto-" + i
-            ));
-        }
+        Map<String, Object> result = controller.updateAutoSave(principal, payload);
 
-        List<Map<String, Object>> versions = controller.listVersions(principal, manuscriptId);
-        long autoCount = versions.stream()
-                .filter(v -> "auto".equals(v.get("snapshotType")))
-                .count();
-        assertTrue(autoCount <= 10, "自动快照数量应受 maxAutoVersions 限制");
-    }
-
-    @Test
-    void ensureMainBranchShouldNormalizeDuplicateMainBranches() throws Exception {
-        ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> store = branchStore();
-        ConcurrentMap<UUID, Map<String, Object>> branches = new ConcurrentHashMap<>();
-
-        UUID firstMainId = UUID.randomUUID();
-        UUID secondMainId = UUID.randomUUID();
-        branches.put(firstMainId, branch(firstMainId, true, Instant.now().minusSeconds(60)));
-        branches.put(secondMainId, branch(secondMainId, true, Instant.now()));
-        store.put(manuscriptId, branches);
-        manuscript.setCurrentBranchId(null);
-
-        List<Map<String, Object>> branchList = controller.listBranches(principal, manuscriptId);
-        long mainCount = branchList.stream().filter(b -> Boolean.TRUE.equals(b.get("isMain"))).count();
-
-        assertEquals(1L, mainCount, "重复 main 分支应被自动收敛为一个");
-        assertEquals(firstMainId, manuscript.getCurrentBranchId(), "应保留最早创建的 main 分支");
-    }
-
-    @SuppressWarnings("unchecked")
-    private ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> branchStore() throws Exception {
-        Field field = V2VersionController.class.getDeclaredField("branchByManuscript");
-        field.setAccessible(true);
-        return (ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>>) field.get(controller);
-    }
-
-    private Map<String, Object> branch(UUID id, boolean isMain, Instant createdAt) {
-        return new ConcurrentHashMap<>(Map.of(
-                "id", id,
-                "manuscriptId", manuscriptId,
-                "name", "main",
-                "description", "main branch",
-                "sourceVersionId", "",
-                "status", "active",
-                "isMain", isMain,
-                "createdAt", createdAt,
-                "updatedAt", createdAt
-        ));
+        assertEquals(30, result.get("autoSaveIntervalSeconds"));
+        verify(versionService).updateAutoSave(user, payload);
     }
 }
