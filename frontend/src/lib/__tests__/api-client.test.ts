@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { api } from "@/lib/api-client";
+import { ApiError, api } from "@/lib/api-client";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -38,6 +38,12 @@ describe("api client", () => {
         return new Response("Not Found", { status: 404 });
       })
     );
+    vi.stubGlobal("location", {
+      pathname: "/workbench",
+      search: "?tab=quality",
+      hash: "",
+      assign: vi.fn(),
+    });
   });
 
   it("reads profile from token in localStorage", async () => {
@@ -180,6 +186,69 @@ describe("api client", () => {
       matchReasons: ["title", "content"],
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws typed user auth errors and redirects to login on 401", async () => {
+    localStorage.setItem("token", "t");
+    const assign = vi.fn();
+    vi.stubGlobal("location", {
+      pathname: "/workbench",
+      search: "?tab=quality",
+      hash: "",
+      assign,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown) => {
+        const u = String(url);
+        if (u.endsWith("/api/v1/user/profile")) {
+          return new Response(JSON.stringify({ message: "未登录" }), {
+            status: 401,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      }),
+    );
+
+    const error = await api.user.getProfile().catch((err) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(401);
+    expect(error.message).toBe("未登录");
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(assign).toHaveBeenCalledWith("/login?next=%2Fworkbench%3Ftab%3Dquality");
+  });
+
+  it("clears admin token and redirects to admin login on 403", async () => {
+    localStorage.setItem("admin_token", "admin-t");
+    const assign = vi.fn();
+    vi.stubGlobal("location", {
+      pathname: "/admin/dashboard",
+      search: "?panel=ops",
+      hash: "",
+      assign,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: unknown) => {
+        const u = String(url);
+        if (u.endsWith("/api/v1/admin/dashboard")) {
+          return new Response(JSON.stringify({ message: "无管理员权限" }), {
+            status: 403,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      }),
+    );
+
+    const error = await api.admin.getDashboardStats().catch((err) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(403);
+    expect(localStorage.getItem("admin_token")).toBeNull();
+    expect(assign).toHaveBeenCalledWith("/admin/login?next=%2Fadmin%2Fdashboard%3Fpanel%3Dops");
   });
 
   it("loads pending materials with GET semantics", async () => {

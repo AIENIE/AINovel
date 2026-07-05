@@ -40,10 +40,75 @@ const ADMIN_TOKEN_KEY = "admin_token";
 const getToken = () => localStorage.getItem(USER_TOKEN_KEY);
 const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+type AuthScope = "user" | "admin";
+
+function inferAuthScope(path: string): AuthScope {
+  if (
+    path.startsWith("/v1/admin") ||
+    path.startsWith("/v1/admin-auth") ||
+    path.startsWith("/v2/admin/")
+  ) {
+    return "admin";
+  }
+  return "user";
+}
+
+function currentLocationPath(): string {
+  const locationRef = globalThis.location ?? globalThis.window?.location;
+  if (!locationRef) return "/";
+  const pathname = locationRef.pathname || "/";
+  const search = locationRef.search || "";
+  const hash = locationRef.hash || "";
+  return `${pathname}${search}${hash}`;
+}
+
+function redirectToLogin(scope: AuthScope) {
+  const locationRef = globalThis.location ?? globalThis.window?.location;
+  if (!locationRef) return;
+  const next = currentLocationPath();
+  const loginPath = scope === "admin" ? "/admin/login" : "/login";
+  if (locationRef.pathname === loginPath) return;
+  const target = `${loginPath}?next=${encodeURIComponent(next)}`;
+  if (typeof locationRef.assign === "function") {
+    locationRef.assign(target);
+    return;
+  }
+  try {
+    locationRef.href = target;
+  } catch {
+    // ignore non-writable location stubs in tests
+  }
+}
+
+function handleUnauthorized(path: string) {
+  const scope = inferAuthScope(path);
+  if (scope === "admin") {
+    adminSession.clearToken();
+  } else {
+    localStorage.removeItem(USER_TOKEN_KEY);
+  }
+  redirectToLogin(scope);
+}
+
 function requireAdminToken(): string {
   const token = getAdminToken();
   if (!token) {
-    throw new Error("管理员未登录");
+    handleUnauthorized("/v1/admin");
+    throw new ApiError(401, "管理员未登录");
   }
   return token;
 }
@@ -80,7 +145,10 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
   const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    throw new Error(msg || `Request failed: ${resp.status}`);
+    if (resp.status === 401 || resp.status === 403) {
+      handleUnauthorized(path);
+    }
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
   }
   return (await resp.json()) as T;
 }
@@ -93,7 +161,10 @@ async function requestForm<T>(path: string, form: FormData, tokenOverride?: stri
   const resp = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    throw new Error(msg || `Request failed: ${resp.status}`);
+    if (resp.status === 401 || resp.status === 403) {
+      handleUnauthorized(path);
+    }
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
   }
   return (await resp.json()) as T;
 }
@@ -108,7 +179,10 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
   const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    throw new Error(msg || `Request failed: ${resp.status}`);
+    if (resp.status === 401 || resp.status === 403) {
+      handleUnauthorized(path);
+    }
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
   }
 }
 

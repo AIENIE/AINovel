@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import { api } from "@/lib/api-client";
+import { api, isApiError } from "@/lib/api-client";
 
 interface AuthContextType {
   user: User | null;
@@ -15,8 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const isAuthFailure = (error: unknown) => {
-  if (!(error instanceof Error)) return false;
-  return error.message.includes("401") || error.message.includes("403");
+  return isApiError(error) && (error.status === 401 || error.status === 403);
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
