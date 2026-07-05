@@ -12,13 +12,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
@@ -27,15 +24,6 @@ public class V2WorkspaceController {
     private final ResourceAccessGuard accessGuard;
     private final AppTimeProvider timeProvider;
     private final V2WorkspacePersistenceService persistenceService;
-
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> layoutsByUser = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> sessionsByUser = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<UUID, Map<String, Object>>> goalsByUser = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentMap<String, Map<String, Object>>> shortcutsByUser = new ConcurrentHashMap<>();
-
-    public V2WorkspaceController(ResourceAccessGuard accessGuard, AppTimeProvider timeProvider) {
-        this(accessGuard, timeProvider, null);
-    }
 
     @Autowired
     public V2WorkspaceController(ResourceAccessGuard accessGuard,
@@ -51,10 +39,7 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/workspace-layouts")
     public List<Map<String, Object>> listLayouts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.listLayouts(user);
-        }
-        return new ArrayList<>(layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values());
+        return persistenceService.listLayouts(user);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -63,28 +48,7 @@ public class V2WorkspaceController {
     public Map<String, Object> createLayout(@AuthenticationPrincipal UserDetails principal,
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.createLayout(user, payload);
-        }
-        UUID id = UUID.randomUUID();
-        Map<String, Object> layout = new HashMap<>();
-        layout.put("id", id);
-        layout.put("userId", user.getId());
-        layout.put("name", str(payload.get("name"), "我的布局"));
-        layout.put("layout", payload.getOrDefault("layout", Map.of("preset", "writing")));
-        layout.put("isActive", boolVal(payload.get("isActive"), false));
-        layout.put("createdAt", now());
-        layout.put("updatedAt", now());
-
-        ConcurrentMap<UUID, Map<String, Object>> userLayouts = layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
-        if (Boolean.TRUE.equals(layout.get("isActive"))) {
-            for (Map<String, Object> existing : userLayouts.values()) {
-                existing.put("isActive", false);
-                existing.put("updatedAt", now());
-            }
-        }
-        userLayouts.put(id, layout);
-        return layout;
+        return persistenceService.createLayout(user, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -94,23 +58,7 @@ public class V2WorkspaceController {
                                             @PathVariable UUID id,
                                             @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.updateLayout(user, id, payload);
-        }
-        Map<String, Object> layout = requireLayout(user.getId(), id);
-
-        mergeIfPresent(payload, layout, "name");
-        if (payload.containsKey("layout")) {
-            layout.put("layout", payload.get("layout"));
-        }
-        if (payload.containsKey("isActive") && boolVal(payload.get("isActive"), false)) {
-            for (Map<String, Object> existing : layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values()) {
-                existing.put("isActive", false);
-            }
-            layout.put("isActive", true);
-        }
-        layout.put("updatedAt", now());
-        return layout;
+        return persistenceService.updateLayout(user, id, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -119,11 +67,7 @@ public class V2WorkspaceController {
     public ResponseEntity<Void> deleteLayout(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            persistenceService.deleteLayout(user, id);
-            return ResponseEntity.noContent().build();
-        }
-        layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(id);
+        persistenceService.deleteLayout(user, id);
         return ResponseEntity.noContent().build();
     }
 
@@ -133,21 +77,7 @@ public class V2WorkspaceController {
     public Map<String, Object> activateLayout(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.activateLayout(user, id);
-        }
-        ConcurrentMap<UUID, Map<String, Object>> userLayouts = layoutsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
-        Map<String, Object> layout = userLayouts.get(id);
-        if (layout == null) {
-            throw new RuntimeException("布局不存在");
-        }
-        for (Map<String, Object> existing : userLayouts.values()) {
-            existing.put("isActive", false);
-            existing.put("updatedAt", now());
-        }
-        layout.put("isActive", true);
-        layout.put("updatedAt", now());
-        return layout;
+        return persistenceService.activateLayout(user, id);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -161,25 +91,7 @@ public class V2WorkspaceController {
             throw new RuntimeException("storyId 不能为空");
         }
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        if (persistenceService != null) {
-            return persistenceService.startSession(user, story, payload);
-        }
-
-        UUID id = UUID.randomUUID();
-        Map<String, Object> session = new HashMap<>();
-        session.put("id", id);
-        session.put("userId", user.getId());
-        session.put("storyId", storyId);
-        session.put("startedAt", now());
-        session.put("endedAt", null);
-        session.put("wordsWritten", intVal(payload.get("wordsWritten"), 0));
-        session.put("wordsDeleted", intVal(payload.get("wordsDeleted"), 0));
-        session.put("netWords", intVal(payload.get("netWords"), 0));
-        session.put("durationSeconds", 0);
-        session.put("chaptersEdited", payload.getOrDefault("chaptersEdited", List.of()));
-
-        sessionsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).put(id, session);
-        return session;
+        return persistenceService.startSession(user, story, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -189,25 +101,7 @@ public class V2WorkspaceController {
                                          @PathVariable UUID id,
                                          @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.updateSession(user, id, payload, false);
-        }
-        Map<String, Object> session = requireSession(user.getId(), id);
-        if (session.get("endedAt") != null) {
-            throw new RuntimeException("会话已结束，无法继续心跳更新");
-        }
-
-        int previousNet = intVal(session.get("netWords"), 0);
-        int wordsWritten = intVal(payload.get("wordsWritten"), intVal(session.get("wordsWritten"), 0));
-        int wordsDeleted = intVal(payload.get("wordsDeleted"), intVal(session.get("wordsDeleted"), 0));
-        session.put("wordsWritten", wordsWritten);
-        session.put("wordsDeleted", wordsDeleted);
-        session.put("netWords", wordsWritten - wordsDeleted);
-        session.put("chaptersEdited", payload.getOrDefault("chaptersEdited", session.get("chaptersEdited")));
-        session.put("durationSeconds", currentDurationSeconds(session));
-        session.put("updatedAt", now());
-        syncGoalProgress(user.getId(), session, wordsWritten - wordsDeleted - previousNet);
-        return session;
+        return persistenceService.updateSession(user, id, payload, false);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -217,28 +111,7 @@ public class V2WorkspaceController {
                                           @PathVariable UUID id,
                                           @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.updateSession(user, id, payload == null ? Map.of() : payload, true);
-        }
-        Map<String, Object> session = requireSession(user.getId(), id);
-
-        if (session.get("endedAt") == null) {
-            int previousNet = intVal(session.get("netWords"), 0);
-            if (payload != null) {
-                int wordsWritten = intVal(payload.get("wordsWritten"), intVal(session.get("wordsWritten"), 0));
-                int wordsDeleted = intVal(payload.get("wordsDeleted"), intVal(session.get("wordsDeleted"), 0));
-                session.put("wordsWritten", wordsWritten);
-                session.put("wordsDeleted", wordsDeleted);
-                session.put("netWords", wordsWritten - wordsDeleted);
-                if (payload.containsKey("chaptersEdited")) {
-                    session.put("chaptersEdited", payload.get("chaptersEdited"));
-                }
-            }
-            session.put("endedAt", now());
-            session.put("durationSeconds", currentDurationSeconds(session));
-            syncGoalProgress(user.getId(), session, intVal(session.get("netWords"), 0) - previousNet);
-        }
-        return session;
+        return persistenceService.updateSession(user, id, payload == null ? Map.of() : payload, true);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -246,9 +119,7 @@ public class V2WorkspaceController {
     @GetMapping("/writing-sessions/stats")
     public Map<String, Object> sessionStats(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        Collection<Map<String, Object>> sessions = persistenceService == null
-                ? sessionsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).values()
-                : persistenceService.listSessions(user);
+        Collection<Map<String, Object>> sessions = persistenceService.listSessions(user);
 
         int totalSessions = sessions.size();
         int totalWritten = 0;
@@ -345,12 +216,7 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/writing-goals")
     public List<Map<String, Object>> listGoals(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.listGoals(user);
-        }
-        ConcurrentMap<UUID, Map<String, Object>> goals = goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>());
-        goals.values().forEach(this::applyDailyResetIfNeeded);
-        return new ArrayList<>(goals.values());
+        return persistenceService.listGoals(user);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -362,28 +228,9 @@ public class V2WorkspaceController {
         UUID storyId = uuid(payload.get("storyId"));
         if (storyId != null) {
             Story story = accessGuard.requireOwnedStory(storyId, user);
-            if (persistenceService != null) {
-                return persistenceService.createGoal(user, story, payload);
-            }
-        } else if (persistenceService != null) {
-            return persistenceService.createGoal(user, null, payload);
+            return persistenceService.createGoal(user, story, payload);
         }
-
-        UUID id = UUID.randomUUID();
-        Map<String, Object> goal = new HashMap<>();
-        goal.put("id", id);
-        goal.put("userId", user.getId());
-        goal.put("storyId", storyId);
-        goal.put("goalType", str(payload.get("goalType"), "daily_words"));
-        goal.put("targetValue", intVal(payload.get("targetValue"), 1000));
-        goal.put("currentValue", intVal(payload.get("currentValue"), 0));
-        goal.put("deadline", payload.get("deadline"));
-        goal.put("status", str(payload.get("status"), "active"));
-        goal.put("createdAt", now());
-        goal.put("updatedAt", now());
-
-        goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).put(id, goal);
-        return goal;
+        return persistenceService.createGoal(user, null, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -393,23 +240,7 @@ public class V2WorkspaceController {
                                           @PathVariable UUID id,
                                           @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.updateGoal(user, id, payload);
-        }
-        Map<String, Object> goal = goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).get(id);
-        if (goal == null) {
-            throw new RuntimeException("写作目标不存在");
-        }
-
-        mergeIfPresent(payload, goal, "goalType", "deadline", "status");
-        if (payload.containsKey("targetValue")) {
-            goal.put("targetValue", intVal(payload.get("targetValue"), intVal(goal.get("targetValue"), 1000)));
-        }
-        if (payload.containsKey("currentValue")) {
-            goal.put("currentValue", intVal(payload.get("currentValue"), intVal(goal.get("currentValue"), 0)));
-        }
-        goal.put("updatedAt", now());
-        return goal;
+        return persistenceService.updateGoal(user, id, payload);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -418,11 +249,7 @@ public class V2WorkspaceController {
     public ResponseEntity<Void> deleteGoal(@AuthenticationPrincipal UserDetails principal,
                                            @PathVariable UUID id) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            persistenceService.deleteGoal(user, id);
-            return ResponseEntity.noContent().build();
-        }
-        goalsByUser.computeIfAbsent(user.getId(), uid -> new ConcurrentHashMap<>()).remove(id);
+        persistenceService.deleteGoal(user, id);
         return ResponseEntity.noContent().build();
     }
 
@@ -431,10 +258,7 @@ public class V2WorkspaceController {
     @GetMapping("/users/me/shortcuts")
     public List<Map<String, Object>> listShortcuts(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        if (persistenceService != null) {
-            return persistenceService.listShortcuts(user);
-        }
-        return new ArrayList<>(shortcutsByUser.computeIfAbsent(user.getId(), uid -> defaultShortcuts(user.getId())).values());
+        return persistenceService.listShortcuts(user);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -443,92 +267,11 @@ public class V2WorkspaceController {
     public List<Map<String, Object>> updateShortcuts(@AuthenticationPrincipal UserDetails principal,
                                                      @RequestBody Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        ConcurrentMap<String, Map<String, Object>> userShortcuts = shortcutsByUser.computeIfAbsent(user.getId(), uid -> defaultShortcuts(user.getId()));
-
         Object shortcutsObj = payload.get("shortcuts");
         if (!(shortcutsObj instanceof List<?> list)) {
             throw new RuntimeException("shortcuts 必须为数组");
         }
-        if (persistenceService != null) {
-            return persistenceService.updateShortcuts(user, list);
-        }
-
-        for (Object item : list) {
-            if (!(item instanceof Map<?, ?> raw)) {
-                continue;
-            }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> shortcut = (Map<String, Object>) raw;
-            String action = str(shortcut.get("action"), "");
-            String key = str(shortcut.get("shortcut"), "");
-            if (action.isEmpty() || key.isEmpty()) {
-                continue;
-            }
-            Map<String, Object> value = new HashMap<>();
-            value.put("id", UUID.randomUUID());
-            value.put("userId", user.getId());
-            value.put("action", action);
-            value.put("shortcut", key);
-            value.put("isCustom", true);
-            value.put("createdAt", now());
-            userShortcuts.put(action, value);
-        }
-
-        return new ArrayList<>(userShortcuts.values());
-    }
-
-    private Map<String, Object> requireLayout(UUID userId, UUID layoutId) {
-        Map<String, Object> layout = layoutsByUser.computeIfAbsent(userId, uid -> new ConcurrentHashMap<>()).get(layoutId);
-        if (layout == null) {
-            throw new RuntimeException("布局不存在");
-        }
-        return layout;
-    }
-
-    private Map<String, Object> requireSession(UUID userId, UUID sessionId) {
-        Map<String, Object> session = sessionsByUser.computeIfAbsent(userId, uid -> new ConcurrentHashMap<>()).get(sessionId);
-        if (session == null) {
-            throw new RuntimeException("写作会话不存在");
-        }
-        return session;
-    }
-
-    private int currentDurationSeconds(Map<String, Object> session) {
-        Instant startedAt = (Instant) session.get("startedAt");
-        Instant endedAt = session.get("endedAt") instanceof Instant ended ? ended : now();
-        return (int) Duration.between(startedAt, endedAt).toSeconds();
-    }
-
-    private ConcurrentMap<String, Map<String, Object>> defaultShortcuts(UUID userId) {
-        ConcurrentMap<String, Map<String, Object>> defaults = new ConcurrentHashMap<>();
-        defaults.put("save", shortcut(userId, "save", "Ctrl+S", false));
-        defaults.put("focus_mode", shortcut(userId, "focus_mode", "Ctrl+Shift+F", false));
-        defaults.put("command_palette", shortcut(userId, "command_palette", "Ctrl+K", false));
-        defaults.put("toggle_left_panel", shortcut(userId, "toggle_left_panel", "Ctrl+B", false));
-        defaults.put("toggle_right_panel", shortcut(userId, "toggle_right_panel", "Ctrl+Shift+B", false));
-        defaults.put("next_chapter", shortcut(userId, "next_chapter", "Ctrl+]", false));
-        defaults.put("prev_chapter", shortcut(userId, "prev_chapter", "Ctrl+[", false));
-        defaults.put("ai_refine", shortcut(userId, "ai_refine", "Ctrl+Shift+R", false));
-        defaults.put("new_scene", shortcut(userId, "new_scene", "Ctrl+Shift+N", false));
-        defaults.put("search_manuscript", shortcut(userId, "search_manuscript", "Ctrl+F", false));
-        defaults.put("search_replace", shortcut(userId, "search_replace", "Ctrl+H", false));
-        defaults.put("export", shortcut(userId, "export", "Ctrl+Shift+E", false));
-        defaults.put("close_tab", shortcut(userId, "close_tab", "Ctrl+W", false));
-        defaults.put("next_tab", shortcut(userId, "next_tab", "Ctrl+Tab", false));
-        defaults.put("undo", shortcut(userId, "undo", "Ctrl+Z", false));
-        defaults.put("redo", shortcut(userId, "redo", "Ctrl+Shift+Z", false));
-        return defaults;
-    }
-
-    private Map<String, Object> shortcut(UUID userId, String action, String key, boolean custom) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("id", UUID.randomUUID());
-        data.put("userId", userId);
-        data.put("action", action);
-        data.put("shortcut", key);
-        data.put("isCustom", custom);
-        data.put("createdAt", now());
-        return data;
+        return persistenceService.updateShortcuts(user, list);
     }
 
     private UUID uuid(Object value) {
@@ -557,86 +300,5 @@ public class V2WorkspaceController {
         } catch (NumberFormatException ex) {
             return fallback;
         }
-    }
-
-    private String str(Object value, String fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        String text = value.toString().trim();
-        return text.isEmpty() ? fallback : text;
-    }
-
-    private boolean boolVal(Object value, boolean fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Boolean b) {
-            return b;
-        }
-        return Boolean.parseBoolean(value.toString());
-    }
-
-    private void mergeIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {
-        for (String key : keys) {
-            if (source.containsKey(key)) {
-                target.put(key, source.get(key));
-            }
-        }
-    }
-
-    private void syncGoalProgress(UUID userId, Map<String, Object> session, int deltaNetWords) {
-        if (deltaNetWords == 0) {
-            return;
-        }
-        ConcurrentMap<UUID, Map<String, Object>> goals = goalsByUser.computeIfAbsent(userId, uid -> new ConcurrentHashMap<>());
-        UUID storyId = uuid(session.get("storyId"));
-        for (Map<String, Object> goal : goals.values()) {
-            applyDailyResetIfNeeded(goal);
-            String status = str(goal.get("status"), "active");
-            if (!"active".equalsIgnoreCase(status)) {
-                continue;
-            }
-            UUID goalStoryId = uuid(goal.get("storyId"));
-            if (goalStoryId != null && storyId != null && !Objects.equals(goalStoryId, storyId)) {
-                continue;
-            }
-            String goalType = str(goal.get("goalType"), "daily_words");
-            if (!goalType.contains("words")) {
-                continue;
-            }
-            int current = intVal(goal.get("currentValue"), 0);
-            int target = Math.max(1, intVal(goal.get("targetValue"), 1));
-            int nextValue = Math.max(0, current + deltaNetWords);
-            goal.put("currentValue", nextValue);
-            if (nextValue >= target) {
-                goal.put("status", "completed");
-            }
-            goal.put("updatedAt", now());
-        }
-    }
-
-    private void applyDailyResetIfNeeded(Map<String, Object> goal) {
-        String goalType = str(goal.get("goalType"), "");
-        if (!goalType.startsWith("daily_")) {
-            return;
-        }
-        Object updatedObj = goal.get("updatedAt");
-        if (!(updatedObj instanceof Instant updatedAt)) {
-            return;
-        }
-        LocalDate updatedDay = timeProvider.toLocalDate(updatedAt);
-        LocalDate today = timeProvider.today();
-        if (!updatedDay.isEqual(today)) {
-            goal.put("currentValue", 0);
-            if (!"archived".equalsIgnoreCase(str(goal.get("status"), ""))) {
-                goal.put("status", "active");
-            }
-            goal.put("updatedAt", now());
-        }
-    }
-
-    private Instant now() {
-        return timeProvider.nowInstant();
     }
 }
