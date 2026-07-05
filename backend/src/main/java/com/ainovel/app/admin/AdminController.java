@@ -3,17 +3,7 @@ package com.ainovel.app.admin;
 import com.ainovel.app.admin.dto.*;
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.economy.EconomyService;
-import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
-import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
-import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.metrics.ApiRequestMetrics;
-import com.ainovel.app.settings.SettingsService;
 import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
-import com.ainovel.app.settings.model.GlobalSettings;
-import com.ainovel.app.settings.repo.GlobalSettingsRepository;
-import com.ainovel.app.story.repo.StoryRepository;
-import com.ainovel.app.world.repo.WorldRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -31,12 +21,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/admin")
@@ -44,43 +30,17 @@ import java.util.UUID;
 @Tag(name = "Admin", description = "管理端接口（聚合第三方服务 + 本地管理能力）")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
-
-    private final UserRepository userRepository;
-    private final MaterialRepository materialRepository;
-    private final SettingsService settingsService;
-    private final GlobalSettingsRepository globalSettingsRepository;
+    private final AdminConsoleService adminConsoleService;
     private final EconomyService economyService;
-    private final ProjectCreditLedgerRepository projectCreditLedgerRepository;
-    private final ProjectCreditAccountRepository projectCreditAccountRepository;
-    private final StoryRepository storyRepository;
-    private final WorldRepository worldRepository;
-    private final ApiRequestMetrics apiRequestMetrics;
     private final OpsRecordFileSink recordFileSink;
 
     public AdminController(
-            UserRepository userRepository,
-            MaterialRepository materialRepository,
-            SettingsService settingsService,
-            GlobalSettingsRepository globalSettingsRepository,
+            AdminConsoleService adminConsoleService,
             EconomyService economyService,
-            ProjectCreditLedgerRepository projectCreditLedgerRepository,
-            ProjectCreditAccountRepository projectCreditAccountRepository,
-            StoryRepository storyRepository,
-            WorldRepository worldRepository,
-            ApiRequestMetrics apiRequestMetrics,
             OpsRecordFileSink recordFileSink
     ) {
-        this.userRepository = userRepository;
-        this.materialRepository = materialRepository;
-        this.settingsService = settingsService;
-        this.globalSettingsRepository = globalSettingsRepository;
+        this.adminConsoleService = adminConsoleService;
         this.economyService = economyService;
-        this.projectCreditLedgerRepository = projectCreditLedgerRepository;
-        this.projectCreditAccountRepository = projectCreditAccountRepository;
-        this.storyRepository = storyRepository;
-        this.worldRepository = worldRepository;
-        this.apiRequestMetrics = apiRequestMetrics;
         this.recordFileSink = recordFileSink;
     }
 
@@ -92,14 +52,7 @@ public class AdminController {
             @ApiResponse(responseCode = "403", description = "无管理员权限")
     })
     public ResponseEntity<AdminDashboardStatsResponse> dashboard() {
-        Instant todayStart = LocalDate.now(ZONE).atStartOfDay(ZONE).toInstant();
-        long totalUsers = userRepository.count();
-        long todayNewUsers = userRepository.countByCreatedAtAfter(todayStart);
-        double totalConsumed = projectCreditLedgerRepository.sumNegativeDeltaAbs();
-        double todayConsumed = projectCreditLedgerRepository.sumNegativeDeltaAbsSince(todayStart);
-        long pendingReviews = materialRepository.countByStatusIgnoreCase("pending");
-        double apiErrorRate = apiRequestMetrics.errorRate();
-        return ResponseEntity.ok(new AdminDashboardStatsResponse(totalUsers, todayNewUsers, totalConsumed, todayConsumed, apiErrorRate, pendingReviews));
+        return ResponseEntity.ok(adminConsoleService.dashboard());
     }
 
     @GetMapping("/users")
@@ -113,13 +66,7 @@ public class AdminController {
             @Parameter(description = "用户名/邮箱关键字", example = "demo")
             @RequestParam(value = "search", required = false) String search
     ) {
-        String keyword = search == null ? "" : search.trim().toLowerCase();
-        return userRepository.findAll().stream()
-                .filter(user -> keyword.isBlank()
-                        || safe(user.getUsername()).toLowerCase().contains(keyword)
-                        || safe(user.getEmail()).toLowerCase().contains(keyword))
-                .map(this::toUserDto)
-                .toList();
+        return adminConsoleService.users(search);
     }
 
     @GetMapping("/system-config")
@@ -130,8 +77,7 @@ public class AdminController {
             @ApiResponse(responseCode = "403", description = "无管理员权限")
     })
     public AdminSystemConfigResponse systemConfig() {
-        GlobalSettings g = settingsService.getGlobalSettings();
-        return new AdminSystemConfigResponse(g.isMaintenanceMode());
+        return adminConsoleService.systemConfig();
     }
 
     @PutMapping("/system-config")
@@ -152,11 +98,9 @@ public class AdminController {
             @AuthenticationPrincipal UserDetails principal,
             @RequestBody AdminSystemConfigUpdateRequest request
     ) {
-        GlobalSettings g = settingsService.getGlobalSettings();
-        if (request.maintenanceMode() != null) g.setMaintenanceMode(request.maintenanceMode());
-        globalSettingsRepository.save(g);
+        AdminSystemConfigResponse response = adminConsoleService.updateSystemConfig(request.maintenanceMode());
         audit(principal, "maintenance.update", "system-config", "global", "SUCCESS", "INFO");
-        return systemConfig();
+        return response;
     }
 
     @PostMapping("/credits/grant")
@@ -171,7 +115,7 @@ public class AdminController {
             @AuthenticationPrincipal UserDetails principal,
             @Valid @RequestBody AdminGrantCreditsRequest request
     ) {
-        User target = resolveTargetUser(request.userId());
+        User target = adminConsoleService.resolveTargetUser(request.userId());
         EconomyService.CreditChangeResult result = economyService.grantProjectCredits(
                 target,
                 request.amount(),
@@ -312,54 +256,6 @@ public class AdminController {
                         item.createdAt()
                 ))
                 .toList();
-    }
-
-    private User resolveTargetUser(String userId) {
-        String value = userId == null ? "" : userId.trim();
-        if (value.isBlank()) {
-            throw new RuntimeException("目标用户不能为空");
-        }
-        try {
-            return userRepository.findById(UUID.fromString(value)).orElseThrow(() -> new RuntimeException("用户不存在"));
-        } catch (IllegalArgumentException ignore) {
-            try {
-                long remoteUid = Long.parseLong(value);
-                return userRepository.findByRemoteUid(remoteUid).orElseThrow(() -> new RuntimeException("用户不存在"));
-            } catch (NumberFormatException ex) {
-                throw new RuntimeException("用户 ID 格式错误");
-            }
-        }
-    }
-
-    private AdminUserDto toUserDto(User local) {
-        long projectCredits = projectCreditAccountRepository.findByUser(local)
-                .map(com.ainovel.app.economy.model.ProjectCreditAccount::getBalance)
-                .orElse(Math.round(local.getCredits()));
-        long publicCredits = 0L;
-        try {
-            publicCredits = economyService.currentBalance(local).publicCredits();
-        } catch (RuntimeException ignored) {
-            publicCredits = 0L;
-        }
-        return new AdminUserDto(
-                String.valueOf(local.getId()),
-                local.getRemoteUid(),
-                local.getUsername(),
-                local.getEmail(),
-                local.hasRole("ROLE_ADMIN") ? "admin" : "user",
-                projectCredits,
-                publicCredits,
-                projectCredits + publicCredits,
-                storyRepository.countByUser(local),
-                worldRepository.countByUser(local),
-                local.isBanned(),
-                local.getCreatedAt(),
-                local.getUpdatedAt()
-        );
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
     }
 
     private void audit(UserDetails principal, String action, String targetType, String targetId, String result, String severity) {
