@@ -3,10 +3,11 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
-import { Manuscript, Outline, Story } from "@/types";
+import { Manuscript, Outline } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction } from "@/lib/shortcuts";
 import { useManuscriptQuality } from "@/pages/Workbench/hooks/useManuscriptQuality";
+import { useManuscriptSelectionData } from "@/pages/Workbench/hooks/useManuscriptSelectionData";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
 import { useManuscriptSidebarData } from "@/pages/Workbench/hooks/useManuscriptSidebarData";
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
@@ -35,30 +36,9 @@ const sceneStatusClass: Record<SceneStatus, string> = {
   done: "bg-emerald-500",
 };
 
-type SceneRow = {
-  chapterId: string;
-  chapterTitle: string;
-  sceneIndex: number;
-  chapterIndex: number;
-  scene: any;
-  id: string;
-  displayName: string;
-};
 const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const { toast } = useToast();
-  const [stories, setStories] = useState<Story[]>([]);
-  const [selectedStoryId, setSelectedStoryId] = useState<string>("");
-  const [outlines, setOutlines] = useState<Outline[]>([]);
-  const [selectedOutlineId, setSelectedOutlineId] = useState<string>("");
-  const [outlineDraft, setOutlineDraft] = useState<Outline | null>(null);
-  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
-  const [selectedManuscriptId, setSelectedManuscriptId] = useState<string>("");
-  const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>([]);
-  const [openSceneIds, setOpenSceneIds] = useState<string[]>([]);
-  const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
-
-  const [selectedSceneId, setSelectedSceneId] = useState<string>("");
   const [content, setContent] = useState<string>("");
   const [dirtyScenes, setDirtyScenes] = useState<Record<string, boolean>>({});
   const [sceneDrafts, setSceneDrafts] = useState<Record<string, string>>({});
@@ -69,8 +49,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [lastSavedAt, setLastSavedAt] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedWordCount, setSelectedWordCount] = useState(0);
-  const [characters, setCharacters] = useState<any[]>([]);
-  const [batchMoveChapterId, setBatchMoveChapterId] = useState("");
   const [draggingChapterId, setDraggingChapterId] = useState("");
   const [dragOverChapterId, setDragOverChapterId] = useState("");
   const [draggingSceneId, setDraggingSceneId] = useState("");
@@ -83,7 +61,44 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const leftPanelVisibleRef = useRef<boolean | null>(null);
   const rightPanelVisibleRef = useRef<boolean | null>(null);
   const focusRestoreRef = useRef<{ leftOpen: boolean; rightOpen: boolean } | null>(null);
-  const lastSelectedSceneRef = useRef("");
+
+  const {
+    batchMoveChapterId,
+    chapters,
+    characters,
+    closeSceneTab,
+    expandedChapterIds,
+    handleSceneSelect,
+    manuscripts,
+    openSceneIds,
+    outlineDraft,
+    outlines,
+    reorderOpenTabs,
+    replaceOutline,
+    replaceManuscript,
+    sceneMap,
+    sceneRows,
+    selectedManuscript,
+    selectedManuscriptId,
+    selectedOutlineId,
+    selectedSceneId,
+    selectedSceneIds,
+    selectedStory,
+    selectedStoryId,
+    setBatchMoveChapterId,
+    setOpenSceneIds,
+    setOutlineDraft,
+    setSelectedManuscriptId,
+    setSelectedOutlineId,
+    setSelectedSceneId,
+    setSelectedSceneIds,
+    setSelectedStoryId,
+    stories,
+    toggleChapterExpanded,
+  } = useManuscriptSelectionData({
+    initialStoryId,
+    toast,
+  });
 
   const {
     isSidebarOpen,
@@ -102,10 +117,10 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   });
 
   const applyFetchedManuscript = useCallback((manuscript: Manuscript) => {
-    setManuscripts((prev) => prev.map((item) => (item.id === manuscript.id ? manuscript : item)));
+    replaceManuscript(manuscript);
     setSceneDrafts(manuscript.sections || {});
     setDirtyScenes({});
-  }, []);
+  }, [replaceManuscript]);
 
   const {
     aiDiffSummary,
@@ -187,29 +202,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toast,
   });
 
-  const selectedStory = useMemo(() => stories.find((s) => s.id === selectedStoryId) || null, [stories, selectedStoryId]);
-  const selectedOutline = useMemo(() => outlines.find((o) => o.id === selectedOutlineId) || null, [outlines, selectedOutlineId]);
-  const selectedManuscript = useMemo(() => manuscripts.find((m) => m.id === selectedManuscriptId) || null, [manuscripts, selectedManuscriptId]);
-  const sceneRows = useMemo(() => {
-    const list: SceneRow[] = [];
-    (outlineDraft?.chapters || []).forEach((chapter, chapterIndex) => {
-      chapter.scenes.forEach((scene, sceneIndex) => {
-        list.push({
-          chapterId: chapter.id,
-          chapterTitle: chapter.title,
-          sceneIndex,
-          chapterIndex,
-          scene,
-          id: scene.id,
-          displayName: `第${chapterIndex + 1}章 Sc.${sceneIndex + 1} ${scene.title}`,
-        });
-      });
-    });
-    return list;
-  }, [outlineDraft]);
-  const sceneMap = useMemo(() => Object.fromEntries(sceneRows.map((row) => [row.id, row])), [sceneRows]);
   const currentWordCount = useMemo(() => countWords(stripHtml(content)), [content]);
-  const chapters = outlineDraft?.chapters || [];
   const activeGoal = goals.find((goal) => String(goal.status || "active").toLowerCase() !== "archived");
   const dailyHeatmap = useMemo(() => (workspaceStats?.dailySeries || []).slice(-30), [workspaceStats]);
   const showLeftPanel = leftPanelOpen && !focusMode;
@@ -229,30 +222,17 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     rightPanelVisibleRef.current = showRightPanel;
   }, [showRightPanel]);
 
-  const reorderOpenTabs = useCallback((fromId: string, toId: string) => {
-    if (!fromId || !toId || fromId === toId) return;
-    setOpenSceneIds((prev) => {
-      const from = prev.indexOf(fromId);
-      const to = prev.indexOf(toId);
-      if (from < 0 || to < 0) return prev;
-      const next = [...prev];
-      const [item] = next.splice(from, 1);
-      next.splice(to, 0, item);
-      return next;
-    });
-  }, []);
-
   const persistOutlineDraft = useCallback(
     async (nextOutline: Outline) => {
       if (!selectedOutlineId) return;
       try {
         const saved = await api.outlines.save(selectedOutlineId, nextOutline);
-        setOutlines((prev) => prev.map((outline) => (outline.id === saved.id ? saved : outline)));
+        replaceOutline(saved);
       } catch (e: any) {
         toast({ variant: "destructive", title: "保存大纲顺序失败", description: e.message });
       }
     },
-    [selectedOutlineId, toast],
+    [replaceOutline, selectedOutlineId, toast],
   );
 
   const moveScene = useCallback(
@@ -295,104 +275,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     [outlineDraft, persistOutlineDraft],
   );
 
-  const loadCharacters = useCallback(async () => {
-    if (!selectedStoryId) {
-      setCharacters([]);
-      return;
-    }
-    try {
-      setCharacters(await api.stories.listCharacters(selectedStoryId));
-    } catch {
-      setCharacters([]);
-    }
-  }, [selectedStoryId]);
-
-  const loadStories = useCallback(async () => {
-    try {
-      const list = await api.stories.list();
-      setStories(list);
-      if (initialStoryId && list.some((s) => s.id === initialStoryId)) setSelectedStoryId(initialStoryId);
-      else if (list.length > 0) setSelectedStoryId(list[0].id);
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "加载故事失败", description: e.message });
-    }
-  }, [initialStoryId, toast]);
-
-  useEffect(() => {
-    void loadStories();
-  }, [loadStories]);
-
-  useEffect(() => {
-    void loadCharacters();
-  }, [loadCharacters]);
-
-  useEffect(() => {
-    if (!selectedStoryId) return;
-    api.outlines
-      .listByStory(selectedStoryId)
-      .then(async (list) => {
-        let next = list;
-        if (next.length === 0) {
-          const created = await api.outlines.create(selectedStoryId, { title: "主线大纲" });
-          next = [created];
-        }
-        setOutlines(next);
-        setSelectedOutlineId((prev) => (prev && next.some((o) => o.id === prev) ? prev : next[0].id));
-      })
-      .catch((e: any) => toast({ variant: "destructive", title: "加载大纲失败", description: e.message }));
-  }, [selectedStoryId, toast]);
-
-  useEffect(() => {
-    if (!selectedOutlineId) return;
-    api.manuscripts
-      .listByOutline(selectedOutlineId)
-      .then(async (list) => {
-        let next = list;
-        if (next.length === 0) {
-          const created = await api.manuscripts.create(selectedOutlineId, { title: "正文稿" });
-          next = [created];
-        }
-        setManuscripts(next);
-        setSelectedManuscriptId((prev) => (prev && next.some((m) => m.id === prev) ? prev : next[0].id));
-      })
-      .catch((e: any) => toast({ variant: "destructive", title: "加载稿件失败", description: e.message }));
-  }, [selectedOutlineId, toast]);
-
-  useEffect(() => {
-    if (!selectedOutline) {
-      setOutlineDraft(null);
-      return;
-    }
-    const copied = JSON.parse(JSON.stringify(selectedOutline)) as Outline;
-    setOutlineDraft(copied);
-    const expanded: Record<string, boolean> = {};
-    copied.chapters.forEach((chapter) => {
-      expanded[chapter.id] = true;
-    });
-    setExpandedChapterIds(expanded);
-    setBatchMoveChapterId(copied.chapters[0]?.id || "");
-  }, [selectedOutline]);
-
-  useEffect(() => {
-    const firstScene = sceneRows[0]?.id || "";
-    setSelectedSceneId((prev) => {
-      if (!prev) return firstScene;
-      return sceneRows.some((row) => row.id === prev) ? prev : firstScene;
-    });
-  }, [sceneRows]);
-
-  useEffect(() => {
-    if (!selectedSceneId) return;
-    setOpenSceneIds((prev) => (prev.includes(selectedSceneId) ? prev : [...prev, selectedSceneId]));
-    setSelectedSceneIds((prev) => (prev.length ? prev : [selectedSceneId]));
-  }, [selectedSceneId]);
-
-  useEffect(() => {
-    const valid = new Set(sceneRows.map((row) => row.id));
-    setOpenSceneIds((prev) => prev.filter((id) => valid.has(id)));
-    setSelectedSceneIds((prev) => prev.filter((id) => valid.has(id)));
-  }, [sceneRows]);
-
   const measureSceneWords = useCallback((html: string) => countWords(stripHtml(html)), []);
 
   const { primeSceneHtml, recordSceneHtml, sessionDurationSeconds, sessionNetWords } = useWritingSession({
@@ -425,7 +307,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
       setIsSaving(true);
       try {
         const saved = await api.manuscripts.saveSection(selectedManuscriptId, sceneId, html);
-        setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
+        replaceManuscript(saved);
         setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] || html }));
         setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
         setLastSavedAt(new Date().toLocaleTimeString());
@@ -436,7 +318,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
         setIsSaving(false);
       }
     },
-    [selectedManuscriptId, toast],
+    [replaceManuscript, selectedManuscriptId, toast],
   );
 
   const {
@@ -519,7 +401,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const closeCurrentTab = useCallback(() => {
     if (!selectedSceneId) return;
     closeSceneTab(selectedSceneId);
-  }, [selectedSceneId]);
+  }, [closeSceneTab, selectedSceneId]);
 
   const focusNextTab = useCallback(() => {
     if (!openSceneIds.length) return;
@@ -627,41 +509,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     };
   }, [selectedStory, outlineDraft, selectedSceneId, content]);
 
-  const handleSceneSelect = (sceneId: string, event?: React.MouseEvent) => {
-    const orderedIds = sceneRows.map((row) => row.id);
-    if (event?.shiftKey && lastSelectedSceneRef.current) {
-      const from = orderedIds.indexOf(lastSelectedSceneRef.current);
-      const to = orderedIds.indexOf(sceneId);
-      if (from >= 0 && to >= 0) {
-        const [start, end] = from < to ? [from, to] : [to, from];
-        setSelectedSceneIds(orderedIds.slice(start, end + 1));
-      }
-    } else if (event && (event.metaKey || event.ctrlKey)) {
-      setSelectedSceneIds((prev) => prev.includes(sceneId) ? prev.filter((id) => id !== sceneId) : [...prev, sceneId]);
-    } else {
-      setSelectedSceneIds([sceneId]);
-    }
-    lastSelectedSceneRef.current = sceneId;
-    setSelectedSceneId(sceneId);
-  };
-
-  const closeSceneTab = (sceneId: string) => {
-    setOpenSceneIds((prev) => {
-      const index = prev.indexOf(sceneId);
-      if (index < 0) return prev;
-      const next = prev.filter((id) => id !== sceneId);
-      if (selectedSceneId === sceneId) setSelectedSceneId(next[index] || next[index - 1] || sceneRows[0]?.id || "");
-      return next;
-    });
-  };
-
   const setSceneStatus = (sceneId: string, status: SceneStatus) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
   };
-
-  const toggleChapterExpanded = useCallback((chapterId: string) => {
-    setExpandedChapterIds((prev) => ({ ...prev, [chapterId]: !prev[chapterId] }));
-  }, []);
 
   const deleteSceneFromOutline = useCallback(
     async (sceneId: string, chapterId: string) => {
@@ -820,7 +670,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               setIsGenerating(true);
               try {
                 const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
-                setManuscripts((prev) => prev.map((m) => (m.id === saved.id ? saved : m)));
+                replaceManuscript(saved);
                 setContent(saved.sections?.[sceneId] || "");
                 const latestRun = await loadSlopQuality(sceneId, saved.id).catch(() => null);
                 await loadPlotQuality(sceneId, saved.id).catch(() => ({ run: null, trend: null }));
