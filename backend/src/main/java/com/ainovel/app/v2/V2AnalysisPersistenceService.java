@@ -19,13 +19,16 @@ public class V2AnalysisPersistenceService {
     private final V2AnalysisJobRepository jobRepository;
     private final V2BetaReaderReportRepository reportRepository;
     private final V2ContinuityIssueRepository issueRepository;
+    private final V2Json v2Json;
 
     public V2AnalysisPersistenceService(V2AnalysisJobRepository jobRepository,
                                         V2BetaReaderReportRepository reportRepository,
-                                        V2ContinuityIssueRepository issueRepository) {
+                                        V2ContinuityIssueRepository issueRepository,
+                                        V2Json v2Json) {
         this.jobRepository = jobRepository;
         this.reportRepository = reportRepository;
         this.issueRepository = issueRepository;
+        this.v2Json = v2Json;
     }
 
     @Transactional
@@ -39,7 +42,7 @@ public class V2AnalysisPersistenceService {
         report.setScope(str(safePayload.get("scope"), "full_manuscript"));
         report.setScopeReference(safePayload.get("scopeReference") == null ? null : safePayload.get("scopeReference").toString());
         report.setStatus("completed");
-        report.setAnalysisJson(V2Json.write(analysis));
+        report.setAnalysisJson(v2Json.write(analysis));
         report.setSummary("分析已完成，可查看建议与风险项。");
         report.setScoreOverall(80);
         report.setScorePacing(78);
@@ -75,7 +78,7 @@ public class V2AnalysisPersistenceService {
         issue.setSeverity("warning");
         String snippet = text == null || text.isBlank() ? "未提供文本，建议补充上下文后重试" : text.substring(0, Math.min(text.length(), 60));
         issue.setDescription("时间线存在潜在冲突：" + snippet);
-        issue.setEvidenceJson(V2Json.write(List.of(new V2AnalysisDtos.ContinuityEvidenceItem(1, "事件顺序可能前后颠倒"))));
+        issue.setEvidenceJson(v2Json.write(List.of(new V2AnalysisDtos.ContinuityEvidenceItem(1, "事件顺序可能前后颠倒"))));
         issue.setSuggestion("补充过渡段并在下一章回收冲突细节");
         issue.setStatus("open");
         return issueResponse(issueRepository.save(issue));
@@ -182,7 +185,7 @@ public class V2AnalysisPersistenceService {
     }
 
     private V2AnalysisDtos.AnalysisSummaryResponse analysisSummary(String json) {
-        Map<String, Object> raw = V2Json.map(json);
+        Map<String, Object> raw = v2Json.map(json);
         return new V2AnalysisDtos.AnalysisSummaryResponse(
                 str(raw.get("focus"), "overall"),
                 stringList(raw.get("highlights")),
@@ -191,7 +194,7 @@ public class V2AnalysisPersistenceService {
     }
 
     private List<V2AnalysisDtos.ContinuityEvidenceItem> evidenceItems(String json) {
-        return V2Json.list(json).stream()
+        return v2Json.list(json).stream()
                 .map(this::evidenceItem)
                 .filter(Objects::nonNull)
                 .toList();

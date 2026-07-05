@@ -29,19 +29,22 @@ public class V2VersionPersistenceService {
     private final V2AutoSaveConfigRepository autoSaveRepository;
     private final ManuscriptRepository manuscriptRepository;
     private final ObjectMapper objectMapper;
+    private final V2Json v2Json;
 
     public V2VersionPersistenceService(V2ManuscriptBranchRepository branchRepository,
                                        V2ManuscriptVersionRepository versionRepository,
                                        V2VersionDiffRepository diffRepository,
                                        V2AutoSaveConfigRepository autoSaveRepository,
                                        ManuscriptRepository manuscriptRepository,
-                                       ObjectMapper objectMapper) {
+                                       ObjectMapper objectMapper,
+                                       V2Json v2Json) {
         this.branchRepository = branchRepository;
         this.versionRepository = versionRepository;
         this.diffRepository = diffRepository;
         this.autoSaveRepository = autoSaveRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.objectMapper = objectMapper;
+        this.v2Json = v2Json;
     }
 
     @Transactional
@@ -140,7 +143,7 @@ public class V2VersionPersistenceService {
         ensureMainBranchAndInitialVersion(manuscript, user);
         Optional<V2VersionDiff> cached = diffRepository.findByFromVersionIdAndToVersionId(fromVersionId, toVersionId);
         if (cached.isPresent()) {
-            return V2Json.map(cached.get().getDiffJson());
+            return v2Json.map(cached.get().getDiffJson());
         }
         V2ManuscriptVersion from = requireVersion(manuscript.getId(), fromVersionId);
         V2ManuscriptVersion to = requireVersion(manuscript.getId(), toVersionId);
@@ -149,7 +152,7 @@ public class V2VersionPersistenceService {
         V2VersionDiff diff = new V2VersionDiff();
         diff.setFromVersion(from);
         diff.setToVersion(to);
-        diff.setDiffJson(V2Json.write(result));
+        diff.setDiffJson(v2Json.write(result));
         diffRepository.saveAndFlush(diff);
         return result;
     }
@@ -384,7 +387,7 @@ public class V2VersionPersistenceService {
         version.setSnapshotType(snapshotType);
         version.setContentHash(sha256(sectionsJson));
         version.setSectionsJson(sectionsJson);
-        version.setMetadataJson(V2Json.write(metadata == null ? Map.of() : metadata));
+        version.setMetadataJson(v2Json.write(metadata == null ? Map.of() : metadata));
         latestVersion(manuscript.getId(), null);
         UUID parentVersionId = latestVersionId(manuscript.getId());
         if (parentVersionId != null) {
@@ -504,7 +507,7 @@ public class V2VersionPersistenceService {
         out.put("snapshotType", version.getSnapshotType());
         out.put("contentHash", version.getContentHash());
         out.put("sectionsJson", version.getSectionsJson());
-        out.put("metadata", V2Json.map(version.getMetadataJson()));
+        out.put("metadata", v2Json.map(version.getMetadataJson()));
         out.put("parentVersionId", version.getParentVersion() == null ? null : version.getParentVersion().getId());
         out.put("createdBy", version.getCreatedBy().getId());
         out.put("createdAt", version.getCreatedAt());

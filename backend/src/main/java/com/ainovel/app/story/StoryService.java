@@ -34,7 +34,8 @@ public class StoryService {
     private AiService aiService;
     @Autowired
     private ResourceAccessGuard accessGuard;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public List<StoryDto> listStories(User user) {
         accessGuard.assertCurrentUserEquals(user.getUsername());

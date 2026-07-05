@@ -64,7 +64,8 @@ public class ManuscriptService {
     private MaterialRetrievalService materialRetrievalService;
     @Autowired
     private StyleContextProvider styleContextProvider;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new RuntimeException("大纲不存在"));

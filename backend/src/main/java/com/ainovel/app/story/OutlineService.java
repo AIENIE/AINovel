@@ -27,7 +27,8 @@ public class OutlineService {
     private AiService aiService;
     @Autowired
     private UserRepository userRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public List<OutlineDto> listByStory(Story story) {
         accessGuard.assertOwner(story.getUser());

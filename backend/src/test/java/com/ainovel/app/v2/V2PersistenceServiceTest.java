@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @Import({
+        V2Json.class,
         V2ContextPersistenceService.class,
         V2ModelPersistenceService.class,
         V2WorkspacePersistenceService.class,

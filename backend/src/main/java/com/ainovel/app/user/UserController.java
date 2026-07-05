@@ -49,7 +49,8 @@ public class UserController {
     private ManuscriptRepository manuscriptRepository;
     @Autowired
     private CurrentUserResolver currentUserResolver;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @GetMapping("/profile")
     @Operation(summary = "获取个人资料", description = "返回当前用户基础信息、角色与资产。")

@@ -18,11 +18,14 @@ import java.util.*;
 public class V2ExportPersistenceService {
     private final V2ExportTemplateRepository templateRepository;
     private final V2ExportJobRepository jobRepository;
+    private final V2Json v2Json;
 
     public V2ExportPersistenceService(V2ExportTemplateRepository templateRepository,
-                                      V2ExportJobRepository jobRepository) {
+                                      V2ExportJobRepository jobRepository,
+                                      V2Json v2Json) {
         this.templateRepository = templateRepository;
         this.jobRepository = jobRepository;
+        this.v2Json = v2Json;
     }
 
     @Transactional
@@ -40,7 +43,7 @@ public class V2ExportPersistenceService {
         template.setName(str(payload.get("name"), "自定义模板"));
         template.setDescription(str(payload.get("description"), ""));
         template.setFormat(str(payload.get("format"), "txt").toLowerCase(Locale.ROOT));
-        template.setConfigJson(V2Json.write(payload.getOrDefault("config", defaultConfig(template.getFormat()))));
+        template.setConfigJson(v2Json.write(payload.getOrDefault("config", defaultConfig(template.getFormat()))));
         template.setDefaultTemplate(bool(payload.get("isDefault"), false));
         return templateMap(templateRepository.saveAndFlush(template));
     }
@@ -54,7 +57,7 @@ public class V2ExportPersistenceService {
         if (payload.containsKey("name")) template.setName(str(payload.get("name"), template.getName()));
         if (payload.containsKey("description")) template.setDescription(str(payload.get("description"), ""));
         if (payload.containsKey("format")) template.setFormat(str(payload.get("format"), template.getFormat()).toLowerCase(Locale.ROOT));
-        if (payload.containsKey("config")) template.setConfigJson(V2Json.write(payload.get("config")));
+        if (payload.containsKey("config")) template.setConfigJson(v2Json.write(payload.get("config")));
         if (payload.containsKey("isDefault")) template.setDefaultTemplate(bool(payload.get("isDefault"), false));
         return templateMap(templateRepository.saveAndFlush(template));
     }
@@ -75,7 +78,7 @@ public class V2ExportPersistenceService {
         V2ExportTemplate template = templateId == null ? null : requireTemplate(templateId);
         Object config = payload.get("config");
         if (!(config instanceof Map<?, ?>) && template != null) {
-            config = V2Json.map(template.getConfigJson());
+            config = v2Json.map(template.getConfigJson());
         }
         String format = str(payload.get("format"), "txt").toLowerCase(Locale.ROOT);
         if (!(config instanceof Map<?, ?>)) {
@@ -91,7 +94,7 @@ public class V2ExportPersistenceService {
         job.setManuscript(manuscript);
         job.setTemplate(template);
         job.setFormat(format);
-        job.setConfigJson(V2Json.write(config));
+        job.setConfigJson(v2Json.write(config));
         job.setChapterRange(str(payload.get("chapterRange"), "all"));
         job.setStatus("queued");
         job.setProgress(0);
@@ -158,7 +161,7 @@ public class V2ExportPersistenceService {
             template.setName("系统默认 " + format.toUpperCase(Locale.ROOT));
             template.setDescription("系统预设模板");
             template.setFormat(format);
-            template.setConfigJson(V2Json.write(defaultConfig(format)));
+            template.setConfigJson(v2Json.write(defaultConfig(format)));
             template.setDefaultTemplate(true);
             templateRepository.save(template);
         }
@@ -180,7 +183,7 @@ public class V2ExportPersistenceService {
         out.put("name", template.getName());
         out.put("description", template.getDescription());
         out.put("format", template.getFormat());
-        out.put("config", V2Json.map(template.getConfigJson()));
+        out.put("config", v2Json.map(template.getConfigJson()));
         out.put("isDefault", template.isDefaultTemplate());
         out.put("createdAt", template.getCreatedAt());
         out.put("updatedAt", template.getUpdatedAt());
@@ -195,7 +198,7 @@ public class V2ExportPersistenceService {
         out.put("manuscriptId", job.getManuscript().getId());
         out.put("templateId", job.getTemplate() == null ? null : job.getTemplate().getId());
         out.put("format", job.getFormat());
-        out.put("config", V2Json.map(job.getConfigJson()));
+        out.put("config", v2Json.map(job.getConfigJson()));
         out.put("chapterRange", job.getChapterRange());
         out.put("status", job.getStatus());
         out.put("progress", job.getProgress());

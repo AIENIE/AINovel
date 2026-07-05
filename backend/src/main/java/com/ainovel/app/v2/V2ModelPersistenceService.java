@@ -27,17 +27,20 @@ public class V2ModelPersistenceService {
     private final V2UserModelPreferenceRepository preferenceRepository;
     private final V2ModelUsageLogRepository usageRepository;
     private final StoryRepository storyRepository;
+    private final V2Json v2Json;
 
     public V2ModelPersistenceService(V2ModelRegistryRepository modelRepository,
                                      V2TaskModelRoutingRepository routingRepository,
                                      V2UserModelPreferenceRepository preferenceRepository,
                                      V2ModelUsageLogRepository usageRepository,
-                                     StoryRepository storyRepository) {
+                                     StoryRepository storyRepository,
+                                     V2Json v2Json) {
         this.modelRepository = modelRepository;
         this.routingRepository = routingRepository;
         this.preferenceRepository = preferenceRepository;
         this.usageRepository = usageRepository;
         this.storyRepository = storyRepository;
+        this.v2Json = v2Json;
     }
 
     @Transactional
@@ -66,7 +69,7 @@ public class V2ModelPersistenceService {
         routing.setRecommendedModel(modelRepository.findById(recommendedModelId).orElseThrow(() -> new RuntimeException("recommendedModelId 无效")));
         routing.setFallbackModel(fallbackModelId == null ? null : modelRepository.findById(fallbackModelId).orElseThrow(() -> new RuntimeException("fallbackModelId 无效")));
         routing.setRoutingStrategy(blank(strategy, "fixed"));
-        routing.setConfigJson(V2Json.write(config == null ? Map.of() : config));
+        routing.setConfigJson(v2Json.write(config == null ? Map.of() : config));
         return routingMap(routingRepository.save(routing));
     }
 
@@ -145,7 +148,7 @@ public class V2ModelPersistenceService {
             created.setModelKey(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY);
             created.setDisplayName(AiModelPolicy.REQUIRED_TEXT_MODEL_DISPLAY_NAME);
             created.setProvider("deepseek");
-            created.setCapabilitiesJson(V2Json.write(List.of("chat", "draft_generation", "analysis", "style")));
+            created.setCapabilitiesJson(v2Json.write(List.of("chat", "draft_generation", "analysis", "style")));
             created.setMaxContextTokens(64000);
             created.setMaxOutputTokens(8192);
             created.setCostPer1kInput(BigDecimal.valueOf(0.001));
@@ -172,7 +175,7 @@ public class V2ModelPersistenceService {
         out.put("modelKey", model.getModelKey());
         out.put("displayName", model.getDisplayName());
         out.put("provider", model.getProvider());
-        out.put("capabilities", V2Json.list(model.getCapabilitiesJson()));
+        out.put("capabilities", v2Json.list(model.getCapabilitiesJson()));
         out.put("maxContextTokens", model.getMaxContextTokens());
         out.put("maxOutputTokens", model.getMaxOutputTokens());
         out.put("costPer1kInput", model.getCostPer1kInput());
@@ -192,7 +195,7 @@ public class V2ModelPersistenceService {
         out.put("recommendedModelId", routing.getRecommendedModel().getId());
         out.put("fallbackModelId", routing.getFallbackModel() == null ? null : routing.getFallbackModel().getId());
         out.put("routingStrategy", routing.getRoutingStrategy());
-        out.put("config", V2Json.map(routing.getConfigJson()));
+        out.put("config", v2Json.map(routing.getConfigJson()));
         out.put("createdAt", routing.getCreatedAt());
         out.put("updatedAt", routing.getUpdatedAt());
         return out;

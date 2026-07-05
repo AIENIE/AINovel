@@ -19,13 +19,16 @@ public class V2ContextPersistenceService {
     private final V2LorebookEntryRepository lorebookRepository;
     private final V2EntityExtractionRepository extractionRepository;
     private final V2KnowledgeGraphRelationshipRepository relationshipRepository;
+    private final V2Json v2Json;
 
     public V2ContextPersistenceService(V2LorebookEntryRepository lorebookRepository,
                                        V2EntityExtractionRepository extractionRepository,
-                                       V2KnowledgeGraphRelationshipRepository relationshipRepository) {
+                                       V2KnowledgeGraphRelationshipRepository relationshipRepository,
+                                       V2Json v2Json) {
         this.lorebookRepository = lorebookRepository;
         this.extractionRepository = extractionRepository;
         this.relationshipRepository = relationshipRepository;
+        this.v2Json = v2Json;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +88,7 @@ public class V2ContextPersistenceService {
         extraction.setStory(story);
         extraction.setEntityName(blank(payload.get("entityName"), text.substring(0, Math.min(12, text.length()))));
         extraction.setEntityType(blank(payload.get("entityType"), "concept"));
-        extraction.setAttributesJson(V2Json.write(payload.getOrDefault("attributes", Map.of("source", "ai"))));
+        extraction.setAttributesJson(v2Json.write(payload.getOrDefault("attributes", Map.of("source", "ai"))));
         extraction.setSourceText(text.substring(0, Math.min(text.length(), 200)));
         extraction.setConfidence(doubleVal(payload.get("confidence"), 0.82d));
         extraction.setReviewed(false);
@@ -116,7 +119,7 @@ public class V2ContextPersistenceService {
         entry.setDisplayName(blank(payload.get("displayName"), "未命名条目"));
         entry.setCategory(blank(payload.get("category"), "custom"));
         entry.setContent(blank(payload.get("content"), ""));
-        entry.setKeywordsJson(V2Json.write(list(payload.get("keywords"))));
+        entry.setKeywordsJson(v2Json.write(list(payload.get("keywords"))));
         entry.setPriority(intVal(payload.get("priority"), 0));
         entry.setEnabled(boolVal(payload.get("enabled"), true));
         entry.setInsertionPosition(blank(payload.get("insertionPosition"), "before_scene"));
@@ -137,7 +140,7 @@ public class V2ContextPersistenceService {
         out.put("displayName", entry.getDisplayName());
         out.put("category", entry.getCategory());
         out.put("content", entry.getContent());
-        out.put("keywords", V2Json.list(entry.getKeywordsJson()));
+        out.put("keywords", v2Json.list(entry.getKeywordsJson()));
         out.put("priority", entry.getPriority());
         out.put("enabled", entry.isEnabled());
         out.put("insertionPosition", entry.getInsertionPosition());
@@ -165,7 +168,7 @@ public class V2ContextPersistenceService {
         out.put("manuscriptId", extraction.getManuscript() == null ? null : extraction.getManuscript().getId());
         out.put("entityName", extraction.getEntityName());
         out.put("entityType", extraction.getEntityType());
-        out.put("attributes", V2Json.map(extraction.getAttributesJson()));
+        out.put("attributes", v2Json.map(extraction.getAttributesJson()));
         out.put("sourceText", extraction.getSourceText());
         out.put("confidence", extraction.getConfidence());
         out.put("reviewed", extraction.isReviewed());

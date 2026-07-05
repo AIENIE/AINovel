@@ -29,7 +29,8 @@ public class WorldService {
     private ResourceAccessGuard accessGuard;
     @Autowired
     private PlatformTransactionManager transactionManager;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public List<WorldDefinitionDto> definitions() {
         return List.of(

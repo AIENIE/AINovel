@@ -26,17 +26,20 @@ public class V2WorkspacePersistenceService {
     private final V2WritingGoalRepository goalRepository;
     private final V2KeyboardShortcutRepository shortcutRepository;
     private final AppTimeProvider timeProvider;
+    private final V2Json v2Json;
 
     public V2WorkspacePersistenceService(V2WorkspaceLayoutRepository layoutRepository,
                                          V2WritingSessionRepository sessionRepository,
                                          V2WritingGoalRepository goalRepository,
                                          V2KeyboardShortcutRepository shortcutRepository,
-                                         AppTimeProvider timeProvider) {
+                                         AppTimeProvider timeProvider,
+                                         V2Json v2Json) {
         this.layoutRepository = layoutRepository;
         this.sessionRepository = sessionRepository;
         this.goalRepository = goalRepository;
         this.shortcutRepository = shortcutRepository;
         this.timeProvider = timeProvider;
+        this.v2Json = v2Json;
     }
 
     @Transactional(readOnly = true)
@@ -54,7 +57,7 @@ public class V2WorkspacePersistenceService {
         V2WorkspaceLayout layout = new V2WorkspaceLayout();
         layout.setUser(user);
         layout.setName(str(payload.get("name"), "我的布局"));
-        layout.setLayoutJson(V2Json.write(payload.getOrDefault("layout", Map.of("preset", "writing"))));
+        layout.setLayoutJson(v2Json.write(payload.getOrDefault("layout", Map.of("preset", "writing"))));
         layout.setActive(boolVal(payload.get("isActive"), false));
         return layoutMap(layoutRepository.save(layout));
     }
@@ -63,7 +66,7 @@ public class V2WorkspacePersistenceService {
     public Map<String, Object> updateLayout(User user, UUID id, Map<String, Object> payload) {
         V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new RuntimeException("布局不存在"));
         if (payload.containsKey("name")) layout.setName(str(payload.get("name"), layout.getName()));
-        if (payload.containsKey("layout")) layout.setLayoutJson(V2Json.write(payload.get("layout")));
+        if (payload.containsKey("layout")) layout.setLayoutJson(v2Json.write(payload.get("layout")));
         if (payload.containsKey("isActive") && boolVal(payload.get("isActive"), false)) {
             for (V2WorkspaceLayout existing : layoutRepository.findByUserId(user.getId())) {
                 existing.setActive(false);
@@ -98,7 +101,7 @@ public class V2WorkspacePersistenceService {
         session.setWordsDeleted(intVal(payload.get("wordsDeleted"), 0));
         session.setNetWords(intVal(payload.get("netWords"), 0));
         session.setDurationSeconds(0);
-        session.setChaptersEditedJson(V2Json.write(payload.getOrDefault("chaptersEdited", List.of())));
+        session.setChaptersEditedJson(v2Json.write(payload.getOrDefault("chaptersEdited", List.of())));
         return sessionMap(sessionRepository.save(session));
     }
 
@@ -116,7 +119,7 @@ public class V2WorkspacePersistenceService {
         session.setNetWords(written - deleted);
         session.setDurationSeconds(currentDurationSeconds(session));
         if (payload.containsKey("chaptersEdited")) {
-            session.setChaptersEditedJson(V2Json.write(payload.get("chaptersEdited")));
+            session.setChaptersEditedJson(v2Json.write(payload.get("chaptersEdited")));
         }
         if (end && session.getEndedAt() == null) {
             session.setEndedAt(now());
@@ -205,7 +208,7 @@ public class V2WorkspacePersistenceService {
         out.put("id", layout.getId());
         out.put("userId", layout.getUser().getId());
         out.put("name", layout.getName());
-        out.put("layout", V2Json.map(layout.getLayoutJson()));
+        out.put("layout", v2Json.map(layout.getLayoutJson()));
         out.put("isActive", layout.isActive());
         out.put("createdAt", layout.getCreatedAt());
         out.put("updatedAt", layout.getUpdatedAt());
@@ -223,7 +226,7 @@ public class V2WorkspacePersistenceService {
         out.put("wordsDeleted", session.getWordsDeleted());
         out.put("netWords", session.getNetWords());
         out.put("durationSeconds", session.getDurationSeconds());
-        out.put("chaptersEdited", V2Json.list(session.getChaptersEditedJson()));
+        out.put("chaptersEdited", v2Json.list(session.getChaptersEditedJson()));
         return out;
     }
 
