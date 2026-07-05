@@ -38,7 +38,8 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
 import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
-import { ShortcutAction, ShortcutMap, DEFAULT_SHORTCUTS, detectShortcutConflicts, matchesShortcut, isEditableTarget } from "@/lib/shortcuts";
+import { ShortcutAction } from "@/lib/shortcuts";
+import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ContextMenu,
@@ -212,8 +213,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const [isSlopBusy, setIsSlopBusy] = useState(false);
   const [isPlotBusy, setIsPlotBusy] = useState(false);
   const [isPlotRevisionBusy, setIsPlotRevisionBusy] = useState(false);
-  const [shortcuts, setShortcuts] = useState<ShortcutMap>(DEFAULT_SHORTCUTS);
-  const [shortcutConflicts, setShortcutConflicts] = useState<Array<{ shortcut: string; actions: string[] }>>([]);
   const [characters, setCharacters] = useState<any[]>([]);
   const [contextPreview, setContextPreview] = useState<any>(null);
   const [versions, setVersions] = useState<any[]>([]);
@@ -441,25 +440,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     [outlineDraft, persistOutlineDraft],
   );
 
-  const loadShortcuts = useCallback(async () => {
-    try {
-      const list = await api.v2.workspace.listShortcuts();
-      const merged: ShortcutMap = { ...DEFAULT_SHORTCUTS };
-      list.forEach((item: any) => {
-        const action = String(item.action || "") as ShortcutAction;
-        const shortcut = String(item.shortcut || "");
-        if (action && shortcut && action in merged) {
-          merged[action] = shortcut;
-        }
-      });
-      setShortcuts(merged);
-      setShortcutConflicts(detectShortcutConflicts(Object.entries(merged).map(([action, shortcut]) => ({ action, shortcut }))));
-    } catch {
-      setShortcuts(DEFAULT_SHORTCUTS);
-      setShortcutConflicts([]);
-    }
-  }, []);
-
   const loadGoals = useCallback(async () => {
     try {
       setGoals(await api.v2.workspace.listGoals());
@@ -493,19 +473,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
   useEffect(() => {
     void loadStories();
-    void loadShortcuts();
     void loadGoals();
-  }, [loadGoals, loadShortcuts, loadStories]);
+  }, [loadGoals, loadStories]);
 
   useEffect(() => {
     void loadCharacters();
   }, [loadCharacters]);
-
-  useEffect(() => {
-    const handle = () => void loadShortcuts();
-    window.addEventListener("ainovel-shortcuts-updated", handle as EventListener);
-    return () => window.removeEventListener("ainovel-shortcuts-updated", handle as EventListener);
-  }, [loadShortcuts]);
 
   useEffect(() => {
     if (!selectedStoryId) return;
@@ -833,24 +806,11 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     if (action === "next_tab") focusNextTab();
   }, [closeCurrentTab, createSceneInCurrentChapter, focusNextTab, handleManualSave, jumpScene, toggleFocusMode]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && focusMode) {
-        event.preventDefault();
-        exitFocusMode();
-        return;
-      }
-      const matched = (Object.keys(shortcuts) as ShortcutAction[]).find((action) => matchesShortcut(event, shortcuts[action]));
-      if (!matched) return;
-      if (matched === "undo" || matched === "redo") return;
-      const inProseMirror = event.target instanceof HTMLElement && Boolean(event.target.closest(".ProseMirror"));
-      if (isEditableTarget(event.target) && !inProseMirror && !["save", "focus_mode", "command_palette"].includes(matched)) return;
-      event.preventDefault();
-      handleShortcutAction(matched);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [exitFocusMode, focusMode, handleShortcutAction, shortcuts]);
+  const { shortcuts } = useManuscriptShortcuts({
+    focusMode,
+    onAction: handleShortcutAction,
+    onExitFocusMode: exitFocusMode,
+  });
 
   useEffect(() => {
     const selectionHandler = () => setSelectedWordCount(countWords(window.getSelection()?.toString() || ""));
