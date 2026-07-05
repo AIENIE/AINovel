@@ -15,7 +15,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import React from "react";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { showError, showSuccess } from "@/utils/toast";
 
 // 定义指令列表

@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { Manuscript, Outline, PlotQualityRun, PlotQualityTrend, SlopQualityRun, Story } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { ShortcutAction, ShortcutMap, DEFAULT_SHORTCUTS, detectShortcutConflicts, matchesShortcut, isEditableTarget } from "@/lib/shortcuts";

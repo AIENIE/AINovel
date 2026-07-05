@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 
 const GENRES = [
   { value: "fantasy", label: "奇幻 / 魔法" },

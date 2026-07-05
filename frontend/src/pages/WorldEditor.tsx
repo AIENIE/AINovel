@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { WorldDetail, WorldModuleDefinition } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Save, UploadCloud } from "lucide-react";

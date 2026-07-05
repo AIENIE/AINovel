@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { showError, showSuccess } from "@/utils/toast";
 

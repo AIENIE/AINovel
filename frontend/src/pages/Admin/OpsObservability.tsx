@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Activity, AlertTriangle, Bell, ClipboardList, Database, RefreshCcw, ServerCog, ShieldCheck } from "lucide-react";

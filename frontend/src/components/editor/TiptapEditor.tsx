@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { showSuccess, showError } from "@/utils/toast";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AiRefineDialog from "@/components/ai/AiRefineDialog";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface TiptapEditorProps {

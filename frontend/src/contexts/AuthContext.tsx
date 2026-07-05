@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 
 interface AuthContextType {
   user: User | null;

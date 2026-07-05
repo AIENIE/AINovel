@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { adminSession, api } from "@/lib/mock-api";
+import { adminSession, api } from "@/lib/api-client";
 
 // Layouts
 import AppLayout from "@/components/layout/AppLayout";

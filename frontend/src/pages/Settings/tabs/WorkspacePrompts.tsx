@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { PromptMetadata, PromptTemplates } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { PromptMetadata } from "@/types";
 
 const PromptHelpPage = () => {

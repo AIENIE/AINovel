@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { UploadCloud, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { FileImportJob } from "@/types";
 

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { adminSession, api } from "@/lib/mock-api";
+import { adminSession, api } from "@/lib/api-client";
 
 const navItems = [
   { title: "运营概览", href: "/admin/dashboard", icon: LayoutDashboard },

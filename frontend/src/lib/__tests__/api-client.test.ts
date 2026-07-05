@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 
-describe("mock api", () => {
+describe("api client", () => {
   beforeEach(() => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {

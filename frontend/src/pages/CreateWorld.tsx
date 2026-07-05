@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Globe } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 
 const CreateWorld = () => {
   const navigate = useNavigate();

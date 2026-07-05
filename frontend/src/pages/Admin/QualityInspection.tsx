@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";

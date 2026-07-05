@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/mock-api";
+import { api } from "@/lib/api-client";
 import { AdminDashboardStats } from "@/types";
 import { Users, Zap, AlertTriangle, FileClock, BookOpen, Globe2, ScrollText, ShieldAlert } from "lucide-react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPanel, adminPanelClass } from "./components/AdminChrome";
