@@ -70,12 +70,12 @@ app:
     security:
       fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
       ai:
-        hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:${APP_EXTERNAL_AI_HMAC_CALLER:}}
-        hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:${APP_EXTERNAL_AI_HMAC_SECRET:}}
+        hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}
+        hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}
       user:
-        internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:${APP_EXTERNAL_USER_INTERNAL_TOKEN:}}
+        internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:}
       pay:
-        service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:${APP_EXTERNAL_PAY_SERVICE_JWT:}}
+        service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:}
         jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}
         jwt-audience: ${EXTERNAL_PAY_JWT_AUDIENCE:aienie-payservice-grpc}
         required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}

@@ -30,8 +30,8 @@
 - 时间与鉴权：
   - `APP_TIME_ZONE=Asia/Shanghai`
   - `JWT_SECRET`（至少 32 字节，不可占位值）
-- hosts 行为：
-  - `PIN_UPSTREAM_SERVICES_TO_LOCALHOST=false`（默认不强制把 userservice/payservice/aiservice 写到 `127.0.0.1`）
+- 上游三服务地址：
+  - `USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR` 直接决定 userservice / payservice / aiservice 的连通目标；如需切换环境，请直接覆盖这些地址。
 - JPA DDL：
   - `SPRING_JPA_HIBERNATE_DDL_AUTO=none`（本地部署默认关闭自动 DDL，结构变更以 `backend/sql/schema.sql` 为准）
 
