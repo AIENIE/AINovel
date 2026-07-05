@@ -3,12 +3,10 @@ import type { ImperativePanelHandle } from "react-resizable-panels";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import {
   Save,
@@ -18,13 +16,10 @@ import {
   Sparkles,
   Loader2,
   X,
-  ChevronDown,
-  ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
   Focus,
   Download,
-  GripVertical,
 } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { cn } from "@/lib/utils";
@@ -36,18 +31,13 @@ import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbe
 import { useManuscriptShortcuts } from "@/pages/Workbench/hooks/useManuscriptShortcuts";
 import { useWorkbenchViewport } from "@/pages/Workbench/hooks/useWorkbenchViewport";
 import { useWritingSession } from "@/pages/Workbench/hooks/useWritingSession";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { PlotSidebarPanel } from "./manuscript-writer/PlotSidebarPanel";
 import { VersionSidebarPanel } from "./manuscript-writer/VersionSidebarPanel";
 import { ContextSidebarPanel } from "./manuscript-writer/ContextSidebarPanel";
 import { ExportSidebarPanel } from "./manuscript-writer/ExportSidebarPanel";
 import { StatsSidebarPanel } from "./manuscript-writer/StatsSidebarPanel";
 import { GoalsSidebarPanel } from "./manuscript-writer/GoalsSidebarPanel";
+import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
 import {
   countWords,
   formatDateTime,
@@ -1125,6 +1115,25 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
   };
 
+  const toggleChapterExpanded = useCallback((chapterId: string) => {
+    setExpandedChapterIds((prev) => ({ ...prev, [chapterId]: !prev[chapterId] }));
+  }, []);
+
+  const deleteSceneFromOutline = useCallback(
+    async (sceneId: string, chapterId: string) => {
+      if (!outlineDraft) return;
+      const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
+      const targetChapter = nextOutline.chapters.find((item) => item.id === chapterId);
+      if (!targetChapter) return;
+      targetChapter.scenes = targetChapter.scenes.filter((item) => item.id !== sceneId);
+      setOutlineDraft(nextOutline);
+      setOpenSceneIds((prev) => prev.filter((id) => id !== sceneId));
+      if (selectedSceneId === sceneId) setSelectedSceneId("");
+      await persistOutlineDraft(nextOutline);
+    },
+    [outlineDraft, persistOutlineDraft, selectedSceneId],
+  );
+
   const batchDeleteScenes = async () => {
     if (!outlineDraft || !selectedSceneIds.length) return;
     const ok = window.confirm(`确认删除已选 ${selectedSceneIds.length} 个场景？`);
@@ -1303,157 +1312,49 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             maxSize={35}
             onResize={(size) => setLeftPanelSize(Math.round(size))}
           >
-              <div className={cn("h-full flex flex-col gap-2 border-r pr-2", !showLeftPanel && "invisible")}>
-                <div className="px-2 pt-2 space-y-2">
-                  <Select value={selectedStoryId} onValueChange={setSelectedStoryId}>
-                    <SelectTrigger><SelectValue placeholder="选择故事" /></SelectTrigger>
-                    <SelectContent>{stories.map((s) => <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}>
-                    <SelectTrigger><SelectValue placeholder="选择大纲" /></SelectTrigger>
-                    <SelectContent>{outlines.map((o) => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select value={selectedManuscriptId} onValueChange={setSelectedManuscriptId} disabled={!selectedOutlineId}>
-                    <SelectTrigger><SelectValue placeholder="选择稿件" /></SelectTrigger>
-                    <SelectContent>{manuscripts.map((m) => <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                {selectedSceneIds.length > 1 && (
-                  <div className="px-2 py-2 border-y bg-muted/40 text-xs space-y-2">
-                    <div className="text-muted-foreground">已多选 {selectedSceneIds.length} 个场景</div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" variant="outline" className="h-7" onClick={() => { setIsSidebarOpen(true); setSidebarTab("export"); }}>
-                        批量导出
-                      </Button>
-                      <Select value={batchMoveChapterId} onValueChange={setBatchMoveChapterId}>
-                        <SelectTrigger className="h-7 w-[130px]">
-                          <SelectValue placeholder="目标章节" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {chapters.map((chapter, index) => (
-                            <SelectItem key={chapter.id} value={chapter.id}>{`第${index + 1}章`}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" variant="outline" className="h-7" onClick={() => void batchMoveScenes()}>
-                        批量移动
-                      </Button>
-                      <Button size="sm" variant="destructive" className="h-7" onClick={() => void batchDeleteScenes()}>
-                        批量删除
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <ScrollArea className="flex-1 mt-1">
-                  {(outlineDraft?.chapters || []).map((chapter, ci) => (
-                    <div
-                      key={chapter.id}
-                      className={cn(
-                        "px-2 pb-1 rounded-md",
-                        dragOverChapterId === chapter.id && draggingChapterId !== chapter.id ? "border border-dashed border-primary" : "",
-                      )}
-                      onDragOver={(event) => {
-                        if (!draggingChapterId || draggingChapterId === chapter.id) return;
-                        event.preventDefault();
-                        setDragOverChapterId(chapter.id);
-                      }}
-                      onDrop={(event) => {
-                        if (!draggingChapterId) return;
-                        event.preventDefault();
-                        void moveChapter(draggingChapterId, chapter.id);
-                        setDraggingChapterId("");
-                        setDragOverChapterId("");
-                      }}
-                    >
-                      <button
-                        type="button"
-                        draggable
-                        onDragStart={() => setDraggingChapterId(chapter.id)}
-                        onDragEnd={() => {
-                          setDraggingChapterId("");
-                          setDragOverChapterId("");
-                        }}
-                        className="w-full text-left text-xs font-semibold text-muted-foreground flex items-center gap-1"
-                        onClick={() => setExpandedChapterIds((prev) => ({ ...prev, [chapter.id]: !prev[chapter.id] }))}
-                      >
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/70" />
-                        {expandedChapterIds[chapter.id] === false ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        {`第${ci + 1}章 ${chapter.title}`}
-                      </button>
-                      {expandedChapterIds[chapter.id] !== false && (
-                        <div className="space-y-1 mt-1">
-                          {chapter.scenes.map((scene, si) => {
-                            const selected = selectedSceneIds.includes(scene.id);
-                            const active = selectedSceneId === scene.id;
-                            const row = sceneMap[scene.id];
-                            return (
-                              <ContextMenu key={scene.id}>
-                                <ContextMenuTrigger asChild>
-                                  <button
-                                    type="button"
-                                    draggable
-                                    onDragStart={() => setDraggingSceneId(scene.id)}
-                                    onDragOver={(event) => {
-                                      event.preventDefault();
-                                      setDragOverSceneId(scene.id);
-                                    }}
-                                    onDrop={(event) => {
-                                      event.preventDefault();
-                                      void moveScene(draggingSceneId, scene.id);
-                                      setDraggingSceneId("");
-                                      setDragOverSceneId("");
-                                    }}
-                                    onDragEnd={() => {
-                                      setDraggingSceneId("");
-                                      setDragOverSceneId("");
-                                    }}
-                                    className={cn(
-                                      "w-full rounded-md border px-2 py-1 text-left text-sm flex items-center gap-2",
-                                      active ? "bg-secondary border-primary/40" : "hover:bg-muted",
-                                      dragOverSceneId === scene.id && draggingSceneId !== scene.id ? "border-primary border-dashed" : "",
-                                    )}
-                                    onClick={(event) => handleSceneSelect(scene.id, event)}
-                                  >
-                                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground/70" />
-                                    <Checkbox checked={selected} onCheckedChange={() => handleSceneSelect(scene.id)} />
-                                    <span className={cn("h-2 w-2 rounded-full", sceneStatusClass[sceneStatuses[scene.id] || "todo"])} />
-                                    <span className="text-xs text-muted-foreground">{`Sc.${si + 1}`}</span>
-                                    <span className="truncate">{scene.title}</span>
-                                    {dirtyScenes[scene.id] && <span className="h-2 w-2 rounded-full bg-amber-500 ml-auto" />}
-                                  </button>
-                                </ContextMenuTrigger>
-                                <ContextMenuContent className="w-40">
-                                  <ContextMenuItem onClick={() => handleSceneSelect(scene.id)}>打开场景</ContextMenuItem>
-                                  <ContextMenuItem onClick={() => setSceneStatus(scene.id, "todo")}>标记为待写</ContextMenuItem>
-                                  <ContextMenuItem onClick={() => setSceneStatus(scene.id, "in_progress")}>标记为进行中</ContextMenuItem>
-                                  <ContextMenuItem onClick={() => setSceneStatus(scene.id, "done")}>标记为已完成</ContextMenuItem>
-                                  <ContextMenuItem
-                                    onClick={() => {
-                                      if (!row) return;
-                                      const nextOutline = JSON.parse(JSON.stringify(outlineDraft)) as Outline;
-                                      const targetChapter = nextOutline.chapters.find((item) => item.id === row.chapterId);
-                                      if (!targetChapter) return;
-                                      targetChapter.scenes = targetChapter.scenes.filter((item) => item.id !== scene.id);
-                                      setOutlineDraft(nextOutline);
-                                      setOpenSceneIds((prev) => prev.filter((id) => id !== scene.id));
-                                      if (selectedSceneId === scene.id) setSelectedSceneId("");
-                                      void persistOutlineDraft(nextOutline);
-                                    }}
-                                  >
-                                    删除场景
-                                  </ContextMenuItem>
-                                </ContextMenuContent>
-                              </ContextMenu>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </ScrollArea>
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle className={cn(!showLeftPanel && "pointer-events-none opacity-0")} />
+            <SceneOutlinePanel
+              batchMoveChapterId={batchMoveChapterId}
+              chapters={chapters}
+              dirtyScenes={dirtyScenes}
+              dragOverChapterId={dragOverChapterId}
+              dragOverSceneId={dragOverSceneId}
+              draggingChapterId={draggingChapterId}
+              draggingSceneId={draggingSceneId}
+              expandedChapterIds={expandedChapterIds}
+              manuscripts={manuscripts}
+              onBatchDeleteScenes={batchDeleteScenes}
+              onBatchMoveScenes={batchMoveScenes}
+              onDeleteScene={deleteSceneFromOutline}
+              onHandleSceneSelect={handleSceneSelect}
+              onMoveChapter={moveChapter}
+              onMoveScene={moveScene}
+              onOpenBatchExport={() => {
+                setIsSidebarOpen(true);
+                setSidebarTab("export");
+              }}
+              onSelectManuscript={setSelectedManuscriptId}
+              onSelectOutline={setSelectedOutlineId}
+              onSelectStory={setSelectedStoryId}
+              onSetBatchMoveChapterId={setBatchMoveChapterId}
+              onSetDragOverChapterId={setDragOverChapterId}
+              onSetDragOverSceneId={setDragOverSceneId}
+              onSetDraggingChapterId={setDraggingChapterId}
+              onSetDraggingSceneId={setDraggingSceneId}
+              onSetSceneStatus={setSceneStatus}
+              onToggleChapterExpanded={toggleChapterExpanded}
+              outlines={outlines}
+              sceneStatusClass={sceneStatusClass}
+              sceneStatuses={sceneStatuses}
+              selectedManuscriptId={selectedManuscriptId}
+              selectedOutlineId={selectedOutlineId}
+              selectedSceneId={selectedSceneId}
+              selectedSceneIds={selectedSceneIds}
+              selectedStoryId={selectedStoryId}
+              showLeftPanel={showLeftPanel}
+              stories={stories}
+            />
+          </ResizablePanel>
+          <ResizableHandle withHandle className={cn(!showLeftPanel && "pointer-events-none opacity-0")} />
 
         <ResizablePanel minSize={35}>
           <div className="h-full flex flex-col min-w-0 transition-all duration-300">
