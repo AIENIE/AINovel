@@ -64,14 +64,15 @@ bash build.sh
   - `EXTERNAL_GRPC_TLS_ENABLED=true`
   - `EXTERNAL_GRPC_PLAINTEXT_ENABLED=false`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
-- JPA：本地部署默认 `SPRING_JPA_HIBERNATE_DDL_AUTO=none`，数据库结构以 `backend/sql/schema.sql` 和显式变更为准，避免启动期扫描全库元数据。
+- JPA：本地部署默认 `SPRING_JPA_HIBERNATE_DDL_AUTO=none`；数据库结构以 `backend/src/main/resources/db/migration/V1__baseline.sql` 与后续 `V{n}__*.sql` 迁移为准，避免启动期扫描全库元数据。
 
 ## 目录说明
 
 - `frontend/`：前端代码
 - `backend/`：后端代码
 - `backend/.vscode/*`：后端宿主机 F5 调试配置。
-- `backend/sql/schema.sql`：数据库结构参考脚本
+- `backend/src/main/resources/db/migration/`：数据库结构基线与后续迁移脚本
+- `backend/sql/schema.sql`：历史入口说明文件，指向当前 Flyway 迁移源
 - `doc/`：项目文档、API 文档、测试记录
 - `design-doc/`：设计与规划文档
 - `build.sh`：Docker Compose 构建与部署入口

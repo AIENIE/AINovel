@@ -7,7 +7,7 @@ import { useWritingSession } from "./useWritingSession";
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type UseManuscriptEditorStateOptions = {
@@ -100,7 +100,9 @@ export function useManuscriptEditorState({
     (sceneId: string, html: string) => {
       if (!selectedManuscriptId || !sceneId) return;
       if (saveTimer.current[sceneId]) window.clearTimeout(saveTimer.current[sceneId]);
-      saveTimer.current[sceneId] = window.setTimeout(() => void persistSection(sceneId, html, true), 1200);
+      saveTimer.current[sceneId] = window.setTimeout(() => {
+        void persistSection(sceneId, html, true);
+      }, 1200);
     },
     [persistSection, selectedManuscriptId],
   );

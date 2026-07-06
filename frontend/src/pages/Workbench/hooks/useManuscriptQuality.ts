@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Manuscript, PlotQualityRun, PlotQualityTrend, SlopQualityRun } from "@/types";
+import type { Manuscript } from "@/types";
 import { api } from "@/lib/api-client";
 import { plotStatusText, qualityStatusText, slopRewriteTaskTitle } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
@@ -8,7 +8,7 @@ import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type UseManuscriptQualityOptions = {

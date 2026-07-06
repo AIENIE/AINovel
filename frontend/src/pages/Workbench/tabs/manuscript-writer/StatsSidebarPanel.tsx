@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type StatsSidebarPanelProps = {
   dailyHeatmap: any[];
-  onRefresh: () => Promise<void> | void;
+  onRefresh: () => Promise<unknown> | void;
   workspaceStats: any;
 };
 

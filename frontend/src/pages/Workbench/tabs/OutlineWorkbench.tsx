@@ -44,7 +44,7 @@ const sceneDefaults = (twistId = ""): ScenePlanning => ({
 const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState("");
-  const [outlines, setOutlines] = useState<Outline[]>([]);
+  const [, setOutlines] = useState<Outline[]>([]);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null);
   const [title, setTitle] = useState("");
@@ -186,7 +186,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
 
   const handleAddChapter = () => {
     if (!selectedOutline) return;
-    const nextChapter = {
+    const nextChapter: Outline["chapters"][number] = {
       id: ensureUuid(),
       title: "新章节",
       summary: "",

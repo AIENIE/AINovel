@@ -88,7 +88,7 @@ export function useWritingSession({
         setSessionWordsWritten(Number(session.wordsWritten || 0));
         setSessionWordsDeleted(Number(session.wordsDeleted || 0));
       })
-      .catch(() => undefined);
+      .catch(() => {});
 
     return () => {
       if (!sessionIdRef.current) return;
@@ -134,7 +134,7 @@ export function useWritingSession({
         snapshotType: "auto",
         label: `auto-${new Date().toLocaleTimeString()}`,
       })
-      .catch(() => undefined);
+      .catch(() => {});
   }, [autoSaveIntervalSeconds, selectedManuscriptId, selectedSceneDirty, selectedSceneId, tick]);
 
   return {

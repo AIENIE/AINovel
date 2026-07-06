@@ -32,6 +32,7 @@ describe("useManuscriptEditorState", () => {
         replaceManuscript,
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
+        selectedStoryId: "story-1",
         toast: vi.fn(),
       }),
     );
@@ -66,6 +67,7 @@ describe("useManuscriptEditorState", () => {
         replaceManuscript: vi.fn(),
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
+        selectedStoryId: "story-1",
         toast: vi.fn(),
       }),
     );

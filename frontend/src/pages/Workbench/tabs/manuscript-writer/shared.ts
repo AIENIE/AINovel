@@ -94,7 +94,10 @@ export const versionWordCount = (version: any) => {
   try {
     const sections = typeof version?.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version?.sectionsJson;
     if (!sections || typeof sections !== "object") return 0;
-    return Object.values(sections).reduce((total, scene) => total + countWords(stripHtml(String(scene || ""))), 0);
+    return Object.values(sections as Record<string, unknown>).reduce<number>(
+      (total, scene) => total + countWords(stripHtml(String(scene || ""))),
+      0,
+    );
   } catch {
     return 0;
   }

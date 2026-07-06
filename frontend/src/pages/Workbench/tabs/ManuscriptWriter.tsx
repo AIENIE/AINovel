@@ -31,6 +31,7 @@ const sceneStatusClass: Record<SceneStatus, string> = {
 
 const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   const { toast } = useToast();
+  const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState<number | null>(null);
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
   const [draggingChapterId, setDraggingChapterId] = useState("");
   const [dragOverChapterId, setDragOverChapterId] = useState("");
@@ -110,7 +111,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     sessionNetWords,
     setContent,
   } = useManuscriptEditorState({
-    autoSaveIntervalSeconds: autoSaveConfig?.autoSaveIntervalSeconds,
+    autoSaveIntervalSeconds,
     replaceManuscript,
     selectedManuscript,
     selectedManuscriptId,
@@ -198,6 +199,10 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     sidebarTab,
     toast,
   });
+
+  useEffect(() => {
+    setAutoSaveIntervalSeconds(autoSaveConfig?.autoSaveIntervalSeconds ?? null);
+  }, [autoSaveConfig]);
 
   const activeGoal = goals.find((goal) => String(goal.status || "active").toLowerCase() !== "archived");
   const dailyHeatmap = useMemo(() => (workspaceStats?.dailySeries || []).slice(-30), [workspaceStats]);

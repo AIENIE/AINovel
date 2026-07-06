@@ -32,6 +32,16 @@ class ExternalServiceApplicationYamlTests {
         assertFalse(yaml.contains("APP_EXTERNAL_PAY_SERVICE_JWT"));
     }
 
+    @Test
+    void shouldKeepFlywayGovernanceEnabledByDefault() throws IOException {
+        String yaml = applicationYaml();
+
+        assertTrue(yaml.contains("enabled: ${SPRING_FLYWAY_ENABLED:true}"));
+        assertTrue(yaml.contains("locations: classpath:db/migration"));
+        assertTrue(yaml.contains("clean-disabled: true"));
+        assertTrue(yaml.contains("baseline-on-migrate: false"));
+    }
+
     private String applicationYaml() throws IOException {
         return Files.readString(Path.of("src/main/resources/application.yml"), StandardCharsets.UTF_8);
     }

@@ -1,16 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  Heading1, 
-  Heading2, 
-  Heading3, 
-  List, 
-  ListOrdered, 
-  Quote, 
-  Sparkles, 
-  User,
-  Image as ImageIcon
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface SlashCommandItem {

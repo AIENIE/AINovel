@@ -33,7 +33,7 @@
 - 上游三服务地址：
   - `USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR` 直接决定 userservice / payservice / aiservice 的连通目标；如需切换环境，请直接覆盖这些地址。
 - JPA DDL：
-  - `SPRING_JPA_HIBERNATE_DDL_AUTO=none`（本地部署默认关闭自动 DDL，结构变更以 `backend/sql/schema.sql` 为准）
+  - `SPRING_JPA_HIBERNATE_DDL_AUTO=none`（本地部署默认关闭自动 DDL，结构变更以 `backend/src/main/resources/db/migration/` 下的版本化迁移为准）
 
 ## 3. 一键部署（推荐）
 
@@ -61,6 +61,18 @@ sudo -E bash build.sh
 部署前请先确保 `env.txt` 中配置的 MySQL、Redis、Qdrant 已经可达。
 
 > `build.sh` 只执行 Docker Compose 构建与部署，不拉起本机 MySQL / Redis / Qdrant 容器，也不做依赖连通性检查。
+
+> 若数据库已在引入 Flyway 前建好且尚无 `flyway_schema_history`，首次升级前需执行一次 baseline：
+>
+> ```bash
+> mvn -q -f backend/pom.xml \
+>   -Dflyway.url=jdbc:mysql://<host>:<port>/<db> \
+>   -Dflyway.user=<user> \
+>   -Dflyway.password=<password> \
+>   flyway:baseline
+> ```
+>
+> 之后所有结构变更必须新增 `src/main/resources/db/migration/V{n}__*.sql`，不再直接追加 `backend/sql/schema.sql`。
 
 > 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请显式传入配置文件：
 >

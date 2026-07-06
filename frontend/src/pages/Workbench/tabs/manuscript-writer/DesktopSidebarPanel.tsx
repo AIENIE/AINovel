@@ -46,10 +46,10 @@ type DesktopSidebarPanelProps = {
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
   isSlopBusy: boolean;
-  loadContextPreview: () => Promise<void> | void;
-  loadPlotQuality: () => Promise<void> | void;
-  loadStats: () => Promise<void> | void;
-  loadVersions: () => Promise<void> | void;
+  loadContextPreview: () => Promise<unknown> | void;
+  loadPlotQuality: () => Promise<unknown> | void;
+  loadStats: () => Promise<unknown> | void;
+  loadVersions: () => Promise<unknown> | void;
   mergeBranchId: string;
   mergeConflicts: any[];
   mergeSelectedBranch: (resolutions?: Record<string, "target" | "source">) => Promise<void> | void;

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { Manuscript, Outline, Story } from "@/types";
+import type { Manuscript, Outline } from "@/types";
 
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type SceneSelectEvent = Pick<MouseEvent<HTMLElement>, "ctrlKey" | "metaKey" | "shiftKey">;

@@ -97,8 +97,8 @@ const emptyVoiceForm = {
   characterCardId: "",
   speechPattern: "",
   vocabularyLevel: "colloquial",
-  catchphrases: [],
-  emotionalRange: [],
+  catchphrases: [] as string[],
+  emotionalRange: [] as string[],
   dialect: "",
   sampleDialogues: [] as DialogueSample[],
 };

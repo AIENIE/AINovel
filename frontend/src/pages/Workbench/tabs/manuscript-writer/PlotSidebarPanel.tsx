@@ -23,7 +23,7 @@ type PlotSidebarPanelProps = {
   onApplyPlotRevision: () => Promise<void> | void;
   onCopySlopRewriteTask: (task: any, index: number) => Promise<void> | void;
   onGeneratePlotRevisionCandidate: () => Promise<void> | void;
-  onRefreshPlotQuality: () => Promise<void> | void;
+  onRefreshPlotQuality: () => Promise<unknown> | void;
   onRunPlotDiagnosis: () => Promise<void> | void;
   onRunSlopDiagnosis: () => Promise<void> | void;
   plotDimensionEntries: Array<[string, number]>;

@@ -58,7 +58,7 @@ const QualityInspection = () => {
     .filter((run) => matchesAdminSearch(run, search))
     .filter((run) => {
       if (filter === "open") return !run.resolved;
-      if (filter === "high") return Number(run.overallRiskScore ?? 0) >= 70 || ["BLOCKING", "HIGH"].includes(run.maxSeverity);
+      if (filter === "high") return Number(run.overallRiskScore ?? 0) >= 70 || ["BLOCKING", "HIGH"].includes(run.maxSeverity ?? "");
       return true;
     });
   const pageCount = pageCountFor(filteredRuns.length, 10);
@@ -103,7 +103,7 @@ const QualityInspection = () => {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className="border-zinc-700 text-zinc-400">{run.kind}</Badge>
-                      <Badge variant="outline" className={severityClass(run.maxSeverity)}>{run.maxSeverity || "UNKNOWN"}</Badge>
+                      <Badge variant="outline" className={severityClass(run.maxSeverity ?? "UNKNOWN")}>{run.maxSeverity || "UNKNOWN"}</Badge>
                       <span className="text-sm text-zinc-500">风险分 {run.overallRiskScore}</span>
                     </div>
                     <div className="font-medium mt-2">{run.sceneTitle || run.chapterTitle || run.summary || run.id}</div>

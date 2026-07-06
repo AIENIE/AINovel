@@ -18,7 +18,7 @@
 - `frontend/src/pages/Admin/Login.tsx`：管理员本地账密登录页（`/admin/login`）。
 - `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（兑换码、通用转专属、兑换历史、积分流水）。
 - `frontend/src/pages/Admin/*`：管理后台页面。
-- `frontend/src/lib/mock-api.ts`：统一 API 请求层。
+- `frontend/src/lib/api-client.ts`：统一 API 请求层。
 
 ## backend 目录
 
@@ -37,4 +37,5 @@
 - `backend/src/main/java/com/ainovel/app/user/*`：用户中心接口。
 - `backend/src/main/java/com/ainovel/app/admin/*`：管理端接口。
 - `backend/src/main/proto/*`：ai/user/pay gRPC 协议。
-- `backend/sql/schema.sql`：数据库结构参考。
+- `backend/src/main/resources/db/migration/`：数据库结构基线与增量迁移。
+- `backend/sql/schema.sql`：历史入口说明文件，指向当前 Flyway 迁移源。

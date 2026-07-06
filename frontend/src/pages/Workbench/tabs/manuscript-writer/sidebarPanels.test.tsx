@@ -11,15 +11,15 @@ import { StatsSidebarPanel } from "./StatsSidebarPanel";
 import { VersionSidebarPanel } from "./VersionSidebarPanel";
 
 vi.mock("recharts", () => {
-  const Wrapper = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
+  const Wrapper = ({ children }: { children?: ReactNode }): JSX.Element => <div>{children}</div>;
   return {
     ResponsiveContainer: Wrapper,
     LineChart: Wrapper,
-    CartesianGrid: () => null,
-    XAxis: () => null,
-    YAxis: () => null,
-    Tooltip: () => null,
-    Line: () => null,
+    CartesianGrid: (): null => null,
+    XAxis: (): null => null,
+    YAxis: (): null => null,
+    Tooltip: (): null => null,
+    Line: (): null => null,
   };
 });
 

@@ -11,9 +11,7 @@ import {
   Bold, 
   Italic, 
   Strikethrough, 
-  Sparkles, 
-  Wand2,
-  Highlighter
+  Sparkles
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { showSuccess, showError } from "@/utils/toast";

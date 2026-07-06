@@ -6,7 +6,7 @@ import type { Outline } from "@/types";
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type SceneRow = {

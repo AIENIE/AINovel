@@ -59,9 +59,9 @@ const AnalysisDashboard = () => {
       api.v2.analysis.listReports(targetStoryId),
       api.v2.analysis.listIssues(targetStoryId),
     ]);
-    setJobs(jobList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    setReports(reportList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    setIssues(issueList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setJobs(jobList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
+    setReports(reportList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
+    setIssues(issueList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
     if (!selectedReportId && reportList[0]) {
       setSelectedReportId(reportList[0].id);
     }
@@ -553,7 +553,7 @@ const AnalysisDashboard = () => {
               <SelectContent>
                 {reports.map((report) => (
                   <SelectItem key={report.id} value={report.id}>
-                    {`${report.scope || "scope"} · ${new Date(report.createdAt).toLocaleString()}`}
+                    {`${report.scope || "scope"} · ${report.createdAt ? new Date(report.createdAt).toLocaleString() : "未知时间"}`}
                   </SelectItem>
                 ))}
               </SelectContent>

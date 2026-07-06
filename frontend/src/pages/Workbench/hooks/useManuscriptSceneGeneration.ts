@@ -6,11 +6,11 @@ import { qualityStatusText } from "@/pages/Workbench/tabs/manuscript-writer/shar
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type UseManuscriptSceneGenerationOptions = {
-  loadPlotQuality: (sceneId?: string, manuscriptId?: string) => Promise<unknown>;
+  loadPlotQuality: (sceneId?: string, manuscriptId?: string) => Promise<{ run: unknown; trend: unknown }>;
   loadSlopQuality: (sceneId?: string, manuscriptId?: string) => Promise<unknown>;
   replaceManuscript: (manuscript: Manuscript) => void;
   selectedManuscriptId: string;
@@ -38,8 +38,8 @@ export function useManuscriptSceneGeneration({
       const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
       replaceManuscript(saved);
       setContent(saved.sections?.[sceneId] || "");
-      const latestRun = await loadSlopQuality(sceneId, saved.id).catch(() => null);
-      await loadPlotQuality(sceneId, saved.id).catch(() => ({ run: null, trend: null }));
+      const latestRun = await loadSlopQuality(sceneId, saved.id).catch((): null => null);
+      await loadPlotQuality(sceneId, saved.id).catch((): { run: null; trend: null } => ({ run: null, trend: null }));
       toast({
         title: "已生成场景正文",
         description: qualityStatusText(latestRun as any),

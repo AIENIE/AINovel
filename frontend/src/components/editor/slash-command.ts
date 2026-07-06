@@ -11,8 +11,7 @@ import {
   ListOrdered, 
   Quote, 
   Sparkles, 
-  User,
-  Image as ImageIcon
+  User
 } from "lucide-react";
 import React from "react";
 import { api } from "@/lib/api-client";
@@ -185,7 +184,7 @@ export const suggestionOptions = {
           return true;
         }
 
-        return component.ref?.onKeyDown(props);
+        return ((component.ref as { onKeyDown?: (nextProps: unknown) => boolean } | null)?.onKeyDown?.(props)) ?? false;
       },
 
       onExit() {

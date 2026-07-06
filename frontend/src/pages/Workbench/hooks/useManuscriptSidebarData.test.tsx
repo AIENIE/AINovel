@@ -99,7 +99,7 @@ describe("useManuscriptSidebarData", () => {
       applyFetchedManuscript: vi.fn(),
       isSidebarOpen: true,
       selectedManuscriptId: "manuscript-1",
-      selectedSceneIds: [],
+      selectedSceneIds: [] as string[],
       selectedStoryId: "story-1",
       sidebarTab: "version" as const,
       toast: vi.fn(),

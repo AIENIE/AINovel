@@ -283,7 +283,7 @@
 | 素材 | `materials`、`material_upload_jobs` | `backend/src/main/java/com/ainovel/app/material/model/*` |
 | 提示词与系统配置 | `prompt_templates`、`world_prompt_templates`、`global_settings` | `backend/src/main/java/com/ainovel/app/settings/model/*` |
 
-完整参考：`backend/sql/schema.sql`
+完整参考：`backend/src/main/resources/db/migration/V1__baseline.sql`（基线）与后续 `V{n}__*.sql` 迁移。
 
 ## 6. 当前实现状态（已闭环与待办项）
 
@@ -336,4 +336,4 @@
 - `V2ContextController`、`V2AnalysisController`、`V2ModelController`、`V2WorkspaceController` 在 Spring 运行时接入持久化服务，测试直接构造时保留内存 fallback。
 - `V2VersionController` 接入 `manuscript_branches`、`manuscript_versions`、`version_diffs`、`auto_save_config`。
 - `V2ExportController` 接入 `export_templates`、`export_jobs`；导出文件字节仍按下载请求即时生成，数据库只保存任务元数据。
-- `backend/sql/schema.sql` 补齐 `knowledge_graph_relationships`，并与 v2 实体列名保持一致。
+- 当时的 schema 基线脚本（现已迁入 `backend/src/main/resources/db/migration/V1__baseline.sql`）补齐 `knowledge_graph_relationships`，并与 v2 实体列名保持一致。

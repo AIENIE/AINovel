@@ -5,7 +5,7 @@ import { formatDateTime } from "./shared";
 
 type ContextSidebarPanelProps = {
   contextPreview: any;
-  onRefresh: () => Promise<void> | void;
+  onRefresh: () => Promise<unknown> | void;
 };
 
 export function ContextSidebarPanel({ contextPreview, onRefresh }: ContextSidebarPanelProps) {

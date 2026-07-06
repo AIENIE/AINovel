@@ -39,7 +39,9 @@ export function useManuscriptShortcuts({
   }, [loadShortcuts]);
 
   useEffect(() => {
-    const handle = () => void loadShortcuts();
+    const handle = () => {
+      void loadShortcuts();
+    };
     window.addEventListener("ainovel-shortcuts-updated", handle as EventListener);
     return () => window.removeEventListener("ainovel-shortcuts-updated", handle as EventListener);
   }, [loadShortcuts]);

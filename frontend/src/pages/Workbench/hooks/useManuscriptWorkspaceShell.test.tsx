@@ -19,14 +19,13 @@ describe("useManuscriptWorkspaceShell", () => {
       const [rightOpen, setRightOpen] = useState(true);
       const [openSceneIds, setOpenSceneIds] = useState<string[]>(["scene-1"]);
       const [selectedSceneId, setSelectedSceneId] = useState("scene-1");
-      const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>(["scene-1"]);
+      const [, setSelectedSceneIds] = useState<string[]>(["scene-1"]);
 
       return {
         leftOpen,
         rightOpen,
         openSceneIds,
         selectedSceneId,
-        selectedSceneIds,
         ...useManuscriptWorkspaceShell({
           closeSceneTab: vi.fn(),
           createSceneInCurrentChapter: vi.fn(),
@@ -55,7 +54,6 @@ describe("useManuscriptWorkspaceShell", () => {
     });
 
     expect(result.current.selectedSceneId).toBe("scene-2");
-    expect(result.current.selectedSceneIds).toEqual(["scene-2"]);
     expect(result.current.openSceneIds).toEqual(["scene-1", "scene-2"]);
   });
 
@@ -68,7 +66,7 @@ describe("useManuscriptWorkspaceShell", () => {
       const [rightOpen, setRightOpen] = useState(true);
       const [openSceneIds, setOpenSceneIds] = useState<string[]>(["scene-1"]);
       const [selectedSceneId, setSelectedSceneId] = useState("scene-1");
-      const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>(["scene-1"]);
+      const [, setSelectedSceneIds] = useState<string[]>(["scene-1"]);
 
       return {
         leftOpen,

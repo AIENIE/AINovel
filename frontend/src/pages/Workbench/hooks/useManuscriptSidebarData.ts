@@ -7,7 +7,7 @@ import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
 type ToastFn = (options: {
   description?: string;
   title?: string;
-  variant?: string;
+  variant?: "default" | "destructive";
 }) => void;
 
 type UseManuscriptSidebarDataOptions = {

@@ -20,7 +20,7 @@ type VersionSidebarPanelProps = {
   diffResult: any;
   diffViewMode: "split" | "unified";
   hasMoreVersions: boolean;
-  loadVersions: () => Promise<void> | void;
+  loadVersions: () => Promise<unknown> | void;
   mergeBranchId: string;
   mergeConflicts: any[];
   mergeSelectedBranch: (resolutions?: Record<string, "target" | "source">) => Promise<void> | void;

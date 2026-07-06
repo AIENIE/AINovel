@@ -265,7 +265,7 @@ function toPlotPlanning(dto: any): PlotPlanning | undefined {
           payoff: String(item?.payoff ?? ""),
           risk: String(item?.risk ?? item?.earlyRevealRisk ?? ""),
         }))
-        .filter((item) => item.hook || item.hiddenTruth || item.setup.length || item.misdirection.length)
+        .filter((item: any) => item.hook || item.hiddenTruth || item.setup.length || item.misdirection.length)
     : [];
   const rawForeshadows = Array.isArray(dto.foreshadowPlans) ? dto.foreshadowPlans : dto.foreshadowSeeds;
   const foreshadowPlans = Array.isArray(rawForeshadows)
@@ -286,7 +286,7 @@ function toPlotPlanning(dto: any): PlotPlanning | undefined {
           label: String(item?.label ?? `Beat ${index + 1}`),
           summary: String(item?.summary ?? ""),
         }))
-        .filter((item) => item.summary)
+        .filter((item: any) => item.summary)
     : [];
   const planning: PlotPlanning = {
     corePromise: String(dto.corePromise ?? ""),

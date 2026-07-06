@@ -176,7 +176,8 @@ describe("api client", () => {
 
     const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/v1/ai/refine"));
     expect(request).toBeTruthy();
-    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+    const requestInit = request?.at(1) as RequestInit | undefined;
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
       text: "原文",
       instruction: "更有张力",
       modelId: "text-premium",

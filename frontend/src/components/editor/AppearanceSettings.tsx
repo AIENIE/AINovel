@@ -1,13 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Settings2, Type, Monitor, Palette } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export type FontType = "sans" | "serif" | "mono";
 export type WidthType = "narrow" | "medium" | "wide";

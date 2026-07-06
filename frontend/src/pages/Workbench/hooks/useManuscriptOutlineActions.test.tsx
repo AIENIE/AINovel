@@ -93,7 +93,7 @@ describe("useManuscriptOutlineActions", () => {
 
     const { result } = renderHook(() => {
       const [outlineDraft, setOutlineDraft] = useState<Outline | null>(makeOutline());
-      const [openSceneIds, setOpenSceneIds] = useState<string[]>(["scene-1", "scene-2"]);
+      const [, setOpenSceneIds] = useState<string[]>(["scene-1", "scene-2"]);
       const [selectedSceneId, setSelectedSceneId] = useState("scene-1");
       const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>(["scene-1", "scene-2"]);
       const sceneRows = (outlineDraft?.chapters || []).flatMap((chapter) =>

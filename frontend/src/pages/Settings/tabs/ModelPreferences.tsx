@@ -62,7 +62,7 @@ const ModelPreferences = () => {
       api.v2.models.usageSummary(),
       api.v2.models.usageDetails(),
       api.stories.list(),
-      shouldLoadRouting ? api.v2.models.listRouting().catch(() => []) : Promise.resolve([]),
+      shouldLoadRouting ? api.v2.models.listRouting().catch((): never[] => []) : Promise.resolve([] as never[]),
     ]);
     setModels(modelList);
     setPrefs(prefList);

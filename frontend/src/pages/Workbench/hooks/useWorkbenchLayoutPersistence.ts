@@ -100,7 +100,7 @@ export function useWorkbenchLayoutPersistence({
         .then((layout: any) => {
           if (layout?.id) setActiveLayoutId(String(layout.id));
         })
-        .catch(() => undefined);
+        .catch(() => {});
     }, 600);
 
     return () => {

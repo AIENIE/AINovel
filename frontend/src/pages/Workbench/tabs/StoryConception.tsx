@@ -34,7 +34,7 @@ type ConceptionResult = {
   };
 };
 
-type OutlineSeedChapter = NonNullable<ConceptionResult["outlineSeed"]>["chapters"][number];
+type OutlineSeedChapter = NonNullable<NonNullable<ConceptionResult["outlineSeed"]>["chapters"]>[number];
 type OutlineSeedScene = NonNullable<OutlineSeedChapter["scenes"]>[number];
 
 const CACHE_PREFIX = "ainovel.plot-planner.conception";
@@ -164,6 +164,9 @@ const createOutlineFromPlanning = (storyId: string, planning: PlotPlanning, sele
   const selectedTwist = planning.twistOptions.find((item) => item.id === selectedTwistId) || planning.twistOptions[0];
   const chapters = (outlineSeed?.chapters?.length ? outlineSeed.chapters : planning.beats).map((item: PlotBeat | OutlineSeedChapter, index) => {
     const beat = planning.beats[index];
+    const outlineSeedChapter = "scenes" in item || "title" in item ? item : null;
+    const itemTitle = outlineSeedChapter?.title || beat?.label || `第 ${index + 1} 章`;
+    const itemSummary = outlineSeedChapter?.summary || beat?.summary || "";
     const fallbackScenePlanning = planning.foreshadowPlans[index]
       ? {
           foreshadowHint: planning.foreshadowPlans[index].clue,
@@ -179,11 +182,11 @@ const createOutlineFromPlanning = (storyId: string, planning: PlotPlanning, sele
           payoffPlan: selectedTwist?.payoff || "",
           memeUsage: "",
         };
-    const scenes = item.scenes?.length
-      ? item.scenes.map((scene: OutlineSeedScene, sceneIndex: number) => ({
+    const scenes = outlineSeedChapter?.scenes?.length
+      ? outlineSeedChapter.scenes.map((scene: OutlineSeedScene, sceneIndex: number) => ({
           id: scene.id || ensureUuid(),
           title: scene.title || `场景 ${sceneIndex + 1}`,
-          summary: scene.summary || beat?.summary || item.summary || "",
+          summary: scene.summary || itemSummary,
           content: "",
           planning: {
             foreshadowHint: scene.planning?.foreshadowHint || (sceneIndex === 0 ? fallbackScenePlanning.foreshadowHint : ""),
@@ -197,19 +200,19 @@ const createOutlineFromPlanning = (storyId: string, planning: PlotPlanning, sele
           {
             id: ensureUuid(),
             title: beat ? `${beat.label}场景` : `第 ${index + 1} 场`,
-            summary: item.summary || beat?.summary || "",
+            summary: itemSummary,
             content: "",
             planning: fallbackScenePlanning,
           },
         ];
     return {
       id: item.id || ensureUuid(),
-      title: item.title || beat?.label || `第 ${index + 1} 章`,
-      summary: item.summary || beat?.summary || "",
+      title: itemTitle,
+      summary: itemSummary,
       scenes,
       planning: {
         purpose: index === 0 ? "建立错误认知" : index === planning.beats.length - 1 ? "翻转并回收伏笔" : "加深误导并抬升代价",
-        informationRelease: item.summary || beat?.summary || "",
+        informationRelease: itemSummary,
         twistRole: index === planning.beats.length - 1 ? "reveal" : "setup",
         selectedTwistId,
       },

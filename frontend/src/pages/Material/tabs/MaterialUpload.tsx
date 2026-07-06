@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/lib/api-client";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2 } from "lucide-react";
 import { FileImportJob } from "@/types";
 
 const MaterialUpload = () => {

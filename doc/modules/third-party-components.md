@@ -27,4 +27,4 @@ AINovel 对接以下基础组件与外部服务：
 - 依赖地址统一来自后端容器启动时加载的 `env.txt` 中 `MYSQL_*`、`REDIS_*`、`QDRANT_*` 配置。
 - 三服务直连地址统一来自后端容器启动时加载的 `USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`。
 - 后端容器监听 `BACKEND_PORT` 并通过 compose 服务名暴露；前端容器按内部网络访问后端 API。
-- 本地部署默认关闭 Hibernate 自动 DDL（`SPRING_JPA_HIBERNATE_DDL_AUTO=none`），避免启动期通过远程 MySQL 元数据扫描阻塞；结构变更同步维护 `backend/sql/schema.sql`。
+- 本地部署默认关闭 Hibernate 自动 DDL（`SPRING_JPA_HIBERNATE_DDL_AUTO=none`），避免启动期通过远程 MySQL 元数据扫描阻塞；结构变更统一新增 `backend/src/main/resources/db/migration/V{n}__*.sql`，`backend/sql/schema.sql` 仅保留历史入口说明。
