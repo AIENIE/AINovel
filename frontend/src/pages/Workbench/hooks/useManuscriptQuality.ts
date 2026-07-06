@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Manuscript, PlotQualityRun, PlotQualityTrend, SlopQualityRun } from "@/types";
 import { api } from "@/lib/api-client";
 import { plotStatusText, qualityStatusText, slopRewriteTaskTitle } from "@/pages/Workbench/tabs/manuscript-writer/shared";
@@ -22,6 +23,29 @@ type UseManuscriptQualityOptions = {
   toast: ToastFn;
 };
 
+const WORKBENCH_QUERY_STALE_TIME = 60_000;
+
+const slopQualityQueryKey = (manuscriptId: string, sceneId: string) =>
+  ["workbench", "quality", "slop", manuscriptId, sceneId] as const;
+const plotRunQueryKey = (manuscriptId: string, sceneId: string) =>
+  ["workbench", "quality", "plot-run", manuscriptId, sceneId] as const;
+const plotTrendQueryKey = (manuscriptId: string) =>
+  ["workbench", "quality", "plot-trend", manuscriptId] as const;
+
+async function fetchSlopQualityRun(manuscriptId: string, sceneId: string) {
+  const runs = await api.v2.quality.listRuns(manuscriptId, sceneId);
+  return runs[0] || null;
+}
+
+async function fetchPlotRun(manuscriptId: string, sceneId: string) {
+  const runs = await api.v2.plotQuality.listRuns(manuscriptId, sceneId);
+  return runs[0] || null;
+}
+
+async function fetchPlotTrend(manuscriptId: string) {
+  return await api.v2.plotQuality.getTrend(manuscriptId);
+}
+
 export function useManuscriptQuality({
   applyFetchedManuscript,
   content,
@@ -33,15 +57,48 @@ export function useManuscriptQuality({
   setSidebarTab,
   toast,
 }: UseManuscriptQualityOptions) {
-  const [qualityRunsByScene, setQualityRunsByScene] = useState<Record<string, SlopQualityRun | null>>({});
-  const [plotRunsByScene, setPlotRunsByScene] = useState<Record<string, PlotQualityRun | null>>({});
-  const [plotTrend, setPlotTrend] = useState<PlotQualityTrend | null>(null);
+  const queryClient = useQueryClient();
   const [isSlopBusy, setIsSlopBusy] = useState(false);
   const [isPlotBusy, setIsPlotBusy] = useState(false);
   const [isPlotRevisionBusy, setIsPlotRevisionBusy] = useState(false);
 
-  const selectedQualityRun = selectedSceneId ? qualityRunsByScene[selectedSceneId] : null;
-  const selectedPlotRun = selectedSceneId ? plotRunsByScene[selectedSceneId] : null;
+  const slopRunQuery = useQuery({
+    queryKey: slopQualityQueryKey(selectedManuscriptId, selectedSceneId),
+    queryFn: () => fetchSlopQualityRun(selectedManuscriptId, selectedSceneId),
+    enabled: Boolean(selectedManuscriptId && selectedSceneId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const plotRunQuery = useQuery({
+    queryKey: plotRunQueryKey(selectedManuscriptId, selectedSceneId),
+    queryFn: () => fetchPlotRun(selectedManuscriptId, selectedSceneId),
+    enabled: Boolean(selectedManuscriptId && selectedSceneId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const plotTrendQuery = useQuery({
+    queryKey: plotTrendQueryKey(selectedManuscriptId),
+    queryFn: () => fetchPlotTrend(selectedManuscriptId),
+    enabled: Boolean(selectedManuscriptId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const selectedQualityRun = selectedSceneId ? slopRunQuery.data ?? null : null;
+  const selectedPlotRun = selectedSceneId ? plotRunQuery.data ?? null : null;
+  const plotTrend = selectedManuscriptId ? plotTrendQuery.data ?? null : null;
+
+  const qualityRunsByScene = useMemo(
+    () => (selectedSceneId ? { [selectedSceneId]: selectedQualityRun } : {}),
+    [selectedQualityRun, selectedSceneId],
+  );
+  const plotRunsByScene = useMemo(
+    () => (selectedSceneId ? { [selectedSceneId]: selectedPlotRun } : {}),
+    [selectedPlotRun, selectedSceneId],
+  );
 
   const ensureSceneSaved = useCallback(
     async (sceneId: string) => {
@@ -54,27 +111,36 @@ export function useManuscriptQuality({
   const loadSlopQuality = useCallback(
     async (sceneId = selectedSceneId, manuscriptId = selectedManuscriptId) => {
       if (!manuscriptId || !sceneId) return null;
-      const runs = await api.v2.quality.listRuns(manuscriptId, sceneId);
-      const latestRun = runs[0] || null;
-      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
-      return latestRun;
+      return await queryClient.fetchQuery({
+        queryKey: slopQualityQueryKey(manuscriptId, sceneId),
+        queryFn: () => fetchSlopQualityRun(manuscriptId, sceneId),
+        staleTime: 0,
+        retry: false,
+      });
     },
-    [selectedManuscriptId, selectedSceneId],
+    [queryClient, selectedManuscriptId, selectedSceneId],
   );
 
   const loadPlotQuality = useCallback(
     async (sceneId = selectedSceneId, manuscriptId = selectedManuscriptId) => {
       if (!manuscriptId || !sceneId) return { run: null, trend: null };
-      const [runs, trend] = await Promise.all([
-        api.v2.plotQuality.listRuns(manuscriptId, sceneId),
-        api.v2.plotQuality.getTrend(manuscriptId),
+      const [run, trend] = await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: plotRunQueryKey(manuscriptId, sceneId),
+          queryFn: () => fetchPlotRun(manuscriptId, sceneId),
+          staleTime: 0,
+          retry: false,
+        }),
+        queryClient.fetchQuery({
+          queryKey: plotTrendQueryKey(manuscriptId),
+          queryFn: () => fetchPlotTrend(manuscriptId),
+          staleTime: 0,
+          retry: false,
+        }),
       ]);
-      const latestRun = runs[0] || null;
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: latestRun }));
-      setPlotTrend(trend);
-      return { run: latestRun, trend };
+      return { run, trend };
     },
-    [selectedManuscriptId, selectedSceneId],
+    [queryClient, selectedManuscriptId, selectedSceneId],
   );
 
   const runSlopDiagnosis = useCallback(async () => {
@@ -84,7 +150,7 @@ export function useManuscriptQuality({
     try {
       await ensureSceneSaved(sceneId);
       const run = await api.v2.quality.analyzeScene(selectedManuscriptId, sceneId);
-      setQualityRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      queryClient.setQueryData(slopQualityQueryKey(selectedManuscriptId, sceneId), run);
       setSidebarTab("plot");
       toast({ title: "文本 Slop 诊断已完成", description: run.safeClaim || qualityStatusText(run) });
     } catch (e: any) {
@@ -92,7 +158,7 @@ export function useManuscriptQuality({
     } finally {
       setIsSlopBusy(false);
     }
-  }, [ensureSceneSaved, selectedManuscriptId, selectedSceneId, setSidebarTab, toast]);
+  }, [ensureSceneSaved, queryClient, selectedManuscriptId, selectedSceneId, setSidebarTab, toast]);
 
   const copySlopRewriteTask = useCallback(async (task: any, index: number) => {
     const title = slopRewriteTaskTitle(task, index);
@@ -118,9 +184,9 @@ export function useManuscriptQuality({
     try {
       await ensureSceneSaved(sceneId);
       const run = await api.v2.plotQuality.analyzeScene(selectedManuscriptId, sceneId);
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
       const trend = await api.v2.plotQuality.getTrend(selectedManuscriptId);
-      setPlotTrend(trend);
+      queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
+      queryClient.setQueryData(plotTrendQueryKey(selectedManuscriptId), trend);
       setSidebarTab("plot");
       toast({ title: "剧情诊断已完成", description: plotStatusText(run) });
     } catch (e: any) {
@@ -128,7 +194,7 @@ export function useManuscriptQuality({
     } finally {
       setIsPlotBusy(false);
     }
-  }, [ensureSceneSaved, selectedManuscriptId, selectedSceneId, setSidebarTab, toast]);
+  }, [ensureSceneSaved, queryClient, selectedManuscriptId, selectedSceneId, setSidebarTab, toast]);
 
   const generatePlotRevisionCandidate = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
@@ -137,14 +203,14 @@ export function useManuscriptQuality({
     try {
       await ensureSceneSaved(sceneId);
       const run = await api.v2.plotQuality.generateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id);
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       toast({ title: "候选修订已生成" });
     } catch (e: any) {
       toast({ variant: "destructive", title: "生成候选失败", description: e.message });
     } finally {
       setIsPlotRevisionBusy(false);
     }
-  }, [ensureSceneSaved, selectedManuscriptId, selectedPlotRun, selectedSceneId, toast]);
+  }, [ensureSceneSaved, queryClient, selectedManuscriptId, selectedPlotRun, selectedSceneId, toast]);
 
   const applyPlotRevision = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId || !selectedPlotRun) return;
@@ -156,7 +222,7 @@ export function useManuscriptQuality({
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
       applyFetchedManuscript(manuscript);
       setContent(manuscript.sections?.[sceneId] || "");
-      setPlotRunsByScene((prev) => ({ ...prev, [sceneId]: run }));
+      queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       await loadPlotQuality(sceneId);
       toast({ title: "候选修订已采纳" });
     } catch (e: any) {
@@ -172,48 +238,13 @@ export function useManuscriptQuality({
     applyFetchedManuscript,
     ensureSceneSaved,
     loadPlotQuality,
+    queryClient,
     selectedManuscriptId,
     selectedPlotRun,
     selectedSceneId,
     setContent,
     toast,
   ]);
-
-  useEffect(() => {
-    if (!selectedManuscriptId || !selectedSceneId) return;
-    let cancelled = false;
-    api.v2.quality
-      .listRuns(selectedManuscriptId, selectedSceneId)
-      .then((runs) => {
-        if (cancelled) return;
-        setQualityRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedManuscriptId, selectedSceneId]);
-
-  useEffect(() => {
-    if (!selectedManuscriptId || !selectedSceneId) {
-      setPlotTrend(null);
-      return;
-    }
-    let cancelled = false;
-    Promise.all([
-      api.v2.plotQuality.listRuns(selectedManuscriptId, selectedSceneId),
-      api.v2.plotQuality.getTrend(selectedManuscriptId),
-    ])
-      .then(([runs, trend]) => {
-        if (cancelled) return;
-        setPlotRunsByScene((prev) => ({ ...prev, [selectedSceneId]: runs[0] || null }));
-        setPlotTrend(trend);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedManuscriptId, selectedSceneId]);
 
   return {
     applyPlotRevision,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
@@ -20,6 +21,46 @@ type UseManuscriptSidebarDataOptions = {
 };
 
 const VERSION_PAGE_SIZE = 10;
+const WORKBENCH_QUERY_STALE_TIME = 60_000;
+
+const goalsQueryKey = ["workbench", "sidebar", "goals"] as const;
+const contextPreviewQueryKey = (storyId: string) => ["workbench", "sidebar", "context", storyId] as const;
+const versionDataQueryKey = (manuscriptId: string) => ["workbench", "sidebar", "versions", manuscriptId] as const;
+const exportDataQueryKey = (manuscriptId: string) => ["workbench", "sidebar", "export", manuscriptId] as const;
+const statsQueryKey = ["workbench", "sidebar", "stats"] as const;
+
+async function fetchGoals() {
+  try {
+    return await api.v2.workspace.listGoals();
+  } catch {
+    return [];
+  }
+}
+
+async function fetchContextPreview(storyId: string) {
+  return await api.v2.context.previewContext(storyId, 1200);
+}
+
+async function fetchVersionData(manuscriptId: string) {
+  const [versions, autoSaveConfig, branches] = await Promise.all([
+    api.v2.version.listVersions(manuscriptId),
+    api.v2.version.getAutoSave(),
+    api.v2.version.listBranches(manuscriptId),
+  ]);
+  return { autoSaveConfig, branches, versions };
+}
+
+async function fetchExportData(manuscriptId: string) {
+  const [jobs, templates] = await Promise.all([
+    api.v2.export.listJobs(manuscriptId),
+    api.v2.export.listTemplates(),
+  ]);
+  return { jobs, templates };
+}
+
+async function fetchStats() {
+  return await api.v2.workspace.getStats();
+}
 
 export function useManuscriptSidebarData({
   applyFetchedManuscript,
@@ -30,9 +71,7 @@ export function useManuscriptSidebarData({
   sidebarTab,
   toast,
 }: UseManuscriptSidebarDataOptions) {
-  const [contextPreview, setContextPreview] = useState<any>(null);
-  const [versions, setVersions] = useState<any[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [currentBranchId, setCurrentBranchId] = useState("");
   const [newBranchName, setNewBranchName] = useState("");
   const [mergeBranchId, setMergeBranchId] = useState("");
@@ -45,14 +84,10 @@ export function useManuscriptSidebarData({
   const [versionVisibleCount, setVersionVisibleCount] = useState(VERSION_PAGE_SIZE);
   const [aiDiffSummary, setAiDiffSummary] = useState("");
   const [autoSaveConfig, setAutoSaveConfig] = useState<any>(null);
-  const [exportJobs, setExportJobs] = useState<any[]>([]);
-  const [exportTemplates, setExportTemplates] = useState<any[]>([]);
   const [exportFormat, setExportFormat] = useState("txt");
   const [exportTemplateId, setExportTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
-  const [workspaceStats, setWorkspaceStats] = useState<any>(null);
-  const [goals, setGoals] = useState<any[]>([]);
   const [goalType, setGoalType] = useState("daily_words");
   const [goalTargetValue, setGoalTargetValue] = useState(2000);
   const [chapterRange, setChapterRange] = useState("");
@@ -61,85 +96,152 @@ export function useManuscriptSidebarData({
   const [txtEncoding, setTxtEncoding] = useState("UTF-8");
   const [exportAuthorName, setExportAuthorName] = useState("");
 
+  const goalsQuery = useQuery({
+    queryKey: goalsQueryKey,
+    queryFn: fetchGoals,
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const contextPreviewQuery = useQuery({
+    queryKey: contextPreviewQueryKey(selectedStoryId),
+    queryFn: async () => {
+      try {
+        return await fetchContextPreview(selectedStoryId);
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "加载上下文失败", description: e.message });
+        throw e;
+      }
+    },
+    enabled: isSidebarOpen && sidebarTab === "context" && Boolean(selectedStoryId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const versionDataQuery = useQuery({
+    queryKey: versionDataQueryKey(selectedManuscriptId),
+    queryFn: async () => {
+      try {
+        return await fetchVersionData(selectedManuscriptId);
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "加载版本失败", description: e.message });
+        throw e;
+      }
+    },
+    enabled: isSidebarOpen && sidebarTab === "version" && Boolean(selectedManuscriptId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const exportDataQuery = useQuery({
+    queryKey: exportDataQueryKey(selectedManuscriptId),
+    queryFn: async () => {
+      try {
+        return await fetchExportData(selectedManuscriptId);
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "加载导出信息失败", description: e.message });
+        throw e;
+      }
+    },
+    enabled: isSidebarOpen && sidebarTab === "export" && Boolean(selectedManuscriptId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const statsQuery = useQuery({
+    queryKey: statsQueryKey,
+    queryFn: async () => {
+      try {
+        return await fetchStats();
+      } catch (e: any) {
+        toast({ variant: "destructive", title: "加载统计失败", description: e.message });
+        throw e;
+      }
+    },
+    enabled: isSidebarOpen && sidebarTab === "stats",
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const goals = goalsQuery.data ?? [];
+  const contextPreview = contextPreviewQuery.data ?? null;
+  const versions = versionDataQuery.data?.versions ?? [];
+  const branches = versionDataQuery.data?.branches ?? [];
+  const exportJobs = exportDataQuery.data?.jobs ?? [];
+  const exportTemplates = exportDataQuery.data?.templates ?? [];
+  const workspaceStats = statsQuery.data ?? null;
+
   const visibleVersions = useMemo(() => versions.slice(0, versionVisibleCount), [versionVisibleCount, versions]);
   const hasMoreVersions = versionVisibleCount < versions.length;
 
   const loadGoals = useCallback(async () => {
-    try {
-      setGoals(await api.v2.workspace.listGoals());
-    } catch {
-      setGoals([]);
-    }
-  }, []);
+    return await queryClient.fetchQuery({
+      queryKey: goalsQueryKey,
+      queryFn: fetchGoals,
+      staleTime: 0,
+      retry: false,
+    });
+  }, [queryClient]);
 
   const loadContextPreview = useCallback(async () => {
-    if (!selectedStoryId) return;
+    if (!selectedStoryId) return null;
     try {
-      setContextPreview(await api.v2.context.previewContext(selectedStoryId, 1200));
+      return await queryClient.fetchQuery({
+        queryKey: contextPreviewQueryKey(selectedStoryId),
+        queryFn: () => fetchContextPreview(selectedStoryId),
+        staleTime: 0,
+        retry: false,
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "加载上下文失败", description: e.message });
+      return null;
     }
-  }, [selectedStoryId, toast]);
+  }, [queryClient, selectedStoryId, toast]);
 
   const loadVersions = useCallback(async () => {
-    if (!selectedManuscriptId) return;
+    if (!selectedManuscriptId) return null;
     try {
-      const [versionList, config, branchList] = await Promise.all([
-        api.v2.version.listVersions(selectedManuscriptId),
-        api.v2.version.getAutoSave(),
-        api.v2.version.listBranches(selectedManuscriptId),
-      ]);
-      setVersions(versionList);
-      setVersionVisibleCount(VERSION_PAGE_SIZE);
-      setAutoSaveConfig(config);
-      setBranches(branchList);
-      const active = branchList.find((branch) => String(branch.status) === "active" && branch.isMain);
-      if (active) setCurrentBranchId(String(active.id));
-      if (!mergeBranchId && branchList.find((branch) => !branch.isMain && branch.status === "active")) {
-        const candidate = branchList.find((branch) => !branch.isMain && branch.status === "active");
-        setMergeBranchId(String(candidate?.id || ""));
-      }
+      return await queryClient.fetchQuery({
+        queryKey: versionDataQueryKey(selectedManuscriptId),
+        queryFn: () => fetchVersionData(selectedManuscriptId),
+        staleTime: 0,
+        retry: false,
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "加载版本失败", description: e.message });
+      return null;
     }
-  }, [mergeBranchId, selectedManuscriptId, toast]);
-
-  const createManualVersion = useCallback(async () => {
-    if (!selectedManuscriptId) return;
-    const label = window.prompt("检查点标签", `manual-${Date.now()}`)?.trim();
-    if (!label) return;
-    await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
-    await loadVersions();
-  }, [loadVersions, selectedManuscriptId]);
-
-  const saveAutoSaveConfig = useCallback(async () => {
-    if (!autoSaveConfig) return;
-    await api.v2.version.updateAutoSave({
-      autoSaveIntervalSeconds: Number(autoSaveConfig.autoSaveIntervalSeconds || 300),
-      maxAutoVersions: Number(autoSaveConfig.maxAutoVersions || 100),
-    });
-    toast({ title: "自动快照配置已更新" });
-  }, [autoSaveConfig, toast]);
+  }, [queryClient, selectedManuscriptId, toast]);
 
   const loadExport = useCallback(async () => {
-    if (!selectedManuscriptId) return;
+    if (!selectedManuscriptId) return null;
     try {
-      const [jobs, templates] = await Promise.all([api.v2.export.listJobs(selectedManuscriptId), api.v2.export.listTemplates()]);
-      setExportJobs(jobs);
-      setExportTemplates(templates);
-      if (!exportTemplateId && templates[0]) setExportTemplateId(String(templates[0].id));
+      return await queryClient.fetchQuery({
+        queryKey: exportDataQueryKey(selectedManuscriptId),
+        queryFn: () => fetchExportData(selectedManuscriptId),
+        staleTime: 0,
+        retry: false,
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "加载导出信息失败", description: e.message });
+      return null;
     }
-  }, [exportTemplateId, selectedManuscriptId, toast]);
+  }, [queryClient, selectedManuscriptId, toast]);
 
   const loadStats = useCallback(async () => {
     try {
-      setWorkspaceStats(await api.v2.workspace.getStats());
+      return await queryClient.fetchQuery({
+        queryKey: statsQueryKey,
+        queryFn: fetchStats,
+        staleTime: 0,
+        retry: false,
+      });
     } catch (e: any) {
       toast({ variant: "destructive", title: "加载统计失败", description: e.message });
+      return null;
     }
-  }, [toast]);
+  }, [queryClient, toast]);
 
   const toggleVersionSelection = useCallback((versionId: string) => {
     setSelectedDiffVersions((prev) => {
@@ -268,6 +370,31 @@ export function useManuscriptSidebarData({
       toast({ variant: "destructive", title: "删除目标失败", description: e.message });
     }
   }, [loadGoals, toast]);
+
+  const createManualVersion = useCallback(async () => {
+    if (!selectedManuscriptId) return;
+    const label = window.prompt("检查点标签", `manual-${Date.now()}`)?.trim();
+    if (!label) return;
+    await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
+    await loadVersions();
+  }, [loadVersions, selectedManuscriptId]);
+
+  const saveAutoSaveConfig = useCallback(async () => {
+    if (!autoSaveConfig) return;
+    const nextConfig = {
+      autoSaveIntervalSeconds: Number(autoSaveConfig.autoSaveIntervalSeconds || 300),
+      maxAutoVersions: Number(autoSaveConfig.maxAutoVersions || 100),
+    };
+    await api.v2.version.updateAutoSave(nextConfig);
+    if (selectedManuscriptId) {
+      queryClient.setQueryData<{ autoSaveConfig: any; branches: any[]; versions: any[] } | undefined>(
+        versionDataQueryKey(selectedManuscriptId),
+        (prev) => (prev ? { ...prev, autoSaveConfig: nextConfig } : prev),
+      );
+    }
+    setAutoSaveConfig(nextConfig);
+    toast({ title: "自动快照配置已更新" });
+  }, [autoSaveConfig, queryClient, selectedManuscriptId, toast]);
 
   const createBranch = useCallback(async () => {
     if (!selectedManuscriptId) return;
@@ -399,8 +526,26 @@ export function useManuscriptSidebarData({
   }, [loadExport, toast]);
 
   useEffect(() => {
-    void loadGoals();
-  }, [loadGoals]);
+    if (!versionDataQuery.data) return;
+    const { autoSaveConfig: nextConfig, branches: nextBranches } = versionDataQuery.data;
+    setVersionVisibleCount(VERSION_PAGE_SIZE);
+    setAutoSaveConfig(nextConfig);
+    const activeBranch = nextBranches.find((branch) => String(branch.status) === "active" && branch.isMain);
+    setCurrentBranchId(activeBranch ? String(activeBranch.id) : "");
+    setMergeBranchId((prev) => {
+      if (prev && nextBranches.some((branch) => String(branch.id) === prev)) return prev;
+      const candidate = nextBranches.find((branch) => !branch.isMain && branch.status === "active");
+      return String(candidate?.id || "");
+    });
+  }, [versionDataQuery.data]);
+
+  useEffect(() => {
+    const templates = exportDataQuery.data?.templates ?? [];
+    setExportTemplateId((prev) => {
+      if (prev && templates.some((template: any) => String(template.id) === prev)) return prev;
+      return String(templates[0]?.id || "");
+    });
+  }, [exportDataQuery.data]);
 
   useEffect(() => {
     const hasRunningExportJob = exportJobs.some((job) => {
@@ -413,15 +558,6 @@ export function useManuscriptSidebarData({
     }, 3000);
     return () => window.clearInterval(timer);
   }, [exportJobs, loadExport, selectedManuscriptId]);
-
-  useEffect(() => {
-    if (!isSidebarOpen) return;
-    if (sidebarTab === "context") void loadContextPreview();
-    if (sidebarTab === "version") void loadVersions();
-    if (sidebarTab === "export") void loadExport();
-    if (sidebarTab === "stats") void loadStats();
-    if (sidebarTab === "goals") void loadGoals();
-  }, [isSidebarOpen, loadContextPreview, loadExport, loadGoals, loadStats, loadVersions, sidebarTab]);
 
   return {
     aiDiffSummary,

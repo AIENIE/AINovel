@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api-client";
+import { createQueryClientWrapper, createTestQueryClient } from "@/test/queryClient";
 import { useManuscriptSelectionData } from "./useManuscriptSelectionData";
 
 const makeStory = (id: string, title: string) => ({
@@ -60,11 +61,15 @@ describe("useManuscriptSelectionData", () => {
     vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([] as any);
     vi.spyOn(api.manuscripts, "create").mockResolvedValue(makeManuscript("manuscript-1", "outline-1") as any);
 
-    const { result } = renderHook(() =>
-      useManuscriptSelectionData({
-        initialStoryId: "story-2",
-        toast: vi.fn(),
-      }),
+    const queryClient = createTestQueryClient();
+    const wrapper = createQueryClientWrapper(queryClient);
+    const { result } = renderHook(
+      () =>
+        useManuscriptSelectionData({
+          initialStoryId: "story-2",
+          toast: vi.fn(),
+        }),
+      { wrapper },
     );
 
     await waitFor(() => {
@@ -88,10 +93,14 @@ describe("useManuscriptSelectionData", () => {
     vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as any);
     vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
 
-    const { result } = renderHook(() =>
-      useManuscriptSelectionData({
-        toast: vi.fn(),
-      }),
+    const queryClient = createTestQueryClient();
+    const wrapper = createQueryClientWrapper(queryClient);
+    const { result } = renderHook(
+      () =>
+        useManuscriptSelectionData({
+          toast: vi.fn(),
+        }),
+      { wrapper },
     );
 
     await waitFor(() => {
@@ -115,5 +124,47 @@ describe("useManuscriptSelectionData", () => {
     await waitFor(() => {
       expect(result.current.openSceneIds).toContain("scene-3");
     });
+  });
+
+  it("reuses cached selection queries when the same workbench selection remounts", async () => {
+    const storiesSpy = vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story-1", "故事一")] as any);
+    const charactersSpy = vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as any);
+    const outlinesSpy = vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as any);
+    const manuscriptsSpy = vi
+      .spyOn(api.manuscripts, "listByOutline")
+      .mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
+    const queryClient = createTestQueryClient();
+    const wrapper = createQueryClientWrapper(queryClient);
+
+    const firstRender = renderHook(
+      () =>
+        useManuscriptSelectionData({
+          toast: vi.fn(),
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(firstRender.result.current.selectedSceneId).toBe("scene-1");
+    });
+
+    firstRender.unmount();
+
+    const secondRender = renderHook(
+      () =>
+        useManuscriptSelectionData({
+          toast: vi.fn(),
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(secondRender.result.current.selectedSceneId).toBe("scene-1");
+    });
+
+    expect(storiesSpy).toHaveBeenCalledTimes(1);
+    expect(charactersSpy).toHaveBeenCalledTimes(1);
+    expect(outlinesSpy).toHaveBeenCalledTimes(1);
+    expect(manuscriptsSpy).toHaveBeenCalledTimes(1);
   });
 });

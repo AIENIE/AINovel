@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript, Outline, Story } from "@/types";
 
@@ -26,24 +27,91 @@ type UseManuscriptSelectionDataOptions = {
   toast: ToastFn;
 };
 
+const WORKBENCH_QUERY_STALE_TIME = 60_000;
+
+const storiesQueryKey = ["workbench", "stories"] as const;
+const charactersQueryKey = (storyId: string) => ["workbench", "story-characters", storyId] as const;
+const outlinesQueryKey = (storyId: string) => ["workbench", "story-outlines", storyId] as const;
+const manuscriptsQueryKey = (outlineId: string) => ["workbench", "outline-manuscripts", outlineId] as const;
+
+async function fetchStories() {
+  return await api.stories.list();
+}
+
+async function fetchCharacters(storyId: string) {
+  try {
+    return await api.stories.listCharacters(storyId);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchOutlines(storyId: string) {
+  const outlines = await api.outlines.listByStory(storyId);
+  if (outlines.length > 0) return outlines;
+  return [await api.outlines.create(storyId, { title: "主线大纲" })];
+}
+
+async function fetchManuscripts(outlineId: string) {
+  const manuscripts = await api.manuscripts.listByOutline(outlineId);
+  if (manuscripts.length > 0) return manuscripts;
+  return [await api.manuscripts.create(outlineId, { title: "正文稿" })];
+}
+
 export function useManuscriptSelectionData({
   initialStoryId,
   toast,
 }: UseManuscriptSelectionDataOptions) {
-  const [stories, setStories] = useState<Story[]>([]);
+  const queryClient = useQueryClient();
   const [selectedStoryId, setSelectedStoryId] = useState("");
-  const [outlines, setOutlines] = useState<Outline[]>([]);
   const [selectedOutlineId, setSelectedOutlineId] = useState("");
   const [outlineDraft, setOutlineDraft] = useState<Outline | null>(null);
-  const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [selectedManuscriptId, setSelectedManuscriptId] = useState("");
   const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>([]);
   const [openSceneIds, setOpenSceneIds] = useState<string[]>([]);
   const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>({});
   const [selectedSceneId, setSelectedSceneId] = useState("");
-  const [characters, setCharacters] = useState<any[]>([]);
   const [batchMoveChapterId, setBatchMoveChapterId] = useState("");
   const lastSelectedSceneRef = useRef("");
+
+  const storiesQuery = useQuery({
+    queryKey: storiesQueryKey,
+    queryFn: fetchStories,
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const stories = storiesQuery.data ?? [];
+
+  const charactersQuery = useQuery({
+    queryKey: charactersQueryKey(selectedStoryId),
+    queryFn: () => fetchCharacters(selectedStoryId),
+    enabled: Boolean(selectedStoryId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const characters = charactersQuery.data ?? [];
+
+  const outlinesQuery = useQuery({
+    queryKey: outlinesQueryKey(selectedStoryId),
+    queryFn: () => fetchOutlines(selectedStoryId),
+    enabled: Boolean(selectedStoryId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const outlines = outlinesQuery.data ?? [];
+
+  const manuscriptsQuery = useQuery({
+    queryKey: manuscriptsQueryKey(selectedOutlineId),
+    queryFn: () => fetchManuscripts(selectedOutlineId),
+    enabled: Boolean(selectedOutlineId),
+    staleTime: WORKBENCH_QUERY_STALE_TIME,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const manuscripts = manuscriptsQuery.data ?? [];
 
   const selectedStory = useMemo(
     () => stories.find((story) => story.id === selectedStoryId) || null,
@@ -77,12 +145,24 @@ export function useManuscriptSelectionData({
   const sceneMap = useMemo(() => Object.fromEntries(sceneRows.map((row) => [row.id, row])), [sceneRows]);
   const chapters = outlineDraft?.chapters || [];
 
-  const replaceManuscript = useCallback((manuscript: Manuscript) => {
-    setManuscripts((prev) => prev.map((item) => (item.id === manuscript.id ? manuscript : item)));
-  }, []);
-  const replaceOutline = useCallback((outline: Outline) => {
-    setOutlines((prev) => prev.map((item) => (item.id === outline.id ? outline : item)));
-  }, []);
+  const replaceManuscript = useCallback(
+    (manuscript: Manuscript) => {
+      if (!selectedOutlineId) return;
+      queryClient.setQueryData<Manuscript[] | undefined>(manuscriptsQueryKey(selectedOutlineId), (prev) =>
+        Array.isArray(prev) ? prev.map((item) => (item.id === manuscript.id ? manuscript : item)) : prev,
+      );
+    },
+    [queryClient, selectedOutlineId],
+  );
+  const replaceOutline = useCallback(
+    (outline: Outline) => {
+      if (!selectedStoryId) return;
+      queryClient.setQueryData<Outline[] | undefined>(outlinesQueryKey(selectedStoryId), (prev) =>
+        Array.isArray(prev) ? prev.map((item) => (item.id === outline.id ? outline : item)) : prev,
+      );
+    },
+    [queryClient, selectedStoryId],
+  );
 
   const reorderOpenTabs = useCallback((fromId: string, toId: string) => {
     if (!fromId || !toId || fromId === toId) return;
@@ -139,77 +219,55 @@ export function useManuscriptSelectionData({
     setExpandedChapterIds((prev) => ({ ...prev, [chapterId]: !prev[chapterId] }));
   }, []);
 
-  const loadCharacters = useCallback(async () => {
-    if (!selectedStoryId) {
-      setCharacters([]);
+  useEffect(() => {
+    if (!stories.length) {
+      setSelectedStoryId("");
       return;
     }
-    try {
-      setCharacters(await api.stories.listCharacters(selectedStoryId));
-    } catch {
-      setCharacters([]);
+    setSelectedStoryId((prev) => {
+      if (prev && stories.some((story) => story.id === prev)) return prev;
+      if (initialStoryId && stories.some((story) => story.id === initialStoryId)) return initialStoryId;
+      return stories[0]?.id || "";
+    });
+  }, [initialStoryId, stories]);
+
+  useEffect(() => {
+    if (!selectedStoryId) {
+      setSelectedOutlineId("");
+      return;
     }
-  }, [selectedStoryId]);
+    if (!outlines.length) return;
+    setSelectedOutlineId((prev) => (prev && outlines.some((outline) => outline.id === prev) ? prev : outlines[0].id));
+  }, [outlines, selectedStoryId]);
 
-  const loadStories = useCallback(async () => {
-    try {
-      const list = await api.stories.list();
-      setStories(list);
-      if (initialStoryId && list.some((story) => story.id === initialStoryId)) {
-        setSelectedStoryId(initialStoryId);
-      } else if (list.length > 0) {
-        setSelectedStoryId(list[0].id);
-      }
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "加载故事失败", description: e.message });
+  useEffect(() => {
+    if (!selectedOutlineId) {
+      setSelectedManuscriptId("");
+      return;
     }
-  }, [initialStoryId, toast]);
+    if (!manuscripts.length) return;
+    setSelectedManuscriptId((prev) =>
+      prev && manuscripts.some((manuscript) => manuscript.id === prev) ? prev : manuscripts[0].id,
+    );
+  }, [manuscripts, selectedOutlineId]);
 
   useEffect(() => {
-    void loadStories();
-  }, [loadStories]);
+    const error = storiesQuery.error as Error | null;
+    if (!error) return;
+    toast({ variant: "destructive", title: "加载故事失败", description: error.message });
+  }, [storiesQuery.error, toast]);
 
   useEffect(() => {
-    void loadCharacters();
-  }, [loadCharacters]);
+    const error = outlinesQuery.error as Error | null;
+    if (!error) return;
+    toast({ variant: "destructive", title: "加载大纲失败", description: error.message });
+  }, [outlinesQuery.error, toast]);
 
   useEffect(() => {
-    if (!selectedStoryId) return;
-    api.outlines
-      .listByStory(selectedStoryId)
-      .then(async (list) => {
-        let next = list;
-        if (next.length === 0) {
-          const created = await api.outlines.create(selectedStoryId, { title: "主线大纲" });
-          next = [created];
-        }
-        setOutlines(next);
-        setSelectedOutlineId((prev) => (prev && next.some((outline) => outline.id === prev) ? prev : next[0].id));
-      })
-      .catch((e: any) =>
-        toast({ variant: "destructive", title: "加载大纲失败", description: e.message }),
-      );
-  }, [selectedStoryId, toast]);
-
-  useEffect(() => {
-    if (!selectedOutlineId) return;
-    api.manuscripts
-      .listByOutline(selectedOutlineId)
-      .then(async (list) => {
-        let next = list;
-        if (next.length === 0) {
-          const created = await api.manuscripts.create(selectedOutlineId, { title: "正文稿" });
-          next = [created];
-        }
-        setManuscripts(next);
-        setSelectedManuscriptId((prev) =>
-          prev && next.some((manuscript) => manuscript.id === prev) ? prev : next[0].id,
-        );
-      })
-      .catch((e: any) =>
-        toast({ variant: "destructive", title: "加载稿件失败", description: e.message }),
-      );
-  }, [selectedOutlineId, toast]);
+    const error = manuscriptsQuery.error as Error | null;
+    if (!error) return;
+    toast({ variant: "destructive", title: "加载稿件失败", description: error.message });
+  }, [manuscriptsQuery.error, toast]);
 
   useEffect(() => {
     if (!selectedOutline) {
