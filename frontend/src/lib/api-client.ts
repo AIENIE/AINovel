@@ -30,6 +30,8 @@ import {
   WorldModuleDefinition,
   WorldPromptMetadata,
   WorldPromptTemplates,
+  G2EvaluationExperiment,
+  G2EvaluationReviewSample,
 } from "@/types";
 
 const API_BASE = "/api";
@@ -757,6 +759,21 @@ export const api = {
     listQualityRuns: async () => {
       return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, requireAdminToken());
     },
+    listG2Evaluations: async (): Promise<G2EvaluationExperiment[]> => {
+      return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, requireAdminToken());
+    },
+    createG2Evaluation: async (payload: { title: string; reviewerUsernames: string[] }): Promise<G2EvaluationExperiment> => {
+      return await requestJson<G2EvaluationExperiment>("/v1/admin/g2-evaluations", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }, requireAdminToken());
+    },
+    transitionG2Evaluation: async (id: string, status: string): Promise<G2EvaluationExperiment> => {
+      return await requestJson<G2EvaluationExperiment>(`/v1/admin/g2-evaluations/${id}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status }),
+      }, requireAdminToken());
+    },
     getOpsSummary: async () => {
       return await requestJson<any>("/v1/admin/ops/summary", { method: "GET" }, requireAdminToken());
     },
@@ -774,6 +791,27 @@ export const api = {
     },
     getOpsDiagnostics: async () => {
       return await requestJson<any>("/v1/admin/ops/diagnostics", { method: "GET" }, requireAdminToken());
+    },
+  },
+
+  g2Evaluations: {
+    listOpen: async (): Promise<G2EvaluationExperiment[]> => {
+      return await requestJson<G2EvaluationExperiment[]>("/v1/g2-evaluations/open", { method: "GET" });
+    },
+    submitSample: async (experimentId: string, manuscriptId: string, sceneId: string) => {
+      return await requestJson<{ sampleId: string; status: string }>(`/v1/g2-evaluations/${experimentId}/samples`, {
+        method: "POST",
+        body: JSON.stringify({ manuscriptId, sceneId }),
+      });
+    },
+    nextReviewSample: async (experimentId: string): Promise<G2EvaluationReviewSample | null> => {
+      return await requestJson<G2EvaluationReviewSample | null>(`/v1/g2-evaluations/${experimentId}/review/next`, { method: "GET" });
+    },
+    vote: async (experimentId: string, sampleId: string, choice: "LEFT" | "RIGHT" | "NEUTRAL"): Promise<G2EvaluationExperiment> => {
+      return await requestJson<G2EvaluationExperiment>(`/v1/g2-evaluations/${experimentId}/review/votes`, {
+        method: "POST",
+        body: JSON.stringify({ sampleId, choice }),
+      });
     },
   },
 

@@ -192,6 +192,23 @@ public class EconomyService {
 
     @Transactional
     public AiChargeResult chargeAiUsage(User user, long inputTokens, long outputTokens, String referenceId) {
+        return chargeAiUsage(user, inputTokens, outputTokens, "AI_USAGE", referenceId, "ai:" + referenceId);
+    }
+
+    @Transactional
+    public AiChargeResult chargeAiUsage(User user,
+                                        long inputTokens,
+                                        long outputTokens,
+                                        String referenceType,
+                                        String referenceId,
+                                        String idempotencyKey) {
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            ProjectCreditLedger existing = ledgerRepository.findFirstByUserAndIdempotencyKey(user, idempotencyKey)
+                    .orElse(null);
+            if (existing != null) {
+                return new AiChargeResult(Math.max(0L, -existing.getDelta()), existing.getBalanceAfter());
+            }
+        }
         long cost = calculateAiCost(inputTokens, outputTokens);
         ProjectCreditAccount account = accountForUpdate(user);
         if (account.getBalance() < cost) {
@@ -201,8 +218,38 @@ public class EconomyService {
         account.setBalance(nextBalance);
         accountRepository.save(account);
         syncUserCreditSnapshot(user, nextBalance);
-        writeLedger(user, CreditLedgerType.AI_DEBIT, -cost, nextBalance, "AI_USAGE", referenceId, "AI 生成扣费", "ai:" + referenceId);
+        writeLedger(user, CreditLedgerType.AI_DEBIT, -cost, nextBalance,
+                referenceType, referenceId, "AI 生成扣费", idempotencyKey);
         return new AiChargeResult(cost, nextBalance);
+    }
+
+    /**
+     * Returns all local project-credit debits attached to one failed evaluation sample.
+     * The account row lock and the refund idempotency key make repeated worker recovery safe.
+     */
+    @Transactional
+    public long refundFailedEvaluation(User user, UUID evaluationSampleId) {
+        String referenceId = String.valueOf(evaluationSampleId);
+        String idempotencyKey = "ai-evaluation-refund:" + referenceId + ":" + user.getId();
+        ProjectCreditAccount account = accountForUpdate(user);
+        if (ledgerRepository.existsByUserAndIdempotencyKey(user, idempotencyKey)) {
+            return 0L;
+        }
+        long refunded = ledgerRepository.findByUserAndReferenceTypeAndReferenceIdAndEntryType(
+                        user, "G2_EVALUATION", referenceId, CreditLedgerType.AI_DEBIT)
+                .stream()
+                .mapToLong(item -> Math.max(0L, -item.getDelta()))
+                .sum();
+        if (refunded <= 0L) {
+            return 0L;
+        }
+        long nextBalance = account.getBalance() + refunded;
+        account.setBalance(nextBalance);
+        accountRepository.save(account);
+        syncUserCreditSnapshot(user, nextBalance);
+        writeLedger(user, CreditLedgerType.AI_EVALUATION_REFUND, refunded, nextBalance,
+                "G2_EVALUATION", referenceId, "G2 盲测样本生成失败退款", idempotencyKey);
+        return refunded;
     }
 
     public ConversionResult convertPublicToProject(User user, long amount, String idempotencyKey) {

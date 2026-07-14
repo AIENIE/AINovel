@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.user.User;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,10 @@ public class SlopQualityGate {
     }
 
     public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request) {
+        return evaluateAndRepair(user, request, null);
+    }
+
+    public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request, AiUsageContext usageContext) {
         SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         String acceptedText = request.candidateText();
         boolean revised = false;
@@ -36,7 +41,8 @@ public class SlopQualityGate {
         String summary = "本地规则低风险，直接接受。";
 
         if (heuristicResult.requiresAiReview()) {
-            SlopJudgeResult judgeResult = safeJudge(user, request, heuristicResult);
+            SlopJudgeResult judgeResult = safeJudge(user, request, heuristicResult,
+                    usageContext == null ? null : usageContext.forOperation("quality-judge"));
             riskScore = Math.max(riskScore, judgeResult.riskScore());
             maxSeverity = maxSeverity(maxSeverity, judgeResult.issues());
             issues = new ArrayList<>(mergeIssues(issues, judgeResult.issues()));
@@ -46,7 +52,8 @@ public class SlopQualityGate {
                     : judgeResult.actionableHint();
 
             if (judgeResult.revisionRecommended() && riskScore >= 55) {
-                String revisedText = safeRevise(user, request, judgeResult);
+                String revisedText = safeRevise(user, request, judgeResult,
+                        usageContext == null ? null : usageContext.forOperation("quality-revision"));
                 if (revisedText != null && !revisedText.isBlank()) {
                     SlopHeuristicResult revisedHeuristic = heuristics.evaluate(SlopHeuristicInput.from(request, revisedText));
                     if (isSaferRevision(heuristicResult, revisedHeuristic)) {
@@ -90,9 +97,12 @@ public class SlopQualityGate {
         return notWorse && improved;
     }
 
-    private SlopJudgeResult safeJudge(User user, SlopQualityRequest request, SlopHeuristicResult heuristicResult) {
+    private SlopJudgeResult safeJudge(User user,
+                                      SlopQualityRequest request,
+                                      SlopHeuristicResult heuristicResult,
+                                      AiUsageContext usageContext) {
         try {
-            return judgeClient.judge(user, request, heuristicResult);
+            return judgeClient.judge(user, request, heuristicResult, usageContext);
         } catch (RuntimeException ex) {
             return new SlopJudgeResult(
                     heuristicResult.overallRiskScore(),
@@ -103,9 +113,12 @@ public class SlopQualityGate {
         }
     }
 
-    private String safeRevise(User user, SlopQualityRequest request, SlopJudgeResult judgeResult) {
+    private String safeRevise(User user,
+                              SlopQualityRequest request,
+                              SlopJudgeResult judgeResult,
+                              AiUsageContext usageContext) {
         try {
-            return revisionService.revise(user, request, judgeResult);
+            return revisionService.revise(user, request, judgeResult, usageContext);
         } catch (RuntimeException ex) {
             return null;
         }

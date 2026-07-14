@@ -33,10 +33,12 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(3, result.migrationsExecuted);
+            assertEquals(4, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
+            assertTableExists(mysql, databaseName, "g2_evaluation_experiments");
+            assertTableExists(mysql, databaseName, "g2_evaluation_votes");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
             assertTableExists(mysql, databaseName, "flyway_schema_history");
         }
@@ -60,10 +62,11 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(2, migrateResult.migrationsExecuted);
+            assertEquals(3, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
+            assertTableExists(mysql, databaseName, "g2_evaluation_samples");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
         }
     }
@@ -86,9 +89,12 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(2, migrateResult.migrationsExecuted);
+            assertEquals(3, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
+            assertTableExists(mysql, databaseName, "project_credit_accounts");
+            assertTableExists(mysql, databaseName, "project_credit_ledger");
+            assertIndexExists(mysql, databaseName, "project_credit_ledger", "idx_project_credit_ledger_reference");
             assertColumnExists(mysql, databaseName, "manuscripts", "current_branch_id");
             assertCurrentBranchForeignKeyExists(mysql, databaseName);
             assertNoDanglingCurrentBranchReferences(mysql, databaseName);
@@ -161,6 +167,20 @@ class FlywaySchemaGovernanceTest {
                              + "' AND table_name = '" + tableName + "' AND column_name = '" + columnName + "'")) {
             assertTrue(resultSet.next());
             assertEquals(1, resultSet.getInt(1));
+        }
+    }
+
+    private static void assertIndexExists(MySQLContainer<?> mysql,
+                                          String databaseName,
+                                          String tableName,
+                                          String indexName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword());
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = '" + databaseName
+                             + "' AND table_name = '" + tableName + "' AND index_name = '" + indexName + "'")) {
+            assertTrue(resultSet.next());
+            assertTrue(resultSet.getInt(1) >= 1);
         }
     }
 

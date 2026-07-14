@@ -523,3 +523,30 @@ export interface AdminDashboardStats {
   apiErrorRate: number;
   pendingReviews: number;
 }
+
+export type G2EvaluationStatus = "DRAFT" | "COLLECTING" | "REVIEWING" | "CLOSED";
+
+export interface G2EvaluationExperiment {
+  id: string;
+  title: string;
+  status: G2EvaluationStatus;
+  invitedReviewers: number;
+  readySamplePairs: number;
+  pendingSamplePairs: number;
+  validVotes: number;
+  reviewersWithVotes: number;
+  craftedWins: number;
+  craftedWinRate: number;
+  gatePassed: boolean;
+  minimumVotes: number;
+  minimumSamplePairs: number;
+  minimumReviewers: number;
+  craftedWinRateTarget: number;
+  createdAt?: string | null;
+}
+
+export interface G2EvaluationReviewSample {
+  sampleId: string;
+  leftText: string;
+  rightText: string;
+}

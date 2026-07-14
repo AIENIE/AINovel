@@ -1,6 +1,7 @@
 package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.manuscript.model.Manuscript;
@@ -44,6 +45,9 @@ public class SceneGenerationService {
     private SceneGenerationPromptBuilder sceneGenerationPromptBuilder;
     @Autowired
     private ObjectMapper objectMapper;
+
+    public record EvaluationPair(String fastText, String craftedText) {
+    }
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections) {
         return generateSceneSectionHtml(manuscript, sceneId, existingSections, GenerationMode.FAST);
@@ -118,6 +122,75 @@ public class SceneGenerationService {
         throw new RuntimeException("场景正文生成失败：重试 " + MAX_GENERATION_ATTEMPTS
                 + " 次后仍未达到 " + MIN_SECTION_HAN + "-" + MAX_SECTION_HAN
                 + " 汉字（当前 " + previousCount + "）。请稍后重试。");
+    }
+
+    /**
+     * Produces a fast/crafted pair for blind evaluation without changing manuscript sections,
+     * versions, or plot-quality records. All billable calls share the sample reference.
+     */
+    public EvaluationPair generateEvaluationPair(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId) {
+        Map<String, String> sections = existingSections(manuscript);
+        AiUsageContext baseContext = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId), "pair");
+        String fastText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.FAST,
+                baseContext.forOperation("fast"));
+        String craftedText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.CRAFTED,
+                baseContext.forOperation("crafted"));
+        return new EvaluationPair(fastText, craftedText);
+    }
+
+    private String generateEvaluationCandidate(Manuscript manuscript,
+                                               UUID sceneId,
+                                               Map<String, String> existingSections,
+                                               GenerationMode mode,
+                                               AiUsageContext usageContext) {
+        SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
+        Story story = manuscript.getOutline().getStory();
+        User owner = ownerOf(manuscript);
+        String characterContext = buildCharacterContext(characterCardRepository.findByStory(story));
+        String previousContext = buildPreviousContext(sceneContext, existingSections);
+        String previousDraft = null;
+        int previousCount = 0;
+
+        for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+            var prompt = sceneGenerationPromptBuilder.build(
+                    owner, story, sceneContext, characterContext, previousContext,
+                    previousDraft, previousCount, attempt, MIN_SECTION_HAN, MAX_SECTION_HAN, mode
+            );
+            String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null),
+                    usageContext.forOperation("draft-" + attempt)).content();
+            String normalized = normalizeGeneratedText(raw);
+            int hanCount = countHanCharacters(normalized);
+            if (hanCount > MAX_SECTION_HAN) {
+                normalized = trimToHanLimit(normalized, MAX_SECTION_HAN);
+                hanCount = countHanCharacters(normalized);
+            }
+            if (hanCount >= MIN_SECTION_HAN && hanCount <= MAX_SECTION_HAN) {
+                SlopQualityResult qualityResult = slopQualityGate.evaluateAndRepair(
+                        owner,
+                        scenePlotQualitySupport.buildQualityRequest(
+                                manuscript, story, sceneContext, previousContext, characterContext, normalized,
+                                "g2_evaluation"
+                        ),
+                        usageContext.forOperation("quality")
+                );
+                return qualityResult.acceptedText();
+            }
+            previousDraft = normalized;
+            previousCount = hanCount;
+        }
+        throw new RuntimeException("盲测候选生成失败：重试 " + MAX_GENERATION_ATTEMPTS
+                + " 次后仍未达到 " + MIN_SECTION_HAN + "-" + MAX_SECTION_HAN + " 汉字");
+    }
+
+    private Map<String, String> existingSections(Manuscript manuscript) {
+        if (manuscript == null || manuscript.getSectionsJson() == null || manuscript.getSectionsJson().isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(manuscript.getSectionsJson(), new TypeReference<Map<String, String>>() {});
+        } catch (Exception ex) {
+            throw new BusinessException("稿件正文数据异常，无法创建盲测样本");
+        }
     }
 
     private String outlinePlanning(Outline outline) {

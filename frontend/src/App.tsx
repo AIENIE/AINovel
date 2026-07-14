@@ -41,6 +41,8 @@ import MaterialsGovernance from "./pages/Admin/MaterialsGovernance";
 import AssetsAudit from "./pages/Admin/AssetsAudit";
 import QualityInspection from "./pages/Admin/QualityInspection";
 import OpsObservability from "./pages/Admin/OpsObservability";
+import G2EvaluationCampaigns from "./pages/Admin/G2EvaluationCampaigns";
+import G2EvaluationReview from "./pages/G2EvaluationReview";
 
 const queryClient = new QueryClient();
 
@@ -156,7 +158,8 @@ const App = () => (
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/prompt-guide" element={<PromptHelpPage />} />
                 <Route path="/settings/world-prompts/help" element={<WorldPromptHelpPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/g2-evaluations/:id/review" element={<G2EvaluationReview />} />
               </Route>
             </Route>
 
@@ -169,6 +172,7 @@ const App = () => (
                 <Route path="materials" element={<MaterialsGovernance />} />
                 <Route path="assets" element={<AssetsAudit />} />
                 <Route path="quality" element={<QualityInspection />} />
+                <Route path="g2-evaluations" element={<G2EvaluationCampaigns />} />
                 <Route path="credits" element={<CreditsManager />} />
                 <Route path="ops" element={<OpsObservability />} />
                 <Route path="settings" element={<SystemSettingsPage />} />

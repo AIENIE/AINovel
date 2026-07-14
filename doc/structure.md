@@ -4,7 +4,7 @@
 
 - `frontend/`：React 前端工程。
 - `backend/`：Spring Boot 后端工程。
-- `doc/`：项目文档、API、测试记录。
+- `doc/`：当前实现、接口、部署和验证文档。
 - `user-doc/`：面向创作者和管理员的使用手册。
 - `design-doc/`：设计方案与版本规划文档。
 - `build.sh`：Docker Compose 构建与部署入口。
@@ -31,7 +31,6 @@
 - `backend/src/main/java/com/ainovel/app/auth/*`：SSO 中转。
 - `backend/src/main/java/com/ainovel/app/adminauth/*`：管理员本地登录接口（`/v1/admin-auth/*`）。
 - `backend/src/main/java/com/ainovel/app/security/*`：JWT、远程会话校验、资源访问控制（BOLA 防护）。
-- `backend/src/main/java/com/ainovel/app/integration/*`：Consul + 三服务客户端与外部安全启动校验。
 - `backend/src/main/java/com/ainovel/app/integration/*`：三服务静态地址客户端与外部安全启动校验。
 - `backend/src/main/java/com/ainovel/app/integration/ExternalSecurityStartupValidator.java`：三服务鉴权配置 fail-fast 校验。
 - `backend/src/main/java/com/ainovel/app/integration/GrpcChannelFactory.java`：统一 gRPC TLS/plaintext 通道构建。
@@ -40,6 +39,7 @@
 - `backend/src/main/java/com/ainovel/app/economy/*`：项目积分账本与兑换核心逻辑。
 - `backend/src/main/java/com/ainovel/app/manuscript/*`：稿件、场景生成和精雕模式。
 - `backend/src/main/java/com/ainovel/app/quality/*`：文本质量、剧情质量、长篇 drift 与模式采样。
+- `backend/src/main/java/com/ainovel/app/g2evaluation/*`：G2 盲测活动、匿名评审、隔离样本生成与退款处理。
 - `backend/src/main/java/com/ainovel/app/v2/*`：上下文、版本、导出、风格、模型和工作台体验 API。
 - `backend/src/main/java/com/ainovel/app/user/*`：用户中心接口。
 - `backend/src/main/java/com/ainovel/app/admin/*`：管理端接口。

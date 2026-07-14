@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { G2EvaluationSubmitDialog } from "./G2EvaluationSubmitDialog";
 import type { PlotQualityRun, SlopQualityRun } from "@/types";
 import { plotStatusClass, plotStatusText, qualityStatusClass, qualityStatusText } from "./shared";
 
@@ -120,6 +121,7 @@ export function DesktopEditorPanel({
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               生成本场景
             </Button>
+            <G2EvaluationSubmitDialog manuscriptId={selectedManuscriptId} sceneId={selectedSceneId} />
             <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="ml-2" title={isSidebarOpen ? "收起右栏" : "展开右栏"}>
               {isSidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </Button>

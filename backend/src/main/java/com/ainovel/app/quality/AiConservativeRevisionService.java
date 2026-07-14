@@ -1,6 +1,7 @@
 package com.ainovel.app.quality;
 
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.user.User;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,22 @@ public class AiConservativeRevisionService implements ConservativeRevisionServic
 
     @Override
     public String revise(User user, SlopQualityRequest request, SlopJudgeResult judgeResult) {
-        String revised = aiService.chat(user, new AiChatRequest(
+        return revise(user, request, judgeResult, null);
+    }
+
+    @Override
+    public String revise(User user,
+                         SlopQualityRequest request,
+                         SlopJudgeResult judgeResult,
+                         AiUsageContext usageContext) {
+        AiChatRequest chatRequest = new AiChatRequest(
                 List.of(new AiChatRequest.Message("user", buildPrompt(request, judgeResult))),
                 null,
                 null
-        )).content();
+        );
+        String revised = (usageContext == null
+                ? aiService.chat(user, chatRequest)
+                : aiService.chat(user, chatRequest, usageContext)).content();
         return stripWrapper(revised);
     }
 

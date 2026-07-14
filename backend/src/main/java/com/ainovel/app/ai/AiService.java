@@ -28,6 +28,10 @@ public class AiService {
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
+        return chat(user, request, null);
+    }
+
+    public AiChatResponse chat(User user, AiChatRequest request, AiUsageContext usageContext) {
         Long remoteUid = resolveGatewayUserId(user);
         validateChatMessages(request.messages());
         AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(
@@ -35,12 +39,21 @@ public class AiService {
                 AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
                 request.messages()
         );
-        EconomyService.AiChargeResult charge = economyService.chargeAiUsage(
-                user,
-                result.promptTokens(),
-                result.completionTokens(),
-                UUID.randomUUID().toString()
-        );
+        EconomyService.AiChargeResult charge = usageContext == null
+                ? economyService.chargeAiUsage(
+                        user,
+                        result.promptTokens(),
+                        result.completionTokens(),
+                        UUID.randomUUID().toString()
+                )
+                : economyService.chargeAiUsage(
+                        user,
+                        result.promptTokens(),
+                        result.completionTokens(),
+                        usageContext.referenceType(),
+                        usageContext.referenceId(),
+                        usageContext.idempotencyKey()
+                );
         var balance = economyService.currentBalance(user);
         return new AiChatResponse(
                 "assistant",

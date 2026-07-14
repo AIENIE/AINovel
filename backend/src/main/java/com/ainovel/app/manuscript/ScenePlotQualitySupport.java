@@ -23,6 +23,17 @@ public class ScenePlotQualitySupport {
                                                   String previousContext,
                                                   String characterContext,
                                                   String candidateText) {
+        return buildQualityRequest(manuscript, story, scene, previousContext, characterContext, candidateText,
+                "generation_gate");
+    }
+
+    public SlopQualityRequest buildQualityRequest(Manuscript manuscript,
+                                                  Story story,
+                                                  SceneGenerationContext scene,
+                                                  String previousContext,
+                                                  String characterContext,
+                                                  String candidateText,
+                                                  String analysisMode) {
         return new SlopQualityRequest(
                 story.getId(),
                 manuscript.getId(),
@@ -36,7 +47,8 @@ public class ScenePlotQualitySupport {
                 previousContext,
                 characterContext,
                 styleContextProvider.buildSlopContext(story),
-                candidateText
+                candidateText,
+                analysisMode
         );
     }
 

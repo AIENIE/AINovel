@@ -2,6 +2,7 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,11 +26,22 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
 
     @Override
     public SlopJudgeResult judge(User user, SlopQualityRequest request, SlopHeuristicResult heuristicResult) {
-        String content = aiService.chat(user, new AiChatRequest(
+        return judge(user, request, heuristicResult, null);
+    }
+
+    @Override
+    public SlopJudgeResult judge(User user,
+                                 SlopQualityRequest request,
+                                 SlopHeuristicResult heuristicResult,
+                                 AiUsageContext usageContext) {
+        AiChatRequest chatRequest = new AiChatRequest(
                 List.of(new AiChatRequest.Message("user", buildPrompt(request, heuristicResult))),
                 null,
                 null
-        )).content();
+        );
+        String content = (usageContext == null
+                ? aiService.chat(user, chatRequest)
+                : aiService.chat(user, chatRequest, usageContext)).content();
         Map<String, Object> root = parseJson(content);
         Map<String, Object> overall = map(root.get("overall"));
         int risk = intVal(overall.get("overall_slop_risk"), intVal(root.get("risk_score"), heuristicResult.overallRiskScore()));

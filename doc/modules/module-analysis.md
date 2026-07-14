@@ -1,6 +1,6 @@
 # AINovel 模块与功能实现全景
 
-> 基线：2026-07 当前工作区。本文描述实际路由、Controller、持久化和前端入口；历史审计结论以 `doc/audit/` 为准。
+> 基线：2026-07 当前工作区。本文描述实际路由、Controller、持久化和前端入口；已删除的历史审计快照不作为当前依据。
 
 ## 前端入口与权限
 
@@ -18,7 +18,8 @@
 2. **故事与大纲**：工作台的“故事构思”“故事管理”“大纲编排”通过 `StoryController` 管理故事卡、角色、章节和场景。
 3. **稿件写作**：`ManuscriptWriter.tsx` 管理多稿件、场景标签、富文本编辑、自动保存、会话统计和右侧功能面板。
 4. **场景生成**：`ManuscriptController` 的指定稿件路径支持 `mode=fast|crafted`。精雕模式由 `SceneGenerationPromptBuilder` 调用 `SlopPatternSamplingService` 和 `PromptAssemblyService` 注入约束；旧生成路径保持快速模式兼容。
-5. **质量与修订**：`SlopQualityController`、`SlopDriftController`、`PlotQualityController` 分别提供文本诊断、长篇 drift 和剧情质量能力。候选修订只有在用户采纳时写回正文。
+5. **G2 盲测**：`G2EvaluationController` 提供作者投稿与 SSO 评审，`AdminG2EvaluationController` 管理活动状态。样本通过 `SceneGenerationService.generateEvaluationPair` 独立生成，文本不写回稿件；失败样本按账本引用退款。
+6. **质量与修订**：`SlopQualityController`、`SlopDriftController`、`PlotQualityController` 分别提供文本诊断、长篇 drift 和剧情质量能力。候选修订只有在用户采纳时写回正文。
 
 ## 工作台与 v2 能力
 
@@ -47,10 +48,10 @@
 
 - `JwtAuthFilter` 解析令牌；当 user-service 签名不能由本服务验证时，`UserSessionValidator` 通过 `uid + sid` 的 gRPC 会话校验建立会话。
 - user-service、ai-service 和 pay-service 使用 `env.txt`/环境变量提供的静态地址；`ExternalSecurityStartupValidator` 在启动时校验鉴权配置。
-- `V1__baseline.sql` 是完整基线，后续结构变更通过 Flyway 迁移；`V2__slop_patterns.sql` 新增并初始化精雕模式库。`V3__backfill_baselined_v2_persistence.sql` 为曾在 v2 表落库前执行 V1 baseline 的旧库补齐 24 张 v2 持久化表及稿件当前分支外键；完整 V1 新库执行 V3 时不会改写已有结构。
+- `V1__baseline.sql` 是完整基线，后续结构变更通过 Flyway 迁移；`V2__slop_patterns.sql` 初始化精雕模式库；`V3__backfill_baselined_v2_persistence.sql` 补齐旧基线遗漏的持久化结构；`V4__g2_blind_evaluation.sql` 新增盲测活动、邀请、样本、投票表和积分引用索引。
 - 主要持久化域包括故事、角色、大纲、稿件、世界、素材、质量运行、v2 上下文/版本/导出、风格和积分账本。
 
 ## 当前文档边界
 
 - API 细节见 `doc/api/`；用户操作见根目录 `user-doc/`。
-- `doc/audit/`、`doc/test/` 和旧设计文档是可追溯快照，不作为当前代码地图。
+- 当前实现入口见本目录、`doc/api/` 和 `user-doc/`；被删除的历史快照不再作为代码地图。

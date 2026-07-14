@@ -38,7 +38,9 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
         run.setCandidateTextHash(hash(record.request().candidateText()));
         run.setAcceptedTextHash(hash(record.acceptedText()));
         run.setSourceTextHash(hash(record.request().candidateText()));
-        run.setAnalysisMode("generation_gate");
+        run.setAnalysisMode(record.request().analysisMode() == null || record.request().analysisMode().isBlank()
+                ? "generation_gate"
+                : record.request().analysisMode());
         SlopQualitySignals signals = record.signals().withDefaults(record.overallRiskScore(), record.maxSeverity(), record.issues());
         run.setRiskLabel(signals.riskLabel());
         run.setEvidenceLevel(signals.evidenceLevel());
