@@ -7,6 +7,7 @@ import com.ainovel.app.prompt.AssembledPrompt;
 import com.ainovel.app.prompt.PromptAssemblyService;
 import com.ainovel.app.prompt.PromptReference;
 import com.ainovel.app.prompt.SceneGenerationPromptInput;
+import com.ainovel.app.quality.SlopPatternSamplingService;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class SceneGenerationPromptBuilder {
@@ -21,6 +23,8 @@ public class SceneGenerationPromptBuilder {
     private PromptAssemblyService promptAssemblyService;
     @Autowired
     private MaterialRetrievalService materialRetrievalService;
+    @Autowired
+    private SlopPatternSamplingService slopPatternSamplingService;
 
     public AssembledPrompt build(User owner,
                                  Story story,
@@ -32,6 +36,22 @@ public class SceneGenerationPromptBuilder {
                                  int attempt,
                                  int minSectionHan,
                                  int maxSectionHan) {
+        return build(owner, story, scene, characterContext, previousContext,
+                previousDraft, previousCount, attempt, minSectionHan, maxSectionHan,
+                GenerationMode.FAST);
+    }
+
+    public AssembledPrompt build(User owner,
+                                 Story story,
+                                 SceneGenerationContext scene,
+                                 String characterContext,
+                                 String previousContext,
+                                 String previousDraft,
+                                 int previousCount,
+                                 int attempt,
+                                 int minSectionHan,
+                                 int maxSectionHan,
+                                 GenerationMode mode) {
         String retryInstruction = "";
         if (attempt > 1) {
             String direction = previousCount < minSectionHan ? "扩写" : "压缩";
@@ -62,6 +82,12 @@ public class SceneGenerationPromptBuilder {
                 retryInstruction,
                 128000
         );
+
+        if (mode == GenerationMode.CRAFTED) {
+            UUID sceneId = scene.sceneId();
+            List<String> negativePatterns = slopPatternSamplingService.sample(sceneId);
+            return promptAssemblyService.assembleWithCreativeConstraints(input, negativePatterns, scene.sceneOrder());
+        }
         return promptAssemblyService.assembleSceneDraft(input);
     }
 

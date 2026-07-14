@@ -10,9 +10,45 @@ public class PromptAssemblyService {
     private static final int DEFAULT_BUDGET = 128000;
     private static final int HARD_BUDGET = 256000;
 
+    /**
+     * Human-trace element prompts (from v3 G2 §4.4).
+     * Five items; each call selects two based on the scene index to rotate emphasis.
+     */
+    private static final List<String> HUMAN_TRACE_ELEMENTS = List.of(
+            "具体经验质感：用只有「在场者」才知道的细节替代通用描写——不是笼统的「疼痛袭来」，而是这种疼具体像什么、影响了哪个动作",
+            "代价可见：本场景的收获必须有对应付出（信息差、关系损耗、资源消耗），禁止无代价爽点",
+            "关系向量变化：至少一组人物关系在本场景结束时与开始时不同（哪怕微小）",
+            "呼吸感：高强度事件后必须有消化性瞬间（缓冲），禁止事件传送带——下一个事件不能紧接着上一个结束",
+            "主体聚焦：视角人物有连续的注意力逻辑，不做全知式扫描；每段只追踪一个行动主体"
+    );
+
     public AssembledPrompt assembleSceneDraft(SceneGenerationPromptInput input) {
         int budget = normalizeBudget(input == null ? 0 : input.tokenBudget());
         String system = stableSceneDraftSystem();
+        String user = dynamicSceneDraftUser(input);
+        return new AssembledPrompt(
+                List.of(
+                        new AiChatRequest.Message("system", system),
+                        new AiChatRequest.Message("user", trimToBudget(user, budget))
+                ),
+                budget
+        );
+    }
+
+    /**
+     * Crafted-mode assembly: extends the standard system prompt with a negative-pattern
+     * constraint block and a human-trace element checklist sampled for this scene.
+     *
+     * @param input           standard prompt input (same as fast mode)
+     * @param negativePatterns patterns sampled from slop_patterns table (up to 15 items)
+     * @param sceneIndex      used to rotate which human-trace elements are emphasized
+     */
+    public AssembledPrompt assembleWithCreativeConstraints(
+            SceneGenerationPromptInput input,
+            List<String> negativePatterns,
+            int sceneIndex) {
+        int budget = normalizeBudget(input == null ? 0 : input.tokenBudget());
+        String system = stableSceneDraftSystem() + craftedConstraintBlock(negativePatterns, sceneIndex);
         String user = dynamicSceneDraftUser(input);
         return new AssembledPrompt(
                 List.of(
@@ -88,6 +124,45 @@ public class PromptAssemblyService {
                 referenceText(input.materialReferences()),
                 avoidText(input.avoidExpressions()),
                 safe(input.retryInstruction(), "")
+        );
+    }
+
+    /**
+     * Builds the constraint extension appended to the crafted-mode system prompt.
+     * Negative patterns are sampled per scene; human-trace emphasis rotates by sceneIndex.
+     */
+    private String craftedConstraintBlock(List<String> negativePatterns, int sceneIndex) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('\n');
+        sb.append("【精雕模式写作约束】\n\n");
+
+        sb.append("禁用的 AI 套路表达（本次随机抽取，每次生成轮换）：\n");
+        if (negativePatterns != null && !negativePatterns.isEmpty()) {
+            for (String p : negativePatterns) {
+                sb.append("- ").append(p).append('\n');
+            }
+        }
+        sb.append('\n');
+
+        List<String> emphasisItems = selectHumanTraceEmphasis(sceneIndex);
+        sb.append("本节叙事质量目标（请重点体现以下要素）：\n");
+        for (String item : emphasisItems) {
+            sb.append("- ").append(item).append('\n');
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Selects two human-trace elements to emphasize in this scene.
+     * Rotates by sceneIndex so different scenes get different emphasis.
+     */
+    private List<String> selectHumanTraceEmphasis(int sceneIndex) {
+        int size = HUMAN_TRACE_ELEMENTS.size();
+        int start = Math.abs(sceneIndex) % size;
+        // Pick 2 elements starting at the rotated position (wrapping around).
+        return List.of(
+                HUMAN_TRACE_ELEMENTS.get(start % size),
+                HUMAN_TRACE_ELEMENTS.get((start + 2) % size)
         );
     }
 

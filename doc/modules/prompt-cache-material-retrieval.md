@@ -1,33 +1,22 @@
-# 提示词缓存与素材检索优化
+# 提示词、素材检索与精雕约束
 
-## 目标
+## 标准起草
 
-- 提高模型 prompt cache 命中率：稳定、长期不变的写作规则固定放在 `system` 消息开头。
-- 扩大参考资料覆盖：正文生成前从素材库检索 chunk 级参考资料，补充故事、角色和前文上下文。
-- 减少重复套路：生成提示词显式加入近期表达避让，生成后继续使用反 slop 质量门禁。
+`PromptAssemblyService` 将长期稳定的写作规则放入 system 消息，将故事、场景、角色、前文、素材、近期表达避让和重试说明放入动态 user 消息。默认动态预算为 128000 token，硬上限为 256000 token。
 
-## 后端实现
+生成前由 `MaterialRetrievalService` 检索最多 8 条素材片段。关键词检索覆盖标题、标签、概要和正文；AiService embeddings 或 Qdrant 不可用时保留关键词 fallback。
 
-- `backend/src/main/java/com/ainovel/app/prompt/PromptAssemblyService.java`
-  - 输出稳定 `system` 消息和动态 `user` 消息。
-  - 默认动态上下文预算 `128000` token，硬上限 `256000` token。
-- `backend/src/main/java/com/ainovel/app/material/MaterialRetrievalService.java`
-  - 将素材切分为重叠 chunk。
-  - 关键词检索覆盖标题、标签、摘要和正文片段。
-  - 语义检索通过 AiService embeddings + Qdrant；失败时保留关键词 fallback。
-- `backend/src/main/java/com/ainovel/app/manuscript/ManuscriptService.java`
-  - 场景生成调用新的 prompt assembly。
-  - 按场景信息检索最多 8 条素材引用。
-  - 从近期前文提取常见表达避让项。
-  - 生成后继续执行反 slop 质量检查与保守修订。
+## 精雕起草
+
+精雕模式在标准 system 消息后追加：
+
+- 来自 `slop_patterns` 的 15 条分类约束；同一场景和模式库得到稳定样本。
+- 2 条按场景序号轮换的人味叙事目标。
+
+精雕约束会让 system 内容随场景变化，因此不能把快速模式的缓存命中表现直接外推到精雕模式。该模式不新增模型调用，但实际延迟、缓存与费用应以运行时数据为准。
 
 ## 前端可见性
 
-- `frontend/src/pages/Workbench/tabs/MaterialSearchPanel.tsx` 展示 chunk 级素材搜索结果，包括来源、分数、片段序号和命中原因。
-- `frontend/src/components/ai/CopilotSidebar.tsx` 在助手消息下展示 `cacheTokens` 和 `cacheHitRate`，用于观察缓存命中。
-
-## 存储与配置
-
-- 当前实现不新增 MySQL 表。
-- Qdrant collection 默认名为 `ainovel_material_chunks`，可通过 `qdrant.material-collection` 调整。
-- `QDRANT_ENABLED=false` 时不会使用向量索引；关键词检索仍可用。
+- 工作台素材检索显示片段来源、分数、序号和命中原因。
+- Copilot 显示 AI 网关返回的 `cacheTokens` 和 `cacheHitRate`。
+- 桌面稿件编辑器提供快速/精雕切换；移动版仅提供编辑和参考窗格。

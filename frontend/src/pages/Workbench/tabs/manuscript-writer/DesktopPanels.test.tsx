@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DesktopEditorPanel } from "./DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./DesktopSidebarPanel";
@@ -27,6 +27,7 @@ vi.mock("recharts", () => {
 
 describe("desktop manuscript workbench panels", () => {
   it("renders desktop editor shell controls and stats", () => {
+    const onSetGenerationMode = vi.fn();
     render(
       <DesktopEditorPanel
         activeGoal={{ currentValue: 200, targetValue: 1000 }}
@@ -35,6 +36,7 @@ describe("desktop manuscript workbench panels", () => {
         dirtyScenes={{ "scene-1": true }}
         draggingTabId=""
         focusMode={false}
+        generationMode="fast"
         isGenerating={false}
         isSaving={false}
         isSidebarOpen={true}
@@ -47,6 +49,7 @@ describe("desktop manuscript workbench panels", () => {
         onReorderOpenTabs={vi.fn()}
         onSelectScene={vi.fn()}
         onSetDraggingTabId={vi.fn()}
+        onSetGenerationMode={onSetGenerationMode}
         onToggleSidebar={vi.fn()}
         openSceneIds={["scene-1"]}
         sceneMap={{ "scene-1": { scene: { title: "雨夜抵达" } } }}
@@ -64,6 +67,8 @@ describe("desktop manuscript workbench panels", () => {
     expect(screen.getByText(/雨夜抵达/)).toBeTruthy();
     expect(screen.getByText("字数 120")).toBeTruthy();
     expect(screen.getByText("目标 200/1000")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("精雕模式：注入反 AI 味约束和叙事目标"));
+    expect(onSetGenerationMode).toHaveBeenCalledWith("crafted");
   });
 
   it("renders desktop sidebar tabs and plot placeholder", () => {

@@ -19,6 +19,8 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
   - 管理侧：兑换订单列表 + 全站项目积分流水。
 - 素材闭环：支持素材混合检索、查重候选、人工合并和稿件引用历史查询。
 - 世界观闭环：发布预检后按模块 AI 生成缺失字段；生成失败记录明确状态与错误，不写入占位内容。
+- 稿件精雕：桌面写作页可在快速与精雕模式间切换；精雕模式会注入分类型反套路约束和轮换叙事目标，保持单候选起草。
+- v2 创作增强：Lorebook、知识图谱、质量分析、版本分支、导出、风格画像、模型偏好和工作台体验设置均已提供持久化 API 与前端入口。
 - 提示词设置：工作区提示词和世界观提示词支持读取、保存、恢复默认和 metadata 驱动帮助页。
 - 管理看板：总用户、今日新增、待审素材、项目积分消耗与轻量 API 错误率统计。
 
@@ -74,6 +76,7 @@ bash build.sh
 - `backend/src/main/resources/db/migration/`：数据库结构基线与后续迁移脚本
 - `backend/sql/schema.sql`：历史入口说明文件，指向当前 Flyway 迁移源
 - `doc/`：项目文档、API 文档、测试记录
+- `user-doc/`：创作者与管理员使用手册
 - `design-doc/`：设计与规划文档
 - `build.sh`：Docker Compose 构建与部署入口
 - `docker-compose.yml`：AINovel 前后端容器编排
@@ -84,3 +87,5 @@ bash build.sh
 - 前端测试：`cd frontend && npm ci && npm run test`
 - 前端构建：`cd frontend && npm run build`
 - 本地域名接口验证（避免走代理）：`curl --noproxy '*' -k -I 'https://ainovel.localhut.com/api/v1/sso/login?next=/workbench&state=smoke'`
+
+使用入口见 [`user-doc/README.md`](user-doc/README.md)；开发、接口和部署说明见 [`doc/README.md`](doc/README.md)。

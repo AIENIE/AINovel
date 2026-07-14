@@ -41,7 +41,7 @@ describe("useManuscriptSceneGeneration", () => {
       await result.current.generateScene();
     });
 
-    expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1");
+    expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "fast");
     expect(replaceManuscript).toHaveBeenCalledWith(saved);
     expect(setContent).toHaveBeenCalledWith("<p>generated</p>");
     expect(loadSlopQuality).toHaveBeenCalledWith("scene-1", "manuscript-2");
@@ -77,5 +77,37 @@ describe("useManuscriptSceneGeneration", () => {
       }),
     );
     expect(result.current.isGenerating).toBe(false);
+  });
+
+  it("forwards crafted mode when the writer selects it", async () => {
+    const saved = {
+      id: "manuscript-2",
+      outlineId: "outline-1",
+      title: "正文稿",
+      updatedAt: "2026-07-14T00:00:00Z",
+      sections: { "scene-1": "<p>crafted</p>" },
+    };
+    vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue(saved as any);
+
+    const { result } = renderHook(() =>
+      useManuscriptSceneGeneration({
+        loadPlotQuality: vi.fn().mockResolvedValue({ run: null, trend: null }),
+        loadSlopQuality: vi.fn().mockResolvedValue({ status: "ACCEPTED", maxSeverity: "LOW" }),
+        replaceManuscript: vi.fn(),
+        selectedManuscriptId: "manuscript-1",
+        selectedSceneId: "scene-1",
+        setContent: vi.fn(),
+        toast: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setGenerationMode("crafted");
+    });
+    await act(async () => {
+      await result.current.generateScene();
+    });
+
+    expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "crafted");
   });
 });

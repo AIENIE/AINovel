@@ -318,7 +318,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
   const {
     generateScene,
+    generationMode,
     isGenerating,
+    setGenerationMode,
   } = useManuscriptSceneGeneration({
     loadPlotQuality,
     loadSlopQuality,
@@ -439,6 +441,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             dirtyScenes={dirtyScenes}
             draggingTabId={draggingTabId}
             focusMode={focusMode}
+            generationMode={generationMode}
             isGenerating={isGenerating}
             isSaving={isSaving}
             isSidebarOpen={isSidebarOpen}
@@ -454,6 +457,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             onReorderOpenTabs={reorderOpenTabs}
             onSelectScene={setSelectedSceneId}
             onSetDraggingTabId={setDraggingTabId}
+            onSetGenerationMode={setGenerationMode}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             openSceneIds={openSceneIds}
             sceneMap={sceneMap}

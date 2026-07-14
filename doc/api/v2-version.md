@@ -12,6 +12,7 @@
 ## Branches
 - `GET /manuscripts/{manuscriptId}/branches`：分支列表。
 - `POST /manuscripts/{manuscriptId}/branches`：创建分支。
+- `POST /manuscripts/{manuscriptId}/branches/{branchId}/checkout`：切换当前稿件使用的分支。
 - `PUT /manuscripts/{manuscriptId}/branches/{branchId}`：更新分支元信息。
 - `POST /manuscripts/{manuscriptId}/branches/{branchId}/merge`：合并分支（创建 merge 快照）。
 - `DELETE /manuscripts/{manuscriptId}/branches/{branchId}`：废弃分支。

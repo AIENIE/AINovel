@@ -12,6 +12,8 @@
 ## Graph
 - `GET /graph`：按当前 Lorebook 和已保存关系生成图谱节点集。
 - `GET /graph/query?keyword=&limit=`：按关键词筛选子图。
+- `POST /graph/relationships`：创建图谱关系。
+- `DELETE /graph/relationships/{relationshipId}`：删除图谱关系。
 - `POST /graph/sync`：触发图谱同步（当前实现为即时完成，并保存关系元数据）。
 
 ## Entity Extraction

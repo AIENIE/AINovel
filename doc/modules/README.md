@@ -2,7 +2,7 @@
 
 - 全量模块实扫分析（推荐先读）：`doc/modules/module-analysis.md`
 
-现有专题文档（历史沉淀）：
+现有专题文档：
 
 - `doc/modules/dashboard.md`
 - `doc/modules/workbench.md`
@@ -14,4 +14,4 @@
 - `doc/modules/security-remote.md`
 - `doc/modules/third-party-components.md`
 
-说明：`module-analysis.md` 基于当前代码进行了逐模块、逐功能点定位，覆盖前端实现、后端实现和主要数据落点。
+说明：`module-analysis.md` 维护当前代码地图；专题文档展开关键流程。历史审计和日期化测试记录不在本目录承担当前行为说明。

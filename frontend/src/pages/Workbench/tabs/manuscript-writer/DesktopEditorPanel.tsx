@@ -1,4 +1,4 @@
-import { History, Loader2, PanelRightClose, PanelRightOpen, Save, Sparkles, X } from "lucide-react";
+import { History, Loader2, PanelRightClose, PanelRightOpen, Save, Sparkles, X, Wand2 } from "lucide-react";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import type { PlotQualityRun, SlopQualityRun } from "@/types";
 import { plotStatusClass, plotStatusText, qualityStatusClass, qualityStatusText } from "./shared";
 
+type GenerationMode = "fast" | "crafted";
+
 type DesktopEditorPanelProps = {
   activeGoal: any;
   content: string;
@@ -14,6 +16,7 @@ type DesktopEditorPanelProps = {
   dirtyScenes: Record<string, boolean>;
   draggingTabId: string;
   focusMode: boolean;
+  generationMode: GenerationMode;
   isGenerating: boolean;
   isSaving: boolean;
   isSidebarOpen: boolean;
@@ -26,6 +29,7 @@ type DesktopEditorPanelProps = {
   onReorderOpenTabs: (fromId: string, toId: string) => void;
   onSelectScene: (sceneId: string) => void;
   onSetDraggingTabId: (sceneId: string) => void;
+  onSetGenerationMode: (mode: GenerationMode) => void;
   onToggleSidebar: () => void;
   openSceneIds: string[];
   sceneMap: Record<string, any>;
@@ -45,6 +49,7 @@ export function DesktopEditorPanel({
   dirtyScenes,
   draggingTabId,
   focusMode,
+  generationMode,
   isGenerating,
   isSaving,
   isSidebarOpen,
@@ -57,6 +62,7 @@ export function DesktopEditorPanel({
   onReorderOpenTabs,
   onSelectScene,
   onSetDraggingTabId,
+  onSetGenerationMode,
   onToggleSidebar,
   openSceneIds,
   sceneMap,
@@ -80,13 +86,38 @@ export function DesktopEditorPanel({
             <Button size="sm" onClick={() => void onHandleManualSave()} disabled={!selectedManuscriptId || !selectedSceneId}>
               <Save className="mr-2 h-4 w-4" /> 保存
             </Button>
+            <div className="flex rounded-md border overflow-hidden">
+              <Button
+                variant={generationMode === "fast" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-none border-0 px-3"
+                onClick={() => onSetGenerationMode("fast")}
+                disabled={isGenerating}
+                title="快速模式：标准生成"
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                快速
+              </Button>
+              <div className="w-px bg-border" />
+              <Button
+                variant={generationMode === "crafted" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-none border-0 px-3"
+                onClick={() => onSetGenerationMode("crafted")}
+                disabled={isGenerating}
+                title="精雕模式：注入反 AI 味约束和叙事目标"
+              >
+                <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                精雕
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={() => void onGenerateScene()}
               disabled={isGenerating || !selectedSceneId || !selectedManuscriptId}
             >
-              {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               生成本场景
             </Button>
             <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="ml-2" title={isSidebarOpen ? "收起右栏" : "展开右栏"}>

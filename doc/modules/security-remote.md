@@ -1,33 +1,22 @@
 # 远程会话校验模块
 
 ## 职责
-- 在 JWT 解析后，对 `uid + sid` 执行远程会话有效性校验。
-- 优先通过 Consul 发现 userservice gRPC 实例，发现失败时回退静态地址。
-- 在远程依赖不可达时快速失败，避免接口长时间阻塞。
-- 对 userservice 下发但签名密钥与本服务不同的 token，允许在 `uid + sid` 远程校验通过后完成鉴权落地。
 
-## 关键实现
-- `UserSessionValidator`：
-  - 维护 gRPC 连接；
-  - 以 `x-internal-token` metadata 调用 `UserAuthService.ValidateSession`；
-  - 对不可达目标执行短超时 TCP 探测。
-- `JwtAuthFilter`：
-  - 先按本地密钥做标准 JWT 验签；
-  - 验签失败时，仅在 `UserSessionValidator` 可用且 `uid + sid` 校验通过的前提下，使用 token payload 建立登录态；
-  - 对无法远程验证的未验签 token 一律拒绝。
-- `ConsulUserGrpcEndpointResolver`：
-  - 调用 Consul `v1/health/service/{service}`；
-  - 缓存健康实例结果。
-- `UserSessionValidationProperties`：
-  - 管理超时、Consul 地址、service 名、回退 gRPC 地址等配置。
+- 先尝试按本地 JWT 密钥验证令牌。
+- 对 user-service 签发但本地无法验签的令牌，提取 `uid + sid` 并调用 `UserAuthService.ValidateSession`。
+- 只有远程会话有效时才建立 AINovel 登录态；失效或不可达时拒绝请求。
 
-## 关键配置
-- `sso.session-validation.enabled`
-- `sso.session-validation.timeout-ms`
-- `sso.session-validation.consul.*`
-- `sso.session-validation.grpc-fallback-address`
-- `EXTERNAL_USER_INTERNAL_GRPC_TOKEN`（必填，映射到 `x-internal-token`）
+## 当前实现
 
-## 2026-02 加固后的行为
-- user-service 受保护 gRPC 方法默认要求 `x-internal-token`，缺失或不匹配会返回 `UNAUTHENTICATED/PERMISSION_DENIED`。
-- 本服务启动期会执行外部安全配置校验（fail-fast），防止空 token 或占位值进入运行时。
+- `UserSessionValidationProperties` 读取 `sso.session-validation.enabled`、`timeout-ms` 和 `grpc-address`。
+- `ConsulUserGrpcEndpointResolver` 仅保留历史类名，当前直接解析配置的 `USER_GRPC_ADDR`，不请求 Consul。
+- `UserSessionValidator` 使用 `x-internal-token` 调用受保护 gRPC 方法。
+
+## 配置
+
+- `SSO_SESSION_VALIDATION_ENABLED`
+- `USER_SESSION_GRPC_TIMEOUT_MS`
+- `USER_GRPC_ADDR`
+- `EXTERNAL_USER_INTERNAL_GRPC_TOKEN`
+
+共享账号重新登录可能刷新旧 `sid`，旧令牌返回 403 属于正常会话失效行为。

@@ -49,5 +49,5 @@
 - `EXTERNAL_PAY_SERVICE_JWT` 为空、占位、claim 不合法或过期时，应由外部 secret/运维流程先签发并注入环境变量。
 
 ## 运行时说明
-- UserSession 校验优先走 Consul；失败时回退 `USER_GRPC_ADDR`。
+- UserSession 校验直接使用 `USER_GRPC_ADDR` 提供的静态 gRPC 地址；当前实现不请求 Consul。
 - 若使用共享测试账号，其他会话重新登录会刷新 `sid`，旧 token 会被正常拒绝（表现为 403）。

@@ -916,8 +916,8 @@ export const api = {
       await requestJson<any>(`/v1/manuscripts/${id}`, { method: "DELETE" });
       return true;
     },
-    generateScene: async (manuscriptId: string, sceneId: string): Promise<Manuscript> => {
-      const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate`, { method: "POST", body: "{}" });
+    generateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<Manuscript> => {
+      const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
       return toManuscript(dto);
     },
     saveSection: async (manuscriptId: string, sceneId: string, content: string): Promise<Manuscript> => {

@@ -702,4 +702,24 @@ describe("api client", () => {
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/alerts"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/diagnostics"))).toBe(true);
   });
+
+  it("passes the selected manuscript generation mode through the API wrapper", async () => {
+    const fetchMock = vi.fn(async (url: unknown) => {
+      if (String(url).endsWith("/api/v1/manuscripts/m1/scenes/s1/generate?mode=crafted")) {
+        return new Response(
+          JSON.stringify({ id: "m1", outlineId: "o1", title: "正文稿", sections: {}, updatedAt: "2026-07-14T00:00:00Z" }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.manuscripts.generateScene("m1", "s1", "crafted");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/manuscripts/m1/scenes/s1/generate?mode=crafted",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

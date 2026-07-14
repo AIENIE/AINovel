@@ -70,10 +70,15 @@ public class ManuscriptService {
 
     @Transactional
     public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId) {
+        return generateForScene(manuscriptId, sceneId, GenerationMode.FAST);
+    }
+
+    @Transactional
+    public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId, GenerationMode mode) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
-        String generatedHtml = sceneGenerationService.generateSceneSectionHtml(manuscript, sceneId, sections);
+        String generatedHtml = sceneGenerationService.generateSceneSectionHtml(manuscript, sceneId, sections, mode);
         sections.put(sceneId.toString(), generatedHtml);
         manuscript.setSectionsJson(writeJson(sections));
         manuscriptRepository.save(manuscript);
@@ -97,7 +102,7 @@ public class ManuscriptService {
                 .filter(m -> isCurrentUserOwner(ownerOf(m)))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("请先创建稿件"));
-        return generateForScene(manuscript.getId(), sceneId);
+        return generateForScene(manuscript.getId(), sceneId, GenerationMode.FAST);
     }
 
     @Transactional

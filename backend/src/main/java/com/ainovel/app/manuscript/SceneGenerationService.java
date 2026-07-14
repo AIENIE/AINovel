@@ -46,6 +46,11 @@ public class SceneGenerationService {
     private ObjectMapper objectMapper;
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections) {
+        return generateSceneSectionHtml(manuscript, sceneId, existingSections, GenerationMode.FAST);
+    }
+
+    public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections,
+                                            GenerationMode mode) {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
@@ -68,7 +73,8 @@ public class SceneGenerationService {
                     previousCount,
                     attempt,
                     MIN_SECTION_HAN,
-                    MAX_SECTION_HAN
+                    MAX_SECTION_HAN,
+                    mode
             );
             String raw = aiService.chat(owner, new AiChatRequest(
                     prompt.messages(),

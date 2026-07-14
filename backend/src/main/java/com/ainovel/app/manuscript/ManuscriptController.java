@@ -40,9 +40,11 @@ public class ManuscriptController {
     public ManuscriptDto get(@PathVariable UUID id) { return manuscriptService.get(id); }
 
     @PostMapping("/manuscripts/{id}/scenes/{sceneId}/generate")
-    @Operation(summary = "生成场景正文（指定稿件）", description = "为稿件中的指定场景生成正文。")
-    public ManuscriptDto generateSceneForManuscript(@PathVariable UUID id, @PathVariable UUID sceneId) {
-        return manuscriptService.generateForScene(id, sceneId);
+    @Operation(summary = "生成场景正文（指定稿件）", description = "为稿件中的指定场景生成正文。mode=crafted 启用精雕模式（注入反 slop 约束），默认 fast。")
+    public ManuscriptDto generateSceneForManuscript(@PathVariable UUID id, @PathVariable UUID sceneId,
+            @RequestParam(defaultValue = "fast") String mode) {
+        GenerationMode generationMode = "crafted".equalsIgnoreCase(mode) ? GenerationMode.CRAFTED : GenerationMode.FAST;
+        return manuscriptService.generateForScene(id, sceneId, generationMode);
     }
 
     @PutMapping("/manuscripts/{id}/sections/{sceneId}")

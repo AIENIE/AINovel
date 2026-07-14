@@ -1,6 +1,6 @@
 # 外部服务能力映射（2026-02-25）
 
-- 来源：`~/aienie-services/aienie-doc` + 当前运行环境联调结果
+- 来源：`/home/duwei/aienie-doc/interfaces/`、本仓库 proto 副本和当前客户端实现
 - 适配状态：已按 2026-02 三服务安全加固完成升级
 
 ## UserService

@@ -3,6 +3,8 @@ import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import { qualityStatusText } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 
+type GenerationMode = "fast" | "crafted";
+
 type ToastFn = (options: {
   description?: string;
   title?: string;
@@ -29,13 +31,14 @@ export function useManuscriptSceneGeneration({
   toast,
 }: UseManuscriptSceneGenerationOptions) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("fast");
 
   const generateScene = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId) return;
     const sceneId = selectedSceneId;
     setIsGenerating(true);
     try {
-      const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId);
+      const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId, generationMode);
       replaceManuscript(saved);
       setContent(saved.sections?.[sceneId] || "");
       const latestRun = await loadSlopQuality(sceneId, saved.id).catch((): null => null);
@@ -50,6 +53,7 @@ export function useManuscriptSceneGeneration({
       setIsGenerating(false);
     }
   }, [
+    generationMode,
     loadPlotQuality,
     loadSlopQuality,
     replaceManuscript,
@@ -61,6 +65,8 @@ export function useManuscriptSceneGeneration({
 
   return {
     generateScene,
+    generationMode,
     isGenerating,
+    setGenerationMode,
   };
 }

@@ -24,7 +24,7 @@
 - 成功响应透传 `accessToken/userId/username/sessionId/rememberDays/expiresIn`，前端沿用既有 `acceptToken` 建立本地登录态。
 
 ## 环境变量配置
-- `USER_HTTP_SERVICE_NAME` / `USER_HTTP_ADDR`：控制 user-service HTTP 入口解析（Consul 优先，fallback 兜底）。
+- `USER_HTTP_ADDR`：提供 user-service HTTP 入口的静态地址。
 - `SSO_CALLBACK_ORIGIN`：可选。配置后，后端回调 `redirect` 固定使用该 origin；未配置时按请求头（`X-Forwarded-*`/`Origin`/`Referer`）推断。
 - `VITE_SSO_ENTRY_BASE_URL`：前端构建变量，控制 `buildSsoUrl()` 的后端入口基址；为空时使用当前页面 `window.location.origin`。
 

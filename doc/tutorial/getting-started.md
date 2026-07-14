@@ -1,4 +1,4 @@
-# AINovel 上手与部署指南（2026-03-04）
+# AINovel 开发与部署指南
 
 ## 1. 环境要求
 
@@ -22,7 +22,7 @@
   - `EXTERNAL_AI_HMAC_CALLER`
   - `EXTERNAL_AI_HMAC_SECRET`
   - `EXTERNAL_USER_INTERNAL_GRPC_TOKEN`
-  - `EXTERNAL_PAY_SERVICE_JWT`（或 `EXTERNAL_PAY_JWT_SECRET` + claim 配置自动生成）
+  - `EXTERNAL_PAY_SERVICE_JWT`（由外部 secret/运维流程签发并注入）
 - 超时与安全：
   - `EXTERNAL_TIMEOUT_MS=120000`
   - `EXTERNAL_SECURITY_FAIL_FAST=true`
@@ -38,7 +38,7 @@
 ## 3. 一键部署（推荐）
 
 ```bash
-sudo -E bash build.sh
+sudo ./build.sh
 ```
 
 脚本会执行：
@@ -54,7 +54,7 @@ sudo -E bash build.sh
 - `https://ainovel.localhut.com/api/*`
 
 > 仓库仅保留 `build.sh`。正式环境域名、证书和反向代理由外部环境配置。
-> Docker Compose 使用 bridge 网络；后端监听 `BACKEND_PORT` 后，由外层反代与服务名路由到后端 API。
+> Docker Compose 使用 bridge 网络；前端容器经 compose 服务名访问后端 API，对外域名、证书和反向代理由外部环境提供。
 
 ## 4. 依赖服务准备
 
@@ -73,6 +73,7 @@ sudo -E bash build.sh
 > ```
 >
 > 之后所有结构变更必须新增 `src/main/resources/db/migration/V{n}__*.sql`，不再直接追加 `backend/sql/schema.sql`。
+> 已按 V1 baseline 登记、但曾在 v2 持久化表落库前完成 baseline 的旧库，无需手工执行 DDL；部署当前版本会自动执行 V3 补齐缺失的 v2 表和稿件当前分支外键。
 
 > 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请显式传入配置文件：
 >
