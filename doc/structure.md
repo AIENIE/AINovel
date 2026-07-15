@@ -19,6 +19,7 @@
 - `frontend/src/pages/Admin/Login.tsx`：管理员本地账密登录页（`/admin/login`）。
 - `frontend/src/pages/Profile/ProfilePage.tsx`：个人中心（兑换码、通用转专属、兑换历史、积分流水）。
 - `frontend/src/pages/Workbench/`：9 标签创作工作台，含故事、大纲、稿件、质量、知识库与 v2 联调入口。
+- `frontend/src/pages/GuidedCreation/`：G1 引导创作工作区、候选编辑和持久化草稿状态管理。
 - `frontend/src/pages/Settings/`：提示词、世界观提示词、风格、模型偏好和工作台体验设置。
 - `frontend/src/pages/Admin/*`：管理后台页面。
 - `frontend/src/lib/api-client.ts`：统一 API 请求层。
@@ -40,6 +41,7 @@
 - `backend/src/main/java/com/ainovel/app/manuscript/*`：稿件、场景生成和精雕模式。
 - `backend/src/main/java/com/ainovel/app/quality/*`：文本质量、剧情质量、长篇 drift 与模式采样。
 - `backend/src/main/java/com/ainovel/app/g2evaluation/*`：G2 盲测活动、匿名评审、隔离样本生成与退款处理。
+- `backend/src/main/java/com/ainovel/app/workflow/*`：G1 引导创作运行、候选生成、标准实体落库、持久化异步任务与恢复协调。
 - `backend/src/main/java/com/ainovel/app/v2/*`：上下文、版本、导出、风格、模型和工作台体验 API。
 - `backend/src/main/java/com/ainovel/app/user/*`：用户中心接口。
 - `backend/src/main/java/com/ainovel/app/admin/*`：管理端接口。

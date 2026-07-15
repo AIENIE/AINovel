@@ -1,6 +1,26 @@
-# AINovel v3 G2 - Pending Phases / 后续分期事项
+# AINovel v3 - Pending Phases / 后续分期事项
 
 更新时间：2026-07-14。本文是后续开发的唯一排期入口；代码与当前接口说明是实现事实来源。
+
+## 本期已完成：G1-A P0 - 引导创作 Step0-4
+
+已交付的范围：
+
+- `/novels/quick-create` 提供一句话起点、类型、基调和 3-12 章目标；传统新建小说入口保留。
+- 故事方向、世界设定、角色阵容、章节大纲四步均生成恰好 3 个候选；角色阵容每套 3-5 人，大纲每章 2-4 场。
+- 支持逐步选择、候选字段编辑、世界设定跳过，以及采用模型推荐候选的自动后台推进。
+- 草稿跨设备持久化；任务状态、重试、启动恢复和不确定 AI 调用均可观测，`CALLING_AI` 中断不会静默重放。
+- 确认产物直接写入标准 `Story`、`World`、`CharacterCard`、`Outline`；现有 `/v1/conception` 和 Workbench 保持兼容。
+- AI 调用按实际用量扣项目积分，账本引用类型为 `G1_WORKFLOW`。
+
+## 下一期：G1-A P1 - 分章正文草稿
+
+**前置**：G2 完整方案 A 上线并通过正文候选成本、质量和延迟预算复核。
+
+- 在 Step4 之后增加 Step5，为用户选定的前 N 章异步生成正文草稿。
+- 每章正文必须复用 G2 节拍规划、多候选竞技场和现有质量门禁，不另建低质量旁路。
+- 生成前展示成本预估；失败、重试和部分成功状态继续落入持久化任务体系。
+- 完成页衔接标准 `Manuscript` 与 Workbench，并补充首章完成时长、24 小时正文产出率和修改率指标。
 
 ## 本期已完成：G2 Step 1 - 带约束起草与盲测闭环
 
@@ -65,6 +85,6 @@ G2 完整方案 A 只能在同一活动满足以下全部条件后立项：
 
 ## 关联说明
 
-- 当前实现与 API：`doc/modules/ai-slop-quality.md`、`doc/api/g2-evaluations.md`。
-- 用户和管理员操作：`user-doc/10-G2盲测.md`、`user-doc/08-管理员手册.md`。
+- 当前实现与 API：`doc/modules/guided-creation.md`、`doc/api/guided-creation.md`、`doc/modules/ai-slop-quality.md`、`doc/api/g2-evaluations.md`。
+- 用户和管理员操作：`user-doc/11-引导创作.md`、`user-doc/10-G2盲测.md`、`user-doc/08-管理员手册.md`。
 - 研究性提案：本目录 `00`、`02`、`05`、`06`，不替代本文件的排期。

@@ -48,8 +48,8 @@
 
 - `JwtAuthFilter` 解析令牌；当 user-service 签名不能由本服务验证时，`UserSessionValidator` 通过 `uid + sid` 的 gRPC 会话校验建立会话。
 - user-service、ai-service 和 pay-service 使用 `env.txt`/环境变量提供的静态地址；`ExternalSecurityStartupValidator` 在启动时校验鉴权配置。
-- `V1__baseline.sql` 是完整基线，后续结构变更通过 Flyway 迁移；`V2__slop_patterns.sql` 初始化精雕模式库；`V3__backfill_baselined_v2_persistence.sql` 补齐旧基线遗漏的持久化结构；`V4__g2_blind_evaluation.sql` 新增盲测活动、邀请、样本、投票表和积分引用索引。
-- 主要持久化域包括故事、角色、大纲、稿件、世界、素材、质量运行、v2 上下文/版本/导出、风格和积分账本。
+- `V1__baseline.sql` 是完整基线，后续结构变更通过 Flyway 迁移；`V2__slop_patterns.sql` 初始化精雕模式库；`V3__backfill_baselined_v2_persistence.sql` 补齐旧基线遗漏的持久化结构；`V4__g2_blind_evaluation.sql` 新增盲测活动、邀请、样本、投票表和积分引用索引；`V5__guided_creation_workflows.sql` 新增引导创作运行与持久化任务表。
+- 主要持久化域包括故事、角色、大纲、稿件、世界、素材、引导创作运行、后台任务、质量运行、v2 上下文/版本/导出、风格和积分账本。
 
 ## 当前文档边界
 

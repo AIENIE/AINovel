@@ -74,6 +74,7 @@ sudo ./build.sh
 >
 > 之后所有结构变更必须新增 `src/main/resources/db/migration/V{n}__*.sql`，不再直接追加 `backend/sql/schema.sql`。
 > 已按 V1 baseline 登记、但曾在 v2 持久化表落库前完成 baseline 的旧库，无需手工执行 DDL；部署当前版本会自动执行 V3 补齐缺失的 v2 表和稿件当前分支外键。
+> 当前版本还会依次执行 V4 盲测结构和 V5 引导创作/后台任务结构；部署后应以 `flyway_schema_history` 的 V5 success 记录为准。
 
 > 如果你不是通过 `build.sh`，而是手动执行 `docker compose`，请显式传入配置文件：
 >

@@ -722,4 +722,46 @@ describe("api client", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("uses the durable guided creation workflow endpoints", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const workflow = {
+      id: "run-1",
+      templateKey: "quick-book-v1",
+      status: "WAITING_USER",
+      currentStep: "PREMISE",
+      seedIdea: "停摆城市",
+      targetChapterCount: 6,
+      autoRun: false,
+      steps: {},
+      version: 0,
+    };
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      const body = String(url).endsWith("/generate")
+        ? { workflowId: "run-1", jobId: "job-1" }
+        : workflow;
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    await api.creationWorkflows.create({
+      seedIdea: "停摆城市", genre: "悬疑", tone: "紧张", targetChapterCount: 6, autoRun: false,
+    });
+    await api.creationWorkflows.generate("run-1", "PREMISE");
+    await api.creationWorkflows.confirm("run-1", "PREMISE", "candidate-1", { candidateId: "candidate-1", title: "停摆" }, 3);
+    await api.creationWorkflows.skipWorld("run-1", 4);
+    await api.creationWorkflows.startAuto("run-1", 8);
+    await api.creationWorkflows.retry("run-1");
+
+    expect(requests.map((item) => item.url)).toEqual(expect.arrayContaining([
+      "/api/v1/creation-workflows",
+      "/api/v1/creation-workflows/run-1/steps/premise/generate",
+      "/api/v1/creation-workflows/run-1/steps/premise/confirm",
+      "/api/v1/creation-workflows/run-1/steps/world/skip?version=4",
+      "/api/v1/creation-workflows/run-1/auto-run",
+      "/api/v1/creation-workflows/run-1/retry",
+    ]));
+    const confirm = requests.find((item) => item.url.endsWith("/confirm"));
+    expect(JSON.parse(String(confirm?.init?.body))).toMatchObject({ candidateId: "candidate-1", version: 3 });
+  });
 });

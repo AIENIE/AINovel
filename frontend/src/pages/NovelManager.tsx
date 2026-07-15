@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, MoreHorizontal, BookOpen, Clock, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, MoreHorizontal, BookOpen, Clock, Trash2, WandSparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,11 +91,18 @@ const NovelManager = () => {
           </Link>
           <h1 className="text-xl font-bold">我的小说</h1>
         </div>
-        <Link to="/novels/create">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" /> 新建小说
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/novels/quick-create">
+            <Button className="bg-emerald-700 hover:bg-emerald-800">
+              <WandSparkles className="mr-2 h-4 w-4" /> 引导创作
+            </Button>
+          </Link>
+          <Link to="/novels/create">
+            <Button variant="outline">
+              <Plus className="mr-2 h-4 w-4" /> 传统新建
+            </Button>
+          </Link>
+        </div>
       </header>
 
       <main className="p-6 max-w-7xl mx-auto">
@@ -105,7 +112,7 @@ const NovelManager = () => {
               <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
               </div>
-              <span className="font-medium text-muted-foreground group-hover:text-primary">创建新故事</span>
+              <span className="font-medium text-muted-foreground group-hover:text-primary">传统方式创建</span>
             </div>
           </Link>
 
@@ -183,4 +190,3 @@ const NovelManager = () => {
 };
 
 export default NovelManager;
-

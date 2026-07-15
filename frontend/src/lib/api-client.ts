@@ -32,6 +32,9 @@ import {
   WorldPromptTemplates,
   G2EvaluationExperiment,
   G2EvaluationReviewSample,
+  CreationWorkflow,
+  GuidedCreationCandidate,
+  GuidedCreationStep,
 } from "@/types";
 
 const API_BASE = "/api";
@@ -811,6 +814,66 @@ export const api = {
       return await requestJson<G2EvaluationExperiment>(`/v1/g2-evaluations/${experimentId}/review/votes`, {
         method: "POST",
         body: JSON.stringify({ sampleId, choice }),
+      });
+    },
+  },
+
+  creationWorkflows: {
+    list: async (): Promise<CreationWorkflow[]> => {
+      return await requestJson<CreationWorkflow[]>("/v1/creation-workflows", { method: "GET" });
+    },
+    get: async (id: string): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}`, { method: "GET" });
+    },
+    create: async (payload: {
+      seedIdea: string;
+      genre?: string;
+      tone?: string;
+      targetChapterCount: number;
+      autoRun: boolean;
+    }): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>("/v1/creation-workflows", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+    generate: async (id: string, step: GuidedCreationStep, hint?: string) => {
+      return await requestJson<{ workflowId: string; jobId: string }>(
+        `/v1/creation-workflows/${id}/steps/${step.toLowerCase()}/generate`,
+        { method: "POST", body: JSON.stringify({ hint: hint || null }) },
+      );
+    },
+    confirm: async (
+      id: string,
+      step: GuidedCreationStep,
+      candidateId: string,
+      editedPayload: GuidedCreationCandidate,
+      version: number,
+    ): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>(
+        `/v1/creation-workflows/${id}/steps/${step.toLowerCase()}/confirm`,
+        {
+          method: "POST",
+          body: JSON.stringify({ candidateId, editedPayload, version }),
+        },
+      );
+    },
+    skipWorld: async (id: string, version: number): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>(
+        `/v1/creation-workflows/${id}/steps/world/skip?version=${version}`,
+        { method: "POST", body: "{}" },
+      );
+    },
+    startAuto: async (id: string, targetChapterCount: number): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/auto-run`, {
+        method: "POST",
+        body: JSON.stringify({ targetChapterCount }),
+      });
+    },
+    retry: async (id: string): Promise<CreationWorkflow> => {
+      return await requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/retry`, {
+        method: "POST",
+        body: "{}",
       });
     },
   },

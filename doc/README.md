@@ -8,12 +8,14 @@
 - `modules/README.md`：业务模块索引。
 - `modules/`：后台、工作台、素材、设定、世界观、分析、远程安全和 v2 模块说明。
 - `modules/ai-slop-quality.md`：文本质量诊断、生成门禁和精雕模式说明。
+- `modules/guided-creation.md`：G1 引导创作、后台任务和标准实体落库说明。
 
 ## 接口文档
 
 - `api/`：后端 HTTP/API 文档。
 - `api/sso.md`、`api/user.md`、`api/ai.md`、`api/material.md`、`api/story.md`、`api/world.md`：主要业务接口。
 - `api/v2-*.md`：v2 工作台、分析、导出、质量、风格和版本相关接口。
+- `api/guided-creation.md`：引导创作运行、候选生成、确认、自动推进与重试接口。
 - `api/external/`：当前外部服务接入边界和静态地址约束。
 
 ## 前端文档

@@ -550,3 +550,58 @@ export interface G2EvaluationReviewSample {
   leftText: string;
   rightText: string;
 }
+
+export type GuidedCreationStep = "PREMISE" | "WORLD" | "CHARACTERS" | "OUTLINE" | "COMPLETED";
+export type CreationWorkflowStatus = "WAITING_USER" | "AUTO_RUNNING" | "FAILED" | "COMPLETED";
+export type AsyncJobStatus = "QUEUED" | "RUNNING" | "CALLING_AI" | "SUCCEEDED" | "FAILED" | "RECOVERY_REQUIRED";
+
+export interface GuidedCreationCandidate {
+  candidateId: string;
+  [key: string]: unknown;
+}
+
+export interface GuidedCreationStepData {
+  candidates?: GuidedCreationCandidate[];
+  recommendedCandidateId?: string;
+  selectedCandidateId?: string;
+  selected?: GuidedCreationCandidate;
+  skipped?: boolean;
+  chargedCredits?: number;
+  remainingCredits?: number;
+  generatedAt?: string;
+  confirmedAt?: string;
+}
+
+export interface CreationWorkflowJob {
+  id: string;
+  step: GuidedCreationStep;
+  status: AsyncJobStatus;
+  progress: number;
+  errorMessage?: string | null;
+  chargedCredits: number;
+  remainingCredits: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface CreationWorkflow {
+  id: string;
+  templateKey: string;
+  status: CreationWorkflowStatus;
+  currentStep: GuidedCreationStep;
+  seedIdea: string;
+  genre?: string | null;
+  tone?: string | null;
+  targetChapterCount: number;
+  autoRun: boolean;
+  steps: Partial<Record<GuidedCreationStep, GuidedCreationStepData>>;
+  storyId?: string | null;
+  worldId?: string | null;
+  outlineId?: string | null;
+  errorMessage?: string | null;
+  version: number;
+  activeJob?: CreationWorkflowJob | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  completedAt?: string | null;
+}

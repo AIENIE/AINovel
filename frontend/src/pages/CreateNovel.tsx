@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Sparkles, WandSparkles } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
 import { api } from "@/lib/api-client";
 
@@ -70,6 +70,11 @@ const CreateNovel = () => {
           </Button>
         </Link>
         <h1 className="font-semibold">新建小说</h1>
+        <Link to="/novels/quick-create" className="ml-auto">
+          <Button variant="outline" size="sm">
+            <WandSparkles className="mr-2 h-4 w-4" /> 引导创作
+          </Button>
+        </Link>
       </header>
 
       <main className="flex-1 flex justify-center p-4 lg:p-8">

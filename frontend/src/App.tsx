@@ -43,6 +43,7 @@ import QualityInspection from "./pages/Admin/QualityInspection";
 import OpsObservability from "./pages/Admin/OpsObservability";
 import G2EvaluationCampaigns from "./pages/Admin/G2EvaluationCampaigns";
 import G2EvaluationReview from "./pages/G2EvaluationReview";
+import GuidedCreationPage from "./pages/GuidedCreation/GuidedCreationPage";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +149,7 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardHome />} />
               <Route path="/novels" element={<NovelManager />} />
               <Route path="/novels/create" element={<CreateNovel />} />
+              <Route path="/novels/quick-create" element={<GuidedCreationPage />} />
               <Route path="/worlds" element={<WorldManager />} />
               <Route path="/worlds/create" element={<CreateWorld />} />
               <Route path="/world-editor" element={<WorldEditor />} />

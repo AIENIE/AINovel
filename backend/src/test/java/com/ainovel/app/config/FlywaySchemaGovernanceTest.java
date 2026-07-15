@@ -33,12 +33,14 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(4, result.migrationsExecuted);
+            assertEquals(5, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
             assertTableExists(mysql, databaseName, "g2_evaluation_experiments");
             assertTableExists(mysql, databaseName, "g2_evaluation_votes");
+            assertTableExists(mysql, databaseName, "creation_workflow_runs");
+            assertTableExists(mysql, databaseName, "async_jobs");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
             assertTableExists(mysql, databaseName, "flyway_schema_history");
         }
@@ -62,11 +64,12 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(3, migrateResult.migrationsExecuted);
+            assertEquals(4, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
             assertTableExists(mysql, databaseName, "g2_evaluation_samples");
+            assertTableExists(mysql, databaseName, "creation_workflow_runs");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
         }
     }
@@ -89,12 +92,14 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(3, migrateResult.migrationsExecuted);
+            assertEquals(4, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
             assertTableExists(mysql, databaseName, "project_credit_ledger");
             assertIndexExists(mysql, databaseName, "project_credit_ledger", "idx_project_credit_ledger_reference");
+            assertTableExists(mysql, databaseName, "creation_workflow_runs");
+            assertTableExists(mysql, databaseName, "async_jobs");
             assertColumnExists(mysql, databaseName, "manuscripts", "current_branch_id");
             assertCurrentBranchForeignKeyExists(mysql, databaseName);
             assertNoDanglingCurrentBranchReferences(mysql, databaseName);
