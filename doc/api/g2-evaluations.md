@@ -4,14 +4,14 @@
 
 ## 管理员
 
-- `GET /v1/admin/g2-evaluations`：查询活动、样本和盲测门槛进度。
-- `POST /v1/admin/g2-evaluations`：创建草稿活动。
+- `GET /api/v1/admin/g2-evaluations`：查询活动、样本和盲测门槛进度。
+- `POST /api/v1/admin/g2-evaluations`：创建草稿活动。
 
 ```json
 {"title":"G2 第一轮","reviewerUsernames":["reviewer_a","reviewer_b"]}
 ```
 
-- `POST /v1/admin/g2-evaluations/{id}/status`：仅允许 `DRAFT -> COLLECTING -> REVIEWING -> CLOSED`。
+- `POST /api/v1/admin/g2-evaluations/{id}/status`：仅允许 `DRAFT -> COLLECTING -> REVIEWING -> CLOSED`。
 
 ```json
 {"status":"COLLECTING"}
@@ -21,8 +21,8 @@
 
 ## 作者投稿
 
-- `GET /v1/g2-evaluations/open`：列出可投稿活动。
-- `POST /v1/g2-evaluations/{id}/samples`：提交自己的稿件场景。
+- `GET /api/v1/g2-evaluations/open`：列出可投稿活动。
+- `POST /api/v1/g2-evaluations/{id}/samples`：提交自己的稿件场景。
 
 ```json
 {"manuscriptId":"uuid","sceneId":"uuid"}
@@ -32,8 +32,8 @@
 
 ## 评审
 
-- `GET /v1/g2-evaluations/{id}/review/next`：返回下一条匿名 A/B 样本；未受邀、未进入评审阶段或没有剩余样本时拒绝或返回空结果。
-- `POST /v1/g2-evaluations/{id}/review/votes`：提交一次选择。
+- `GET /api/v1/g2-evaluations/{id}/review/next`：返回下一条匿名 A/B 样本；未受邀、未进入评审阶段或没有剩余样本时拒绝或返回空结果。
+- `POST /api/v1/g2-evaluations/{id}/review/votes`：提交一次选择。
 
 ```json
 {"sampleId":"uuid","choice":"LEFT"}

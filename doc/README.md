@@ -1,42 +1,34 @@
-# AINovel 文档索引
+# AINovel 文档中心
 
-本目录记录 AINovel 的当前实现、接口、部署和验证说明。代码是事实来源；面向创作者与管理员的操作说明单独维护在仓库根目录 `user-doc/`。
+`doc/` 是研发文档的唯一入口；面向创作者和管理员的操作说明独立维护在 [`../user-doc/`](../user-doc/README.md)。代码是当前行为的事实来源。
 
-## 架构与模块
+## 当前实现
 
-- `structure.md`：项目结构与主要代码入口。
-- `modules/README.md`：业务模块索引。
-- `modules/`：后台、工作台、素材、设定、世界观、分析、远程安全和 v2 模块说明。
-- `modules/ai-slop-quality.md`：文本质量诊断、生成门禁和精雕模式说明。
-- `modules/guided-creation.md`：G1 引导创作、后台任务和标准实体落库说明。
+- [`architecture/overview.md`](architecture/overview.md)：系统边界、模块、路由和数据。
+- [`architecture/frontend.md`](architecture/frontend.md)：前端结构和页面地图。
+- [`architecture/guided-creation.md`](architecture/guided-creation.md)：G1 引导创作。
+- [`architecture/workbench.md`](architecture/workbench.md)：创作工作台与 v2 能力。
+- [`architecture/quality.md`](architecture/quality.md)：文本质量、精雕和 G2 Step 1。
+- [`architecture/admin.md`](architecture/admin.md)：管理后台。
+- [`architecture/integrations.md`](architecture/integrations.md)：外部服务、鉴权和基础设施。
 
-## 接口文档
+## 接口与运维
 
-- `api/`：后端 HTTP/API 文档。
-- `api/sso.md`、`api/user.md`、`api/ai.md`、`api/material.md`、`api/story.md`、`api/world.md`：主要业务接口。
-- `api/v2-*.md`：v2 工作台、分析、导出、质量、风格和版本相关接口。
-- `api/guided-creation.md`：引导创作运行、候选生成、确认、自动推进与重试接口。
-- `api/external/`：当前外部服务接入边界和静态地址约束。
+- [`api/README.md`](api/README.md)：HTTP API 索引。
+- [`operations/development.md`](operations/development.md)：开发环境和本地检查。
+- [`operations/deployment.md`](operations/deployment.md)：配置、部署、迁移与故障处理。
+- [`operations/verification.md`](operations/verification.md)：标准验证链和最近一次验收结果。
 
-## 前端文档
+## 计划与研究
 
-- `../frontend/doc/structure.md`：前端结构说明。
-- `../frontend/doc/page-*.md`：页面级说明。
-- `../frontend/doc/general.md`：前端通用说明。
-
-## 用户手册
-
-- `../user-doc/README.md`：创作者和管理员的操作入口。
-- `../user-doc/01-快速开始.md`：从登录到第一部作品的最短路径。
-
-## 部署与验证
-
-- `tutorial/getting-started.md`：开发与部署指南。
-- `verification.md`：当前可复现的测试、部署和验收步骤。
+- [`roadmap.md`](roadmap.md)：唯一后续工作账本。
+- [`planning/v3/README.md`](planning/v3/README.md)：G1-G4 v3 提案与设计依据。
+- [`research/ai-writing-quality/README.md`](research/ai-writing-quality/README.md)：AI 写作质量研究与采用状态。
 
 ## 维护规则
 
-- 本目录以当前仓库代码为准。
-- 若文档与代码冲突，应先修正文档并记录差异。
-- 涉及公共服务接口时，以 `/home/duwei/aienie-doc/interfaces/` 下对应服务契约为准。
-- 已删除的历史审计、日期化测试和过期设计快照不再作为维护入口；需要记录新的验证结论时更新 `verification.md` 或对应模块说明。
+1. 当前行为与文档冲突时，以代码为准并同步修正文档。
+2. 后续状态、优先级和门槛只写入 `roadmap.md`，专题文档只保留设计依据。
+3. 不新增日期化测试快照、临时备份或第二份路线图；验证结果更新 `operations/verification.md`。
+4. 跨服务正式契约维护在 `/home/duwei/aienie-doc/interfaces/<service>/`，本仓库只记录消费方式。
+5. 删除过时内容时依赖 Git 历史追溯，不在仓库内建立归档副本。

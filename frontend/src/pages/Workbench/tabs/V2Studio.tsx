@@ -45,7 +45,7 @@ const V2Studio = () => {
       <Card>
         <CardHeader>
           <CardTitle>v2 工作台联调面板</CardTitle>
-          <CardDescription>按 design-doc/v2 对应接口做关键路径联调与结果观察。</CardDescription>
+          <CardDescription>按 doc/api 中的 v2 接口文档做关键路径联调与结果观察。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">

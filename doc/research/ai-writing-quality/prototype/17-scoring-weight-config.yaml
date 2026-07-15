@@ -1,0 +1,301 @@
+# AI Slop MVP 初始评分权重配置
+# 说明：分数衡量“文本 slop / 模板化风险”，不是 AI 使用概率。
+# platform_commercial 默认不计入 overall，只做单独风险提示。
+
+schema_version: "0.1"
+scoring_scale:
+  min: 0
+  max: 100
+  labels:
+    low:
+      range: [0, 24]
+      description: "少量弱信号，整体风险低"
+    medium:
+      range: [25, 49]
+      description: "有可见模板化问题，但可能是题材俗套/人工低水平"
+    high:
+      range: [50, 74]
+      description: "多层信号共振，影响阅读体验，建议重点修改"
+    critical:
+      range: [75, 100]
+      description: "存在强证据或严重结构性 slop，需重写部分段落"
+
+windowing:
+  default_chars: 2500
+  min_chars: 800
+  max_chars: 3500
+  density_windows:
+    short: 500
+    medium: 1000
+    long: 3000
+
+module_weights:
+  surface_template:
+    weight: 0.22
+    included_in_overall: true
+  voice_fit:
+    weight: 0.18
+    included_in_overall: true
+  consistency_assimilation:
+    weight: 0.22
+    included_in_overall: true
+  breath_focus_pacing:
+    weight: 0.18
+    included_in_overall: true
+  midbook_drift:
+    weight: 0.10
+    included_in_overall: true
+    available_only_for: "multi_window_longform"
+  human_trace:
+    weight: 0.10
+    included_in_overall: true
+  platform_commercial:
+    weight: 0.00
+    included_in_overall: false
+
+surface_template:
+  subscores:
+    phrase_pattern_density:
+      weight: 0.22
+      thresholds_per_1000_chars:
+        medium: 4
+        high: 8
+        critical: 14
+    body_action_density:
+      weight: 0.20
+      thresholds_per_1000_chars:
+        medium: 4
+        high: 8
+        critical: 12
+    imagery_cliche_density:
+      weight: 0.18
+      thresholds_per_1000_chars:
+        medium: 2
+        high: 5
+        critical: 8
+    emotion_summary_density:
+      weight: 0.14
+      thresholds_per_1000_chars:
+        medium: 3
+        high: 6
+        critical: 10
+    ending_cliche_density:
+      weight: 0.10
+      thresholds_per_chapter_end:
+        medium: 1
+        high: 2
+        critical: 3
+    dialogue_tail_ratio:
+      weight: 0.16
+      thresholds_ratio:
+        medium: 0.30
+        high: 0.60
+        critical: 0.80
+
+voice_fit:
+  subscores:
+    register_mismatch:
+      weight: 0.22
+    character_mismatch:
+      weight: 0.28
+    genre_platform_mismatch:
+      weight: 0.18
+    era_worldview_mismatch:
+      weight: 0.17
+    pov_mismatch:
+      weight: 0.15
+  context_missing_multiplier: 0.70
+
+consistency_assimilation:
+  subscores:
+    local_contradiction:
+      weight: 0.24
+    character_binding_error:
+      weight: 0.24
+    unauthorized_addition:
+      weight: 0.20
+    constraint_violation:
+      weight: 0.20
+    prompt_assimilation_failure:
+      weight: 0.12
+  evidence_level_floor:
+    any_E3: 45
+    multiple_E3: 60
+    any_E4: 75
+
+breath_focus_pacing:
+  subscores:
+    event_conveyor_belt:
+      weight: 0.24
+    aftermath_absence:
+      weight: 0.22
+    focus_diffusion:
+      weight: 0.15
+    ineffective_buffer:
+      weight: 0.14
+    non_stat_growth_absence:
+      weight: 0.15
+    world_reactivity_absence:
+      weight: 0.10
+  genre_modifiers:
+    fast_paced_action:
+      event_conveyor_belt_multiplier: 0.85
+      aftermath_absence_multiplier: 1.00
+    short_story:
+      aftermath_absence_multiplier: 0.80
+    slice_of_life:
+      event_conveyor_belt_multiplier: 1.10
+
+midbook_drift:
+  required_windows_min: 3
+  compare_windows:
+    - opening
+    - mid
+    - late
+  subscores:
+    surface_density_delta:
+      weight: 0.18
+    voice_drift:
+      weight: 0.20
+    pacing_mechanism_drift:
+      weight: 0.22
+    role_binding_drift:
+      weight: 0.20
+    foreshadowing_forgetfulness:
+      weight: 0.20
+  unavailable_behavior:
+    exclude_and_renormalize: true
+
+human_trace:
+  subscores:
+    lack_of_specific_experience:
+      weight: 0.22
+    lack_of_authorial_intent:
+      weight: 0.25
+    replaceable_character_choices:
+      weight: 0.22
+    weak_consequence_understanding:
+      weight: 0.18
+    over_smoothed_style:
+      weight: 0.13
+  context_missing_multiplier: 0.85
+
+platform_commercial:
+  included_in_overall: false
+  subscores:
+    platform_fit_score:
+      weight: 0.25
+    platform_enforcement_risk:
+      weight: 0.20
+    disclosure_risk:
+      weight: 0.15
+    sustainability_risk:
+      weight: 0.25
+    monetization_slop_risk:
+      weight: 0.15
+  safety_note: "平台风险不等于文本 AI味，也不作为作者使用 AI 的证据。"
+
+pattern_base_weights:
+  phrase_pattern:
+    default: 2
+    false_positive_risk: high
+  tone_description:
+    default: 2
+    false_positive_risk: high
+  body_action:
+    default: 2
+    false_positive_risk: medium
+  imagery:
+    default: 2
+    false_positive_risk: medium
+  ending_cliche:
+    default: 2
+    false_positive_risk: medium
+  emotion_summary:
+    default: 2
+    false_positive_risk: medium
+  meta_leak:
+    default: 5
+    false_positive_risk: low
+  contradiction:
+    default: 5
+    false_positive_risk: low
+  unauthorized_addition:
+    default: 4
+    false_positive_risk: low
+  markdown_residue:
+    default: 4
+    false_positive_risk: medium
+
+upgrade_rules:
+  density_cluster:
+    description: "短窗口内同类 pattern 高密度"
+    add_score: 8
+    applies_to:
+      - surface_template
+  cross_signal_resonance:
+    description: "短窗口内固定句式、动作链、意象、情绪总结多类共现"
+    min_categories_in_500_chars: 3
+    add_score: 10
+  repeated_across_windows:
+    description: "同一 pattern 或同一类别跨多个窗口重复"
+    min_windows: 3
+    add_score: 8
+  chapter_ending_cliche:
+    description: "抽象升华套话出现在章节结尾"
+    end_position_ratio: 0.90
+    multiplier: 1.25
+  character_constraint_violation:
+    description: "动作或设定违反明确角色档案"
+    evidence_level: E3
+    min_score: 45
+  meta_leak_detected:
+    description: "出现用户、指令、修改版、AI自称等元泄漏"
+    evidence_level: E4
+    min_overall_score: 75
+
+Downgrade_rules:
+  # 保留这个大小写异常字段供实现时测试健壮性；生产配置可改为 downgrade_rules。
+  intentional_style:
+    description: "明确搞笑、反讽、仿文体"
+    multiplier: 0.70
+  genre_expected:
+    description: "题材传统或角色身份合理解释"
+    multiplier: 0.80
+  missing_context:
+    description: "缺少角色/世界观上下文时降低 voice_fit 和 consistency 置信度"
+    confidence_multiplier: 0.75
+  single_weak_signal:
+    description: "单个 E1 弱信号不得推高总体风险"
+    max_overall_if_only_E1: 35
+
+evidence_levels:
+  E1:
+    description: "弱信号：单点词句/动作/意象"
+    max_individual_severity: low
+  E2:
+    description: "密度或共振信号：短窗口多类模板共现"
+    max_individual_severity: medium
+  E3:
+    description: "文本内部强异常：事实矛盾、设定冲突、未授权新增"
+    max_individual_severity: high
+  E4:
+    description: "元泄漏或生成残留：用户/指令/修改版/Markdown异常等"
+    max_individual_severity: critical
+
+aggregation:
+  normalize_available_modules: true
+  cap_overall_if_only_surface_E1: 45
+  min_overall_if_any_E4: 75
+  min_overall_if_multiple_E3: 60
+  platform_excluded_from_overall: true
+  confidence_penalty_if_no_context: 0.90
+
+reporting:
+  always_include_alternative_explanations: true
+  forbidden_claims:
+    - "作者一定用了AI"
+    - "这是AI写的"
+    - "AI生成概率"
+    - "可绕过平台检测"
+  safe_claim_template: "该文本呈现{risk_label}级模板化/slop风险；这不能证明作者使用AI，只说明文本在以下层面存在可修改问题。"
