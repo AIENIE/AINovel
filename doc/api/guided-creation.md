@@ -12,16 +12,20 @@
 
 ## 步骤操作
 
-- `POST /api/v1/creation-workflows/{id}/steps/{step}/generate`：为当前步骤生成三个候选，Body `{hint?}`，返回 `202 {workflowId,jobId}`。
+- `POST /api/v1/creation-workflows/{id}/steps/{step}/generate`：为当前步骤生成三个候选；outline 返回三条简要方向而非三套完整大纲。Body `{hint?}`，返回 `202 {workflowId,jobId}`。
+- `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/develop`：继续发展或按反馈重写一条方向。Body `{action:"continue"|"rewrite",instruction?,editedPayload?,version?}`；rewrite 的 instruction 必填且最多 500 字。
+- `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/expand`：把选定方向展开成完整大纲预览。Body `{editedPayload?,version?}`，返回 `202 {workflowId,jobId}`。
 - `POST /api/v1/creation-workflows/{id}/steps/{step}/confirm`：确认并可编辑候选，Body `{candidateId,editedPayload?,version?}`。
 - `POST /api/v1/creation-workflows/{id}/steps/world/skip?version=`：跳过世界设定。
 - `POST /api/v1/creation-workflows/{id}/auto-run`：从当前状态采用推荐候选并自动推进，Body `{targetChapterCount?}`，返回 `202`。
 - `POST /api/v1/creation-workflows/{id}/retry`：重试 `FAILED` 或 `RECOVERY_REQUIRED` 任务，返回 `202`。
 
-`step` 取值为 `premise`、`world`、`characters`、`outline`。同一运行/步骤只有一个持久化任务；失败重试复用原任务和计费引用。
+`step` 取值为 `premise`、`world`、`characters`、`outline`。同一运行只有一个活跃任务；失败重试复用原任务和计费引用。旧版失败 outline 任务重试时转为简要方向生成；旧版已成功的完整章节候选仍可直接确认。
 
 ## 响应重点
 
-`WorkflowResponse` 提供 `status,currentStep,steps,storyId,worldId,outlineId,activeJob,errorMessage,version`。前端在 `activeJob.status` 为 `QUEUED/RUNNING/CALLING_AI` 或运行状态为 `AUTO_RUNNING` 时轮询详情。
+`WorkflowResponse` 提供 `status,currentStep,steps,storyId,worldId,outlineId,activeJob,errorMessage,version`。大纲步骤额外提供 `outlinePhase,candidates[].development,candidates[].developmentRevision,selectedDirectionId,expandedOutline`；任务提供 `operation`。前端在 `activeJob.status` 为 `QUEUED/RUNNING/CALLING_AI` 或运行状态为 `AUTO_RUNNING` 时轮询详情。
+
+任务 operation：`STEP_CANDIDATES`、`OUTLINE_DEVELOP`、`OUTLINE_REWRITE`、`OUTLINE_EXPAND`。
 
 运行状态：`WAITING_USER`、`AUTO_RUNNING`、`FAILED`、`COMPLETED`。任务状态：`QUEUED`、`RUNNING`、`CALLING_AI`、`SUCCEEDED`、`FAILED`、`RECOVERY_REQUIRED`。

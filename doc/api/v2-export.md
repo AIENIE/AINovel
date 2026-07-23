@@ -6,7 +6,7 @@
 - `POST /manuscripts/{manuscriptId}/export`：发起导出任务。
 - `GET /manuscripts/{manuscriptId}/export/jobs`：导出任务列表。
 - `GET /manuscripts/{manuscriptId}/export/jobs/{jobId}`：导出任务详情。
-- `GET /manuscripts/{manuscriptId}/export/jobs/{jobId}/download`：下载导出文件。任务元数据持久化到 `export_jobs`；文件字节按当前稿件内容即时生成，不写入数据库。
+- `GET /manuscripts/{manuscriptId}/export/jobs/{jobId}/download`：携带 Bearer Token 下载导出文件。任务元数据持久化到 `export_jobs`；文件字节按当前稿件内容即时生成，不写入数据库。Web 前端使用鉴权 fetch 获取 Blob，不使用无法携带 Authorization 的原生导航链接。
 
 ## Templates
 - `GET /export-templates`：查询模板（系统模板 + 当前用户模板）。

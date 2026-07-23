@@ -33,7 +33,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(5, result.migrationsExecuted);
+            assertEquals(6, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -64,7 +64,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(4, migrateResult.migrationsExecuted);
+            assertEquals(5, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -92,7 +92,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(4, migrateResult.migrationsExecuted);
+            assertEquals(5, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -103,6 +103,33 @@ class FlywaySchemaGovernanceTest {
             assertColumnExists(mysql, databaseName, "manuscripts", "current_branch_id");
             assertCurrentBranchForeignKeyExists(mysql, databaseName);
             assertNoDanglingCurrentBranchReferences(mysql, databaseName);
+        }
+    }
+
+    @Test
+    void backfillsMissingSlopQualityIssueColumnsForLegacyBaseline() throws Exception {
+        try (MySQLContainer<?> mysql = new MySQLContainer<>(MYSQL_IMAGE)) {
+            mysql.start();
+            String databaseName = mysql.getDatabaseName();
+            loadLegacySchema(mysql, databaseName);
+            dropLegacySlopQualityIssueColumns(mysql, databaseName);
+
+            Flyway flyway = Flyway.configure()
+                    .dataSource(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration")
+                    .baselineVersion("1")
+                    .baselineDescription("AINovel legacy schema")
+                    .load();
+
+            flyway.baseline();
+            var migrateResult = flyway.migrate();
+
+            assertEquals(5, migrateResult.migrationsExecuted);
+            for (String column : List.of(
+                    "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
+                    "evidence_level", "alternative_explanations_json", "repair_hint")) {
+                assertColumnExists(mysql, databaseName, "slop_quality_issues", column);
+            }
         }
     }
 
@@ -129,6 +156,17 @@ class FlywaySchemaGovernanceTest {
              Statement statement = connection.createStatement()) {
             statement.execute("ALTER TABLE manuscripts ADD COLUMN current_branch_id binary(16) DEFAULT NULL");
             statement.execute("INSERT INTO manuscripts (id, current_branch_id) VALUES (UNHEX(REPLACE(UUID(),'-','')), UNHEX(REPLACE(UUID(),'-','')))");
+        }
+    }
+
+    private static void dropLegacySlopQualityIssueColumns(MySQLContainer<?> mysql, String databaseName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword());
+             Statement statement = connection.createStatement()) {
+            for (String column : List.of(
+                    "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
+                    "evidence_level", "alternative_explanations_json", "repair_hint")) {
+                statement.execute("ALTER TABLE slop_quality_issues DROP COLUMN " + column);
+            }
         }
     }
 

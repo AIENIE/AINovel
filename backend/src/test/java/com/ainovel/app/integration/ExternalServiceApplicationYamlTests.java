@@ -42,6 +42,15 @@ class ExternalServiceApplicationYamlTests {
         assertTrue(yaml.contains("baseline-on-migrate: false"));
     }
 
+    @Test
+    void shouldKeepOptionalRedisOutOfDeploymentHealthGroups() throws IOException {
+        String yaml = applicationYaml();
+
+        assertTrue(yaml.contains("probes:\n        enabled: true"));
+        assertTrue(yaml.contains("liveness:\n          include: livenessState"));
+        assertTrue(yaml.contains("readiness:\n          include: readinessState,db"));
+    }
+
     private String applicationYaml() throws IOException {
         return Files.readString(Path.of("src/main/resources/application.yml"), StandardCharsets.UTF_8);
     }

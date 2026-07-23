@@ -48,6 +48,15 @@ logging:
     com.ainovel: ${LOGGING_LEVEL_APP:INFO}
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
   endpoints:
     web:
       exposure:

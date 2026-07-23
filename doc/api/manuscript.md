@@ -7,6 +7,7 @@
 - `POST /api/v1/manuscripts/{id}/scenes/{sceneId}/generate?mode=fast|crafted`：生成指定场景稿件内容，返回 `ManuscriptDto`。
   - `fast` 为默认标准起草模式；省略或传入未知值时也使用 `fast`。
   - `crafted` 在标准提示词上注入 15 条按类别采样的反套路约束和 2 条轮换叙事目标；仍为单候选起草，不包含节拍规划或多候选选择。
+  - 调用方必须确认响应包含目标 `sceneId` 的非空正文；前端以原子场景回写替换本地草稿，避免延迟自动保存覆盖服务端结果。
 - `PUT /api/v1/manuscripts/{id}/sections/{sceneId}`：保存指定场景正文，Body `{content}`，返回 `ManuscriptDto`。
 - （兼容旧接口）`POST /api/v1/manuscript/scenes/{sceneId}/generate` / `PUT /api/v1/manuscript/sections/{sectionId}`：仍可用，但会默认使用第一份稿件且生成固定为 `fast`（不建议）。
 - `POST /api/v1/manuscripts/{id}/sections/analyze-character-changes`：分析角色变化，Body `{chapterNumber?, sectionNumber?, sectionContent, characterIds?}`，返回 `CharacterChangeLogDto[]`。

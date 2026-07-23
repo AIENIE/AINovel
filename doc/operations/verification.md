@@ -6,7 +6,8 @@
 mvn -q -f backend/pom.xml test
 cd frontend && npm run test && npm run build
 printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
-curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health
+curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/liveness
+curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 ```
 
 普通用户验收必须通过真实 SSO 会话，管理员验收必须通过 `/admin/login`，不得临时绕过身份验证。
@@ -25,7 +26,7 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health
 ## G1 引导创作验收
 
 1. 访问 `/novels/quick-create`，分别创建逐步选择和自动模式草稿。
-2. 确认每步恰好 3 个候选、角色数和章节/场景数满足约束。
+2. 确认前三步恰好 3 个候选；大纲生成三条简要方向，A/B/C 可独立发展和重写，再展开一套满足章节/场景数约束的完整预览。
 3. 关闭页面后重新进入，确认草稿和后台进度可恢复。
 4. 确认故事、可选世界、角色和大纲写入标准实体。
 5. 检查 `async_jobs` 状态、唯一幂等键、`RECOVERY_REQUIRED` 恢复和 `G1_WORKFLOW` 账本引用。
@@ -196,3 +197,28 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health
 **现象**：运行中第一次访问 `/api/actuator/health` 返回 `DOWN`，约 1 秒后恢复 `UP`。后端日志显示 RedisReactiveHealthIndicator 连接重置并随后重连成功。
 
 **影响**：部署/监控可能将短暂依赖抖动误判为服务不可用；本次未因此继续重启或修改基础设施。
+
+## 2026-07-23 七项问题修复后 L5 复验（通过）
+
+- 环境：`https://ainovel.localhut.com`，普通用户真实 SSO、真实 AI 调用；agent-browser 仅临时使用 `--ignore-https-errors`，未保存登录状态。
+- 证据目录：`/home/duwei/tmp/ainovel-e2e-fixes-20260723/`；保留 12 张桌面/移动截图和实际下载文件。视频录制因主机缺少 ffmpeg 未生成。
+- 手动流程：运行 `2c5cf7dd-f605-4ff3-8a47-c78b86594cd0`，3 章逐步选择模式完成；A 发展、按反馈重写到第 2 版，B 独立发展到第 1 版，切回 A 后状态完整保留；A 展开、编辑预览并确认进入工作台。
+- 自动流程：运行 `4b41d345-96b7-49f8-855e-89fd8eb5edb1`，3 章自动模式从故事方向连续推进到完整大纲并成功物化故事 `e7db107b-f333-4b96-972d-0ca1241ebb32`。
+- 正文与导出：新增“暴雨前的旧地球回声”场景后生成 3,438 字，刷新并重新选择场景后仍为 3,438 字；TXT 下载接口返回 200，实得 10,846 字节文件并包含该场景全文。
+
+| 问题 | 复验状态 | 修复后证据 |
+| --- | --- | --- |
+| ISSUE-001 | 已修复 | 失败草稿页点击“新草稿”进入 `?new=1`，刷新后仍保持空白起点；`01-guided-existing.png` |
+| ISSUE-002 | 已修复 | 手动与自动两个 3 章流程均完成；大纲先生成 A/B/C 简要方向，再独立发展、重写和展开；`03-outline-abc.png`、`05-manual-completed.png`、`06-automatic-completed.png` |
+| ISSUE-003 | 已修复 | 新增并选择空场景正常显示“无”反转方案，无白屏、控制台异常或页面错误；`07-new-scene-no-crash.png` |
+| ISSUE-004 | 已修复 | 真实快速生成返回非空正文和 3,438 字计数，刷新后内容不丢失；`08-scene-generated.png` |
+| ISSUE-005 | 已修复 | Flyway V6 成功，`slop_quality_issues` 九个缺失列全部存在；质量/剧情记录接口均为 200，质量分析 UI 正常；`09-quality-ui.png` |
+| ISSUE-006 | 已修复 | 桌面和 390×844 移动入口均以认证 Blob 下载；任务完成、下载接口 200、文件非空；中文文件名使用 RFC 5987 UTF-8 响应头；`10-export-completed.png`、`12-mobile-export.png` |
+| ISSUE-007 | 已修复（探针隔离） | `/health/liveness` 只检查应用存活，`/health/readiness` 检查应用与数据库；高负载后两者持续 200/UP。根健康仍保留 Redis，因此 Redis 抖动时可暂时 DOWN，但不再误伤存活/就绪探针。 |
+
+数据库与运行状态复验：
+
+- Flyway `flyway_schema_history` 中 V6 为成功状态；九列为 `char_start`、`char_end`、`quote`、`module`、`pattern_id`、`issue_type`、`evidence_level`、`alternative_explanations_json`、`repair_hint`。
+- 浏览器复验期间质量记录接口、场景生成、导出创建/轮询/下载均返回 200；页面 console 与 page errors 为空。
+- 1440×900 与 390×844 均完成布局和下载入口检查。
+- G2 路线图票数、成功样本对、评审人数和精雕胜率阈值未修改。

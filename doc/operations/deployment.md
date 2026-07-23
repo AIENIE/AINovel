@@ -31,10 +31,16 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前最新版本为 V5，包含 `creation_workflow_runs` 和 `async_jobs`。
+- 当前最新版本为 V6。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列，在完整新库上为空操作。
 - 不要手工向 `backend/sql/schema.sql` 追加 DDL。
 
 ## 常见故障
+
+部署和在线可用性探测使用：
+
+- `/api/actuator/health/liveness`：进程存活状态。
+- `/api/actuator/health/readiness`：应用与数据库就绪状态，不包含可选 Redis。
+- `/api/actuator/health`：综合依赖诊断，仍包含 Redis，可能在 Redis 短暂重连时显示 `DOWN`。
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
 - SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、internal token 和 user-service `ValidateSession` 可达性。
