@@ -37,6 +37,7 @@ public class SlopQualityGate {
         int riskScore = heuristicResult.overallRiskScore();
         SlopSeverity maxSeverity = heuristicResult.maxSeverity();
         List<SlopIssueDraft> issues = new ArrayList<>(heuristicResult.issues());
+        List<SlopShadowHit> acceptedShadowHits = heuristicResult.shadowHits();
         SlopQualitySignals signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
         String summary = "本地规则低风险，直接接受。";
 
@@ -63,6 +64,7 @@ public class SlopQualityGate {
                         riskScore = Math.min(riskScore, revisedHeuristic.overallRiskScore());
                         maxSeverity = revisedHeuristic.maxSeverity();
                         issues = new ArrayList<>(revisedHeuristic.issues());
+                        acceptedShadowHits = revisedHeuristic.shadowHits();
                         signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
                         summary = "已执行一次保守修订。";
                     } else {
@@ -73,6 +75,7 @@ public class SlopQualityGate {
         }
 
         SlopQualityStatus status = statusFor(revised, riskScore, maxSeverity);
+        signals = signals.withShadowHits(acceptedShadowHits);
         UUID runId = recorder.record(new SlopQualityRecord(
                 request,
                 acceptedText,

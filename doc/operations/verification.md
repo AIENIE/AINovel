@@ -25,6 +25,16 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 
 逐项问题、运行标识和截图证据见[“2026-07-23 七项问题修复后 L5 复验”](#2026-07-23-七项问题修复后-l5-复验通过)。
 
+## 2026-07-23 本地 Slop 模式库 v2 L4 验收（通过）
+
+- 后端最终全量测试 `216` 项通过，失败/错误/跳过均为 `0`；覆盖 split classpath 资源加载、fail-fast 校验、全部 ACTIVE 规则正例与预期语境样本、500 字密度边界、重复 matcher、原文 offset、影子隔离、38 条生成约束配额、10 万字符性能和安全结论。
+- `build.sh` 从独立 worktree 构建并部署 `ainovel-slop-pattern-library-backend`；容器标签确认工作目录为该 worktree。`/health/liveness` 与 `/health/readiness` 均返回 `200/UP`。
+- 普通用户通过真实 SSO 创建 disposable 故事/大纲/稿件；`crafted` 真实生成返回 `200` 和 3,757 字非空正文，自动质量门禁保存 `ACCEPTED`、风险 34，并在 `moduleScoresJson` 中保留 `_shadow_pattern_hits`。
+- 人工诊断真实 API 最终结果：单点动作模板 `34/E1/LOW`；500 字内同类三次 `58/E2/MEDIUM`；`turn0search` 残留为 `E4`（语义 Judge 将最终风险提高到 95/BLOCKING，本地固定分仍为 88/HIGH）；连接词/三段式样本记录 2 个 shadow hit，未产生任何 `SHADOW_*` issue。
+- L4 过程中发现并修复两项真实集成问题：历史 V2 SQL 注释改动会触发 Flyway checksum mismatch，已保持历史迁移字节不变；人工诊断曾允许 AI 顶层风险/证据覆盖本地规则，现改为风险取高、issue 合并、证据从逐条 evidence 重算。
+- 关键浏览器/API 请求在最终部署中均返回 200；Chrome DevTools 对最终前端资源检查为 4/4 请求 200，控制台无消息。验收 fixture 已清理，故事、大纲、稿件和 9 条质量 run 剩余计数均为 0。
+- 清理接口因共享运行库的 `slop_quality_issues -> slop_quality_runs` 外键仍为 `NO ACTION` 返回 409；本轮只按 fixture UUID 精确删除 16 条 issue 后级联删除故事。该删除约束属于并行的故事删除/迁移工作，不在本分支复制 V7/V8。
+
 ## 历史验证：2026-07-15 G1-A P0
 
 G1-A P0 交付与文档架构重构收口：

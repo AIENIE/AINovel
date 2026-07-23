@@ -7,7 +7,7 @@
 | 研究方向 | 当前状态 | 对应实现 |
 | --- | --- | --- |
 | E1-E4 证据等级与替代解释 | 已落地 | `SlopQualitySignals`、`SlopDiagnosticService` |
-| 表层模板、动作链与模式字典 | 已落地 | `LocalSlopHeuristics`、`slop_patterns` |
+| 表层模板、动作链与模式字典 | 已落地 | `LocalSlopHeuristics`、`quality/slop-patterns/*.json` |
 | 生成门禁与保守修订 | 已落地 | `SlopQualityGate` |
 | 风格与角色声音适配 | 已落地 | `StyleContextProvider` |
 | 长篇中后段漂移 | 已落地 | `SlopDriftService` |
@@ -18,6 +18,7 @@
 
 - `source-notes/foundation.md`：早期平台与社区来源记录。
 - `source-notes/current.md`：后续扩展来源与观察。
+- `source-notes/pattern-registry-sources.md`：规则来源分级、模型观察矩阵和 ACTIVE/SHADOW 采用边界。
 - `source-notes/legacy-reports.md`：已删除旧综合报告保留下来的来源索引。
 - `pattern-library.md`：词句、动作、意象、结构和叙事模式。
 - `algorithm-notes.md`：评分维度、证据和反例思路。

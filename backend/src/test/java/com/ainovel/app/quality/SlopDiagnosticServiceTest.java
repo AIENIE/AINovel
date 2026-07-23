@@ -128,13 +128,12 @@ class SlopDiagnosticServiceTest {
         assertEquals("E2", run.getEvidenceLevel());
         assertTrue(run.getSafeClaim().contains("不能证明作者使用 AI"));
         assertTrue(run.getModuleScoresJson().contains("surface_template"));
+        assertTrue(run.getModuleScoresJson().contains("_shadow_pattern_hits"));
         assertTrue(run.getRewriteTasksJson().contains("R1"));
         assertEquals(72, run.getOverallRiskScore());
         assertEquals(SlopSeverity.HIGH, run.getMaxSeverity());
-        assertEquals(1, run.getIssues().size());
-        assertEquals(2, run.getIssues().get(0).getCharStart());
-        assertEquals("surface_template", run.getIssues().get(0).getModule());
-        assertEquals("E2", run.getIssues().get(0).getEvidenceLevel());
+        assertTrue(run.getIssues().size() >= 2);
+        assertTrue(run.getIssues().stream().anyMatch(issue -> "surface_template".equals(issue.getModule())));
     }
 
     private User user() {

@@ -56,6 +56,31 @@ public record SlopQualitySignals(
         );
     }
 
+    public SlopQualitySignals withShadowHits(List<SlopShadowHit> shadowHits) {
+        List<SlopShadowHit> safeHits = shadowHits == null ? List.of() : shadowHits;
+        Map<String, Object> mergedScores = new LinkedHashMap<>(moduleScores);
+        List<Object> serialized = new ArrayList<>();
+        for (SlopShadowHit hit : safeHits) {
+            Map<String, Object> value = new LinkedHashMap<>();
+            value.put("pattern_id", hit.patternId());
+            value.put("category", hit.category());
+            value.put("occurrence_count", hit.occurrenceCount());
+            value.put("char_start", hit.charStart());
+            value.put("char_end", hit.charEnd());
+            value.put("evidence", hit.evidence());
+            serialized.add(value);
+        }
+        mergedScores.put("_shadow_pattern_hits", Map.of(
+                "schema_version", 1,
+                "count", serialized.size(),
+                "hits", serialized
+        ));
+        return new SlopQualitySignals(
+                riskLabel, evidenceLevel, safeClaim, mergedScores,
+                alternativeExplanations, revisionPriorities, rewriteTasks
+        );
+    }
+
     private static Map<String, Object> moduleScores(List<SlopIssueDraft> issues) {
         Map<String, ModuleScore> scores = new LinkedHashMap<>();
         for (SlopIssueDraft issue : issues) {

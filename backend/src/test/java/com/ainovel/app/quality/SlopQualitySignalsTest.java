@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlopQualitySignalsTest {
 
@@ -51,5 +53,20 @@ class SlopQualitySignalsTest {
 
         assertEquals("E1", signals.evidenceLevel());
         assertEquals("low", signals.riskLabel());
+    }
+
+    @Test
+    void shadowMetadataDoesNotChangeUserFacingSignals() {
+        SlopQualitySignals original = SlopQualitySignals.fromIssues(0, SlopSeverity.LOW, List.of());
+
+        SlopQualitySignals enriched = original.withShadowHits(List.of(
+                new SlopShadowHit("SHADOW_CONNECTOR_DENSITY", "SHADOW_CONNECTOR_DENSITY", 6, 1, 20, "首先……最后")
+        ));
+
+        assertEquals(original.riskLabel(), enriched.riskLabel());
+        assertEquals(original.evidenceLevel(), enriched.evidenceLevel());
+        assertEquals(original.safeClaim(), enriched.safeClaim());
+        assertTrue(enriched.moduleScores().containsKey("_shadow_pattern_hits"));
+        assertFalse(enriched.toString().contains("ChatGPT"));
     }
 }

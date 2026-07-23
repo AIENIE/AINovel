@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -169,23 +170,26 @@ public class SlopDiagnosticService {
                                  SlopHeuristicResult heuristicResult,
                                  boolean degraded) {
         Map<String, Object> overall = map(root.get("overall"));
-        int risk = intVal(overall.get("overall_slop_risk"), heuristicResult.overallRiskScore());
-        String riskLabel = str(overall.get("risk_label"), label(risk));
-        String evidenceLevel = str(overall.get("evidence_level"), evidenceLevel(heuristicResult.maxSeverity(), risk));
-        String safeClaim = str(overall.get("safe_claim"),
-                "该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(riskLabel));
+        int risk = Math.max(
+                intVal(overall.get("overall_slop_risk"), heuristicResult.overallRiskScore()),
+                heuristicResult.overallRiskScore()
+        );
+        String riskLabel = label(risk);
         List<SlopIssueDraft> parsedIssues = parseIssues(root.get("evidence_items"), request.candidateText());
-        List<SlopIssueDraft> issues = parsedIssues.isEmpty() ? heuristicResult.issues() : parsedIssues;
+        List<SlopIssueDraft> issues = mergeDiagnosticIssues(heuristicResult.issues(), parsedIssues);
+        SlopSeverity maxSeverity = maxSeverity(issues, severityForRisk(risk));
+        String evidenceLevel = SlopQualitySignals.fromIssues(risk, maxSeverity, issues).evidenceLevel();
+        String safeClaim = "该文本呈现%s级模板化/slop风险；这不能证明作者使用 AI。".formatted(riskLabel);
 
         SlopQualityRun run = baseRun(request);
         run.setStatus(statusFor(degraded, risk, issues));
-        run.setMaxSeverity(maxSeverity(issues, severityForRisk(risk)));
+        run.setMaxSeverity(maxSeverity);
         run.setOverallRiskScore(risk);
         run.setRiskLabel(riskLabel);
         run.setEvidenceLevel(evidenceLevel);
         run.setSafeClaim(truncate(safeClaim, 500));
         run.setSummary(str(root.get("summary"), safeClaim));
-        run.setModuleScoresJson(writeJson(root.getOrDefault("module_scores", Map.of())));
+        run.setModuleScoresJson(writeJson(moduleScoresWithShadow(root.get("module_scores"), heuristicResult)));
         run.setAlternativeExplanationsJson(writeJson(root.getOrDefault("alternative_explanations", defaultAlternatives())));
         run.setRevisionPrioritiesJson(writeJson(root.getOrDefault("revision_priorities", List.of())));
         run.setRewriteTasksJson(writeJson(root.getOrDefault("rewrite_tasks", List.of())));
@@ -193,6 +197,31 @@ public class SlopDiagnosticService {
             run.getIssues().add(toIssue(run, draft));
         }
         return run;
+    }
+
+    private List<SlopIssueDraft> mergeDiagnosticIssues(List<SlopIssueDraft> localIssues,
+                                                       List<SlopIssueDraft> semanticIssues) {
+        List<SlopIssueDraft> merged = new ArrayList<>();
+        if (localIssues != null) merged.addAll(localIssues);
+        if (semanticIssues != null) {
+            for (SlopIssueDraft candidate : semanticIssues) {
+                boolean duplicate = merged.stream().anyMatch(existing -> sameEvidence(existing, candidate));
+                if (!duplicate) merged.add(candidate);
+            }
+        }
+        return merged.stream()
+                .sorted(Comparator.comparingInt(SlopIssueDraft::riskScore).reversed()
+                        .thenComparing(issue -> issue.charStart() == null ? Integer.MAX_VALUE : issue.charStart()))
+                .limit(12)
+                .toList();
+    }
+
+    private boolean sameEvidence(SlopIssueDraft left, SlopIssueDraft right) {
+        if (left.quote() != null && right.quote() != null && left.quote().equals(right.quote())) {
+            return true;
+        }
+        return left.charStart() != null && left.charEnd() != null
+                && left.charStart().equals(right.charStart()) && left.charEnd().equals(right.charEnd());
     }
 
     private SlopQualityRun fallbackRun(SlopQualityRequest request, SlopHeuristicResult heuristicResult, RuntimeException ex) {
@@ -417,13 +446,28 @@ public class SlopDiagnosticService {
     }
 
     private Map<String, Object> localModuleScores(SlopHeuristicResult result) {
-        return Map.of(
-                "surface_template", Map.of("score", result.overallRiskScore()),
-                "voice_fit", Map.of("score", 0),
-                "consistency_assimilation", Map.of("score", result.maxSeverity() == SlopSeverity.BLOCKING ? result.overallRiskScore() : 0),
-                "breath_focus_pacing", Map.of("score", 0),
-                "human_trace", Map.of("score", 0)
-        );
+        Map<String, Object> scores = new LinkedHashMap<>();
+        scores.put("surface_template", Map.of("score", result.overallRiskScore()));
+        scores.put("voice_fit", Map.of("score", 0));
+        scores.put("consistency_assimilation", Map.of("score", result.maxSeverity() == SlopSeverity.BLOCKING ? result.overallRiskScore() : 0));
+        scores.put("breath_focus_pacing", Map.of("score", 0));
+        scores.put("human_trace", Map.of("score", 0));
+        return addShadowScores(scores, result);
+    }
+
+    private Map<String, Object> moduleScoresWithShadow(Object aiScores, SlopHeuristicResult result) {
+        Map<String, Object> scores = new LinkedHashMap<>(map(aiScores));
+        return addShadowScores(scores, result);
+    }
+
+    private Map<String, Object> addShadowScores(Map<String, Object> scores, SlopHeuristicResult result) {
+        Object shadow = SlopQualitySignals.fromIssues(
+                        result.overallRiskScore(), result.maxSeverity(), result.issues())
+                .withShadowHits(result.shadowHits())
+                .moduleScores()
+                .get("_shadow_pattern_hits");
+        scores.put("_shadow_pattern_hits", shadow);
+        return scores;
     }
 
     private List<String> defaultAlternatives() {

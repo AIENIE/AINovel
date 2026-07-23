@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "windowChars": 500,
+  "sameFamilyMediumCount": 3,
+  "sameFamilyHighCount": 5,
+  "categoryMediumCount": 3,
+  "categoryHighCount": 4,
+  "issueCap": 12,
+  "resources": [
+    "quality/slop-patterns/active-prose.json",
+    "quality/slop-patterns/active-artifacts.json",
+    "quality/slop-patterns/shadow-observations.json",
+    "quality/slop-patterns/generation-constraints.json"
+  ]
+}
