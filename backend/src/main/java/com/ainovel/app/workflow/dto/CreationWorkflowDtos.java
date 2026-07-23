@@ -3,6 +3,7 @@ package com.ainovel.app.workflow.dto;
 import com.ainovel.app.workflow.model.AsyncJobStatus;
 import com.ainovel.app.workflow.model.CreationWorkflowStatus;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -34,9 +35,22 @@ public final class CreationWorkflowDtos {
 
     public record AutoRunRequest(@Min(3) @Max(12) Integer targetChapterCount) {}
 
+    public record DevelopOutlineDirectionRequest(
+            @NotBlank String action,
+            @Size(max = 500) String instruction,
+            Map<String, Object> editedPayload,
+            Long version
+    ) {}
+
+    public record ExpandOutlineDirectionRequest(
+            Map<String, Object> editedPayload,
+            Long version
+    ) {}
+
     public record JobResponse(
             UUID id,
             GuidedCreationStep step,
+            GuidedCreationOperation operation,
             AsyncJobStatus status,
             int progress,
             String errorMessage,

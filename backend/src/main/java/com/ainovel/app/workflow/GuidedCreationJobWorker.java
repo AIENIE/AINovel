@@ -31,7 +31,7 @@ public class GuidedCreationJobWorker {
         try {
             GuidedCreationJobService.GenerationContext context = jobService.markCallingAi(jobId);
             GuidedCreationGenerationService.GenerationResult result = generationService.generate(
-                    context.run(), context.job(), context.hint());
+                    context.run(), context.job(), context.payload());
             GuidedCreationJobService.Completion completion = jobService.complete(jobId, result);
             generationCompleted = true;
             workflowService.advanceAutomatic(completion);

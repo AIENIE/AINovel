@@ -68,7 +68,21 @@ public class GuidedCreationMaterializer {
         if (expectedVersion != null && expectedVersion != run.getVersion()) {
             throw new BusinessException("向导草稿已更新，请刷新后重试");
         }
-        Map<String, Object> selected = new LinkedHashMap<>(jsonSupport.requireCandidate(stepData, candidateId));
+        Map<String, Object> selected;
+        if (step == GuidedCreationStep.OUTLINE
+                && "OUTLINE_PREVIEW".equals(String.valueOf(stepData.get("outlinePhase")))) {
+            if (!candidateId.equals(String.valueOf(stepData.get("selectedDirectionId")))) {
+                throw new BusinessException("完整大纲预览已经失效，请刷新后重试");
+            }
+            Object expanded = stepData.get("expandedOutline");
+            if (!(expanded instanceof Map<?, ?> rawOutline)) {
+                throw new BusinessException("请先展开完整章节大纲");
+            }
+            selected = new LinkedHashMap<>();
+            rawOutline.forEach((key, value) -> selected.put(String.valueOf(key), value));
+        } else {
+            selected = new LinkedHashMap<>(jsonSupport.requireCandidate(stepData, candidateId));
+        }
         if (editedPayload != null) selected.putAll(editedPayload);
         selected.put("candidateId", candidateId);
 

@@ -554,6 +554,7 @@ export interface G2EvaluationReviewSample {
 export type GuidedCreationStep = "PREMISE" | "WORLD" | "CHARACTERS" | "OUTLINE" | "COMPLETED";
 export type CreationWorkflowStatus = "WAITING_USER" | "AUTO_RUNNING" | "FAILED" | "COMPLETED";
 export type AsyncJobStatus = "QUEUED" | "RUNNING" | "CALLING_AI" | "SUCCEEDED" | "FAILED" | "RECOVERY_REQUIRED";
+export type GuidedCreationOperation = "STEP_CANDIDATES" | "OUTLINE_DEVELOP" | "OUTLINE_REWRITE" | "OUTLINE_EXPAND";
 
 export interface GuidedCreationCandidate {
   candidateId: string;
@@ -561,20 +562,25 @@ export interface GuidedCreationCandidate {
 }
 
 export interface GuidedCreationStepData {
+  outlinePhase?: "DIRECTION_SELECTION" | "OUTLINE_PREVIEW";
   candidates?: GuidedCreationCandidate[];
   recommendedCandidateId?: string;
   selectedCandidateId?: string;
   selected?: GuidedCreationCandidate;
+  selectedDirectionId?: string;
+  expandedOutline?: GuidedCreationCandidate;
   skipped?: boolean;
   chargedCredits?: number;
   remainingCredits?: number;
   generatedAt?: string;
+  updatedAt?: string;
   confirmedAt?: string;
 }
 
 export interface CreationWorkflowJob {
   id: string;
   step: GuidedCreationStep;
+  operation: GuidedCreationOperation;
   status: AsyncJobStatus;
   progress: number;
   errorMessage?: string | null;

@@ -7,6 +7,7 @@ import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.CreationWorkflowStatus;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.repo.AsyncJobRepository;
 import com.ainovel.app.workflow.repo.CreationWorkflowRunRepository;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -86,6 +88,35 @@ public class GuidedCreationWorkflowService {
     }
 
     @Transactional
+    public CreationWorkflowDtos.AcceptedResponse developOutlineDirection(
+            User user,
+            UUID runId,
+            String directionId,
+            CreationWorkflowDtos.DevelopOutlineDirectionRequest request) {
+        GuidedCreationOperation operation = switch (request.action().trim().toLowerCase(Locale.ROOT)) {
+            case "continue" -> GuidedCreationOperation.OUTLINE_DEVELOP;
+            case "rewrite" -> GuidedCreationOperation.OUTLINE_REWRITE;
+            default -> throw new BusinessException("大纲方向操作只能是 continue 或 rewrite");
+        };
+        AsyncJob job = jobService.enqueueOutlineOperation(
+                runId, user.getId(), directionId, operation,
+                request.instruction(), request.editedPayload(), request.version());
+        return new CreationWorkflowDtos.AcceptedResponse(runId, job.getId());
+    }
+
+    @Transactional
+    public CreationWorkflowDtos.AcceptedResponse expandOutlineDirection(
+            User user,
+            UUID runId,
+            String directionId,
+            CreationWorkflowDtos.ExpandOutlineDirectionRequest request) {
+        AsyncJob job = jobService.enqueueOutlineOperation(
+                runId, user.getId(), directionId, GuidedCreationOperation.OUTLINE_EXPAND,
+                null, request.editedPayload(), request.version());
+        return new CreationWorkflowDtos.AcceptedResponse(runId, job.getId());
+    }
+
+    @Transactional
     public CreationWorkflowDtos.WorkflowResponse confirm(User user,
                                                          UUID runId,
                                                          GuidedCreationStep step,
@@ -140,6 +171,12 @@ public class GuidedCreationWorkflowService {
         if (!completion.autoRun()) {
             return;
         }
+        if (completion.step() == GuidedCreationStep.OUTLINE
+                && completion.operation() == GuidedCreationOperation.STEP_CANDIDATES) {
+            jobService.enqueueAutomaticOutlineExpand(
+                    completion.runId(), completion.recommendedCandidateId());
+            return;
+        }
         CreationWorkflowRun run = materializer.confirm(
                 completion.runId(), completion.userId(), completion.step(),
                 completion.recommendedCandidateId(), null, null, true);
@@ -172,6 +209,26 @@ public class GuidedCreationWorkflowService {
         }
         Map<String, Object> stepData = jsonSupport.stepData(jsonSupport.readSteps(run), run.getCurrentStep());
         if (!jsonSupport.candidates(stepData).isEmpty()) {
+            if (run.getCurrentStep() == GuidedCreationStep.OUTLINE) {
+                String phase = String.valueOf(stepData.get("outlinePhase"));
+                if ("DIRECTION_SELECTION".equals(phase)) {
+                    if (run.getActiveJobId() == null) {
+                        jobService.enqueueAutomaticOutlineExpand(
+                                run.getId(), String.valueOf(stepData.get("recommendedCandidateId")));
+                    }
+                    return;
+                }
+                if ("OUTLINE_PREVIEW".equals(phase)) {
+                    String candidateId = String.valueOf(stepData.get("selectedDirectionId"));
+                    CreationWorkflowRun advanced = materializer.confirm(
+                            run.getId(), run.getUser().getId(), run.getCurrentStep(),
+                            candidateId, null, null, true);
+                    if (advanced.getStatus() != CreationWorkflowStatus.COMPLETED) {
+                        jobService.enqueueAutomatic(advanced.getId());
+                    }
+                    return;
+                }
+            }
             String candidateId = String.valueOf(stepData.get("recommendedCandidateId"));
             CreationWorkflowRun advanced = materializer.confirm(
                     run.getId(), run.getUser().getId(), run.getCurrentStep(), candidateId, null, null, true);
@@ -223,7 +280,7 @@ public class GuidedCreationWorkflowService {
             return null;
         }
         return new CreationWorkflowDtos.JobResponse(
-                job.getId(), job.getStep(), job.getStatus(), job.getProgress(), job.getErrorMessage(),
+                job.getId(), job.getStep(), jobService.operation(job), job.getStatus(), job.getProgress(), job.getErrorMessage(),
                 job.getChargedCredits(), job.getRemainingCredits(), job.getCreatedAt(), job.getUpdatedAt()
         );
     }

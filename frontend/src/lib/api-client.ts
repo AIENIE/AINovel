@@ -858,6 +858,33 @@ export const api = {
         },
       );
     },
+    developOutlineDirection: async (
+      id: string,
+      directionId: string,
+      action: "continue" | "rewrite",
+      instruction: string,
+      editedPayload: GuidedCreationCandidate,
+      version: number,
+    ) => {
+      return await requestJson<{ workflowId: string; jobId: string }>(
+        `/v1/creation-workflows/${id}/steps/outline/directions/${directionId}/develop`,
+        {
+          method: "POST",
+          body: JSON.stringify({ action, instruction: instruction || null, editedPayload, version }),
+        },
+      );
+    },
+    expandOutlineDirection: async (
+      id: string,
+      directionId: string,
+      editedPayload: GuidedCreationCandidate,
+      version: number,
+    ) => {
+      return await requestJson<{ workflowId: string; jobId: string }>(
+        `/v1/creation-workflows/${id}/steps/outline/directions/${directionId}/expand`,
+        { method: "POST", body: JSON.stringify({ editedPayload, version }) },
+      );
+    },
     skipWorld: async (id: string, version: number): Promise<CreationWorkflow> => {
       return await requestJson<CreationWorkflow>(
         `/v1/creation-workflows/${id}/steps/world/skip?version=${version}`,

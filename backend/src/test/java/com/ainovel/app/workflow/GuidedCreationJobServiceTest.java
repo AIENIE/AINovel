@@ -8,6 +8,7 @@ import com.ainovel.app.workflow.model.AsyncJobStatus;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.CreationWorkflowStatus;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.repo.AsyncJobRepository;
 import com.ainovel.app.workflow.repo.CreationWorkflowRunRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -91,6 +93,46 @@ class GuidedCreationJobServiceTest {
         verify(fixtures.publisher).publishEvent(new GuidedCreationJobQueuedEvent(running.getId()));
     }
 
+    @Test
+    void enqueuesIndependentOutlineDevelopmentWithRevisionScopedIdempotency() {
+        Fixtures fixtures = new Fixtures();
+        fixtures.prepareOutlineDirections();
+        when(fixtures.runRepository.findByIdForUpdate(fixtures.run.getId()))
+                .thenReturn(Optional.of(fixtures.run));
+        when(fixtures.jobRepository.findByIdempotencyKey(any())).thenReturn(Optional.empty());
+        when(fixtures.jobRepository.save(any())).thenAnswer(invocation -> {
+            AsyncJob job = invocation.getArgument(0);
+            ReflectionTestUtils.setField(job, "id", UUID.randomUUID());
+            return job;
+        });
+        when(fixtures.runRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AsyncJob job = fixtures.service.enqueueOutlineOperation(
+                fixtures.run.getId(), fixtures.user.getId(), "direction-b",
+                GuidedCreationOperation.OUTLINE_DEVELOP, "加强中段转折", Map.of(), null);
+
+        assertTrue(job.getIdempotencyKey().contains("outline_develop:direction-b:0"));
+        assertTrue(job.getPayloadJson().contains("OUTLINE_DEVELOP"));
+        assertTrue(job.getPayloadJson().contains("direction-b"));
+        assertEquals(job.getId(), fixtures.run.getActiveJobId());
+    }
+
+    @Test
+    void requiresFeedbackForOutlineRewrite() {
+        Fixtures fixtures = new Fixtures();
+        fixtures.prepareOutlineDirections();
+        when(fixtures.runRepository.findByIdForUpdate(fixtures.run.getId()))
+                .thenReturn(Optional.of(fixtures.run));
+
+        BusinessException error = assertThrows(BusinessException.class, () ->
+                fixtures.service.enqueueOutlineOperation(
+                        fixtures.run.getId(), fixtures.user.getId(), "direction-a",
+                        GuidedCreationOperation.OUTLINE_REWRITE, "  ", Map.of(), null));
+
+        assertTrue(error.getMessage().contains("必须填写反馈"));
+        verify(fixtures.jobRepository, never()).save(any());
+    }
+
     private static class Fixtures {
         private final AsyncJobRepository jobRepository = mock(AsyncJobRepository.class);
         private final CreationWorkflowRunRepository runRepository = mock(CreationWorkflowRunRepository.class);
@@ -101,6 +143,8 @@ class GuidedCreationJobServiceTest {
         private final GuidedCreationJobService service = new GuidedCreationJobService(
                 jobRepository, runRepository,
                 new GuidedCreationJsonSupport(new JsonColumnCodec(objectMapper)),
+                new GuidedCreationOutlineJobSupport(
+                        new GuidedCreationJsonSupport(new JsonColumnCodec(objectMapper))),
                 new JsonColumnCodec(objectMapper), publisher);
 
         private AsyncJob job(AsyncJobStatus status) {
@@ -112,6 +156,14 @@ class GuidedCreationJobServiceTest {
             job.setStatus(status);
             job.setIdempotencyKey("g1:" + run.getId() + ":premise");
             return job;
+        }
+
+        private void prepareOutlineDirections() {
+            run.setCurrentStep(GuidedCreationStep.OUTLINE);
+            run.setStepsJson("{\"OUTLINE\":{\"outlinePhase\":\"DIRECTION_SELECTION\",\"candidates\":["
+                    + "{\"candidateId\":\"direction-a\",\"title\":\"A\",\"developmentRevision\":0},"
+                    + "{\"candidateId\":\"direction-b\",\"title\":\"B\",\"developmentRevision\":0},"
+                    + "{\"candidateId\":\"direction-c\",\"title\":\"C\",\"developmentRevision\":0}]}}");
         }
 
         private static User user() {

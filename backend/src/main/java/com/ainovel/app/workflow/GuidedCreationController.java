@@ -72,6 +72,26 @@ public class GuidedCreationController {
         return workflowService.confirm(currentUserResolver.require(principal), id, parseStep(step), request);
     }
 
+    @PostMapping("/{id}/steps/outline/directions/{directionId}/develop")
+    public ResponseEntity<CreationWorkflowDtos.AcceptedResponse> developOutlineDirection(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID id,
+            @PathVariable String directionId,
+            @Valid @RequestBody CreationWorkflowDtos.DevelopOutlineDirectionRequest request) {
+        return ResponseEntity.accepted().body(workflowService.developOutlineDirection(
+                currentUserResolver.require(principal), id, directionId, request));
+    }
+
+    @PostMapping("/{id}/steps/outline/directions/{directionId}/expand")
+    public ResponseEntity<CreationWorkflowDtos.AcceptedResponse> expandOutlineDirection(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID id,
+            @PathVariable String directionId,
+            @Valid @RequestBody CreationWorkflowDtos.ExpandOutlineDirectionRequest request) {
+        return ResponseEntity.accepted().body(workflowService.expandOutlineDirection(
+                currentUserResolver.require(principal), id, directionId, request));
+    }
+
     @PostMapping("/{id}/steps/world/skip")
     public CreationWorkflowDtos.WorkflowResponse skipWorld(
             @AuthenticationPrincipal UserDetails principal,

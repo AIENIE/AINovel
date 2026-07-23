@@ -749,6 +749,12 @@ describe("api client", () => {
     });
     await api.creationWorkflows.generate("run-1", "PREMISE");
     await api.creationWorkflows.confirm("run-1", "PREMISE", "candidate-1", { candidateId: "candidate-1", title: "停摆" }, 3);
+    await api.creationWorkflows.developOutlineDirection(
+      "run-1", "direction-a", "rewrite", "加强主动选择", { candidateId: "direction-a" }, 5,
+    );
+    await api.creationWorkflows.expandOutlineDirection(
+      "run-1", "direction-a", { candidateId: "direction-a" }, 6,
+    );
     await api.creationWorkflows.skipWorld("run-1", 4);
     await api.creationWorkflows.startAuto("run-1", 8);
     await api.creationWorkflows.retry("run-1");
@@ -757,6 +763,8 @@ describe("api client", () => {
       "/api/v1/creation-workflows",
       "/api/v1/creation-workflows/run-1/steps/premise/generate",
       "/api/v1/creation-workflows/run-1/steps/premise/confirm",
+      "/api/v1/creation-workflows/run-1/steps/outline/directions/direction-a/develop",
+      "/api/v1/creation-workflows/run-1/steps/outline/directions/direction-a/expand",
       "/api/v1/creation-workflows/run-1/steps/world/skip?version=4",
       "/api/v1/creation-workflows/run-1/auto-run",
       "/api/v1/creation-workflows/run-1/retry",

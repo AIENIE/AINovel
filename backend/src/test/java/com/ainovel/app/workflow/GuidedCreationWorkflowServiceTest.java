@@ -3,6 +3,7 @@ package com.ainovel.app.workflow;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.CreationWorkflowStatus;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.repo.AsyncJobRepository;
 import com.ainovel.app.workflow.repo.CreationWorkflowRunRepository;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class GuidedCreationWorkflowServiceTest {
@@ -36,12 +38,33 @@ class GuidedCreationWorkflowServiceTest {
                 "recommended", null, null, true)).thenReturn(advanced);
 
         service.advanceAutomatic(new GuidedCreationJobService.Completion(
-                runId, userId, GuidedCreationStep.PREMISE, true, "recommended"));
+                runId, userId, GuidedCreationStep.PREMISE,
+                GuidedCreationOperation.STEP_CANDIDATES, true, "recommended"));
 
         verify(materializer).confirm(runId, userId, GuidedCreationStep.PREMISE,
                 "recommended", null, null, true);
         verify(jobService).enqueueAutomatic(runId);
         assertEquals(GuidedCreationStep.WORLD, advanced.getCurrentStep());
+    }
+
+    @Test
+    void automaticOutlineDirectionsExpandRecommendationBeforeConfirmation() {
+        CreationWorkflowRunRepository runRepository = mock(CreationWorkflowRunRepository.class);
+        AsyncJobRepository jobRepository = mock(AsyncJobRepository.class);
+        GuidedCreationJobService jobService = mock(GuidedCreationJobService.class);
+        GuidedCreationMaterializer materializer = mock(GuidedCreationMaterializer.class);
+        GuidedCreationJsonSupport jsonSupport = mock(GuidedCreationJsonSupport.class);
+        GuidedCreationWorkflowService service = new GuidedCreationWorkflowService(
+                runRepository, jobRepository, jobService, materializer, jsonSupport);
+        UUID runId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        service.advanceAutomatic(new GuidedCreationJobService.Completion(
+                runId, userId, GuidedCreationStep.OUTLINE,
+                GuidedCreationOperation.STEP_CANDIDATES, true, "direction-b"));
+
+        verify(jobService).enqueueAutomaticOutlineExpand(runId, "direction-b");
+        verifyNoInteractions(materializer);
     }
 
     @Test

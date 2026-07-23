@@ -6,6 +6,7 @@ import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.AsyncJobStatus;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.CreationWorkflowStatus;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
 import com.ainovel.app.workflow.repo.AsyncJobRepository;
 import com.ainovel.app.workflow.repo.CreationWorkflowRunRepository;
@@ -18,6 +19,7 @@ import java.net.InetAddress;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +32,7 @@ public class GuidedCreationJobService {
     private final AsyncJobRepository jobRepository;
     private final CreationWorkflowRunRepository runRepository;
     private final GuidedCreationJsonSupport jsonSupport;
+    private final GuidedCreationOutlineJobSupport outlineSupport;
     private final JsonColumnCodec codec;
     private final ApplicationEventPublisher eventPublisher;
     private final String leaseOwner;
@@ -37,11 +40,13 @@ public class GuidedCreationJobService {
     public GuidedCreationJobService(AsyncJobRepository jobRepository,
                                     CreationWorkflowRunRepository runRepository,
                                     GuidedCreationJsonSupport jsonSupport,
+                                    GuidedCreationOutlineJobSupport outlineSupport,
                                     JsonColumnCodec codec,
                                     ApplicationEventPublisher eventPublisher) {
         this.jobRepository = jobRepository;
         this.runRepository = runRepository;
         this.jsonSupport = jsonSupport;
+        this.outlineSupport = outlineSupport;
         this.codec = codec;
         this.eventPublisher = eventPublisher;
         this.leaseOwner = resolveLeaseOwner();
@@ -50,7 +55,7 @@ public class GuidedCreationJobService {
     @Transactional
     public AsyncJob enqueue(UUID runId, UUID actorId, GuidedCreationStep step, String hint) {
         CreationWorkflowRun run = requireOwnedRunForUpdate(runId, actorId);
-        return enqueueLocked(run, step, hint);
+        return enqueueStepCandidatesLocked(run, step, hint);
     }
 
     @Transactional
@@ -59,10 +64,35 @@ public class GuidedCreationJobService {
         if (!run.isAutoRun() || run.getStatus() == CreationWorkflowStatus.COMPLETED) {
             throw new BusinessException("向导未处于自动运行状态");
         }
-        return enqueueLocked(run, run.getCurrentStep(), null);
+        return enqueueStepCandidatesLocked(run, run.getCurrentStep(), null);
     }
 
-    private AsyncJob enqueueLocked(CreationWorkflowRun run, GuidedCreationStep step, String hint) {
+    @Transactional
+    public AsyncJob enqueueOutlineOperation(UUID runId,
+                                            UUID actorId,
+                                            String directionId,
+                                            GuidedCreationOperation operation,
+                                            String instruction,
+                                            Map<String, Object> editedPayload,
+                                            Long expectedVersion) {
+        CreationWorkflowRun run = requireOwnedRunForUpdate(runId, actorId);
+        return enqueueOutlineOperationLocked(
+                run, directionId, operation, instruction, editedPayload, expectedVersion);
+    }
+
+    @Transactional
+    public AsyncJob enqueueAutomaticOutlineExpand(UUID runId, String directionId) {
+        CreationWorkflowRun run = requireRunForUpdate(runId);
+        if (!run.isAutoRun() || run.getStatus() == CreationWorkflowStatus.COMPLETED) {
+            throw new BusinessException("向导未处于自动运行状态");
+        }
+        return enqueueOutlineOperationLocked(
+                run, directionId, GuidedCreationOperation.OUTLINE_EXPAND, null, null, null);
+    }
+
+    private AsyncJob enqueueStepCandidatesLocked(CreationWorkflowRun run,
+                                                  GuidedCreationStep step,
+                                                  String hint) {
         if (run.getStatus() == CreationWorkflowStatus.COMPLETED || step == GuidedCreationStep.COMPLETED) {
             throw new BusinessException("向导已经完成");
         }
@@ -75,16 +105,49 @@ public class GuidedCreationJobService {
         }
 
         String idempotencyKey = jobKey(run.getId(), step);
-        AsyncJob existing = jobRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
-        if (existing != null) {
-            if (existing.getStatus() == AsyncJobStatus.FAILED
-                    || existing.getStatus() == AsyncJobStatus.RECOVERY_REQUIRED) {
-                throw new BusinessException("上次生成未完成，请使用重试操作");
-            }
-            run.setActiveJobId(existing.getId());
-            return existing;
+        AsyncJob existing = reusableJob(run, idempotencyKey);
+        if (existing != null) return existing;
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("operation", GuidedCreationOperation.STEP_CANDIDATES.name());
+        payload.put("hint", hint == null ? "" : hint.trim());
+        return createJob(run, step, idempotencyKey, payload);
+    }
+
+    private AsyncJob enqueueOutlineOperationLocked(CreationWorkflowRun run,
+                                                    String directionId,
+                                                    GuidedCreationOperation operation,
+                                                    String instruction,
+                                                    Map<String, Object> editedPayload,
+                                                    Long expectedVersion) {
+        GuidedCreationOutlineJobSupport.PreparedOperation prepared = outlineSupport.prepare(
+                run, directionId, operation, instruction, editedPayload, expectedVersion);
+        AsyncJob existing = reusableJob(run, prepared.idempotencyKey());
+        if (existing != null) return existing;
+        if (run.getActiveJobId() != null) {
+            throw new BusinessException("已有生成任务正在进行，请稍候");
         }
 
+        return createJob(run, GuidedCreationStep.OUTLINE,
+                prepared.idempotencyKey(), prepared.payload());
+    }
+
+    private AsyncJob reusableJob(CreationWorkflowRun run, String idempotencyKey) {
+        AsyncJob existing = jobRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
+        if (existing == null) return null;
+        if (existing.getStatus() == AsyncJobStatus.FAILED
+                || existing.getStatus() == AsyncJobStatus.RECOVERY_REQUIRED) {
+            throw new BusinessException("上次生成未完成，请使用重试操作");
+        }
+        run.setActiveJobId(existing.getId());
+        runRepository.save(run);
+        return existing;
+    }
+
+    private AsyncJob createJob(CreationWorkflowRun run,
+                               GuidedCreationStep step,
+                               String idempotencyKey,
+                               Map<String, Object> payload) {
         AsyncJob job = new AsyncJob();
         job.setUser(run.getUser());
         job.setScopeId(run.getId());
@@ -94,7 +157,7 @@ public class GuidedCreationJobService {
         job.setProgress(0);
         job.setAttemptCount(0);
         job.setIdempotencyKey(idempotencyKey);
-        job.setPayloadJson(codec.write(Map.of("hint", hint == null ? "" : hint.trim()), "{}"));
+        job.setPayloadJson(codec.write(payload, "{}"));
         job = jobRepository.save(job);
 
         run.setActiveJobId(job.getId());
@@ -108,9 +171,7 @@ public class GuidedCreationJobService {
     @Transactional
     public JobClaim claim(UUID jobId) {
         AsyncJob job = jobRepository.findByIdForUpdate(jobId).orElse(null);
-        if (job == null || job.getStatus() != AsyncJobStatus.QUEUED) {
-            return null;
-        }
+        if (job == null || job.getStatus() != AsyncJobStatus.QUEUED) return null;
         CreationWorkflowRun run = requireRunForUpdate(job.getScopeId());
         if (run.getStatus() == CreationWorkflowStatus.COMPLETED || run.getCurrentStep() != job.getStep()) {
             job.setStatus(AsyncJobStatus.FAILED);
@@ -125,7 +186,7 @@ public class GuidedCreationJobService {
         job.setLeaseOwner(leaseOwner);
         job.setLeaseUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
         jobRepository.save(job);
-        return new JobClaim(job.getId(), run.getId(), job.getStep(), payloadHint(job));
+        return new JobClaim(job.getId(), run.getId(), job.getStep(), operation(job));
     }
 
     @Transactional
@@ -141,7 +202,7 @@ public class GuidedCreationJobService {
         job.setProgress(30);
         job.setLeaseUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
         jobRepository.save(job);
-        return new GenerationContext(run, job, payloadHint(job));
+        return new GenerationContext(run, job, payload(job));
     }
 
     @Transactional
@@ -150,7 +211,8 @@ public class GuidedCreationJobService {
                 .orElseThrow(() -> new BusinessException("后台任务不存在"));
         if (job.getStatus() == AsyncJobStatus.SUCCEEDED) {
             CreationWorkflowRun current = requireRunForUpdate(job.getScopeId());
-            return completionOf(current, job, result.stepData());
+            return completionOf(current, job,
+                    jsonSupport.stepData(jsonSupport.readSteps(current), job.getStep()));
         }
         if (job.getStatus() != AsyncJobStatus.CALLING_AI) {
             throw new BusinessException("后台任务状态已经变化");
@@ -161,7 +223,13 @@ public class GuidedCreationJobService {
         }
 
         Map<String, Object> steps = jsonSupport.readSteps(run);
-        steps.put(job.getStep().name(), result.stepData());
+        GuidedCreationOperation operation = operation(job);
+        Map<String, Object> stepData = operation == GuidedCreationOperation.STEP_CANDIDATES
+                ? new LinkedHashMap<>(result.stepData())
+                : mergeOutlineResult(jsonSupport.stepData(steps, GuidedCreationStep.OUTLINE), job, result);
+        stepData.put("chargedCredits", numeric(stepData.get("chargedCredits")) + result.chargedCredits());
+        stepData.put("remainingCredits", result.remainingCredits());
+        steps.put(job.getStep().name(), stepData);
         jsonSupport.writeSteps(run, steps);
         run.setActiveJobId(null);
         run.setErrorMessage(null);
@@ -178,15 +246,20 @@ public class GuidedCreationJobService {
         job.setLeaseUntil(null);
         job.setCompletedAt(Instant.now());
         jobRepository.save(job);
-        return completionOf(run, job, result.stepData());
+        return completionOf(run, job, stepData);
+    }
+
+    private Map<String, Object> mergeOutlineResult(Map<String, Object> stepData,
+                                                   AsyncJob job,
+                                                   GuidedCreationGenerationService.GenerationResult result) {
+        GuidedCreationOperation operation = operation(job);
+        return outlineSupport.mergeResult(stepData, payload(job), operation, result.stepData());
     }
 
     @Transactional
     public void fail(UUID jobId, RuntimeException failure) {
         AsyncJob job = jobRepository.findByIdForUpdate(jobId).orElse(null);
-        if (job == null || job.getStatus() == AsyncJobStatus.SUCCEEDED) {
-            return;
-        }
+        if (job == null || job.getStatus() == AsyncJobStatus.SUCCEEDED) return;
         String message = failureMessage(failure);
         job.setStatus(AsyncJobStatus.FAILED);
         job.setProgress(100);
@@ -207,9 +280,7 @@ public class GuidedCreationJobService {
     @Transactional
     public void failAutomaticAdvance(UUID runId, RuntimeException failure) {
         CreationWorkflowRun run = requireRunForUpdate(runId);
-        if (run.getStatus() == CreationWorkflowStatus.COMPLETED) {
-            return;
-        }
+        if (run.getStatus() == CreationWorkflowStatus.COMPLETED) return;
         run.setStatus(CreationWorkflowStatus.FAILED);
         run.setErrorMessage(failureMessage(failure));
         runRepository.save(run);
@@ -292,16 +363,31 @@ public class GuidedCreationJobService {
     }
 
     private Completion completionOf(CreationWorkflowRun run, AsyncJob job, Map<String, Object> stepData) {
+        GuidedCreationOperation operation = operation(job);
+        Object candidateId = operation == GuidedCreationOperation.OUTLINE_EXPAND
+                ? stepData.get("selectedDirectionId") : stepData.get("recommendedCandidateId");
         return new Completion(
-                run.getId(), run.getUser().getId(), job.getStep(), run.isAutoRun(),
-                String.valueOf(stepData.get("recommendedCandidateId"))
-        );
+                run.getId(), run.getUser().getId(), job.getStep(), operation, run.isAutoRun(),
+                String.valueOf(candidateId));
     }
 
-    private String payloadHint(AsyncJob job) {
-        Map<String, Object> payload = codec.read(job.getPayloadJson(), new TypeReference<>() {}, Map.of());
-        Object hint = payload.get("hint");
-        return hint == null ? null : String.valueOf(hint);
+    private Map<String, Object> payload(AsyncJob job) {
+        return new LinkedHashMap<>(codec.read(
+                job.getPayloadJson(), new TypeReference<Map<String, Object>>() {}, Map.of()));
+    }
+
+    public GuidedCreationOperation operation(AsyncJob job) {
+        Object raw = payload(job).get("operation");
+        if (raw == null) return GuidedCreationOperation.STEP_CANDIDATES;
+        try {
+            return GuidedCreationOperation.valueOf(String.valueOf(raw));
+        } catch (IllegalArgumentException ignored) {
+            return GuidedCreationOperation.STEP_CANDIDATES;
+        }
+    }
+
+    private long numeric(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
     }
 
     private void publishQueued(UUID jobId) {
@@ -326,13 +412,19 @@ public class GuidedCreationJobService {
         }
     }
 
-    public record JobClaim(UUID jobId, UUID runId, GuidedCreationStep step, String hint) {}
+    public record JobClaim(UUID jobId,
+                           UUID runId,
+                           GuidedCreationStep step,
+                           GuidedCreationOperation operation) {}
 
-    public record GenerationContext(CreationWorkflowRun run, AsyncJob job, String hint) {}
+    public record GenerationContext(CreationWorkflowRun run,
+                                    AsyncJob job,
+                                    Map<String, Object> payload) {}
 
     public record Completion(UUID runId,
                              UUID userId,
                              GuidedCreationStep step,
+                             GuidedCreationOperation operation,
                              boolean autoRun,
                              String recommendedCandidateId) {}
 }

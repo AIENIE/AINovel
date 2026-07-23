@@ -98,6 +98,23 @@ function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candi
     ? candidate.chapters.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
     : [];
   const sceneCount = chapters.reduce((sum, chapter) => sum + (Array.isArray(chapter.scenes) ? chapter.scenes.length : 0), 0);
+  if (chapters.length === 0) {
+    const development = candidate.development && typeof candidate.development === "object"
+      ? candidate.development as Record<string, unknown>
+      : undefined;
+    return (
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-zinc-950">{value("title") || "未命名方向"}</h3>
+        <p className="line-clamp-4 text-sm leading-6 text-zinc-600">{value("summary")}</p>
+        <p className="line-clamp-2 text-xs leading-5 text-emerald-800">{value("coreConflict")}</p>
+        {development ? (
+          <p className="line-clamp-3 border-t border-zinc-100 pt-3 text-xs leading-5 text-zinc-500">
+            最新发展：{String(development.narrativeArc || development.title || "")}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-zinc-950">{value("title") || "章节大纲"}</h3>

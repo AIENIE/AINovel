@@ -6,6 +6,7 @@ import { GuidedCreationCandidate } from "@/types";
 import { cn } from "@/lib/utils";
 import GuidedCreationCandidates from "./GuidedCreationCandidates";
 import GuidedCreationCandidateEditor from "./GuidedCreationCandidateEditor";
+import GuidedCreationOutlineDirection from "./GuidedCreationOutlineDirection";
 import GuidedCreationSeedForm from "./GuidedCreationSeedForm";
 import { ContextPanel, ContextSheet, MobileSteps, WorkflowRail } from "./GuidedCreationChrome";
 import { CompletedState, FailureState, GenerationState, LoadingState } from "./GuidedCreationStates";
@@ -22,15 +23,24 @@ export default function GuidedCreationPage() {
     ? workflow.steps[workflow.currentStep]
     : undefined;
   const candidates = stepData?.candidates ?? EMPTY_CANDIDATES;
+  const outlineSelection = workflow?.currentStep === "OUTLINE" && stepData?.outlinePhase === "DIRECTION_SELECTION";
+  const outlinePreview = workflow?.currentStep === "OUTLINE" && stepData?.outlinePhase === "OUTLINE_PREVIEW";
   const [selectedId, setSelectedId] = useState<string>();
   const [draftCandidate, setDraftCandidate] = useState<GuidedCreationCandidate>();
 
   useEffect(() => {
-    const preferred = candidates.find((item) => item.candidateId === stepData?.recommendedCandidateId)
+    if (outlinePreview && stepData?.expandedOutline) {
+      setSelectedId(stepData.selectedDirectionId);
+      setDraftCandidate(structuredClone(stepData.expandedOutline));
+      return;
+    }
+    const preferred = candidates.find((item) => item.candidateId === selectedId)
+      ?? candidates.find((item) => item.candidateId === stepData?.recommendedCandidateId)
       ?? candidates[0];
     setSelectedId(preferred?.candidateId);
     setDraftCandidate(preferred ? structuredClone(preferred) : undefined);
-  }, [candidates, stepData?.generatedAt, stepData?.recommendedCandidateId, workflow?.currentStep]);
+  }, [candidates, outlinePreview, stepData?.expandedOutline, stepData?.generatedAt,
+    selectedId, stepData?.recommendedCandidateId, stepData?.selectedDirectionId, stepData?.updatedAt, workflow?.currentStep]);
 
   const selectCandidate = (candidate: GuidedCreationCandidate) => {
     setSelectedId(candidate.candidateId);
@@ -104,25 +114,45 @@ export default function GuidedCreationPage() {
                   <GenerationState workflow={workflow} />
                 ) : (
                   <div className="space-y-8">
-                    <GuidedCreationCandidates
-                      step={workflow.currentStep}
-                      candidates={candidates}
-                      recommendedId={stepData?.recommendedCandidateId}
-                      selectedId={selectedId}
-                      onSelect={selectCandidate}
-                    />
-                    {draftCandidate ? (
+                    {!outlinePreview ? (
+                      <GuidedCreationCandidates
+                        step={workflow.currentStep}
+                        candidates={candidates}
+                        recommendedId={stepData?.recommendedCandidateId}
+                        selectedId={selectedId}
+                        onSelect={selectCandidate}
+                      />
+                    ) : (
+                      <div className="border-y border-zinc-200 py-5">
+                        <p className="text-xs font-semibold uppercase text-emerald-700">完整大纲预览</p>
+                        <p className="mt-2 text-sm text-zinc-600">确认前可以编辑大纲名称、章节名称和章节目标。</p>
+                      </div>
+                    )}
+
+                    {outlineSelection && draftCandidate ? (
+                      <GuidedCreationOutlineDirection
+                        candidate={draftCandidate}
+                        busy={guided.busy}
+                        onDevelop={(action, instruction) => guided.developOutlineDirection(draftCandidate, action, instruction)}
+                        onExpand={() => guided.expandOutlineDirection(draftCandidate)}
+                      />
+                    ) : null}
+
+                    {!outlineSelection && draftCandidate ? (
                       <GuidedCreationCandidateEditor step={workflow.currentStep} value={draftCandidate} onChange={setDraftCandidate} />
                     ) : null}
-                    <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        {workflow.currentStep === "WORLD" ? <Button variant="ghost" disabled={guided.busy} onClick={() => void guided.skipWorld()}>跳过世界设定</Button> : null}
+
+                    {!outlineSelection ? (
+                      <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          {workflow.currentStep === "WORLD" ? <Button variant="ghost" disabled={guided.busy} onClick={() => void guided.skipWorld()}>跳过世界设定</Button> : null}
+                        </div>
+                        <Button className="bg-zinc-950 px-6 text-white hover:bg-zinc-800" disabled={!draftCandidate || guided.busy} onClick={() => draftCandidate && void guided.confirm(draftCandidate)}>
+                          {guided.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {outlinePreview ? "确认完整大纲" : "确认并继续"} <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button className="bg-zinc-950 px-6 text-white hover:bg-zinc-800" disabled={!draftCandidate || guided.busy} onClick={() => draftCandidate && void guided.confirm(draftCandidate)}>
-                        {guided.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        确认并继续 <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
+                    ) : null}
                   </div>
                 )}
               </section>

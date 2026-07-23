@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api-client";
 import { CreationWorkflow, GuidedCreationCandidate } from "@/types";
 import { showError } from "@/utils/toast";
@@ -15,8 +15,12 @@ export interface GuidedCreationSeed {
 }
 
 export function useGuidedCreation() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [initialRunId] = useState(() => searchParams.get("run"));
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [initialSelection] = useState(() => ({
+    runId: searchParams.get("run"),
+    blank: searchParams.get("new") === "1",
+  }));
   const [runs, setRuns] = useState<CreationWorkflow[]>([]);
   const [workflow, setWorkflow] = useState<CreationWorkflow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,13 +37,13 @@ export function useGuidedCreation() {
     try {
       const next = await api.creationWorkflows.get(id);
       setWorkflow(next);
-      setSearchParams({ run: id }, { replace: true });
+      navigate({ search: `?run=${encodeURIComponent(id)}` }, { replace: true });
     } catch (error) {
       showError(error instanceof Error ? error.message : "向导草稿加载失败");
     } finally {
       setLoading(false);
     }
-  }, [setSearchParams]);
+  }, [navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,11 +51,15 @@ export function useGuidedCreation() {
     refreshList()
       .then((list) => {
         if (cancelled) return;
-        const selected = list.find((item) => item.id === initialRunId)
+        if (initialSelection.blank) {
+          setWorkflow(null);
+          return;
+        }
+        const selected = list.find((item) => item.id === initialSelection.runId)
           ?? list.find((item) => item.status !== "COMPLETED");
         if (selected) {
           setWorkflow(selected);
-          setSearchParams({ run: selected.id }, { replace: true });
+          navigate({ search: `?run=${encodeURIComponent(selected.id)}` }, { replace: true });
         }
       })
       .catch((error) => showError(error instanceof Error ? error.message : "向导草稿加载失败"))
@@ -61,7 +69,7 @@ export function useGuidedCreation() {
     return () => {
       cancelled = true;
     };
-  }, [initialRunId, refreshList, setSearchParams]);
+  }, [initialSelection.blank, initialSelection.runId, navigate, refreshList]);
 
   const shouldPoll = Boolean(
     workflow && (
@@ -112,7 +120,7 @@ export function useGuidedCreation() {
     try {
       const created = await api.creationWorkflows.create(seed);
       setWorkflow(created);
-      setSearchParams({ run: created.id }, { replace: true });
+      navigate({ search: `?run=${encodeURIComponent(created.id)}` }, { replace: true });
       if (!seed.autoRun) {
         await api.creationWorkflows.generate(created.id, created.currentStep);
         const queued = await api.creationWorkflows.get(created.id);
@@ -124,7 +132,7 @@ export function useGuidedCreation() {
     } finally {
       setBusy(false);
     }
-  }, [refreshList, setSearchParams]);
+  }, [navigate, refreshList]);
 
   const confirm = useCallback(async (candidate: GuidedCreationCandidate) => {
     if (!workflow || workflow.currentStep === "COMPLETED") return;
@@ -162,10 +170,34 @@ export function useGuidedCreation() {
     await act(() => api.creationWorkflows.retry(workflow.id));
   }, [act, workflow]);
 
+  const developOutlineDirection = useCallback(async (
+    candidate: GuidedCreationCandidate,
+    action: "continue" | "rewrite",
+    instruction: string,
+  ) => {
+    if (!workflow || workflow.currentStep !== "OUTLINE") return;
+    await act(async () => {
+      await api.creationWorkflows.developOutlineDirection(
+        workflow.id, candidate.candidateId, action, instruction, candidate, workflow.version,
+      );
+      return await api.creationWorkflows.get(workflow.id);
+    });
+  }, [act, workflow]);
+
+  const expandOutlineDirection = useCallback(async (candidate: GuidedCreationCandidate) => {
+    if (!workflow || workflow.currentStep !== "OUTLINE") return;
+    await act(async () => {
+      await api.creationWorkflows.expandOutlineDirection(
+        workflow.id, candidate.candidateId, candidate, workflow.version,
+      );
+      return await api.creationWorkflows.get(workflow.id);
+    });
+  }, [act, workflow]);
+
   const newDraft = useCallback(() => {
     setWorkflow(null);
-    setSearchParams({}, { replace: true });
-  }, [setSearchParams]);
+    navigate({ search: "?new=1" }, { replace: true });
+  }, [navigate]);
 
   const totalCharged = useMemo(() => workflow
     ? Object.values(workflow.steps).reduce((sum, step) => sum + Number(step?.chargedCredits || 0), 0)
@@ -182,5 +214,6 @@ export function useGuidedCreation() {
   return {
     runs, workflow, loading, busy, shouldPoll, totalCharged, remainingCredits,
     create, open, confirm, skipWorld, startAuto, retry, newDraft,
+    developOutlineDirection, expandOutlineDirection,
   };
 }

@@ -7,6 +7,7 @@ import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,28 +38,47 @@ public class GuidedCreationGenerationService {
     }
 
     public GenerationResult generate(CreationWorkflowRun run, AsyncJob job, String hint) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("operation", GuidedCreationOperation.STEP_CANDIDATES.name());
+        payload.put("hint", hint == null ? "" : hint);
+        return generate(run, job, payload);
+    }
+
+    public GenerationResult generate(CreationWorkflowRun run,
+                                     AsyncJob job,
+                                     Map<String, Object> payload) {
         GuidedCreationStep step = job.getStep();
+        GuidedCreationOperation operation = operation(payload);
         Map<String, Object> confirmedContext = confirmedContext(run);
-        String prompt = promptFactory.build(run, step, confirmedContext, hint);
+        String prompt;
+        if (operation == GuidedCreationOperation.STEP_CANDIDATES) {
+            prompt = promptFactory.build(run, step, confirmedContext, string(payload.get("hint")));
+        } else {
+            Map<String, Object> stepData = jsonSupport.stepData(
+                    jsonSupport.readSteps(run), GuidedCreationStep.OUTLINE);
+            Map<String, Object> direction = jsonSupport.requireCandidate(
+                    stepData, string(payload.get("directionId")));
+            prompt = promptFactory.buildOutlineOperation(
+                    run, operation, confirmedContext, direction, payload);
+        }
+
         AiUsageContext usageContext = new AiUsageContext(
-                "G1_WORKFLOW", job.getId().toString(), step.name().toLowerCase());
+                "G1_WORKFLOW", job.getId().toString(), operationName(step, operation));
         AiChatResponse response = chat(run, prompt, usageContext);
         long charged = chargedCredits(response);
         Map<String, Object> normalized;
         try {
-            normalized = normalize(run, step, parseJsonObject(response.content()));
+            normalized = normalize(run, step, operation, parseJsonObject(response.content()));
         } catch (BusinessException firstFailure) {
             AiChatResponse repaired = chat(run, repairPrompt(prompt, response.content()),
                     usageContext.forOperation("json_repair"));
             charged += chargedCredits(repaired);
             response = repaired;
-            normalized = normalize(run, step, parseJsonObject(repaired.content()));
+            normalized = normalize(run, step, operation, parseJsonObject(repaired.content()));
         }
-        normalized.put("promptVersion", promptFactory.version(step));
+        normalized.put("promptVersion", promptFactory.version(step, operation));
         normalized.put("generatedAt", Instant.now().toString());
         long remaining = Math.max(0L, Math.round(response.remainingCredits()));
-        normalized.put("chargedCredits", charged);
-        normalized.put("remainingCredits", remaining);
         return new GenerationResult(normalized, charged, remaining);
     }
 
@@ -66,8 +86,7 @@ public class GuidedCreationGenerationService {
         return aiService.chat(
                 run.getUser(),
                 new AiChatRequest(List.of(new AiChatRequest.Message("user", prompt)), null, null),
-                usageContext
-        );
+                usageContext);
     }
 
     private long chargedCredits(AiChatResponse response) {
@@ -75,17 +94,15 @@ public class GuidedCreationGenerationService {
     }
 
     private String repairPrompt(String originalPrompt, String invalidOutput) {
-        String source = invalidOutput == null ? "" : invalidOutput;
         return """
-                请把下方输出修复为符合原任务的严格 JSON。只输出一个 JSON 对象，不要解释，不要 Markdown。
-                必须保留恰好 3 个完整候选及 recommendedIndex；不得用省略号删减内容。
+                请把下方输出修复为符合原任务的严格 JSON。只输出一个完整 JSON 对象，不要解释，不要 Markdown，也不要省略任何必需内容。
 
                 原任务：
                 %s
 
                 待修复输出：
                 %s
-                """.formatted(originalPrompt, source);
+                """.formatted(originalPrompt, invalidOutput == null ? "" : invalidOutput);
     }
 
     private Map<String, Object> confirmedContext(CreationWorkflowRun run) {
@@ -105,16 +122,36 @@ public class GuidedCreationGenerationService {
         int last = candidate.lastIndexOf('}');
         if (first < 0 || last <= first) throw new BusinessException("AI 未返回有效 JSON");
         try {
-            return objectMapper.readValue(candidate.substring(first, last + 1), new TypeReference<>() {});
+            return objectMapper.readValue(
+                    candidate.substring(first, last + 1), new TypeReference<Map<String, Object>>() {});
         } catch (Exception ex) {
             throw new BusinessException("AI 返回的候选格式无效，请重试");
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> normalize(CreationWorkflowRun run,
                                           GuidedCreationStep step,
+                                          GuidedCreationOperation operation,
                                           Map<String, Object> parsed) {
+        if (operation == GuidedCreationOperation.OUTLINE_EXPAND) {
+            Map<String, Object> outline = new LinkedHashMap<>(parsed);
+            validateExpandedOutline(run, outline);
+            return outline;
+        }
+        if (operation == GuidedCreationOperation.OUTLINE_DEVELOP
+                || operation == GuidedCreationOperation.OUTLINE_REWRITE) {
+            Map<String, Object> development = new LinkedHashMap<>(parsed);
+            requireText(development, "title", "narrativeArc", "escalation", "endingDirection");
+            requireNonEmptyList(development, "keyTurns");
+            return development;
+        }
+        return normalizeStepCandidates(run, step, parsed);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeStepCandidates(CreationWorkflowRun run,
+                                                        GuidedCreationStep step,
+                                                        Map<String, Object> parsed) {
         Object rawCandidates = parsed.get("candidates");
         if (!(rawCandidates instanceof List<?> list) || list.size() != 3) {
             throw new BusinessException("AI 必须返回恰好 3 个候选");
@@ -123,21 +160,25 @@ public class GuidedCreationGenerationService {
         for (Object item : list) {
             if (!(item instanceof Map<?, ?> raw)) throw new BusinessException("候选格式无效");
             Map<String, Object> candidate = new LinkedHashMap<>((Map<String, Object>) raw);
-            validateCandidate(run, step, candidate);
+            validateCandidate(step, candidate);
             candidate.put("candidateId", UUID.randomUUID().toString());
+            if (step == GuidedCreationStep.OUTLINE) {
+                candidate.remove("chapters");
+                candidate.remove("scenes");
+                candidate.put("developmentRevision", 0L);
+            }
             candidates.add(candidate);
         }
         int recommendedIndex = parsed.get("recommendedIndex") instanceof Number number ? number.intValue() : 0;
         if (recommendedIndex < 0 || recommendedIndex > 2) recommendedIndex = 0;
         Map<String, Object> result = new LinkedHashMap<>();
+        if (step == GuidedCreationStep.OUTLINE) result.put("outlinePhase", "DIRECTION_SELECTION");
         result.put("candidates", candidates);
         result.put("recommendedCandidateId", candidates.get(recommendedIndex).get("candidateId"));
         return result;
     }
 
-    private void validateCandidate(CreationWorkflowRun run,
-                                   GuidedCreationStep step,
-                                   Map<String, Object> candidate) {
+    private void validateCandidate(GuidedCreationStep step, Map<String, Object> candidate) {
         switch (step) {
             case PREMISE -> requireText(candidate, "title", "synopsis");
             case WORLD -> requireText(candidate, "name", "creativeIntent");
@@ -155,19 +196,27 @@ public class GuidedCreationGenerationService {
                 }
             }
             case OUTLINE -> {
-                Object chapters = candidate.get("chapters");
-                if (!(chapters instanceof List<?> list) || list.size() != run.getTargetChapterCount()) {
-                    throw new BusinessException("大纲候选必须包含 " + run.getTargetChapterCount() + " 章");
-                }
-                for (Object item : list) {
-                    if (!(item instanceof Map<?, ?> chapter)
-                            || !(chapter.get("scenes") instanceof List<?> scenes)
-                            || scenes.size() < 2 || scenes.size() > 4) {
-                        throw new BusinessException("每章必须包含 2-4 个场景");
-                    }
+                requireText(candidate, "title", "summary", "coreConflict", "protagonistDrive", "stakes");
+                if (candidate.containsKey("chapters") || candidate.containsKey("scenes")) {
+                    throw new BusinessException("初始大纲方向不能包含章节或场景");
                 }
             }
             case COMPLETED -> throw new BusinessException("完成状态不能生成候选");
+        }
+    }
+
+    private void validateExpandedOutline(CreationWorkflowRun run, Map<String, Object> outline) {
+        requireText(outline, "title");
+        Object chapters = outline.get("chapters");
+        if (!(chapters instanceof List<?> list) || list.size() != run.getTargetChapterCount()) {
+            throw new BusinessException("大纲必须包含 " + run.getTargetChapterCount() + " 章");
+        }
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> chapter)
+                    || !(chapter.get("scenes") instanceof List<?> scenes)
+                    || scenes.size() < 2 || scenes.size() > 4) {
+                throw new BusinessException("每章必须包含 2-4 个场景");
+            }
         }
     }
 
@@ -180,5 +229,31 @@ public class GuidedCreationGenerationService {
         }
     }
 
-    public record GenerationResult(Map<String, Object> stepData, long chargedCredits, long remainingCredits) {}
+    private void requireNonEmptyList(Map<String, Object> candidate, String key) {
+        if (!(candidate.get(key) instanceof List<?> list) || list.isEmpty()) {
+            throw new BusinessException("候选缺少字段：" + key);
+        }
+    }
+
+    private GuidedCreationOperation operation(Map<String, Object> payload) {
+        try {
+            return GuidedCreationOperation.valueOf(string(payload.get("operation")));
+        } catch (RuntimeException ignored) {
+            return GuidedCreationOperation.STEP_CANDIDATES;
+        }
+    }
+
+    private String operationName(GuidedCreationStep step, GuidedCreationOperation operation) {
+        return operation == GuidedCreationOperation.STEP_CANDIDATES
+                ? step.name().toLowerCase()
+                : operation.name().toLowerCase();
+    }
+
+    private String string(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    public record GenerationResult(Map<String, Object> stepData,
+                                   long chargedCredits,
+                                   long remainingCredits) {}
 }

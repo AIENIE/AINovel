@@ -11,6 +11,7 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,7 +41,7 @@ class GuidedCreationGenerationServiceTest {
         when(aiService.chat(eq(user), any(AiChatRequest.class), any(AiUsageContext.class)))
                 .thenReturn(response(premiseJson(3), 7, 91));
 
-        GuidedCreationGenerationService.GenerationResult result = service(aiService).generate(run, job, null);
+        GuidedCreationGenerationService.GenerationResult result = service(aiService).generate(run, job, (String) null);
 
         ArgumentCaptor<AiUsageContext> context = ArgumentCaptor.forClass(AiUsageContext.class);
         verify(aiService).chat(eq(user), any(AiChatRequest.class), context.capture());
@@ -66,25 +67,49 @@ class GuidedCreationGenerationServiceTest {
                 response(premiseJson(2), 1, 99), response(premiseJson(2), 1, 98));
 
         BusinessException error = assertThrows(BusinessException.class,
-                () -> service(aiService).generate(run, job, null));
+                () -> service(aiService).generate(run, job, (String) null));
 
         assertTrue(error.getMessage().contains("恰好 3 个候选"));
     }
 
     @Test
-    void rejectsOutlineThatDoesNotMatchSelectedChapterCount() {
+    void rejectsChaptersInInitialOutlineDirections() {
         AiService aiService = mock(AiService.class);
         CreationWorkflowRun run = run(user(), 6);
         AsyncJob job = job(GuidedCreationStep.OUTLINE);
-        String candidate = "{\"title\":\"六章之外\",\"chapters\":["
-                + chapterJson() + "," + chapterJson() + "," + chapterJson() + "]}";
+        String candidate = "{\"title\":\"钟楼路线\",\"summary\":\"追查停摆真相\","
+                + "\"coreConflict\":\"时间与记忆冲突\",\"protagonistDrive\":\"找回过去\","
+                + "\"stakes\":\"城市消失\",\"chapters\":[" + chapterJson() + "]}";
         String json = "{\"recommendedIndex\":0,\"candidates\":[" + candidate + "," + candidate + "," + candidate + "]}";
         when(aiService.chat(any(), any(), any())).thenReturn(response(json, 1, 99), response(json, 1, 98));
 
         BusinessException error = assertThrows(BusinessException.class,
-                () -> service(aiService).generate(run, job, null));
+                () -> service(aiService).generate(run, job, (String) null));
 
-        assertTrue(error.getMessage().contains("必须包含 6 章"));
+        assertTrue(error.getMessage().contains("不能包含章节"));
+    }
+
+    @Test
+    void expandsOnlyTheSelectedDirectionIntoACompleteOutline() {
+        AiService aiService = mock(AiService.class);
+        CreationWorkflowRun run = run(user(), 6);
+        run.setStepsJson("{\"OUTLINE\":{\"outlinePhase\":\"DIRECTION_SELECTION\",\"candidates\":["
+                + "{\"candidateId\":\"direction-a\",\"title\":\"钟楼路线\",\"summary\":\"追查停摆真相\"}]}}");
+        AsyncJob job = job(GuidedCreationStep.OUTLINE);
+        String outline = "{\"title\":\"钟楼路线完整大纲\",\"chapters\":["
+                + String.join(",", java.util.Collections.nCopies(6, chapterJson())) + "]}";
+        when(aiService.chat(any(), any(), any())).thenReturn(response(outline, 4, 86));
+
+        GuidedCreationGenerationService.GenerationResult result = service(aiService).generate(
+                run, job, Map.of(
+                        "operation", GuidedCreationOperation.OUTLINE_EXPAND.name(),
+                        "directionId", "direction-a",
+                        "editedPayload", Map.of(),
+                        "instruction", ""));
+
+        assertEquals(6, ((List<?>) result.stepData().get("chapters")).size());
+        assertEquals("g1.quick-book.outline-expansion.v1", result.stepData().get("promptVersion"));
+        assertEquals(4L, result.chargedCredits());
     }
 
     @Test
@@ -96,7 +121,7 @@ class GuidedCreationGenerationServiceTest {
         when(aiService.chat(eq(user), any(AiChatRequest.class), any(AiUsageContext.class)))
                 .thenReturn(response("not-json", 1, 99), response(premiseJson(3), 2, 97));
 
-        GuidedCreationGenerationService.GenerationResult result = service(aiService).generate(run, job, null);
+        GuidedCreationGenerationService.GenerationResult result = service(aiService).generate(run, job, (String) null);
 
         ArgumentCaptor<AiUsageContext> contexts = ArgumentCaptor.forClass(AiUsageContext.class);
         verify(aiService, org.mockito.Mockito.times(2)).chat(eq(user), any(AiChatRequest.class), contexts.capture());
