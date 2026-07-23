@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "ART_MARKDOWN_FENCE", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["```"], "regexes": [], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["论坛体", "系统面板", "报告体", "实验文本"],
+      "whyItMatters": "Markdown 代码围栏是正文外格式残留。", "repairHint": "删除围栏，只保留小说正文。",
+      "alternativeExplanations": ["论坛体", "系统面板正文"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-rendering-artifact"],
+      "positiveSamples": ["```markdown\n正文"], "contextualSamples": [{"text": "```log\nERROR", "contextHint": "实验文本"}]
+    },
+    {
+      "id": "ART_MARKDOWN_HEADING", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": [], "regexes": ["(?:^|\\n)#{1,6}[ \\t]+[^\\n]{1,80}"], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["论坛体", "系统面板", "报告体", "实验文本"],
+      "whyItMatters": "Markdown 标题混入连续小说正文会破坏沉浸。", "repairHint": "删除 Markdown 标题符号或改为正文自然过渡。",
+      "alternativeExplanations": ["论坛体", "报告体"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-rendering-artifact"],
+      "positiveSamples": ["# 第一章\n他醒了。"], "contextualSamples": [{"text": "# 实验结果", "contextHint": "实验文本"}]
+    },
+    {
+      "id": "ART_AI_SELF_REFERENCE", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["作为一个AI", "作为AI语言模型", "我是一个人工智能"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["AI角色", "实验文本", "日志体"],
+      "whyItMatters": "助手自我说明属于生成过程残留，不是小说正文。", "repairHint": "删除助手身份说明。",
+      "alternativeExplanations": ["AI角色台词", "实验记录"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-assistant-residue"],
+      "positiveSamples": ["作为一个AI，我无法继续。"], "contextualSamples": [{"text": "AI角色说：作为一个AI。", "contextHint": "AI角色"}]
+    },
+    {
+      "id": "ART_ASSISTANT_PREFACE", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["以下是为你", "以下是根据你的要求", "当然可以，", "好的，以下是"], "regexes": [], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["聊天记录", "实验文本", "书信体"],
+      "whyItMatters": "助手式承接语暴露了正文前的对话界面。", "repairHint": "删除应答前言，从场景第一句开始。",
+      "alternativeExplanations": ["聊天记录体", "角色对话"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-assistant-residue"],
+      "positiveSamples": ["好的，以下是续写内容。"], "contextualSamples": [{"text": "聊天记录：当然可以，马上发。", "contextHint": "聊天记录"}]
+    },
+    {
+      "id": "ART_ASSISTANT_CLOSING", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["希望这能帮助到你", "如果你还有其他问题", "如需进一步修改", "希望你喜欢这个版本"], "regexes": [], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["聊天记录", "实验文本", "书信体"],
+      "whyItMatters": "助手式结束语不属于故事世界。", "repairHint": "删除服务性结束语。",
+      "alternativeExplanations": ["书信体", "聊天记录体"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-assistant-residue"],
+      "positiveSamples": ["希望你喜欢这个版本。"], "contextualSamples": [{"text": "聊天记录：如果你还有其他问题。", "contextHint": "聊天记录"}]
+    },
+    {
+      "id": "ART_PROMPT_LEAK", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["系统提示词", "用户提示词", "根据上述提示", "遵循以下指令", "prompt:"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["提示词教程", "实验文本", "日志体"],
+      "whyItMatters": "提示词或指令术语暴露了生成控制层。", "repairHint": "删除提示词说明及执行过程，只保留正文。",
+      "alternativeExplanations": ["提示词教程", "实验日志"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-prompt-residue"],
+      "positiveSamples": ["根据上述提示，我将续写。"], "contextualSamples": [{"text": "提示词教程介绍系统提示词。", "contextHint": "提示词教程"}]
+    },
+    {
+      "id": "ART_ROLE_TAG", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["<|assistant|>", "<|user|>", "<|system|>", "[assistant]", "[system]"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本", "聊天记录"],
+      "whyItMatters": "消息角色标签是模型协议或对话导出残留。", "repairHint": "删除角色协议标签。",
+      "alternativeExplanations": ["模型日志", "聊天导出"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-protocol-residue"],
+      "positiveSamples": ["<|assistant|>正文开始。"], "contextualSamples": [{"text": "模型日志：<|assistant|>", "contextHint": "模型日志"}]
+    },
+    {
+      "id": "ART_REASONING_LEAK", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["我的思考过程是", "让我一步一步思考", "分析如下：", "推理过程："], "regexes": [], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["推理教程", "实验文本", "侦探笔记"],
+      "whyItMatters": "任务推理过程混入正文会暴露生成工作流。", "repairHint": "删除任务分析和推理过程。",
+      "alternativeExplanations": ["侦探笔记体", "推理教程"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-reasoning-residue"],
+      "positiveSamples": ["分析如下：角色先进入房间。"], "contextualSamples": [{"text": "推理教程写着让我一步一步思考。", "contextHint": "推理教程"}]
+    },
+    {
+      "id": "ART_CORRECTION_LEAK", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["抱歉，我刚才", "更正一下", "重新生成如下", "让我重新回答"], "regexes": [], "ignoreCase": false, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["聊天记录", "实验文本", "校对说明"],
+      "whyItMatters": "助手纠错和重答说明暴露了多轮生成过程。", "repairHint": "删除更正说明，仅保留最终有效正文。",
+      "alternativeExplanations": ["角色道歉", "校对记录"], "observedModels": ["cross-provider"], "sourceRefs": ["reproducible-assistant-residue"],
+      "positiveSamples": ["抱歉，我刚才理解错了。"], "contextualSamples": [{"text": "校对说明：更正一下日期。", "contextHint": "校对说明"}]
+    },
+
+    {
+      "id": "ART_OPENAI_TURN_SEARCH", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["turn0search"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "turn0search 是可复现的 OpenAI 工具引用渲染残留。", "repairHint": "删除内部搜索引用标识。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["ChatGPT"], "sourceRefs": ["OpenAI-rendering-artifact"],
+      "positiveSamples": ["依据 turn0search3 可知。"], "contextualSamples": [{"text": "模型日志记录 turn0search3。", "contextHint": "模型日志"}]
+    },
+    {
+      "id": "ART_OPENAI_CITATION", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["oai_citation"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "oai_citation 是可复现的 OpenAI 引用标记残留。", "repairHint": "删除内部引用标记。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["ChatGPT"], "sourceRefs": ["OpenAI-rendering-artifact"],
+      "positiveSamples": ["<oai_citation>来源</oai_citation>"], "contextualSamples": [{"text": "实验文本包含 oai_citation。", "contextHint": "实验文本"}]
+    },
+    {
+      "id": "ART_GEMINI_CITE", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": [], "regexes": ["\\[cite:\\s*\\d{1,3}(?:,\\s*\\d{1,3}){0,5}\\]"], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "[cite: n] 是可复现的 Gemini 引用渲染残留。", "repairHint": "删除内部引用占位符。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["Gemini"], "sourceRefs": ["Gemini-rendering-artifact"],
+      "positiveSamples": ["她离开了。[cite: 2]"], "contextualSamples": [{"text": "实验文本：[cite: 2]", "contextHint": "实验文本"}]
+    },
+    {
+      "id": "ART_GEMINI_SPAN", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["[start_span]", "[end_span]"], "regexes": ["\\[span_\\d{1,4}\\]"], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "span/start_span 是可复现的 Gemini 文本区间渲染残留。", "repairHint": "删除内部文本区间标记。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["Gemini"], "sourceRefs": ["Gemini-rendering-artifact"],
+      "positiveSamples": ["[span_1][start_span]她走了。"], "contextualSamples": [{"text": "模型日志：[start_span]", "contextHint": "模型日志"}]
+    },
+    {
+      "id": "ART_GROK_CARD", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["grok_card"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "grok_card 是可复现的 Grok 卡片渲染残留。", "repairHint": "删除内部卡片标记。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["Grok"], "sourceRefs": ["Grok-rendering-artifact"],
+      "positiveSamples": ["<grok_card>内容</grok_card>"], "contextualSamples": [{"text": "模型日志含 grok_card。", "contextHint": "模型日志"}]
+    },
+    {
+      "id": "ART_GROK_RENDER_JSON", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": ["grok_render_citation_card_json"], "regexes": [], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "grok_render_citation_card_json 是可复现的 Grok 引用卡片调用残留。", "repairHint": "删除内部渲染函数标记。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["Grok"], "sourceRefs": ["Grok-rendering-artifact"],
+      "positiveSamples": ["grok_render_citation_card_json({})"], "contextualSamples": [{"text": "实验文本：grok_render_citation_card_json", "contextHint": "实验文本"}]
+    },
+    {
+      "id": "ART_DEEPSEEK_LINE_CITE", "category": "ARTIFACT", "status": "ACTIVE",
+      "literals": [], "regexes": ["【\\d{1,3}†L\\d{1,5}(?:-L\\d{1,5})?】"], "ignoreCase": true, "dimension": "ARTIFACT", "module": "consistency_assimilation",
+      "contextDowngradeHints": ["模型日志", "实验文本"],
+      "whyItMatters": "【n†Lx-Ly】是可复现的 DeepSeek 行号引用渲染残留。", "repairHint": "删除内部行号引用标记。",
+      "alternativeExplanations": ["模型日志"], "observedModels": ["DeepSeek"], "sourceRefs": ["DeepSeek-rendering-artifact"],
+      "positiveSamples": ["结论见【2†L10-L14】。"], "contextualSamples": [{"text": "模型日志：【2†L10-L14】", "contextHint": "模型日志"}]
+    }
+  ]
+}

@@ -40,7 +40,7 @@ public class PromptAssemblyService {
      * constraint block and a human-trace element checklist sampled for this scene.
      *
      * @param input           standard prompt input (same as fast mode)
-     * @param negativePatterns patterns sampled from slop_patterns table (up to 15 items)
+     * @param negativePatterns patterns sampled from the versioned slop registry (up to 15 items)
      * @param sceneIndex      used to rotate which human-trace elements are emphasized
      */
     public AssembledPrompt assembleWithCreativeConstraints(

@@ -24,7 +24,7 @@
 - `riskLabel`：`low` / `medium` / `high` / `critical`。
 - `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
 - `safeClaim`：安全结论，只评价文本 slop 风险，不推断作者是否使用 AI。
-- `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`。
+- `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`；保留键 `_shadow_pattern_hits` 记录不参与评分的影子规则命中摘要。
 - `alternativeExplanationsJson`：替代解释，例如传统网文俗套、人工低水平写作、工作室公式化、题材/平台惯例、作者个人文风。
 - `revisionPrioritiesJson`：修改优先级。
 - `rewriteTasksJson`：证据驱动改写任务。
@@ -112,5 +112,7 @@
 
 - 文本诊断不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
 - 单点黑名单命中只能作为 `E1` 弱信号；短窗口密度或多信号共振才能升级为 `E2`。
+- 本地密度窗口固定为 500 字：同类 3 次或 3 类共现升级到 58/E2；同类 5 次或 4 类共现升级到 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1。
 - 设定硬冲突和元提示残留优先于表层套话，分别按 `E3` / `E4` 处理。
+- `_shadow_pattern_hits` 不得改变 `overallRiskScore`、`maxSeverity`、`issues`、AI review 或 `safeClaim`，也不包含模型归因结论。
 - 平台合规、AIGC 标识和商业风险不计入文本 slop 总分。

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "SHADOW_RULE_OF_THREE", "category": "SHADOW_RULE_OF_THREE", "status": "SHADOW",
+      "literals": [], "regexes": [], "ignoreCase": false, "detector": "RULE_OF_THREE",
+      "observedModels": ["cross-provider"],
+      "sourceRefs": ["Wikipedia-signs-of-AI-writing", "community-observation"]
+    },
+    {
+      "id": "SHADOW_UNIFORM_SENTENCE_LENGTH", "category": "SHADOW_UNIFORM_LENGTH", "status": "SHADOW",
+      "literals": [], "regexes": [], "ignoreCase": false, "detector": "UNIFORM_SENTENCE_LENGTH",
+      "observedModels": ["cross-provider"],
+      "sourceRefs": ["HC3", "M4", "RAID"]
+    },
+    {
+      "id": "SHADOW_LOW_LEXICAL_VARIATION", "category": "SHADOW_LEXICAL_VARIATION", "status": "SHADOW",
+      "literals": [], "regexes": [], "ignoreCase": false, "detector": "LOW_LEXICAL_VARIATION",
+      "observedModels": ["cross-provider"],
+      "sourceRefs": ["HC3", "M4", "RAID", "excess-vocabulary-study"]
+    },
+    {
+      "id": "SHADOW_CONNECTOR_DENSITY", "category": "SHADOW_CONNECTOR_DENSITY", "status": "SHADOW",
+      "literals": [], "regexes": [], "ignoreCase": false, "detector": "CONNECTOR_DENSITY",
+      "observedModels": ["ChatGPT", "cross-provider"],
+      "sourceRefs": ["HC3", "Wikipedia-signs-of-AI-writing"]
+    },
+    {
+      "id": "SHADOW_UNVERIFIED_MODEL_STYLE", "category": "SHADOW_MODEL_STYLE_HYPOTHESIS", "status": "SHADOW",
+      "literals": ["值得注意的是", "深入探讨", "综上所述", "不可否认的是", "在当今这个"],
+      "regexes": [], "ignoreCase": false,
+      "observedModels": ["ChatGPT", "Claude", "Gemini", "Grok", "DeepSeek", "GLM", "Kimi", "Doubao", "insufficient-provider-specific-evidence"],
+      "sourceRefs": ["community-candidate-only", "M4", "RAID"]
+    }
+  ]
+}

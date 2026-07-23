@@ -118,6 +118,7 @@ class SlopQualityGateTest {
         assertEquals("E2", record.signals().evidenceLevel());
         assertEquals("high", record.signals().riskLabel());
         assertTrue(record.signals().moduleScores().containsKey("surface_template"));
+        assertTrue(record.signals().moduleScores().containsKey("_shadow_pattern_hits"));
         assertEquals("R1", ((java.util.Map<?, ?>) record.signals().rewriteTasks().get(0)).get("task_id"));
     }
 
