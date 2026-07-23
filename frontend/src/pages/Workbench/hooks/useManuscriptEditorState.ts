@@ -57,6 +57,24 @@ export function useManuscriptEditorState({
     [replaceManuscript],
   );
 
+  const applyServerSection = useCallback((manuscript: Manuscript, sceneId: string) => {
+    const html = manuscript.sections?.[sceneId];
+    if (typeof html !== "string") throw new Error("服务端未返回目标场景正文");
+    if (saveTimer.current[sceneId]) {
+      window.clearTimeout(saveTimer.current[sceneId]);
+      delete saveTimer.current[sceneId];
+    }
+    replaceManuscript(manuscript);
+    setSceneDrafts((prev) => ({ ...prev, [sceneId]: html }));
+    setDirtyScenes((prev) => {
+      const next = { ...prev };
+      delete next[sceneId];
+      return next;
+    });
+    if (selectedSceneId === sceneId) setContent(html);
+    primeSceneHtml(sceneId, html);
+  }, [primeSceneHtml, replaceManuscript, selectedSceneId]);
+
   useEffect(() => {
     if (!selectedManuscript || !selectedSceneId) {
       setContent("");
@@ -75,6 +93,10 @@ export function useManuscriptEditorState({
   const persistSection = useCallback(
     async (sceneId: string, html: string, silent = false) => {
       if (!selectedManuscriptId || !sceneId) return;
+      if (saveTimer.current[sceneId]) {
+        window.clearTimeout(saveTimer.current[sceneId]);
+        delete saveTimer.current[sceneId];
+      }
       setIsSaving(true);
       try {
         const saved = await api.manuscripts.saveSection(selectedManuscriptId, sceneId, html);
@@ -101,6 +123,7 @@ export function useManuscriptEditorState({
       if (!selectedManuscriptId || !sceneId) return;
       if (saveTimer.current[sceneId]) window.clearTimeout(saveTimer.current[sceneId]);
       saveTimer.current[sceneId] = window.setTimeout(() => {
+        delete saveTimer.current[sceneId];
         void persistSection(sceneId, html, true);
       }, 1200);
     },
@@ -109,13 +132,18 @@ export function useManuscriptEditorState({
 
   const handleManualSave = useCallback(async () => {
     if (!selectedSceneId) return;
-    if (saveTimer.current[selectedSceneId]) window.clearTimeout(saveTimer.current[selectedSceneId]);
     await persistSection(selectedSceneId, content, false);
   }, [content, persistSection, selectedSceneId]);
 
   const updateSceneDraft = useCallback((sceneId: string, html: string) => {
     setSceneDrafts((prev) => ({ ...prev, [sceneId]: html }));
     setDirtyScenes((prev) => ({ ...prev, [sceneId]: true }));
+  }, []);
+
+  const cancelPendingSectionSave = useCallback((sceneId: string) => {
+    if (!saveTimer.current[sceneId]) return;
+    window.clearTimeout(saveTimer.current[sceneId]);
+    delete saveTimer.current[sceneId];
   }, []);
 
   const handleEditorChange = useCallback(
@@ -131,6 +159,8 @@ export function useManuscriptEditorState({
 
   return {
     applyFetchedManuscript,
+    applyServerSection,
+    cancelPendingSectionSave,
     content,
     currentWordCount,
     dirtyScenes,

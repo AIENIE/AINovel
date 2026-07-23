@@ -99,6 +99,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
 
   const {
     applyFetchedManuscript,
+    applyServerSection,
+    cancelPendingSectionSave,
     content,
     currentWordCount,
     dirtyScenes,
@@ -109,7 +111,6 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     persistSection,
     sessionDurationSeconds,
     sessionNetWords,
-    setContent,
   } = useManuscriptEditorState({
     autoSaveIntervalSeconds,
     replaceManuscript,
@@ -135,10 +136,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     currentBranchId,
     deleteGoal,
     deleteTemplate,
+    downloadExport,
     diffResult,
     diffViewMode,
     exportAuthorName,
     exportFormat,
+    exportDownloadingJobId,
     exportJobs,
     exportTemplateId,
     exportTemplates,
@@ -222,13 +225,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     selectedPlotRun,
     selectedQualityRun,
   } = useManuscriptQuality({
-    applyFetchedManuscript,
+    applyServerSection,
     content,
     dirtyScenes,
     persistSection,
     selectedManuscriptId,
     selectedSceneId,
-    setContent,
     setSidebarTab,
     toast,
   });
@@ -322,12 +324,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     isGenerating,
     setGenerationMode,
   } = useManuscriptSceneGeneration({
+    applyServerSection,
+    cancelPendingSectionSave,
     loadPlotQuality,
     loadSlopQuality,
-    replaceManuscript,
     selectedManuscriptId,
     selectedSceneId,
-    setContent,
     toast,
   });
 
@@ -355,6 +357,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           content={content}
           contextData={contextData}
           exportJobs={exportJobs}
+          exportDownloadingJobId={exportDownloadingJobId}
           focusMode={focusMode}
           isPlotBusy={isPlotBusy}
           isPlotRevisionBusy={isPlotRevisionBusy}
@@ -364,6 +367,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           onChangeMobilePane={setMobilePane}
           onChangeSidebarTab={setSidebarTab}
           onCreateExportJob={createExportJob}
+          onDownloadExport={downloadExport}
           onEditorChange={handleEditorChange}
           onGeneratePlotRevisionCandidate={generatePlotRevisionCandidate}
           onLoadVersions={loadVersions}
@@ -500,10 +504,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 dailyHeatmap={dailyHeatmap}
                 deleteGoal={deleteGoal}
                 deleteTemplate={deleteTemplate}
+                downloadExport={downloadExport}
                 diffResult={diffResult}
                 diffViewMode={diffViewMode}
                 exportAuthorName={exportAuthorName}
                 exportFormat={exportFormat}
+                exportDownloadingJobId={exportDownloadingJobId}
                 exportJobs={exportJobs}
                 exportTemplateId={exportTemplateId}
                 exportTemplates={exportTemplates}

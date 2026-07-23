@@ -90,6 +90,45 @@ describe("useManuscriptEditorState", () => {
     expect(result.current.sceneDrafts["scene-1"]).toBe("<p>second</p>");
   });
 
+  it("cancels a pending empty autosave when server generation is applied and preserves other drafts", async () => {
+    vi.useFakeTimers();
+    const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
+      makeManuscript({ "scene-1": "<p></p>" }) as any,
+    );
+    const { result } = renderHook(() =>
+      useManuscriptEditorState({
+        replaceManuscript: vi.fn(),
+        selectedManuscript: makeManuscript({ "scene-1": "", "scene-2": "" }),
+        selectedManuscriptId: "manuscript-1",
+        selectedSceneId: "scene-1",
+        selectedStoryId: "story-1",
+        toast: vi.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.updateSceneDraft("scene-1", "<p></p>");
+      result.current.scheduleSave("scene-1", "<p></p>");
+      result.current.updateSceneDraft("scene-2", "<p>other local draft</p>");
+      result.current.applyServerSection(
+        makeManuscript({ "scene-1": "<p>generated text</p>", "scene-2": "" }),
+        "scene-1",
+      );
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1300);
+      await Promise.resolve();
+    });
+
+    expect(saveSection).not.toHaveBeenCalled();
+    expect(result.current.content).toBe("<p>generated text</p>");
+    expect(result.current.sceneDrafts["scene-1"]).toBe("<p>generated text</p>");
+    expect(result.current.sceneDrafts["scene-2"]).toBe("<p>other local draft</p>");
+    expect(result.current.dirtyScenes["scene-1"]).toBeUndefined();
+    expect(result.current.dirtyScenes["scene-2"]).toBe(true);
+  });
+
   it("hydrates the editor from the selected scene and prefers local drafts", async () => {
     vi.spyOn(api.v2.workspace, "startSession").mockResolvedValue({
       id: "session-hydrate",

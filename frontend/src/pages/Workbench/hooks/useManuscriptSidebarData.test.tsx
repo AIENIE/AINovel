@@ -7,6 +7,7 @@ import { useManuscriptSidebarData } from "./useManuscriptSidebarData";
 describe("useManuscriptSidebarData", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("loads versions and seeds active branch state when the version tab opens", async () => {
@@ -123,5 +124,40 @@ describe("useManuscriptSidebarData", () => {
     expect(versionsSpy).toHaveBeenCalledTimes(1);
     expect(autoSaveSpy).toHaveBeenCalledTimes(1);
     expect(branchesSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("downloads export jobs through a temporary object URL and cleans it up", async () => {
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.export, "listJobs").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.export, "listTemplates").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.export, "download").mockResolvedValue({
+      blob: new Blob(["content"], { type: "text/plain" }),
+      fileName: "novel.txt",
+    });
+    const createObjectURL = vi.fn(() => "blob:novel");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const toast = vi.fn();
+    const wrapper = createQueryClientWrapper(createTestQueryClient());
+    const { result } = renderHook(() => useManuscriptSidebarData({
+      applyFetchedManuscript: vi.fn(),
+      isSidebarOpen: true,
+      selectedManuscriptId: "manuscript-1",
+      selectedSceneIds: [],
+      selectedStoryId: "story-1",
+      sidebarTab: "export",
+      toast,
+    }), { wrapper });
+
+    await act(async () => {
+      await result.current.downloadExport({ id: "job-1", status: "completed", format: "txt" });
+    });
+
+    expect(api.v2.export.download).toHaveBeenCalledWith("manuscript-1", "job-1");
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:novel");
+    expect(toast).toHaveBeenCalledWith({ title: "下载已开始" });
   });
 });

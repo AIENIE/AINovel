@@ -12,13 +12,12 @@ type ToastFn = (options: {
 }) => void;
 
 type UseManuscriptQualityOptions = {
-  applyFetchedManuscript: (manuscript: Manuscript) => void;
+  applyServerSection: (manuscript: Manuscript, sceneId: string) => void;
   content: string;
   dirtyScenes: Record<string, boolean>;
   persistSection: (sceneId: string, html: string, silent?: boolean) => Promise<void>;
   selectedManuscriptId: string;
   selectedSceneId: string;
-  setContent: (content: string) => void;
   setSidebarTab: (tab: WorkbenchSidebarTab) => void;
   toast: ToastFn;
 };
@@ -47,13 +46,12 @@ async function fetchPlotTrend(manuscriptId: string) {
 }
 
 export function useManuscriptQuality({
-  applyFetchedManuscript,
+  applyServerSection,
   content,
   dirtyScenes,
   persistSection,
   selectedManuscriptId,
   selectedSceneId,
-  setContent,
   setSidebarTab,
   toast,
 }: UseManuscriptQualityOptions) {
@@ -220,8 +218,7 @@ export function useManuscriptQuality({
       await ensureSceneSaved(sceneId);
       const run = await api.v2.plotQuality.applyRevision(selectedManuscriptId, selectedPlotRun.id);
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
-      applyFetchedManuscript(manuscript);
-      setContent(manuscript.sections?.[sceneId] || "");
+      applyServerSection(manuscript, sceneId);
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       await loadPlotQuality(sceneId);
       toast({ title: "候选修订已采纳" });
@@ -235,14 +232,13 @@ export function useManuscriptQuality({
       setIsPlotRevisionBusy(false);
     }
   }, [
-    applyFetchedManuscript,
+    applyServerSection,
     ensureSceneSaved,
     loadPlotQuality,
     queryClient,
     selectedManuscriptId,
     selectedPlotRun,
     selectedSceneId,
-    setContent,
     toast,
   ]);
 

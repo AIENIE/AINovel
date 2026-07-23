@@ -1,5 +1,4 @@
-import { Download } from "lucide-react";
-import { api } from "@/lib/api-client";
+import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,8 +13,10 @@ type ExportSidebarPanelProps = {
   createExportJob: () => Promise<void> | void;
   createTemplate: () => Promise<void> | void;
   deleteTemplate: (templateId: string) => Promise<void> | void;
+  downloadExport: (job: any) => Promise<void> | void;
   exportAuthorName: string;
   exportFormat: string;
+  exportDownloadingJobId: string;
   exportJobs: any[];
   exportTemplateId: string;
   exportTemplates: any[];
@@ -42,8 +43,10 @@ export function ExportSidebarPanel({
   createExportJob,
   createTemplate,
   deleteTemplate,
+  downloadExport,
   exportAuthorName,
   exportFormat,
+  exportDownloadingJobId,
   exportJobs,
   exportTemplateId,
   exportTemplates,
@@ -162,15 +165,19 @@ export function ExportSidebarPanel({
             </div>
             <Progress className="mt-1" value={Number(job.progress || 0)} />
             {String(job.status).toLowerCase() === "completed" && (
-              <a
-                className="inline-flex items-center gap-1 text-primary mt-1"
-                target="_blank"
-                rel="noreferrer"
-                href={api.v2.export.downloadUrl(selectedManuscriptId, String(job.id))}
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="mt-1 h-auto p-0 text-primary"
+                disabled={exportDownloadingJobId === String(job.id)}
+                onClick={() => void downloadExport(job)}
               >
-                <Download className="h-3 w-3" />
+                {exportDownloadingJobId === String(job.id)
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <Download className="h-3 w-3" />}
                 下载
-              </a>
+              </Button>
             )}
           </div>
         ))}

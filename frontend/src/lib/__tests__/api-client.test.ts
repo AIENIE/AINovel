@@ -772,4 +772,26 @@ describe("api client", () => {
     const confirm = requests.find((item) => item.url.endsWith("/confirm"));
     expect(JSON.parse(String(confirm?.init?.body))).toMatchObject({ candidateId: "candidate-1", version: 3 });
   });
+
+  it("downloads an authenticated export blob and reads the response filename", async () => {
+    localStorage.setItem("token", "download-token");
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const headers = init?.headers as Headers;
+      expect(headers.get("Authorization")).toBe("Bearer download-token");
+      return new Response(new Blob(["novel content"], { type: "text/plain" }), {
+        status: 200,
+        headers: { "Content-Disposition": "attachment; filename*=UTF-8''%E5%B0%8F%E8%AF%B4.txt" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await api.v2.export.download("manuscript-1", "job-1");
+
+    expect(result.fileName).toBe("小说.txt");
+    expect(result.blob.size).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v2/manuscripts/manuscript-1/export/jobs/job-1/download",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

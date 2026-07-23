@@ -29,10 +29,12 @@ type DesktopSidebarPanelProps = {
   dailyHeatmap: any[];
   deleteGoal: (goalId: string) => Promise<void> | void;
   deleteTemplate: (templateId: string) => Promise<void> | void;
+  downloadExport: (job: any) => Promise<void> | void;
   diffResult: any;
   diffViewMode: "split" | "unified";
   exportAuthorName: string;
   exportFormat: string;
+  exportDownloadingJobId: string;
   exportJobs: any[];
   exportTemplateId: string;
   exportTemplates: any[];
@@ -122,10 +124,12 @@ export function DesktopSidebarPanel({
   dailyHeatmap,
   deleteGoal,
   deleteTemplate,
+  downloadExport,
   diffResult,
   diffViewMode,
   exportAuthorName,
   exportFormat,
+  exportDownloadingJobId,
   exportJobs,
   exportTemplateId,
   exportTemplates,
@@ -272,8 +276,10 @@ export function DesktopSidebarPanel({
           createExportJob={createExportJob}
           createTemplate={createTemplate}
           deleteTemplate={deleteTemplate}
+          downloadExport={downloadExport}
           exportAuthorName={exportAuthorName}
           exportFormat={exportFormat}
+          exportDownloadingJobId={exportDownloadingJobId}
           exportJobs={exportJobs}
           exportTemplateId={exportTemplateId}
           exportTemplates={exportTemplates}

@@ -176,6 +176,30 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
   }
 }
 
+async function requestBlob(path: string, tokenOverride?: string): Promise<{ blob: Blob; fileName?: string }> {
+  const headers = new Headers();
+  const token = tokenOverride ?? getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const resp = await fetch(`${API_BASE}${path}`, { method: "GET", headers });
+  if (!resp.ok) {
+    const msg = await safeErrorMessage(resp);
+    if (resp.status === 401 || resp.status === 403) handleUnauthorized(path);
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
+  }
+  const disposition = resp.headers.get("Content-Disposition") || "";
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+  let fileName = plainName;
+  if (encodedName) {
+    try {
+      fileName = decodeURIComponent(encodedName);
+    } catch {
+      fileName = encodedName;
+    }
+  }
+  return { blob: await resp.blob(), fileName };
+}
+
 async function safeErrorMessage(resp: Response): Promise<string> {
   try {
     const ct = resp.headers.get("content-type") || "";
@@ -1365,7 +1389,8 @@ export const api = {
       deleteTemplate: async (templateId: string) => {
         await requestVoid(`/v2/export-templates/${templateId}`, { method: "DELETE" });
       },
-      downloadUrl: (manuscriptId: string, jobId: string) => `${API_BASE}/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}/download`,
+      download: async (manuscriptId: string, jobId: string) =>
+        requestBlob(`/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}/download`),
     },
 
     models: {

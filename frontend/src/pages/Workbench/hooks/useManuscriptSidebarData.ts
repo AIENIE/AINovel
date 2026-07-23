@@ -95,6 +95,7 @@ export function useManuscriptSidebarData({
   const [includeTableOfContents, setIncludeTableOfContents] = useState(true);
   const [txtEncoding, setTxtEncoding] = useState("UTF-8");
   const [exportAuthorName, setExportAuthorName] = useState("");
+  const [exportDownloadingJobId, setExportDownloadingJobId] = useState("");
 
   const goalsQuery = useQuery({
     queryKey: goalsQueryKey,
@@ -336,6 +337,31 @@ export function useManuscriptSidebarData({
     txtEncoding,
   ]);
 
+  const downloadExport = useCallback(async (job: any) => {
+    if (!selectedManuscriptId || !job?.id) return;
+    const jobId = String(job.id);
+    setExportDownloadingJobId(jobId);
+    let objectUrl = "";
+    try {
+      const result = await api.v2.export.download(selectedManuscriptId, jobId);
+      if (!result.blob.size) throw new Error("导出文件为空");
+      objectUrl = URL.createObjectURL(result.blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = result.fileName || job.fileName || `${jobId}.${job.format || exportFormat}`;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast({ title: "下载已开始" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "下载失败", description: e.message });
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setExportDownloadingJobId("");
+    }
+  }, [exportFormat, selectedManuscriptId, toast]);
+
   const createGoal = useCallback(async () => {
     try {
       await api.v2.workspace.createGoal({
@@ -573,10 +599,12 @@ export function useManuscriptSidebarData({
     currentBranchId,
     deleteGoal,
     deleteTemplate,
+    downloadExport,
     diffResult,
     diffViewMode,
     exportAuthorName,
     exportFormat,
+    exportDownloadingJobId,
     exportJobs,
     exportTemplateId,
     exportTemplates,

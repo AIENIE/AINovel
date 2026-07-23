@@ -16,6 +16,7 @@ interface OutlineWorkbenchProps {
 }
 
 type SelectedNode = { type: "chapter" | "scene"; id: string } | null;
+const NO_FORESHADOW_VALUE = "__none__";
 
 const ensureUuid = () => {
   if (crypto?.randomUUID) return crypto.randomUUID();
@@ -421,12 +422,18 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
               </div>
               <div className="space-y-2">
                 <Label>关联伏笔</Label>
-                <Select value={scenePlanning.foreshadowId || ""} onValueChange={(value) => setScenePlanning((current) => ({ ...current, foreshadowId: value }))}>
+                <Select
+                  value={scenePlanning.foreshadowId || NO_FORESHADOW_VALUE}
+                  onValueChange={(value) => setScenePlanning((current) => ({
+                    ...current,
+                    foreshadowId: value === NO_FORESHADOW_VALUE ? "" : value,
+                  }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="选择伏笔" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">无</SelectItem>
+                    <SelectItem value={NO_FORESHADOW_VALUE}>无</SelectItem>
                     {foreshadowPlans.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.clue}

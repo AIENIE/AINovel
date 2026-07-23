@@ -114,6 +114,21 @@ class V2ExportControllerTests {
     }
 
     @Test
+    void shouldEncodeUnicodeDownloadFileNameAsAsciiSafeContentDisposition() {
+        UUID jobId = UUID.randomUUID();
+        Map<String, Object> job = exportJob(jobId, "txt", Map.of(), "all", "正文稿-验收.txt");
+        when(exportService.getJob(manuscriptId, jobId)).thenReturn(job);
+
+        ResponseEntity<byte[]> response = controller.download(principal, manuscriptId, jobId);
+        String disposition = response.getHeaders().getFirst("Content-Disposition");
+
+        assertNotNull(disposition);
+        assertTrue(disposition.startsWith("attachment;"));
+        assertTrue(disposition.contains("filename*=UTF-8''"));
+        assertFalse(disposition.contains("正文稿"));
+    }
+
+    @Test
     void listTemplatesShouldDelegateToPersistenceService() {
         Map<String, Object> template = Map.of(
                 "id", UUID.randomUUID(),

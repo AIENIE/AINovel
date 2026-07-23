@@ -21,18 +21,17 @@ describe("useManuscriptSceneGeneration", () => {
     vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue(saved as any);
     const loadSlopQuality = vi.fn().mockResolvedValue({ status: "ACCEPTED", maxSeverity: "LOW" });
     const loadPlotQuality = vi.fn().mockResolvedValue({ run: null, trend: null });
-    const replaceManuscript = vi.fn();
-    const setContent = vi.fn();
+    const applyServerSection = vi.fn();
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
       useManuscriptSceneGeneration({
         loadPlotQuality,
         loadSlopQuality,
-        replaceManuscript,
+        applyServerSection,
+        cancelPendingSectionSave: vi.fn(),
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
-        setContent,
         toast,
       }),
     );
@@ -42,8 +41,7 @@ describe("useManuscriptSceneGeneration", () => {
     });
 
     expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "fast");
-    expect(replaceManuscript).toHaveBeenCalledWith(saved);
-    expect(setContent).toHaveBeenCalledWith("<p>generated</p>");
+    expect(applyServerSection).toHaveBeenCalledWith(saved, "scene-1");
     expect(loadSlopQuality).toHaveBeenCalledWith("scene-1", "manuscript-2");
     expect(loadPlotQuality).toHaveBeenCalledWith("scene-1", "manuscript-2");
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "已生成场景正文" }));
@@ -58,10 +56,10 @@ describe("useManuscriptSceneGeneration", () => {
       useManuscriptSceneGeneration({
         loadPlotQuality: vi.fn(),
         loadSlopQuality: vi.fn(),
-        replaceManuscript: vi.fn(),
+        applyServerSection: vi.fn(),
+        cancelPendingSectionSave: vi.fn(),
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
-        setContent: vi.fn(),
         toast,
       }),
     );
@@ -93,10 +91,10 @@ describe("useManuscriptSceneGeneration", () => {
       useManuscriptSceneGeneration({
         loadPlotQuality: vi.fn().mockResolvedValue({ run: null, trend: null }),
         loadSlopQuality: vi.fn().mockResolvedValue({ status: "ACCEPTED", maxSeverity: "LOW" }),
-        replaceManuscript: vi.fn(),
+        applyServerSection: vi.fn(),
+        cancelPendingSectionSave: vi.fn(),
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
-        setContent: vi.fn(),
         toast: vi.fn(),
       }),
     );
@@ -109,5 +107,31 @@ describe("useManuscriptSceneGeneration", () => {
     });
 
     expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "crafted");
+  });
+
+  it("treats empty editor html as a failed generation", async () => {
+    vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue({
+      id: "manuscript-2",
+      sections: { "scene-1": "<p><br></p>" },
+    } as any);
+    const applyServerSection = vi.fn();
+    const toast = vi.fn();
+    const { result } = renderHook(() => useManuscriptSceneGeneration({
+      applyServerSection,
+      cancelPendingSectionSave: vi.fn(),
+      loadPlotQuality: vi.fn(),
+      loadSlopQuality: vi.fn(),
+      selectedManuscriptId: "manuscript-1",
+      selectedSceneId: "scene-1",
+      toast,
+    }));
+
+    await act(async () => result.current.generateScene());
+
+    expect(applyServerSection).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      variant: "destructive",
+      title: "生成失败",
+    }));
   });
 });

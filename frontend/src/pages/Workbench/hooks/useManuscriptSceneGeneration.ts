@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
-import { qualityStatusText } from "@/pages/Workbench/tabs/manuscript-writer/shared";
+import { qualityStatusText, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 
 type GenerationMode = "fast" | "crafted";
 
@@ -14,20 +14,20 @@ type ToastFn = (options: {
 type UseManuscriptSceneGenerationOptions = {
   loadPlotQuality: (sceneId?: string, manuscriptId?: string) => Promise<{ run: unknown; trend: unknown }>;
   loadSlopQuality: (sceneId?: string, manuscriptId?: string) => Promise<unknown>;
-  replaceManuscript: (manuscript: Manuscript) => void;
+  applyServerSection: (manuscript: Manuscript, sceneId: string) => void;
+  cancelPendingSectionSave: (sceneId: string) => void;
   selectedManuscriptId: string;
   selectedSceneId: string;
-  setContent: (content: string) => void;
   toast: ToastFn;
 };
 
 export function useManuscriptSceneGeneration({
   loadPlotQuality,
   loadSlopQuality,
-  replaceManuscript,
+  applyServerSection,
+  cancelPendingSectionSave,
   selectedManuscriptId,
   selectedSceneId,
-  setContent,
   toast,
 }: UseManuscriptSceneGenerationOptions) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -36,11 +36,15 @@ export function useManuscriptSceneGeneration({
   const generateScene = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId) return;
     const sceneId = selectedSceneId;
+    cancelPendingSectionSave(sceneId);
     setIsGenerating(true);
     try {
       const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId, generationMode);
-      replaceManuscript(saved);
-      setContent(saved.sections?.[sceneId] || "");
+      const generatedHtml = saved.sections?.[sceneId];
+      if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
+        throw new Error("生成结果没有可用正文，请重试");
+      }
+      applyServerSection(saved, sceneId);
       const latestRun = await loadSlopQuality(sceneId, saved.id).catch((): null => null);
       await loadPlotQuality(sceneId, saved.id).catch((): { run: null; trend: null } => ({ run: null, trend: null }));
       toast({
@@ -56,10 +60,10 @@ export function useManuscriptSceneGeneration({
     generationMode,
     loadPlotQuality,
     loadSlopQuality,
-    replaceManuscript,
+    applyServerSection,
+    cancelPendingSectionSave,
     selectedManuscriptId,
     selectedSceneId,
-    setContent,
     toast,
   ]);
 

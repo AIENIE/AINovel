@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ type MobileWorkbenchPanelProps = {
   content: string;
   contextData: any;
   exportJobs: any[];
+  exportDownloadingJobId: string;
   focusMode: boolean;
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
@@ -34,6 +35,7 @@ type MobileWorkbenchPanelProps = {
   onChangeMobilePane: (pane: MobilePane) => void;
   onChangeSidebarTab: (tab: SidebarTab) => void;
   onCreateExportJob: () => Promise<void> | void;
+  onDownloadExport: (job: any) => Promise<void> | void;
   onEditorChange: (html: string) => void;
   onGeneratePlotRevisionCandidate: () => Promise<void> | void;
   onLoadVersions: () => Promise<unknown> | void;
@@ -53,6 +55,7 @@ export function MobileWorkbenchPanel({
   content,
   contextData,
   exportJobs,
+  exportDownloadingJobId,
   focusMode,
   isPlotBusy,
   isPlotRevisionBusy,
@@ -62,6 +65,7 @@ export function MobileWorkbenchPanel({
   onChangeMobilePane,
   onChangeSidebarTab,
   onCreateExportJob,
+  onDownloadExport,
   onEditorChange,
   onGeneratePlotRevisionCandidate,
   onLoadVersions,
@@ -197,7 +201,21 @@ export function MobileWorkbenchPanel({
             <Button size="sm" onClick={() => void onCreateExportJob()} className="mb-2">创建导出任务</Button>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
               {exportJobs.map((job) => (
-                <div key={job.id} className="rounded border p-2 mb-2">{job.fileName || job.id}</div>
+                <div key={job.id} className="flex items-center justify-between gap-2 rounded border p-2 mb-2">
+                  <span className="min-w-0 truncate">{job.fileName || job.id}</span>
+                  {String(job.status).toLowerCase() === "completed" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={exportDownloadingJobId === String(job.id)}
+                      onClick={() => void onDownloadExport(job)}
+                    >
+                      {exportDownloadingJobId === String(job.id)
+                        ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        : <Download className="mr-1 h-3.5 w-3.5" />} 下载
+                    </Button>
+                  ) : null}
+                </div>
               ))}
             </ScrollArea>
           </TabsContent>

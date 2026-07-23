@@ -19,13 +19,12 @@ describe("useManuscriptQuality", () => {
     const { result } = renderHook(
       () =>
         useManuscriptQuality({
-          applyFetchedManuscript: vi.fn(),
+          applyServerSection: vi.fn(),
           content: "",
           dirtyScenes: {},
           persistSection: vi.fn(),
           selectedManuscriptId: "manuscript-1",
           selectedSceneId: "scene-1",
-          setContent: vi.fn(),
           setSidebarTab: vi.fn(),
           toast: vi.fn(),
         }),
@@ -54,13 +53,12 @@ describe("useManuscriptQuality", () => {
     const { result } = renderHook(
       () =>
         useManuscriptQuality({
-          applyFetchedManuscript: vi.fn(),
+          applyServerSection: vi.fn(),
           content: "<p>draft scene</p>",
           dirtyScenes: { "scene-2": true },
           persistSection,
           selectedManuscriptId: "manuscript-2",
           selectedSceneId: "scene-2",
-          setContent: vi.fn(),
           setSidebarTab,
           toast,
         }),
@@ -85,13 +83,12 @@ describe("useManuscriptQuality", () => {
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
     const options = {
-      applyFetchedManuscript: vi.fn(),
+      applyServerSection: vi.fn(),
       content: "",
       dirtyScenes: {},
       persistSection: vi.fn(),
       selectedManuscriptId: "manuscript-1",
       selectedSceneId: "scene-1",
-      setContent: vi.fn(),
       setSidebarTab: vi.fn(),
       toast: vi.fn(),
     };
