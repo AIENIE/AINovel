@@ -5,6 +5,7 @@
 - `GET /api/v1/manuscripts/{id}`：稿件详情，返回 `ManuscriptDto`。
 - `DELETE /api/v1/manuscripts/{id}`：删除稿件，返回 204。
 - `POST /api/v1/manuscripts/{id}/scenes/{sceneId}/generate?mode=fast|crafted`：生成指定场景稿件内容，返回 `ManuscriptDto`。
+- `POST /api/v1/manuscripts/{id}/scenes/{sceneId}/generate/operations?mode=fast|crafted`：同一生成与质量链路的异步进度版本；当前前端使用此接口，完成后重新读取稿件。
   - `fast` 为默认标准起草模式；省略或传入未知值时也使用 `fast`。
   - `crafted` 在标准提示词上注入 15 条按类别采样的反套路约束和 2 条轮换叙事目标；仍为单候选起草，不包含节拍规划或多候选选择。
   - 调用方必须确认响应包含目标 `sceneId` 的非空正文；前端以原子场景回写替换本地草稿，避免延迟自动保存覆盖服务端结果。

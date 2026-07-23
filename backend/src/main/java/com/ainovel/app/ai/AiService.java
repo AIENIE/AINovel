@@ -10,12 +10,15 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.time.Instant;
 
 @Service
 public class AiService {
 
     private final AiGatewayGrpcClient aiGatewayGrpcClient;
     private final EconomyService economyService;
+    private volatile Instant streamingCapabilityCheckedAt = Instant.EPOCH;
+    private volatile boolean streamingCapabilityAvailable;
 
     public AiService(AiGatewayGrpcClient aiGatewayGrpcClient, EconomyService economyService) {
         this.aiGatewayGrpcClient = aiGatewayGrpcClient;
@@ -34,11 +37,14 @@ public class AiService {
     public AiChatResponse chat(User user, AiChatRequest request, AiUsageContext usageContext) {
         Long remoteUid = resolveGatewayUserId(user);
         validateChatMessages(request.messages());
-        AiGatewayGrpcClient.ChatResult result = aiGatewayGrpcClient.chatCompletions(
-                remoteUid,
-                AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
-                request.messages()
-        );
+        var progressListener = AiProgressContext.current();
+        if (progressListener != null && !supportsRequiredModelStreaming(remoteUid)) {
+            throw new BusinessException("当前 AI 模型不支持真实流式输出，请检查 ai-service 模型配置");
+        }
+        AiGatewayGrpcClient.ChatResult result = progressListener == null
+                ? aiGatewayGrpcClient.chatCompletions(remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, request.messages())
+                : aiGatewayGrpcClient.chatCompletionsStream(
+                        remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, request.messages(), progressListener);
         EconomyService.AiChargeResult charge = usageContext == null
                 ? economyService.chargeAiUsage(
                         user,
@@ -114,5 +120,19 @@ public class AiService {
             return 0d;
         }
         return Math.max(0d, Math.min(1d, cacheTokens / (double) promptTokens));
+    }
+
+    private synchronized boolean supportsRequiredModelStreaming(long remoteUid) {
+        Instant now = Instant.now();
+        if (streamingCapabilityCheckedAt.plusSeconds(60).isAfter(now)) {
+            return streamingCapabilityAvailable;
+        }
+        streamingCapabilityAvailable = aiGatewayGrpcClient.listModels(remoteUid).stream()
+                .anyMatch(model -> model.supportsStreaming()
+                        && (AiModelPolicy.REQUIRED_TEXT_MODEL_KEY.equalsIgnoreCase(model.id())
+                        || AiModelPolicy.REQUIRED_TEXT_MODEL_KEY.equalsIgnoreCase(model.name())
+                        || AiModelPolicy.REQUIRED_TEXT_MODEL_DISPLAY_NAME.equalsIgnoreCase(model.displayName())));
+        streamingCapabilityCheckedAt = now;
+        return streamingCapabilityAvailable;
     }
 }

@@ -9,7 +9,7 @@
 - [`guided-creation.md`](guided-creation.md)：G1 引导创作。
 - [`story.md`](story.md)、[`manuscript.md`](manuscript.md)、[`world.md`](world.md)：故事、大纲、正文和世界观。
 - [`material.md`](material.md)：素材、导入、检索、审核、合并和引用。
-- [`ai.md`](ai.md)、[`settings.md`](settings.md)：AI、提示词与设置。
+- [`ai.md`](ai.md)、[`ai-operations.md`](ai-operations.md)、[`settings.md`](settings.md)：AI、可恢复进度、提示词与设置。
 - [`g2-evaluations.md`](g2-evaluations.md)：G2 投稿与匿名评审。
 - [`admin.md`](admin.md)：管理员认证、运营和治理。
 

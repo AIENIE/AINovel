@@ -6,12 +6,29 @@ import { CreationWorkflow } from "@/types";
 
 export function GenerationState({ workflow }: { workflow: CreationWorkflow }) {
   const progress = workflow.activeJob?.progress ?? (workflow.autoRun ? 12 : 0);
+  const stepLabel = workflow.activeJob?.operation === "OUTLINE_DEVELOP" ? "发展大纲方向"
+    : workflow.activeJob?.operation === "OUTLINE_REWRITE" ? "重写大纲方向"
+      : workflow.activeJob?.operation === "OUTLINE_EXPAND" ? "展开完整章节大纲"
+        : workflow.currentStep === "PREMISE" ? "生成故事方向"
+          : workflow.currentStep === "WORLD" ? "生成世界设定"
+            : workflow.currentStep === "CHARACTERS" ? "生成角色阵容"
+              : workflow.currentStep === "OUTLINE" ? "生成大纲方向"
+                : "完成创作初始化";
+  const baseCompleted = workflow.currentStep === "WORLD" ? 1
+    : workflow.currentStep === "CHARACTERS" ? 2
+      : workflow.currentStep === "OUTLINE" ? (workflow.activeJob?.operation === "OUTLINE_EXPAND" ? 4 : 3)
+        : workflow.currentStep === "COMPLETED" ? 5 : 0;
+  const remaining = Math.max(0, 5 - baseCompleted);
   return (
     <div className="flex min-h-[420px] flex-col items-center justify-center border-y border-zinc-200 py-16 text-center">
       <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-800"><Loader2 className="h-5 w-5 animate-spin" /></div>
-      <h3 className="text-base font-semibold">{workflow.autoRun ? "正在推进创作流程" : "正在生成三个方向"}</h3>
+      <h3 className="text-base font-semibold">当前步骤：{stepLabel}</h3>
       <div className="mt-6 w-full max-w-xs"><Progress value={progress} className="h-1.5" /></div>
-      <p className="mt-3 text-xs text-zinc-400">{workflow.activeJob?.status === "CALLING_AI" ? "AI 生成中" : "任务已进入后台队列"}</p>
+      <div className="mt-3 space-y-1 text-xs text-zinc-500">
+        <p>{workflow.activeJob?.status === "CALLING_AI" ? "AI 生成中" : "任务已进入后台队列"}</p>
+        <p>已完成 {baseCompleted} 步 · 剩余 {remaining} 步</p>
+        <p>当前步骤已输出 {(workflow.activeJob?.outputTokens ?? 0).toLocaleString()} token{workflow.activeJob?.outputTokensEstimated ? "（估算）" : ""}</p>
+      </div>
     </div>
   );
 }

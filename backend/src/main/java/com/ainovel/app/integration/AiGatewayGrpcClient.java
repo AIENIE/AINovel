@@ -5,6 +5,8 @@ import com.ainovel.app.ai.dto.AiModelDto;
 import fireflychat.ai.v1.AiGatewayServiceGrpc;
 import fireflychat.ai.v1.ChatCompletionsRequest;
 import fireflychat.ai.v1.ChatCompletionsResponse;
+import fireflychat.ai.v1.ChatCompletionsStreamEvent;
+import fireflychat.ai.v1.ChatStreamEventType;
 import fireflychat.ai.v1.ChatMessage;
 import fireflychat.ai.v1.Embedding;
 import fireflychat.ai.v1.EmbeddingsRequest;
@@ -33,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -70,15 +73,84 @@ public class AiGatewayGrpcClient {
                 m.getInputRate(),
                 m.getOutputRate(),
                 m.getProvider(),
-                m.getSupportsImageInput()
+                true,
+                m.getSupportsImageInput(),
+                m.getSupportsStreaming()
         )));
         return models;
     }
 
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
         AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
+        ChatCompletionsRequest request = buildChatRequest(UUID.randomUUID().toString(), remoteUserId, model, messages);
+        ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .chatCompletions(request);
+        return new ChatResult(
+                response.getContent(),
+                response.getModelKey(),
+                response.getPromptTokens(),
+                response.getCompletionTokens(),
+                response.getCacheTokens()
+        );
+    }
+
+    public ChatResult chatCompletionsStream(long remoteUserId,
+                                            String model,
+                                            List<AiChatRequest.Message> messages,
+                                            StreamProgressListener listener) {
+        String requestId = UUID.randomUUID().toString();
+        ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
+        Iterator<ChatCompletionsStreamEvent> events = stub()
+                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
+                .chatCompletionsStream(request);
+        StringBuilder content = new StringBuilder();
+        long expectedSequence = 1;
+        long previousOutputTokens = 0;
+        boolean started = false;
+        boolean receivedDelta = false;
+        ChatCompletionsStreamEvent completed = null;
+        while (events.hasNext()) {
+            ChatCompletionsStreamEvent event = events.next();
+            if (completed != null) {
+                throw new IllegalStateException("ai-service returned an event after COMPLETED");
+            }
+            if (!requestId.equals(event.getRequestId()) || event.getSequence() != expectedSequence++) {
+                throw new IllegalStateException("ai-service returned an invalid stream sequence");
+            }
+            if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_STARTED) {
+                if (started) throw new IllegalStateException("ai-service returned duplicate STARTED event");
+                started = true;
+                listener.onStarted(requestId, event.getModelKey());
+            } else if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA) {
+                if (!started || event.getContentDelta().isEmpty()) {
+                    throw new IllegalStateException("ai-service returned invalid CONTENT_DELTA event");
+                }
+                if (event.getOutputTokensSoFar() < previousOutputTokens) {
+                    throw new IllegalStateException("ai-service returned decreasing output token progress");
+                }
+                previousOutputTokens = event.getOutputTokensSoFar();
+                receivedDelta = true;
+                content.append(event.getContentDelta());
+                listener.onDelta(event.getOutputTokensSoFar(), event.getOutputTokensEstimated());
+            } else if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_COMPLETED) {
+                if (!started || !receivedDelta) throw new IllegalStateException("ai-service returned invalid COMPLETED event");
+                completed = event;
+            } else {
+                throw new IllegalStateException("ai-service returned an unknown stream event");
+            }
+        }
+        if (completed == null) throw new IllegalStateException("ai-service stream ended without COMPLETED event");
+        listener.onCompleted(completed.getCompletionTokens(), completed.getPromptTokens(), completed.getCacheTokens());
+        return new ChatResult(content.toString(), completed.getModelKey(), completed.getPromptTokens(),
+                completed.getCompletionTokens(), completed.getCacheTokens());
+    }
+
+    private ChatCompletionsRequest buildChatRequest(String requestId,
+                                                    long remoteUserId,
+                                                    String model,
+                                                    List<AiChatRequest.Message> messages) {
         ChatCompletionsRequest.Builder builder = ChatCompletionsRequest.newBuilder()
-                .setRequestId(UUID.randomUUID().toString())
+                .setRequestId(requestId)
                 .setProjectKey(properties.getProjectKey())
                 .setUserId(remoteUserId)
                 .setSessionId("")
@@ -97,15 +169,7 @@ public class AiGatewayGrpcClient {
                         .build());
             }
         }
-        ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .chatCompletions(builder.build());
-        return new ChatResult(
-                response.getContent(),
-                response.getModelKey(),
-                response.getPromptTokens(),
-                response.getCompletionTokens(),
-                response.getCacheTokens()
-        );
+        return builder.build();
     }
 
     public EmbeddingResult embeddings(long remoteUserId, String model, List<String> input, boolean normalize) {
@@ -160,6 +224,12 @@ public class AiGatewayGrpcClient {
     }
 
     public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens) {
+    }
+
+    public interface StreamProgressListener {
+        default void onStarted(String requestId, String modelKey) {}
+        void onDelta(long outputTokens, boolean estimated);
+        default void onCompleted(long completionTokens, long promptTokens, long cacheTokens) {}
     }
 
     public record EmbeddingResult(String modelKey, int dimensions, List<float[]> vectors, long promptTokens) {

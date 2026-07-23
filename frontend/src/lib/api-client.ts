@@ -35,9 +35,12 @@ import {
   CreationWorkflow,
   GuidedCreationCandidate,
   GuidedCreationStep,
+  AiOperationAccepted,
+  AiOperationProgress,
 } from "@/types";
 
 const API_BASE = "/api";
+const TERMINAL_AI_OPERATION_STATES = new Set(["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"]);
 
 const USER_TOKEN_KEY = "token";
 const ADMIN_TOKEN_KEY = "admin_token";
@@ -174,6 +177,62 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
     }
     throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
   }
+}
+
+async function streamAiOperation(
+  operationId: string,
+  onProgress: (progress: AiOperationProgress) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const headers = new Headers({ Accept: "text/event-stream" });
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_BASE}/v1/ai-operations/${operationId}/events`, { headers, signal });
+  if (!response.ok || !response.body) throw new ApiError(response.status, await safeErrorMessage(response));
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    buffer = buffer.replace(/\r\n/g, "\n");
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary >= 0) {
+      const event = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 2);
+      const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:"))
+        .map((line) => line.slice(5).trim()).join("\n");
+      if (data) {
+        const progress = JSON.parse(data) as AiOperationProgress;
+        onProgress(progress);
+        if (TERMINAL_AI_OPERATION_STATES.has(progress.status)) {
+          await reader.cancel();
+          return;
+        }
+      }
+      boundary = buffer.indexOf("\n\n");
+    }
+    if (done) return;
+  }
+}
+
+async function waitForAiOperation(
+  operationId: string,
+  onProgress: (progress: AiOperationProgress) => void,
+  signal?: AbortSignal,
+): Promise<AiOperationProgress> {
+  try {
+    await streamAiOperation(operationId, onProgress, signal);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+  }
+  while (!signal?.aborted) {
+    const progress = await requestJson<AiOperationProgress>(`/v1/ai-operations/${operationId}`);
+    onProgress(progress);
+    if (TERMINAL_AI_OPERATION_STATES.has(progress.status)) return progress;
+    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+  }
+  throw new DOMException("Operation aborted", "AbortError");
 }
 
 async function requestBlob(path: string, tokenOverride?: string): Promise<{ blob: Blob; fileName?: string }> {
@@ -624,6 +683,15 @@ function toPlotQualityTrend(dto: any): PlotQualityTrend {
 }
 
 export const api = {
+  aiOperations: {
+    get: async (id: string) => requestJson<AiOperationProgress>(`/v1/ai-operations/${id}`),
+    active: async (scopeType: string, scopeId: string) => requestJson<AiOperationProgress>(
+      `/v1/ai-operations/active?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(scopeId)}`,
+    ),
+    wait: waitForAiOperation,
+    retry: async (id: string) => requestJson<AiOperationAccepted>(`/v1/ai-operations/${id}/retry`, { method: "POST", body: "{}" }),
+    cancel: async (id: string) => requestVoid(`/v1/ai-operations/${id}/cancel`, { method: "POST", body: "{}" }),
+  },
   adminAuth: {
     login: async (username: string, password: string): Promise<{ token: string; username: string; loggedInAt: string }> => {
       return await requestJson<{ token: string; username: string; loggedInAt: string }>(
@@ -981,6 +1049,8 @@ export const api = {
           : undefined,
       };
     },
+    startConception: async (data: any): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>("/v1/conception/operations", { method: "POST", body: JSON.stringify(data) }),
     get: async (id: string) => {
       const dto = await requestJson<any>(`/v1/story-cards/${id}`, { method: "GET" });
       return toStory(dto);
@@ -995,7 +1065,7 @@ export const api = {
       return await requestJson<any>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
     deleteCharacter: async (id: string) => {
-      await requestJson<any>(`/v1/character-cards/${id}`, { method: "DELETE" });
+      await requestVoid(`/v1/character-cards/${id}`, { method: "DELETE" });
       return true;
     },
     update: async (id: string, data: any) => {
@@ -1003,7 +1073,7 @@ export const api = {
       return toStory(dto);
     },
     delete: async (id: string) => {
-      await requestJson<any>(`/v1/stories/${id}`, { method: "DELETE" });
+      await requestVoid(`/v1/stories/${id}`, { method: "DELETE" });
       return true;
     },
   },
@@ -1046,9 +1116,11 @@ export const api = {
       return toOutline(dto);
     },
     delete: async (outlineId: string) => {
-      await requestJson<any>(`/v1/outlines/${outlineId}`, { method: "DELETE" });
+      await requestVoid(`/v1/outlines/${outlineId}`, { method: "DELETE" });
       return true;
     },
+    startGenerateChapter: async (outlineId: string, payload: any): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/outlines/${outlineId}/chapters/operations`, { method: "POST", body: JSON.stringify(payload) }),
   },
 
   manuscripts: {
@@ -1065,13 +1137,15 @@ export const api = {
       return toManuscript(dto);
     },
     delete: async (id: string) => {
-      await requestJson<any>(`/v1/manuscripts/${id}`, { method: "DELETE" });
+      await requestVoid(`/v1/manuscripts/${id}`, { method: "DELETE" });
       return true;
     },
     generateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<Manuscript> => {
       const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
       return toManuscript(dto);
     },
+    startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: "{}" }),
     saveSection: async (manuscriptId: string, sceneId: string, content: string): Promise<Manuscript> => {
       const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/sections/${sceneId}`, { method: "PUT", body: JSON.stringify({ content }) });
       return toManuscript(dto);
@@ -1111,7 +1185,7 @@ export const api = {
       return true;
     },
     delete: async (id: string) => {
-      await requestJson<any>(`/v1/worlds/${id}`, { method: "DELETE" });
+      await requestVoid(`/v1/worlds/${id}`, { method: "DELETE" });
       return true;
     },
     refineField: async (worldId: string, moduleKey: string, fieldKey: string, text: string, instruction?: string) => {
@@ -1126,12 +1200,16 @@ export const api = {
     publish: async (worldId: string) => {
       return await requestJson<any>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: "{}" });
     },
+    startPublish: async (worldId: string): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/publish/operations`, { method: "POST", body: "{}" }),
     generationStatus: async (worldId: string) => {
       return await requestJson<any>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
     },
     generateModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<any>(`/v1/worlds/${worldId}/generation/${moduleKey}`, { method: "POST", body: "{}" });
     },
+    startGenerateModule: async (worldId: string, moduleKey: string): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/generation/${moduleKey}/operations`, { method: "POST", body: "{}" }),
     retryModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<any>(`/v1/worlds/${worldId}/generation/${moduleKey}/retry`, { method: "POST", body: "{}" });
     },
@@ -1294,6 +1372,8 @@ export const api = {
         });
         return toSlopQualityRun(run);
       },
+      startAnalyzeScene: async (manuscriptId: string, sceneId: string): Promise<AiOperationAccepted> =>
+        requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/quality-runs/operations`, { method: "POST", body: "{}" }),
     },
 
     slopDrift: {
@@ -1308,6 +1388,8 @@ export const api = {
         });
         return toSlopDriftRun(run);
       },
+      startAnalyze: async (manuscriptId: string): Promise<AiOperationAccepted> =>
+        requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs/operations`, { method: "POST", body: "{}" }),
     },
 
     plotQuality: {
@@ -1323,6 +1405,8 @@ export const api = {
         });
         return toPlotQualityRun(run);
       },
+      startAnalyzeScene: async (manuscriptId: string, sceneId: string): Promise<AiOperationAccepted> =>
+        requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/plot-quality-runs/operations`, { method: "POST", body: "{}" }),
       getTrend: async (manuscriptId: string): Promise<PlotQualityTrend> => {
         const trend = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-trends`, { method: "GET" });
         return toPlotQualityTrend(trend);
@@ -1334,6 +1418,8 @@ export const api = {
         });
         return toPlotQualityRun(run);
       },
+      startGenerateRevisionCandidate: async (manuscriptId: string, runId: string): Promise<AiOperationAccepted> =>
+        requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/revision-candidate/operations`, { method: "POST", body: "{}" }),
       applyRevision: async (manuscriptId: string, runId: string): Promise<PlotQualityRun> => {
         const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/apply-revision`, {
           method: "POST",

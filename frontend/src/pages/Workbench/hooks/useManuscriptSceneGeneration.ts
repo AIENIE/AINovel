@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { Manuscript } from "@/types";
 import { qualityStatusText, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 
@@ -39,7 +40,8 @@ export function useManuscriptSceneGeneration({
     cancelPendingSectionSave(sceneId);
     setIsGenerating(true);
     try {
-      const saved = await api.manuscripts.generateScene(selectedManuscriptId, sceneId, generationMode);
+      await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode));
+      const saved = await api.manuscripts.get(selectedManuscriptId);
       const generatedHtml = saved.sections?.[sceneId];
       if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
         throw new Error("生成结果没有可用正文，请重试");

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { Manuscript, Outline, SlopDriftRun, Story, V2AnalysisJob, V2AnalysisReport, V2ContinuityIssue } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,7 +191,9 @@ const AnalysisDashboard = () => {
     if (!ok) return;
     setIsDriftBusy(true);
     try {
-      const run = await api.v2.slopDrift.analyze(selectedManuscriptId);
+      await runTrackedAiOperation(api.v2.slopDrift.startAnalyze(selectedManuscriptId));
+      const run = (await api.v2.slopDrift.listRuns(selectedManuscriptId))[0];
+      if (!run) throw new Error("长篇漂移诊断未生成结果");
       await loadDriftRuns(selectedManuscriptId);
       setSelectedDriftRunId(run.id);
       toast({ title: "长篇 drift 巡检已完成" });

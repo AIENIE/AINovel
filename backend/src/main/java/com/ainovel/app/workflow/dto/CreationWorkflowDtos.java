@@ -53,6 +53,8 @@ public final class CreationWorkflowDtos {
             GuidedCreationOperation operation,
             AsyncJobStatus status,
             int progress,
+            long outputTokens,
+            boolean outputTokensEstimated,
             String errorMessage,
             long chargedCredits,
             long remainingCredits,

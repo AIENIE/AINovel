@@ -24,7 +24,7 @@
 
 ## 响应重点
 
-`WorkflowResponse` 提供 `status,currentStep,steps,storyId,worldId,outlineId,activeJob,errorMessage,version`。大纲步骤额外提供 `outlinePhase,candidates[].development,candidates[].developmentRevision,selectedDirectionId,expandedOutline`；任务提供 `operation`。前端在 `activeJob.status` 为 `QUEUED/RUNNING/CALLING_AI` 或运行状态为 `AUTO_RUNNING` 时轮询详情。
+`WorkflowResponse` 提供 `status,currentStep,steps,storyId,worldId,outlineId,activeJob,errorMessage,version`。大纲步骤额外提供 `outlinePhase,candidates[].development,candidates[].developmentRevision,selectedDirectionId,expandedOutline`；任务提供 `operation`、`progress`、`outputTokens` 和 `outputTokensEstimated`。前端在 `activeJob.status` 为 `QUEUED/RUNNING/CALLING_AI` 或运行状态为 `AUTO_RUNNING` 时轮询详情，并显示当前流程步骤、已完成/剩余步骤和当前步骤 token。
 
 任务 operation：`STEP_CANDIDATES`、`OUTLINE_DEVELOP`、`OUTLINE_REWRITE`、`OUTLINE_EXPAND`。
 

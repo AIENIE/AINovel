@@ -19,5 +19,9 @@ public record AiModelDto(
         @Schema(description = "提供方", example = "PackyAPI")
         String poolId,
         @Schema(description = "是否可用", example = "true")
-        boolean isEnabled
+        boolean isEnabled,
+        @Schema(description = "是否支持图片输入", example = "false")
+        boolean supportsImageInput,
+        @Schema(description = "是否支持真实流式输出", example = "true")
+        boolean supportsStreaming
 ) {}

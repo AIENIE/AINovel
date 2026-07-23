@@ -19,6 +19,8 @@ public final class AiModelPolicy {
                 1,
                 1,
                 REQUIRED_TEXT_MODEL_PROVIDER,
+                true,
+                false,
                 true
         );
     }

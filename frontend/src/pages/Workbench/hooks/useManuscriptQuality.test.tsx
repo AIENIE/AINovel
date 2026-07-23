@@ -41,9 +41,20 @@ describe("useManuscriptQuality", () => {
 
   it("persists dirty content before running plot diagnosis", async () => {
     vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([] as any);
-    vi.spyOn(api.v2.plotQuality, "listRuns").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.plotQuality, "listRuns")
+      .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce([{ id: "plot-run-2", overallRiskScore: 18 }] as any);
     vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: {} } as any);
-    vi.spyOn(api.v2.plotQuality, "analyzeScene").mockResolvedValue({ id: "plot-run-2", overallRiskScore: 18 } as any);
+    vi.spyOn(api.v2.plotQuality, "startAnalyzeScene").mockResolvedValue({ operationId: "operation-2" });
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(async (_id, onProgress) => {
+      const completed = {
+        id: "operation-2", operationType: "AINOVEL_LONG_TASK", status: "SUCCEEDED",
+        totalSteps: 2, completedSteps: 2, remainingSteps: 0,
+        currentStepOutputTokens: 128, outputTokensEstimated: false, attemptCount: 1,
+      } as any;
+      onProgress(completed);
+      return completed;
+    });
     const persistSection = vi.fn().mockResolvedValue(undefined);
     const setSidebarTab = vi.fn();
     const toast = vi.fn();
@@ -70,7 +81,7 @@ describe("useManuscriptQuality", () => {
     });
 
     expect(persistSection).toHaveBeenCalledWith("scene-2", "<p>draft scene</p>", true);
-    expect(api.v2.plotQuality.analyzeScene).toHaveBeenCalledWith("manuscript-2", "scene-2");
+    expect(api.v2.plotQuality.startAnalyzeScene).toHaveBeenCalledWith("manuscript-2", "scene-2");
     expect(setSidebarTab).toHaveBeenCalledWith("plot");
     expect(result.current.plotRunsByScene["scene-2"]).toEqual({ id: "plot-run-2", overallRiskScore: 18 });
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "剧情诊断已完成" }));

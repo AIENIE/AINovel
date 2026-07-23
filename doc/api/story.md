@@ -6,13 +6,14 @@
 - `GET /api/v1/story-cards/{id}`：故事详情。
 - `POST /api/v1/stories`：创建故事，Body `title,synopsis,genre,tone,worldId?`。
 - `PUT /api/v1/story-cards/{id}`：更新故事字段。
-- `DELETE /api/v1/stories/{id}`：删除故事及关联。
+- `DELETE /api/v1/stories/{id}`：删除故事，并由数据库级联清理角色卡、大纲、稿件、版本、质量记录和其它故事派生数据；返回 204。
 - `GET /api/v1/story-cards/{id}/character-cards`：角色列表。
 - `POST /api/v1/story-cards/{id}/characters`：新增角色，Body `name,synopsis,details,relationships`。
 - `PUT /api/v1/character-cards/{id}` / `DELETE /api/v1/character-cards/{id}`：修改/删除角色。
 - `POST /api/v1/story-cards/{id}/refine`：文本润色，Body `{text,instruction?,contextType?}`。
 - `POST /api/v1/character-cards/{id}/refine`：角色字段润色。
 - `POST /api/v1/conception`：根据一句话灵感快速创建故事与角色，Body 同创建故事。
+- `POST /api/v1/conception/operations`：上述构思的异步进度版本，返回 `202 {operationId}`。
 
 ## 大纲
 
@@ -25,6 +26,7 @@
 ## AI 章节生成
 
 - `POST /api/v1/outlines/{outlineId}/chapters`：新增 AI 章节，Body `{chapterNumber?,sectionsPerChapter?,wordsPerSection?,worldId?}`。
+- `POST /api/v1/outlines/{outlineId}/chapters/operations`：章节生成的异步进度版本。
 - `sectionsPerChapter` 会被后端强制归一化到 `5-7`。
 - 生成逻辑要求返回结构化 JSON（章节标题、章节摘要、节标题与节摘要）；若 AI 返回异常则使用兜底文案。
 

@@ -1,8 +1,12 @@
 package com.ainovel.app.workflow;
 
+import com.ainovel.app.ai.AiProgressContext;
+import com.ainovel.app.integration.AiGatewayGrpcClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 import java.util.UUID;
 
@@ -30,8 +34,18 @@ public class GuidedCreationJobWorker {
         boolean generationCompleted = false;
         try {
             GuidedCreationJobService.GenerationContext context = jobService.markCallingAi(jobId);
-            GuidedCreationGenerationService.GenerationResult result = generationService.generate(
-                    context.run(), context.job(), context.payload());
+            AtomicLong completedTokens = new AtomicLong();
+            GuidedCreationGenerationService.GenerationResult result = AiProgressContext.withListener(
+                    new AiGatewayGrpcClient.StreamProgressListener() {
+                        @Override public void onDelta(long outputTokens, boolean estimated) {
+                            jobService.updateStreamProgress(jobId, completedTokens.get() + outputTokens, estimated);
+                        }
+                        @Override public void onCompleted(long completionTokens, long promptTokens, long cacheTokens) {
+                            long total = completedTokens.addAndGet(completionTokens);
+                            jobService.completeStreamProgress(jobId, total);
+                        }
+                    },
+                    () -> generationService.generate(context.run(), context.job(), context.payload()));
             GuidedCreationJobService.Completion completion = jobService.complete(jobId, result);
             generationCompleted = true;
             workflowService.advanceAutomatic(completion);

@@ -33,7 +33,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(6, result.migrationsExecuted);
+            assertEquals(8, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -41,6 +41,8 @@ class FlywaySchemaGovernanceTest {
             assertTableExists(mysql, databaseName, "g2_evaluation_votes");
             assertTableExists(mysql, databaseName, "creation_workflow_runs");
             assertTableExists(mysql, databaseName, "async_jobs");
+            assertTableExists(mysql, databaseName, "ai_operation_runs");
+            assertTableExists(mysql, databaseName, "ai_operation_steps");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
             assertTableExists(mysql, databaseName, "flyway_schema_history");
         }
@@ -64,7 +66,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(5, migrateResult.migrationsExecuted);
+            assertEquals(7, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -92,7 +94,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(5, migrateResult.migrationsExecuted);
+            assertEquals(7, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -100,6 +102,7 @@ class FlywaySchemaGovernanceTest {
             assertIndexExists(mysql, databaseName, "project_credit_ledger", "idx_project_credit_ledger_reference");
             assertTableExists(mysql, databaseName, "creation_workflow_runs");
             assertTableExists(mysql, databaseName, "async_jobs");
+            assertTableExists(mysql, databaseName, "ai_operation_runs");
             assertColumnExists(mysql, databaseName, "manuscripts", "current_branch_id");
             assertCurrentBranchForeignKeyExists(mysql, databaseName);
             assertNoDanglingCurrentBranchReferences(mysql, databaseName);
@@ -124,11 +127,39 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(5, migrateResult.migrationsExecuted);
+            assertEquals(7, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
                 assertColumnExists(mysql, databaseName, "slop_quality_issues", column);
+            }
+        }
+    }
+
+    @Test
+    void cascadesCompleteStoryTreeAndQualityRuns() throws Exception {
+        try (MySQLContainer<?> mysql = new MySQLContainer<>(MYSQL_IMAGE)) {
+            mysql.start();
+            String databaseName = mysql.getDatabaseName();
+            Flyway.configure().dataSource(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration").load().migrate();
+
+            try (Connection connection = DriverManager.getConnection(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword());
+                 Statement statement = connection.createStatement()) {
+                statement.execute("INSERT INTO users (id,banned,credits,email,password_hash,username) VALUES (UNHEX('01010101010101010101010101010101'),0,0,'cascade@test','x','cascade-user')");
+                statement.execute("INSERT INTO stories (id,user_id,title) VALUES (UNHEX('02020202020202020202020202020202'),UNHEX('01010101010101010101010101010101'),'cascade')");
+                statement.execute("INSERT INTO character_cards (id,story_id,name) VALUES (UNHEX('03030303030303030303030303030303'),UNHEX('02020202020202020202020202020202'),'card')");
+                statement.execute("INSERT INTO outlines (id,story_id,title) VALUES (UNHEX('04040404040404040404040404040404'),UNHEX('02020202020202020202020202020202'),'outline')");
+                statement.execute("INSERT INTO manuscripts (id,outline_id,title) VALUES (UNHEX('05050505050505050505050505050505'),UNHEX('04040404040404040404040404040404'),'manuscript')");
+                statement.execute("INSERT INTO slop_drift_runs (id,story_id,manuscript_id,status,overall_risk_score,total_characters,window_count) VALUES (UNHEX('06060606060606060606060606060606'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),'ACCEPTED',0,1,1)");
+                statement.execute("INSERT INTO slop_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revised,revision_count) VALUES (UNHEX('07070707070707070707070707070707'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0,0)");
+                statement.execute("INSERT INTO plot_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revision_applied) VALUES (UNHEX('09090909090909090909090909090909'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0)");
+                statement.execute("DELETE FROM stories WHERE id=UNHEX('02020202020202020202020202020202')");
+            }
+
+            for (String table : List.of("stories", "character_cards", "outlines", "manuscripts",
+                    "slop_drift_runs", "slop_quality_runs", "plot_quality_runs")) {
+                assertRowCount(mysql, databaseName, table, 0);
             }
         }
     }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { WorldDetail, WorldModuleDefinition } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Save, UploadCloud } from "lucide-react";
@@ -79,8 +80,7 @@ const WorldEditor = () => {
   const handleAutoGenerate = async (moduleKey: string) => {
     if (!worldDetail) return;
     try {
-      await api.worlds.publish(worldDetail.id);
-      await api.worlds.generateModule(worldDetail.id, moduleKey);
+      await runTrackedAiOperation(api.worlds.startGenerateModule(worldDetail.id, moduleKey));
       await load();
       toast({ title: `已生成模块：${moduleKey}` });
     } catch (e: any) {
@@ -142,10 +142,7 @@ const WorldEditor = () => {
                   return;
                 }
                 if (!confirm(`预检结果：需要生成 ${modules.length} 个模块：\n${modules.join(", ")}\n\n现在开始生成并发布？`)) return;
-                await api.worlds.publish(worldDetail.id);
-                for (const key of modules) {
-                  await api.worlds.generateModule(worldDetail.id, key);
-                }
+                await runTrackedAiOperation(api.worlds.startPublish(worldDetail.id));
                 await load();
                 toast({ title: "发布完成", description: "已生成并更新世界模块内容" });
               } catch (e: any) {

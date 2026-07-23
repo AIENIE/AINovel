@@ -9,6 +9,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, WandSparkles } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 
 const GENRES = [
   { value: "fantasy", label: "奇幻 / 魔法" },
@@ -37,7 +38,8 @@ const CreateNovel = () => {
     setIsLoading(true);
     try {
       if (aiInit) {
-        const res = await api.stories.conception({ title: title.trim(), synopsis, genre, tone: "" });
+        const operation = await runTrackedAiOperation(api.stories.startConception({ title: title.trim(), synopsis, genre, tone: "" }));
+        const res = operation.resultJson ? JSON.parse(operation.resultJson) : null;
         const storyId = res?.storyCard?.id;
         if (storyId) {
           try {

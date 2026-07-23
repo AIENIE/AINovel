@@ -18,7 +18,13 @@ describe("useManuscriptSceneGeneration", () => {
         "scene-1": "<p>generated</p>",
       },
     };
-    vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue(saved as any);
+    vi.spyOn(api.manuscripts, "startGenerateScene").mockResolvedValue({ operationId: "operation-1" });
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(async (_id, onProgress) => {
+      const completed = completedOperation("operation-1");
+      onProgress(completed);
+      return completed;
+    });
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as any);
     const loadSlopQuality = vi.fn().mockResolvedValue({ status: "ACCEPTED", maxSeverity: "LOW" });
     const loadPlotQuality = vi.fn().mockResolvedValue({ run: null, trend: null });
     const applyServerSection = vi.fn();
@@ -40,7 +46,7 @@ describe("useManuscriptSceneGeneration", () => {
       await result.current.generateScene();
     });
 
-    expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "fast");
+    expect(api.manuscripts.startGenerateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "fast");
     expect(applyServerSection).toHaveBeenCalledWith(saved, "scene-1");
     expect(loadSlopQuality).toHaveBeenCalledWith("scene-1", "manuscript-2");
     expect(loadPlotQuality).toHaveBeenCalledWith("scene-1", "manuscript-2");
@@ -49,7 +55,7 @@ describe("useManuscriptSceneGeneration", () => {
   });
 
   it("shows a destructive toast when generation fails", async () => {
-    vi.spyOn(api.manuscripts, "generateScene").mockRejectedValue(new Error("network down"));
+    vi.spyOn(api.manuscripts, "startGenerateScene").mockRejectedValue(new Error("network down"));
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
@@ -85,7 +91,13 @@ describe("useManuscriptSceneGeneration", () => {
       updatedAt: "2026-07-14T00:00:00Z",
       sections: { "scene-1": "<p>crafted</p>" },
     };
-    vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue(saved as any);
+    vi.spyOn(api.manuscripts, "startGenerateScene").mockResolvedValue({ operationId: "operation-3" });
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(async (_id, onProgress) => {
+      const completed = completedOperation("operation-3");
+      onProgress(completed);
+      return completed;
+    });
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as any);
 
     const { result } = renderHook(() =>
       useManuscriptSceneGeneration({
@@ -106,11 +118,17 @@ describe("useManuscriptSceneGeneration", () => {
       await result.current.generateScene();
     });
 
-    expect(api.manuscripts.generateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "crafted");
+    expect(api.manuscripts.startGenerateScene).toHaveBeenCalledWith("manuscript-1", "scene-1", "crafted");
   });
 
   it("treats empty editor html as a failed generation", async () => {
-    vi.spyOn(api.manuscripts, "generateScene").mockResolvedValue({
+    vi.spyOn(api.manuscripts, "startGenerateScene").mockResolvedValue({ operationId: "operation-4" });
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(async (_id, onProgress) => {
+      const completed = completedOperation("operation-4");
+      onProgress(completed);
+      return completed;
+    });
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue({
       id: "manuscript-2",
       sections: { "scene-1": "<p><br></p>" },
     } as any);
@@ -135,3 +153,11 @@ describe("useManuscriptSceneGeneration", () => {
     }));
   });
 });
+
+function completedOperation(id: string) {
+  return {
+    id, operationType: "AINOVEL_LONG_TASK", status: "SUCCEEDED",
+    totalSteps: 5, completedSteps: 5, remainingSteps: 0,
+    currentStepOutputTokens: 3200, outputTokensEstimated: false, attemptCount: 1,
+  } as any;
+}

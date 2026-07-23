@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Manuscript } from "@/types";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { plotStatusText, qualityStatusText, slopRewriteTaskTitle } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
 
@@ -147,7 +148,8 @@ export function useManuscriptQuality({
     setIsSlopBusy(true);
     try {
       await ensureSceneSaved(sceneId);
-      const run = await api.v2.quality.analyzeScene(selectedManuscriptId, sceneId);
+      await runTrackedAiOperation(api.v2.quality.startAnalyzeScene(selectedManuscriptId, sceneId));
+      const run = await fetchSlopQualityRun(selectedManuscriptId, sceneId);
       queryClient.setQueryData(slopQualityQueryKey(selectedManuscriptId, sceneId), run);
       setSidebarTab("plot");
       toast({ title: "文本 Slop 诊断已完成", description: run.safeClaim || qualityStatusText(run) });
@@ -181,7 +183,9 @@ export function useManuscriptQuality({
     setIsPlotBusy(true);
     try {
       await ensureSceneSaved(sceneId);
-      const run = await api.v2.plotQuality.analyzeScene(selectedManuscriptId, sceneId);
+      await runTrackedAiOperation(api.v2.plotQuality.startAnalyzeScene(selectedManuscriptId, sceneId));
+      const run = await fetchPlotRun(selectedManuscriptId, sceneId);
+      if (!run) throw new Error("剧情诊断未生成结果");
       const trend = await api.v2.plotQuality.getTrend(selectedManuscriptId);
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       queryClient.setQueryData(plotTrendQueryKey(selectedManuscriptId), trend);
@@ -200,7 +204,9 @@ export function useManuscriptQuality({
     setIsPlotRevisionBusy(true);
     try {
       await ensureSceneSaved(sceneId);
-      const run = await api.v2.plotQuality.generateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id);
+      await runTrackedAiOperation(api.v2.plotQuality.startGenerateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id));
+      const run = await fetchPlotRun(selectedManuscriptId, sceneId);
+      if (!run) throw new Error("修订候选未生成结果");
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       toast({ title: "候选修订已生成" });
     } catch (e: any) {

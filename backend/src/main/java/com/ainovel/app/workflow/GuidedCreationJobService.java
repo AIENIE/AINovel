@@ -155,6 +155,8 @@ public class GuidedCreationJobService {
         job.setStep(step);
         job.setStatus(AsyncJobStatus.QUEUED);
         job.setProgress(0);
+        job.setOutputTokens(0);
+        job.setOutputTokensEstimated(true);
         job.setAttemptCount(0);
         job.setIdempotencyKey(idempotencyKey);
         job.setPayloadJson(codec.write(payload, "{}"));
@@ -203,6 +205,24 @@ public class GuidedCreationJobService {
         job.setLeaseUntil(Instant.now().plus(10, ChronoUnit.MINUTES));
         jobRepository.save(job);
         return new GenerationContext(run, job, payload(job));
+    }
+
+    @Transactional
+    public void updateStreamProgress(UUID jobId, long outputTokens, boolean estimated) {
+        AsyncJob job = jobRepository.findByIdForUpdate(jobId).orElse(null);
+        if (job == null || job.getStatus() != AsyncJobStatus.CALLING_AI) return;
+        job.setOutputTokens(Math.max(job.getOutputTokens(), outputTokens));
+        job.setOutputTokensEstimated(estimated);
+        job.setProgress(Math.max(job.getProgress(), 35));
+    }
+
+    @Transactional
+    public void completeStreamProgress(UUID jobId, long completionTokens) {
+        AsyncJob job = jobRepository.findByIdForUpdate(jobId).orElse(null);
+        if (job == null || job.getStatus() != AsyncJobStatus.CALLING_AI) return;
+        job.setOutputTokens(completionTokens);
+        job.setOutputTokensEstimated(false);
+        job.setProgress(Math.max(job.getProgress(), 70));
     }
 
     @Transactional
@@ -303,6 +323,8 @@ public class GuidedCreationJobService {
         }
         job.setStatus(AsyncJobStatus.QUEUED);
         job.setProgress(0);
+        job.setOutputTokens(0);
+        job.setOutputTokensEstimated(true);
         job.setErrorMessage(null);
         job.setCompletedAt(null);
         job.setLeaseOwner(null);

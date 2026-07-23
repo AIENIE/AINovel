@@ -7,6 +7,7 @@
 - `frontend/src/lib/api-client.ts` 负责 `/api` 请求、令牌注入、错误映射和 v1/v2 DTO。
 - `AuthContext` 通过 `GET /api/v1/user/profile` 恢复普通用户会话；管理员令牌独立维护。
 - TanStack Query 提供共享请求缓存，工作台内部状态由领域 hooks 管理。
+- `AiOperationProgressPanel` 与 `ai-operation-store` 跟踪当前长任务；SSE 断开后自动轮询，刷新页面后从 `sessionStorage` 恢复。面板统一展示当前步骤、已完成/剩余步骤和当前步骤输出 token。
 
 ## 页面地图
 

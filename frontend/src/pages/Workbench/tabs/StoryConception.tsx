@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api-client";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, TwistOption } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -270,7 +271,7 @@ const StoryConception = () => {
     setIsGenerating(true);
     try {
       const title = idea.length > 16 ? `${idea.slice(0, 16)}...` : idea;
-      const response = await api.stories.conception({
+      const operation = await runTrackedAiOperation(api.stories.startConception({
         title,
         synopsis: idea,
         genre: genre || "未分类",
@@ -280,7 +281,8 @@ const StoryConception = () => {
           hiddenTruth: secretHint.trim() || undefined,
           memeReference: memeHint.trim() || undefined,
         },
-      });
+      }));
+      const response = operation.resultJson ? JSON.parse(operation.resultJson) : null;
       const nextPlanning = response?.plotPlanning || createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
       const nextResult: ConceptionResult = {
         storyCard: response?.storyCard,

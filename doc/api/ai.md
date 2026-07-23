@@ -4,7 +4,7 @@
 ## 模型列表
 - `GET /api/v1/ai/models`：返回 AINovel 当前允许使用的 AiService 文本模型列表。
   - 当前仅返回 `deepseek-v4-flash`（显示名 `DeepSeek V4 Flash`）。
-  - 响应项包含 `modelType=text`，用于前端展示；AINovel 不再暴露其它文本、embedding、OCR 或图片模型给写作入口。
+  - 响应项包含 `modelType=text`、`supportsImageInput` 和 `supportsStreaming`；后台长任务只在目标模型声明 `supportsStreaming=true` 时使用真实服务端流式输出。
 
 ## Copilot 对话
 - `POST /api/v1/ai/chat`：请求 `{modelId,context?,messages:[{role,content}]}`，返回 `{role,content,usage:{inputTokens,outputTokens,cacheTokens,cacheHitRate,cost},remainingCredits}`。
@@ -15,3 +15,5 @@
 ## 文本润色
 - `POST /api/v1/ai/refine`：请求 `{text,instruction?,modelId}`，返回 `{result,usage,remainingCredits}`。
   - `modelId` 同样仅为兼容字段，实际调用固定使用 `deepseek-v4-flash`。
+
+创建故事、生成正文、世界模块和质量诊断等长任务使用独立的异步进度接口，见 [`ai-operations.md`](ai-operations.md)。

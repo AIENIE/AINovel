@@ -53,6 +53,22 @@ describe("api client", () => {
     expect(user.username).toBe("admin");
   });
 
+  it("accepts empty 204 responses for every v1 delete endpoint", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.stories.deleteCharacter("character-1");
+    await api.stories.delete("story-1");
+    await api.outlines.delete("outline-1");
+    await api.manuscripts.delete("manuscript-1");
+    await api.worlds.delete("world-1");
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.method).toBe("DELETE");
+    }
+  });
+
   it("loads AI models from v1 ai-service endpoint only", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);

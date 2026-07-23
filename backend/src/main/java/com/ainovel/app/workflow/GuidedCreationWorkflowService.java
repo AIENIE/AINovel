@@ -280,7 +280,8 @@ public class GuidedCreationWorkflowService {
             return null;
         }
         return new CreationWorkflowDtos.JobResponse(
-                job.getId(), job.getStep(), jobService.operation(job), job.getStatus(), job.getProgress(), job.getErrorMessage(),
+                job.getId(), job.getStep(), jobService.operation(job), job.getStatus(), job.getProgress(),
+                job.getOutputTokens(), job.isOutputTokensEstimated(), job.getErrorMessage(),
                 job.getChargedCredits(), job.getRemainingCredits(), job.getCreatedAt(), job.getUpdatedAt()
         );
     }

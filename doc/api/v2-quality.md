@@ -10,6 +10,7 @@
 - `GET /quality-runs`：查询稿件最近 20 条反 slop 质量门禁记录。
 - `GET /quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
 - `POST /scenes/{sceneId}/quality-runs`：对当前场景执行一次手动文本 Slop 风险诊断。该接口只保存诊断记录，不修改正文。
+- `POST /scenes/{sceneId}/quality-runs/operations`：同一诊断的异步进度版本。
 
 返回项包含：
 - `status`：`ACCEPTED` / `REVISED` / `ACCEPTED_WITH_ISSUES` / `DEGRADED`。
@@ -45,6 +46,7 @@
 
 - `GET /slop-drift-runs`：查询稿件最近 20 条长篇 drift 巡检记录。
 - `POST /slop-drift-runs`：按当前稿件正文构建多个章节/字数窗口，执行一次 LLM 窗口对比巡检。
+- `POST /slop-drift-runs/operations`：同一巡检的异步进度版本。
 
 返回项包含：
 - `status`：`COMPLETED` / `INSUFFICIENT_TEXT` / `DEGRADED`。
@@ -74,8 +76,10 @@
 - `GET /plot-quality-runs`：查询稿件最近 20 条剧情质量诊断记录。
 - `GET /plot-quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
 - `POST /scenes/{sceneId}/plot-quality-runs`：对当前场景生成一次剧情诊断。
+- `POST /scenes/{sceneId}/plot-quality-runs/operations`：同一诊断的异步进度版本。
 - `GET /plot-quality-trends`：按场景聚合每个场景最新诊断，返回平均风险、高风险场景数、维度计数和趋势点。
 - `POST /plot-quality-runs/{runId}/revision-candidate`：基于诊断结果生成一份候选修订文本，只保存候选，不自动写回稿件。
+- `POST /plot-quality-runs/{runId}/revision-candidate/operations`：候选修订生成的异步进度版本。
 - `POST /plot-quality-runs/{runId}/apply-revision`：采纳候选修订并写回对应场景正文。
 
 剧情诊断返回项包含：

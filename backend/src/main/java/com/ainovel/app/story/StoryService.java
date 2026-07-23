@@ -78,7 +78,6 @@ public class StoryService {
     public void deleteStory(UUID id) {
         Story story = storyRepository.findByIdWithUser(id).orElseThrow(() -> new BusinessException("故事不存在"));
         accessGuard.assertOwner(story.getUser());
-        characterCardRepository.deleteAll(characterCardRepository.findByStory(story));
         storyRepository.delete(story);
     }
 

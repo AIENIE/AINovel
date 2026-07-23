@@ -12,6 +12,17 @@ enum ModelType {
   MODEL_TYPE_IMAGE = 2;
   MODEL_TYPE_EMBEDDING = 3;
   MODEL_TYPE_AUDIO = 4;
+  MODEL_TYPE_OCR = 5;
+}
+
+enum ThinkingEffort {
+  THINKING_EFFORT_UNSPECIFIED = 0;
+  THINKING_EFFORT_MINIMAL = 1;
+  THINKING_EFFORT_LOW = 2;
+  THINKING_EFFORT_MEDIUM = 3;
+  THINKING_EFFORT_HIGH = 4;
+  THINKING_EFFORT_XHIGH = 5;
+  THINKING_EFFORT_MAX = 6;
 }
 
 message ModelOption {
@@ -22,6 +33,7 @@ message ModelOption {
   double output_rate = 5;
   ModelType type = 6;
   bool supports_image_input = 7;
+  bool supports_streaming = 8;
 }
 
 message ListModelsRequest {
@@ -45,6 +57,8 @@ message ChatCompletionsRequest {
   string model = 5;
   repeated ChatMessage messages = 6;
   string img = 7;
+  optional bool thinking_enabled = 8;
+  ThinkingEffort thinking_effort = 9;
 }
 
 message ChatCompletionsResponse {
@@ -53,6 +67,27 @@ message ChatCompletionsResponse {
   int64 prompt_tokens = 3;
   int64 completion_tokens = 4;
   int64 cache_tokens = 5;
+}
+
+enum ChatStreamEventType {
+  CHAT_STREAM_EVENT_TYPE_UNSPECIFIED = 0;
+  CHAT_STREAM_EVENT_TYPE_STARTED = 1;
+  CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA = 2;
+  CHAT_STREAM_EVENT_TYPE_COMPLETED = 3;
+}
+
+message ChatCompletionsStreamEvent {
+  string request_id = 1;
+  int64 sequence = 2;
+  ChatStreamEventType event_type = 3;
+  string model_key = 4;
+  string content_delta = 5;
+  int64 output_tokens_so_far = 6;
+  bool output_tokens_estimated = 7;
+  int64 prompt_tokens = 8;
+  int64 completion_tokens = 9;
+  int64 cache_tokens = 10;
+  string finish_reason = 11;
 }
 
 message EmbeddingsRequest {
@@ -79,5 +114,6 @@ message EmbeddingsResponse {
 service AiGatewayService {
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
   rpc ChatCompletions(ChatCompletionsRequest) returns (ChatCompletionsResponse);
+  rpc ChatCompletionsStream(ChatCompletionsRequest) returns (stream ChatCompletionsStreamEvent);
   rpc Embeddings(EmbeddingsRequest) returns (EmbeddingsResponse);
 }

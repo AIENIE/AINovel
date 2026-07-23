@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { adminSession, api } from "@/lib/api-client";
+import { AiOperationProgressPanel } from "@/components/ai/AiOperationProgressPanel";
 
 // Layouts
 import AppLayout from "@/components/layout/AppLayout";
@@ -135,6 +136,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AiOperationProgressPanel />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />

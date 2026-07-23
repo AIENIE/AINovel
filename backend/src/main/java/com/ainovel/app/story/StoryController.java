@@ -61,7 +61,7 @@ public class StoryController {
     public StoryDto updateStory(@PathVariable UUID id, @RequestBody StoryUpdateRequest request) { return storyService.updateStory(id, request); }
 
     @DeleteMapping("/stories/{id}")
-    @Operation(summary = "删除故事", description = "删除故事及关联角色卡。")
+    @Operation(summary = "删除故事", description = "删除故事及关联角色卡、大纲、稿件与派生质量记录。")
     public ResponseEntity<Void> deleteStory(@PathVariable UUID id) { storyService.deleteStory(id); return ResponseEntity.noContent().build(); }
 
     @GetMapping("/story-cards/{id}/character-cards")

@@ -583,11 +583,39 @@ export interface CreationWorkflowJob {
   operation: GuidedCreationOperation;
   status: AsyncJobStatus;
   progress: number;
+  outputTokens: number;
+  outputTokensEstimated: boolean;
   errorMessage?: string | null;
   chargedCredits: number;
   remainingCredits: number;
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+export type AiOperationStatus = "QUEUED" | "RUNNING" | "STREAMING" | "RECOVERY_REQUIRED" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+
+export interface AiOperationAccepted {
+  operationId: string;
+}
+
+export interface AiOperationProgress {
+  id: string;
+  operationType: string;
+  scopeType?: string | null;
+  scopeId?: string | null;
+  status: AiOperationStatus;
+  currentStep?: string | null;
+  totalSteps: number;
+  completedSteps: number;
+  remainingSteps: number;
+  currentStepOutputTokens: number;
+  outputTokensEstimated: boolean;
+  attemptCount: number;
+  resultJson?: string | null;
+  errorMessage?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  completedAt?: string | null;
 }
 
 export interface CreationWorkflow {

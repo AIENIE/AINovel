@@ -28,6 +28,10 @@ public class AsyncJob {
     private AsyncJobStatus status;
     @Column(nullable = false)
     private int progress;
+    @Column(name = "output_tokens", nullable = false)
+    private long outputTokens;
+    @Column(name = "output_tokens_estimated", nullable = false)
+    private boolean outputTokensEstimated = true;
     @Column(nullable = false)
     private int attemptCount;
     @Column(nullable = false, unique = true, length = 160)
@@ -60,6 +64,10 @@ public class AsyncJob {
     public void setStatus(AsyncJobStatus status) { this.status = status; }
     public int getProgress() { return progress; }
     public void setProgress(int progress) { this.progress = progress; }
+    public long getOutputTokens() { return outputTokens; }
+    public void setOutputTokens(long outputTokens) { this.outputTokens = outputTokens; }
+    public boolean isOutputTokensEstimated() { return outputTokensEstimated; }
+    public void setOutputTokensEstimated(boolean outputTokensEstimated) { this.outputTokensEstimated = outputTokensEstimated; }
     public int getAttemptCount() { return attemptCount; }
     public void setAttemptCount(int attemptCount) { this.attemptCount = attemptCount; }
     public String getIdempotencyKey() { return idempotencyKey; }

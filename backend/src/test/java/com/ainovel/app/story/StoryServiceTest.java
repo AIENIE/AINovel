@@ -88,23 +88,20 @@ class StoryServiceTest {
     }
 
     @Test
-    void deleteStoryShouldDeleteCharactersBeforeStoryRecord() {
+    void deleteStoryShouldRelyOnDatabaseCascadeAfterOwnershipCheck() {
         StoryRepository storyRepository = mock(StoryRepository.class);
         CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
         StoryService service = service(storyRepository, characterCardRepository, accessGuard, mock(AiService.class));
         User owner = user("story_owner");
         Story story = story(owner);
-        List<CharacterCard> cards = List.of(character(story, "林烬"), character(story, "周燃"));
-
         when(storyRepository.findByIdWithUser(story.getId())).thenReturn(Optional.of(story));
-        when(characterCardRepository.findByStory(story)).thenReturn(cards);
 
         service.deleteStory(story.getId());
 
         verify(accessGuard).assertOwner(owner);
-        verify(characterCardRepository).deleteAll(cards);
         verify(storyRepository).delete(story);
+        verify(characterCardRepository, org.mockito.Mockito.never()).deleteAll(any());
     }
 
     @Test
