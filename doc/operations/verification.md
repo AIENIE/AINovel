@@ -14,7 +14,20 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 
 ## 最近一次验证
 
-2026-07-15，G1-A P0 交付与文档架构重构收口：
+2026-07-23，七项端到端问题修复后完成 L5 复验：
+
+- 后端全量测试通过；Testcontainers 在 MySQL 8 上覆盖空库、完整基线、旧基线和质量表缺列场景。
+- 前端 25 个测试文件、86 项测试通过，生产构建和 TypeScript 检查通过。
+- `build.sh` 部署成功；后端、前端容器运行正常，运行库 Flyway schema 为 V6。
+- 普通用户通过真实 SSO 完成 3 章逐步选择与自动完成流程；大纲 A/B/C 独立发展、反馈重写、展开预览和物化均通过。
+- 新增场景生成 3,438 字正文，刷新后内容保持；质量接口与 UI 正常，桌面和移动端认证导出得到 10,846 字节 TXT 文件。
+- `/api/actuator/health/liveness` 和 `/api/actuator/health/readiness` 均返回 200/UP；根健康仍按设计保留 Redis 状态。
+
+逐项问题、运行标识和截图证据见[“2026-07-23 七项问题修复后 L5 复验”](#2026-07-23-七项问题修复后-l5-复验通过)。
+
+## 历史验证：2026-07-15 G1-A P0
+
+G1-A P0 交付与文档架构重构收口：
 
 - 后端全量测试通过，Testcontainers 在 MySQL 8 上验证 V1 到 V5 迁移。
 - 前端 23 个测试文件、79 项测试通过，生产构建通过。
@@ -41,6 +54,8 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 5. 失败样本的 `G2_EVALUATION` 扣费与退款在本地账本相互抵销。
 
 ## 2026-07-23 agent-browser 全书端到端盲测（已结束）
+
+> **历史快照说明**：本节记录修复前的首次盲测，下面各 ISSUE 中的“待修复”是当时状态，不代表当前状态。当前结论与修复证据见[“2026-07-23 七项问题修复后 L5 复验”](#2026-07-23-七项问题修复后-l5-复验通过)。保留本节是为了维持问题发现、修复与复验的完整证据链。
 
 - 环境：`https://ainovel.localhut.com`，普通用户真实 SSO 会话；仅 agent-browser 临时使用 `--ignore-https-errors` 处理 localhut 证书拦截。
 - 证据目录：`/home/duwei/tmp/ainovel-e2e-20260723/`（截图与视频，不进入仓库）。
