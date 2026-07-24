@@ -19,7 +19,7 @@
 printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 ```
 
-脚本会使用 Compose 构建前后端镜像、重建容器，并在存在 `env.txt` 时通过 `--env-file` 加载插值。后端容器启动脚本再加载只读挂载的完整配置。
+脚本会使用 Compose 构建前后端镜像、重建容器，并在存在 `env.txt` 时通过 `--env-file` 加载插值。后端容器启动脚本再加载只读挂载的完整配置。共享的 `ainovel-backend` / `ainovel-frontend` 已被其他工作树占用时，只有 `master` 可以自动接管；其他分支必须显式设置 `AINOVEL_ALLOW_SHARED_DEPLOY=1`。
 
 访问入口：
 
@@ -31,7 +31,7 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前最新版本为 V6。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列，在完整新库上为空操作。
+- 当前最新版本为 V9。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除。
 - 不要手工向 `backend/sql/schema.sql` 追加 DDL。
 
 ## 常见故障

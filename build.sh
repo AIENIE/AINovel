@@ -21,6 +21,14 @@ cleanup_conflicting_container() {
     return 0
   fi
 
+  local current_branch
+  current_branch="$(git -C "$ROOT_DIR" branch --show-current)"
+  if [[ "$current_branch" != "master" && "${AINOVEL_ALLOW_SHARED_DEPLOY:-}" != "1" ]]; then
+    echo "Refusing to replace shared AINovel containers owned by ${working_dir:-unknown working dir} from branch ${current_branch:-detached}." >&2
+    echo "Deploy from master, or set AINOVEL_ALLOW_SHARED_DEPLOY=1 for an intentional shared deployment." >&2
+    exit 1
+  fi
+
   echo "Removing conflicting container $name from ${working_dir:-unknown working dir}"
   docker rm -f "$name" >/dev/null
 }

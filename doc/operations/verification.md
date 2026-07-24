@@ -14,14 +14,21 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 
 ## 最近一次验证
 
-2026-07-23，故事删除与 AI 长任务进度完成 L4 关键流程验收：
+2026-07-24，故事删除与 AI 长任务进度回归完成 L4 关键流程验收：
 
-- 后端 203 项测试、前端 25 个文件 87 项测试和生产构建通过；Testcontainers 在 MySQL 8 上验证 V7/V8、历史基线升级和完整故事树级联删除。
-- `build.sh` 部署成功，运行库由 V6 升至 V8；liveness/readiness 均为 200/UP。
-- 真实 SSO 下，含稿件/质量记录的历史验收故事、新建空故事和 AI 初始化故事均通过 UI 删除，请求返回 204 且列表即时移除。
-- AI 辅助初始化通过 SSE 显示当前步骤、0/3 已完成/剩余步骤及实时 token（现场过程值 597）；后台重试成功达到 3/3，刷新恢复后自动回到业务结果。
+- 后端 218 项测试、前端 26 个文件 89 项测试和生产构建通过；Testcontainers 在 MySQL 8 上验证 V9 对 V8 历史限制型质量问题外键的升级，以及含质量问题的完整故事树级联删除。
+- 发现并修复 localhut 实例被已删除工作树的旧镜像覆盖的问题；`build.sh` 从当前 `master` 重建，运行库由 V8 升至 V9，liveness/readiness 均为 200/UP。
+- 真实 SSO 下，AI 故事构思请求返回 202，SSE 与状态轮询均为 200；进度面板显示当前步骤、0/3 已完成/剩余和实时 token（现场过程值 1,245）。
+- 专用 AI 验收故事自动带出大纲和稿件后，通过 UI 删除返回 204，列表即时移除；浏览器无页面错误，网络中无失败请求。
 
-详细证据见[“故事删除与 AI 进度 L4 验收”](#2026-07-23-故事删除与-ai-进度-l4-验收通过)。
+详细证据见[“2026-07-24 故事删除与 AI 进度回归 L4 验收”](#2026-07-24-故事删除与-ai-进度回归-l4-验收通过)。
+
+## 2026-07-24 故事删除与 AI 进度回归 L4 验收（通过）
+
+- 运行时根因：共享 `ainovel-backend` / `ainovel-frontend` 容器来自已删除的 `AINovel-slop-pattern-library` 工作树，因此前端 bundle 不含 `ai-operations`，后端仅识别到 V6 而运行库已是 V8。`build.sh` 现仅允许 `master` 自动接管其他工作树的共享容器；非主分支需要显式 `AINOVEL_ALLOW_SHARED_DEPLOY=1`。
+- 删除根因：运行库历史约束 `slop_quality_issues.run_id -> slop_quality_runs.id` 为限制型外键，阻断 V7 已建立的故事级联删除。V9 按实际信息架构中的约束名重建 `slop_quality_issues` 和 `plot_quality_issues` 的 `run_id` 外键为 `ON DELETE CASCADE`，并只清理失去父运行记录的孤儿 issue。
+- AI 进度：真实操作 `88157297-7af0-460f-b84d-13d8c5dca2c3` 返回 202；`/events` SSE 与状态 GET 均为 200。面板先显示“生成故事构思与初始角色 / 0/3”，随后显示 `1,245 token（估算）`；截图为 `/home/duwei/tmp/ainovel-l4-progress-live.png`，不进入仓库。
+- 删除复验：专用故事 `L4 验收：记录梦境的档案员发现一份会改写现实的失踪档案` 经 UI 删除返回 204 并从列表消失；验收产生的故事、大纲和稿件均已清理。
 
 ## 2026-07-23 故事删除与 AI 进度 L4 验收（通过）
 

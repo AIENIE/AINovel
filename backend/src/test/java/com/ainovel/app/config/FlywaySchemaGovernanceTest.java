@@ -33,7 +33,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(8, result.migrationsExecuted);
+            assertEquals(9, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -66,7 +66,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(7, migrateResult.migrationsExecuted);
+            assertEquals(8, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -94,7 +94,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(7, migrateResult.migrationsExecuted);
+            assertEquals(8, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -127,7 +127,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(7, migrateResult.migrationsExecuted);
+            assertEquals(8, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
@@ -153,15 +153,65 @@ class FlywaySchemaGovernanceTest {
                 statement.execute("INSERT INTO manuscripts (id,outline_id,title) VALUES (UNHEX('05050505050505050505050505050505'),UNHEX('04040404040404040404040404040404'),'manuscript')");
                 statement.execute("INSERT INTO slop_drift_runs (id,story_id,manuscript_id,status,overall_risk_score,total_characters,window_count) VALUES (UNHEX('06060606060606060606060606060606'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),'ACCEPTED',0,1,1)");
                 statement.execute("INSERT INTO slop_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revised,revision_count) VALUES (UNHEX('07070707070707070707070707070707'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0,0)");
+                statement.execute("INSERT INTO slop_quality_issues (id,run_id,dimension,severity,risk_score) VALUES (UNHEX('0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A'),UNHEX('07070707070707070707070707070707'),'STYLE','LOW',0)");
                 statement.execute("INSERT INTO plot_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revision_applied) VALUES (UNHEX('09090909090909090909090909090909'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0)");
+                statement.execute("INSERT INTO plot_quality_issues (id,run_id,dimension,severity,risk_score) VALUES (UNHEX('0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B'),UNHEX('09090909090909090909090909090909'),'PLOT','LOW',0)");
                 statement.execute("DELETE FROM stories WHERE id=UNHEX('02020202020202020202020202020202')");
             }
 
             for (String table : List.of("stories", "character_cards", "outlines", "manuscripts",
-                    "slop_drift_runs", "slop_quality_runs", "plot_quality_runs")) {
+                    "slop_drift_runs", "slop_quality_runs", "slop_quality_issues", "plot_quality_runs", "plot_quality_issues")) {
                 assertRowCount(mysql, databaseName, table, 0);
             }
         }
+    }
+
+    @Test
+    void repairsRestrictiveQualityIssueForeignKeysForV8Schema() throws Exception {
+        try (MySQLContainer<?> mysql = new MySQLContainer<>(MYSQL_IMAGE)) {
+            mysql.start();
+            String databaseName = mysql.getDatabaseName();
+            String databaseUrl = databaseUrl(mysql, databaseName);
+
+            Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration").target("8").load().migrate();
+
+            try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
+                 Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE slop_quality_issues DROP FOREIGN KEY fk_slop_issue_run");
+                statement.execute("ALTER TABLE slop_quality_issues ADD CONSTRAINT legacy_slop_issue_run FOREIGN KEY (run_id) REFERENCES slop_quality_runs(id)");
+                statement.execute("ALTER TABLE plot_quality_issues DROP FOREIGN KEY fk_plot_issue_run");
+                statement.execute("ALTER TABLE plot_quality_issues ADD CONSTRAINT legacy_plot_issue_run FOREIGN KEY (run_id) REFERENCES plot_quality_runs(id)");
+                insertStoryTreeWithQualityIssues(statement);
+            }
+
+            var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration").load().migrate();
+            assertEquals(1, result.migrationsExecuted);
+
+            try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
+                 Statement statement = connection.createStatement()) {
+                statement.execute("DELETE FROM stories WHERE id=UNHEX('02020202020202020202020202020202')");
+            }
+
+            for (String table : List.of("stories", "character_cards", "outlines", "manuscripts",
+                    "slop_drift_runs", "slop_quality_runs", "slop_quality_issues", "plot_quality_runs", "plot_quality_issues")) {
+                assertRowCount(mysql, databaseName, table, 0);
+            }
+        }
+    }
+
+    private static void insertStoryTreeWithQualityIssues(Statement statement) throws Exception {
+        statement.execute("INSERT INTO users (id,banned,credits,email,password_hash,username) VALUES (UNHEX('01010101010101010101010101010101'),0,0,'cascade@test','x','cascade-user')");
+        statement.execute("INSERT INTO stories (id,user_id,title) VALUES (UNHEX('02020202020202020202020202020202'),UNHEX('01010101010101010101010101010101'),'cascade')");
+        statement.execute("INSERT INTO character_cards (id,story_id,name) VALUES (UNHEX('03030303030303030303030303030303'),UNHEX('02020202020202020202020202020202'),'card')");
+        statement.execute("INSERT INTO outlines (id,story_id,title) VALUES (UNHEX('04040404040404040404040404040404'),UNHEX('02020202020202020202020202020202'),'outline')");
+        statement.execute("INSERT INTO manuscripts (id,outline_id,title) VALUES (UNHEX('05050505050505050505050505050505'),UNHEX('04040404040404040404040404040404'),'manuscript')");
+        statement.execute("INSERT INTO slop_drift_runs (id,story_id,manuscript_id,status,overall_risk_score,total_characters,window_count) VALUES (UNHEX('06060606060606060606060606060606'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),'ACCEPTED',0,1,1)");
+        statement.execute("INSERT INTO slop_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revised,revision_count) VALUES (UNHEX('07070707070707070707070707070707'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0,0)");
+        statement.execute("INSERT INTO slop_quality_issues (id,run_id,dimension,severity,risk_score) VALUES (UNHEX('0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A'),UNHEX('07070707070707070707070707070707'),'STYLE','LOW',0)");
+        statement.execute("INSERT INTO plot_quality_runs (id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revision_applied) VALUES (UNHEX('09090909090909090909090909090909'),UNHEX('02020202020202020202020202020202'),UNHEX('05050505050505050505050505050505'),UNHEX('08080808080808080808080808080808'),'ACCEPTED','LOW',0,0)");
+        statement.execute("INSERT INTO plot_quality_issues (id,run_id,dimension,severity,risk_score) VALUES (UNHEX('0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B'),UNHEX('09090909090909090909090909090909'),'PLOT','LOW',0)");
     }
 
     private static void loadLegacySchema(MySQLContainer<?> mysql, String databaseName) throws Exception {
