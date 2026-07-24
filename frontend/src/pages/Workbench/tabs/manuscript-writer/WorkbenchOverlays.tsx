@@ -44,7 +44,7 @@ export function WorkbenchOverlays({
   return (
     <>
       {!focusMode && !isMobile && (
-        <div className="absolute top-2 right-2 flex items-center gap-1">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1">
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onToggleLeftPanelOpen} title={leftPanelOpen ? "收起左栏" : "展开左栏"}>
             {leftPanelOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
           </Button>

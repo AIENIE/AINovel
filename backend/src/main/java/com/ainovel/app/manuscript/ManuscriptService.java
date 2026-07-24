@@ -92,8 +92,9 @@ public class ManuscriptService {
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         sections.put(sceneId.toString(), request.content());
         manuscript.setSectionsJson(writeJson(sections));
-        manuscriptRepository.save(manuscript);
-        return toDto(manuscript);
+        manuscriptRepository.saveAndFlush(manuscript);
+        Manuscript persisted = manuscriptRepository.findWithStoryById(manuscript.getId()).orElse(manuscript);
+        return toDto(persisted);
     }
 
     @Transactional

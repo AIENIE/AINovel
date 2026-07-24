@@ -352,14 +352,15 @@ public class V2VersionPersistenceService {
 
     @Transactional
     public void ensureMainBranchAndInitialVersion(Manuscript manuscript, User user) {
-        List<V2ManuscriptBranch> branches = branchRepository.findByManuscriptId(manuscript.getId());
+        Manuscript lockedManuscript = manuscriptRepository.findByIdForUpdate(manuscript.getId()).orElse(manuscript);
+        List<V2ManuscriptBranch> branches = branchRepository.findByManuscriptId(lockedManuscript.getId());
         V2ManuscriptBranch main = branches.stream()
                 .filter(V2ManuscriptBranch::isMain)
                 .min(Comparator.comparing(branch -> safeInstant(branch.getCreatedAt())))
                 .orElse(null);
         if (main == null) {
             main = new V2ManuscriptBranch();
-            main.setManuscript(manuscript);
+            main.setManuscript(lockedManuscript);
             main.setName("main");
             main.setDescription("默认主分支");
             main.setStatus("active");
@@ -372,13 +373,15 @@ public class V2VersionPersistenceService {
                 branchRepository.save(branch);
             }
         }
-        if (manuscript.getCurrentBranchId() == null || branchRepository.findByManuscriptIdAndId(manuscript.getId(), manuscript.getCurrentBranchId()).isEmpty()) {
-            manuscript.setCurrentBranchId(main.getId());
-            manuscriptRepository.save(manuscript);
+        if (lockedManuscript.getCurrentBranchId() == null || branchRepository.findByManuscriptIdAndId(lockedManuscript.getId(), lockedManuscript.getCurrentBranchId()).isEmpty()) {
+            lockedManuscript.setCurrentBranchId(main.getId());
+            manuscriptRepository.save(lockedManuscript);
         }
-        if (versionRepository.findByManuscriptIdOrderByCreatedAtDesc(manuscript.getId()).isEmpty()) {
-            versionRepository.saveAndFlush(buildVersion(manuscript, user, main, "initial", "auto", str(manuscript.getSectionsJson(), "{}"), Map.of("bootstrap", true)));
+        if (versionRepository.findByManuscriptIdOrderByCreatedAtDesc(lockedManuscript.getId()).isEmpty()) {
+            versionRepository.saveAndFlush(buildVersion(lockedManuscript, user, main, "initial", "auto", str(lockedManuscript.getSectionsJson(), "{}"), Map.of("bootstrap", true)));
         }
+        manuscript.setCurrentBranchId(lockedManuscript.getCurrentBranchId());
+        manuscript.setSectionsJson(lockedManuscript.getSectionsJson());
     }
 
     private V2ManuscriptVersion buildVersion(Manuscript manuscript, User user, V2ManuscriptBranch branch, Object label,
@@ -393,7 +396,6 @@ public class V2VersionPersistenceService {
         version.setContentHash(sha256(sectionsJson));
         version.setSectionsJson(sectionsJson);
         version.setMetadataJson(v2Json.write(metadata == null ? Map.of() : metadata));
-        latestVersion(manuscript.getId(), null);
         UUID parentVersionId = latestVersionId(manuscript.getId());
         if (parentVersionId != null) {
             versionRepository.findById(parentVersionId).ifPresent(version::setParentVersion);

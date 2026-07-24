@@ -6,18 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const MaterialSearchPanel = () => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MaterialSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const { toast } = useToast();
 
   const handleSearch = async () => {
     if (!query) return;
     setIsSearching(true);
+    setSearchError("");
     try {
       const data = await api.materials.search(query);
       setResults(data);
+    } catch (error: any) {
+      setResults([]);
+      const message = error?.message || "素材检索失败，请稍后重试";
+      setSearchError(message);
+      toast({ variant: "destructive", title: "检索失败", description: message });
     } finally {
       setIsSearching(false);
     }
@@ -39,7 +48,12 @@ const MaterialSearchPanel = () => {
       </div>
 
       <div className="space-y-4">
-        {results.length > 0 ? (
+        {searchError ? (
+          <div className="space-y-3 text-center py-12 text-destructive">
+            <p>检索失败：{searchError}</p>
+            <Button variant="outline" onClick={() => void handleSearch()} disabled={isSearching}>重试</Button>
+          </div>
+        ) : results.length > 0 ? (
           results.map(material => (
             <Card key={material.chunkId} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">

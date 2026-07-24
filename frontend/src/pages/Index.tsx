@@ -4,10 +4,19 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, BookOpen, Globe, Zap } from "lucide-react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { buildSsoUrl, issueSsoState } from "@/lib/sso";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [demoOpen, setDemoOpen] = useState(false);
 
   const goSso = (mode: "login" | "register", nextPath = "/workbench") => {
     const state = issueSsoState();
@@ -66,7 +75,7 @@ const Index = () => {
               >
                 {isAuthenticated ? "继续创作" : "免费开始"} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="h-12 px-8 text-lg">
+              <Button size="lg" variant="outline" className="h-12 px-8 text-lg" onClick={() => setDemoOpen(true)}>
                 查看演示
               </Button>
             </div>
@@ -115,6 +124,30 @@ const Index = () => {
           <MadeWithDyad />
         </div>
       </footer>
+
+      <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Novel Studio 产品演示</DialogTitle>
+            <DialogDescription>从一句话创意到可编辑正文的完整工作流。</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {["构思与反转", "大纲与世界观", "正文与质量门禁"].map((title, index) => (
+              <div key={title} className="rounded-lg border bg-muted/30 p-4">
+                <div className="mb-2 text-xs font-semibold text-primary">0{index + 1}</div>
+                <div className="font-medium">{title}</div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {index === 0
+                    ? "输入核心创意，生成结构骨架、双轨反转和伏笔链。"
+                    : index === 1
+                      ? "把规划落地为章节场景，并保持世界设定一致。"
+                      : "生成、编辑、诊断和导出正文，关键状态始终可追踪。"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

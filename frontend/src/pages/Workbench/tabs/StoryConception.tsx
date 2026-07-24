@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "@/lib/api-client";
+import { api, toPlotPlanning } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, TwistOption } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -283,7 +283,18 @@ const StoryConception = () => {
         },
       }));
       const response = operation.resultJson ? JSON.parse(operation.resultJson) : null;
-      const nextPlanning = response?.plotPlanning || createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
+      const nextPlanning =
+        toPlotPlanning(response?.plotPlanning) ||
+        toPlotPlanning(response?.generated?.plotPlanning) ||
+        toPlotPlanning({
+          ...response?.generated?.skeleton,
+          twistOptions: response?.generated?.twistOptions,
+          foreshadowSeeds: response?.generated?.foreshadowSeeds,
+          memeStrategy: response?.generated?.memeStrategy,
+          lorebookSeeds: response?.generated?.lorebookSeeds,
+          graphSeeds: response?.generated?.graphSeeds,
+        }) ||
+        createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
       const nextResult: ConceptionResult = {
         storyCard: response?.storyCard,
         characterCards: response?.characterCards || response?.generated?.characters || [],

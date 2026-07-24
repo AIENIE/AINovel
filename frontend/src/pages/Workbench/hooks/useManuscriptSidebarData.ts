@@ -42,11 +42,9 @@ async function fetchContextPreview(storyId: string) {
 }
 
 async function fetchVersionData(manuscriptId: string) {
-  const [versions, autoSaveConfig, branches] = await Promise.all([
-    api.v2.version.listVersions(manuscriptId),
-    api.v2.version.getAutoSave(),
-    api.v2.version.listBranches(manuscriptId),
-  ]);
+  const versions = await api.v2.version.listVersions(manuscriptId);
+  const branches = await api.v2.version.listBranches(manuscriptId);
+  const autoSaveConfig = await api.v2.version.getAutoSave();
   return { autoSaveConfig, branches, versions };
 }
 

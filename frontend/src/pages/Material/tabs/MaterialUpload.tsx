@@ -4,13 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/use-toast";
 import { api } from "@/lib/api-client";
-import { UploadCloud, FileText, CheckCircle2 } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, Loader2 } from "lucide-react";
 import { FileImportJob } from "@/types";
 
 const MaterialUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [job, setJob] = useState<FileImportJob | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,25 +23,32 @@ const MaterialUpload = () => {
       }
       setFile(selectedFile);
       setJob(null);
+      setUploadError("");
     }
   };
 
   const handleUpload = async () => {
     if (!file) return;
     setIsUploading(true);
+    setUploadError("");
     try {
       const newJob = await api.materials.upload(file);
       setJob(newJob);
-      
-      // Simulate polling
-      setTimeout(async () => {
-        const completedJob = await api.materials.getUploadStatus(newJob.id);
-        setJob(completedJob);
-        setIsUploading(false);
-        toast({ title: "解析完成", description: "文件已进入待审核队列" });
-      }, 2000);
-    } catch (error) {
-      toast({ variant: "destructive", title: "上传失败" });
+      let latest = newJob;
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        if (latest.status === "completed" || latest.status === "failed") break;
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        latest = await api.materials.getUploadStatus(newJob.id);
+        setJob(latest);
+      }
+      if (latest.status === "failed") throw new Error(latest.message || "文件解析失败");
+      setJob(latest);
+      toast({ title: "解析完成", description: "文件已进入待审核队列" });
+    } catch (error: any) {
+      const message = error?.message || "上传任务状态查询失败";
+      setUploadError(message);
+      toast({ variant: "destructive", title: "上传失败", description: message });
+    } finally {
       setIsUploading(false);
     }
   };
@@ -84,11 +92,14 @@ const MaterialUpload = () => {
                 <CheckCircle2 className="h-4 w-4" /> 解析成功，请前往审核台查看
               </div>
             )}
+            {uploadError && (
+              <div className="text-sm text-destructive">{uploadError}</div>
+            )}
           </div>
         )}
 
         <Button onClick={handleUpload} disabled={!file || isUploading} className="w-full">
-          {isUploading ? "上传处理中..." : "开始上传"}
+          {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />上传处理中...</> : uploadError ? "重试上传" : "开始上传"}
         </Button>
       </CardContent>
     </Card>

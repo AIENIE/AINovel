@@ -6,6 +6,7 @@ import com.ainovel.app.material.model.Material;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.user.User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,6 +50,7 @@ public class MaterialRetrievalService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<MaterialSearchResultDto> search(User user, MaterialSearchRequest request) {
         String query = request == null || request.query() == null ? "" : request.query().trim();
         int limit = Math.max(1, Math.min(request != null && request.limit() != null ? request.limit() : 10, 30));

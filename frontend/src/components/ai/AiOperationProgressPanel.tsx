@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Ban, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   resumeTrackedAiOperation,
+  cancelTrackedAiOperation,
   retryTrackedAiOperation,
   useTrackedAiOperation,
 } from "@/lib/ai-operation-store";
@@ -40,6 +41,11 @@ export function AiOperationProgressPanel() {
           </div>
           {operation.errorMessage ? <p className="text-xs text-destructive">{operation.errorMessage}</p> : null}
           <div className="flex justify-end gap-2">
+            {running ? (
+              <Button size="sm" variant="outline" onClick={() => void cancelTrackedAiOperation(operation.id)}>
+                <Ban className="mr-1 h-3.5 w-3.5" />取消
+              </Button>
+            ) : null}
             {retryable ? (
               <Button size="sm" variant="outline" onClick={() => void retryTrackedAiOperation(operation.id)}>
                 <RotateCcw className="mr-1 h-3.5 w-3.5" />重试

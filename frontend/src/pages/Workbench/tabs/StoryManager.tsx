@@ -11,6 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from "react-router-dom";
 import { Palette } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StoryManagerProps {
   initialStoryId?: string;
@@ -23,6 +31,9 @@ const StoryManager = ({ initialStoryId }: StoryManagerProps) => {
   const [newCharacterName, setNewCharacterName] = useState("");
   const [newCharacterSynopsis, setNewCharacterSynopsis] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSynopsis, setEditSynopsis] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,6 +79,32 @@ const StoryManager = ({ initialStoryId }: StoryManagerProps) => {
       setSelectedStory(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "删除失败", description: e.message });
+    }
+  };
+
+  const openEdit = () => {
+    if (!selectedStory) return;
+    setEditTitle(selectedStory.title);
+    setEditSynopsis(selectedStory.synopsis);
+    setEditOpen(true);
+  };
+
+  const handleUpdateStory = async () => {
+    if (!selectedStory || !editTitle.trim()) return;
+    setIsSaving(true);
+    try {
+      const updated = await api.stories.update(selectedStory.id, {
+        title: editTitle.trim(),
+        synopsis: editSynopsis.trim(),
+      });
+      setSelectedStory(updated);
+      setStories((prev) => prev.map((story) => (story.id === updated.id ? updated : story)));
+      setEditOpen(false);
+      toast({ title: "故事信息已更新" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "保存失败", description: e.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -126,7 +163,7 @@ const StoryManager = ({ initialStoryId }: StoryManagerProps) => {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="icon" onClick={openEdit} aria-label="编辑故事信息"><Edit className="h-4 w-4" /></Button>
                   <Button variant="destructive" size="icon" onClick={handleDeleteStory}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </div>
@@ -178,6 +215,23 @@ const StoryManager = ({ initialStoryId }: StoryManagerProps) => {
           </div>
         )}
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑故事信息</DialogTitle>
+            <DialogDescription>修改标题和简介，保存后会同步到故事列表。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} placeholder="故事标题" />
+            <Textarea value={editSynopsis} onChange={(event) => setEditSynopsis(event.target.value)} placeholder="故事简介" className="min-h-[140px]" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>取消</Button>
+            <Button onClick={() => void handleUpdateStory()} disabled={isSaving || !editTitle.trim()}>{isSaving ? "保存中..." : "保存"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

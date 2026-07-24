@@ -23,6 +23,37 @@ curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
 
 详细证据见[“2026-07-24 故事删除与 AI 进度回归 L4 验收”](#2026-07-24-故事删除与-ai-进度回归-l4-验收通过)。
 
+## 2026-07-24 agent-browser 全系统问题修复后 L5 复测（通过）
+
+本节对应临时反馈记录 [`doc/test/2026-07-24-agent-browser-full-e2e-issues.md`](../test/2026-07-24-agent-browser-full-e2e-issues.md)。原始反馈文档保持不变；管理员页面仍按测试要求排除，本节只覆盖普通用户真实 SSO 会话。
+
+- 复测环境：`https://ainovel.localhut.com`，独立 agent-browser session `ainovel-fixes-9cbbfd283dd6`。
+- 证据目录：`/home/duwei/tmp/ainovel-full-e2e-20260724/`（原始发现）和 `/home/duwei/tmp/ainovel-full-e2e-fixes-20260724/`（修复后证据），均不进入仓库。
+- 代码验证：后端 `219` 项测试、前端 `26` 个文件 `90` 项测试和生产构建通过；随后执行 `sudo ./build.sh` 重建并部署当前工作树，liveness/readiness 均为 `200 {"status":"UP"}`。
+- 浏览器收尾检查：历史版本请求返回 200 并显示 `v1 initial`；`goals` 标签可直接鼠标点击并完成目标面板加载；最终检查 console 与 page errors 均为空。
+
+| 问题 | 复测结论 | 关键证据 |
+| --- | --- | --- |
+| ISSUE-001 | 已修复：查看演示打开可见演示反馈 | `home-demo-dialog.png` |
+| ISSUE-002 | 已修复：故事信息编辑、保存和刷新保持生效 | `story-edit-dialog.png`、`story-edit-saved.png` |
+| ISSUE-003 | 已修复：完整模块填写后预检/发布链路可完成 | `issue-003-retest-precheck.png` |
+| ISSUE-004 | 已修复：操作菜单可打开；删除接口返回 204，4 条测试素材已从列表清除 | `materials-clean.png`；后端事务回归见 `MaterialServiceClosureTest` |
+| ISSUE-005 | 已修复：故事构思结果区正常渲染并可继续后续流程 | 原始目录 `61-conception-generated.png`、`62-conception-generated-complete.png` |
+| ISSUE-006 | 已修复：正文生成完成并回填非空内容 | `body-generation-before.png`、`body-generation-after.png` |
+| ISSUE-007 | 已修复：批量上传状态轮询完成，不再永久停留处理中 | 原始目录 `51-material-batch-result.png`、`52-material-batch-complete.png` |
+| ISSUE-008 | 已修复：检索成功态、失败态和重试入口均可区分 | 原始目录 `83-workbench-material-search-no-result.png`、`84-workbench-material-search-error.png` |
+| ISSUE-009 | 已修复：正文保存后刷新仍保留正文，避免首屏空内容覆盖服务端 | `issue-009-clean-saved.png`、`issue-009-clean-after-refresh.png`；干净保存/刷新请求见同目录 JSON |
+| ISSUE-010 | 已修复：历史版本面板加载版本列表，GET `/api/v2/manuscripts/{id}/versions` 返回 200 | `issue-010-after-history.png` |
+| ISSUE-011 | 已修复：剧情候选采纳后正文可正常落地 | 原始目录 `129-manuscript-candidates-later.png`、`130-manuscript-candidate-adopted.png` |
+| ISSUE-012 | 已修复：桌面端 `goals` 标签可通过鼠标打开，不再被专注模式按钮遮挡 | `issue-012-after-goals-click.png` |
+
+数据清理与业务边界：
+
+- 本轮创建的测试素材均已通过普通用户 UI 删除，列表为空；每次 DELETE 均返回 204。
+- 本轮创建的三个重复测试故事已通过小说管理 UI 删除。已有历史 QA 故事未继续删除，避免扩大清理范围。
+- 测试世界 `E2E修复世界-20260724` 当前为 `active`，按业务规则仅 `draft` 世界允许删除；普通用户菜单不提供删除，带认证 DELETE 返回 400 `仅草稿世界可删除`。证据见 `active-world-no-delete-menu.png` 与 `active-world-delete-response.json`，因此保留该世界，不将业务保护误报为缺陷。
+- 未修改 `doc/roadmap.md`，G2 盲测门槛和路线图状态保持原值。原反馈中“待进一步复核”的设置/响应式等现象没有在本批次宣称完成，仍以原记录为准。
+
 ## 2026-07-24 故事删除与 AI 进度回归 L4 验收（通过）
 
 - 运行时根因：共享 `ainovel-backend` / `ainovel-frontend` 容器来自已删除的 `AINovel-slop-pattern-library` 工作树，因此前端 bundle 不含 `ai-operations`，后端仅识别到 V6 而运行库已是 V8。`build.sh` 现仅允许 `master` 自动接管其他工作树的共享容器；非主分支需要显式 `AINOVEL_ALLOW_SHARED_DEPLOY=1`。

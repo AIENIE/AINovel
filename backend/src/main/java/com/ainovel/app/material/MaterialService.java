@@ -93,6 +93,7 @@ public class MaterialService {
         return toDto(material);
     }
 
+    @Transactional
     public void delete(UUID id) {
         Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
         accessGuard.assertOwner(material.getUser());
@@ -120,6 +121,7 @@ public class MaterialService {
         return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage());
     }
 
+    @Transactional
     public FileImportJobDto getUploadStatus(UUID jobId) {
         MaterialUploadJob job = uploadJobRepository.findById(jobId).orElseThrow(() -> new BusinessException("上传任务不存在"));
         if (job.getResultMaterialId() != null) {

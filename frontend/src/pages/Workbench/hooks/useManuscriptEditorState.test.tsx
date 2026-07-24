@@ -168,6 +168,51 @@ describe("useManuscriptEditorState", () => {
     expect(result.current.currentWordCount).toBe(4);
   });
 
+  it("does not autosave the editor's empty pre-hydration value over server content", async () => {
+    vi.useFakeTimers();
+    const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
+      makeManuscript({ "scene-1": "<p>edited</p>" }) as any,
+    );
+    const { result, rerender } = renderHook(
+      ({ selectedManuscript }: { selectedManuscript?: Manuscript }) =>
+        useManuscriptEditorState({
+          replaceManuscript: vi.fn(),
+          selectedManuscript,
+          selectedManuscriptId: "manuscript-1",
+          selectedSceneId: "scene-1",
+          selectedStoryId: "story-1",
+          autoSaveIntervalSeconds: null,
+          toast: vi.fn(),
+        }),
+      { initialProps: { selectedManuscript: undefined } },
+    );
+
+    act(() => {
+      result.current.handleEditorChange("<p></p>");
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1300);
+      await Promise.resolve();
+    });
+
+    expect(saveSection).not.toHaveBeenCalled();
+
+    rerender({ selectedManuscript: makeManuscript({ "scene-1": "<p>server text</p>" }) });
+    await flushAsync();
+    expect(result.current.content).toBe("<p>server text</p>");
+
+    act(() => {
+      result.current.handleEditorChange("<p>edited</p>");
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1200);
+      await Promise.resolve();
+    });
+
+    expect(saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>edited</p>");
+  });
+
   it("handles editor changes, tracks session deltas, and debounces save", async () => {
     vi.useFakeTimers();
     vi.spyOn(api.v2.workspace, "startSession").mockResolvedValue({

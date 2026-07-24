@@ -336,7 +336,7 @@ function normalizeList(value: any): string[] {
     : [];
 }
 
-function toPlotPlanning(dto: any): PlotPlanning | undefined {
+export function toPlotPlanning(dto: any): PlotPlanning | undefined {
   if (!dto || typeof dto !== "object") return undefined;
   const twistOptions = Array.isArray(dto.twistOptions)
     ? dto.twistOptions
@@ -1223,6 +1223,14 @@ export const api = {
     create: async (payload: { title: string; type: any; content: string; tags?: string[] }) => {
       const dto = await requestJson<any>("/v1/materials", { method: "POST", body: JSON.stringify(payload) });
       return toMaterial(dto);
+    },
+    update: async (id: string, payload: { title?: string; type?: any; summary?: string; content?: string; tags?: string[]; status?: string }) => {
+      const dto = await requestJson<any>(`/v1/materials/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+      return toMaterial(dto);
+    },
+    delete: async (id: string) => {
+      await requestVoid(`/v1/materials/${id}`, { method: "DELETE" });
+      return true;
     },
     upload: async (file: File): Promise<FileImportJob> => {
       const form = new FormData();

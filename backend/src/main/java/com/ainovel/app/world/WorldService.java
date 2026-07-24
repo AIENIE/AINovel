@@ -143,6 +143,7 @@ public class WorldService {
         return aiService.refine(user, new AiRefineRequest(text, prompt, null));
     }
 
+    @Transactional(readOnly = true)
     public WorldPublishPreviewResponse preview(UUID id) {
         World world = worldRepository.findById(id).orElseThrow();
         accessGuard.assertOwner(world.getUser());

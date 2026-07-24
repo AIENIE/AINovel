@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MaterialServiceClosureTest {
@@ -101,6 +102,17 @@ class MaterialServiceClosureTest {
         assertEquals("第一章", citation.get("chapterTitle"));
         assertEquals("旧码头", citation.get("sceneTitle"));
         assertTrue(String.valueOf(citation.get("snippet")).contains("陆家码头"));
+    }
+
+    @Test
+    void deleteShouldAuthorizeAndRemoveOwnedMaterial() {
+        Material material = material("delete", "待清理素材", "测试内容", "[]");
+        when(materialRepository.findById(material.getId())).thenReturn(Optional.of(material));
+
+        service.delete(material.getId());
+
+        verify(accessGuard).assertOwner(user);
+        verify(materialRepository).delete(material);
     }
 
     private Material material(String suffix, String title, String content, String tagsJson) {

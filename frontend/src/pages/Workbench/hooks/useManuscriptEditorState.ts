@@ -35,6 +35,12 @@ export function useManuscriptEditorState({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const saveTimer = useRef<Record<string, number>>({});
+  const hydratedSceneKeyRef = useRef("");
+
+  const sceneKey = useCallback(
+    (manuscriptId: string, sceneId: string) => `${manuscriptId}:${sceneId}`,
+    [],
+  );
 
   const currentWordCount = useMemo(() => countWords(stripHtml(content)), [content]);
   const measureSceneWords = useCallback((html: string) => countWords(stripHtml(html)), []);
@@ -53,8 +59,11 @@ export function useManuscriptEditorState({
       replaceManuscript(manuscript);
       setSceneDrafts(manuscript.sections || {});
       setDirtyScenes({});
+      if (selectedSceneId) {
+        hydratedSceneKeyRef.current = sceneKey(manuscript.id, selectedSceneId);
+      }
     },
-    [replaceManuscript],
+    [replaceManuscript, sceneKey, selectedSceneId],
   );
 
   const applyServerSection = useCallback((manuscript: Manuscript, sceneId: string) => {
@@ -71,19 +80,24 @@ export function useManuscriptEditorState({
       delete next[sceneId];
       return next;
     });
-    if (selectedSceneId === sceneId) setContent(html);
+    if (selectedSceneId === sceneId) {
+      hydratedSceneKeyRef.current = sceneKey(manuscript.id, sceneId);
+      setContent(html);
+    }
     primeSceneHtml(sceneId, html);
-  }, [primeSceneHtml, replaceManuscript, selectedSceneId]);
+  }, [primeSceneHtml, replaceManuscript, sceneKey, selectedSceneId]);
 
   useEffect(() => {
     if (!selectedManuscript || !selectedSceneId) {
+      hydratedSceneKeyRef.current = "";
       setContent("");
       return;
     }
     const html = sceneDrafts[selectedSceneId] ?? selectedManuscript.sections?.[selectedSceneId] ?? "";
+    hydratedSceneKeyRef.current = sceneKey(selectedManuscript.id, selectedSceneId);
     setContent(html);
     primeSceneHtml(selectedSceneId, html);
-  }, [primeSceneHtml, sceneDrafts, selectedManuscript, selectedSceneId]);
+  }, [primeSceneHtml, sceneDrafts, sceneKey, selectedManuscript, selectedSceneId]);
 
   useEffect(() => {
     Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
@@ -148,13 +162,14 @@ export function useManuscriptEditorState({
 
   const handleEditorChange = useCallback(
     (html: string) => {
+      if (hydratedSceneKeyRef.current !== sceneKey(selectedManuscriptId, selectedSceneId)) return;
       setContent(html);
       if (!selectedSceneId) return;
       recordSceneHtml(selectedSceneId, html);
       updateSceneDraft(selectedSceneId, html);
       scheduleSave(selectedSceneId, html);
     },
-    [recordSceneHtml, scheduleSave, selectedSceneId, updateSceneDraft],
+    [recordSceneHtml, sceneKey, scheduleSave, selectedManuscriptId, selectedSceneId, updateSceneDraft],
   );
 
   return {

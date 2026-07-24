@@ -22,6 +22,19 @@ type UseManuscriptSceneGenerationOptions = {
   toast: ToastFn;
 };
 
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+async function readGeneratedManuscript(manuscriptId: string, sceneId: string): Promise<Manuscript> {
+  let latest: Manuscript | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    latest = await api.manuscripts.get(manuscriptId);
+    const generatedHtml = latest.sections?.[sceneId];
+    if (typeof generatedHtml === "string" && stripHtml(generatedHtml)) return latest;
+    if (attempt < 2) await wait(500);
+  }
+  throw new Error("生成结果没有可用正文，请重试");
+}
+
 export function useManuscriptSceneGeneration({
   loadPlotQuality,
   loadSlopQuality,
@@ -41,7 +54,7 @@ export function useManuscriptSceneGeneration({
     setIsGenerating(true);
     try {
       await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode));
-      const saved = await api.manuscripts.get(selectedManuscriptId);
+      const saved = await readGeneratedManuscript(selectedManuscriptId, sceneId);
       const generatedHtml = saved.sections?.[sceneId];
       if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
         throw new Error("生成结果没有可用正文，请重试");

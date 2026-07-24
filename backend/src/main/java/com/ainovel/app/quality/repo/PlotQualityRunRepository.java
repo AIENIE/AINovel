@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PlotQualityRunRepository extends JpaRepository<PlotQualityRun, UUID> {
+    @Override
+    @EntityGraph(attributePaths = "issues")
+    java.util.Optional<PlotQualityRun> findById(UUID id);
     @EntityGraph(attributePaths = "issues")
     List<PlotQualityRun> findTop20ByManuscriptIdOrderByCreatedAtDesc(UUID manuscriptId);
 
