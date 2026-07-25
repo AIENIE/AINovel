@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Sparkles, WandSparkles } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toast";
-import { api } from "@/lib/api-client";
+import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 
 const GENRES = [
@@ -39,7 +39,7 @@ const CreateNovel = () => {
     try {
       if (aiInit) {
         const operation = await runTrackedAiOperation(api.stories.startConception({ title: title.trim(), synopsis, genre, tone: "" }));
-        const res = operation.resultJson ? JSON.parse(operation.resultJson) : null;
+        const res = normalizeConceptionResult(operation.resultJson ? JSON.parse(operation.resultJson) : null);
         const storyId = res?.storyCard?.id;
         if (storyId) {
           try {

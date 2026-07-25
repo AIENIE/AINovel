@@ -411,6 +411,30 @@ export function toPlotPlanning(dto: any): PlotPlanning | undefined {
     : undefined;
 }
 
+export function normalizeConceptionResult(dto: any) {
+  const result = dto && typeof dto === "object" ? dto : {};
+  const generated = result.generated && typeof result.generated === "object" ? result.generated : undefined;
+  const plotPlanning =
+    toPlotPlanning(result.plotPlanning) ||
+    toPlotPlanning(generated?.plotPlanning) ||
+    toPlotPlanning({
+      ...generated?.skeleton,
+      twistOptions: generated?.twistOptions,
+      foreshadowSeeds: generated?.foreshadowSeeds,
+      memeStrategy: generated?.memeStrategy,
+      lorebookSeeds: generated?.lorebookSeeds,
+      graphSeeds: generated?.graphSeeds,
+      selectedTwistId: generated?.outlineSuggestion?.planning?.selectedTwistId,
+    });
+  const outlineSeed = result.outlineSeed ?? generated?.outlineSuggestion;
+
+  return {
+    ...result,
+    plotPlanning,
+    outlineSeed,
+  };
+}
+
 function toOutline(dto: any): Outline {
   const planning = toPlotPlanning(dto?.planning);
   return {
@@ -1008,30 +1032,16 @@ export const api = {
     },
     conception: async (data: any) => {
       const dto = await requestJson<any>("/v1/conception", { method: "POST", body: JSON.stringify(data) });
-      const plotPlanning =
-        toPlotPlanning(dto?.plotPlanning) ||
-        toPlotPlanning({
-          ...dto?.generated?.skeleton,
-          twistOptions: dto?.generated?.twistOptions,
-          foreshadowSeeds: dto?.generated?.foreshadowSeeds,
-          memeStrategy: dto?.generated?.memeStrategy,
-          lorebookSeeds: dto?.generated?.lorebookSeeds,
-          graphSeeds: dto?.generated?.graphSeeds,
-          selectedTwistId: dto?.generated?.outlineSuggestion?.planning?.selectedTwistId,
-        });
-      const outlineSeed = dto?.outlineSeed
+      const normalized = normalizeConceptionResult(dto);
+      const plotPlanning = normalized.plotPlanning;
+      const outlineSeed = normalized.outlineSeed
         ? {
-            title: String(dto.outlineSeed.title ?? "剧情骨架方案"),
-            chapters: Array.isArray(dto.outlineSeed.chapters) ? dto.outlineSeed.chapters : [],
+            title: String(normalized.outlineSeed.title ?? "剧情骨架方案"),
+            chapters: Array.isArray(normalized.outlineSeed.chapters) ? normalized.outlineSeed.chapters : [],
           }
-        : dto?.generated?.outlineSuggestion
-          ? {
-              title: String(dto.generated.outlineSuggestion.title ?? "剧情骨架方案"),
-              chapters: Array.isArray(dto.generated.outlineSuggestion.chapters) ? dto.generated.outlineSuggestion.chapters : [],
-            }
-          : undefined;
+        : undefined;
       return {
-        ...dto,
+        ...normalized,
         storyCard: dto?.storyCard ? toStory(dto.storyCard) : undefined,
         plotPlanning,
         outlineSeed,

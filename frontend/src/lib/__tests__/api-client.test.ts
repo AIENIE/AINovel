@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ApiError, api } from "@/lib/api-client";
+import { ApiError, api, normalizeConceptionResult } from "@/lib/api-client";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -272,6 +272,25 @@ describe("api client", () => {
     expect(result.plotPlanning?.twistOptions[0]?.setup).toEqual(["异常口供", "伪造监控"]);
     expect(result.plotPlanning?.foreshadowPlans[0]?.clue).toContain("案发现场");
     expect(result.plotPlanning?.selectedTwistId).toBe("twist-intuition");
+  });
+
+  it("normalizes raw async conception results before they are cached for the workbench", () => {
+    const result = normalizeConceptionResult({
+      storyCard: { id: "story-1", title: "雾港迷局" },
+      generated: {
+        skeleton: {
+          corePromise: "追查越深入，越发现真相指向主角自己。",
+          centralQuestion: "主角究竟在追谁？",
+        },
+        twistOptions: [{ summary: "维持强直觉反转", setupPoints: ["异常口供"] }],
+        foreshadowSeeds: [{ setup: "案发现场的熟悉感", payoff: "最终证明来自时间错位记忆" }],
+        outlineSuggestion: { title: "剧情骨架方案", chapters: [] },
+      },
+    });
+
+    expect(result.plotPlanning?.twistOptions).toHaveLength(1);
+    expect(result.plotPlanning?.foreshadowPlans).toHaveLength(1);
+    expect(result.outlineSeed).toMatchObject({ title: "剧情骨架方案", chapters: [] });
   });
 
   it("keeps material search as chunk-level results without detail fetches", async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, toPlotPlanning } from "@/lib/api-client";
+import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, TwistOption } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -54,14 +54,7 @@ const readCache = (storyId?: string) => {
   try {
     const raw = window.sessionStorage.getItem(`${CACHE_PREFIX}:${storyId}`);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as ConceptionResult & { generated?: { plotPlanning?: PlotPlanning; outlineSuggestion?: ConceptionResult["outlineSeed"] } };
-    if (!parsed.plotPlanning && parsed.generated?.plotPlanning) {
-      parsed.plotPlanning = parsed.generated.plotPlanning;
-    }
-    if (!parsed.outlineSeed && parsed.generated?.outlineSuggestion) {
-      parsed.outlineSeed = parsed.generated.outlineSuggestion;
-    }
-    return parsed;
+    return normalizeConceptionResult(JSON.parse(raw)) as ConceptionResult;
   } catch {
     return null;
   }
@@ -282,18 +275,9 @@ const StoryConception = () => {
           memeReference: memeHint.trim() || undefined,
         },
       }));
-      const response = operation.resultJson ? JSON.parse(operation.resultJson) : null;
+      const response = normalizeConceptionResult(operation.resultJson ? JSON.parse(operation.resultJson) : null);
       const nextPlanning =
-        toPlotPlanning(response?.plotPlanning) ||
-        toPlotPlanning(response?.generated?.plotPlanning) ||
-        toPlotPlanning({
-          ...response?.generated?.skeleton,
-          twistOptions: response?.generated?.twistOptions,
-          foreshadowSeeds: response?.generated?.foreshadowSeeds,
-          memeStrategy: response?.generated?.memeStrategy,
-          lorebookSeeds: response?.generated?.lorebookSeeds,
-          graphSeeds: response?.generated?.graphSeeds,
-        }) ||
+        response.plotPlanning ||
         createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
       const nextResult: ConceptionResult = {
         storyCard: response?.storyCard,
