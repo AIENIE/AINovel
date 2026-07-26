@@ -1,10 +1,29 @@
-# Admin API（需管理员权限）
+# Admin API
+
+除公开的引导与登录接口外，以下接口均需本地管理员会话。管理员是固定单一账号，日常登录只使用 TOTP；部署配置中的 `ADMIN_PASSWORD` 仅用于首次绑定验证器。
 
 ## 管理员本地登录
 
-- `POST /api/v1/admin-auth/login`
+- `GET /api/v1/admin-auth/bootstrap`
+  - 返回 `ENROLLMENT_REQUIRED` 或 `TOTP_REQUIRED`。
+- `POST /api/v1/admin-auth/enrollment/start`
+  - 首次绑定时提交 `ADMIN_PASSWORD`，返回一次性挑战、手动密钥和 `otpauth` URI。
+- `POST /api/v1/admin-auth/enrollment/confirm`
+  - 提交挑战与 6 位 TOTP，完成绑定并一次性返回恢复码。
+- `POST /api/v1/admin-auth/login/challenge`
+- `POST /api/v1/admin-auth/login/totp`
+- `POST /api/v1/admin-auth/login/recovery`
+  - 恢复码只创建受限恢复会话，不授予普通管理接口权限。
 - `GET /api/v1/admin-auth/me`
 - `POST /api/v1/admin-auth/logout`
+- `GET /api/v1/admin-auth/security/status`
+- `POST /api/v1/admin-auth/security/recovery-codes/regenerate`
+  - 需要当前 TOTP，会使旧恢复码全部失效。
+- `POST /api/v1/admin-auth/rebind/start`
+- `POST /api/v1/admin-auth/rebind/confirm`
+  - 仅恢复会话可用；成功后撤销旧会话并生成新恢复码。
+
+认证成功通过同源 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 建立本地管理员会话；响应 JSON 不返回 JWT。认证失败始终返回统一的 `401` 语义；失败响应与 URL 不包含 TOTP、恢复码、手工密钥、二维码 URI 或原始 challenge。
 
 ## 运营概览
 

@@ -33,7 +33,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(9, result.migrationsExecuted);
+            assertEquals(10, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -43,6 +43,11 @@ class FlywaySchemaGovernanceTest {
             assertTableExists(mysql, databaseName, "async_jobs");
             assertTableExists(mysql, databaseName, "ai_operation_runs");
             assertTableExists(mysql, databaseName, "ai_operation_steps");
+            assertTableExists(mysql, databaseName, "admin_totp_credentials");
+            assertTableExists(mysql, databaseName, "admin_auth_challenges");
+            assertTableExists(mysql, databaseName, "admin_recovery_codes");
+            assertTableExists(mysql, databaseName, "admin_sessions");
+            assertTableExists(mysql, databaseName, "admin_auth_audit");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
             assertTableExists(mysql, databaseName, "flyway_schema_history");
         }
@@ -66,7 +71,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(8, migrateResult.migrationsExecuted);
+            assertEquals(9, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -94,7 +99,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(8, migrateResult.migrationsExecuted);
+            assertEquals(9, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -127,7 +132,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(8, migrateResult.migrationsExecuted);
+            assertEquals(9, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
@@ -187,7 +192,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
                     .locations("classpath:db/migration").load().migrate();
-            assertEquals(1, result.migrationsExecuted);
+            assertEquals(2, result.migrationsExecuted);
 
             try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
                  Statement statement = connection.createStatement()) {

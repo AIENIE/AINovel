@@ -7,7 +7,9 @@
 - 基础设施：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
 - 三服务地址：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
-- 管理员：`ADMIN_USERNAME`、`ADMIN_PASSWORD`
+- 管理员首次引导：`ADMIN_USERNAME`、`ADMIN_PASSWORD`
+- 管理员 TOTP 密钥环：`ADMIN_TOTP_ENCRYPTION_KEYS`、`ADMIN_TOTP_ACTIVE_KEY_VERSION`
+- 管理员会话：`ADMIN_TOTP_SESSION_MINUTES`、`ADMIN_TOTP_SESSION_IDLE_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES`
 - 外部鉴权：AI HMAC、user-service internal token、pay-service service JWT
 - 数据库：`SPRING_JPA_HIBERNATE_DDL_AUTO=none`
 
@@ -31,7 +33,7 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前最新版本为 V9。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除。
+- 当前最新版本为 V10。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表。
 - 不要手工向 `backend/sql/schema.sql` 追加 DDL。
 
 ## 常见故障
@@ -44,6 +46,18 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
 - SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、internal token 和 user-service `ValidateSession` 可达性。
-- 管理员登录失败：检查本地管理员配置与 `/api/v1/admin-auth/login`。
+- 管理员登录失败：先检查 `/api/v1/admin-auth/bootstrap` 状态，再确认首次绑定使用 `ADMIN_PASSWORD`、日常登录使用验证器动态码；恢复码只能进入受限重绑定流程。
 - 通用积分转换失败：检查 pay-service gRPC 地址、项目标识和 service JWT。
 - `curl` 出现代理相关 TLS 异常：对本地域名使用 `--noproxy '*'`。
+
+## 管理员受控重置
+
+同时丢失验证器与全部恢复码时，不允许使用公开 HTTP 接口或部署密码绕过。完成线下身份核验与审批后，运维只能在后端容器或等效受控运行环境中执行一次性命令：
+
+```bash
+ADMIN_TOTP_RESET_CONFIRM=RESET \
+ADMIN_TOTP_RESET_APPROVAL_ID=<approved-ticket-id> \
+java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles.active=admin-totp-reset
+```
+
+命令会撤销全部管理员会话、恢复码和旧验证器凭据，写入审计记录后退出；下一次访问将回到首次绑定流程。审批编号不可包含密钥、验证码或恢复码。

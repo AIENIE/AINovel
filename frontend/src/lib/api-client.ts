@@ -43,10 +43,7 @@ const API_BASE = "/api";
 const TERMINAL_AI_OPERATION_STATES = new Set(["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"]);
 
 const USER_TOKEN_KEY = "token";
-const ADMIN_TOKEN_KEY = "admin_token";
-
 const getToken = () => localStorage.getItem(USER_TOKEN_KEY);
-const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY);
 
 export class ApiError extends Error {
   status: number;
@@ -104,29 +101,16 @@ function redirectToLogin(scope: AuthScope) {
 
 function handleUnauthorized(path: string) {
   const scope = inferAuthScope(path);
-  if (scope === "admin") {
-    adminSession.clearToken();
-  } else {
+  if (scope === "user") {
     localStorage.removeItem(USER_TOKEN_KEY);
   }
   redirectToLogin(scope);
 }
 
-function requireAdminToken(): string {
-  const token = getAdminToken();
-  if (!token) {
-    handleUnauthorized("/v1/admin");
-    throw new ApiError(401, "管理员未登录");
-  }
-  return token;
+// Admin endpoints authenticate through the same-origin HttpOnly cookie, never a bearer token.
+function adminCookieAuth(): string {
+  return "";
 }
-
-export const adminSession = {
-  tokenKey: ADMIN_TOKEN_KEY,
-  getToken: getAdminToken,
-  setToken: (token: string) => localStorage.setItem(ADMIN_TOKEN_KEY, token),
-  clearToken: () => localStorage.removeItem(ADMIN_TOKEN_KEY),
-};
 
 async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
   const headers = new Headers(init.headers || {});
@@ -135,7 +119,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const resp = await fetch(`${API_BASE}${path}`, { ...init, credentials: "same-origin", headers });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -151,7 +135,7 @@ async function requestForm<T>(path: string, form: FormData, tokenOverride?: stri
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  const resp = await fetch(`${API_BASE}${path}`, { method: "POST", credentials: "same-origin", headers, body: form });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -169,7 +153,7 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  const resp = await fetch(`${API_BASE}${path}`, { ...init, credentials: "same-origin", headers });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -717,19 +701,22 @@ export const api = {
     cancel: async (id: string) => requestVoid(`/v1/ai-operations/${id}/cancel`, { method: "POST", body: "{}" }),
   },
   adminAuth: {
-    login: async (username: string, password: string): Promise<{ token: string; username: string; loggedInAt: string }> => {
-      return await requestJson<{ token: string; username: string; loggedInAt: string }>(
-        "/v1/admin-auth/login",
-        { method: "POST", body: JSON.stringify({ username, password }) },
-        "",
-      );
-    },
-    me: async (): Promise<{ username: string }> => {
-      return await requestJson<{ username: string }>("/v1/admin-auth/me", { method: "GET" }, requireAdminToken());
+    bootstrap: async (): Promise<{ state: "ENROLLMENT_REQUIRED" | "TOTP_REQUIRED"; challengeTtlSeconds: number }> => requestJson("/v1/admin-auth/bootstrap", { method: "GET" }, ""),
+    startEnrollment: async (password: string) => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/enrollment/start", { method: "POST", body: JSON.stringify({ password }) }, ""),
+    confirmEnrollment: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/enrollment/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
+    createLoginChallenge: async () => requestJson<{ challengeId: string; expiresAt: string; next: string }>("/v1/admin-auth/login/challenge", { method: "POST", body: "{}" }, ""),
+    loginTotp: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/totp", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
+    loginRecovery: async (challengeId: string, recoveryCode: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/recovery", { method: "POST", body: JSON.stringify({ challengeId, recoveryCode }) }, ""),
+    me: async (): Promise<{ username: string; sessionScope: string; recoveryCodesRemaining: number }> => {
+      return await requestJson<{ username: string; sessionScope: string; recoveryCodesRemaining: number }>("/v1/admin-auth/me", { method: "GET" }, adminCookieAuth());
     },
     logout: async (): Promise<void> => {
-      await requestVoid("/v1/admin-auth/logout", { method: "POST", body: "{}" }, requireAdminToken());
+      await requestVoid("/v1/admin-auth/logout", { method: "POST", body: "{}" }, adminCookieAuth());
     },
+    status: async () => requestJson<{ enrolled: boolean; recoveryCodesRemaining: number; lowRecoveryThreshold: number }>("/v1/admin-auth/security/status", { method: "GET" }, adminCookieAuth()),
+    regenerateRecoveryCodes: async (code: string) => requestJson<string[]>("/v1/admin-auth/security/recovery-codes/regenerate", { method: "POST", body: JSON.stringify({ code }) }, adminCookieAuth()),
+    startRebind: async () => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/rebind/start", { method: "POST", body: "{}" }, adminCookieAuth()),
+    confirmRebind: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/rebind/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, adminCookieAuth()),
   },
 
   user: {
@@ -803,12 +790,12 @@ export const api = {
 
   admin: {
     getDashboardStats: async (): Promise<AdminDashboardStats> => {
-      return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" }, requireAdminToken());
+      return await requestJson<AdminDashboardStats>("/v1/admin/dashboard", { method: "GET" }, adminCookieAuth());
     },
     getUsers: async (search?: string): Promise<User[]> => {
       const keyword = search?.trim();
       const path = keyword ? `/v1/admin/users?search=${encodeURIComponent(keyword)}` : "/v1/admin/users";
-      const users = await requestJson<any[]>(path, { method: "GET" }, requireAdminToken());
+      const users = await requestJson<any[]>(path, { method: "GET" }, adminCookieAuth());
       return users.map((u) => ({
         id: String(u.id),
         username: u.username,
@@ -824,13 +811,13 @@ export const api = {
       }));
     },
     getSystemConfig: async () => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "GET" }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/system-config", { method: "GET" }, adminCookieAuth());
     },
     updateSystemConfig: async (payload: any) => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     listRedeemCodes: async () => {
-      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" }, adminCookieAuth());
     },
     createRedeemCode: async (payload: {
       code: string;
@@ -842,74 +829,74 @@ export const api = {
       stackable?: boolean;
       description?: string;
     }) => {
-      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
-      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     listConversionOrders: async (page = 0, size = 50) => {
-      return await requestJson<any[]>(`/v1/admin/credits/conversions?page=${page}&size=${size}`, { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>(`/v1/admin/credits/conversions?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
     },
     listCreditLedger: async (page = 0, size = 50) => {
-      return await requestJson<any[]>(`/v1/admin/credits/ledger?page=${page}&size=${size}`, { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>(`/v1/admin/credits/ledger?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
     },
     getAssetSummary: async () => {
-      return await requestJson<any>("/v1/admin/assets/summary", { method: "GET" }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/assets/summary", { method: "GET" }, adminCookieAuth());
     },
     listPendingMaterials: async (): Promise<Material[]> => {
-      const data = await requestJson<any[]>("/v1/admin/materials/pending", { method: "GET" }, requireAdminToken());
+      const data = await requestJson<any[]>("/v1/admin/materials/pending", { method: "GET" }, adminCookieAuth());
       return data.map(toMaterial);
     },
     approveMaterial: async (id: string, payload: any = {}) => {
-      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     rejectMaterial: async (id: string, payload: any = {}) => {
-      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     findMaterialDuplicates: async () => {
-      return await requestJson<any[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, requireAdminToken());
+      return await requestJson<any[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, adminCookieAuth());
     },
     mergeMaterials: async (payload: any) => {
-      return toMaterial(await requestJson<any>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, requireAdminToken()));
+      return toMaterial(await requestJson<any>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     listAssets: async (kind: "stories" | "worlds" | "manuscripts") => {
-      return await requestJson<any[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, adminCookieAuth());
     },
     listQualityRuns: async () => {
-      return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, adminCookieAuth());
     },
     listG2Evaluations: async (): Promise<G2EvaluationExperiment[]> => {
-      return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, requireAdminToken());
+      return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, adminCookieAuth());
     },
     createG2Evaluation: async (payload: { title: string; reviewerUsernames: string[] }): Promise<G2EvaluationExperiment> => {
       return await requestJson<G2EvaluationExperiment>("/v1/admin/g2-evaluations", {
         method: "POST",
         body: JSON.stringify(payload),
-      }, requireAdminToken());
+      }, adminCookieAuth());
     },
     transitionG2Evaluation: async (id: string, status: string): Promise<G2EvaluationExperiment> => {
       return await requestJson<G2EvaluationExperiment>(`/v1/admin/g2-evaluations/${id}/status`, {
         method: "POST",
         body: JSON.stringify({ status }),
-      }, requireAdminToken());
+      }, adminCookieAuth());
     },
     getOpsSummary: async () => {
-      return await requestJson<any>("/v1/admin/ops/summary", { method: "GET" }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/ops/summary", { method: "GET" }, adminCookieAuth());
     },
     listDependencies: async () => {
-      return await requestJson<any[]>("/v1/admin/ops/dependencies", { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>("/v1/admin/ops/dependencies", { method: "GET" }, adminCookieAuth());
     },
     listOpsEvents: async (params: { severity?: string; category?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
-      return await requestJson<any>(`/v1/admin/ops/events${queryString(params)}`, { method: "GET" }, requireAdminToken());
+      return await requestJson<any>(`/v1/admin/ops/events${queryString(params)}`, { method: "GET" }, adminCookieAuth());
     },
     listAuditRecords: async (params: { action?: string; actor?: string; targetType?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
-      return await requestJson<any>(`/v1/admin/ops/audit${queryString(params)}`, { method: "GET" }, requireAdminToken());
+      return await requestJson<any>(`/v1/admin/ops/audit${queryString(params)}`, { method: "GET" }, adminCookieAuth());
     },
     listOpsAlerts: async () => {
-      return await requestJson<any[]>("/v1/admin/ops/alerts", { method: "GET" }, requireAdminToken());
+      return await requestJson<any[]>("/v1/admin/ops/alerts", { method: "GET" }, adminCookieAuth());
     },
     getOpsDiagnostics: async () => {
-      return await requestJson<any>("/v1/admin/ops/diagnostics", { method: "GET" }, requireAdminToken());
+      return await requestJson<any>("/v1/admin/ops/diagnostics", { method: "GET" }, adminCookieAuth());
     },
   },
 

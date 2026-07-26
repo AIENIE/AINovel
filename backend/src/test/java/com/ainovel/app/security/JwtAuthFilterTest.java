@@ -1,5 +1,6 @@
 package com.ainovel.app.security;
 
+import com.ainovel.app.adminauth.AdminSessionService;
 import com.ainovel.app.security.remote.UserSessionValidator;
 import com.ainovel.app.user.SsoUserProvisioningService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +17,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -23,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -132,6 +135,70 @@ class JwtAuthFilterTest {
 
         assertEquals("signed-user", SecurityContextHolder.getContext().getAuthentication().getName());
         verify(provisioningService).ensureExistsBestEffort("signed-user", "USER", 99L);
+    }
+
+    @Test
+    void shouldOnlyGrantRecoveryAuthorityForAnActiveRecoveryAdminSession() throws Exception {
+        JwtService jwtService = mock(JwtService.class);
+        Claims claims = mock(Claims.class);
+        when(claims.getSubject()).thenReturn("configured-admin");
+        when(claims.get("uid")).thenReturn(0L);
+        when(claims.get("sid")).thenReturn("admin-session-1");
+        when(claims.get("role")).thenReturn("ADMIN");
+        when(claims.get("admin_session")).thenReturn("admin-session-1");
+        when(claims.get("admin_scope")).thenReturn("RECOVERY");
+        when(claims.get("local_admin")).thenReturn(true);
+        when(jwtService.parseClaims(anyString())).thenReturn(claims);
+
+        UserDetailsService userDetailsService = mock(UserDetailsService.class);
+        SsoUserProvisioningService provisioningService = mock(SsoUserProvisioningService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<UserSessionValidator> provider = mock(ObjectProvider.class);
+        AdminSessionService adminSessions = mock(AdminSessionService.class);
+        when(adminSessions.isActive("admin-session-1", "RECOVERY")).thenReturn(true);
+
+        JwtAuthFilter filter = createFilter(jwtService, userDetailsService, provisioningService, provider);
+        ReflectionTestUtils.setField(filter, "adminSessionService", adminSessions);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer local-admin-token");
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertEquals("configured-admin", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ADMIN_RECOVERY")));
+        verify(adminSessions).isActive("admin-session-1", "RECOVERY");
+        verify(provisioningService, never()).ensureExistsBestEffort(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void shouldAuthenticateAnActiveLocalAdminSessionFromTheHttpOnlyCookie() throws Exception {
+        JwtService jwtService = mock(JwtService.class);
+        Claims claims = mock(Claims.class);
+        when(claims.getSubject()).thenReturn("configured-admin");
+        when(claims.get("admin_session")).thenReturn("admin-session-1");
+        when(claims.get("admin_scope")).thenReturn("FULL");
+        when(claims.get("local_admin")).thenReturn(true);
+        when(jwtService.parseClaims(anyString())).thenReturn(claims);
+
+        UserDetailsService userDetailsService = mock(UserDetailsService.class);
+        SsoUserProvisioningService provisioningService = mock(SsoUserProvisioningService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<UserSessionValidator> provider = mock(ObjectProvider.class);
+        AdminSessionService adminSessions = mock(AdminSessionService.class);
+        when(adminSessions.isActive("admin-session-1", "FULL")).thenReturn(true);
+
+        JwtAuthFilter filter = createFilter(jwtService, userDetailsService, provisioningService, provider);
+        ReflectionTestUtils.setField(filter, "adminSessionService", adminSessions);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setCookies(new Cookie("AINOVEL_ADMIN_SESSION", "local-admin-token"));
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertEquals("configured-admin", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")));
+        verify(adminSessions).isActive("admin-session-1", "FULL");
     }
 
     private JwtAuthFilter createFilter(

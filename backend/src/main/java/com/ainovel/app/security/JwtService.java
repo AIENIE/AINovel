@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import java.security.Key;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.Duration;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Map;
@@ -28,12 +28,19 @@ public class JwtService {
     }
 
     public String generateToken(String username, Map<String, Object> claims) {
+        return generateToken(username, claims, Duration.ofMinutes(expirationMinutes));
+    }
+
+    public String generateToken(String username, Map<String, Object> claims, Duration lifetime) {
         Instant now = Instant.now();
+        if (lifetime == null || lifetime.isNegative() || lifetime.isZero()) {
+            throw new IllegalArgumentException("JWT lifetime must be positive");
+        }
         return Jwts.builder()
                 .setSubject(username)
                 .addClaims(claims)
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
+                .setExpiration(Date.from(now.plus(lifetime)))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }

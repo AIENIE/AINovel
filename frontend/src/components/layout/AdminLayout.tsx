@@ -12,11 +12,12 @@ import {
   ShieldAlert,
   Menu,
   Activity,
-  FlaskConical
+  FlaskConical,
+  KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { adminSession, api } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 
 const navItems = [
   { title: "运营概览", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -28,6 +29,7 @@ const navItems = [
   { title: "专属积分", href: "/admin/credits", icon: Coins },
   { title: "运维观测", href: "/admin/ops", icon: Activity },
   { title: "系统维护", href: "/admin/settings", icon: Settings },
+  { title: "账户安全", href: "/admin/security", icon: KeyRound },
 ];
 
 const AdminLayout = () => {
@@ -43,7 +45,6 @@ const AdminLayout = () => {
         if (!cancelled) setUsername(res.username || "admin");
       })
       .catch(() => {
-        adminSession.clearToken();
         if (!cancelled) navigate("/admin/login", { replace: true });
       });
     return () => {
@@ -57,7 +58,6 @@ const AdminLayout = () => {
     } catch {
       // Stateless logout, token cleanup on client side is enough.
     }
-    adminSession.clearToken();
     navigate("/admin/login", { replace: true });
   };
 

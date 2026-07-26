@@ -3,8 +3,11 @@
 ## 入口与认证
 
 - 登录页：`/admin/login`；后台前缀：`/admin/*`。
-- 管理员使用本地 `/api/v1/admin-auth/*` 和独立令牌，不复用普通用户 SSO token。
-- 后端管理接口要求 `ROLE_ADMIN`。
+- 管理员使用本地 `/api/v1/admin-auth/*`、服务端会话和独立 JWT，不复用普通用户 SSO token。JWT 仅通过同源 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 传输，不写入浏览器存储或响应 JSON。
+- 固定单一管理员由 `ADMIN_USERNAME` 标识；`ADMIN_PASSWORD` 只支持首次 TOTP 绑定。
+- TOTP 密钥以 AES-GCM 加密保存，使用版本化 `ADMIN_TOTP_ENCRYPTION_KEYS` 密钥环和 `ADMIN_TOTP_ACTIVE_KEY_VERSION`。
+- 后端普通管理接口要求 `ROLE_ADMIN`。恢复码登录只授予 `ADMIN_RECOVERY`，仅允许查询会话、退出和重新绑定验证器。
+- 恢复码只在生成或重置成功时显示一次；丢失验证器和全部恢复码时只能通过受控运维操作重置。
 
 ## 当前能力
 

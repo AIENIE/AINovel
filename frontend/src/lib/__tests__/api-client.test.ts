@@ -360,8 +360,7 @@ describe("api client", () => {
     expect(assign).toHaveBeenCalledWith("/login?next=%2Fworkbench%3Ftab%3Dquality");
   });
 
-  it("clears admin token and redirects to admin login on 403", async () => {
-    localStorage.setItem("admin_token", "admin-t");
+  it("redirects to admin login on 403 without persisting an admin token", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", {
       pathname: "/admin/dashboard",
@@ -684,12 +683,12 @@ describe("api client", () => {
   });
 
   it("passes admin list search and pagination parameters through the API wrapper", async () => {
-    localStorage.setItem("admin_token", "admin-token");
     const requestedUrls: string[] = [];
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
       requestedUrls.push(String(url));
       const headers = init?.headers as Headers;
-      expect(headers?.get("Authorization")).toBe("Bearer admin-token");
+      expect(headers?.get("Authorization")).toBeNull();
+      expect(init?.credentials).toBe("same-origin");
       if (String(url).includes("/api/v1/admin/users")) {
         return new Response(JSON.stringify([]), { status: 200, headers: { "content-type": "application/json" } });
       }
@@ -713,12 +712,12 @@ describe("api client", () => {
   });
 
   it("passes admin ops observability requests through the API wrapper", async () => {
-    localStorage.setItem("admin_token", "admin-token");
     const requestedUrls: string[] = [];
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
       requestedUrls.push(String(url));
       const headers = init?.headers as Headers;
-      expect(headers?.get("Authorization")).toBe("Bearer admin-token");
+      expect(headers?.get("Authorization")).toBeNull();
+      expect(init?.credentials).toBe("same-origin");
       return new Response(JSON.stringify({ items: [], total: 0 }), { status: 200, headers: { "content-type": "application/json" } });
     });
     vi.stubGlobal("fetch", fetchMock);

@@ -70,6 +70,12 @@ app:
   admin-auth:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:}
+    encryption-keys: ${ADMIN_TOTP_ENCRYPTION_KEYS:}
+    active-key-version: ${ADMIN_TOTP_ACTIVE_KEY_VERSION:v1}
+    session-minutes: ${ADMIN_TOTP_SESSION_MINUTES:120}
+    session-idle-minutes: ${ADMIN_TOTP_SESSION_IDLE_MINUTES:30}
+    recovery-session-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_MINUTES:15}
+    recovery-session-idle-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES:10}
   jwt:
     secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
     expiration-minutes: 120

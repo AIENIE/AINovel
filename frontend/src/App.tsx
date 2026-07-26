@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { adminSession, api } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { AiOperationProgressPanel } from "@/components/ai/AiOperationProgressPanel";
 
 // Layouts
@@ -43,6 +43,7 @@ import AssetsAudit from "./pages/Admin/AssetsAudit";
 import QualityInspection from "./pages/Admin/QualityInspection";
 import OpsObservability from "./pages/Admin/OpsObservability";
 import G2EvaluationCampaigns from "./pages/Admin/G2EvaluationCampaigns";
+import AdminSecurity from "./pages/Admin/Security";
 import G2EvaluationReview from "./pages/G2EvaluationReview";
 import GuidedCreationPage from "./pages/GuidedCreation/GuidedCreationPage";
 
@@ -92,21 +93,18 @@ const useAdminRouteStatus = (location: GuardLocation): GuardStatus => {
   const [status, setStatus] = useState<GuardStatus>("loading");
   useEffect(() => {
     let cancelled = false;
-    const token = adminSession.getToken();
-    if (!token) {
-      setStatus("unauthorized");
-      return () => {
-        cancelled = true;
-      };
-    }
     setStatus("loading");
     api.adminAuth
       .me()
-      .then(() => {
-        if (!cancelled) setStatus("authorized");
+      .then((session) => {
+        if (cancelled) return;
+        if (session.sessionScope === "RECOVERY") {
+          setStatus("unauthorized");
+          return;
+        }
+        setStatus("authorized");
       })
       .catch(() => {
-        adminSession.clearToken();
         if (!cancelled) setStatus("unauthorized");
       });
     return () => {
@@ -180,6 +178,7 @@ const App = () => (
                 <Route path="credits" element={<CreditsManager />} />
                 <Route path="ops" element={<OpsObservability />} />
                 <Route path="settings" element={<SystemSettingsPage />} />
+                <Route path="security" element={<AdminSecurity />} />
               </Route>
             </Route>
 

@@ -15,3 +15,14 @@ spring:
   data:
     redis:
       host: 127.0.0.1
+
+app:
+  admin-auth:
+    username: admin
+    password: test-admin-password
+    encryption-keys: v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    active-key-version: v1
+    session-minutes: 120
+    session-idle-minutes: 30
+    recovery-session-minutes: 15
+    recovery-session-idle-minutes: 10
