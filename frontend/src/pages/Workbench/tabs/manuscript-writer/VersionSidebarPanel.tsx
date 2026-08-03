@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { ArrowDownUp, Clock3, Flag, GitBranch, RotateCcw, Split } from "lucide-react";
+import { Archive, ArrowDownUp, Check, Clock3, Edit, Flag, GitBranch, RotateCcw, Split, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,6 +11,7 @@ import { TabsContent } from "@/components/ui/tabs";
 import { formatDateTime, snapshotTypeLabel, versionWordCount } from "./shared";
 
 type VersionSidebarPanelProps = {
+  abandonBranch: (branchId: string) => Promise<void> | void;
   aiDiffSummary: string;
   autoSaveConfig: any;
   branches: any[];
@@ -43,9 +45,11 @@ type VersionSidebarPanelProps = {
   toggleVersionSelection: (versionId: string) => void;
   versionPageSize: number;
   visibleVersions: any[];
+  updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
 };
 
 export function VersionSidebarPanel({
+  abandonBranch,
   aiDiffSummary,
   autoSaveConfig,
   branches,
@@ -79,7 +83,10 @@ export function VersionSidebarPanel({
   toggleVersionSelection,
   versionPageSize,
   visibleVersions,
+  updateBranch,
 }: VersionSidebarPanelProps) {
+  const [editingBranchId, setEditingBranchId] = useState("");
+  const [editingBranchName, setEditingBranchName] = useState("");
   return (
     <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
       <div className="space-y-2 mb-2">
@@ -109,14 +116,16 @@ export function VersionSidebarPanel({
           </div>
           <div className="space-y-1">
             {branches.map((branch) => (
-              <div key={String(branch.id)} className="flex items-center justify-between rounded border p-1">
-                <div className="truncate mr-2">
+              <div key={String(branch.id)} className="flex items-center justify-between gap-1 rounded border p-1">
+                {editingBranchId === String(branch.id) ? <Input className="h-7 min-w-0 flex-1" value={editingBranchName} onChange={(event) => setEditingBranchName(event.target.value)} /> : <div className="truncate mr-2">
                   <span className="font-medium">{branch.name}</span>
                   <span className="text-muted-foreground ml-1">{branch.status}</span>
-                </div>
+                </div>}
+                {editingBranchId === String(branch.id) ? <><Button size="icon" variant="ghost" className="h-7 w-7" disabled={!editingBranchName.trim()} onClick={async () => { await updateBranch(String(branch.id), { name: editingBranchName.trim() }); setEditingBranchId(""); }}><Check className="h-3.5 w-3.5" /></Button><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingBranchId("")}><X className="h-3.5 w-3.5" /></Button></> : <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingBranchId(String(branch.id)); setEditingBranchName(String(branch.name || "")); }}><Edit className="h-3.5 w-3.5" /></Button>}
                 <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => void checkoutBranch(String(branch.id))} disabled={String(branch.status) !== "active"}>
                   切换
                 </Button>
+                {!branch.isMain && String(branch.status) === "active" ? <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="废弃分支" onClick={() => { if (confirm(`确定废弃分支「${branch.name}」吗？历史版本会保留。`)) void abandonBranch(String(branch.id)); }}><Archive className="h-3.5 w-3.5" /></Button> : null}
               </div>
             ))}
           </div>

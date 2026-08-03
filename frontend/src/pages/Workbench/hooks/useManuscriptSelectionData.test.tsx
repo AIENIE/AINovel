@@ -50,7 +50,7 @@ describe("useManuscriptSelectionData", () => {
     vi.restoreAllMocks();
   });
 
-  it("selects the requested story and auto-creates the first outline and manuscript when missing", async () => {
+  it("keeps an empty selection until the user explicitly creates an outline and manuscript", async () => {
     vi.spyOn(api.stories, "list").mockResolvedValue([
       makeStory("story-1", "故事一"),
       makeStory("story-2", "故事二"),
@@ -63,28 +63,83 @@ describe("useManuscriptSelectionData", () => {
 
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
+    const onSelectionChange = vi.fn();
     const { result } = renderHook(
       () =>
         useManuscriptSelectionData({
           initialStoryId: "story-2",
+          onSelectionChange,
           toast: vi.fn(),
         }),
       { wrapper },
     );
 
-    await waitFor(() => {
-      expect(result.current.selectedSceneId).toBe("scene-1");
+    await waitFor(() => expect(result.current.selectedStoryId).toBe("story-2"));
+
+    expect(api.outlines.create).not.toHaveBeenCalled();
+    expect(api.manuscripts.create).not.toHaveBeenCalled();
+    expect(result.current.selectedStoryId).toBe("story-2");
+    expect(result.current.selectedOutlineId).toBe("");
+    expect(result.current.selectedManuscriptId).toBe("");
+    expect(result.current.selectedSceneId).toBe("");
+
+    await act(async () => {
+      await result.current.createOutline("主线大纲");
     });
+    await waitFor(() => expect(result.current.selectedOutlineId).toBe("outline-1"));
+
+    await act(async () => {
+      await result.current.createManuscript("正文稿");
+    });
+    await waitFor(() => expect(result.current.selectedSceneId).toBe("scene-1"));
 
     expect(api.outlines.create).toHaveBeenCalledWith("story-2", { title: "主线大纲" });
     expect(api.manuscripts.create).toHaveBeenCalledWith("outline-1", { title: "正文稿" });
-    expect(result.current.selectedStoryId).toBe("story-2");
     expect(result.current.selectedOutlineId).toBe("outline-1");
     expect(result.current.selectedManuscriptId).toBe("manuscript-1");
     expect(result.current.batchMoveChapterId).toBe("chapter-1");
     expect(result.current.selectedSceneIds).toEqual(["scene-1"]);
     expect(result.current.openSceneIds).toEqual(["scene-1"]);
     expect(result.current.characters).toEqual([{ id: "character-1", name: "主角" }]);
+    expect(onSelectionChange.mock.calls.every(([selection]) => selection.storyId === "story-2")).toBe(true);
+  });
+
+  it("clears dependent selections when switching to a story without outlines", async () => {
+    vi.spyOn(api.stories, "list").mockResolvedValue([
+      makeStory("story-1", "故事一"),
+      makeStory("story-2", "故事二"),
+    ] as any);
+    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as any);
+    vi.spyOn(api.outlines, "listByStory").mockImplementation(async (storyId) =>
+      storyId === "story-1" ? [makeOutline("outline-1", "story-1")] as any : [] as any,
+    );
+    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
+    const onSelectionChange = vi.fn();
+    const queryClient = createTestQueryClient();
+    const wrapper = createQueryClientWrapper(queryClient);
+    const { result } = renderHook(
+      () => useManuscriptSelectionData({ onSelectionChange, toast: vi.fn() }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.selectedSceneId).toBe("scene-1"));
+
+    act(() => result.current.setSelectedStoryId("story-2"));
+
+    await waitFor(() => {
+      expect(result.current.selectedStoryId).toBe("story-2");
+      expect(result.current.selectedOutlineId).toBe("");
+      expect(result.current.selectedManuscriptId).toBe("");
+      expect(result.current.selectedSceneId).toBe("");
+    });
+    await waitFor(() => {
+      expect(onSelectionChange).toHaveBeenLastCalledWith({
+        storyId: "story-2",
+        outlineId: "",
+        manuscriptId: "",
+        sceneId: "",
+      });
+    });
   });
 
   it("supports shift-range scene selection across the current outline order", async () => {

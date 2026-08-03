@@ -1,7 +1,7 @@
 export type SsoMode = "login" | "register";
 
 const SSO_STATE_KEY = "ainovel.sso.state";
-const DEFAULT_NEXT_PATH = "/workbench";
+const DEFAULT_NEXT_PATH = "/dashboard";
 
 const resolveBackendBase = () => {
   const configuredBase = import.meta.env.VITE_SSO_ENTRY_BASE_URL?.trim();

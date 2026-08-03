@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { MouseEvent } from "react";
-import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -9,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Chapter, Manuscript, Outline, Story } from "@/types";
@@ -31,6 +33,8 @@ type SceneOutlinePanelProps = {
   onHandleSceneSelect: (sceneId: string, event?: MouseEvent<HTMLElement>) => void;
   onMoveChapter: (sourceChapterId: string, targetChapterId: string) => Promise<void> | void;
   onMoveScene: (sourceSceneId: string, targetSceneId: string) => Promise<void> | void;
+  onCreateOutline: (title: string) => Promise<unknown>;
+  onCreateManuscript: (title: string) => Promise<unknown>;
   onOpenBatchExport: () => void;
   onSelectManuscript: (manuscriptId: string) => void;
   onSelectOutline: (outlineId: string) => void;
@@ -70,6 +74,8 @@ export function SceneOutlinePanel({
   onHandleSceneSelect,
   onMoveChapter,
   onMoveScene,
+  onCreateOutline,
+  onCreateManuscript,
   onOpenBatchExport,
   onSelectManuscript,
   onSelectOutline,
@@ -92,6 +98,10 @@ export function SceneOutlinePanel({
   showLeftPanel,
   stories,
 }: SceneOutlinePanelProps) {
+  const [creatingOutline, setCreatingOutline] = useState(false);
+  const [creatingManuscript, setCreatingManuscript] = useState(false);
+  const [outlineName, setOutlineName] = useState("新大纲");
+  const [manuscriptName, setManuscriptName] = useState("正文稿 1");
   return (
     <div className={cn("h-full flex flex-col gap-2 border-r pr-2", !showLeftPanel && "invisible")}>
       <div className="px-2 pt-2 space-y-2">
@@ -99,14 +109,10 @@ export function SceneOutlinePanel({
           <SelectTrigger><SelectValue placeholder="选择故事" /></SelectTrigger>
           <SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent>
         </Select>
-        <Select value={selectedOutlineId} onValueChange={onSelectOutline} disabled={!selectedStoryId}>
-          <SelectTrigger><SelectValue placeholder="选择大纲" /></SelectTrigger>
-          <SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select value={selectedManuscriptId} onValueChange={onSelectManuscript} disabled={!selectedOutlineId}>
-          <SelectTrigger><SelectValue placeholder="选择稿件" /></SelectTrigger>
-          <SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent>
-        </Select>
+        <div className="flex gap-1"><Select value={selectedOutlineId} onValueChange={onSelectOutline} disabled={!selectedStoryId}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={outlines.length ? "选择大纲" : "还没有大纲"} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" disabled={!selectedStoryId} onClick={() => setCreatingOutline(true)} title="新建大纲"><Plus className="h-4 w-4" /></Button></div>
+        {creatingOutline && <div className="flex gap-1"><Input value={outlineName} onChange={(e) => setOutlineName(e.target.value)} placeholder="大纲名称" /><Button size="sm" disabled={!outlineName.trim()} onClick={async () => { await onCreateOutline(outlineName); setCreatingOutline(false); }}>创建</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div>}
+        <div className="flex gap-1"><Select value={selectedManuscriptId} onValueChange={onSelectManuscript} disabled={!selectedOutlineId}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={manuscripts.length ? "选择稿件" : "还没有稿件"} /></SelectTrigger><SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" disabled={!selectedOutlineId} onClick={() => setCreatingManuscript(true)} title="新建稿件"><Plus className="h-4 w-4" /></Button></div>
+        {creatingManuscript && <div className="flex gap-1"><Input value={manuscriptName} onChange={(e) => setManuscriptName(e.target.value)} placeholder="稿件名称" /><Button size="sm" disabled={!manuscriptName.trim()} onClick={async () => { await onCreateManuscript(manuscriptName); setCreatingManuscript(false); }}>创建</Button><Button size="icon" variant="ghost" onClick={() => setCreatingManuscript(false)}><X className="h-4 w-4" /></Button></div>}
       </div>
 
       {selectedSceneIds.length > 1 && (

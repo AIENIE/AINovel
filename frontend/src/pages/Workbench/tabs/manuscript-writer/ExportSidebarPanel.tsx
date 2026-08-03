@@ -69,6 +69,7 @@ export function ExportSidebarPanel({
 }: ExportSidebarPanelProps) {
   return (
     <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
+      <p className="mb-2 text-xs text-muted-foreground">导出任务与下载地址保留 24 小时；过期后请重新创建任务。</p>
       <div className="grid grid-cols-2 gap-2 mb-2">
         <Select value={exportFormat} onValueChange={setExportFormat}>
           <SelectTrigger className="h-8">

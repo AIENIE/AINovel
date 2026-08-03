@@ -146,22 +146,21 @@ const App = () => (
 
             {/* User Protected Routes */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardHome />} />
-              <Route path="/novels" element={<NovelManager />} />
-              <Route path="/novels/create" element={<CreateNovel />} />
-              <Route path="/novels/quick-create" element={<GuidedCreationPage />} />
-              <Route path="/worlds" element={<WorldManager />} />
-              <Route path="/worlds/create" element={<CreateWorld />} />
-              <Route path="/world-editor" element={<WorldEditor />} />
-
               <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<DashboardHome />} />
+                <Route path="/novels" element={<NovelManager />} />
+                <Route path="/novels/create" element={<CreateNovel />} />
+                <Route path="/novels/quick-create" element={<GuidedCreationPage />} />
+                <Route path="/worlds" element={<WorldManager />} />
+                <Route path="/worlds/create" element={<CreateWorld />} />
+                <Route path="/world-editor" element={<WorldEditor />} />
                 <Route path="/workbench" element={<Workbench />} />
                 <Route path="/materials" element={<MaterialPage />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/prompt-guide" element={<PromptHelpPage />} />
                 <Route path="/settings/world-prompts/help" element={<WorldPromptHelpPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/g2-evaluations/:id/review" element={<G2EvaluationReview />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/g2-evaluations/:id/review" element={<G2EvaluationReview />} />
               </Route>
             </Route>
 

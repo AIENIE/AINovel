@@ -60,6 +60,6 @@ export const createSsoCallbackProcessor = (deps: SsoCallbackProcessorDeps) => {
     }
 
     if (isCancelled?.()) return;
-    deps.onSuccess(params.get("next") || "/workbench");
+    deps.onSuccess(params.get("next") || "/dashboard");
   };
 };

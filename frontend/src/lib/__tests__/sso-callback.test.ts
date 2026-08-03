@@ -42,4 +42,22 @@ describe("sso callback processor", () => {
     expect(onSuccess).toHaveBeenCalledWith("/workbench");
     expect(onFailure).not.toHaveBeenCalled();
   });
+
+  it("defaults callbacks without an explicit next path to the creation dashboard", async () => {
+    const onSuccess = vi.fn();
+    const processor = createSsoCallbackProcessor({
+      validateState: vi.fn().mockReturnValue(true),
+      exchangeSsoCode: vi.fn().mockResolvedValue({ accessToken: "token-1" }),
+      acceptToken: vi.fn().mockResolvedValue(undefined),
+      onSuccess,
+      onFailure: vi.fn(),
+    });
+
+    await processor({
+      search: "?code=code-1&state=state-1",
+      redirect: "https://ainovel.localhut.com/sso/callback",
+    });
+
+    expect(onSuccess).toHaveBeenCalledWith("/dashboard");
+  });
 });

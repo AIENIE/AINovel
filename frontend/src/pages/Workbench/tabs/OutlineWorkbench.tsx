@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
-import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption } from "@/types";
+import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption, World } from "@/types";
+import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { ChevronDown, FileText, Plus, Save, Sparkles } from "lucide-react";
+import { ChevronDown, FileText, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
 
 interface OutlineWorkbenchProps {
   initialStoryId?: string;
@@ -45,7 +46,8 @@ const sceneDefaults = (twistId = ""): ScenePlanning => ({
 const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState("");
-  const [, setOutlines] = useState<Outline[]>([]);
+  const [outlines, setOutlines] = useState<Outline[]>([]);
+  const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null);
   const [title, setTitle] = useState("");
@@ -53,7 +55,12 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [chapterPlanning, setChapterPlanning] = useState<ChapterPlanning>(chapterDefaults());
   const [scenePlanning, setScenePlanning] = useState<ScenePlanning>(sceneDefaults());
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [creatingOutline, setCreatingOutline] = useState(false);
+  const [newOutlineName, setNewOutlineName] = useState("新大纲");
   const { toast } = useToast();
+
+  useEffect(() => { api.worlds.list().then((items) => setWorlds(items.filter((world) => world.status === "active"))).catch(() => setWorlds([])); }, []);
 
   useEffect(() => {
     api.stories
@@ -158,13 +165,16 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     const nextOutline = applyEdits();
     if (!nextOutline) return;
     setIsSaving(true);
+    setSaveStatus("");
     try {
       const saved = await api.outlines.save(selectedOutline.id, nextOutline as Outline & { worldId?: string });
       setSelectedOutline(saved);
       setOutlines((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
+      setSaveStatus("已保存");
       toast({ title: "结构规划已保存" });
     } catch (error: unknown) {
       const description = error instanceof Error ? error.message : "无法保存结构规划";
+      setSaveStatus("保存失败");
       toast({ variant: "destructive", title: "保存失败", description });
     } finally {
       setIsSaving(false);
@@ -174,15 +184,40 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const handleCreateOutline = async () => {
     if (!selectedStoryId) return;
     try {
-      const created = await api.outlines.create(selectedStoryId, { title: "剧情结构规划稿", planning });
+      const created = await api.outlines.create(selectedStoryId, { title: newOutlineName.trim() || "新大纲", planning });
       setOutlines((prev) => [created, ...prev]);
       setSelectedOutline(created);
       setSelectedNode(null);
+      setCreatingOutline(false);
       toast({ title: "已创建大纲" });
     } catch (error: unknown) {
       const description = error instanceof Error ? error.message : "无法创建大纲";
       toast({ variant: "destructive", title: "创建失败", description });
     }
+  };
+
+  const handleDeleteOutline = async () => {
+    if (!selectedOutline || !confirm(`确定删除大纲「${selectedOutline.title}」吗？关联稿件也可能受到影响。`)) return;
+    try {
+      await api.outlines.delete(selectedOutline.id);
+      const next = outlines.filter((outline) => outline.id !== selectedOutline.id);
+      setOutlines(next); setSelectedOutline(next[0] || null); setSelectedNode(null);
+      toast({ title: "大纲已删除" });
+    } catch (error: any) { toast({ variant: "destructive", title: "删除失败", description: error.message }); }
+  };
+
+  const handleGenerateNextChapter = async () => {
+    if (!selectedOutline) return;
+    const chapterNumber = selectedOutline.chapters.length + 1;
+    const worldName = worlds.find((world) => world.id === selectedOutline.worldId)?.name || "不覆盖故事默认世界观";
+    if (!confirm(`将生成第 ${chapterNumber} 章（默认 3 个场景，每场景目标 2000 字）。\n世界观：${worldName}\n\n该操作会消耗项目积分，确认继续吗？`)) return;
+    try {
+      await runTrackedAiOperation(api.outlines.startGenerateChapter(selectedOutline.id, { chapterNumber, sectionsPerChapter: 3, wordsPerSection: 2000, worldId: selectedOutline.worldId || null }));
+      const refreshed = await api.outlines.get(selectedOutline.id);
+      setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
+      setSelectedOutline(refreshed);
+      toast({ title: `第 ${chapterNumber} 章已生成` });
+    } catch (error: any) { toast({ variant: "destructive", title: "章节生成失败", description: error.message }); }
   };
 
   const handleAddChapter = () => {
@@ -486,8 +521,8 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-200px)] gap-6">
-      <div className="w-80 flex flex-col gap-4 border-r pr-4">
+    <div className="flex min-w-0 flex-col gap-5 lg:h-[calc(100vh-200px)] lg:flex-row lg:gap-6">
+      <div className="flex w-full min-w-0 flex-col gap-4 border-b pb-4 lg:w-80 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4">
         <div className="space-y-2">
           <Label>当前故事</Label>
           <Select value={selectedStoryId} onValueChange={setSelectedStoryId}>
@@ -504,6 +539,13 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label>当前大纲</Label>
+          <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => { setSelectedOutline(outlines.find((outline) => outline.id === id) || null); setSelectedNode(null); }} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="还没有大纲" /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
+        </div>
+
+        {selectedOutline && <div className="space-y-2"><Label>大纲世界观</Label><Select value={selectedOutline.worldId || "__default__"} onValueChange={(value) => setSelectedOutline({...selectedOutline, worldId: value === "__default__" ? undefined : value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__default__">使用故事默认世界观</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div>}
+
         <div className="rounded-lg border bg-muted/30 p-3">
           <div className="text-xs text-muted-foreground">当前采用方案</div>
           <div className="mt-1 font-medium">{activeTwist?.label || "尚未选择"}</div>
@@ -513,7 +555,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         <div className="flex items-center justify-between mt-2">
           <span className="text-sm font-medium text-muted-foreground">大纲结构</span>
           <div className="flex gap-1">
-            <Button size="sm" variant="ghost" className="h-6 px-2" onClick={handleCreateOutline}>
+            <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCreatingOutline(true)} disabled={!selectedStoryId}>
               <Plus className="mr-1 h-4 w-4" />
               新大纲
             </Button>
@@ -523,6 +565,12 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
             </Button>
           </div>
         </div>
+        {creatingOutline ? <div className="flex gap-1"><Input value={newOutlineName} onChange={(e) => setNewOutlineName(e.target.value)} placeholder="大纲名称" /><Button size="sm" onClick={() => void handleCreateOutline()} disabled={!newOutlineName.trim()}>创建</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div> : null}
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => void handleSave()} disabled={!selectedOutline || isSaving}><Save className="mr-1 h-4 w-4" />{isSaving ? "保存中..." : "保存大纲"}</Button>
+          {saveStatus ? <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{saveStatus}</span> : null}
+        </div>
+        <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline}><Sparkles className="mr-1 h-4 w-4" />生成下一章</Button>
 
         <ScrollArea className="flex-1">
           {selectedOutline ? (

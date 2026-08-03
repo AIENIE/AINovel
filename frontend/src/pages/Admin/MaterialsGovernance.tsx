@@ -4,7 +4,7 @@ import { Material } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Check, GitMerge, RefreshCcw, X } from "lucide-react";
+import { Check, GitMerge, Link2, Loader2, RefreshCcw, X } from "lucide-react";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPanel, AdminSearchToolbar } from "./components/AdminChrome";
 import { getErrorMessage, matchesAdminSearch } from "./admin-list-utils";
 
@@ -25,6 +25,8 @@ const MaterialsGovernance = () => {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [reviewingId, setReviewingId] = useState("");
+  const [actionId, setActionId] = useState("");
+  const [citationResult, setCitationResult] = useState<{ title: string; items: any[] } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -67,6 +69,24 @@ const MaterialsGovernance = () => {
 
   const filteredPending = pending.filter((material) => matchesAdminSearch(material, search));
   const filteredDuplicates = duplicates.filter((item) => matchesAdminSearch(item, search));
+
+  const merge = async (item: MaterialDuplicateCandidate) => {
+    if (!confirm(`确认将「${item.sourceTitle}」合并到「${item.targetTitle}」吗？\n\n源素材会保留但标记为已驳回，退出检索和重复候选。`)) return;
+    const key = `${item.sourceMaterialId}-${item.targetMaterialId}`;
+    setActionId(key);
+    try {
+      await api.admin.mergeMaterials({ sourceMaterialId: item.sourceMaterialId, targetMaterialId: item.targetMaterialId, mergeTags: true, mergeSummaryWhenEmpty: true, note: "管理员重复素材合并" });
+      toast({ title: "素材已合并" }); await load();
+    } catch (err: unknown) { toast({ variant: "destructive", title: "合并失败", description: getErrorMessage(err, "请求失败") }); }
+    finally { setActionId(""); }
+  };
+
+  const loadCitations = async (id: string, title: string) => {
+    setActionId(`citations-${id}`);
+    try { setCitationResult({ title, items: await api.admin.listMaterialCitations(id) }); }
+    catch (err: unknown) { toast({ variant: "destructive", title: "引用查询失败", description: getErrorMessage(err, "请求失败") }); }
+    finally { setActionId(""); }
+  };
 
   return (
     <div className="space-y-6">
@@ -147,13 +167,17 @@ const MaterialsGovernance = () => {
                     <div className="font-medium">{item.sourceTitle} / {item.targetTitle}</div>
                     <div className="text-zinc-500">相似度 {Number(item.score ?? 0).toFixed(2)} · {(item.reasons || []).join(", ")}</div>
                   </div>
-                  <GitMerge className="h-4 w-4 text-zinc-500" />
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" variant="outline" className="border-zinc-700" onClick={() => void loadCitations(item.sourceMaterialId, item.sourceTitle || "源素材")} disabled={actionId === `citations-${item.sourceMaterialId}`}>{actionId === `citations-${item.sourceMaterialId}` ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Link2 className="mr-1 h-3.5 w-3.5" />}源引用</Button>
+                    <Button size="sm" className="bg-zinc-100 text-zinc-900 hover:bg-white" onClick={() => void merge(item)} disabled={actionId === `${item.sourceMaterialId}-${item.targetMaterialId}`}>{actionId === `${item.sourceMaterialId}-${item.targetMaterialId}` ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <GitMerge className="mr-1 h-3.5 w-3.5" />}合并</Button>
+                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
       </AdminPanel>
+      {citationResult ? <AdminPanel title={`引用查询：${citationResult.title}`} description="显示该素材在稿件场景中的引用位置。"><div className="space-y-2">{citationResult.items.length ? citationResult.items.map((item, index) => <div key={`${item.manuscriptId || index}-${item.sceneId || index}`} className="rounded border border-zinc-800 p-3 text-sm"><div className="font-medium">{item.storyTitle || item.manuscriptTitle || "创作稿件"}</div><div className="text-zinc-500">{item.chapterTitle || "未标章节"} · {item.sceneTitle || item.sceneId || "未标场景"}</div></div>) : <AdminEmptyState title="当前没有检测到引用" />}<Button size="sm" variant="outline" onClick={() => setCitationResult(null)}>关闭查询结果</Button></div></AdminPanel> : null}
     </div>
   );
 };

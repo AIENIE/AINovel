@@ -14,6 +14,35 @@ const MaterialUpload = () => {
   const [uploadError, setUploadError] = useState("");
   const { toast } = useToast();
 
+  const waitForTerminalStatus = async (jobId: string) => {
+    let latest = await api.materials.getUploadStatus(jobId);
+    setJob(latest);
+    for (let attempt = 0; attempt < 60 && latest.status === "processing"; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 2_000));
+      latest = await api.materials.getUploadStatus(jobId);
+      setJob(latest);
+    }
+    return latest;
+  };
+
+  const queryUntilTerminal = async (jobId: string) => {
+    setIsUploading(true);
+    setUploadError("");
+    try {
+      const latest = await waitForTerminalStatus(jobId);
+      if (latest.status === "failed") throw new Error(latest.message || "文件解析失败");
+      if (latest.status === "completed") {
+        toast({ title: "解析完成", description: "素材已导入并进入待审核状态，可在素材列表中查看。" });
+      }
+    } catch (error: any) {
+      const message = error?.message || "上传任务状态查询失败";
+      setUploadError(message);
+      toast({ variant: "destructive", title: "查询失败", description: message });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -34,16 +63,8 @@ const MaterialUpload = () => {
     try {
       const newJob = await api.materials.upload(file);
       setJob(newJob);
-      let latest = newJob;
-      for (let attempt = 0; attempt < 6; attempt += 1) {
-        if (latest.status === "completed" || latest.status === "failed") break;
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
-        latest = await api.materials.getUploadStatus(newJob.id);
-        setJob(latest);
-      }
-      if (latest.status === "failed") throw new Error(latest.message || "文件解析失败");
-      setJob(latest);
-      toast({ title: "解析完成", description: "文件已进入待审核队列" });
+      setIsUploading(false);
+      await queryUntilTerminal(newJob.id);
     } catch (error: any) {
       const message = error?.message || "上传任务状态查询失败";
       setUploadError(message);
@@ -84,12 +105,18 @@ const MaterialUpload = () => {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>解析进度</span>
-              <span>{job.status === 'completed' ? '100%' : '处理中...'}</span>
+              <span>{job.status === "completed" ? "100%" : job.status === "failed" ? "失败" : `${job.progress || 0}%`}</span>
             </div>
-            <Progress value={job.status === 'completed' ? 100 : 45} />
+            <Progress value={job.status === "completed" ? 100 : job.progress || 5} />
             {job.status === 'completed' && (
               <div className="flex items-center gap-2 text-green-600 text-sm mt-2">
-                <CheckCircle2 className="h-4 w-4" /> 解析成功，请前往审核台查看
+                <CheckCircle2 className="h-4 w-4" /> 解析成功，素材已进入待审核状态
+              </div>
+            )}
+            {job.status === "processing" && !isUploading && (
+              <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>任务仍在处理中，可继续查询，不会误报为完成。</span>
+                <Button size="sm" variant="outline" onClick={() => void queryUntilTerminal(job.id)}>继续查询</Button>
               </div>
             )}
             {uploadError && (
@@ -98,7 +125,7 @@ const MaterialUpload = () => {
           </div>
         )}
 
-        <Button onClick={handleUpload} disabled={!file || isUploading} className="w-full">
+        <Button onClick={handleUpload} disabled={!file || isUploading || job?.status === "processing"} className="w-full">
           {isUploading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />上传处理中...</> : uploadError ? "重试上传" : "开始上传"}
         </Button>
       </CardContent>

@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, RefreshCcw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { User } from "@/types";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPanel, AdminSearchToolbar } from "./components/AdminChrome";
 import { getErrorMessage, matchesAdminSearch } from "./admin-list-utils";
 
@@ -54,6 +56,7 @@ const CreditsManager = () => {
   const [items, setItems] = useState<RedeemCodeItem[]>([]);
   const [conversionItems, setConversionItems] = useState<AdminConversionItem[]>([]);
   const [ledgerItems, setLedgerItems] = useState<AdminLedgerItem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
   const [conversionPage, setConversionPage] = useState(0);
   const [ledgerPage, setLedgerPage] = useState(0);
@@ -65,19 +68,24 @@ const CreditsManager = () => {
   const [enabled, setEnabled] = useState(true);
   const [stackable, setStackable] = useState(false);
   const [description, setDescription] = useState("后台创建");
+  const [grantUserId, setGrantUserId] = useState("");
+  const [directAmount, setDirectAmount] = useState(1);
+  const [directReason, setDirectReason] = useState("");
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const [list, conversions, ledger] = await Promise.all([
+      const [list, conversions, ledger, userList] = await Promise.all([
         api.admin.listRedeemCodes(),
         api.admin.listConversionOrders(conversionPage, pageSize),
         api.admin.listCreditLedger(ledgerPage, pageSize),
+        api.admin.getUsers(),
       ]);
       setItems(list || []);
       setConversionItems(conversions || []);
       setLedgerItems(ledger || []);
+      setUsers(userList || []);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "积分数据加载失败"));
     } finally {
@@ -118,6 +126,16 @@ const CreditsManager = () => {
   const canNextConversions = conversionItems.length === pageSize;
   const canNextLedger = ledgerItems.length === pageSize;
 
+  const handleDirectGrant = async () => {
+    if (!grantUserId || !Number.isInteger(directAmount) || directAmount <= 0 || !directReason.trim()) return;
+    const user = users.find((item) => item.id === grantUserId);
+    if (!confirm(`确认向用户「${user?.username || grantUserId}」发放 ${directAmount} 项目积分吗？\n原因：${directReason.trim()}\n\n积分发放后不能通过此页面撤回。`)) return;
+    setIsSubmitting(true);
+    try { await api.admin.grantProjectCredits({ userId: grantUserId, amount: directAmount, reason: directReason.trim() }); toast({ title: "项目积分已发放" }); setDirectReason(""); await load(); }
+    catch (err: unknown) { toast({ variant: "destructive", title: "发放失败", description: getErrorMessage(err, "请求失败") }); }
+    finally { setIsSubmitting(false); }
+  };
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -131,6 +149,10 @@ const CreditsManager = () => {
         }
       />
       {error ? <AdminErrorState message={error} onRetry={() => void load()} /> : null}
+
+      <AdminPanel title="直接发放项目积分" description="面向明确用户执行一次性加发；必须填写原因并二次确认。">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px_minmax(0,1fr)_auto] md:items-end"><div className="space-y-2"><Label>用户</Label><Select value={grantUserId} onValueChange={setGrantUserId}><SelectTrigger className="border-zinc-800 bg-zinc-950"><SelectValue placeholder="选择用户" /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{user.username} · 当前 {user.projectCredits}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>发放数量</Label><Input type="number" min={1} step={1} value={directAmount} onChange={(e) => setDirectAmount(Number(e.target.value))} className="border-zinc-800 bg-zinc-950" /></div><div className="space-y-2"><Label>发放原因</Label><Input value={directReason} onChange={(e) => setDirectReason(e.target.value)} placeholder="必填，将写入积分流水" className="border-zinc-800 bg-zinc-950" /></div><Button onClick={() => void handleDirectGrant()} disabled={isSubmitting || !grantUserId || directAmount <= 0 || !directReason.trim()} className="bg-zinc-100 text-zinc-900 hover:bg-white">确认发放</Button></div>
+      </AdminPanel>
 
       <AdminPanel title="创建兑换码" description="用于发放本项目专属积分（本地账本）。">
         <div className="space-y-4">

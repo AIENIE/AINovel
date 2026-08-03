@@ -53,6 +53,15 @@ const WorldMetadataForm = ({ data, onChange }: WorldMetadataFormProps) => {
             placeholder="例如：魔法, 战争, 探索"
           />
         </div>
+        <div className="space-y-2">
+          <Label>创作备注</Label>
+          <Textarea
+            value={data.notes || ""}
+            onChange={(e) => onChange("notes", e.target.value)}
+            placeholder="记录仅供创作者参考的约束、来源或后续补充事项"
+            className="min-h-24"
+          />
+        </div>
       </CardContent>
     </Card>
   );

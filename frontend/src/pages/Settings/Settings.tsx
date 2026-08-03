@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Terminal, Globe, Palette, Cpu, Keyboard } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -20,10 +19,14 @@ export const normalizeSettingsTabParam = (raw: string | null) => {
 };
 
 const Settings = () => {
-  const [params] = useSearchParams();
-  const initialTab = normalizeSettingsTabParam(params.get("tab"));
+  const [params, setParams] = useSearchParams();
+  const activeTab = normalizeSettingsTabParam(params.get("tab"));
   const initialStoryId = params.get("storyId") || undefined;
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const selectTab = (value: string) => {
+    const next = new URLSearchParams(params);
+    next.set("tab", value);
+    setParams(next);
+  };
 
   return (
     <div className="h-full flex flex-col space-y-6">
@@ -31,21 +34,21 @@ const Settings = () => {
         <h1 className="text-3xl font-bold tracking-tight">系统设置</h1>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-5 lg:w-[980px]">
-          <TabsTrigger value="workspace" className="gap-2">
+      <Tabs value={activeTab} onValueChange={selectTab} className="flex-1 flex flex-col min-w-0">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto lg:w-[980px]">
+          <TabsTrigger value="workspace" className="gap-2 shrink-0">
             <Terminal className="h-4 w-4" /> 工作区提示词
           </TabsTrigger>
-          <TabsTrigger value="world" className="gap-2">
+          <TabsTrigger value="world" className="gap-2 shrink-0">
             <Globe className="h-4 w-4" /> 世界观提示词
           </TabsTrigger>
-          <TabsTrigger value="style" className="gap-2">
+          <TabsTrigger value="style" className="gap-2 shrink-0">
             <Palette className="h-4 w-4" /> 风格画像
           </TabsTrigger>
-          <TabsTrigger value="models" className="gap-2">
+          <TabsTrigger value="models" className="gap-2 shrink-0">
             <Cpu className="h-4 w-4" /> 模型偏好
           </TabsTrigger>
-          <TabsTrigger value="experience" className="gap-2">
+          <TabsTrigger value="experience" className="gap-2 shrink-0">
             <Keyboard className="h-4 w-4" /> 工作台体验
           </TabsTrigger>
         </TabsList>

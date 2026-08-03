@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, BookOpen, Globe, Zap } from "lucide-react";
-import { MadeWithDyad } from "@/components/made-with-dyad";
 import { buildSsoUrl, issueSsoState } from "@/lib/sso";
 import {
   Dialog,
@@ -18,7 +17,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
 
-  const goSso = (mode: "login" | "register", nextPath = "/workbench") => {
+  const goSso = (mode: "login" | "register", nextPath = "/dashboard") => {
     const state = issueSsoState();
     window.location.href = buildSsoUrl(mode, nextPath, state);
   };
@@ -32,12 +31,13 @@ const Index = () => {
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
               AI
             </div>
-            <span className="font-bold text-xl">Novel Studio</span>
+            <span className="font-bold text-xl">AINovel</span>
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => navigate("/pricing")}>积分说明</Button>
             {isAuthenticated ? (
               <Button onClick={() => navigate("/dashboard")}>
-                进入工作台 <ArrowRight className="ml-2 h-4 w-4" />
+                进入创作首页 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
               <>
@@ -64,7 +64,7 @@ const Index = () => {
               全流程 AI 辅助创作
             </h1>
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-in slide-in-from-bottom-5 duration-700 delay-100">
-              不再担心卡文与设定崩坏。Novel Studio 提供结构化的大纲管理、
+              不再担心卡文与设定崩坏。AINovel 提供结构化的大纲管理、
               世界观一致性检查以及智能润色功能，让你的故事栩栩如生。
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in slide-in-from-bottom-6 duration-700 delay-200">
@@ -120,15 +120,14 @@ const Index = () => {
 
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
         <div className="container mx-auto px-4">
-          <p>&copy; 2024 Novel Studio. All rights reserved.</p>
-          <MadeWithDyad />
+          <p>&copy; 2026 AINovel. All rights reserved.</p>
         </div>
       </footer>
 
       <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Novel Studio 产品演示</DialogTitle>
+            <DialogTitle>AINovel 产品演示</DialogTitle>
             <DialogDescription>从一句话创意到可编辑正文的完整工作流。</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-3">

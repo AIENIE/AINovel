@@ -24,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { MadeWithDyad } from "@/components/made-with-dyad";
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -39,9 +38,15 @@ const AppLayout = () => {
 
   const navItems = [
     {
+      title: "创作首页",
+      href: "/dashboard",
+      icon: LayoutDashboard,
+      description: "项目总览"
+    },
+    {
       title: "工作台",
       href: "/workbench",
-      icon: LayoutDashboard,
+      icon: BookOpen,
       description: "创作中心"
     },
     {
@@ -72,7 +77,7 @@ const AppLayout = () => {
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
             AI
           </div>
-          <span className="font-bold text-xl tracking-tight">Novel Studio</span>
+          <span className="font-bold text-xl tracking-tight">AINovel</span>
         </div>
 
         <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
@@ -159,7 +164,6 @@ const AppLayout = () => {
             </DropdownMenu>
           </div>
         </div>
-        <MadeWithDyad />
       </aside>
 
       {/* Mobile Header */}
@@ -168,7 +172,7 @@ const AppLayout = () => {
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
             AI
           </div>
-          <span className="font-bold text-lg">Novel Studio</span>
+          <span className="font-bold text-lg">AINovel</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -197,6 +201,22 @@ const AppLayout = () => {
                 <span className="font-medium">{item.title}</span>
               </NavLink>
             ))}
+            <NavLink
+              to="/settings"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-4 p-4 rounded-lg border bg-card text-muted-foreground"
+            >
+              <Settings className="h-5 w-5" />
+              <span className="font-medium">系统设置</span>
+            </NavLink>
+            <NavLink
+              to="/profile"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-4 p-4 rounded-lg border bg-card text-muted-foreground"
+            >
+              <Avatar className="h-5 w-5"><AvatarFallback className="text-[9px]">我</AvatarFallback></Avatar>
+              <span className="font-medium">个人中心</span>
+            </NavLink>
             {isAdmin && (
               <Button variant="outline" className="w-full mt-4 border-red-200 text-red-600 hover:bg-red-50" onClick={() => navigate("/admin/dashboard")}>
                 <ShieldAlert className="mr-2 h-4 w-4" /> 进入后台管理
@@ -215,7 +235,7 @@ const AppLayout = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 md:pl-64 pt-16 md:pt-0 min-h-screen transition-all duration-300">
-        <div className="h-full p-6 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="h-full min-w-0 p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Outlet />
         </div>
       </main>

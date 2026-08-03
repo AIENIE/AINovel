@@ -4,6 +4,7 @@ import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.model.Material;
+import com.ainovel.app.material.dto.MaterialMergeRequest;
 import com.ainovel.app.material.repo.MaterialRepository;
 import com.ainovel.app.material.repo.MaterialUploadJobRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
@@ -102,6 +103,36 @@ class MaterialServiceClosureTest {
         assertEquals("第一章", citation.get("chapterTitle"));
         assertEquals("旧码头", citation.get("sceneTitle"));
         assertTrue(String.valueOf(citation.get("snippet")).contains("陆家码头"));
+    }
+
+    @Test
+    void mergeShouldKeepSourceAsRejectedAndCombineTargetContent() {
+        Material source = material("merge-source", "旧报副本", "来源正文", "[\"旧报\"]");
+        Material target = material("merge-target", "旧报主记录", "目标正文", "[\"档案\"]");
+        when(accessGuard.isCurrentUserAdmin()).thenReturn(true);
+        when(materialRepository.findById(source.getId())).thenReturn(Optional.of(source));
+        when(materialRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        service.merge(new MaterialMergeRequest(source.getId(), target.getId(), true, true, "重复治理"));
+
+        assertEquals("rejected", source.getStatus());
+        assertEquals("目标正文\n\n来源正文", target.getContent());
+        verify(materialRepository).save(source);
+        verify(materialRepository).save(target);
+    }
+
+    @Test
+    void mergeShouldNotAppendSeparatorsWhenSourceContentIsBlank() {
+        Material source = material("blank-source", "空副本", "", "[]");
+        Material target = material("filled-target", "主记录", "保留正文", "[]");
+        when(accessGuard.isCurrentUserAdmin()).thenReturn(true);
+        when(materialRepository.findById(source.getId())).thenReturn(Optional.of(source));
+        when(materialRepository.findById(target.getId())).thenReturn(Optional.of(target));
+
+        service.merge(new MaterialMergeRequest(source.getId(), target.getId(), false, false, "空内容治理"));
+
+        assertEquals("保留正文", target.getContent());
+        assertEquals("rejected", source.getStatus());
     }
 
     @Test

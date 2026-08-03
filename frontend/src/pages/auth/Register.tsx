@@ -9,8 +9,8 @@ const Register = () => {
 
   const next = useMemo(() => {
     const qs = new URLSearchParams(location.search);
-    const raw = qs.get("next") || "/workbench";
-    return raw.startsWith("/") ? raw : "/workbench";
+    const raw = qs.get("next") || "/dashboard";
+    return raw.startsWith("/") ? raw : "/dashboard";
   }, [location.search]);
 
   const redirectToSso = (mode: "login" | "register") => {
@@ -31,7 +31,7 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">注册 Novel Studio</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">注册 AINovel</CardTitle>
           <CardDescription className="text-center">
             将跳转到统一登录服务完成注册
           </CardDescription>

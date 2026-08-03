@@ -12,6 +12,7 @@ type SidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goal
 
 type DesktopSidebarPanelProps = {
   aiDiffSummary: string;
+  abandonBranch: (branchId: string) => Promise<void> | void;
   applyPlotRevision: () => Promise<void> | void;
   autoSaveConfig: any;
   branches: any[];
@@ -99,6 +100,7 @@ type DesktopSidebarPanelProps = {
   toggleVersionSelection: (versionId: string) => void;
   txtEncoding: string;
   updateGoal: (goalId: string, patch: Record<string, unknown>) => Promise<void> | void;
+  updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
   updateTemplate: (template: any) => Promise<void> | void;
   versionPageSize: number;
   visibleVersions: any[];
@@ -107,6 +109,7 @@ type DesktopSidebarPanelProps = {
 
 export function DesktopSidebarPanel({
   aiDiffSummary,
+  abandonBranch,
   applyPlotRevision,
   autoSaveConfig,
   branches,
@@ -194,6 +197,7 @@ export function DesktopSidebarPanel({
   toggleVersionSelection,
   txtEncoding,
   updateGoal,
+  updateBranch,
   updateTemplate,
   versionPageSize,
   visibleVersions,
@@ -236,6 +240,7 @@ export function DesktopSidebarPanel({
         />
 
         <VersionSidebarPanel
+          abandonBranch={abandonBranch}
           aiDiffSummary={aiDiffSummary}
           autoSaveConfig={autoSaveConfig}
           branches={branches}
@@ -267,6 +272,7 @@ export function DesktopSidebarPanel({
           setVersionVisibleCount={setVersionVisibleCount}
           summarizeDiff={summarizeDiff}
           toggleVersionSelection={toggleVersionSelection}
+          updateBranch={updateBranch}
           versionPageSize={versionPageSize}
           visibleVersions={visibleVersions}
         />

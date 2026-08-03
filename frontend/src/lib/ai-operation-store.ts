@@ -44,7 +44,7 @@ function refreshRecoveredResult(final: AiOperationProgress) {
     const result = final.resultJson ? JSON.parse(final.resultJson) : null;
     const storyId = result?.storyCard?.id;
     if (storyId) {
-      window.location.assign(`/workbench?id=${encodeURIComponent(storyId)}`);
+      window.location.assign(`/workbench?storyId=${encodeURIComponent(storyId)}`);
       return;
     }
   } catch { /* Other operation results are refreshed in place. */ }

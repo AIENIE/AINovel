@@ -24,6 +24,10 @@ type SceneRow = {
 
 type UseManuscriptSelectionDataOptions = {
   initialStoryId?: string;
+  initialOutlineId?: string;
+  initialManuscriptId?: string;
+  initialSceneId?: string;
+  onSelectionChange?: (selection: { storyId: string; outlineId: string; manuscriptId: string; sceneId: string }) => void;
   toast: ToastFn;
 };
 
@@ -47,19 +51,19 @@ async function fetchCharacters(storyId: string) {
 }
 
 async function fetchOutlines(storyId: string) {
-  const outlines = await api.outlines.listByStory(storyId);
-  if (outlines.length > 0) return outlines;
-  return [await api.outlines.create(storyId, { title: "主线大纲" })];
+  return await api.outlines.listByStory(storyId);
 }
 
 async function fetchManuscripts(outlineId: string) {
-  const manuscripts = await api.manuscripts.listByOutline(outlineId);
-  if (manuscripts.length > 0) return manuscripts;
-  return [await api.manuscripts.create(outlineId, { title: "正文稿" })];
+  return await api.manuscripts.listByOutline(outlineId);
 }
 
 export function useManuscriptSelectionData({
   initialStoryId,
+  initialOutlineId,
+  initialManuscriptId,
+  initialSceneId,
+  onSelectionChange,
   toast,
 }: UseManuscriptSelectionDataOptions) {
   const queryClient = useQueryClient();
@@ -164,6 +168,45 @@ export function useManuscriptSelectionData({
     [queryClient, selectedStoryId],
   );
 
+  const selectStoryId = useCallback((storyId: string) => {
+    setSelectedStoryId(storyId);
+    setSelectedOutlineId("");
+    setSelectedManuscriptId("");
+    setSelectedSceneId("");
+    setSelectedSceneIds([]);
+    setOpenSceneIds([]);
+    setOutlineDraft(null);
+    lastSelectedSceneRef.current = "";
+  }, []);
+
+  const selectOutlineId = useCallback((outlineId: string) => {
+    setSelectedOutlineId(outlineId);
+    setSelectedManuscriptId("");
+    setSelectedSceneId("");
+    setSelectedSceneIds([]);
+    setOpenSceneIds([]);
+    setOutlineDraft(null);
+    lastSelectedSceneRef.current = "";
+  }, []);
+
+  const createOutline = useCallback(async (title: string) => {
+    if (!selectedStoryId) return null;
+    const created = await api.outlines.create(selectedStoryId, { title: title.trim() || "新大纲" });
+    queryClient.setQueryData<Outline[]>(outlinesQueryKey(selectedStoryId), (current = []) => [...current, created]);
+    selectOutlineId(created.id);
+    toast({ title: "大纲已创建" });
+    return created;
+  }, [queryClient, selectOutlineId, selectedStoryId, toast]);
+
+  const createManuscript = useCallback(async (title: string) => {
+    if (!selectedOutlineId) return null;
+    const created = await api.manuscripts.create(selectedOutlineId, { title: title.trim() || "正文稿" });
+    queryClient.setQueryData<Manuscript[]>(manuscriptsQueryKey(selectedOutlineId), (current = []) => [...current, created]);
+    setSelectedManuscriptId(created.id);
+    toast({ title: "稿件已创建" });
+    return created;
+  }, [queryClient, selectedOutlineId, toast]);
+
   const reorderOpenTabs = useCallback((fromId: string, toId: string) => {
     if (!fromId || !toId || fromId === toId) return;
     setOpenSceneIds((prev) => {
@@ -236,20 +279,32 @@ export function useManuscriptSelectionData({
       setSelectedOutlineId("");
       return;
     }
-    if (!outlines.length) return;
-    setSelectedOutlineId((prev) => (prev && outlines.some((outline) => outline.id === prev) ? prev : outlines[0].id));
-  }, [outlines, selectedStoryId]);
+    if (!outlines.length) {
+      setSelectedOutlineId("");
+      return;
+    }
+    setSelectedOutlineId((prev) => {
+      if (prev && outlines.some((outline) => outline.id === prev)) return prev;
+      if (initialOutlineId && outlines.some((outline) => outline.id === initialOutlineId)) return initialOutlineId;
+      return outlines[0]?.id || "";
+    });
+  }, [initialOutlineId, outlines, selectedStoryId]);
 
   useEffect(() => {
     if (!selectedOutlineId) {
       setSelectedManuscriptId("");
       return;
     }
-    if (!manuscripts.length) return;
-    setSelectedManuscriptId((prev) =>
-      prev && manuscripts.some((manuscript) => manuscript.id === prev) ? prev : manuscripts[0].id,
-    );
-  }, [manuscripts, selectedOutlineId]);
+    if (!manuscripts.length) {
+      setSelectedManuscriptId("");
+      return;
+    }
+    setSelectedManuscriptId((prev) => {
+      if (prev && manuscripts.some((manuscript) => manuscript.id === prev)) return prev;
+      if (initialManuscriptId && manuscripts.some((manuscript) => manuscript.id === initialManuscriptId)) return initialManuscriptId;
+      return manuscripts[0]?.id || "";
+    });
+  }, [initialManuscriptId, manuscripts, selectedOutlineId]);
 
   useEffect(() => {
     const error = storiesQuery.error as Error | null;
@@ -287,10 +342,27 @@ export function useManuscriptSelectionData({
   useEffect(() => {
     const firstSceneId = sceneRows[0]?.id || "";
     setSelectedSceneId((prev) => {
+      if (!prev && initialSceneId && sceneRows.some((row) => row.id === initialSceneId)) return initialSceneId;
       if (!prev) return firstSceneId;
       return sceneRows.some((row) => row.id === prev) ? prev : firstSceneId;
     });
-  }, [sceneRows]);
+  }, [initialSceneId, sceneRows]);
+
+  useEffect(() => {
+    if (!selectedStoryId || !stories.some((story) => story.id === selectedStoryId)) return;
+    if (outlinesQuery.data === undefined) return;
+    if (outlines.length > 0 && !outlines.some((outline) => outline.id === selectedOutlineId)) return;
+    if (outlines.length === 0 && selectedOutlineId) return;
+    if (selectedOutlineId) {
+      if (manuscriptsQuery.data === undefined) return;
+      if (manuscripts.length > 0 && !manuscripts.some((manuscript) => manuscript.id === selectedManuscriptId)) return;
+      if (manuscripts.length === 0 && selectedManuscriptId) return;
+    } else if (selectedManuscriptId) {
+      return;
+    }
+    if (selectedSceneId && !sceneRows.some((row) => row.id === selectedSceneId)) return;
+    onSelectionChange?.({ storyId: selectedStoryId, outlineId: selectedOutlineId, manuscriptId: selectedManuscriptId, sceneId: selectedSceneId });
+  }, [manuscripts, manuscriptsQuery.data, onSelectionChange, outlines, outlinesQuery.data, sceneRows, selectedManuscriptId, selectedOutlineId, selectedSceneId, selectedStoryId, stories]);
 
   useEffect(() => {
     if (!selectedSceneId) return;
@@ -309,6 +381,8 @@ export function useManuscriptSelectionData({
     chapters,
     characters,
     closeSceneTab,
+    createManuscript,
+    createOutline,
     expandedChapterIds,
     handleSceneSelect,
     manuscripts,
@@ -331,10 +405,10 @@ export function useManuscriptSelectionData({
     setOpenSceneIds,
     setOutlineDraft,
     setSelectedManuscriptId,
-    setSelectedOutlineId,
+    setSelectedOutlineId: selectOutlineId,
     setSelectedSceneId,
     setSelectedSceneIds,
-    setSelectedStoryId,
+    setSelectedStoryId: selectStoryId,
     stories,
     toggleChapterExpanded,
   };
