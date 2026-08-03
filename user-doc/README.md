@@ -5,7 +5,7 @@
 ## 访问入口
 
 - 正式环境：`https://ainovel.aienie.com`
-- 本地测试环境：`https://ainovel.localhut.com`
+- 本地测试环境：`https://localainovel.testhut.top`
 - 创作者通过统一登录进入；管理员使用独立的 `/admin/login` 入口。
 
 ## 阅读路线

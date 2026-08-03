@@ -5,7 +5,7 @@
 ## 配置来源
 
 - 实际运行地址来自 `env.txt` 或同名环境变量。
-- 开发网站使用 `ainovel.localhut.com`。
+- 本地测试网站使用 `localainovel.testhut.top`。
 - `aienie-projects` 的开发默认上游为 `aiservice.seekerhut.com`、`payservice.seekerhut.com`、`userservice.seekerhut.com`，部署环境可显式覆盖。
 - MySQL、Redis、Qdrant 等共享基础设施地址由环境提供，`build.sh` 不创建这些依赖。
 

@@ -11,6 +11,8 @@
 
 ## 页面地图
 
+页面的功能树、职责边界、浏览器审查范围和当前体验问题统一维护在 [page-function-tree.md](page-function-tree.md)。本节只保留路由与实现入口。
+
 | 页面 | 路由 | 实现入口 |
 | --- | --- | --- |
 | 首页、定价 | `/`、`/pricing` | `pages/Index.tsx`、`pages/Pricing.tsx` |
@@ -29,7 +31,7 @@
 ## 响应式边界
 
 - G1 引导创作在桌面显示草稿轨道、候选编辑区和上下文侧栏；移动端将步骤与上下文折叠为紧凑控件。
-- 稿件桌面端提供生成、快速/精雕切换和完整右侧工具；移动端只提供大纲、编辑和参考窗格。
+- 稿件桌面端提供生成、快速/精雕切换和完整右侧工具；移动端当前是大纲、编辑和参考窗格的简化视图，功能缺口与窄屏走查结论见 [page-function-tree.md](page-function-tree.md#当前体验问题)。
 - 管理后台桌面使用侧栏，窄屏使用顶部栏和抽屉导航。
 
-页面级操作说明不在本目录重复维护，统一见 [`../../user-doc/README.md`](../../user-doc/README.md)。
+面向创作者和管理员的逐步操作说明见 [`../../user-doc/README.md`](../../user-doc/README.md)；工程侧页面职责和当前问题见 [page-function-tree.md](page-function-tree.md)。

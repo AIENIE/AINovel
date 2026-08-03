@@ -6,11 +6,19 @@
 mvn -q -f backend/pom.xml test
 cd frontend && npm run test && npm run build
 printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
-curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/liveness
-curl --noproxy '*' -k https://ainovel.localhut.com/api/actuator/health/readiness
+curl --noproxy '*' -k https://localainovel.testhut.top/api/actuator/health/liveness
+curl --noproxy '*' -k https://localainovel.testhut.top/api/actuator/health/readiness
 ```
 
 普通用户验收必须通过真实 SSO 会话，管理员验收必须通过 `/admin/login`，不得临时绕过身份验证。
+
+## 2026-08-03 页面与体验审查
+
+本节是当前页面和信息架构审查，不是修复后的完整端到端验收。普通用户页面在 https://localainovel.testhut.top 完成桌面与 390px 窄屏走查；管理员业务页因独立 TOTP 边界只做代码确认。
+
+- 详细页面功能树、职责边界和当前问题登记见 [页面与功能树及当前体验问题](../architecture/page-function-tree.md)。
+- 本节不将创建、删除、上传、生成、订阅、兑换、G2 投票或管理员写操作作为验收依据；问题登记中的浏览器证据只说明页面可发现性、交互状态和请求错误，不能代替相关业务写流程验收。
+- 历史 agent-browser 问题快照与其复验结果仍保留在本文后续章节及 doc/test/，不因本节而改变状态。
 
 ## 最近一次验证
 

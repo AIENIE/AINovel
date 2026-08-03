@@ -6,6 +6,7 @@
 
 - [`architecture/overview.md`](architecture/overview.md)：系统边界、模块、路由和数据。
 - [`architecture/frontend.md`](architecture/frontend.md)：前端结构和页面地图。
+- [`architecture/page-function-tree.md`](architecture/page-function-tree.md)：页面功能树、职责边界和当前体验问题。
 - [`architecture/guided-creation.md`](architecture/guided-creation.md)：G1 引导创作。
 - [`architecture/workbench.md`](architecture/workbench.md)：创作工作台与 v2 能力。
 - [`architecture/quality.md`](architecture/quality.md)：文本质量、精雕和 G2 Step 1。
