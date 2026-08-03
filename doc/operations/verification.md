@@ -16,9 +16,23 @@ curl --noproxy '*' -k https://localainovel.testhut.top/api/actuator/health/readi
 
 本节是当前页面和信息架构审查，不是修复后的完整端到端验收。普通用户页面在 https://localainovel.testhut.top 完成桌面与 390px 窄屏走查；管理员业务页因独立 TOTP 边界只做代码确认。
 
-- 详细页面功能树、职责边界和当前问题登记见 [页面与功能树及当前体验问题](../architecture/page-function-tree.md)。
+- 详细页面功能树、职责边界和已知限制见 [页面与功能树](../architecture/page-function-tree.md)。
 - 本节不将创建、删除、上传、生成、订阅、兑换、G2 投票或管理员写操作作为验收依据；问题登记中的浏览器证据只说明页面可发现性、交互状态和请求错误，不能代替相关业务写流程验收。
 - 历史 agent-browser 问题快照与其复验结果仍保留在本文后续章节及 doc/test/，不因本节而改变状态。
+
+## 2026-08-03 页面与功能路径优化 L4 验收
+
+本批次在独立功能 worktree 完成实现、部署和普通用户关键路径验收；管理员业务写操作因没有当前 TOTP 或引导密码而保持 `BLOCKED`，未读取数据库、解密种子、复用旧会话或绕过鉴权。
+
+- 代码验证：后端全量 `225` 项测试通过，最终素材合并定向 `5` 项通过；前端 `26` 个文件 `98` 项测试和生产构建通过。
+- 部署验证：当前 worktree 接管共享容器后构建成功，liveness/readiness 均返回 `200 {"status":"UP"}`，容器工作目录为 `/home/duwei/aienie-projects/AINovel-page-experience`。
+- 普通用户：真实 SSO 默认进入创作首页；桌面与 `390×844` 移动导航、工作台分组、故事/角色、大纲/稿件显式创建、世界发布确认、素材与图谱提示、分支、导出、设置 URL 和移动正文入口均完成走查。
+- URL 与移动端修复：首次验收发现正文深链会混入旧选择、移动端无效场景仍可发起生成；修复后复验确认目标 `storyId` 保持、无效下游参数清除、故事切换不混入旧 ID，无有效场景时保存和生成均禁用且没有生成请求。
+- 素材状态：上传解析任务达到 `completed`，素材列表保留 `pending` 是等待管理员审核的业务状态，不是轮询未完成；界面和用户手册已明确区分。复验未重复上传，因此新提示文案只由最终构建和源码确认。
+- 诊断与清理：最终复验 console errors、page errors、失败请求和 5xx 均为 `0`。首次验收创建的故事、角色、Lorebook 条目和素材已通过 UI 清理；临时分支按产品行为废弃并保留历史。
+- 证据目录：`/tmp/ainovel-page-experience-l4-20260803/` 与 `/tmp/ainovel-page-experience-l4-recheck-20260803/`，不进入仓库。
+
+管理员待验收项：素材合并与源引用查询、直接项目积分发放和二次确认。获得合法 TOTP 后应使用新的隔离管理员会话补验；积分如执行，只向明确测试用户发放最小数量并写入唯一审计原因。
 
 ## 最近一次验证
 
@@ -33,7 +47,7 @@ curl --noproxy '*' -k https://localainovel.testhut.top/api/actuator/health/readi
 
 ## 2026-07-24 agent-browser 全系统问题修复后 L5 复测（通过）
 
-本节对应临时反馈记录 [`doc/test/2026-07-24-agent-browser-full-e2e-issues.md`](../test/2026-07-24-agent-browser-full-e2e-issues.md)。原始反馈文档保持不变；管理员页面仍按测试要求排除，本节只覆盖普通用户真实 SSO 会话。
+本节保留当时的问题记录与修复后复测结论；管理员页面仍按测试要求排除，只覆盖普通用户真实 SSO 会话。
 
 - 复测环境：`https://ainovel.localhut.com`，独立 agent-browser session `ainovel-fixes-9cbbfd283dd6`。
 - 证据目录：`/home/duwei/tmp/ainovel-full-e2e-20260724/`（原始发现）和 `/home/duwei/tmp/ainovel-full-e2e-fixes-20260724/`（修复后证据），均不进入仓库。
@@ -198,7 +212,7 @@ G1-A P0 交付与文档架构重构收口：
 | --- | --- |
 | 严重级别 | critical |
 | 分类 | functional / console |
-| 页面 | `/workbench?id=ec48cf00-4c2a-4ab3-9bde-1664de35d857` |
+| 页面 | `/workbench?storyId=ec48cf00-4c2a-4ab3-9bde-1664de35d857` |
 | 复现证据 | `screenshots/workbench-blank-after-outline-click.png` |
 | 状态 | 待修复 |
 
@@ -221,7 +235,7 @@ G1-A P0 交付与文档架构重构收口：
 | --- | --- |
 | 严重级别 | critical |
 | 分类 | functional |
-| 页面 | `/workbench?id=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
+| 页面 | `/workbench?storyId=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
 | 复现证据 | `screenshots/workbench-before-first-generation.png`、`workbench-after-first-generation.png` |
 | 状态 | 待修复/依赖检查 |
 
@@ -237,7 +251,7 @@ G1-A P0 交付与文档架构重构收口：
 | --- | --- |
 | 严重级别 | critical |
 | 分类 | functional / console |
-| 页面 | `/workbench?id=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
+| 页面 | `/workbench?storyId=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
 | 复现证据 | 后端 `ainovel-backend` 日志（2026-07-23 04:33–04:35） |
 | 状态 | 待迁移修复 |
 
@@ -253,7 +267,7 @@ G1-A P0 交付与文档架构重构收口：
 | --- | --- |
 | 严重级别 | high |
 | 分类 | functional / auth |
-| 页面 | `/workbench?id=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
+| 页面 | `/workbench?storyId=e843b031-3203-4dcc-8b6d-31ae05ea9fd8` |
 | 复现证据 | `screenshots/issue-006-download-403.png` |
 | 状态 | 待修复 |
 
