@@ -308,7 +308,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
 
   const deleteSelectedNode = async () => {
     if (!storyId || !selectedNode?.id) return;
-    const ok = window.confirm(`确定删除节点「${selectedNode.label || selectedNode.name}」吗？`);
+    const ok = window.confirm(
+      `确定删除节点「${selectedNode.label || selectedNode.name}」吗？\n\n这会删除对应的知识库源条目，以及该节点的全部关联关系。此操作不可撤销。`,
+    );
     if (!ok) return;
     setLoading(true);
     try {

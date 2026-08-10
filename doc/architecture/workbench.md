@@ -2,7 +2,7 @@
 
 ## 入口与标签
 
-工作台路由为 `/workbench?tab=<tab>&id=<storyId>`，入口文件是 `frontend/src/pages/Workbench/Workbench.tsx`。
+工作台路由为 `/workbench?tab=<tab>&storyId=<storyId>&outlineId=<outlineId>&manuscriptId=<manuscriptId>&sceneId=<sceneId>`，入口文件是 `frontend/src/pages/Workbench/Workbench.tsx`。旧 `id` 参数只用于兼容历史链接，进入后会规范为 `storyId`。
 
 | tab | 当前职责 |
 | --- | --- |

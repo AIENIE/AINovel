@@ -357,7 +357,7 @@ const StoryConception = () => {
       await api.outlines.save(created.id, { ...draft, id: created.id });
       await syncPlanningContext(result.storyCard.id, planning);
       toast({ title: "结构方案已落地到大纲", description: "已同步最小 Lorebook / Graph 节点。" });
-      navigate(`/workbench?id=${result.storyCard.id}&tab=outline`);
+      navigate(`/workbench?storyId=${result.storyCard.id}&tab=outline`);
     } catch (error: unknown) {
       const description = error instanceof Error ? error.message : "无法把剧情规划落地到大纲";
       toast({ variant: "destructive", title: "应用失败", description });
@@ -646,7 +646,7 @@ const StoryConception = () => {
                 应用当前方案到大纲
               </Button>
               {result.storyCard?.id ? (
-                <Button variant="outline" onClick={() => navigate(`/workbench?id=${result.storyCard?.id}&tab=outline`)}>
+                <Button variant="outline" onClick={() => navigate(`/workbench?storyId=${result.storyCard?.id}&tab=outline`)}>
                   查看大纲工作台
                 </Button>
               ) : null}

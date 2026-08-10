@@ -16,9 +16,14 @@ import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
 import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ManuscriptWriterProps {
   initialStoryId?: string;
+  initialOutlineId?: string;
+  initialManuscriptId?: string;
+  initialSceneId?: string;
+  onSelectionChange?: (selection: { storyId: string; outlineId: string; manuscriptId: string; sceneId: string }) => void;
 }
 
 type SceneStatus = "todo" | "in_progress" | "done";
@@ -29,7 +34,7 @@ const sceneStatusClass: Record<SceneStatus, string> = {
   done: "bg-emerald-500",
 };
 
-const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
+const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptId, initialSceneId, onSelectionChange }: ManuscriptWriterProps) => {
   const { toast } = useToast();
   const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState<number | null>(null);
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
@@ -48,6 +53,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     chapters,
     characters,
     closeSceneTab,
+    createManuscript,
+    createOutline,
     expandedChapterIds,
     handleSceneSelect,
     manuscripts,
@@ -78,8 +85,13 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toggleChapterExpanded,
   } = useManuscriptSelectionData({
     initialStoryId,
+    initialOutlineId,
+    initialManuscriptId,
+    initialSceneId,
+    onSelectionChange,
     toast,
   });
+  const activeSceneId = sceneMap[selectedSceneId] ? selectedSceneId : "";
 
   const {
     isSidebarOpen,
@@ -116,13 +128,14 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     replaceManuscript,
     selectedManuscript,
     selectedManuscriptId,
-    selectedSceneId,
+    selectedSceneId: activeSceneId,
     selectedStoryId,
     toast,
   });
 
   const {
     aiDiffSummary,
+    abandonBranch,
     autoSaveConfig,
     branches,
     chapterRange,
@@ -188,6 +201,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     toggleVersionSelection,
     txtEncoding,
     updateGoal,
+    updateBranch,
     updateTemplate,
     versionPageSize,
     versions,
@@ -230,7 +244,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     dirtyScenes,
     persistSection,
     selectedManuscriptId,
-    selectedSceneId,
+    selectedSceneId: activeSceneId,
     setSidebarTab,
     toast,
   });
@@ -262,7 +276,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
     sceneMap,
     sceneRows,
     selectedOutlineId,
-    selectedSceneId,
+    selectedSceneId: activeSceneId,
     selectedSceneIds,
     setOpenSceneIds,
     setOutlineDraft,
@@ -334,8 +348,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   });
 
   const contextData = useMemo(() => {
-    const currentChapter = outlineDraft?.chapters?.find((c) => c.scenes.some((s) => s.id === selectedSceneId));
-    const currentScene = currentChapter?.scenes?.find((s) => s.id === selectedSceneId);
+    const currentChapter = outlineDraft?.chapters?.find((c) => c.scenes.some((s) => s.id === activeSceneId));
+    const currentScene = currentChapter?.scenes?.find((s) => s.id === activeSceneId);
     return {
       storyTitle: selectedStory?.title,
       outlineTitle: outlineDraft?.title,
@@ -344,7 +358,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
       sceneSummary: currentScene?.summary,
       currentContent: content,
     };
-  }, [selectedStory, outlineDraft, selectedSceneId, content]);
+  }, [selectedStory, outlineDraft, activeSceneId, content]);
 
   const setSceneStatus = (sceneId: string, status: SceneStatus) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
@@ -353,7 +367,14 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
   return (
     <div className="relative h-[calc(100vh-180px)]">
       {isMobile ? (
-        <MobileWorkbenchPanel
+        <div className="flex h-full min-w-0 flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Select value={selectedStoryId} onValueChange={setSelectedStoryId}><SelectTrigger><SelectValue placeholder="选择故事" /></SelectTrigger><SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent></Select>
+            <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}><SelectTrigger><SelectValue placeholder={outlines.length ? "选择大纲" : "请先在大纲编排中新建"} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select>
+            <Select value={selectedManuscriptId} onValueChange={setSelectedManuscriptId} disabled={!selectedOutlineId}><SelectTrigger><SelectValue placeholder={manuscripts.length ? "选择稿件" : "请先新建稿件"} /></SelectTrigger><SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent></Select>
+          </div>
+          <div className="min-h-0 flex-1">
+          <MobileWorkbenchPanel
           content={content}
           contextData={contextData}
           exportJobs={exportJobs}
@@ -362,6 +383,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           isPlotBusy={isPlotBusy}
           isPlotRevisionBusy={isPlotRevisionBusy}
           isSlopBusy={isSlopBusy}
+          isGenerating={isGenerating}
+          isSaving={isSaving}
+          generationMode={generationMode}
           mobilePane={mobilePane}
           onApplyPlotRevision={applyPlotRevision}
           onChangeMobilePane={setMobilePane}
@@ -370,6 +394,9 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           onDownloadExport={downloadExport}
           onEditorChange={handleEditorChange}
           onGeneratePlotRevisionCandidate={generatePlotRevisionCandidate}
+          onGenerateScene={generateScene}
+          onManualSave={handleManualSave}
+          onSetGenerationMode={setGenerationMode}
           onLoadVersions={loadVersions}
           onRunPlotDiagnosis={runPlotDiagnosis}
           onRunSlopDiagnosis={runSlopDiagnosis}
@@ -378,10 +405,12 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
           selectedManuscriptId={selectedManuscriptId}
           selectedPlotRun={selectedPlotRun}
           selectedQualityRun={selectedQualityRun}
-          selectedSceneId={selectedSceneId}
+          selectedSceneId={activeSceneId}
           sidebarTab={sidebarTab}
           versions={versions}
         />
+          </div>
+        </div>
       ) : (
         <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border bg-background">
           <ResizablePanel
@@ -409,6 +438,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
               onHandleSceneSelect={handleSceneSelect}
               onMoveChapter={moveChapter}
               onMoveScene={moveScene}
+              onCreateManuscript={createManuscript}
+              onCreateOutline={createOutline}
               onOpenBatchExport={() => {
                 setIsSidebarOpen(true);
                 setSidebarTab("export");
@@ -468,7 +499,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             selectedManuscriptId={selectedManuscriptId}
             selectedPlotRun={selectedPlotRun}
             selectedQualityRun={selectedQualityRun}
-            selectedSceneId={selectedSceneId}
+            selectedSceneId={activeSceneId}
             selectedWordCount={selectedWordCount}
             sessionDurationSeconds={sessionDurationSeconds}
             sessionNetWords={sessionNetWords}
@@ -487,6 +518,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
             >
               <DesktopSidebarPanel
                 aiDiffSummary={aiDiffSummary}
+                abandonBranch={abandonBranch}
                 applyPlotRevision={applyPlotRevision}
                 autoSaveConfig={autoSaveConfig}
                 branches={branches}
@@ -546,8 +578,8 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 selectedManuscriptId={selectedManuscriptId}
                 selectedPlotRun={selectedPlotRun}
                 selectedQualityRun={selectedQualityRun}
-                selectedSceneId={selectedSceneId}
-                selectedSceneTitle={sceneMap[selectedSceneId]?.scene?.title || ""}
+                selectedSceneId={activeSceneId}
+                selectedSceneTitle={sceneMap[activeSceneId]?.scene?.title || ""}
                 setAutoSaveConfig={setAutoSaveConfig}
                 setChapterRange={setChapterRange}
                 setDiffViewMode={setDiffViewMode}
@@ -574,6 +606,7 @@ const ManuscriptWriter = ({ initialStoryId }: ManuscriptWriterProps) => {
                 toggleVersionSelection={toggleVersionSelection}
                 txtEncoding={txtEncoding}
                 updateGoal={updateGoal}
+                updateBranch={updateBranch}
                 updateTemplate={updateTemplate}
                 versionPageSize={versionPageSize}
                 visibleVersions={visibleVersions}

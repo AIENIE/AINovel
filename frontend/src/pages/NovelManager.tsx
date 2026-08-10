@@ -132,7 +132,7 @@ const NovelManager = () => {
               <div
                 key={novel.id}
                 className="bg-background border rounded-xl overflow-hidden flex flex-col min-h-[280px] group cursor-pointer hover:shadow-lg hover:border-primary/50 transition-all duration-300"
-                onClick={() => navigate(`/workbench?id=${novel.id}`)}
+                onClick={() => navigate(`/workbench?storyId=${novel.id}`)}
               >
                 <div className="h-32 bg-zinc-800 w-full relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-900/50 to-blue-900/50" />
@@ -144,7 +144,7 @@ const NovelManager = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/workbench?id=${novel.id}`)}>进入工作台</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/workbench?storyId=${novel.id}`)}>进入工作台</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(novel.id)}>
                           <Trash2 className="mr-2 h-4 w-4" /> 删除
                         </DropdownMenuItem>

@@ -136,12 +136,13 @@ const WorldEditor = () => {
                 const preview = await api.worlds.publishPreview(worldDetail.id);
                 const modules: string[] = preview?.modulesToGenerate || [];
                 if (modules.length === 0) {
+                  if (!confirm("预检完成：所有模块均已就绪。\n\n确认发布当前世界观并更新版本吗？")) return;
                   await api.worlds.publish(worldDetail.id);
                   await load();
                   toast({ title: "发布完成", description: "无需生成模块，已更新发布状态/版本。" });
                   return;
                 }
-                if (!confirm(`预检结果：需要生成 ${modules.length} 个模块：\n${modules.join(", ")}\n\n现在开始生成并发布？`)) return;
+                if (!confirm(`预检完成：需要生成 ${modules.length} 个模块：\n${modules.join(", ")}\n\n生成会消耗项目积分。确认生成并在完成后发布吗？`)) return;
                 await runTrackedAiOperation(api.worlds.startPublish(worldDetail.id));
                 await load();
                 toast({ title: "发布完成", description: "已生成并更新世界模块内容" });

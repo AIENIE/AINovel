@@ -209,6 +209,12 @@ public class MaterialService {
 
     @Transactional
     public MaterialDto merge(MaterialMergeRequest request) {
+        if (request == null || request.sourceMaterialId() == null || request.targetMaterialId() == null) {
+            throw new BusinessException("源素材和目标素材不能为空");
+        }
+        if (request.sourceMaterialId().equals(request.targetMaterialId())) {
+            throw new BusinessException("不能将素材合并到自身");
+        }
         Material source = materialRepository.findById(request.sourceMaterialId()).orElseThrow();
         Material target = materialRepository.findById(request.targetMaterialId()).orElseThrow();
         if (!accessGuard.isCurrentUserAdmin()) {
@@ -224,7 +230,15 @@ public class MaterialService {
         if (Boolean.TRUE.equals(request.mergeSummaryWhenEmpty()) && (target.getSummary() == null || target.getSummary().isBlank())) {
             target.setSummary(source.getSummary());
         }
-        target.setContent(target.getContent() + "\n\n" + source.getContent());
+        String targetContent = target.getContent() == null ? "" : target.getContent();
+        String sourceContent = source.getContent() == null ? "" : source.getContent();
+        if (targetContent.isBlank()) {
+            target.setContent(sourceContent);
+        } else if (!sourceContent.isBlank()) {
+            target.setContent(targetContent + "\n\n" + sourceContent);
+        }
+        source.setStatus("rejected");
+        materialRepository.save(source);
         materialRepository.save(target);
         return toDto(target);
     }

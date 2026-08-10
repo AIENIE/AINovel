@@ -452,6 +452,24 @@ export function useManuscriptSidebarData({
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
+  const updateBranch = useCallback(async (branchId: string, payload: Record<string, unknown>) => {
+    if (!selectedManuscriptId) return;
+    try {
+      await api.v2.version.updateBranch(selectedManuscriptId, branchId, payload);
+      await loadVersions();
+      toast({ title: "分支信息已更新" });
+    } catch (e: any) { toast({ variant: "destructive", title: "更新分支失败", description: e.message }); }
+  }, [loadVersions, selectedManuscriptId, toast]);
+
+  const abandonBranch = useCallback(async (branchId: string) => {
+    if (!selectedManuscriptId) return;
+    try {
+      await api.v2.version.abandonBranch(selectedManuscriptId, branchId);
+      await loadVersions();
+      toast({ title: "分支已废弃" });
+    } catch (e: any) { toast({ variant: "destructive", title: "废弃分支失败", description: e.message }); }
+  }, [loadVersions, selectedManuscriptId, toast]);
+
   const rollbackVersion = useCallback(async (versionId: string) => {
     if (!selectedManuscriptId) return;
     try {
@@ -587,6 +605,7 @@ export function useManuscriptSidebarData({
     aiDiffSummary,
     autoSaveConfig,
     branches,
+    abandonBranch,
     chapterRange,
     contextPreview,
     createBranch,
@@ -648,6 +667,7 @@ export function useManuscriptSidebarData({
     templateDescription,
     templateName,
     toggleVersionSelection,
+    updateBranch,
     txtEncoding,
     updateGoal,
     updateTemplate,

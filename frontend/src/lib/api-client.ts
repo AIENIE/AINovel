@@ -310,6 +310,7 @@ function toStory(dto: any): Story {
     genre: dto.genre || "",
     tone: dto.tone || "",
     status: dto.status || "draft",
+    worldId: dto.worldId || undefined,
     updatedAt: dto.updatedAt || new Date().toISOString(),
   };
 }
@@ -425,6 +426,7 @@ function toOutline(dto: any): Outline {
     id: dto.id,
     storyId: dto.storyId,
     title: dto.title || "新大纲",
+    worldId: dto.worldId || undefined,
     chapters: (dto.chapters || []).map((c: any) => ({
       id: c.id,
       title: c.title || "",
@@ -858,6 +860,9 @@ export const api = {
     },
     mergeMaterials: async (payload: any) => {
       return toMaterial(await requestJson<any>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
+    },
+    listMaterialCitations: async (id: string) => {
+      return await requestJson<any[]>(`/v1/admin/materials/${id}/citations`, { method: "GET" }, adminCookieAuth());
     },
     listAssets: async (kind: "stories" | "worlds" | "manuscripts") => {
       return await requestJson<any[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, adminCookieAuth());

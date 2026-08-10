@@ -1,68 +1,50 @@
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Coins, History, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Pricing = () => {
+  const { isAuthenticated } = useAuth();
+  const actionHref = isAuthenticated ? "/profile" : "/login?next=%2Fprofile";
+
   return (
-    <div className="container mx-auto py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">简单透明的定价</h1>
-        <p className="text-muted-foreground">选择适合你创作旅程的方案。</p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-        <div className="border rounded-xl p-6 flex flex-col">
-          <h3 className="text-xl font-bold">新手版</h3>
-          <div className="text-3xl font-bold my-4">
-            ¥0<span className="text-sm font-normal text-muted-foreground">/月</span>
-          </div>
-          <ul className="space-y-2 mb-6 flex-1">
-            <li>✓ 每日基础额度</li>
-            <li>✓ 基础工作台</li>
-            <li>✓ 素材管理</li>
-          </ul>
-          <Button variant="outline" className="w-full">
-            开始使用
-          </Button>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
+          <Link to="/" className="font-semibold tracking-tight">AINovel</Link>
+          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />返回首页
+          </Link>
         </div>
-
-        <div className="border-2 border-primary rounded-xl p-6 flex flex-col relative shadow-lg">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs">推荐</div>
-          <h3 className="text-xl font-bold">专业版</h3>
-          <div className="text-3xl font-bold my-4">
-            ¥39<span className="text-sm font-normal text-muted-foreground">/月</span>
-          </div>
-          <ul className="space-y-2 mb-6 flex-1">
-            <li>✓ 更高积分额度</li>
-            <li>✓ 更完整的 AI 辅助</li>
-            <li>✓ 后台管理与配置</li>
-          </ul>
-          <Button className="w-full">立即订阅</Button>
+      </header>
+      <section className="mx-auto max-w-5xl px-5 py-16 sm:py-24">
+        <div className="max-w-2xl">
+          <p className="mb-4 text-sm font-medium text-primary">积分说明</p>
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">按实际创作使用积分</h1>
+          <p className="mt-5 text-lg leading-8 text-muted-foreground">
+            AINovel 当前不提供月费订阅。AI 构思、生成、润色和分析按实际任务消耗项目积分，提交前会显示必要提示。
+          </p>
         </div>
-
-        <div className="border rounded-xl p-6 flex flex-col">
-          <h3 className="text-xl font-bold">畅享版</h3>
-          <div className="text-3xl font-bold my-4">
-            ¥99<span className="text-sm font-normal text-muted-foreground">/月</span>
-          </div>
-          <ul className="space-y-2 mb-6 flex-1">
-            <li>✓ 更高并发与额度</li>
-            <li>✓ 优先支持</li>
-            <li>✓ 新功能抢先体验</li>
-          </ul>
-          <Button variant="outline" className="w-full">
-            联系销售
-          </Button>
+        <div className="mt-14 divide-y border-y">
+          {[
+            [Coins, "项目积分", "用于 AINovel 内的生成与分析任务，可通过兑换码或通用积分兑换获得。"],
+            [Sparkles, "按任务消耗", "手写、保存和管理项目不扣除生成积分；调用 AI 能力时按实际任务记账。"],
+            [History, "记录可查询", "个人中心展示余额、兑换历史和项目积分流水，方便核对每次变动。"],
+          ].map(([Icon, title, description]) => (
+            <div key={String(title)} className="grid gap-3 py-7 sm:grid-cols-[48px_180px_1fr] sm:items-center">
+              <Icon className="h-5 w-5 text-primary" />
+              <h2 className="font-medium">{String(title)}</h2>
+              <p className="text-sm leading-6 text-muted-foreground">{String(description)}</p>
+            </div>
+          ))}
         </div>
-      </div>
-
-      <div className="text-center mt-8">
-        <Link to="/" className="text-sm text-muted-foreground hover:underline">
-          返回首页
-        </Link>
-      </div>
-    </div>
+        <div className="mt-10 flex flex-wrap items-center gap-4">
+          <Button asChild size="lg"><Link to={actionHref}>{isAuthenticated ? "查看我的积分" : "登录并查看积分"}</Link></Button>
+          <p className="text-sm text-muted-foreground">具体消耗以任务执行时的实际记账为准。</p>
+        </div>
+      </section>
+    </main>
   );
 };
 
 export default Pricing;
-

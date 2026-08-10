@@ -49,12 +49,12 @@ const CreateNovel = () => {
           }
         }
         showSuccess("小说创建成功！");
-        if (storyId) navigate(`/workbench?id=${storyId}&tab=conception`);
+        if (storyId) navigate(`/workbench?storyId=${storyId}&tab=conception`);
         else navigate("/novels");
       } else {
         const story = await api.stories.create({ title: title.trim(), synopsis, genre, tone: "" });
         showSuccess("小说创建成功！");
-        navigate(`/workbench?id=${story.id}`);
+        navigate(`/workbench?storyId=${story.id}`);
       }
     } catch (err: unknown) {
       showError(err instanceof Error ? err.message : "创建失败");

@@ -91,7 +91,7 @@ export default function GuidedCreationPage() {
             {guided.loading ? <LoadingState /> : null}
             {!guided.loading && !workflow ? <GuidedCreationSeedForm busy={guided.busy} onSubmit={(seed) => void guided.create(seed)} /> : null}
             {!guided.loading && workflow?.status === "COMPLETED" ? (
-              <CompletedState workflow={workflow} onOpenWorkbench={() => navigate(`/workbench?id=${workflow.storyId}`)} />
+              <CompletedState workflow={workflow} onOpenWorkbench={() => navigate(`/workbench?storyId=${workflow.storyId}`)} />
             ) : null}
             {!guided.loading && workflow?.status === "FAILED" ? (
               <FailureState workflow={workflow} busy={guided.busy} onRetry={() => void guided.retry()} />

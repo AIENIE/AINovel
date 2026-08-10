@@ -18,6 +18,7 @@ export interface Story {
   genre: string;
   tone: string;
   status: 'draft' | 'published' | 'archived';
+  worldId?: string;
   updatedAt: string;
   cover?: string;
 }
@@ -163,6 +164,7 @@ export interface Outline {
   id: string;
   storyId: string;
   title: string;
+  worldId?: string;
   chapters: Chapter[];
   updatedAt: string;
   planning?: PlotPlanning;

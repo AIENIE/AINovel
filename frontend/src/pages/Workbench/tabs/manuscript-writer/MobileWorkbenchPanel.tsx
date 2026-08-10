@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Save, Sparkles } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { Chapter, PlotQualityRun, SlopQualityRun } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { G2EvaluationSubmitDialog } from "./G2EvaluationSubmitDialog";
 import {
   formatDateTime,
   plotDimensionLabel,
@@ -30,6 +32,9 @@ type MobileWorkbenchPanelProps = {
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
   isSlopBusy: boolean;
+  isGenerating: boolean;
+  isSaving: boolean;
+  generationMode: "fast" | "crafted";
   mobilePane: MobilePane;
   onApplyPlotRevision: () => Promise<void> | void;
   onChangeMobilePane: (pane: MobilePane) => void;
@@ -38,6 +43,9 @@ type MobileWorkbenchPanelProps = {
   onDownloadExport: (job: any) => Promise<void> | void;
   onEditorChange: (html: string) => void;
   onGeneratePlotRevisionCandidate: () => Promise<void> | void;
+  onGenerateScene: () => Promise<void> | void;
+  onManualSave: () => Promise<void> | void;
+  onSetGenerationMode: (mode: "fast" | "crafted") => void;
   onLoadVersions: () => Promise<unknown> | void;
   onRunPlotDiagnosis: () => Promise<void> | void;
   onRunSlopDiagnosis: () => Promise<void> | void;
@@ -60,6 +68,9 @@ export function MobileWorkbenchPanel({
   isPlotBusy,
   isPlotRevisionBusy,
   isSlopBusy,
+  isGenerating,
+  isSaving,
+  generationMode,
   mobilePane,
   onApplyPlotRevision,
   onChangeMobilePane,
@@ -68,6 +79,9 @@ export function MobileWorkbenchPanel({
   onDownloadExport,
   onEditorChange,
   onGeneratePlotRevisionCandidate,
+  onGenerateScene,
+  onManualSave,
+  onSetGenerationMode,
   onLoadVersions,
   onRunPlotDiagnosis,
   onRunSlopDiagnosis,
@@ -111,7 +125,14 @@ export function MobileWorkbenchPanel({
         </ScrollArea>
       </TabsContent>
       <TabsContent value="editor" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
-        <div className="h-full border rounded overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 p-2">
+            <Select value={generationMode} onValueChange={(value) => onSetGenerationMode(value as "fast" | "crafted")}><SelectTrigger className="h-8 w-[108px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fast">快速生成</SelectItem><SelectItem value="crafted">精雕生成</SelectItem></SelectContent></Select>
+            <Button size="sm" onClick={() => void onGenerateScene()} disabled={!selectedManuscriptId || !selectedSceneId || isGenerating}>{isGenerating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}生成</Button>
+            <Button size="sm" variant="outline" onClick={() => void onManualSave()} disabled={!selectedManuscriptId || !selectedSceneId || isSaving}>{isSaving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}保存</Button>
+            <G2EvaluationSubmitDialog manuscriptId={selectedManuscriptId} sceneId={selectedSceneId} />
+          </div>
+          <div className="min-h-0 flex-1 border rounded overflow-hidden">
           <TiptapEditor
             key={`mobile-editor-${focusMode ? "zen" : "normal"}`}
             content={content}
@@ -120,6 +141,7 @@ export function MobileWorkbenchPanel({
             editable={!!selectedSceneId}
             zenMode={focusMode}
           />
+          </div>
         </div>
       </TabsContent>
       <TabsContent value="sidebar" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
@@ -198,6 +220,7 @@ export function MobileWorkbenchPanel({
             </ScrollArea>
           </TabsContent>
           <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
+            <p className="mb-2 text-muted-foreground">导出任务与下载地址保留 24 小时。</p>
             <Button size="sm" onClick={() => void onCreateExportJob()} className="mb-2">创建导出任务</Button>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
               {exportJobs.map((job) => (

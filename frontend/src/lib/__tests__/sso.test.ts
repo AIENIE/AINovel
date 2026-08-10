@@ -43,6 +43,11 @@ describe("sso helpers", () => {
     expect(url).toBe("https://gateway.example.com/api/v1/sso/register?next=%2Fworkbench&state=state123");
   });
 
+  it("defaults successful authentication to the creation dashboard", () => {
+    const url = buildSsoUrl("login", undefined, "state123");
+    expect(url).toBe("https://ainovel.localhut.com/api/v1/sso/login?next=%2Fdashboard&state=state123");
+  });
+
   it("issues and validates one-time state", () => {
     const state = issueSsoState();
     expect(state.length).toBeGreaterThan(0);

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Chapter } from "@/types";
 import { MobileWorkbenchPanel } from "./MobileWorkbenchPanel";
@@ -9,6 +9,10 @@ vi.mock("@/components/editor/TiptapEditor", () => ({
 
 vi.mock("@/components/ai/CopilotSidebar", () => ({
   default: ({ className }: { className?: string }) => <div className={className}>mock-copilot</div>,
+}));
+
+vi.mock("./G2EvaluationSubmitDialog", () => ({
+  G2EvaluationSubmitDialog: () => <button>提交 G2 盲测</button>,
 }));
 
 const chapters: Chapter[] = [
@@ -24,6 +28,57 @@ const chapters: Chapter[] = [
 ];
 
 describe("MobileWorkbenchPanel", () => {
+  it("exposes generation, save, and G2 actions in the mobile editor", () => {
+    const onGenerateScene = vi.fn();
+    const onManualSave = vi.fn();
+
+    render(
+      <MobileWorkbenchPanel
+        content=""
+        contextData={null}
+        exportDownloadingJobId=""
+        exportJobs={[]}
+        focusMode={false}
+        generationMode="fast"
+        isGenerating={false}
+        isPlotBusy={false}
+        isPlotRevisionBusy={false}
+        isSaving={false}
+        isSlopBusy={false}
+        mobilePane="editor"
+        onApplyPlotRevision={vi.fn()}
+        onChangeMobilePane={vi.fn()}
+        onChangeSidebarTab={vi.fn()}
+        onCreateExportJob={vi.fn()}
+        onDownloadExport={vi.fn()}
+        onEditorChange={vi.fn()}
+        onGeneratePlotRevisionCandidate={vi.fn()}
+        onGenerateScene={onGenerateScene}
+        onLoadVersions={vi.fn()}
+        onManualSave={onManualSave}
+        onRunPlotDiagnosis={vi.fn()}
+        onRunSlopDiagnosis={vi.fn()}
+        onSelectOutlineScene={vi.fn()}
+        onSetGenerationMode={vi.fn()}
+        outlineChapters={chapters}
+        selectedManuscriptId="manuscript-1"
+        selectedPlotRun={null}
+        selectedQualityRun={null}
+        selectedSceneId="scene-1"
+        sidebarTab="plot"
+        versions={[]}
+      />,
+    );
+
+    expect(screen.getByText("快速生成")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(onGenerateScene).toHaveBeenCalledTimes(1);
+    expect(onManualSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "提交 G2 盲测" })).toBeTruthy();
+  });
+
   it("renders outline scenes and switches to editor callback on selection", () => {
     render(
       <MobileWorkbenchPanel
