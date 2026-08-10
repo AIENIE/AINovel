@@ -22,7 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/admin/ops")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin Ops", description = "AINovel 只读运维观测接口")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminOpsController {

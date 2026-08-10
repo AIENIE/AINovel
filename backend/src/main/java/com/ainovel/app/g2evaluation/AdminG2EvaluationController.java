@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/admin/g2-evaluations")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "G2 blind evaluation admin")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminG2EvaluationController {

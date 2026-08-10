@@ -24,7 +24,7 @@ npm run test
 npm run build
 ```
 
-以 `backend/` 作为 VSCode 工作区时，可选择 `Backend: Spring Boot (env.txt)` 进行宿主机调试；配置直接读取仓库根目录 `env.txt`。
+以 `backend/` 作为 VSCode 工作区时，可选择 `Backend: Spring Boot (env.txt)` 进行宿主机调试；先从 `env.example` 创建本地 `env.txt`。该文件包含运行秘密并被 Git 忽略。
 
 ## 修改约束
 

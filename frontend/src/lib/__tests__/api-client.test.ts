@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApiError, api, normalizeConceptionResult } from "@/lib/api-client";
+import { registerAdminOperationCodePrompt } from "@/lib/admin-operation-proof";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -388,6 +389,42 @@ describe("api client", () => {
     expect(error.status).toBe(403);
     expect(localStorage.getItem("admin_token")).toBeNull();
     expect(assign).toHaveBeenCalledWith("/admin/login?next=%2Fadmin%2Fdashboard%3Fpanel%3Dops");
+  });
+
+  it("answers an admin 428 challenge and retries exactly once with the scoped proof", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const unregister = registerAdminOperationCodePrompt(async () => "123456");
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/api/v1/admin-auth/operation-proofs/verify")) {
+        return new Response(JSON.stringify({ proofToken: "one-use-proof" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const headers = init?.headers as Headers;
+      if (headers.get("X-Admin-Operation-Proof") === "one-use-proof") {
+        return new Response(JSON.stringify({ maintenance: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ challengeId: "operation-1" }), {
+        status: 428,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    try {
+      await expect(api.admin.updateSystemConfig({ maintenance: true })).resolves.toEqual({ maintenance: true });
+    } finally {
+      unregister();
+    }
+
+    expect(requests).toHaveLength(3);
+    expect(requests[0].init?.credentials).toBe("same-origin");
+    expect(JSON.parse(String(requests[1].init?.body))).toEqual({ challengeId: "operation-1", code: "123456" });
+    expect((requests[2].init?.headers as Headers).get("X-Admin-Operation-Proof")).toBe("one-use-proof");
   });
 
   it("loads pending materials with GET semantics", async () => {

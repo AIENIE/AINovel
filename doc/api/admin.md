@@ -1,16 +1,19 @@
 # Admin API
 
-除公开的引导与登录接口外，以下接口均需本地管理员会话。管理员是固定单一账号，日常登录只使用 TOTP；部署配置中的 `ADMIN_PASSWORD` 仅用于首次绑定验证器。
+除公开引导和登录接口外，以下接口均需本地管理员不透明会话。固定管理员在 TOTP 模式下先验证账号密码，再验证 TOTP；`local/password` 模式在密码成功后直接建立会话。
 
 ## 管理员本地登录
 
 - `GET /api/v1/admin-auth/bootstrap`
-  - 返回 `ENROLLMENT_REQUIRED` 或 `TOTP_REQUIRED`。
+  - 返回精确的 `env`、`authMode`、`PASSWORD_REQUIRED|ENROLLMENT_REQUIRED|TOTP_REQUIRED`、挑战 TTL 和最大尝试次数。
+- `POST /api/v1/admin-auth/login`
+  - 请求 `{username,password}`。密码模式返回 200 并设置 Cookie；TOTP 模式返回 202，以及 `ENROLLMENT_REQUIRED` 或 `TOTP_REQUIRED` 的 120 秒 challenge。
 - `POST /api/v1/admin-auth/enrollment/start`
-  - 首次绑定时提交 `ADMIN_PASSWORD`，返回一次性挑战、手动密钥和 `otpauth` URI。
+  - 首次绑定时提交密码阶段返回的 challenge，返回一次性绑定 challenge、手动密钥和 `otpauth` URI。
 - `POST /api/v1/admin-auth/enrollment/confirm`
   - 提交挑战与 6 位 TOTP，完成绑定并一次性返回恢复码。
 - `POST /api/v1/admin-auth/login/challenge`
+  - 旧的无密码入口已禁用，返回 410。
 - `POST /api/v1/admin-auth/login/totp`
 - `POST /api/v1/admin-auth/login/recovery`
   - 恢复码只创建受限恢复会话，不授予普通管理接口权限。
@@ -22,8 +25,20 @@
 - `POST /api/v1/admin-auth/rebind/start`
 - `POST /api/v1/admin-auth/rebind/confirm`
   - 仅恢复会话可用；成功后撤销旧会话并生成新恢复码。
+- `POST /api/v1/admin-auth/operation-proofs/verify`
+  - 完整 TOTP 会话提交 `{challengeId,code}`，返回仅存于内存的 `proofToken` 和固定 60 秒有效期。
 
-认证成功通过同源 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 建立本地管理员会话；响应 JSON 不返回 JWT。认证失败始终返回统一的 `401` 语义；失败响应与 URL 不包含 TOTP、恢复码、手工密钥、二维码 URI 或原始 challenge。
+认证成功通过同源 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie 建立服务端会话；响应 JSON 不返回 session token。后台写请求必须通过可信 Origin/Referer 校验。认证失败不回显账号存在性、密码或 TOTP 细节；失败响应与 URL 不包含 TOTP、恢复码、手工密钥、二维码 URI、原始 session 或 proof token。
+
+### 高风险操作协议
+
+TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返回 `428`：
+
+```json
+{"code":"OPERATION_PROOF_REQUIRED","challengeId":"opaque","expiresInSeconds":120}
+```
+
+前端调用 `/api/v1/admin-auth/operation-proofs/verify` 换取 proof，再以 `X-Admin-Operation-Proof` 重试完全相同的方法、路径、查询和请求体。proof 最长 60 秒、只能消费一次，并绑定管理员、服务端会话、动作和目标请求；`local/password` 模式不触发此协议。
 
 ## 运营概览
 

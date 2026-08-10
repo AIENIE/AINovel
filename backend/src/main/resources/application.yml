@@ -68,12 +68,14 @@ app:
     dir: ${APP_RECORD_DIR:/app/records}
     elasticsearch-query-enabled: ${APP_RECORD_ES_QUERY_ENABLED:true}
   admin-auth:
-    username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:}
+    username: ${ADMIN_USERNAME:}
+    password-hash: ${ADMIN_PASSWORD_HASH:}
     encryption-keys: ${ADMIN_TOTP_ENCRYPTION_KEYS:}
-    active-key-version: ${ADMIN_TOTP_ACTIVE_KEY_VERSION:v1}
-    session-minutes: ${ADMIN_TOTP_SESSION_MINUTES:120}
-    session-idle-minutes: ${ADMIN_TOTP_SESSION_IDLE_MINUTES:30}
+    active-key-version: ${ADMIN_TOTP_ACTIVE_KEY_VERSION:}
+    trusted-origins: ${ADMIN_TRUSTED_ORIGINS:https://localainovel.testhut.top}
+    cookie-secure: ${ADMIN_SESSION_COOKIE_SECURE:true}
+    session-minutes: ${ADMIN_SESSION_MINUTES:30}
+    session-idle-minutes: ${ADMIN_SESSION_IDLE_MINUTES:10}
     recovery-session-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_MINUTES:15}
     recovery-session-idle-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES:10}
   jwt:

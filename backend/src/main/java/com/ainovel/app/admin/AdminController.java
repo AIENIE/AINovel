@@ -26,7 +26,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/admin")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin", description = "管理端接口（聚合第三方服务 + 本地管理能力）")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {

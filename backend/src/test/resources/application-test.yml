@@ -19,10 +19,11 @@ spring:
 app:
   admin-auth:
     username: admin
-    password: test-admin-password
+    password-hash: $2a$10$dEnQNJUtxcEVsri32i2KmuRrrOBNtvoyn8j1HBUHpRRBjB14bNUgq
     encryption-keys: v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     active-key-version: v1
-    session-minutes: 120
-    session-idle-minutes: 30
+    trusted-origins: https://localainovel.testhut.top
+    session-minutes: 30
+    session-idle-minutes: 10
     recovery-session-minutes: 15
     recovery-session-idle-minutes: 10
