@@ -6,7 +6,7 @@
 
 - 基础设施：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
 - 三服务地址：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
-- SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`
+- SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`、`JWT_SECRET`、`JWT_ISSUER`、`JWT_AUDIENCE`；业务令牌必须先通过本地签名、issuer 和 audience 校验，不允许以远程会话校验作为未验签令牌的 fallback
 - 管理员策略：`env.txt` 中的精确 `ENV`、`AUTH_MODE`；只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`
 - 管理员密码：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（BCrypt cost 至少 10；不接受明文密码配置）
 - 管理员 TOTP 密钥环：`ADMIN_TOTP_ENCRYPTION_KEYS`、`ADMIN_TOTP_ACTIVE_KEY_VERSION`
@@ -57,7 +57,7 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
 - SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、internal token 和 user-service `ValidateSession` 可达性。
-- 管理员登录失败：先确认 OS `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
+- 管理员登录失败：先确认 `env.txt` 中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
 - 通用积分转换失败：检查 pay-service gRPC 地址、项目标识和 service JWT。
 - `curl` 出现代理相关 TLS 异常：对本地域名使用 `--noproxy '*'`。
 

@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -48,6 +49,7 @@ public class V2ModelController {
     @Operation(summary = "v2 API endpoint")
 
     @GetMapping("/admin/model-routing")
+    @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     public List<Map<String, Object>> listRouting(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireAdmin(user);
@@ -57,6 +59,7 @@ public class V2ModelController {
     @Operation(summary = "v2 API endpoint")
 
     @PutMapping("/admin/model-routing/{taskType}")
+    @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     public Map<String, Object> updateRouting(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable String taskType,
                                              @RequestBody Map<String, Object> payload) {

@@ -19,12 +19,18 @@ import java.util.Map;
 public class JwtService {
     private final Key signingKey;
     private final long expirationMinutes;
+    private final String issuer;
+    private final String audience;
 
     public JwtService(@Value("${app.jwt.secret}") String secret,
-                      @Value("${app.jwt.expiration-minutes}") long expirationMinutes) {
+                      @Value("${app.jwt.expiration-minutes}") long expirationMinutes,
+                      @Value("${app.jwt.issuer}") String issuer,
+                      @Value("${app.jwt.audience}") String audience) {
         validateSecret(secret);
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMinutes = expirationMinutes;
+        this.issuer = requireNonBlank(issuer, "app.jwt.issuer");
+        this.audience = requireNonBlank(audience, "app.jwt.audience");
     }
 
     public String generateToken(String username, Map<String, Object> claims) {
@@ -37,8 +43,10 @@ public class JwtService {
             throw new IllegalArgumentException("JWT lifetime must be positive");
         }
         return Jwts.builder()
-                .setSubject(username)
                 .addClaims(claims)
+                .setSubject(username)
+                .setIssuer(issuer)
+                .setAudience(audience)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plus(lifetime)))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
@@ -46,7 +54,20 @@ public class JwtService {
     }
 
     public Claims parseClaims(String token) {
-        return Jwts.parserBuilder().setSigningKey(signingKey).build().parseClaimsJws(token).getBody();
+        return Jwts.parserBuilder()
+                .setSigningKey(signingKey)
+                .requireIssuer(issuer)
+                .requireAudience(audience)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private String requireNonBlank(String value, String property) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(property + " must not be blank");
+        }
+        return value;
     }
 
     private void validateSecret(String secret) {

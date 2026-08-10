@@ -186,6 +186,33 @@
                 <version>3.5.2</version>
                 <configuration>
                     <argLine>-XX:+EnableDynamicAgentLoading -Djdk.attach.allowAttachSelf=true</argLine>
+                    <environmentVariables>
+                        <ENV>test</ENV>
+                        <AUTH_MODE>totp</AUTH_MODE>
+                        <SPRING_PROFILES_ACTIVE>test</SPRING_PROFILES_ACTIVE>
+                        <SPRING_JPA_HIBERNATE_DDL_AUTO>create-drop</SPRING_JPA_HIBERNATE_DDL_AUTO>
+                    </environmentVariables>
+                    <excludedEnvironmentVariables>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_URL</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_USERNAME</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_DATASOURCE_PASSWORD</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_CONFIG_ADDITIONAL_LOCATION</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_CONFIG_IMPORT</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>SPRING_CONFIG_LOCATION</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_USERNAME</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_PASSWORD_HASH</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_TOTP_ENCRYPTION_KEYS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_TOTP_ACTIVE_KEY_VERSION</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_TRUSTED_ORIGINS</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>ADMIN_SESSION_COOKIE_SECURE</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>JWT_SECRET</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>MYSQL_PASSWORD</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>REDIS_PASSWORD</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>QDRANT_ENABLED</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>EXTERNAL_AI_HMAC_SECRET</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>EXTERNAL_USER_INTERNAL_GRPC_TOKEN</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>EXTERNAL_PAY_SERVICE_JWT</excludedEnvironmentVariable>
+                    </excludedEnvironmentVariables>
                 </configuration>
             </plugin>
         </plugins>

@@ -4,7 +4,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,11 @@ class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
+    @AfterEach
+    void clearMdc() {
+        MDC.clear();
+    }
+
     @Test
     void businessExceptionShouldReturnBadRequestWithOriginalMessage() {
         ResponseEntity<ApiError> response = handler.handleBusiness(new BusinessException("用户不存在"));
@@ -29,22 +36,22 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void grpcUnavailableShouldReturnServiceUnavailable() {
-        ResponseEntity<ApiError> response = handler.handleGrpc(
-                new StatusRuntimeException(Status.UNAVAILABLE.withDescription("billing down"))
-        );
+        GrpcResult result = invokeGrpc(Status.UNAVAILABLE.withDescription("token=upstream-secret"));
+        ResponseEntity<ApiError> response = result.response();
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
-        assertEquals("UNAVAILABLE: billing down", response.getBody().message());
+        assertEquals("UPSTREAM_SERVICE_UNAVAILABLE", response.getBody().message());
+        assertGrpcLogIsSanitized(result.event(), "UNAVAILABLE");
     }
 
     @Test
     void grpcInternalShouldReturnBadGateway() {
-        ResponseEntity<ApiError> response = handler.handleGrpc(
-                new StatusRuntimeException(Status.INTERNAL.withDescription("upstream failure"))
-        );
+        GrpcResult result = invokeGrpc(Status.INTERNAL.withDescription("password=upstream-secret"));
+        ResponseEntity<ApiError> response = result.response();
 
         assertEquals(HttpStatus.BAD_GATEWAY, response.getStatusCode());
-        assertEquals("INTERNAL: upstream failure", response.getBody().message());
+        assertEquals("UPSTREAM_SERVICE_ERROR", response.getBody().message());
+        assertGrpcLogIsSanitized(result.event(), "INTERNAL");
     }
 
     @Test
@@ -79,5 +86,34 @@ class GlobalExceptionHandlerTest {
         assertFalse(event.getFormattedMessage().contains("remote-token-secret"));
         assertNotNull(event.getThrowableProxy());
         assertNull(event.getThrowableProxy().getMessage());
+    }
+
+    private GrpcResult invokeGrpc(Status status) {
+        MDC.put(RequestIdFilter.MDC_KEY, "grpc-request-123");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        ResponseEntity<ApiError> response;
+        try {
+            response = handler.handleGrpc(new StatusRuntimeException(status));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+        assertEquals(1, appender.list.size());
+        return new GrpcResult(response, appender.list.getFirst());
+    }
+
+    private void assertGrpcLogIsSanitized(ILoggingEvent event, String code) {
+        assertEquals("grpc-request-123", event.getMDCPropertyMap().get(RequestIdFilter.MDC_KEY));
+        assertTrue(event.getFormattedMessage().contains("code=" + code));
+        assertTrue(event.getFormattedMessage().contains("errorType=StatusRuntimeException"));
+        assertFalse(event.getFormattedMessage().contains("upstream-secret"));
+        assertNotNull(event.getThrowableProxy());
+        assertNull(event.getThrowableProxy().getMessage());
+    }
+
+    private record GrpcResult(ResponseEntity<ApiError> response, ILoggingEvent event) {
     }
 }

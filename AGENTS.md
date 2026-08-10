@@ -11,7 +11,7 @@
 
 在 linux 环境下，执行 sudo 的密码请从 `SUDO_PASSWORD` 环境变量获取。
 
-- 部署脚本: 本项目仅保留 `build.sh`；脚本只执行 Docker Compose 构建与部署，存在 `env.txt` 时通过 Compose `--env-file` 做 Compose 插值，并挂载进后端容器由启动脚本加载运行时环境变量。
+- 部署脚本: 本项目仅保留 `build.sh`；脚本只执行 Docker Compose 构建与部署，并要求本地 Git 忽略的 `env.txt` 是 `0600` 普通文件；脚本以同一文件完成 Compose `--env-file` 插值并只读挂载进后端容器，宿主同名环境变量不能补齐或覆盖该文件契约。
 
 ## 后续分期事项 / Pending Phases
 

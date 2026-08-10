@@ -13,6 +13,8 @@ import java.util.Base64;
 public class AdminOperationProofService {
     public static final int CHALLENGE_TTL_SECONDS = 120;
     public static final int PROOF_TTL_SECONDS = 60;
+    private static final String AUDIT_CHALLENGE_CREATED = "CHALLENGE_CREATED";
+    private static final String AUDIT_PROOF_ISSUED = "PROOF_ISSUED";
 
     private final AdminAuthPolicySource policy;
     private final AdminAuthStore store;
@@ -42,11 +44,13 @@ public class AdminOperationProofService {
         requireTotpMode();
         allow("proof-mint", subject, sessionHash, source, 5, Duration.ofMinutes(1));
         String raw = newToken();
+        String challengeHash = AdminLocalAuthService.hash(raw);
         Instant expiresAt = Instant.now().plusSeconds(CHALLENGE_TTL_SECONDS);
         store.insertOperationChallenge(
-                AdminLocalAuthService.hash(raw), subject, sessionHash, actionKey, targetId, source, expiresAt
+                challengeHash, subject, sessionHash, actionKey, targetId, source, expiresAt
         );
-        store.audit("admin.operation-proof.challenge", subject, null, source, "SUCCESS", actionKey);
+        store.audit("admin.operation-proof.challenge", subject, challengeHash, source, "SUCCESS",
+                AUDIT_CHALLENGE_CREATED);
         return new OperationChallenge(raw, expiresAt);
     }
 
@@ -71,7 +75,8 @@ public class AdminOperationProofService {
                 || !store.incrementOperationAttempt(challengeHash)
                 || !authService.verifyCurrentTotp(code)
                 || !store.consumeOperationChallenge(challengeHash)) {
-            store.audit("admin.operation-proof.verify", subject, null, source, "FAILED", "INVALID_OR_EXPIRED");
+            store.audit("admin.operation-proof.verify", subject,
+                    challengeHash.isBlank() ? null : challengeHash, source, "FAILED", "INVALID_OR_EXPIRED");
             throw new AdminAuthenticationException(
                     HttpStatus.UNAUTHORIZED,
                     "OPERATION_PROOF_INVALID",
@@ -87,7 +92,7 @@ public class AdminOperationProofService {
                 challenge.targetId(),
                 Instant.now().plusSeconds(PROOF_TTL_SECONDS)
         );
-        store.audit("admin.operation-proof.verify", subject, null, source, "SUCCESS", challenge.actionKey());
+        store.audit("admin.operation-proof.verify", subject, challenge.hash(), source, "SUCCESS", AUDIT_PROOF_ISSUED);
         return new ProofVerification(rawProof, PROOF_TTL_SECONDS);
     }
 

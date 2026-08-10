@@ -67,9 +67,15 @@ class JwtAuthFilterTest {
         when(validator.validate(anyLong(), anyString())).thenReturn(true);
         JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(validator));
 
-        filter.doFilter(bearer("eyJhbGciOiJub25lIn0.eyJyb2xlIjoiQURNSU4iLCJ1aWQiOjE4LCJzaWQiOiJzaWQtMDAxIn0."),
-                new MockHttpServletResponse(), new MockFilterChain());
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(bearer("eyJhbGciOiJub25lIn0.eyJzdWIiOiJmb3JnZWQtYWRtaW4iLCJyb2xlIjoiQURNSU4iLCJ1aWQiOjE4LCJzaWQiOiJzaWQtMDAxIn0."),
+                response, (request, downstreamResponse) -> {
+                    if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                        ((jakarta.servlet.http.HttpServletResponse) downstreamResponse).setStatus(403);
+                    }
+                });
 
+        assertEquals(403, response.getStatus());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(validator, never()).validate(anyLong(), anyString());
         verify(provisioning, never()).ensureExistsBestEffort(anyString(), anyString(), anyLong());

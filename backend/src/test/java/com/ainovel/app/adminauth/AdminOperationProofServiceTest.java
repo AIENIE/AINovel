@@ -54,6 +54,10 @@ class AdminOperationProofServiceTest {
         assertEquals(AdminLocalAuthService.hash(issued.proofToken()), storedHash.getValue());
         assertEquals(60, issued.expiresInSeconds());
         assertTrue(expiry.getValue().isAfter(Instant.now().plusSeconds(55)));
+        verify(store).audit(
+                "admin.operation-proof.verify", "configured-admin", challengeHash,
+                "127.0.0.1", "SUCCESS", "PROOF_ISSUED"
+        );
 
         when(store.consumeOperationProof(
                 storedHash.getValue(), "configured-admin", "session-a",
@@ -82,6 +86,29 @@ class AdminOperationProofServiceTest {
 
         verify(auth, never()).verifyCurrentTotp(anyString());
         verify(store, never()).insertOperationProof(anyString(), anyString(), anyString(), anyString(), anyString(), any());
+        verify(store).audit(
+                "admin.operation-proof.verify", "configured-admin", challengeHash,
+                "127.0.0.1", "FAILED", "INVALID_OR_EXPIRED"
+        );
+    }
+
+    @Test
+    void challengeAuditUsesFixedReasonAndChallengeHashInsteadOfDynamicAction() {
+        AdminAuthStore store = mock(AdminAuthStore.class);
+        AdminOperationProofService service = new AdminOperationProofService(
+                policy(), store, mock(AdminLocalAuthService.class), allowingLimiter()
+        );
+        String actionKey = "PUT:/v1/admin/g2-evaluations/" + java.util.UUID.randomUUID() + "/status";
+
+        AdminOperationProofService.OperationChallenge challenge = service.createChallenge(
+                "configured-admin", "session-hash", actionKey, actionKey + "#target", "127.0.0.1"
+        );
+
+        verify(store).audit(
+                "admin.operation-proof.challenge", "configured-admin",
+                AdminLocalAuthService.hash(challenge.challengeId()), "127.0.0.1",
+                "SUCCESS", "CHALLENGE_CREATED"
+        );
     }
 
     private AdminRateLimiter allowingLimiter() {

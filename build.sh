@@ -4,10 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-COMPOSE_ARGS=(-f "$ROOT_DIR/docker-compose.yml")
-if [[ -f "$ROOT_DIR/env.txt" ]]; then
-  COMPOSE_ARGS=(--env-file "$ROOT_DIR/env.txt" "${COMPOSE_ARGS[@]}")
-fi
+# shellcheck source=scripts/lib/deployment-env.sh
+source "$ROOT_DIR/scripts/lib/deployment-env.sh"
+ENV_FILE="$ROOT_DIR/env.txt"
+ainovel_read_env_file "$ENV_FILE"
+ainovel_require_deployment_env_sources
+COMPOSE_ARGS=(--env-file "$ENV_FILE" -f "$ROOT_DIR/docker-compose.yml")
 
 cleanup_conflicting_container() {
   local name="$1"
@@ -37,7 +39,7 @@ cleanup_conflicting_container "ainovel-backend"
 cleanup_conflicting_container "ainovel-frontend"
 
 for attempt in 1 2 3; do
-  if docker compose "${COMPOSE_ARGS[@]}" up -d --build --pull never --remove-orphans; then
+  if ainovel_run_without_host_runtime_env docker compose "${COMPOSE_ARGS[@]}" up -d --build --pull never --remove-orphans; then
     exit 0
   fi
 

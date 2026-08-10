@@ -21,15 +21,15 @@
   - `redirect`：发起登录时传给 user-service 的原始 callback URL；只移除回跳追加的 `code`、`state`，保留 `next`。
 - 注意：`redirect` 必须与授权码签发时绑定的 callback 字符串一致；前端重建该 URL 时保留 `next=/path` 中的路径斜杠，不应重新编码为 `next=%2Fpath`。
 - 后端用 `application/x-www-form-urlencoded` 调用 user-service `POST /sso/token`，表单字段为 `code` 与 `redirect`。
-- 成功响应透传 `accessToken/userId/username/sessionId/rememberDays/expiresIn`，前端沿用既有 `acceptToken` 建立本地登录态。
+- 成功交换 user-service 授权码后，AINovel 签发自身的短期访问令牌，并返回 `accessToken/userId/username/sessionId/rememberDays/expiresIn`；前端沿用既有 `acceptToken` 建立本地登录态。
 
 ## 环境变量配置
 - `USER_HTTP_ADDR`：提供 user-service HTTP 入口的静态地址。
 - `SSO_CALLBACK_ORIGIN`：可选。配置后，后端回调 `redirect` 固定使用该 origin；未配置时按请求头（`X-Forwarded-*`/`Origin`/`Referer`）推断。
 - `VITE_SSO_ENTRY_BASE_URL`：前端构建变量，控制 `buildSsoUrl()` 的后端入口基址；为空时使用当前页面 `window.location.origin`。
 
-## 鉴权兼容说明
-- `/api/v1/sso/session` 换回的 `accessToken` 由 user-service 签发，AINovel 在访问业务接口（如 `GET /api/v1/user/profile`）时会按以下顺序鉴权：
-  1. 优先按本地 JWT 密钥验签并解析；
-  2. 若验签失败，但 token 中可解析到 `uid + sid`，且远程 `validateSession` 校验通过，则允许建立登录态；
-  3. 未通过远程会话校验的 token 将被拒绝（`403`）。
+## 业务令牌校验
+- `/api/v1/sso/session` 返回的 `accessToken` 必须通过 AINovel 配置的签名密钥、`JWT_ISSUER` 与 `JWT_AUDIENCE` 校验，并包含有效的 `sub + uid + sid`。
+- 签名、issuer 或 audience 任一校验失败即拒绝访问（`403`）；后端不会解析未验签 payload，也不会以远程 `validateSession` 成功作为降级或 fallback。
+- 本地令牌通过密码学校验后，启用会话校验时才以其中的 `uid + sid` 调用 user-service `ValidateSession`；上游无效或不可达时同样拒绝建立登录态。
+- 普通 SSO 令牌中的 `ROLE_ADMIN` 不授予本地后台权限；后台只接受不透明 Cookie 会话解析出的 `AUTH_LOCAL_ADMIN`。

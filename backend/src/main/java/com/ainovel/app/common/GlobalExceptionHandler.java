@@ -43,14 +43,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(StatusRuntimeException.class)
     public ResponseEntity<ApiError> handleGrpc(StatusRuntimeException ex) {
-        HttpStatus status = ex.getStatus() != null && ex.getStatus().getCode() == Status.Code.UNAVAILABLE
+        Status.Code code = ex.getStatus() == null ? Status.Code.UNKNOWN : ex.getStatus().getCode();
+        HttpStatus status = code == Status.Code.UNAVAILABLE
                 ? HttpStatus.SERVICE_UNAVAILABLE
                 : HttpStatus.BAD_GATEWAY;
-        String message = ex.getStatus() == null
-                ? "UPSTREAM_SERVICE_ERROR"
-                : ex.getStatus().getDescription() == null || ex.getStatus().getDescription().isBlank()
-                ? ex.getStatus().getCode().name()
-                : ex.getStatus().getCode().name() + ": " + ex.getStatus().getDescription();
+        String message = code == Status.Code.UNAVAILABLE
+                ? "UPSTREAM_SERVICE_UNAVAILABLE"
+                : "UPSTREAM_SERVICE_ERROR";
+        log.warn("Upstream gRPC request failed code={} errorType={}",
+                code.name(), ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
         return ResponseEntity.status(status).body(ApiError.of(message));
     }
 

@@ -15,13 +15,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Map;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 @Service
 public class SsoTokenExchangeService {
@@ -29,29 +24,32 @@ public class SsoTokenExchangeService {
     private final SsoEntryService ssoEntryService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
-    private final HttpClient localInsecureHttpClient;
     private final JwtService jwtService;
 
     @Autowired
     public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper, JwtService jwtService) {
-        this.ssoEntryService = ssoEntryService;
-        this.objectMapper = objectMapper;
-        this.jwtService = jwtService;
-        this.httpClient = HttpClient.newBuilder()
+        this(ssoEntryService, objectMapper, jwtService, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
-                .build();
-        this.localInsecureHttpClient = buildLocalInsecureHttpClient();
+                .build());
     }
 
     // Package-visible compatibility constructor for transport-only unit tests.
     public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper) {
+        this(ssoEntryService, objectMapper, null, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build());
+    }
+
+    SsoTokenExchangeService(
+            SsoEntryService ssoEntryService,
+            ObjectMapper objectMapper,
+            JwtService jwtService,
+            HttpClient httpClient
+    ) {
         this.ssoEntryService = ssoEntryService;
         this.objectMapper = objectMapper;
-        this.jwtService = null;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
-        this.localInsecureHttpClient = buildLocalInsecureHttpClient();
+        this.jwtService = jwtService;
+        this.httpClient = httpClient;
     }
 
     public SsoTokenExchangeResponse exchange(String code, String redirect) {
@@ -66,7 +64,7 @@ public class SsoTokenExchangeService {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
         try {
-            HttpResponse<String> response = send(request, endpoint);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_SSO_CODE");
             }
@@ -96,10 +94,10 @@ public class SsoTokenExchangeService {
                     lifetime.toSeconds()
             );
         } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_FAILED", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_FAILED");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_INTERRUPTED", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_INTERRUPTED");
         }
     }
 
@@ -114,54 +112,4 @@ public class SsoTokenExchangeService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    private HttpResponse<String> send(HttpRequest request, URI endpoint) throws IOException, InterruptedException {
-        try {
-            return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException ex) {
-            if (!allowsLocalInsecureTls(endpoint)) {
-                throw ex;
-            }
-            return localInsecureHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        }
-    }
-
-    private boolean allowsLocalInsecureTls(URI endpoint) {
-        String scheme = endpoint.getScheme();
-        String host = endpoint.getHost();
-        return "https".equalsIgnoreCase(scheme)
-                && host != null
-                && ("localhost".equalsIgnoreCase(host)
-                || "127.0.0.1".equals(host)
-                || host.endsWith(".localhut.com")
-                || host.endsWith(".testhut.top"));
-    }
-
-    private HttpClient buildLocalInsecureHttpClient() {
-        try {
-            TrustManager[] trustAll = new TrustManager[] {
-                    new X509TrustManager() {
-                        @Override
-                        public void checkClientTrusted(X509Certificate[] chain, String authType) {
-                        }
-
-                        @Override
-                        public void checkServerTrusted(X509Certificate[] chain, String authType) {
-                        }
-
-                        @Override
-                        public X509Certificate[] getAcceptedIssuers() {
-                            return new X509Certificate[0];
-                        }
-                    }
-            };
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, trustAll, new SecureRandom());
-            return HttpClient.newBuilder()
-                    .sslContext(context)
-                    .connectTimeout(Duration.ofSeconds(5))
-                    .build();
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to initialize local SSO TLS fallback", ex);
-        }
-    }
 }

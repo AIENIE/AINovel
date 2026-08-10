@@ -4,7 +4,7 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - 后端：Java 25 + Spring Boot 3 + JPA + Flyway + Redis + gRPC 客户端
-- 本地域名：`ainovel.localhut.com`
+- 本地域名：`localainovel.testhut.top`
 - 正式域名：`ainovel.aienie.com`
 - 前端端口：`11040`
 - 后端端口：`11041`
@@ -24,13 +24,13 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 
 ## 快速部署
 
-复制安全模板 `env.example` 为本地、Git 忽略的 `env.txt`，填入部署平台生成的实际值后执行：
+复制安全模板 `env.example` 为本地、Git 忽略的 `env.txt`，填入部署平台生成的实际值并设置为 `0600` 普通文件后执行：
 
 ```bash
 printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 ```
 
-打开 `https://ainovel.localhut.com`。
+打开 `https://localainovel.testhut.top`。
 
 `build.sh` 只负责 Docker Compose 构建和部署。MySQL、Redis、Qdrant、三服务、域名、证书和反向代理必须由外部环境提前提供。
 
