@@ -748,6 +748,27 @@ describe("api client", () => {
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/ledger?page=3&size=25"))).toBe(true);
   });
 
+  it("uses only the admin cookie for v2 model routing even when a user bearer exists", async () => {
+    localStorage.setItem("token", "ordinary-user-bearer");
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const headers = init?.headers as Headers;
+      expect(headers.get("Authorization")).toBeNull();
+      expect(init?.credentials).toBe("same-origin");
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.v2.models.listRouting();
+    await api.v2.models.updateRouting("draft_generation", { routingStrategy: "fixed" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v2/admin/model-routing");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/v2/admin/model-routing/draft_generation");
+  });
+
   it("passes admin ops observability requests through the API wrapper", async () => {
     const requestedUrls: string[] = [];
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {

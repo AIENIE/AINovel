@@ -24,7 +24,7 @@ import java.util.Map;
 @RequestMapping("/v1/admin/ops")
 @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin Ops", description = "AINovel 只读运维观测接口")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminSessionCookie")
 public class AdminOpsController {
     private final ApiRequestMetrics requestMetrics;
     private final DependencyHealthService dependencyHealthService;

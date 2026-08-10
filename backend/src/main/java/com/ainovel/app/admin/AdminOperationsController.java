@@ -19,7 +19,7 @@ import java.util.UUID;
 @RequestMapping("/v1/admin")
 @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin Operations", description = "AINovel 业务运营后台接口")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminSessionCookie")
 public class AdminOperationsController {
     private final MaterialService materialService;
     private final AdminOperationsQueryService adminOperationsQueryService;

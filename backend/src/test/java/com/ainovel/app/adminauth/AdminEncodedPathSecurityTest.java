@@ -27,6 +27,7 @@ import java.util.Set;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -95,10 +96,6 @@ class AdminEncodedPathSecurityTest {
                 "session-hash", "local-admin", "FULL", "PASSWORD_TOTP",
                 now.minusSeconds(60), now.minusSeconds(30), now.plusSeconds(600)
         ));
-        User admin = new User();
-        admin.setUsername("admin");
-        admin.setRoles(Set.of("ROLE_ADMIN"));
-        when(resourceAccessGuard.currentUser(any(UserDetails.class))).thenReturn(admin);
         when(persistenceService.listRouting()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v2/admin/model-routing")
@@ -109,14 +106,48 @@ class AdminEncodedPathSecurityTest {
 
         verify(persistenceService).listRouting();
         verify(jwtService, never()).parseClaims(any());
+        verifyNoInteractions(resourceAccessGuard);
+    }
+
+    @Test
+    void ordinaryApiKeepsBearerIdentityWhenAdminCookieIsAlsoPresent() throws Exception {
+        Claims claims = signedUserClaims("ordinary-user", 19L, "session-ordinary", "USER");
+        when(jwtService.parseClaims("signed-ordinary-user")).thenReturn(claims);
+        when(userSessionValidator.validate(19L, "session-ordinary")).thenReturn(true);
+        when(userDetailsService.loadUserByUsername("ordinary-user"))
+                .thenReturn(org.springframework.security.core.userdetails.User
+                        .withUsername("ordinary-user")
+                        .password("n/a")
+                        .authorities("ROLE_USER")
+                        .build());
+        when(resourceAccessGuard.currentUser(any(UserDetails.class))).thenReturn(new User());
+        when(persistenceService.listModels()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v2/models")
+                        .servletPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer signed-ordinary-user")
+                        .cookie(new Cookie(AdminAuthConstants.ADMIN_SESSION_COOKIE, "opaque-admin-session")))
+                .andExpect(status().isOk())
+                .andExpect(content().json("[]"));
+
+        verify(adminSessionService, never()).resolve(any());
+        verify(jwtService).parseClaims("signed-ordinary-user");
+        verify(userDetailsService).loadUserByUsername("ordinary-user");
+        verify(resourceAccessGuard).currentUser(org.mockito.ArgumentMatchers.argThat(
+                details -> "ordinary-user".equals(details.getUsername())
+        ));
     }
 
     private Claims signedUserClaims() {
+        return signedUserClaims("sso-admin", 18L, "session-001", "ADMIN");
+    }
+
+    private Claims signedUserClaims(String username, long uid, String sessionId, String role) {
         Claims claims = org.mockito.Mockito.mock(Claims.class);
-        when(claims.getSubject()).thenReturn("sso-admin");
-        when(claims.get("uid")).thenReturn(18L);
-        when(claims.get("sid")).thenReturn("session-001");
-        when(claims.get("role")).thenReturn("ADMIN");
+        when(claims.getSubject()).thenReturn(username);
+        when(claims.get("uid")).thenReturn(uid);
+        when(claims.get("sid")).thenReturn(sessionId);
+        when(claims.get("role")).thenReturn(role);
         when(claims.get("local_admin")).thenReturn(false);
         return claims;
     }

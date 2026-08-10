@@ -22,7 +22,7 @@
 | G2 评审 | `/g2-evaluations/:id/review` | 受邀用户匿名评审 |
 | 管理后台 | `/admin/*` | 运营、治理、质量、积分、G2 活动和运维观测 |
 
-普通用户路由由 `ProtectedRoute` 校验 SSO 会话，管理员路由使用独立的本地管理员令牌。
+普通用户路由由 `ProtectedRoute` 校验 SSO 会话；管理员路由使用独立的同源 HttpOnly 本地管理员会话 Cookie，并在 TOTP 模式下对高风险写入执行一次性 operation proof。
 
 ## 后端模块
 

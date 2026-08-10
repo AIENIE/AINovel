@@ -10,6 +10,9 @@ fixture_dir="$(mktemp -d)"
 trap 'rm -rf -- "$fixture_dir"' EXIT
 missing_file="$fixture_dir/missing.env"
 complete_file="$fixture_dir/complete.env"
+policy_file="$fixture_dir/policy.env"
+template_file="$fixture_dir/template.env"
+placeholder_probe_file="$fixture_dir/placeholder-probe.env"
 
 write_fixture() {
   local target="$1"
@@ -60,6 +63,76 @@ chmod 600 "$complete_file"
 ainovel_read_env_file "$complete_file"
 ainovel_require_deployment_env_sources
 [[ "${AINOVEL_ENV_FILE_VALUES[ADMIN_PASSWORD_HASH]}" == '$2b$12$literal-dollar-placeholder' ]]
+
+while read -r invalid_env invalid_mode; do
+  write_fixture "$policy_file"
+  printf 'ENV=%s\nAUTH_MODE=%s\n' "$invalid_env" "$invalid_mode" >> "$policy_file"
+  ainovel_read_env_file "$policy_file"
+  if ainovel_require_deployment_env_sources 2>/dev/null; then
+    echo "invalid ENV/AUTH_MODE policy passed deployment preflight" >&2
+    exit 1
+  fi
+done <<'POLICIES'
+LOCAL totp
+development totp
+local TOTP
+local disabled
+test password
+production password
+POLICIES
+
+for raw_policy in \
+  "ENV='local'" \
+  'ENV= local' \
+  'ENV=local ' \
+  "AUTH_MODE='totp'" \
+  'AUTH_MODE= totp' \
+  'AUTH_MODE=totp '
+do
+  write_fixture "$policy_file"
+  printf '%s\n' "$raw_policy" >> "$policy_file"
+  ainovel_read_env_file "$policy_file"
+  if ainovel_require_deployment_env_sources 2>/dev/null; then
+    echo "quoted or whitespace-padded ENV/AUTH_MODE passed deployment preflight" >&2
+    exit 1
+  fi
+done
+
+cp "$repo_root/env.example" "$template_file"
+chmod 600 "$template_file"
+ainovel_read_env_file "$template_file"
+ainovel_load_template_placeholder_manifest
+declare -A template_placeholder_values=()
+for name in "${!AINOVEL_ENV_FILE_KEYS[@]}"; do
+  value="${AINOVEL_ENV_FILE_VALUES[$name]}"
+  case "${value,,}" in
+    *replace-*|*replace_*|*change-me*|*change_me*) template_placeholder_values["$name"]="$value" ;;
+  esac
+done
+if (( ${#template_placeholder_values[@]} != ${#AINOVEL_TEMPLATE_PLACEHOLDERS[@]} )); then
+  echo "env.example and runtime placeholder manifest differ" >&2
+  exit 1
+fi
+for name in "${!AINOVEL_TEMPLATE_PLACEHOLDERS[@]}"; do
+  if [[ "${template_placeholder_values[$name]:-}" != "${AINOVEL_TEMPLATE_PLACEHOLDERS[$name]}" ]]; then
+    echo "env.example and runtime placeholder manifest differ for key $name" >&2
+    exit 1
+  fi
+  write_fixture "$placeholder_probe_file"
+  printf '%s=%s\n' "$name" "${AINOVEL_TEMPLATE_PLACEHOLDERS[$name]}" >> "$placeholder_probe_file"
+  ainovel_read_env_file "$placeholder_probe_file"
+  if ainovel_require_deployment_env_sources 2>/dev/null; then
+    echo "env.example placeholder passed deployment preflight for key $name" >&2
+    exit 1
+  fi
+done
+
+write_fixture "$placeholder_probe_file"
+printf '%s\n' \
+  'JWT_ISSUER=replace-service' \
+  'JWT_SECRET=replace-with-a-different-runtime-value' >> "$placeholder_probe_file"
+ainovel_read_env_file "$placeholder_probe_file"
+ainovel_require_deployment_env_sources
 
 export ENV=production AUTH_MODE=password ADMIN_PASSWORD_HASH=host-value
 ainovel_run_without_host_runtime_env bash -c '

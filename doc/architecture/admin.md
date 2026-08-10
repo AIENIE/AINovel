@@ -8,7 +8,7 @@
 - 固定单一管理员由 `ADMIN_USERNAME` 标识；`ADMIN_PASSWORD_HASH` 保存 BCrypt 摘要。TOTP 模式的日常登录也先校验账号密码，再签发 120 秒、最多 5 次尝试的 TOTP 挑战。
 - TOTP 密钥以 AES-GCM 加密保存，使用版本化 `ADMIN_TOTP_ENCRYPTION_KEYS` 密钥环和 `ADMIN_TOTP_ACTIVE_KEY_VERSION`。
 - 后端普通管理接口只接受独立权限 `AUTH_LOCAL_ADMIN`。普通 SSO 的 `ROLE_ADMIN` 无法进入本地后台；恢复码登录只授予 `AUTH_LOCAL_ADMIN_RECOVERY`，仅允许查询会话、退出和重新绑定验证器。
-- 所有后台写请求必须来自 `ADMIN_TRUSTED_ORIGINS`。TOTP 模式中的删除、维护配置、积分发放、兑换码创建、素材合并和 G2 状态推进还需要操作级证明：首次请求返回 428，动态码验证后得到最长 60 秒、一次消费并绑定用户/会话/动作/请求目标的 proof。`local/password` 模式豁免该二次验证。
+- 所有后台写请求必须来自 `ADMIN_TRUSTED_ORIGINS`。TOTP 模式中的删除、维护配置、积分发放、兑换码创建、素材合并、模型路由更新和 G2 状态推进还需要操作级证明：首次请求返回 428，动态码验证后得到最长 60 秒、一次消费并绑定用户/会话/动作/请求目标的 proof。`local/password` 模式豁免该二次验证。
 - 恢复码只在生成或重置成功时显示一次；丢失验证器和全部恢复码时只能通过受控运维操作重置。
 
 完整状态与信任边界见 [`admin-auth.md`](admin-auth.md)。

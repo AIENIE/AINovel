@@ -1,6 +1,6 @@
 # G2 盲测 API
 
-所有接口均要求 Bearer 令牌。`/v1/admin/g2-evaluations/*` 使用管理员令牌；其余接口使用普通 SSO 用户会话。
+`/v1/admin/g2-evaluations/*` 仅接受同源 HttpOnly 本地管理员会话 Cookie（`AUTH_LOCAL_ADMIN`）；其余接口使用普通 SSO Bearer 会话。管理员状态变更在 TOTP 模式下还需要一次性 operation proof。
 
 ## 管理员
 

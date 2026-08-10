@@ -1,5 +1,6 @@
 package com.ainovel.app.config;
 
+import com.ainovel.app.adminauth.AdminAuthConstants;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
@@ -27,6 +28,12 @@ import org.springframework.context.annotation.Configuration;
         scheme = "bearer",
         bearerFormat = "JWT",
         in = SecuritySchemeIn.HEADER
+)
+@SecurityScheme(
+        name = "adminSessionCookie",
+        type = SecuritySchemeType.APIKEY,
+        in = SecuritySchemeIn.COOKIE,
+        paramName = AdminAuthConstants.ADMIN_SESSION_COOKIE
 )
 public class OpenApiConfig {
 

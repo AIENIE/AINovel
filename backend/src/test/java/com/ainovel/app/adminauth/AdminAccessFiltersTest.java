@@ -124,6 +124,67 @@ class AdminAccessFiltersTest {
     }
 
     @Test
+    void modelRoutingWriteRequiresTotpOperationProof() throws Exception {
+        AdminOperationProofService proofs = mock(AdminOperationProofService.class);
+        when(proofs.consume(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn(false);
+        when(proofs.createChallenge(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(new AdminOperationProofService.OperationChallenge(
+                        "challenge", Instant.now().plusSeconds(120)
+                ));
+        AdminBusinessAccessFilter filter = new AdminBusinessAccessFilter(
+                policy("local", "totp"), proofs, new ObjectMapper()
+        );
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                "admin", null, List.of(new SimpleGrantedAuthority(AdminAuthConstants.FULL_AUTHORITY))
+        );
+        authentication.setDetails("session-hash");
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "PUT", "/api/v2/admin/model-routing/draft_generation"
+        );
+        request.setContentType("application/json");
+        request.setContent("{\"routingStrategy\":\"fixed\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(428, response.getStatus());
+        verify(proofs).createChallenge(
+                eq(AdminLocalAuthService.SUBJECT), eq("session-hash"),
+                eq("PUT:/v2/admin/model-routing/draft_generation"), anyString(), anyString()
+        );
+    }
+
+    @Test
+    void validTotpOperationProofAllowsModelRoutingWrite() throws Exception {
+        AdminOperationProofService proofs = mock(AdminOperationProofService.class);
+        when(proofs.consume(
+                eq("one-use-proof"), eq(AdminLocalAuthService.SUBJECT), eq("session-hash"),
+                eq("PUT:/v2/admin/model-routing/draft_generation"), anyString()
+        )).thenReturn(true);
+        AdminBusinessAccessFilter filter = new AdminBusinessAccessFilter(
+                policy("local", "totp"), proofs, new ObjectMapper()
+        );
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                "admin", null, List.of(new SimpleGrantedAuthority(AdminAuthConstants.FULL_AUTHORITY))
+        );
+        authentication.setDetails("session-hash");
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "PUT", "/api/v2/admin/model-routing/draft_generation"
+        );
+        request.addHeader(AdminAuthConstants.OPERATION_PROOF_HEADER, "one-use-proof");
+        request.setContentType("application/json");
+        request.setContent("{\"routingStrategy\":\"fixed\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertEquals(200, response.getStatus());
+        verify(proofs, never()).createChallenge(anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
     void passwordModeBypassesOperationProofForHighRiskWrites() throws Exception {
         AdminOperationProofService proofs = mock(AdminOperationProofService.class);
         AdminBusinessAccessFilter filter = new AdminBusinessAccessFilter(
@@ -136,7 +197,12 @@ class AdminAccessFiltersTest {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        filter.doFilter(new MockHttpServletRequest("PUT", "/v1/admin/system-config"), response, new MockFilterChain());
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                "PUT", "/api/v2/admin/model-routing/draft_generation"
+        );
+        request.setContentType("application/json");
+        request.setContent("{\"routingStrategy\":\"fixed\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        filter.doFilter(request, response, new MockFilterChain());
 
         assertEquals(200, response.getStatus());
         verify(proofs, never()).createChallenge(anyString(), anyString(), anyString(), anyString(), anyString());

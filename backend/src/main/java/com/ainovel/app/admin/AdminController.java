@@ -28,7 +28,7 @@ import java.util.Map;
 @RequestMapping("/v1/admin")
 @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin", description = "管理端接口（聚合第三方服务 + 本地管理能力）")
-@SecurityRequirement(name = "bearerAuth")
+@SecurityRequirement(name = "adminSessionCookie")
 public class AdminController {
     private final AdminConsoleService adminConsoleService;
     private final EconomyService economyService;

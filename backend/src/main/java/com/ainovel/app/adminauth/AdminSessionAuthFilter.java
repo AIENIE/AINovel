@@ -25,6 +25,12 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = AdminRequestPaths.normalized(request);
+        return !AdminRequestPaths.isAdminAuth(path) && !AdminRequestPaths.isAdminBusiness(path);
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,

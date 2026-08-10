@@ -23,17 +23,7 @@ public class AdminAuthPolicyValidator {
     public void validate() {
         String env = policy.env();
         String mode = policy.authMode();
-        boolean valid = switch (env) {
-            case AdminAuthPolicySource.ENV_LOCAL -> AdminAuthPolicySource.AUTH_MODE_PASSWORD.equals(mode)
-                    || AdminAuthPolicySource.AUTH_MODE_TOTP.equals(mode);
-            case AdminAuthPolicySource.ENV_TEST, AdminAuthPolicySource.ENV_PRODUCTION ->
-                    AdminAuthPolicySource.AUTH_MODE_TOTP.equals(mode);
-            default -> false;
-        };
-        if (!valid) {
-            throw new IllegalStateException("Invalid administrator authentication policy. Allowed combinations: "
-                    + "local/password, local/totp, test/totp, production/totp");
-        }
+        AdminAuthPolicyRules.requireAllowed(env, mode);
         requireText(properties.getUsername(), "ADMIN_USERNAME");
         String passwordHash = requireText(properties.getPasswordHash(), "ADMIN_PASSWORD_HASH");
         if (!BCRYPT.matcher(passwordHash).matches()) {

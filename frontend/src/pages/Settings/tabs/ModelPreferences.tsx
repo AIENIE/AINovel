@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/contexts/AuthContext";
 
 const TASKS = [
   { key: "draft_generation", label: "正文生成" },
@@ -32,10 +31,8 @@ const toNumber = (value: any) => {
 
 const ModelPreferences = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const [models, setModels] = useState<any[]>([]);
   const [prefs, setPrefs] = useState<any[]>([]);
-  const [routing, setRouting] = useState<any[]>([]);
   const [usageSummary, setUsageSummary] = useState<any>(null);
   const [usageDetails, setUsageDetails] = useState<any[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -55,21 +52,18 @@ const ModelPreferences = () => {
   const [estimatedOutputTokens, setEstimatedOutputTokens] = useState(1200);
 
   const loadData = async () => {
-    const shouldLoadRouting = user?.role === "admin";
-    const [modelList, prefList, summary, details, storyList, routingList] = await Promise.all([
+    const [modelList, prefList, summary, details, storyList] = await Promise.all([
       api.v2.models.list(),
       api.v2.models.listPreferences(),
       api.v2.models.usageSummary(),
       api.v2.models.usageDetails(),
       api.stories.list(),
-      shouldLoadRouting ? api.v2.models.listRouting().catch((): never[] => []) : Promise.resolve([] as never[]),
     ]);
     setModels(modelList);
     setPrefs(prefList);
     setUsageSummary(summary);
     setUsageDetails(details);
     setStories(storyList);
-    setRouting(Array.isArray(routingList) ? routingList : []);
 
     if (!storyId && storyList.length > 0) setStoryId(storyList[0].id);
     if (!modelId && modelList.length > 0) setModelId(String(modelList[0].id));
@@ -79,10 +73,9 @@ const ModelPreferences = () => {
 
   useEffect(() => {
     loadData().catch((error: any) => toast({ variant: "destructive", title: "加载模型配置失败", description: error.message }));
-  }, [user?.role]);
+  }, []);
 
   const currentPref = useMemo(() => prefs.find((pref) => pref.taskType === taskType), [prefs, taskType]);
-  const currentRouting = useMemo(() => routing.find((item) => item.taskType === taskType), [routing, taskType]);
 
   const selectedModel = useMemo(() => {
     const prefModelId = currentPref?.preferredModelId ? String(currentPref.preferredModelId) : "";
@@ -90,16 +83,6 @@ const ModelPreferences = () => {
     if (modelId) return models.find((model) => String(model.id) === String(modelId)) || null;
     return null;
   }, [currentPref, modelId, models]);
-
-  const recommendedModel = useMemo(() => {
-    const id = currentRouting?.recommendedModelId ? String(currentRouting.recommendedModelId) : "";
-    return models.find((model) => String(model.id) === id) || null;
-  }, [currentRouting, models]);
-
-  const fallbackModel = useMemo(() => {
-    const id = currentRouting?.fallbackModelId ? String(currentRouting.fallbackModelId) : "";
-    return models.find((model) => String(model.id) === id) || null;
-  }, [currentRouting, models]);
 
   const estimatedCost = useMemo(() => {
     if (!selectedModel) return 0;
@@ -224,7 +207,7 @@ const ModelPreferences = () => {
         <Card>
           <CardHeader>
             <CardTitle>模型偏好</CardTitle>
-            <CardDescription>按任务覆盖系统路由，显示推荐与回退模型。</CardDescription>
+            <CardDescription>按任务设置当前账户的模型偏好。</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
@@ -260,8 +243,6 @@ const ModelPreferences = () => {
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs">
-              {recommendedModel ? <Badge variant="outline">推荐：{recommendedModel.displayName}</Badge> : <Badge variant="outline">推荐：未配置</Badge>}
-              {fallbackModel ? <Badge variant="secondary">Fallback：{fallbackModel.displayName}</Badge> : <Badge variant="secondary">Fallback：未配置</Badge>}
               {currentPref?.preferredModelId ? <Badge>当前已覆盖</Badge> : <Badge variant="outline">使用系统默认</Badge>}
             </div>
 

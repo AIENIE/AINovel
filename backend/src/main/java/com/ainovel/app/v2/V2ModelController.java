@@ -1,14 +1,17 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -22,11 +25,15 @@ import java.util.*;
 public class V2ModelController {
     private final ResourceAccessGuard accessGuard;
     private final V2ModelPersistenceService persistenceService;
+    private final OpsRecordFileSink recordFileSink;
 
     @Autowired
-    public V2ModelController(ResourceAccessGuard accessGuard, V2ModelPersistenceService persistenceService) {
+    public V2ModelController(ResourceAccessGuard accessGuard,
+                             V2ModelPersistenceService persistenceService,
+                             OpsRecordFileSink recordFileSink) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
+        this.recordFileSink = recordFileSink;
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -50,9 +57,8 @@ public class V2ModelController {
 
     @GetMapping("/admin/model-routing")
     @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
-    public List<Map<String, Object>> listRouting(@AuthenticationPrincipal UserDetails principal) {
-        User user = accessGuard.currentUser(principal);
-        accessGuard.requireAdmin(user);
+    @SecurityRequirement(name = "adminSessionCookie")
+    public List<Map<String, Object>> listRouting() {
         return persistenceService.listRouting();
     }
 
@@ -60,19 +66,27 @@ public class V2ModelController {
 
     @PutMapping("/admin/model-routing/{taskType}")
     @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
-    public Map<String, Object> updateRouting(@AuthenticationPrincipal UserDetails principal,
+    @SecurityRequirement(name = "adminSessionCookie")
+    public Map<String, Object> updateRouting(Authentication authentication,
                                              @PathVariable String taskType,
                                              @RequestBody Map<String, Object> payload) {
-        User user = accessGuard.currentUser(principal);
-        accessGuard.requireAdmin(user);
-
-        return persistenceService.updateRouting(
+        Map<String, Object> updated = persistenceService.updateRouting(
                 taskType,
                 uuid(payload.get("recommendedModelId")),
                 uuid(payload.get("fallbackModelId")),
                 str(payload.get("routingStrategy"), "fixed"),
                 payload.getOrDefault("config", Map.of())
         );
+        recordFileSink.appendAudit(Map.of(
+                "category", "admin",
+                "action", "model-routing.update",
+                "actor", authentication.getName(),
+                "targetType", "model-routing",
+                "targetId", taskType,
+                "result", "SUCCESS",
+                "severity", "INFO"
+        ));
+        return updated;
     }
 
     @Operation(summary = "v2 API endpoint")

@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
@@ -20,6 +21,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "g2_evaluation_experiments")
+@Check(constraints = "((created_by is not null and created_by_admin_subject is null) "
+        + "or (created_by is null and created_by_admin_subject is not null))")
 public class G2EvaluationExperiment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -32,9 +35,12 @@ public class G2EvaluationExperiment {
     @Column(nullable = false, length = 32)
     private G2EvaluationStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
     private User createdBy;
+
+    @Column(name = "created_by_admin_subject", length = 255)
+    private String createdByAdminSubject;
 
     @Column(nullable = false)
     private int minimumVotes = 100;
@@ -57,6 +63,8 @@ public class G2EvaluationExperiment {
     public void setStatus(G2EvaluationStatus status) { this.status = status; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
+    public String getCreatedByAdminSubject() { return createdByAdminSubject; }
+    public void setCreatedByAdminSubject(String createdByAdminSubject) { this.createdByAdminSubject = createdByAdminSubject; }
     public int getMinimumVotes() { return minimumVotes; }
     public void setMinimumVotes(int minimumVotes) { this.minimumVotes = minimumVotes; }
     public int getMinimumSamplePairs() { return minimumSamplePairs; }

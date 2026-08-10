@@ -26,6 +26,10 @@ import java.util.stream.Collectors;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+    static final String DEFAULT_ALLOWED_ORIGINS = "https://ainovel.seekerhut.com,"
+            + "https://ainovel.testhut.top,https://localainovel.testhut.top,https://ainovel.aienie.com,"
+            + "http://127.0.0.1:11040,http://localhost:11040";
+
     @Autowired
     private JwtAuthFilter jwtAuthFilter;
     @Autowired
@@ -36,7 +40,7 @@ public class SecurityConfig {
     private AdminTrustedOriginFilter adminTrustedOriginFilter;
     @Autowired
     private AdminBusinessAccessFilter adminBusinessAccessFilter;
-    @Value("${app.security.cors.allowed-origins:https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040}")
+    @Value("${app.security.cors.allowed-origins:" + DEFAULT_ALLOWED_ORIGINS + "}")
     private String allowedOrigins;
     @Value("${app.security.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS,PATCH}")
     private String allowedMethods;

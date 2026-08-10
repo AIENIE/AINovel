@@ -5,7 +5,8 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - 后端：Java 25 + Spring Boot 3 + JPA + Flyway + Redis + gRPC 客户端
 - 本地域名：`localainovel.testhut.top`
-- 正式域名：`ainovel.aienie.com`
+- 预发布域名：`ainovel.testhut.top`
+- 生产环境目标域名：`ainovel.seekerhut.com`（切换验收完成前不是当前入口）
 - 前端端口：`11040`
 - 后端端口：`11041`
 

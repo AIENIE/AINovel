@@ -63,7 +63,12 @@ public class G2EvaluationService {
     }
 
     @Transactional
-    public G2EvaluationDtos.ExperimentResponse create(User admin, G2EvaluationDtos.CreateExperimentRequest request) {
+    public G2EvaluationDtos.ExperimentResponse create(String adminSubject,
+                                                       G2EvaluationDtos.CreateExperimentRequest request) {
+        String operator = adminSubject == null ? "" : adminSubject.trim();
+        if (operator.isBlank() || operator.length() > 255) {
+            throw new BusinessException("本地管理员身份无效");
+        }
         String title = request.title() == null ? "" : request.title().trim();
         if (title.isBlank()) {
             throw new BusinessException("盲测名称不能为空");
@@ -82,7 +87,7 @@ public class G2EvaluationService {
         G2EvaluationExperiment experiment = new G2EvaluationExperiment();
         experiment.setTitle(title);
         experiment.setStatus(G2EvaluationStatus.DRAFT);
-        experiment.setCreatedBy(admin);
+        experiment.setCreatedByAdminSubject(operator);
         experimentRepository.save(experiment);
 
         for (String username : reviewerNames) {

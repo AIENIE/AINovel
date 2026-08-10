@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import org.springframework.core.io.ByteArrayResource;
@@ -15,6 +16,10 @@ import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MySQLContainer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FlywaySchemaGovernanceTest {
@@ -33,7 +38,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(11, result.migrationsExecuted);
+            assertEquals(12, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -75,7 +80,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(10, migrateResult.migrationsExecuted);
+            assertEquals(11, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -103,7 +108,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(10, migrateResult.migrationsExecuted);
+            assertEquals(11, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -136,7 +141,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(10, migrateResult.migrationsExecuted);
+            assertEquals(11, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
@@ -196,7 +201,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
                     .locations("classpath:db/migration").load().migrate();
-            assertEquals(3, result.migrationsExecuted);
+            assertEquals(4, result.migrationsExecuted);
 
             try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
                  Statement statement = connection.createStatement()) {
@@ -206,6 +211,66 @@ class FlywaySchemaGovernanceTest {
             for (String table : List.of("stories", "character_cards", "outlines", "manuscripts",
                     "slop_drift_runs", "slop_quality_runs", "slop_quality_issues", "plot_quality_runs", "plot_quality_issues")) {
                 assertRowCount(mysql, databaseName, table, 0);
+            }
+        }
+    }
+
+    @Test
+    void migratesLegacyG2CreatorAndEnforcesExactlyOneCreatorIdentity() throws Exception {
+        try (MySQLContainer<?> mysql = new MySQLContainer<>(MYSQL_IMAGE)) {
+            mysql.start();
+            String databaseName = mysql.getDatabaseName();
+            String databaseUrl = databaseUrl(mysql, databaseName);
+
+            Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration").target("11").load().migrate();
+
+            try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
+                 Statement statement = connection.createStatement()) {
+                statement.execute("INSERT INTO users (id,banned,credits,email,password_hash,username) "
+                        + "VALUES (UNHEX('11111111111111111111111111111111'),0,0,'legacy-g2@test','x','legacy-g2-user')");
+                statement.execute("INSERT INTO g2_evaluation_experiments (id,title,status,created_by) "
+                        + "VALUES (UNHEX('22222222222222222222222222222222'),'legacy','DRAFT',"
+                        + "UNHEX('11111111111111111111111111111111'))");
+            }
+
+            var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration").load().migrate();
+            assertEquals(1, result.migrationsExecuted);
+            assertColumnNullable(mysql, databaseName, "g2_evaluation_experiments", "created_by");
+            assertColumnExists(mysql, databaseName, "g2_evaluation_experiments", "created_by_admin_subject");
+
+            try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
+                 Statement statement = connection.createStatement()) {
+                try (ResultSet legacy = statement.executeQuery(
+                        "SELECT created_by, created_by_admin_subject FROM g2_evaluation_experiments "
+                                + "WHERE id=UNHEX('22222222222222222222222222222222')")) {
+                    assertTrue(legacy.next());
+                    assertNotNull(legacy.getBytes("created_by"));
+                    assertNull(legacy.getString("created_by_admin_subject"));
+                }
+
+                statement.execute("INSERT INTO g2_evaluation_experiments "
+                        + "(id,title,status,created_by,created_by_admin_subject) VALUES "
+                        + "(UNHEX('33333333333333333333333333333333'),'local-admin','DRAFT',NULL,'local-operator')");
+                assertThrows(SQLException.class, () -> statement.execute(
+                        "INSERT INTO g2_evaluation_experiments "
+                                + "(id,title,status,created_by,created_by_admin_subject) VALUES "
+                                + "(UNHEX('44444444444444444444444444444444'),'missing','DRAFT',NULL,NULL)"));
+                assertThrows(SQLException.class, () -> statement.execute(
+                        "INSERT INTO g2_evaluation_experiments "
+                                + "(id,title,status,created_by,created_by_admin_subject) VALUES "
+                                + "(UNHEX('55555555555555555555555555555555'),'ambiguous','DRAFT',"
+                                + "UNHEX('11111111111111111111111111111111'),'local-operator')"));
+
+                try (ResultSet local = statement.executeQuery(
+                        "SELECT created_by, created_by_admin_subject FROM g2_evaluation_experiments "
+                                + "WHERE id=UNHEX('33333333333333333333333333333333')")) {
+                    assertTrue(local.next());
+                    assertNull(local.getBytes("created_by"));
+                    assertEquals("local-operator", local.getString("created_by_admin_subject"));
+                    assertFalse(local.next());
+                }
             }
         }
     }
@@ -300,6 +365,20 @@ class FlywaySchemaGovernanceTest {
                              + "' AND table_name = '" + tableName + "' AND column_name = '" + columnName + "'")) {
             assertTrue(resultSet.next());
             assertEquals(1, resultSet.getInt(1));
+        }
+    }
+
+    private static void assertColumnNullable(MySQLContainer<?> mysql,
+                                             String databaseName,
+                                             String tableName,
+                                             String columnName) throws Exception {
+        try (Connection connection = DriverManager.getConnection(databaseUrl(mysql, databaseName), mysql.getUsername(), mysql.getPassword());
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(
+                     "SELECT is_nullable FROM information_schema.columns WHERE table_schema = '" + databaseName
+                             + "' AND table_name = '" + tableName + "' AND column_name = '" + columnName + "'")) {
+            assertTrue(resultSet.next());
+            assertEquals("YES", resultSet.getString(1));
         }
     }
 

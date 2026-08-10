@@ -1522,9 +1522,9 @@ export const api = {
 
     models: {
       list: async () => requestJson<any[]>("/v2/models", { method: "GET" }),
-      listRouting: async () => requestJson<any[]>("/v2/admin/model-routing", { method: "GET" }),
+      listRouting: async () => requestJson<any[]>("/v2/admin/model-routing", { method: "GET" }, adminCookieAuth()),
       updateRouting: async (taskType: string, payload: any) =>
-        requestJson<any>(`/v2/admin/model-routing/${taskType}`, { method: "PUT", body: JSON.stringify(payload) }),
+        requestJson<any>(`/v2/admin/model-routing/${taskType}`, { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth()),
       listPreferences: async () => requestJson<any[]>("/v2/users/me/model-preferences", { method: "GET" }),
       setPreference: async (taskType: string, preferredModelId: string | null) =>
         requestJson<any>(`/v2/users/me/model-preferences/${taskType}`, {

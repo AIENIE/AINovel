@@ -1,5 +1,5 @@
 # V2 Model Collaboration API
-- 鉴权：Bearer Token（管理员端点需 ADMIN）
+- 鉴权：普通用户端点使用 SSO Bearer；管理员路由端点仅接受同源 HttpOnly 本地管理员会话 Cookie（`AUTH_LOCAL_ADMIN`）。
 - 基础路径：`/api/v2`
 
 ## Model Registry
@@ -10,6 +10,7 @@
 ## Routing (Admin)
 - `GET /admin/model-routing`：查询任务路由规则。
 - `PUT /admin/model-routing/{taskType}`：更新路由规则。
+  - TOTP 模式下更新前还需完成一次性 operation proof。
   - 默认路由的推荐模型与 fallback 模型都指向 `deepseek-v4-flash`。
 
 ## User Preferences

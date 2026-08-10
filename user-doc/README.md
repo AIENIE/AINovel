@@ -4,8 +4,9 @@
 
 ## 访问入口
 
-- 正式环境：`https://ainovel.aienie.com`
 - 本地测试环境：`https://localainovel.testhut.top`
+- 预发布环境：`https://ainovel.testhut.top`
+- 生产环境目标入口：`https://ainovel.seekerhut.com`（切换验收完成前请勿作为当前入口）
 - 创作者通过统一登录进入；管理员使用独立的 `/admin/login` 入口。
 
 ## 阅读路线

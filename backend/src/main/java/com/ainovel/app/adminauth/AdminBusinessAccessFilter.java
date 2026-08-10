@@ -133,7 +133,8 @@ public class AdminBusinessAccessFilter extends OncePerRequestFilter {
                 || path.equals("/v1/admin/credits/grant")
                 || path.equals("/v1/admin/redeem-codes")
                 || path.equals("/v1/admin/materials/merge")
-                || path.matches("/v1/admin/g2-evaluations/[^/]+/status");
+                || path.matches("/v1/admin/g2-evaluations/[^/]+/status")
+                || path.matches("/v2/admin/model-routing/[^/]+");
     }
 
     private String source(HttpServletRequest request) {
