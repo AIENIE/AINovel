@@ -1,5 +1,6 @@
 package com.ainovel.app.workflow;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -56,7 +57,8 @@ public class GuidedCreationRuntime implements ApplicationRunner {
                 workflowService.resumeAutomatic(runId);
             } catch (RuntimeException ex) {
                 jobService.failAutomaticAdvance(runId, ex);
-                log.warn("Guided creation reconciliation failed runId={} reason={}", runId, ex.getMessage());
+                log.warn("Guided creation reconciliation failed runId={} errorType={}",
+                        runId, ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
             }
         });
     }

@@ -1,5 +1,6 @@
 package com.ainovel.app.admin.ops;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -68,8 +69,9 @@ public class OpsRecordSearchService {
             long total = root.path("hits").path("total").path("value").asLong(rows.size());
             return new SearchResult(true, null, rows, total, page, size);
         } catch (Exception ex) {
-            log.warn("AINovel ops Elasticsearch query failed: {}", ex.getMessage());
-            return SearchResult.unavailable("Elasticsearch query failed: " + ex.getMessage());
+            log.warn("AINovel ops Elasticsearch query failed errorType={}",
+                    ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+            return SearchResult.unavailable("Elasticsearch query failed");
         }
     }
 

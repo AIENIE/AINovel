@@ -1,5 +1,6 @@
 package com.ainovel.app.aioperation;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.ai.AiProgressContext;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
@@ -273,7 +274,8 @@ public class AiOperationService {
             run.setErrorMessage(truncate(failure.getMessage()));
             run.setCompletedAt(Instant.now());
         });
-        log.warn("AI operation failed operationId={} reason={}", id, failure.getMessage());
+        log.warn("AI operation failed operationId={} errorType={}",
+                id, failure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(failure));
     }
 
     private void update(UUID id, Consumer<AiOperationRun> mutation) {

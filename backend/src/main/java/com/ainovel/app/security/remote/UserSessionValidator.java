@@ -1,5 +1,6 @@
 package com.ainovel.app.security.remote;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import fireflychat.user.v1.UserAuthServiceGrpc;
 import fireflychat.user.v1.ValidateSessionRequest;
 import com.ainovel.app.integration.ExternalServiceProperties;
@@ -60,9 +61,13 @@ public class UserSessionValidator {
         }
 
         int connectTimeout = (int) Math.max(300L, properties.getTimeoutMs());
+        Exception terminalFailure = null;
+        String failureStage = null;
+        boolean endpointUnreachable = false;
+        boolean rpcCompleted = false;
         for (ConsulUserGrpcEndpointResolver.Endpoint endpoint : resolveCandidates()) {
             if (!isTcpReachable(endpoint.host(), endpoint.port(), connectTimeout)) {
-                log.warn("Userservice session validation endpoint unreachable: {}:{}", endpoint.host(), endpoint.port());
+                endpointUnreachable = true;
                 continue;
             }
 
@@ -70,7 +75,8 @@ public class UserSessionValidator {
             try {
                 client = getOrCreateClient(endpoint);
             } catch (Exception e) {
-                log.warn("Create userservice session validation client failed: {}:{} -> {}", endpoint.host(), endpoint.port(), e.getMessage());
+                terminalFailure = e;
+                failureStage = "CLIENT_CREATE";
                 continue;
             }
 
@@ -80,14 +86,22 @@ public class UserSessionValidator {
                         .validateSession(ValidateSessionRequest.newBuilder()
                                 .setUserId(userId)
                                 .setSessionId(sessionId)
-                                .build())
+                        .build())
                         .getValid();
+                rpcCompleted = true;
                 if (valid) {
                     return true;
                 }
             } catch (Exception e) {
-                log.warn("Userservice session validation RPC failed at {}:{} -> {}", endpoint.host(), endpoint.port(), e.getMessage());
+                terminalFailure = e;
+                failureStage = "RPC";
             }
+        }
+        if (!rpcCompleted && terminalFailure != null) {
+            log.warn("Userservice session validation failed stage={} errorType={}",
+                    failureStage, terminalFailure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(terminalFailure));
+        } else if (!rpcCompleted && endpointUnreachable) {
+            log.warn("Userservice session validation failed reason=NO_REACHABLE_ENDPOINT");
         }
         return false;
     }
@@ -116,7 +130,7 @@ public class UserSessionValidator {
 
         consulResolver.resolve().ifPresent(endpoint -> {
             String key = endpoint.host() + ":" + endpoint.port();
-            log.info("Using configured userservice grpc endpoint candidate: {}:{}", endpoint.host(), endpoint.port());
+            log.info("Userservice session validation endpoint candidate resolved");
             ordered.put(key, endpoint);
         });
 

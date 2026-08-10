@@ -1,5 +1,7 @@
 package com.ainovel.app.economy;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.economy.model.ProjectCreditAccount;
 import com.ainovel.app.economy.model.ProjectCreditLedger;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
@@ -24,6 +26,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -78,6 +83,38 @@ class EconomyServiceTests {
         assertEquals(120L, result.projectCredits());
         assertEquals(30L, result.publicCredits());
         assertEquals(150L, result.totalCredits());
+    }
+
+    @Test
+    void currentBalance_shouldLogFixedFailureEventWithSafeThrowable() {
+        User user = user();
+        when(accountRepository.findByUser(user)).thenReturn(Optional.empty());
+        when(billingGrpcClient.publicBalance(42L))
+                .thenThrow(new IllegalStateException("sensitive upstream response"));
+        when(conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)).thenReturn(Optional.empty());
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(EconomyService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        EconomyService.BalanceSnapshot result;
+        try {
+            result = economyService.currentBalance(user);
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertEquals(0L, result.publicCredits());
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertEquals(
+                "event=public_balance_fetch_failed remoteUid=42 fallback=0 errorType=IllegalStateException",
+                event.getFormattedMessage()
+        );
+        assertFalse(event.getFormattedMessage().contains("sensitive upstream response"));
+        assertNotNull(event.getThrowableProxy());
+        assertEquals("com.ainovel.app.common.SafeLogThrowable", event.getThrowableProxy().getClassName());
+        assertNull(event.getThrowableProxy().getMessage());
     }
 
     @Test

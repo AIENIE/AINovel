@@ -180,7 +180,8 @@ public class AdminController {
                 request.stackable() == null || request.stackable(),
                 request.description()
         );
-        audit(principal, "redeem-code.create", "redeem-code", item.code(), "SUCCESS", "INFO");
+        // A redeem code is a bearer secret. Use the stable database identifier in audit records.
+        audit(principal, "redeem-code.create", "redeem-code", item.id(), "SUCCESS", "INFO");
         return new AdminRedeemCodeDto(
                 item.id(),
                 item.code(),

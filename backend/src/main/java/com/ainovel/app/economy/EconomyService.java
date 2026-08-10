@@ -1,6 +1,7 @@
 package com.ainovel.app.economy;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.economy.model.ConversionOrderStatus;
 import com.ainovel.app.economy.model.CreditLedgerType;
 import com.ainovel.app.economy.model.CreditConversionOrder;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.List;
 
@@ -562,8 +564,9 @@ public class EconomyService {
         long fallback = conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)
                 .map(item -> item.getPublicAfter() > 0 ? item.getPublicAfter() : item.getPublicBefore())
                 .orElse(0L);
-        String reason = lastError == null ? "unknown" : lastError.getMessage();
-        log.warn("Failed to fetch public balance for remoteUid={}, fallback={} reason={}", remoteUid, fallback, reason);
+        RuntimeException failure = Objects.requireNonNull(lastError);
+        log.warn("event=public_balance_fetch_failed remoteUid={} fallback={} errorType={}",
+                remoteUid, fallback, failure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(failure));
         return fallback;
     }
 

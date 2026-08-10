@@ -1,5 +1,6 @@
 package com.ainovel.app.security;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
@@ -120,7 +121,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             authToken.setDetails(localAdminToken ? parsed.adminSessionId() : new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
         } catch (Exception e) {
-            log.warn("JWT validation failed: {}", e.getMessage());
+            log.warn("JWT validation failed errorType={}",
+                    e.getClass().getSimpleName(), SafeLogThrowable.stackOnly(e));
         }
         filterChain.doFilter(request, response);
     }

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { api, isApiError } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-error-reporting";
 
 interface AuthContextType {
   user: User | null;
@@ -29,7 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const userData = await api.user.getProfile();
         setUser(userData);
       } catch (error) {
-        console.error("Auth validation failed", error);
+        reportClientError("Authentication request failed", "auth.initialize");
         if (isAuthFailure(error)) {
           localStorage.removeItem("token");
         }
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userData = await api.user.getProfile();
       setUser(userData);
     } catch (error) {
-      console.error("Token accept validation failed", error);
+      reportClientError("Authentication request failed", "auth.session-accept");
       localStorage.removeItem("token");
       setUser(null);
       throw error;
@@ -68,7 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const updatedUser = await api.user.getProfile();
       setUser(updatedUser);
     } catch (error) {
-      console.error("Failed to refresh profile", error);
+      reportClientError("Authentication request failed", "auth.profile-refresh");
       if (isAuthFailure(error)) {
         localStorage.removeItem("token");
         setUser(null);
