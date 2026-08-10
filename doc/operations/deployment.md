@@ -13,6 +13,16 @@
 - 外部鉴权：AI HMAC、user-service internal token、pay-service service JWT
 - 数据库：`SPRING_JPA_HIBERNATE_DDL_AUTO=none`
 
+日志与运维记录默认写入挂载目录，并可通过环境变量收紧容量：
+
+- 应用日志：`LOGGING_MAX_FILE_SIZE`（默认 `10MB`）、`LOGGING_MAX_HISTORY`（默认 `14`）、`LOGGING_TOTAL_SIZE_CAP`（默认 `1GB`）。
+- 应用文件日志使用 Spring Boot ECS JSON；异常堆栈作为单行 JSON 字符串输出，MDC `requestId` 作为结构化字段输出。console 保持现有文本展示。
+- 结构化运维记录：`APP_RECORD_MAX_FILE_SIZE_BYTES`（默认 `10485760`）、`APP_RECORD_MAX_HISTORY_DAYS`（默认 `14`）、`APP_RECORD_MAX_TOTAL_SIZE_BYTES`（默认 `1073741824`）。
+- 结构化运维记录落盘前会按敏感字段名和嵌入式凭据模式脱敏，并限制字段名、字符串、递归深度、容器元素数及单条记录总预算；业务目标仍使用非敏感 `targetId`（例如兑换记录数据库 ID）。
+- backend/frontend 容器的 Docker `json-file` 日志：`DOCKER_LOG_MAX_SIZE`（默认 `10m`）、`DOCKER_LOG_MAX_FILE`（默认 `5`）。
+- HTTP 响应返回 `X-Request-Id`；只接受最长 64 位的字母、数字、点、下划线、冒号和连字符，其他值会重新生成。console 日志级别字段和 ECS 文件日志字段均包含同一 request id；AI operation、guided creation 与 G2 evaluation 线程池会传播 MDC，并在任务结束后恢复 worker 原上下文。
+- 浏览器不序列化原始异常或拒绝对象，只输出经过截断并对常见令牌、兑换码参数和邮箱模式脱敏的错误摘要。
+
 不要把密钥值写入文档、日志或提交信息。
 
 ## 一键部署

@@ -1,5 +1,6 @@
 package com.ainovel.app.g2evaluation;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.g2evaluation.model.G2EvaluationSample;
@@ -67,8 +68,8 @@ public class G2EvaluationGenerationWorker {
                 sample.setRefundedAt(Instant.now());
             }
             sampleRepository.save(sample);
-            log.warn("G2 evaluation sample failed sampleId={} refunded={} reason={}",
-                    sample.getId(), refunded, ex.getMessage());
+            log.warn("G2 evaluation sample failed sampleId={} refunded={} errorType={}",
+                    sample.getId(), refunded, ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
         }
     }
 

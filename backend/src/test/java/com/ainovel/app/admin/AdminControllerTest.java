@@ -2,6 +2,7 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.dto.AdminDashboardStatsResponse;
 import com.ainovel.app.admin.dto.AdminGrantCreditsRequest;
+import com.ainovel.app.admin.dto.AdminRedeemCodeCreateRequest;
 import com.ainovel.app.admin.dto.AdminSystemConfigResponse;
 import com.ainovel.app.admin.dto.AdminSystemConfigUpdateRequest;
 import com.ainovel.app.admin.dto.AdminUserDto;
@@ -103,6 +104,32 @@ class AdminControllerTest {
         verify(recordFileSink).appendAudit(argThat(fields ->
                 "credits.grant".equals(fields.get("action"))
                         && target.getId().toString().equals(fields.get("targetId"))
+        ));
+    }
+
+    @Test
+    void createRedeemCodeShouldAuditStableIdWithoutBearerSecret() {
+        EconomyService economyService = mock(EconomyService.class);
+        OpsRecordFileSink recordFileSink = mock(OpsRecordFileSink.class);
+        AdminController controller = new AdminController(mock(AdminConsoleService.class), economyService, recordFileSink);
+        UserDetails principal = mock(UserDetails.class);
+        when(principal.getUsername()).thenReturn("root");
+        String bearerSecret = "WELCOME-SECRET-2026";
+        EconomyService.RedeemCodeView view = new EconomyService.RedeemCodeView(
+                "redeem-id-42", bearerSecret, 50L, 100, 0,
+                null, null, true, false, "welcome"
+        );
+        when(economyService.createRedeemCode(bearerSecret, 50L, 100, null, null, true, false, "welcome"))
+                .thenReturn(view);
+
+        controller.createRedeemCode(principal, new AdminRedeemCodeCreateRequest(
+                bearerSecret, 50L, 100, null, null, true, false, "welcome"
+        ));
+
+        verify(recordFileSink).appendAudit(argThat(fields ->
+                "redeem-code.create".equals(fields.get("action"))
+                        && "redeem-id-42".equals(fields.get("targetId"))
+                        && !fields.containsValue(bearerSecret)
         ));
     }
 

@@ -21,9 +21,24 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class DependencyHealthService {
+    private static final int MAX_MESSAGE_INPUT_LENGTH = 4_096;
+    private static final int MAX_MESSAGE_LENGTH = 512;
+    private static final Pattern URL_USERINFO = Pattern.compile(
+            "(?i)(\\b[a-z][a-z0-9+.-]*://)[^\\s/@]+@"
+    );
+    private static final Pattern SENSITIVE_ASSIGNMENT = Pattern.compile(
+            "(?i)([\"']?\\b(?:password|passwd|pwd|access[_-]?token|refresh[_-]?token|token|client[_-]?secret|secret|api[_-]?key|apikey|key|authorization)\\b[\"']?\\s*(?:=|:))\\s*(?:\"[^\"]*\"|'[^']*'|(?:bearer|basic)\\s+[^\\s,;&]+|[^\\s,;&]+)"
+    );
+    private static final Pattern SENSITIVE_WHITESPACE = Pattern.compile(
+            "(?i)(\\b(?:password|passwd|pwd|access[_-]?token|refresh[_-]?token|token|client[_-]?secret|secret|api[_-]?key|apikey|key|authorization)\\b)\\s+(?:(?:bearer|basic)\\s+)?[^\\s,;&]+"
+    );
+    private static final Pattern BEARER_VALUE = Pattern.compile("(?i)\\bbearer\\s+[^\\s,;&]+");
+    private static final Pattern CONTROL_CHARACTERS = Pattern.compile("[\\p{Cntrl}&&[^\\r\\n\\t]]|[\\r\\n\\t]+");
+
     private final JdbcTemplate jdbcTemplate;
     private final RedisConnectionFactory redisConnectionFactory;
     private final ExternalServiceProperties externalServiceProperties;
@@ -154,7 +169,7 @@ public class DependencyHealthService {
     private String sanitizeAddress(String raw) {
         return ConsulServiceResolver.parseAddress(raw)
                 .map(ConsulServiceResolver.Endpoint::toAuthority)
-                .orElse(raw == null || raw.isBlank() ? "not-configured" : raw.replaceAll("(?i)(token|password|secret)=([^&]+)", "$1=<redacted>"));
+                .orElse(raw == null || raw.isBlank() ? "not-configured" : clean(raw));
     }
 
     private String sanitizeHttp(String raw) {
@@ -165,7 +180,7 @@ public class DependencyHealthService {
             URI uri = URI.create(raw);
             return uri.getScheme() + "://" + uri.getHost() + (uri.getPort() > 0 ? ":" + uri.getPort() : "");
         } catch (Exception ignored) {
-            return raw;
+            return clean(raw);
         }
     }
 
@@ -173,7 +188,16 @@ public class DependencyHealthService {
         if (message == null || message.isBlank()) {
             return "probe failed";
         }
-        return message.replaceAll("(?i)(password|token|secret)=\\S+", "$1=<redacted>");
+        String sanitized = message.substring(0, Math.min(message.length(), MAX_MESSAGE_INPUT_LENGTH));
+        sanitized = URL_USERINFO.matcher(sanitized).replaceAll("$1<redacted>@");
+        sanitized = SENSITIVE_ASSIGNMENT.matcher(sanitized).replaceAll("$1<redacted>");
+        sanitized = SENSITIVE_WHITESPACE.matcher(sanitized).replaceAll("$1 <redacted>");
+        sanitized = BEARER_VALUE.matcher(sanitized).replaceAll("Bearer <redacted>");
+        sanitized = CONTROL_CHARACTERS.matcher(sanitized).replaceAll(" ").replaceAll(" {2,}", " ").strip();
+        if (sanitized.isBlank()) {
+            return "probe failed";
+        }
+        return sanitized.substring(0, Math.min(sanitized.length(), MAX_MESSAGE_LENGTH));
     }
 
     private interface Probe {

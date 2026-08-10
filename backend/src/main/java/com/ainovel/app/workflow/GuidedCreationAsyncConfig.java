@@ -1,5 +1,6 @@
 package com.ainovel.app.workflow;
 
+import com.ainovel.app.common.MdcTaskDecorator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -11,12 +12,13 @@ import java.util.concurrent.Executor;
 @EnableScheduling
 public class GuidedCreationAsyncConfig {
     @Bean("guidedCreationExecutor")
-    public Executor guidedCreationExecutor() {
+    public Executor guidedCreationExecutor(MdcTaskDecorator mdcTaskDecorator) {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(4);
         executor.setQueueCapacity(64);
         executor.setThreadNamePrefix("guided-creation-");
+        executor.setTaskDecorator(mdcTaskDecorator);
         executor.initialize();
         return executor;
     }

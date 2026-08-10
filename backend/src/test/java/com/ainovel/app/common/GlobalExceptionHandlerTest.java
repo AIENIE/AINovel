@@ -1,5 +1,7 @@
 package com.ainovel.app.common;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.Test;
@@ -8,6 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlobalExceptionHandlerTest {
 
@@ -53,9 +59,25 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void runtimeExceptionShouldReturnInternalServerError() {
-        ResponseEntity<ApiError> response = handler.handleRuntime(new RuntimeException("boom"));
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        ResponseEntity<ApiError> response;
+        try {
+            response = handler.handleRuntime(new RuntimeException("remote-token-secret"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals("Internal server error", response.getBody().message());
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertTrue(event.getFormattedMessage().contains("errorType=RuntimeException"));
+        assertFalse(event.getFormattedMessage().contains("remote-token-secret"));
+        assertNotNull(event.getThrowableProxy());
+        assertNull(event.getThrowableProxy().getMessage());
     }
 }

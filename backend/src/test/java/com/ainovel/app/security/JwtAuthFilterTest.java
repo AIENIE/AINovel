@@ -1,5 +1,7 @@
 package com.ainovel.app.security;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.adminauth.AdminSessionService;
 import com.ainovel.app.security.remote.UserSessionValidator;
 import com.ainovel.app.user.SsoUserProvisioningService;
@@ -24,6 +26,8 @@ import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -199,6 +203,53 @@ class JwtAuthFilterTest {
         assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN")));
         verify(adminSessions).isActive("admin-session-1", "FULL");
+    }
+
+    @Test
+    void shouldKeepJwtFailureStackWithoutLoggingExceptionOrRequestSecrets() throws Exception {
+        JwtService jwtService = mock(JwtService.class);
+        Claims claims = mock(Claims.class);
+        when(claims.getSubject()).thenReturn("signed-user");
+        when(claims.get("uid")).thenReturn(99L);
+        when(claims.get("sid")).thenReturn("private-session-id");
+        when(claims.get("role")).thenReturn("USER");
+        when(jwtService.parseClaims(anyString())).thenReturn(claims);
+
+        UserDetailsService userDetailsService = mock(UserDetailsService.class);
+        SsoUserProvisioningService provisioningService = mock(SsoUserProvisioningService.class);
+        UserSessionValidator validator = mock(UserSessionValidator.class);
+        when(validator.validate(99L, "private-session-id"))
+                .thenThrow(new IllegalStateException("token=remote-token-secret path=/private/auth"));
+        @SuppressWarnings("unchecked")
+        ObjectProvider<UserSessionValidator> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(validator);
+        JwtAuthFilter filter = createFilter(jwtService, userDetailsService, provisioningService, provider);
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/private/request/path");
+        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer bearer-token-secret");
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(JwtAuthFilter.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        assertEquals(1, appender.list.size());
+        ILoggingEvent event = appender.list.get(0);
+        assertTrue(event.getFormattedMessage().contains("errorType=IllegalStateException"));
+        assertFalse(event.getFormattedMessage().contains("remote-token-secret"));
+        assertFalse(event.getFormattedMessage().contains("bearer-token-secret"));
+        assertFalse(event.getFormattedMessage().contains("/private/auth"));
+        assertFalse(event.getFormattedMessage().contains("/private/request/path"));
+        assertFalse(event.getFormattedMessage().contains("private-session-id"));
+        assertNotNull(event.getThrowableProxy());
+        assertNull(event.getThrowableProxy().getMessage());
     }
 
     private JwtAuthFilter createFilter(

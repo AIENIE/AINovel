@@ -1,5 +1,6 @@
 package com.ainovel.app.workflow;
 
+import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.ai.AiProgressContext;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
 import org.slf4j.Logger;
@@ -54,12 +55,14 @@ public class GuidedCreationJobWorker {
         } catch (RuntimeException ex) {
             if (generationCompleted) {
                 jobService.failAutomaticAdvance(claim.runId(), ex);
-                log.warn("Guided creation auto advance failed jobId={} runId={} step={} reason={}",
-                        jobId, claim.runId(), claim.step(), ex.getMessage());
+                log.warn("Guided creation auto advance failed jobId={} runId={} step={} errorType={}",
+                        jobId, claim.runId(), claim.step(), ex.getClass().getSimpleName(),
+                        SafeLogThrowable.stackOnly(ex));
             } else {
                 jobService.fail(jobId, ex);
-                log.warn("Guided creation job failed jobId={} runId={} step={} reason={}",
-                        jobId, claim.runId(), claim.step(), ex.getMessage());
+                log.warn("Guided creation job failed jobId={} runId={} step={} errorType={}",
+                        jobId, claim.runId(), claim.step(), ex.getClass().getSimpleName(),
+                        SafeLogThrowable.stackOnly(ex));
             }
         }
     }

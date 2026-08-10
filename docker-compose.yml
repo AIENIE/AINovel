@@ -5,6 +5,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     ports:
       - "${BACKEND_PORT:-11041}:11041"
     entrypoint: ["sh", "-c", ". /app/bin/load-env-file.sh /app/env.txt && exec java $${JAVA_OPTS:-} -jar /app/app.jar"]
@@ -27,6 +32,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "${DOCKER_LOG_MAX_SIZE:-10m}"
+        max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     ports:
       - "${FRONTEND_PORT:-11040}:11040"
     networks:
