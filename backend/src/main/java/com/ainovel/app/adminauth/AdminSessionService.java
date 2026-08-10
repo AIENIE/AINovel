@@ -1,57 +1,106 @@
 package com.ainovel.app.adminauth;
 
-import com.ainovel.app.security.JwtService;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Map;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.Base64;
 
 @Service
 public class AdminSessionService {
     private final AdminAuthStore store;
     private final AdminLocalAuthProperties properties;
-    private final JwtService jwtService;
+    private final AdminAuthPolicySource policy;
+    private final SecureRandom random = new SecureRandom();
+
     public AdminSessionService(
             AdminAuthStore store,
             AdminLocalAuthProperties properties,
-            JwtService jwtService
+            AdminAuthPolicySource policy
     ) {
         this.store = store;
         this.properties = properties;
-        this.jwtService = jwtService;
+        this.policy = policy;
     }
 
-    public Issued issue(String subject, String scope) {
+    public Issued issue(
+            String subject,
+            String scope,
+            String assurance,
+            Instant passwordAuthenticatedAt,
+            Instant totpAuthenticatedAt,
+            String credentialKeyVersion
+    ) {
         Instant now = Instant.now();
         Duration lifetime = Duration.ofMinutes(minutesFor(scope));
         Duration idleTimeout = Duration.ofMinutes(idleMinutesFor(scope));
-        String sessionId = UUID.randomUUID().toString();
+        String token = newToken();
+        String sessionHash = hash(token);
         Instant expires = now.plus(lifetime);
-        store.insertSession(sessionId, subject, scope, now, expires, now.plus(idleTimeout));
-        String token = jwtService.generateToken(
+        store.insertSession(
+                sessionHash,
                 subject,
-                Map.of(
-                        "role", "ADMIN",
-                        "local_admin", true,
-                        "admin_session", sessionId,
-                        "admin_scope", scope,
-                        "uid", 0L,
-                        "sid", sessionId
-                ),
-                lifetime
+                scope,
+                policy.env(),
+                policy.authMode(),
+                assurance,
+                passwordAuthenticatedAt,
+                totpAuthenticatedAt,
+                credentialKeyVersion,
+                passwordCredentialHash(),
+                now,
+                expires,
+                now.plus(idleTimeout)
         );
-        return new Issued(token, sessionId, scope, expires);
+        return new Issued(token, sessionHash, scope, assurance, expires);
     }
 
-    public boolean isActive(String sessionId, String scope) {
-        if (sessionId == null || sessionId.isBlank()) return false;
+    public Resolved resolve(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        String sessionHash = hash(token);
+        Instant now = Instant.now();
         return store.touchActiveSession(
-                sessionId,
-                scope,
-                Instant.now().plus(Duration.ofMinutes(idleMinutesFor(scope)))
+                        sessionHash,
+                        policy.env(),
+                        policy.authMode(),
+                        passwordCredentialHash(),
+                        now.plus(Duration.ofMinutes(Math.max(1, properties.getSessionIdleMinutes()))),
+                        now.plus(Duration.ofMinutes(Math.max(1, properties.getRecoverySessionIdleMinutes())))
+                )
+                .map(session -> new Resolved(
+                        session.sessionHash(),
+                        session.subject(),
+                        session.scope(),
+                        session.assurance(),
+                        session.passwordAuthenticatedAt(),
+                        session.totpAuthenticatedAt(),
+                        session.expiresAt()
+                ))
+                .orElse(null);
+    }
+
+    public boolean isActive(String sessionHash, String scope) {
+        if (sessionHash == null || sessionHash.isBlank()) {
+            return false;
+        }
+        return store.activeSessionWithScope(
+                sessionHash, scope, policy.env(), policy.authMode(), passwordCredentialHash()
         );
+    }
+
+    public void revokeByHash(String sessionHash) {
+        if (sessionHash != null && !sessionHash.isBlank()) {
+            store.revokeSession(sessionHash);
+        }
+    }
+
+    public void revokeAll(String subject) {
+        store.revokeAll(subject);
     }
 
     private int minutesFor(String scope) {
@@ -66,7 +115,35 @@ public class AdminSessionService {
                 : properties.getSessionIdleMinutes());
     }
 
-    public void revoke(String id) { store.revokeSession(id); }
-    public void revokeAll(String subject) { store.revokeAll(subject); }
-    public record Issued(String token, String sessionId, String scope, Instant expiresAt) {}
+    private String newToken() {
+        byte[] value = new byte[32];
+        random.nextBytes(value);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
+    }
+
+    private String passwordCredentialHash() {
+        return hash(properties.getPasswordHash());
+    }
+
+    static String hash(String value) {
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))
+            );
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to hash administrator session", ex);
+        }
+    }
+
+    public record Issued(String token, String sessionHash, String scope, String assurance, Instant expiresAt) {}
+
+    public record Resolved(
+            String sessionHash,
+            String subject,
+            String scope,
+            String assurance,
+            Instant passwordAuthenticatedAt,
+            Instant totpAuthenticatedAt,
+            Instant expiresAt
+    ) {}
 }

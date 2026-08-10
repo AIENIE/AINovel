@@ -10,6 +10,7 @@ type Status = {
   enrolled: boolean;
   recoveryCodesRemaining: number;
   lowRecoveryThreshold: number;
+  authMode: "password" | "totp";
 };
 
 const AdminSecurity = () => {
@@ -57,7 +58,7 @@ const AdminSecurity = () => {
     return <div className="flex min-h-48 items-center justify-center text-zinc-400"><Loader2 className="h-4 w-4 animate-spin" /></div>;
   }
 
-  const lowCodes = status && status.recoveryCodesRemaining <= status.lowRecoveryThreshold;
+  const lowCodes = status?.authMode === "totp" && status.recoveryCodesRemaining <= status.lowRecoveryThreshold;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -68,12 +69,14 @@ const AdminSecurity = () => {
       <Card className="border-zinc-800 bg-zinc-900 text-zinc-100">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck className="h-5 w-5 text-emerald-400" />验证器</CardTitle>
-          <CardDescription className="text-zinc-400">{status?.enrolled ? "已启用" : "未启用"}</CardDescription>
+          <CardDescription className="text-zinc-400">
+            {status?.authMode === "password" ? "本地密码模式" : status?.enrolled ? "已启用" : "未启用"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-baseline justify-between border-b border-zinc-800 pb-4">
-            <span className="text-sm text-zinc-400">可用恢复码</span>
-            <span className="font-mono text-lg">{status?.recoveryCodesRemaining ?? 0}</span>
+            <span className="text-sm text-zinc-400">{status?.authMode === "password" ? "登录保障" : "可用恢复码"}</span>
+            <span className="font-mono text-lg">{status?.authMode === "password" ? "PASSWORD" : status?.recoveryCodesRemaining ?? 0}</span>
           </div>
           {lowCodes && (
             <div className="flex gap-2 rounded border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">
@@ -81,7 +84,7 @@ const AdminSecurity = () => {
               <span>恢复码数量偏低，请在安全位置保存重新生成后的新恢复码。</span>
             </div>
           )}
-          <form className="space-y-3" onSubmit={regenerate}>
+          {status?.authMode === "totp" && <form className="space-y-3" onSubmit={regenerate}>
             <div className="space-y-2">
               <Label htmlFor="regenerate-totp">当前动态验证码</Label>
               <Input
@@ -97,12 +100,12 @@ const AdminSecurity = () => {
             <Button disabled={submitting || code.length !== 6}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "重新生成恢复码"}
             </Button>
-          </form>
+          </form>}
           {error && <div className="rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</div>}
         </CardContent>
       </Card>
 
-      {recoveryCodes.length > 0 && (
+      {status?.authMode === "totp" && recoveryCodes.length > 0 && (
         <Card className="border-amber-700/50 bg-zinc-900 text-zinc-100">
           <CardHeader>
             <CardTitle className="text-base">新的恢复码</CardTitle>

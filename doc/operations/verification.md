@@ -12,6 +12,15 @@ curl --noproxy '*' -k https://localainovel.testhut.top/api/actuator/health/readi
 
 普通用户验收必须通过真实 SSO 会话，管理员验收必须通过 `/admin/login`，不得临时绕过身份验证。
 
+## 2026-08-10 管理员认证加固验收
+
+- 后端认证 focused 集 25 项通过，失败/错误/跳过均为 0；另一个 MySQL 8.0.36 空库迁移用例从 V1 顺序应用 11 个迁移并到达 V11。覆盖精确 `ENV/AUTH_MODE` 组合、生产 BCrypt cost 下限、密码模式不解析 TOTP keyring、Argon2 恢复码、密码优先 challenge、服务端 opaque session、普通 SSO `ROLE_ADMIN` 拒绝、伪造 unsigned `role=ADMIN` 拒绝、可信 Origin、生产限流存储 fail-closed、操作 proof 的用户/会话/动作/请求体绑定及 password 模式豁免。
+- 前端认证 focused 集通过：两阶段 TOTP、首次绑定与一次性恢复码、恢复会话强制重绑，以及 428→TOTP→携 `X-Admin-Operation-Proof` 重试。
+- 生产前端构建通过；bundle 仅有既有的大 chunk 提示。
+- 全量后端测试已启动验证，但既有 JPA slice/classpath 基线（`AiOperationRun.user` persistence unit、`StyleService$1`）及并行 MySQL Testcontainers 连接失败阻止全绿，不在本认证变更中扩大修复。
+- 并行全量前端运行通过 93/95，两个既有 Workbench 用例因 5 秒超时失败，隔离复跑 3/3 通过；单 worker 全量通过 94/95，唯一既有 sidebar 异步状态用例隔离复跑 4/4 通过。新增管理员认证用例没有失败。
+- `npm audit` 在默认镜像因未实现 audit API 失败，切换官方 registry 后又遇到 socket hang up，因此没有把依赖漏洞扫描误报为通过。
+
 ## 2026-08-03 页面与体验审查
 
 本节是当前页面和信息架构审查，不是修复后的完整端到端验收。普通用户页面在 https://localainovel.testhut.top 完成桌面与 390px 窄屏走查；管理员业务页因独立 TOTP 边界只做代码确认。

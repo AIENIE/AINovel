@@ -17,11 +17,16 @@ import java.util.Map;
 public class AdminAuthCrypto {
     private static final int GCM_TAG_BITS = 128;
     private static final int NONCE_BYTES = 12;
+    private static final String TOTP_AAD_PREFIX = "ainovel-admin-totp-v1|";
     private final SecureRandom random = new SecureRandom();
     private final PasswordEncoder recoveryCodeEncoder = Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     private final Map<String, SecretKeySpec> keys;
 
-    public AdminAuthCrypto(AdminLocalAuthProperties properties) {
+    public AdminAuthCrypto(AdminLocalAuthProperties properties, AdminAuthPolicySource policy) {
+        if (!policy.requiresTotp()) {
+            this.keys = Map.of();
+            return;
+        }
         this.keys = parseKeys(properties.getEncryptionKeys());
         if (keys.isEmpty()) {
             throw new IllegalStateException("ADMIN_TOTP_ENCRYPTION_KEYS must contain at least one 32-byte key");
@@ -41,6 +46,7 @@ public class AdminAuthCrypto {
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_BITS, nonce));
+            cipher.updateAAD((TOTP_AAD_PREFIX + version).getBytes(StandardCharsets.UTF_8));
             byte[] ciphertext = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
             return new EncryptedValue(Base64.getEncoder().encodeToString(ciphertext), nonce, version);
         } catch (Exception ex) {
@@ -50,12 +56,13 @@ public class AdminAuthCrypto {
 
     public String decrypt(String ciphertext, byte[] nonce, String version) {
         SecretKeySpec key = keys.get(version);
-        if (key == null) {
+        if (key == null || nonce == null || nonce.length != NONCE_BYTES) {
             throw new IllegalStateException("Unknown TOTP encryption key version");
         }
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_BITS, nonce));
+            cipher.updateAAD((TOTP_AAD_PREFIX + version).getBytes(StandardCharsets.UTF_8));
             return new String(cipher.doFinal(Base64.getDecoder().decode(ciphertext)), StandardCharsets.UTF_8);
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to decrypt administrator credential", ex);
@@ -81,29 +88,44 @@ public class AdminAuthCrypto {
 
     private Map<String, SecretKeySpec> parseKeys(String raw) {
         Map<String, SecretKeySpec> result = new LinkedHashMap<>();
-        if (raw == null) {
+        if (raw == null || raw.isBlank()) {
             return result;
         }
-        for (String item : raw.split(",")) {
-            String[] pair = item.trim().split(":", 2);
-            if (pair.length != 2 || pair[0].isBlank()) {
+        for (String item : raw.split(",", -1)) {
+            int separator = item.indexOf(':');
+            if (separator <= 0 || separator != item.lastIndexOf(':')) {
+                throw new IllegalStateException("Invalid ADMIN_TOTP_ENCRYPTION_KEYS entry");
+            }
+            String version = item.substring(0, separator);
+            String encoded = item.substring(separator + 1);
+            if (!version.matches("[A-Za-z0-9._-]{1,32}") || encoded.isEmpty()) {
                 throw new IllegalStateException("Invalid ADMIN_TOTP_ENCRYPTION_KEYS entry");
             }
             byte[] bytes;
             try {
-                bytes = Base64.getDecoder().decode(pair[1]);
+                bytes = Base64.getDecoder().decode(encoded);
             } catch (IllegalArgumentException ex) {
                 throw new IllegalStateException("ADMIN_TOTP_ENCRYPTION_KEYS must use Base64", ex);
             }
             if (bytes.length != 32) {
                 throw new IllegalStateException("ADMIN_TOTP_ENCRYPTION_KEYS values must be 32 bytes");
             }
-            result.put(pair[0], new SecretKeySpec(bytes, "AES"));
+            if (result.putIfAbsent(version, new SecretKeySpec(bytes, "AES")) != null) {
+                throw new IllegalStateException("ADMIN_TOTP_ENCRYPTION_KEYS versions must be unique");
+            }
         }
         return result;
     }
 
     public record EncryptedValue(String ciphertext, byte[] nonce, String keyVersion) {
+        public EncryptedValue {
+            nonce = nonce.clone();
+        }
+
+        @Override
+        public byte[] nonce() {
+            return nonce.clone();
+        }
     }
 
     static final class Base32 {

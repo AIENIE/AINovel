@@ -17,7 +17,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/admin")
-@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+@PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
 @Tag(name = "Admin Operations", description = "AINovel 业务运营后台接口")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminOperationsController {

@@ -38,7 +38,7 @@ class AdminAuthControllerTest {
         AdminLocalAuthProperties properties = new AdminLocalAuthProperties();
         properties.setEncryptionKeys("v1:" + Base64.getEncoder().encodeToString(new byte[32]));
         properties.setActiveKeyVersion("v1");
-        AdminAuthCrypto crypto = new AdminAuthCrypto(properties);
+        AdminAuthCrypto crypto = new AdminAuthCrypto(properties, policy("test", "totp"));
         AdminAuthCrypto.EncryptedValue encrypted = crypto.encrypt("secret", "v1");
         assertEquals("secret", crypto.decrypt(encrypted.ciphertext(), encrypted.nonce(), encrypted.keyVersion()));
         assertNotEquals("secret", encrypted.ciphertext());
@@ -48,9 +48,14 @@ class AdminAuthControllerTest {
     void authenticationFailuresUseTheSameNoStoreUnauthorizedResponse() {
         AdminLocalAuthService service = mock(AdminLocalAuthService.class);
         OpsRecordFileSink records = mock(OpsRecordFileSink.class);
-        AdminAuthController controller = new AdminAuthController(service, records);
+        AdminAuthController controller = new AdminAuthController(
+                service, mock(AdminOperationProofService.class), records
+        );
 
-        var response = controller.authenticationFailure(new MockHttpServletRequest());
+        var response = controller.authenticationFailure(
+                new AdminAuthenticationException(HttpStatus.UNAUTHORIZED, "AUTHENTICATION_FAILED", "认证失败"),
+                new MockHttpServletRequest()
+        );
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals("no-store", response.getHeaders().getCacheControl());
@@ -61,11 +66,15 @@ class AdminAuthControllerTest {
     void successfulTotpLoginSetsAnHttpOnlyAdminCookieWithoutReturningTheToken() {
         AdminLocalAuthService service = mock(AdminLocalAuthService.class);
         OpsRecordFileSink records = mock(OpsRecordFileSink.class);
-        AdminAuthController controller = new AdminAuthController(service, records);
+        AdminAuthController controller = new AdminAuthController(
+                service, mock(AdminOperationProofService.class), records
+        );
+        when(service.secureCookie()).thenReturn(true);
         when(service.loginTotp(any(), any(), any())).thenReturn(new AdminLocalAuthService.LoginResult(
                 "signed-admin-jwt",
                 "admin",
                 "FULL",
+                "PASSWORD_TOTP",
                 Instant.now().plusSeconds(60),
                 List.of()
         ));
@@ -80,5 +89,12 @@ class AdminAuthControllerTest {
         assertTrue(response.getHeaders().getFirst("Set-Cookie").contains("Secure"));
         assertTrue(response.getHeaders().getFirst("Set-Cookie").contains("SameSite=Strict"));
         assertInstanceOf(AdminAuthController.AuthenticatedSession.class, response.getBody());
+    }
+
+    private AdminAuthPolicySource policy(String env, String authMode) {
+        return new AdminAuthPolicySource() {
+            @Override public String env() { return env; }
+            @Override public String authMode() { return authMode; }
+        };
     }
 }

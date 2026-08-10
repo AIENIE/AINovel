@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/api-client";
+import AdminOperationProofPrompt from "@/pages/Admin/components/AdminOperationProofPrompt";
 
 const navItems = [
   { title: "运营概览", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -56,7 +57,7 @@ const AdminLayout = () => {
     try {
       await api.adminAuth.logout();
     } catch {
-      // Stateless logout, token cleanup on client side is enough.
+      // The server owns revocation; navigation still returns to the login boundary.
     }
     navigate("/admin/login", { replace: true });
   };
@@ -118,6 +119,7 @@ const AdminLayout = () => {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <AdminOperationProofPrompt />
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 backdrop-blur lg:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <Sheet>

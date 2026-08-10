@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api-client";
 
-type Mode = "loading" | "enrollment" | "totp" | "recovery" | "rebind" | "codes";
+type Mode = "loading" | "password" | "enrollment" | "totp" | "recovery" | "rebind" | "codes";
 
 type AuthResult = {
   recoveryCodes?: string[];
@@ -22,6 +22,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState<Mode>("loading");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [challengeId, setChallengeId] = useState("");
@@ -30,6 +31,7 @@ const AdminLogin = () => {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<"password" | "totp">("totp");
 
   const nextPath = useMemo(() => {
     const value = new URLSearchParams(location.search).get("next") || "/admin/dashboard";
@@ -66,15 +68,12 @@ const AdminLogin = () => {
 
         const bootstrap = await api.adminAuth.bootstrap();
         if (cancelled) return;
-        if (bootstrap.state === "ENROLLMENT_REQUIRED") {
-          setMode("enrollment");
-          return;
-        }
-        await createLoginChallenge();
+        setAuthMode(bootstrap.authMode);
+        setMode("password");
       } catch (cause: unknown) {
         if (!cancelled) {
           setError(errorMessage(cause, "无法初始化管理员认证"));
-          setMode("totp");
+          setMode("password");
         }
       }
     };
@@ -90,13 +89,6 @@ const AdminLogin = () => {
     setManualKey(result.manualKey);
     setOtpauthUri(result.otpauthUri);
     setCode("");
-  };
-
-  const createLoginChallenge = async () => {
-    const result = await api.adminAuth.createLoginChallenge();
-    setChallengeId(result.challengeId);
-    setCode("");
-    setMode("totp");
   };
 
   const run = async (task: () => Promise<void>) => {
@@ -120,10 +112,24 @@ const AdminLogin = () => {
     navigate(nextPath, { replace: true });
   };
 
-  const startEnrollment = (event: FormEvent) => {
+  const submitPassword = (event: FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      setEnrollment(await api.adminAuth.startEnrollment(password));
+      const result = await api.adminAuth.login(username, password);
+      setPassword("");
+      if (!result.status) {
+        navigate(nextPath, { replace: true });
+        return;
+      }
+      if (!result.challengeId) throw new Error("管理员登录挑战无效");
+      if (result.status === "ENROLLMENT_REQUIRED") {
+        setEnrollment(await api.adminAuth.startEnrollment(result.challengeId));
+        setMode("enrollment");
+        return;
+      }
+      setChallengeId(result.challengeId);
+      setCode("");
+      setMode("totp");
     });
   };
 
@@ -188,18 +194,23 @@ const AdminLogin = () => {
   return (
     <AuthCard
       title={mode === "enrollment" ? "绑定验证器" : mode === "recovery" ? "恢复管理员访问" : "管理员登录"}
-      description={mode === "enrollment" ? "首次绑定需要部署时配置的引导密码。" : "使用验证器中的 6 位动态验证码。"}
+      description={
+        mode === "password"
+          ? authMode === "password" ? "输入本地管理员账号和密码。" : "先验证管理员密码，再进行动态验证码验证。"
+          : mode === "enrollment" ? "密码已验证，请绑定验证器。" : "使用验证器中的 6 位动态验证码。"
+      }
     >
-      {mode === "enrollment" && !challengeId && (
-        <form className="space-y-4" onSubmit={startEnrollment}>
+      {mode === "password" && (
+        <form className="space-y-4" onSubmit={submitPassword}>
+          <Field id="admin-username" label="管理员账号" value={username} onChange={setUsername} autoComplete="username" />
           <PasswordField value={password} onChange={setPassword} />
-          <Button className="w-full" disabled={loading || !password}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "开始绑定"}
+          <Button className="w-full" disabled={loading || !username || !password}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "继续"}
           </Button>
         </form>
       )}
 
-      {mode === "enrollment" && challengeId && (
+      {mode === "enrollment" && (
         <form className="space-y-4" onSubmit={confirmEnrollment}>
           <EnrollmentMaterial manualKey={manualKey} otpauthUri={otpauthUri} />
           <CodeField id="enrollment-code" label="首次验证码" value={code} onChange={setCode} />
@@ -218,11 +229,9 @@ const AdminLogin = () => {
           <Button type="button" variant="outline" className="w-full" onClick={() => setMode("recovery")}>
             使用恢复码
           </Button>
-          {!challengeId && (
-            <Button type="button" variant="ghost" className="w-full" onClick={() => void run(createLoginChallenge)}>
-              刷新登录挑战
-            </Button>
-          )}
+          <Button type="button" variant="ghost" className="w-full" onClick={() => { setChallengeId(""); setCode(""); setMode("password"); }}>
+            返回密码验证
+          </Button>
         </form>
       )}
 
@@ -299,7 +308,7 @@ const AuthError = ({ message }: { message: string }) =>
   message ? <div className="mt-4 rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300">{message}</div> : null;
 
 const PasswordField = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
-  <Field id="admin-password" label="引导密码" type="password" value={value} onChange={onChange} />
+  <Field id="admin-password" label="管理员密码" type="password" value={value} onChange={onChange} autoComplete="current-password" />
 );
 
 const CodeField = ({ id, label, value, onChange }: FieldProps) => (
@@ -314,9 +323,10 @@ type FieldProps = {
   type?: string;
   inputMode?: "numeric";
   maxLength?: number;
+  autoComplete?: string;
 };
 
-const Field = ({ id, label, value, onChange, type = "text", inputMode, maxLength }: FieldProps) => (
+const Field = ({ id, label, value, onChange, type = "text", inputMode, maxLength, autoComplete }: FieldProps) => (
   <div className="space-y-2">
     <Label htmlFor={id}>{label}</Label>
     <Input
@@ -325,7 +335,7 @@ const Field = ({ id, label, value, onChange, type = "text", inputMode, maxLength
       value={value}
       maxLength={maxLength}
       inputMode={inputMode}
-      autoComplete={type === "password" ? "current-password" : "one-time-code"}
+      autoComplete={autoComplete || (type === "password" ? "current-password" : "one-time-code")}
       className="border-zinc-700 bg-zinc-950"
       onChange={(event) => onChange(event.target.value)}
     />

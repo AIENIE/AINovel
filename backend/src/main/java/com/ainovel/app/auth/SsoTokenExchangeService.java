@@ -1,6 +1,8 @@
 package com.ainovel.app.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ainovel.app.security.JwtService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -16,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
+import java.util.Map;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
@@ -27,10 +30,24 @@ public class SsoTokenExchangeService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final HttpClient localInsecureHttpClient;
+    private final JwtService jwtService;
 
+    @Autowired
+    public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper, JwtService jwtService) {
+        this.ssoEntryService = ssoEntryService;
+        this.objectMapper = objectMapper;
+        this.jwtService = jwtService;
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        this.localInsecureHttpClient = buildLocalInsecureHttpClient();
+    }
+
+    // Package-visible compatibility constructor for transport-only unit tests.
     public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper) {
         this.ssoEntryService = ssoEntryService;
         this.objectMapper = objectMapper;
+        this.jwtService = null;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
@@ -57,13 +74,40 @@ public class SsoTokenExchangeService {
             if (!StringUtils.hasText(payload.accessToken()) || payload.userId() == null || !StringUtils.hasText(payload.sessionId())) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_SSO_TOKEN_RESPONSE");
             }
-            return payload;
+            if (jwtService == null || !StringUtils.hasText(payload.username())) {
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "LOCAL_SSO_SIGNER_UNAVAILABLE");
+            }
+            Duration lifetime = sessionLifetime(payload.expiresIn());
+            String localAccessToken = jwtService.generateToken(
+                    payload.username().trim(),
+                    Map.of(
+                            "uid", payload.userId(),
+                            "sid", payload.sessionId().trim(),
+                            "role", "USER"
+                    ),
+                    lifetime
+            );
+            return new SsoTokenExchangeResponse(
+                    localAccessToken,
+                    payload.userId(),
+                    payload.username(),
+                    payload.sessionId(),
+                    payload.rememberDays(),
+                    lifetime.toSeconds()
+            );
         } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_FAILED", ex);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_INTERRUPTED", ex);
         }
+    }
+
+    private Duration sessionLifetime(Long expiresInSeconds) {
+        long seconds = expiresInSeconds == null ? Duration.ofHours(2).toSeconds() : expiresInSeconds;
+        seconds = Math.max(Duration.ofMinutes(5).toSeconds(), seconds);
+        seconds = Math.min(Duration.ofDays(30).toSeconds(), seconds);
+        return Duration.ofSeconds(seconds);
     }
 
     private String form(String value) {

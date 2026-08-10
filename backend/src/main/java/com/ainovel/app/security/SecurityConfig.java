@@ -1,5 +1,8 @@
 package com.ainovel.app.security;
 
+import com.ainovel.app.adminauth.AdminBusinessAccessFilter;
+import com.ainovel.app.adminauth.AdminSessionAuthFilter;
+import com.ainovel.app.adminauth.AdminTrustedOriginFilter;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,8 +13,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -29,11 +30,17 @@ public class SecurityConfig {
     private JwtAuthFilter jwtAuthFilter;
     @Autowired
     private SystemGuardFilter systemGuardFilter;
+    @Autowired
+    private AdminSessionAuthFilter adminSessionAuthFilter;
+    @Autowired
+    private AdminTrustedOriginFilter adminTrustedOriginFilter;
+    @Autowired
+    private AdminBusinessAccessFilter adminBusinessAccessFilter;
     @Value("${app.security.cors.allowed-origins:https://ainovel.seekerhut.com,https://ainovel.aienie.com,http://127.0.0.1:11040,http://localhost:11040}")
     private String allowedOrigins;
     @Value("${app.security.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS,PATCH}")
     private String allowedMethods;
-    @Value("${app.security.cors.allowed-headers:Authorization,Content-Type,Idempotency-Key,X-Requested-With}")
+    @Value("${app.security.cors.allowed-headers:Authorization,Content-Type,Idempotency-Key,X-Requested-With,X-Admin-Operation-Proof}")
     private String allowedHeaders;
 
     @Bean
@@ -51,6 +58,8 @@ public class SecurityConfig {
                                 "/api/v1/sso/**",
                                 "/v1/admin-auth/bootstrap",
                                 "/api/v1/admin-auth/bootstrap",
+                                "/v1/admin-auth/login",
+                                "/api/v1/admin-auth/login",
                                 "/v1/admin-auth/enrollment/**",
                                 "/api/v1/admin-auth/enrollment/**",
                                 "/v1/admin-auth/login/**",
@@ -63,14 +72,12 @@ public class SecurityConfig {
                                 "/api/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(systemGuardFilter, JwtAuthFilter.class);
+                .addFilterBefore(adminTrustedOriginFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(adminSessionAuthFilter, AdminTrustedOriginFilter.class)
+                .addFilterAfter(jwtAuthFilter, AdminSessionAuthFilter.class)
+                .addFilterAfter(adminBusinessAccessFilter, JwtAuthFilter.class)
+                .addFilterAfter(systemGuardFilter, AdminBusinessAccessFilter.class);
         return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -84,7 +91,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(parseCsv(allowedOrigins));
         configuration.setAllowedMethods(parseCsv(allowedMethods));
         configuration.setAllowedHeaders(parseCsv(allowedHeaders));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

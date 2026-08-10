@@ -38,6 +38,7 @@ import {
   AiOperationAccepted,
   AiOperationProgress,
 } from "@/types";
+import { requestAdminOperationCode } from "@/lib/admin-operation-proof";
 
 const API_BASE = "/api";
 const TERMINAL_AI_OPERATION_STATES = new Set(["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"]);
@@ -112,6 +113,36 @@ function adminCookieAuth(): string {
   return "";
 }
 
+async function fetchWithAdminOperationProof(path: string, init: RequestInit, headers: Headers): Promise<Response> {
+  const execute = (requestHeaders: Headers) => fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: "same-origin",
+    headers: requestHeaders,
+  });
+  const response = await execute(headers);
+  if (response.status !== 428 || inferAuthScope(path) !== "admin") return response;
+
+  const challenge = await response.clone().json().catch(() => null) as { challengeId?: string } | null;
+  if (!challenge?.challengeId) return response;
+  const code = await requestAdminOperationCode();
+  if (!code) throw new ApiError(428, "已取消二次验证");
+
+  const verifyResponse = await fetch(`${API_BASE}/v1/admin-auth/operation-proofs/verify`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ challengeId: challenge.challengeId, code }),
+  });
+  if (!verifyResponse.ok) {
+    throw new ApiError(verifyResponse.status, await safeErrorMessage(verifyResponse) || "二次验证失败");
+  }
+  const proof = await verifyResponse.json() as { proofToken?: string };
+  if (!proof.proofToken) throw new ApiError(401, "二次验证未返回有效凭据");
+  const retryHeaders = new Headers(headers);
+  retryHeaders.set("X-Admin-Operation-Proof", proof.proofToken);
+  return execute(retryHeaders);
+}
+
 async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
@@ -119,7 +150,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { ...init, credentials: "same-origin", headers });
+  const resp = await fetchWithAdminOperationProof(path, init, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -135,7 +166,7 @@ async function requestForm<T>(path: string, form: FormData, tokenOverride?: stri
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { method: "POST", credentials: "same-origin", headers, body: form });
+  const resp = await fetchWithAdminOperationProof(path, { method: "POST", body: form }, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -153,7 +184,7 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const resp = await fetch(`${API_BASE}${path}`, { ...init, credentials: "same-origin", headers });
+  const resp = await fetchWithAdminOperationProof(path, init, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
     if (resp.status === 401 || resp.status === 403) {
@@ -703,19 +734,19 @@ export const api = {
     cancel: async (id: string) => requestVoid(`/v1/ai-operations/${id}/cancel`, { method: "POST", body: "{}" }),
   },
   adminAuth: {
-    bootstrap: async (): Promise<{ state: "ENROLLMENT_REQUIRED" | "TOTP_REQUIRED"; challengeTtlSeconds: number }> => requestJson("/v1/admin-auth/bootstrap", { method: "GET" }, ""),
-    startEnrollment: async (password: string) => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/enrollment/start", { method: "POST", body: JSON.stringify({ password }) }, ""),
-    confirmEnrollment: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/enrollment/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
-    createLoginChallenge: async () => requestJson<{ challengeId: string; expiresAt: string; next: string }>("/v1/admin-auth/login/challenge", { method: "POST", body: "{}" }, ""),
-    loginTotp: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/totp", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
-    loginRecovery: async (challengeId: string, recoveryCode: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/recovery", { method: "POST", body: JSON.stringify({ challengeId, recoveryCode }) }, ""),
-    me: async (): Promise<{ username: string; sessionScope: string; recoveryCodesRemaining: number }> => {
-      return await requestJson<{ username: string; sessionScope: string; recoveryCodesRemaining: number }>("/v1/admin-auth/me", { method: "GET" }, adminCookieAuth());
+    bootstrap: async (): Promise<{ env: string; authMode: "password" | "totp"; state: "PASSWORD_REQUIRED" | "ENROLLMENT_REQUIRED" | "TOTP_REQUIRED"; challengeTtlSeconds: number; maxChallengeAttempts: number }> => requestJson("/v1/admin-auth/bootstrap", { method: "GET" }, ""),
+    login: async (username: string, password: string) => requestJson<{ status?: "TOTP_REQUIRED" | "ENROLLMENT_REQUIRED"; username: string; challengeId?: string; sessionScope?: string; assurance?: string; expiresAt: string; recoveryCodes?: string[] }>("/v1/admin-auth/login", { method: "POST", body: JSON.stringify({ username, password }) }, ""),
+    startEnrollment: async (challengeId: string) => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/enrollment/start", { method: "POST", body: JSON.stringify({ challengeId }) }, ""),
+    confirmEnrollment: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; assurance: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/enrollment/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
+    loginTotp: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; assurance: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/totp", { method: "POST", body: JSON.stringify({ challengeId, code }) }, ""),
+    loginRecovery: async (challengeId: string, recoveryCode: string) => requestJson<{ username: string; sessionScope: string; assurance: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/login/recovery", { method: "POST", body: JSON.stringify({ challengeId, recoveryCode }) }, ""),
+    me: async (): Promise<{ username: string; sessionScope: string; assurance: string; env: string; authMode: "password" | "totp"; recoveryCodesRemaining: number }> => {
+      return await requestJson<{ username: string; sessionScope: string; assurance: string; env: string; authMode: "password" | "totp"; recoveryCodesRemaining: number }>("/v1/admin-auth/me", { method: "GET" }, adminCookieAuth());
     },
     logout: async (): Promise<void> => {
       await requestVoid("/v1/admin-auth/logout", { method: "POST", body: "{}" }, adminCookieAuth());
     },
-    status: async () => requestJson<{ enrolled: boolean; recoveryCodesRemaining: number; lowRecoveryThreshold: number }>("/v1/admin-auth/security/status", { method: "GET" }, adminCookieAuth()),
+    status: async () => requestJson<{ enrolled: boolean; recoveryCodesRemaining: number; lowRecoveryThreshold: number; authMode: "password" | "totp" }>("/v1/admin-auth/security/status", { method: "GET" }, adminCookieAuth()),
     regenerateRecoveryCodes: async (code: string) => requestJson<string[]>("/v1/admin-auth/security/recovery-codes/regenerate", { method: "POST", body: JSON.stringify({ code }) }, adminCookieAuth()),
     startRebind: async () => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/rebind/start", { method: "POST", body: "{}" }, adminCookieAuth()),
     confirmRebind: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/rebind/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, adminCookieAuth()),
