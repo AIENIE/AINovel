@@ -1540,7 +1540,6 @@ export const en = {
 
   "aiOperation.cancelled": "AI operation cancelled",
   "aiOperation.incomplete": "AI operation incomplete",
-  "aiOperation.timedOut": "AI operation timed out; cancellation requested",
   "editorState.autoSaveFailed": "Auto-save failed",
   "editorState.noServerSection": "The server did not return the target scene content",
   "editorState.saveFailed": "Save failed",

@@ -1540,7 +1540,6 @@ export const zhTW = {
 
   "aiOperation.cancelled": "AI 操作已取消",
   "aiOperation.incomplete": "AI 操作未完成",
-  "aiOperation.timedOut": "AI 操作逾時，已請求取消",
   "editorState.autoSaveFailed": "自動儲存失敗",
   "editorState.noServerSection": "伺服器未回傳目標場景正文",
   "editorState.saveFailed": "儲存失敗",

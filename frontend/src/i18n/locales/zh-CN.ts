@@ -1540,7 +1540,6 @@ export const zhCN = {
 
   "aiOperation.cancelled": "AI 操作已取消",
   "aiOperation.incomplete": "AI 操作未完成",
-  "aiOperation.timedOut": "AI 操作超时，已请求取消",
   "editorState.autoSaveFailed": "自动保存失败",
   "editorState.noServerSection": "服务端未返回目标场景正文",
   "editorState.saveFailed": "保存失败",
