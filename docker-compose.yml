@@ -19,7 +19,7 @@ services:
       - ${APP_LOG_DIR_HOST:-/home/duwei/aienie-runtime/observability/data/ainovel/logs}:/app/logs
       - ${APP_RECORD_DIR_HOST:-/home/duwei/aienie-runtime/observability/data/ainovel/records}:/app/records
     extra_hosts:
-      - "localbase.testhut.top:host-gateway"
+      - "localbase.testhut.top:${LOCALBASE_HOST_IP:-172.20.0.2}"
       - "localuserservice.testhut.top:host-gateway"
       - "localpayservice.testhut.top:host-gateway"
       - "localaiservice.testhut.top:host-gateway"

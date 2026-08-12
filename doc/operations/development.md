@@ -36,6 +36,8 @@ npm run build
 
 该脚本会幂等地维护 `172.20.0.2 localbase.testhut.top` 的带标记 hosts 条目。随后从项目根目录执行 `.\scripts\windows\Start-Native.ps1`；它只按字面 `NAME=value` 读取被 Git 忽略的 `env.txt`、验证 localbase 解析和数据端口，并将前后端限制在 `127.0.0.1:11041` 和 `127.0.0.1:11040`。使用 `.\scripts\windows\Stop-Native.ps1` 停止；停止脚本不会删除 hosts 映射，日志与 PID 状态位于 `.native-run/`。
 
+Linux Docker Compose 通过非敏感 `LOCALBASE_HOST_IP=172.20.0.2`（默认值相同）仅将容器内的 `localbase.testhut.top` 数据服务别名指向 WSL provider；`localuserservice`、`localpayservice`、`localaiservice` 仍保持各自的 `host-gateway` 映射。
+
 ## 修改约束
 
 - 新数据库变更新增 `backend/src/main/resources/db/migration/V{n}__*.sql`。
