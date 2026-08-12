@@ -507,7 +507,13 @@ function Test-NativeProcessRecordLive {
 
     try {
         $process = Get-Process -Id ([int]$Record.Pid) -ErrorAction Stop
-        $expectedStart = [DateTime]::Parse([string]$Record.ProcessStartTimeUtc).ToUniversalTime()
+        $recordedStart = $Record.ProcessStartTimeUtc
+        $expectedStart = if ($recordedStart -is [DateTime]) {
+            $recordedStart.ToUniversalTime()
+        }
+        else {
+            [DateTime]::Parse([string]$recordedStart, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()
+        }
         $actualStart = $process.StartTime.ToUniversalTime()
         return [Math]::Abs(($actualStart - $expectedStart).TotalSeconds) -le 2
     }
@@ -666,16 +672,15 @@ function Get-NativeManagedListenerProcess {
         $isShell = $processInfo.Name -in @('powershell.exe', 'pwsh.exe')
         if (-not $isShell -and -not [string]::IsNullOrWhiteSpace($processInfo.CommandLine) -and
             $processInfo.CommandLine.IndexOf($normalizedProjectRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            $managedProcess = Get-Process -Id $processInfo.ProcessId -ErrorAction Stop
-            return [pscustomobject]@{
-                Pid = $managedProcess.Id
-                ProcessStartTimeUtc = $managedProcess.StartTime.ToUniversalTime().ToString('o')
-            }
+            # The listener is the durable lifecycle anchor. Maven/npm wrappers
+            # can be replaced while their child server remains alive, so recording
+            # an ancestor here makes Stop-NativeProcess incorrectly treat it as stale.
+            return $candidate
         }
         $currentProcessId = [int]$processInfo.ParentProcessId
     }
 
-    return $candidate
+    throw "Refusing to adopt native listener $ListenerProcessId because it is not owned by project '$ProjectRoot'."
 }
 
 function Update-NativeProcessRecordForListener {
