@@ -68,6 +68,7 @@ SMTPandAPI.txt
 /backend/.settings
 /tmp
 /artifacts
+.native-run/
 .omx/
 
 # Codex dev-test generated runtime files
