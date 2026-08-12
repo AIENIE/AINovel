@@ -641,6 +641,82 @@ function Stop-NativeProcess {
     Write-Host "Stopped native $Name process $($record.Pid)."
 }
 
+function Get-NativeManagedListenerProcess {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [int]$ListenerProcessId,
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $listenerProcess = Get-Process -Id $ListenerProcessId -ErrorAction Stop
+    $candidate = [pscustomobject]@{
+        Pid = $listenerProcess.Id
+        ProcessStartTimeUtc = $listenerProcess.StartTime.ToUniversalTime().ToString('o')
+    }
+    $normalizedProjectRoot = $ProjectRoot.TrimEnd('\\')
+    $currentProcessId = $ListenerProcessId
+    $seen = New-Object System.Collections.Generic.HashSet[int]
+    while ($currentProcessId -gt 0 -and $seen.Add($currentProcessId)) {
+        $processInfo = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $currentProcessId" -ErrorAction SilentlyContinue
+        if ($null -eq $processInfo) {
+            break
+        }
+        $isShell = $processInfo.Name -in @('powershell.exe', 'pwsh.exe')
+        if (-not $isShell -and -not [string]::IsNullOrWhiteSpace($processInfo.CommandLine) -and
+            $processInfo.CommandLine.IndexOf($normalizedProjectRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            $managedProcess = Get-Process -Id $processInfo.ProcessId -ErrorAction Stop
+            return [pscustomobject]@{
+                Pid = $managedProcess.Id
+                ProcessStartTimeUtc = $managedProcess.StartTime.ToUniversalTime().ToString('o')
+            }
+        }
+        $currentProcessId = [int]$processInfo.ParentProcessId
+    }
+
+    return $candidate
+}
+
+function Update-NativeProcessRecordForListener {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Name,
+        [Parameter(Mandatory)]
+        [string]$StateDirectory,
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot,
+        [Parameter(Mandatory)]
+        [int]$ListenerProcessId,
+        [Parameter(Mandatory)]
+        [int]$Port
+    )
+
+    $statePath = Get-NativeStatePath -StateDirectory $StateDirectory -Name $Name
+    $record = Get-NativeProcessRecord -StatePath $statePath
+    if ($null -eq $record) {
+        throw "Cannot adopt the native listener on port $Port because state '$statePath' is missing."
+    }
+    if (-not [string]::Equals([string]$record.ProjectRoot, $ProjectRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Cannot adopt the native listener on port $Port because its state belongs to a different project root."
+    }
+
+    $listenerProcess = Get-Process -Id $ListenerProcessId -ErrorAction Stop
+    $startedAt = [DateTime]::Parse([string]$record.StartedAtUtc).ToUniversalTime()
+    if ($listenerProcess.StartTime.ToUniversalTime() -lt $startedAt.AddSeconds(-2)) {
+        throw "TCP port $Port is owned by a process that predates native $Name startup."
+    }
+
+    $managedProcess = Get-NativeManagedListenerProcess -ListenerProcessId $ListenerProcessId -ProjectRoot $ProjectRoot
+    $record.Pid = $managedProcess.Pid
+    $record.ProcessStartTimeUtc = $managedProcess.ProcessStartTimeUtc
+    $record | Add-Member -NotePropertyName ListenerPort -NotePropertyValue $Port -Force
+    $record | Add-Member -NotePropertyName ListenerProcessId -NotePropertyValue $ListenerProcessId -Force
+    $record | Add-Member -NotePropertyName AdoptedAtUtc -NotePropertyValue ([DateTime]::UtcNow.ToString('o')) -Force
+    $record | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+}
+
 function Wait-NativeLoopbackPort {
     [CmdletBinding()]
     param(
@@ -648,32 +724,36 @@ function Wait-NativeLoopbackPort {
         [int]$Port,
         [int]$TimeoutSeconds = 45,
         [Parameter(Mandatory)]
-        [int]$ExpectedRootProcessId
+        [int]$ExpectedRootProcessId,
+        [Parameter(Mandatory)]
+        [string]$Name,
+        [Parameter(Mandatory)]
+        [string]$StateDirectory,
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
     )
 
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     do {
-        if ($null -eq (Get-Process -Id $ExpectedRootProcessId -ErrorAction SilentlyContinue)) {
-            throw "Native process $ExpectedRootProcessId exited before it listened on 127.0.0.1:$Port. Inspect .native-run\\logs."
-        }
         if (Test-NativeTcpEndpoint -HostName '127.0.0.1' -Port $Port -TimeoutMilliseconds 1000) {
             $listenerProcessIds = @(Get-NativeListeningProcessIds -Port $Port)
             if ($listenerProcessIds.Count -eq 0) {
                 return
             }
-            $ownershipWasChecked = $false
             foreach ($listenerProcessId in $listenerProcessIds) {
-                $isOwned = Test-NativeProcessTreeContains -RootProcessId $ExpectedRootProcessId -CandidateProcessId ([int]$listenerProcessId)
-                if ($null -eq $isOwned) {
+                try {
+                    Update-NativeProcessRecordForListener -Name $Name -StateDirectory $StateDirectory -ProjectRoot $ProjectRoot -ListenerProcessId ([int]$listenerProcessId) -Port $Port
                     return
                 }
-                $ownershipWasChecked = $true
-                if ($isOwned) {
-                    return
+                catch {
+                    $rootProcess = Get-Process -Id $ExpectedRootProcessId -ErrorAction SilentlyContinue
+                    if ($null -ne $rootProcess) {
+                        $isOwned = Test-NativeProcessTreeContains -RootProcessId $ExpectedRootProcessId -CandidateProcessId ([int]$listenerProcessId)
+                        if ($isOwned) {
+                            throw
+                        }
+                    }
                 }
-            }
-            if ($ownershipWasChecked) {
-                throw "TCP port $Port is listening, but not from native process $ExpectedRootProcessId or one of its children. Stop the conflicting process and retry."
             }
         }
         Start-Sleep -Seconds 1
