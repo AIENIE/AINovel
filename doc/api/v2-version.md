@@ -9,6 +9,8 @@
 - `POST /manuscripts/{manuscriptId}/versions/{versionId}/rollback`：回滚稿件到目标快照。
 - `GET /manuscripts/{manuscriptId}/versions/diff?fromVersionId=&toVersionId=`：差异统计；结果缓存到 `version_diffs`。
 
+`snapshotType=generation` 是场景生成事务的内部保留类型，公开创建版本接口会拒绝该值。生成快照的 metadata 只保存经白名单过滤的 `contextManifest` 元数据，不保存 prompt 正文。
+
 ## Branches
 - `GET /manuscripts/{manuscriptId}/branches`：分支列表。
 - `POST /manuscripts/{manuscriptId}/branches`：创建分支。

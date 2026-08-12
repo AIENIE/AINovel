@@ -49,6 +49,30 @@ npm run build
 4. A、B 和中性票统计符合规则。
 5. 失败样本的扣费与退款在本地账本相互抵销。
 
+## 单开发者质量基础
+
+收到开发者明确的“开始部署和验证”通知后，按以下 L4 顺序执行；在此之前不得运行本节命令或运行时步骤：
+
+1. 运行受影响的上下文、归因、迁移、API 与前端面板测试。默认质量测试应校验 36 个 fixture 的冻结分布、六类单缺陷、6 个 holdout、逐字证据及上下文引用，且不得访问网络。
+2. 执行 `mvn -q -f backend/pom.xml clean test`、`npm --prefix frontend test`、`npm --prefix frontend run build`。
+3. 分别验证新库从 V1 完整迁移到 V13，以及已有 V12 数据库只执行 V13 升级；确认 `scene_generation_runs` 的字段、索引和外键完整。
+4. 经 WSL 使用本独立工作树的安全 `env.txt` 和 `build.sh` 部署。非 `master` 使用共享部署名时显式设置 `AINOVEL_ALLOW_SHARED_DEPLOY=1`，不得读取原工作树的部署改动或环境文件作为替代。
+5. 检查 `/api/actuator/health/liveness`、`/api/actuator/health/readiness` 和 `/api/actuator/health`。
+6. 使用真实 SSO 会话依次走通：跨章上下文预览 → fast/crafted 生成 → 等长与非等长编辑 → 标签确认 → 再生成 → 版本回滚 → 页面刷新恢复。
+7. 验证同一场景的上下文预览与生成 manifest 具有相同 `scene-draft-v2`、来源顺序、固定 3500 预算占用和 hash；未来场景、禁用 Lorebook 与待复核提取不得入选。
+8. 验证生成正文、`generation` 版本快照和 generation run 原子落库；故障时不得留下无法归因的正文覆盖。分别确认插入、删除、等长改写、再生成和版本回滚的增删量、保留率及 `GENERATED/EDITED/SUPERSEDED/REVERTED` 状态。
+9. 在桌面和窄屏确认生成反馈面板不强制评分，八类标签、备注和长期偏好确认刷新后仍保持；切换简体中文、繁体中文和英文检查全部新增文案。
+10. Beta Reader 与连续性触发器必须返回 HTTP 501/`ANALYSIS_NOT_IMPLEMENTED`，且数据库不新增任务、报告或问题。
+11. 检查控制台、失败网络请求、数据库刷新后持久化、结构化错误日志及日志敏感信息；原始提示词、上下文正文、令牌和会话不得进入 generation run 或日志。
+
+付费离线模型回归不属于 L4 默认验收。只有获得单独授权后，才可从 `backend/` 显式运行：
+
+```bash
+mvn -Pquality-regression -Dtest=QualityRegressionOfflineTest -DqualityRegression.remoteUserId=<remote-uid> test
+```
+
+该 profile 从 `../env.txt` 读取既有 AI 网关地址与 HMAC 配置，只写 `backend/target/quality-regression/quality-regression-report.json`，不写 AINovel 产品表。不得将其分数计入 G2 真人票数。
+
 ## 安全与可观测性
 
 - 执行日志敏感信息扫描，确认 token、cookie、密码、兑换码、提示词、原始响应和本地绝对路径不进入日志。
