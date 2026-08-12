@@ -3,17 +3,25 @@ import dyadComponentTagger from "@dyad-sh/react-vite-component-tagger";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const apiProxy = {
+  "/api": {
+    target: "http://127.0.0.1:11041",
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig(() => ({
   server: {
-    host: "::",
+    host: "127.0.0.1",
     port: 11040,
     strictPort: true,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:11041",
-        changeOrigin: true,
-      },
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 11040,
+    strictPort: true,
+    proxy: apiProxy,
   },
   plugins: [dyadComponentTagger(), react()],
   resolve: {
