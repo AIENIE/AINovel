@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { api } from "@/lib/api-client";
 import type { AiOperationAccepted, AiOperationProgress } from "@/types";
+import { t } from "@/i18n";
 
 const STORAGE_KEY = "ainovel.active-ai-operation";
 let current: AiOperationProgress | null = null;
@@ -15,7 +16,7 @@ let activeWatch: {
 } | null = null;
 
 export class AiOperationCancelledError extends Error {
-  constructor(message = "AI 操作已取消") {
+  constructor(message = t("aiOperation.cancelled")) {
     super(message);
     this.name = "AiOperationCancelledError";
   }
@@ -74,7 +75,7 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
       const cancelled = await api.aiOperations.get(operationId).catch(() => null);
       if (cancelled) emit(cancelled);
       clearTracked(operationId);
-      throw new Error("AI 操作超时，已请求取消");
+      throw new Error(t("aiOperation.timedOut"));
     }
     if (watchState.cancelRequested) {
       const cancelled = await api.aiOperations.get(operationId).catch(() => null);
@@ -89,7 +90,7 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
   }
   if (watchState.cancelRequested || final.status === "CANCELLED") {
     clearTracked(operationId);
-    throw new AiOperationCancelledError(final.errorMessage || "AI 操作已取消");
+    throw new AiOperationCancelledError(final.errorMessage || t("aiOperation.cancelled"));
   }
   if (final.status === "SUCCEEDED") {
     window.setTimeout(() => {
@@ -102,7 +103,7 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
 export async function runTrackedAiOperation(start: Promise<AiOperationAccepted>): Promise<AiOperationProgress> {
   const accepted = await start;
   const final = await watch(accepted.operationId);
-  if (final.status !== "SUCCEEDED") throw new Error(final.errorMessage || "AI 操作未完成");
+  if (final.status !== "SUCCEEDED") throw new Error(final.errorMessage || t("aiOperation.incomplete"));
   return final;
 }
 

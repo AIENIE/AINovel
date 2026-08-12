@@ -16,13 +16,14 @@ import {
 import React from "react";
 import { api } from "@/lib/api-client";
 import { showError, showSuccess } from "@/utils/toast";
+import { t } from "@/i18n";
 
-// 定义指令列表
+// 指令列表（文案经 i18n 本地化）
 const getSuggestionItems = ({ query }: { query: string }) => {
   const items: SlashCommandItem[] = [
     {
-      title: "AI 续写",
-      description: "让 AI 根据上下文继续创作",
+      title: t("editor.continueWrite"),
+      description: t("editor.continueWriteDesc"),
       icon: React.createElement(Sparkles, { className: "h-4 w-4 text-purple-500" }),
       command: ({ editor }) => {
         const placeholder = "【AI 续写中...】";
@@ -34,7 +35,10 @@ const getSuggestionItems = ({ query }: { query: string }) => {
           try {
             const models = await api.ai.getModels();
             const modelId = models[0]?.id;
-            if (!modelId) throw new Error("暂无可用 AI 模型");
+            if (!modelId) {
+              showError("ai.noModel");
+              return;
+            }
             const contextText = editor.getText().slice(-1000);
             const resp = await api.ai.chat(
               [{ role: "user", content: "请根据上下文继续创作一段正文，保持中文小说风格。" }],
@@ -43,65 +47,65 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             );
             const content = resp?.content || "";
             editor.chain().focus().deleteRange({ from, to }).insertContent(content).run();
-            showSuccess("AI 续写完成");
+            showSuccess("editor.continueWriteDone");
           } catch (e: any) {
             editor.chain().focus().deleteRange({ from, to }).insertContent("【AI 续写失败】").run();
-            showError(e?.message || "AI 续写失败");
+            showError(e, "editor.continueWriteFailed");
           }
         })();
       },
     },
     {
-      title: "一级标题",
-      description: "大标题",
+      title: t("editor.heading1"),
+      description: t("editor.heading1Desc"),
       icon: React.createElement(Heading1, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleHeading({ level: 1 }).run();
       },
     },
     {
-      title: "二级标题",
-      description: "中标题",
+      title: t("editor.heading2"),
+      description: t("editor.heading2Desc"),
       icon: React.createElement(Heading2, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleHeading({ level: 2 }).run();
       },
     },
     {
-      title: "三级标题",
-      description: "小标题",
+      title: t("editor.heading3"),
+      description: t("editor.heading3Desc"),
       icon: React.createElement(Heading3, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleHeading({ level: 3 }).run();
       },
     },
     {
-      title: "无序列表",
-      description: "创建一个项目符号列表",
+      title: t("editor.bulletList"),
+      description: t("editor.bulletListDesc"),
       icon: React.createElement(List, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleBulletList().run();
       },
     },
     {
-      title: "有序列表",
-      description: "创建一个编号列表",
+      title: t("editor.orderedList"),
+      description: t("editor.orderedListDesc"),
       icon: React.createElement(ListOrdered, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleOrderedList().run();
       },
     },
     {
-      title: "引用",
-      description: "插入一段引用文本",
+      title: t("editor.quote"),
+      description: t("editor.quoteDesc"),
       icon: React.createElement(Quote, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().toggleBlockquote().run();
       },
     },
     {
-      title: "插入角色卡",
-      description: "插入一个角色信息块 (Mock)",
+      title: t("editor.characterCard"),
+      description: t("editor.characterCardDesc"),
       icon: React.createElement(User, { className: "h-4 w-4" }),
       command: ({ editor }) => {
         editor.chain().focus().insertContent("<blockquote><strong>角色：</strong> [点击编辑姓名]<br/>设定：...</blockquote>").run();

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { api } from "@/lib/api-client";
 
 const CreateWorld = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
   const [tagline, setTagline] = useState("");
@@ -19,11 +21,11 @@ const CreateWorld = () => {
     if (!name.trim()) return;
     setIsLoading(true);
     try {
-      const world = await api.worlds.create({ name: name.trim(), tagline: tagline.trim() || "待编辑" });
-      showSuccess("世界构建成功！");
+      const world = await api.worlds.create({ name: name.trim(), tagline: tagline.trim() || "" });
+      showSuccess("worlds.created");
       navigate(`/world-editor?id=${world.id}`);
     } catch (err: any) {
-      showError(err?.message || "创建失败");
+      showError(err, "errors.createFailed");
     } finally {
       setIsLoading(false);
     }
@@ -37,7 +39,7 @@ const CreateWorld = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <h1 className="font-semibold">构建新世界</h1>
+        <h1 className="font-semibold">{t("worlds.createTitle")}</h1>
       </header>
 
       <main className="flex-1 flex justify-center p-4 lg:p-8">
@@ -45,34 +47,34 @@ const CreateWorld = () => {
           <div className="space-y-2">
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <Globe className="h-8 w-8 text-blue-600" />
-              定义你的宇宙
+              {t("worlds.defineUniverse")}
             </h2>
-            <p className="text-muted-foreground">创建一个独立的世界观容器，用于存放地理、历史、势力与法则。</p>
+            <p className="text-muted-foreground">{t("worlds.defineUniverseDesc")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-4 p-6 border rounded-xl bg-card shadow-sm">
               <div className="space-y-2">
                 <Label htmlFor="title">
-                  世界名称 <span className="text-red-500">*</span>
+                  {t("worlds.nameLabel")} <span className="text-red-500">*</span>
                 </Label>
-                <Input id="title" placeholder="例如：中土大陆 / 赛博朋克2077" required className="text-lg font-medium" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input id="title" placeholder={t("worlds.namePlaceholder")} required className="text-lg font-medium" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="desc">世界简介</Label>
-                <Textarea id="desc" placeholder="描述这个世界的核心基调..." className="resize-none min-h-[150px]" value={tagline} onChange={(e) => setTagline(e.target.value)} />
+                <Label htmlFor="desc">{t("worlds.descLabel")}</Label>
+                <Textarea id="desc" placeholder={t("worlds.descPlaceholder")} className="resize-none min-h-[150px]" value={tagline} onChange={(e) => setTagline(e.target.value)} />
               </div>
             </div>
 
             <div className="flex gap-4 pt-4">
               <Link to="/worlds" className="flex-1">
                 <Button variant="outline" type="button" className="w-full h-12">
-                  取消
+                  {t("common.cancel")}
                 </Button>
               </Link>
               <Button type="submit" className="flex-[2] h-12 text-lg bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                {isLoading ? "正在构建..." : "开始构建"}
+                {isLoading ? t("worlds.creating") : t("worlds.startBuilding")}
               </Button>
             </div>
           </form>
@@ -83,4 +85,3 @@ const CreateWorld = () => {
 };
 
 export default CreateWorld;
-

@@ -3,6 +3,7 @@ import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { Manuscript } from "@/types";
 import { qualityStatusText, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
+import { t } from "@/i18n";
 
 type GenerationMode = "fast" | "crafted";
 
@@ -32,7 +33,7 @@ async function readGeneratedManuscript(manuscriptId: string, sceneId: string): P
     if (typeof generatedHtml === "string" && stripHtml(generatedHtml)) return latest;
     if (attempt < 2) await wait(500);
   }
-  throw new Error("生成结果没有可用正文，请重试");
+  throw new Error(t("sceneGeneration.noGeneratedContent"));
 }
 
 export function useManuscriptSceneGeneration({
@@ -57,17 +58,17 @@ export function useManuscriptSceneGeneration({
       const saved = await readGeneratedManuscript(selectedManuscriptId, sceneId);
       const generatedHtml = saved.sections?.[sceneId];
       if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
-        throw new Error("生成结果没有可用正文，请重试");
+        throw new Error(t("sceneGeneration.noGeneratedContent"));
       }
       applyServerSection(saved, sceneId);
       const latestRun = await loadSlopQuality(sceneId, saved.id).catch((): null => null);
       await loadPlotQuality(sceneId, saved.id).catch((): { run: null; trend: null } => ({ run: null, trend: null }));
       toast({
-        title: "已生成场景正文",
+        title: t("sceneGeneration.generated"),
         description: qualityStatusText(latestRun as any),
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "生成失败", description: e.message });
+      toast({ variant: "destructive", title: t("sceneGeneration.generationFailed"), description: e.message });
     } finally {
       setIsGenerating(false);
     }

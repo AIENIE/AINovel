@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,14 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const TASKS = [
-  { key: "draft_generation", label: "正文生成" },
-  { key: "entity_extraction", label: "实体提取" },
-  { key: "style_analysis", label: "风格分析" },
-  { key: "beta_reader", label: "Beta Reader" },
-  { key: "continuity_check", label: "连续性检查" },
-  { key: "refine", label: "润色重写" },
+  { key: "draft_generation", labelKey: "models.taskDraft" },
+  { key: "entity_extraction", labelKey: "models.taskEntity" },
+  { key: "style_analysis", labelKey: "models.taskStyle" },
+  { key: "beta_reader", labelKey: "models.taskBetaReader" },
+  { key: "continuity_check", labelKey: "models.taskContinuity" },
+  { key: "refine", labelKey: "models.taskRefine" },
 ] as const;
 
 const formatMoney = (value: number) => {
@@ -31,6 +33,7 @@ const toNumber = (value: any) => {
 
 const ModelPreferences = () => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [models, setModels] = useState<any[]>([]);
   const [prefs, setPrefs] = useState<any[]>([]);
   const [usageSummary, setUsageSummary] = useState<any>(null);
@@ -42,7 +45,7 @@ const ModelPreferences = () => {
 
   const [storyId, setStoryId] = useState("");
   const [compareTaskType, setCompareTaskType] = useState("draft_generation");
-  const [comparePrompt, setComparePrompt] = useState("请围绕孤城守望这个主题，写一个120字的开场段落。");
+  const [comparePrompt, setComparePrompt] = useState(t("models.comparePromptDefault"));
   const [compareModelAId, setCompareModelAId] = useState("");
   const [compareModelBId, setCompareModelBId] = useState("");
   const [compareResult, setCompareResult] = useState<any>(null);
@@ -72,7 +75,8 @@ const ModelPreferences = () => {
   };
 
   useEffect(() => {
-    loadData().catch((error: any) => toast({ variant: "destructive", title: "加载模型配置失败", description: error.message }));
+    loadData().catch((error: any) => toast({ variant: "destructive", title: t("models.loadFailed"), description: localizedErrorMessage(error, "models.loadFailed") }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentPref = useMemo(() => prefs.find((pref) => pref.taskType === taskType), [prefs, taskType]);
@@ -146,9 +150,9 @@ const ModelPreferences = () => {
     try {
       await api.v2.models.setPreference(taskType, modelId || null);
       await loadData();
-      toast({ title: "模型偏好已更新" });
+      toast({ title: t("models.updated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "更新失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
 
@@ -156,15 +160,15 @@ const ModelPreferences = () => {
     try {
       await api.v2.models.resetPreference(taskType);
       await loadData();
-      toast({ title: "已恢复默认路由" });
+      toast({ title: t("models.resetDefault") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "重置失败", description: error.message });
+      toast({ variant: "destructive", title: t("models.resetFailed"), description: localizedErrorMessage(error, "models.resetFailed") });
     }
   };
 
   const compareModels = async () => {
     if (!storyId) {
-      toast({ variant: "destructive", title: "请先选择故事" });
+      toast({ variant: "destructive", title: t("models.selectStoryFirst") });
       return;
     }
     try {
@@ -177,9 +181,9 @@ const ModelPreferences = () => {
       setCompareResult(result);
       setAdoptedCandidate(null);
       await loadData();
-      toast({ title: "A/B 对比完成" });
+      toast({ title: t("models.compareDone") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "对比失败", description: error.message });
+      toast({ variant: "destructive", title: t("models.compareFailed"), description: localizedErrorMessage(error, "models.compareFailed") });
     }
   };
 
@@ -188,16 +192,16 @@ const ModelPreferences = () => {
     const text = String(candidate?.text || "");
     const modelKey = String(candidate?.modelKey || candidate?.modelId || "-");
     setAdoptedCandidate({ slot, text, modelKey });
-    toast({ title: `已采用结果 ${slot}` });
+    toast({ title: t("models.adoptedResult", { slot }) });
   };
 
   const copyAdopted = async () => {
     if (!adoptedCandidate?.text) return;
     try {
       await navigator.clipboard.writeText(adoptedCandidate.text);
-      toast({ title: "已复制采用结果" });
+      toast({ title: t("models.copiedResult") });
     } catch {
-      toast({ variant: "destructive", title: "复制失败，请手动复制文本" });
+      toast({ variant: "destructive", title: t("models.copyFailed") });
     }
   };
 
@@ -206,12 +210,12 @@ const ModelPreferences = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>模型偏好</CardTitle>
-            <CardDescription>按任务设置当前账户的模型偏好。</CardDescription>
+            <CardTitle>{t("models.title")}</CardTitle>
+            <CardDescription>{t("models.desc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
-              <Label>任务类型</Label>
+              <Label>{t("models.taskType")}</Label>
               <Select value={taskType} onValueChange={setTaskType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -219,7 +223,7 @@ const ModelPreferences = () => {
                 <SelectContent>
                   {TASKS.map((task) => (
                     <SelectItem key={task.key} value={task.key}>
-                      {task.label}
+                      {t(task.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -227,7 +231,7 @@ const ModelPreferences = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>偏好模型</Label>
+              <Label>{t("models.preferredModel")}</Label>
               <Select value={modelId} onValueChange={setModelId}>
                 <SelectTrigger>
                   <SelectValue />
@@ -243,29 +247,29 @@ const ModelPreferences = () => {
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs">
-              {currentPref?.preferredModelId ? <Badge>当前已覆盖</Badge> : <Badge variant="outline">使用系统默认</Badge>}
+              {currentPref?.preferredModelId ? <Badge>{t("models.overridden")}</Badge> : <Badge variant="outline">{t("models.systemDefault")}</Badge>}
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="space-y-1">
-                <Label>预估输入 Token</Label>
+                <Label>{t("models.estInputTokens")}</Label>
                 <Input type="number" value={estimatedInputTokens} onChange={(event) => setEstimatedInputTokens(Math.max(0, Number(event.target.value || 0)))} />
               </div>
               <div className="space-y-1">
-                <Label>预估输出 Token</Label>
+                <Label>{t("models.estOutputTokens")}</Label>
                 <Input type="number" value={estimatedOutputTokens} onChange={(event) => setEstimatedOutputTokens(Math.max(0, Number(event.target.value || 0)))} />
               </div>
             </div>
 
             <div className="rounded border p-2 text-xs">
-              <div>模型：{selectedModel?.displayName || "未选择"}</div>
-              <div>预估成本：{formatMoney(estimatedCost)}</div>
+              <div>{t("models.modelLabel")}：{selectedModel?.displayName || t("models.noneSelected")}</div>
+              <div>{t("models.estCost")}：{formatMoney(estimatedCost)}</div>
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={savePreference}>保存偏好</Button>
+              <Button onClick={savePreference}>{t("models.savePreference")}</Button>
               <Button variant="outline" onClick={resetPreference}>
-                恢复默认
+                {t("models.restoreDefault")}
               </Button>
             </div>
           </CardContent>
@@ -273,25 +277,25 @@ const ModelPreferences = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>用量统计</CardTitle>
-            <CardDescription>按任务和模型查看调用与成本。</CardDescription>
+            <CardTitle>{t("models.usageTitle")}</CardTitle>
+            <CardDescription>{t("models.usageDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded border p-2">
-                <div className="text-muted-foreground">总调用</div>
+                <div className="text-muted-foreground">{t("models.totalCalls")}</div>
                 <div className="font-semibold">{usageSummary?.totalCalls ?? 0}</div>
               </div>
               <div className="rounded border p-2">
-                <div className="text-muted-foreground">总成本</div>
+                <div className="text-muted-foreground">{t("models.totalCost")}</div>
                 <div className="font-semibold">{String(usageSummary?.totalCost ?? 0)}</div>
               </div>
               <div className="rounded border p-2">
-                <div className="text-muted-foreground">输入 Token</div>
+                <div className="text-muted-foreground">{t("models.inputTokens")}</div>
                 <div className="font-semibold">{usageSummary?.totalInputTokens ?? 0}</div>
               </div>
               <div className="rounded border p-2">
-                <div className="text-muted-foreground">输出 Token</div>
+                <div className="text-muted-foreground">{t("models.outputTokens")}</div>
                 <div className="font-semibold">{usageSummary?.totalOutputTokens ?? 0}</div>
               </div>
             </div>
@@ -307,34 +311,34 @@ const ModelPreferences = () => {
                   </div>
                 </div>
               ))}
-              {!usageDetails.length && <p className="text-sm text-muted-foreground">暂无调用记录</p>}
+              {!usageDetails.length && <p className="text-sm text-muted-foreground">{t("models.noUsage")}</p>}
             </div>
             {!!usageDetails.length && (
               <div className="grid gap-2 xl:grid-cols-3">
                 <div className="rounded border p-2 text-xs space-y-1">
-                  <div className="font-medium">按模型</div>
+                  <div className="font-medium">{t("models.byModel")}</div>
                   {usageByModel.map((item) => (
                     <div key={item.key} className="flex items-center justify-between gap-2">
                       <span className="truncate">{item.label}</span>
-                      <span>{`${item.calls} 次`}</span>
+                      <span>{t("models.callCount", { count: item.calls })}</span>
                     </div>
                   ))}
                 </div>
                 <div className="rounded border p-2 text-xs space-y-1">
-                  <div className="font-medium">按任务类型</div>
+                  <div className="font-medium">{t("models.byTask")}</div>
                   {usageByTask.map((item) => (
                     <div key={item.key} className="flex items-center justify-between gap-2">
                       <span>{item.key}</span>
-                      <span>{`${item.calls} 次`}</span>
+                      <span>{t("models.callCount", { count: item.calls })}</span>
                     </div>
                   ))}
                 </div>
                 <div className="rounded border p-2 text-xs space-y-1">
-                  <div className="font-medium">按时间（近7天）</div>
+                  <div className="font-medium">{t("models.byDate")}</div>
                   {usageByDate.map((item) => (
                     <div key={item.date} className="flex items-center justify-between gap-2">
                       <span>{item.date}</span>
-                      <span>{`${item.calls} 次`}</span>
+                      <span>{t("models.callCount", { count: item.calls })}</span>
                     </div>
                   ))}
                 </div>
@@ -346,16 +350,16 @@ const ModelPreferences = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>模型 A/B 对比</CardTitle>
-          <CardDescription>对同一任务并行生成两个结果并选择采用版本。</CardDescription>
+          <CardTitle>{t("models.compareTitle")}</CardTitle>
+          <CardDescription>{t("models.compareDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
-              <Label>故事</Label>
+              <Label>{t("models.story")}</Label>
               <Select value={storyId} onValueChange={setStoryId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择故事" />
+                  <SelectValue placeholder={t("models.selectStory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {stories.map((story) => (
@@ -367,7 +371,7 @@ const ModelPreferences = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>任务类型</Label>
+              <Label>{t("models.taskType")}</Label>
               <Select value={compareTaskType} onValueChange={setCompareTaskType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -375,17 +379,17 @@ const ModelPreferences = () => {
                 <SelectContent>
                   {TASKS.map((task) => (
                     <SelectItem key={task.key} value={task.key}>
-                      {task.label}
+                      {t(task.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>模型 A</Label>
+              <Label>{t("models.modelA")}</Label>
               <Select value={compareModelAId} onValueChange={setCompareModelAId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="自动路由" />
+                  <SelectValue placeholder={t("models.autoRoute")} />
                 </SelectTrigger>
                 <SelectContent>
                   {models.map((model) => (
@@ -397,10 +401,10 @@ const ModelPreferences = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>模型 B</Label>
+              <Label>{t("models.modelB")}</Label>
               <Select value={compareModelBId} onValueChange={setCompareModelBId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="自动回退" />
+                  <SelectValue placeholder={t("models.autoFallback")} />
                 </SelectTrigger>
                 <SelectContent>
                   {models.map((model) => (
@@ -419,9 +423,9 @@ const ModelPreferences = () => {
           </div>
 
           <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            A/B 对比会并行调用两个模型，预计成本约为单次生成的 2 倍。
+            {t("models.compareNotice")}
           </div>
-          <Button onClick={compareModels}>执行 A/B 对比</Button>
+          <Button onClick={compareModels}>{t("models.runCompare")}</Button>
 
           {!!compareResult?.candidates?.length && (
             <div className="grid gap-3 md:grid-cols-2">
@@ -434,14 +438,14 @@ const ModelPreferences = () => {
                     <Badge>{item.slot}</Badge>
                     <Badge variant="outline">score {item.score ?? "-"}</Badge>
                   </div>
-                  <div className="text-xs text-muted-foreground">模型：{String(item.modelKey || item.modelId || "-")}</div>
-                  <p className="text-sm whitespace-pre-wrap">{item.text || "无结果"}</p>
+                  <div className="text-xs text-muted-foreground">{t("models.modelLabel")}：{String(item.modelKey || item.modelId || "-")}</div>
+                  <p className="text-sm whitespace-pre-wrap">{item.text || t("models.noResult")}</p>
                   <Button
                     size="sm"
                     variant={adoptedCandidate?.slot === String(item.slot) ? "default" : "secondary"}
                     onClick={() => pickCandidate(item)}
                   >
-                    {adoptedCandidate?.slot === String(item.slot) ? "已采用" : "采用此结果"}
+                    {adoptedCandidate?.slot === String(item.slot) ? t("models.adopted") : t("models.adoptThis")}
                   </Button>
                 </div>
               ))}
@@ -451,9 +455,9 @@ const ModelPreferences = () => {
           {!!adoptedCandidate && (
             <div className="rounded border p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{`已采用结果 ${adoptedCandidate.slot} · ${adoptedCandidate.modelKey}`}</div>
+                <div className="text-sm font-medium">{t("models.adoptedResult", { slot: adoptedCandidate.slot })} · {adoptedCandidate.modelKey}</div>
                 <Button size="sm" variant="outline" onClick={copyAdopted}>
-                  复制结果
+                  {t("models.copyResult")}
                 </Button>
               </div>
               <p className="text-sm whitespace-pre-wrap text-muted-foreground">{adoptedCandidate.text}</p>

@@ -1,34 +1,35 @@
 import { CreationWorkflow, GuidedCreationCandidate, GuidedCreationStep } from "@/types";
+import { t } from "@/i18n";
 
 export const GUIDED_STEPS: { key: Exclude<GuidedCreationStep, "COMPLETED">; label: string; number: string }[] = [
-  { key: "PREMISE", label: "故事方向", number: "01" },
-  { key: "WORLD", label: "世界设定", number: "02" },
-  { key: "CHARACTERS", label: "角色阵容", number: "03" },
-  { key: "OUTLINE", label: "章节大纲", number: "04" },
+  { key: "PREMISE", label: t("guided.stepPremise"), number: "01" },
+  { key: "WORLD", label: t("guided.stepWorld"), number: "02" },
+  { key: "CHARACTERS", label: t("guided.stepCharacters"), number: "03" },
+  { key: "OUTLINE", label: t("guided.stepOutline"), number: "04" },
 ];
 
 export const GUIDED_STEP_TITLES: Record<GuidedCreationStep, string> = {
-  PREMISE: "选择故事方向",
-  WORLD: "确定世界设定",
-  CHARACTERS: "组建主要角色",
-  OUTLINE: "确认章节大纲",
-  COMPLETED: "创作准备完成",
+  PREMISE: t("guided.titlePremise"),
+  WORLD: t("guided.titleWorld"),
+  CHARACTERS: t("guided.titleCharacters"),
+  OUTLINE: t("guided.titleOutline"),
+  COMPLETED: t("guided.titleCompleted"),
 };
 
 export function selectedSummary(candidate?: GuidedCreationCandidate) {
-  if (!candidate) return "已确认";
+  if (!candidate) return t("guided.confirmed");
   for (const key of ["title", "name", "label", "synopsis"]) {
     if (typeof candidate[key] === "string" && candidate[key]) return String(candidate[key]);
   }
-  return "已确认";
+  return t("guided.confirmed");
 }
 
 export function guidedStatusLabel(workflow: CreationWorkflow) {
-  if (workflow.status === "COMPLETED") return "已完成";
-  if (workflow.status === "FAILED") return "需要处理";
-  if (workflow.status === "AUTO_RUNNING") return "自动推进中";
-  if (workflow.activeJob) return "生成中";
-  return "等待选择";
+  if (workflow.status === "COMPLETED") return t("guided.statusCompleted");
+  if (workflow.status === "FAILED") return t("guided.statusFailed");
+  if (workflow.status === "AUTO_RUNNING") return t("guided.statusAutoRunning");
+  if (workflow.activeJob) return t("guided.statusGenerating");
+  return t("guided.statusWaiting");
 }
 
 export function guidedStepNumber(step: GuidedCreationStep) {

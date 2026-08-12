@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,10 +17,11 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [tags, setTags] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleSubmit = async () => {
     if (!title || !content) {
-      toast({ variant: "destructive", title: "请填写完整信息" });
+      toast({ variant: "destructive", title: t("material.fillComplete") });
       return;
     }
 
@@ -29,15 +31,15 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
         title,
         type: type as any,
         content,
-        tags: tags.split(",").map(t => t.trim()).filter(Boolean),
+        tags: tags.split(",").map(tag => tag.trim()).filter(Boolean),
       });
-      toast({ title: "素材创建成功" });
+      toast({ title: t("material.created") });
       setTitle("");
       setContent("");
       setTags("");
       onSuccess();
     } catch (error) {
-      toast({ variant: "destructive", title: "创建失败" });
+      toast({ variant: "destructive", title: t("errors.createFailed") });
     } finally {
       setIsSubmitting(false);
     }
@@ -46,48 +48,48 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>新建素材</CardTitle>
-        <CardDescription>手动添加一条新的设定或资料到素材库。</CardDescription>
+        <CardTitle>{t("material.createDialogTitle")}</CardTitle>
+        <CardDescription>{t("material.createDialogDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label>标题</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例如：魔法体系概述" />
+          <Label>{t("common.title")}</Label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("material.titlePlaceholder")} />
         </div>
         
         <div className="space-y-2">
-          <Label>类型</Label>
+          <Label>{t("common.type")}</Label>
           <Select value={type} onValueChange={setType}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="text">文本资料</SelectItem>
-              <SelectItem value="image">图片链接</SelectItem>
-              <SelectItem value="link">外部链接</SelectItem>
+              <SelectItem value="text">{t("material.typeText")}</SelectItem>
+              <SelectItem value="image">{t("material.typeImage")}</SelectItem>
+              <SelectItem value="link">{t("material.typeLink")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label>内容</Label>
+          <Label>{t("common.content")}</Label>
           <Textarea 
             value={content} 
             onChange={(e) => setContent(e.target.value)} 
-            placeholder="输入素材的具体内容..." 
+            placeholder={t("material.contentPlaceholder")}
             className="min-h-[200px]"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>标签 (用逗号分隔)</Label>
-          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="例如：设定, 魔法, 规则" />
+          <Label>{t("material.tagsLabel")}</Label>
+          <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t("material.tagsPlaceholder")} />
         </div>
       </CardContent>
       <CardFooter>
         <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
           {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          创建素材
+          {t("material.createButton")}
         </Button>
       </CardFooter>
     </Card>

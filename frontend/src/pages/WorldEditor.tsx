@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { WorldDetail, WorldModuleDefinition } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Save, UploadCloud } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { localizedErrorMessage } from "@/lib/error-messages";
 import WorldMetadataForm from "@/pages/WorldBuilder/components/WorldMetadataForm";
 import WorldModuleEditor from "@/pages/WorldBuilder/components/WorldModuleEditor";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +16,7 @@ const WorldEditor = () => {
   const [params] = useSearchParams();
   const id = params.get("id");
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { refreshProfile } = useAuth();
 
   const [definitions, setDefinitions] = useState<WorldModuleDefinition[]>([]);
@@ -69,9 +72,9 @@ const WorldEditor = () => {
     setIsSaving(true);
     try {
       await api.worlds.update(worldDetail.id, worldDetail);
-      toast({ title: "保存成功" });
+      toast({ title: t("worlds.saved") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "保存失败", description: e.message });
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(e, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
     }
@@ -82,9 +85,9 @@ const WorldEditor = () => {
     try {
       await runTrackedAiOperation(api.worlds.startGenerateModule(worldDetail.id, moduleKey));
       await load();
-      toast({ title: `已生成模块：${moduleKey}` });
+      toast({ title: t("worlds.moduleGenerated", { module: moduleKey }) });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "生成失败", description: e.message });
+      toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(e, "errors.generateFailed") });
     }
   };
 
@@ -93,9 +96,9 @@ const WorldEditor = () => {
     try {
       const res = await api.worlds.refineField(worldDetail.id, moduleKey, fieldKey, text, "");
       await refreshProfile();
-      return res?.result || res?.content || res?.resultText || res?.result || null;
+      return res?.result || res?.content || res?.resultText || null;
     } catch (e: any) {
-      toast({ variant: "destructive", title: "润色失败", description: e.message });
+      toast({ variant: "destructive", title: t("worlds.refineFailed"), description: localizedErrorMessage(e, "worlds.refineFailed") });
       return null;
     }
   };
@@ -105,9 +108,9 @@ const WorldEditor = () => {
   if (!canRender) {
     return (
       <div className="p-6">
-        <div className="text-muted-foreground">缺少 world id，请从“我的世界”进入。</div>
+        <div className="text-muted-foreground">{t("worlds.missingId")}</div>
         <Link to="/worlds">
-          <Button className="mt-4">返回世界列表</Button>
+          <Button className="mt-4">{t("worlds.backToList")}</Button>
         </Link>
       </div>
     );
@@ -122,12 +125,12 @@ const WorldEditor = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <span className="font-semibold">{worldDetail?.name || "世界编辑器"}</span>
+          <span className="font-semibold">{worldDetail?.name || t("worlds.editorTitle")}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleSave} disabled={isSaving || !worldDetail}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            保存
+            {t("common.save")}
           </Button>
           <Button
             onClick={async () => {
@@ -136,24 +139,24 @@ const WorldEditor = () => {
                 const preview = await api.worlds.publishPreview(worldDetail.id);
                 const modules: string[] = preview?.modulesToGenerate || [];
                 if (modules.length === 0) {
-                  if (!confirm("预检完成：所有模块均已就绪。\n\n确认发布当前世界观并更新版本吗？")) return;
+                  if (!confirm(t("worlds.publishReady"))) return;
                   await api.worlds.publish(worldDetail.id);
                   await load();
-                  toast({ title: "发布完成", description: "无需生成模块，已更新发布状态/版本。" });
+                  toast({ title: t("worlds.publishDone"), description: t("worlds.publishReadyDesc") });
                   return;
                 }
-                if (!confirm(`预检完成：需要生成 ${modules.length} 个模块：\n${modules.join(", ")}\n\n生成会消耗项目积分。确认生成并在完成后发布吗？`)) return;
+                if (!confirm(t("worlds.publishNeeds", { count: modules.length, modules: modules.join(", ") }))) return;
                 await runTrackedAiOperation(api.worlds.startPublish(worldDetail.id));
                 await load();
-                toast({ title: "发布完成", description: "已生成并更新世界模块内容" });
+                toast({ title: t("worlds.publishDone"), description: t("worlds.publishDoneDesc") });
               } catch (e: any) {
-                toast({ variant: "destructive", title: "预检失败", description: e.message });
+                toast({ variant: "destructive", title: t("worlds.publishCheckFailed"), description: localizedErrorMessage(e, "worlds.publishCheckFailed") });
               }
             }}
             disabled={!worldDetail}
           >
             <UploadCloud className="mr-2 h-4 w-4" />
-            预检/发布
+            {t("worlds.publishCheck")}
           </Button>
         </div>
       </header>
@@ -176,7 +179,7 @@ const WorldEditor = () => {
             />
           </>
         ) : (
-          <div className="text-muted-foreground">世界不存在或无权限访问</div>
+          <div className="text-muted-foreground">{t("worlds.notFound")}</div>
         )}
       </div>
     </div>

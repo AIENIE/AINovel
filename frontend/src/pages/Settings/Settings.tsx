@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Terminal, Globe, Palette, Cpu, Keyboard } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -19,6 +20,7 @@ export const normalizeSettingsTabParam = (raw: string | null) => {
 };
 
 const Settings = () => {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const activeTab = normalizeSettingsTabParam(params.get("tab"));
   const initialStoryId = params.get("storyId") || undefined;
@@ -31,25 +33,25 @@ const Settings = () => {
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">系统设置</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("settings.title")}</h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={selectTab} className="flex-1 flex flex-col min-w-0">
         <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto lg:w-[980px]">
           <TabsTrigger value="workspace" className="gap-2 shrink-0">
-            <Terminal className="h-4 w-4" /> 工作区提示词
+            <Terminal className="h-4 w-4" /> {t("settings.workspacePrompts")}
           </TabsTrigger>
           <TabsTrigger value="world" className="gap-2 shrink-0">
-            <Globe className="h-4 w-4" /> 世界观提示词
+            <Globe className="h-4 w-4" /> {t("settings.worldPrompts")}
           </TabsTrigger>
           <TabsTrigger value="style" className="gap-2 shrink-0">
-            <Palette className="h-4 w-4" /> 风格画像
+            <Palette className="h-4 w-4" /> {t("settings.styleProfiles")}
           </TabsTrigger>
           <TabsTrigger value="models" className="gap-2 shrink-0">
-            <Cpu className="h-4 w-4" /> 模型偏好
+            <Cpu className="h-4 w-4" /> {t("settings.modelPrefs")}
           </TabsTrigger>
           <TabsTrigger value="experience" className="gap-2 shrink-0">
-            <Keyboard className="h-4 w-4" /> 工作台体验
+            <Keyboard className="h-4 w-4" /> {t("settings.workspaceExperience")}
           </TabsTrigger>
         </TabsList>
 

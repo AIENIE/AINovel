@@ -2,6 +2,7 @@ import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
+import { useTranslation } from "react-i18next";
 import EditorToolbar from "./EditorToolbar";
 import { cn } from "@/lib/utils";
 import { FontType, WidthType, ThemeType } from "./AppearanceSettings";
@@ -42,6 +43,7 @@ const TiptapEditor = ({
   theme = "light"
 }: TiptapEditorProps) => {
   const { refreshProfile, user } = useAuth();
+  const { t } = useTranslation();
   
   // AI Refine State
   const [isRefineOpen, setIsRefineOpen] = useState(false);
@@ -56,7 +58,7 @@ const TiptapEditor = ({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: "开始你的故事... (输入 '/' 唤起 AI 指令)",
+        placeholder: t("editor.placeholder"),
       }),
       SlashCommand.configure({
         suggestion: suggestionOptions,
@@ -157,33 +159,33 @@ const TiptapEditor = ({
   const handleAIPolish = async () => {
     if (!editor) return;
     if (user && user.credits <= 0) {
-      showError("项目积分不足，请先在个人中心兑换项目积分后再使用 AI");
+      showError("editor.insufficientCredits");
       return;
     }
     const selection = editor.state.selection;
     const text = editor.state.doc.textBetween(selection.from, selection.to);
     
     if (text.length < 2) {
-      showError("请选择更多文本");
+      showError("editor.selectMoreText");
       return;
     }
 
     setOriginalText(text);
-    showSuccess("AI 正在润色，请稍候...");
+    showSuccess("editor.polishing");
     
     try {
       // Use default model for quick refine
       const models = await api.ai.getModels();
       const modelId = models[0]?.id;
-      if (!modelId) throw new Error("暂无可用 AI 模型");
+      if (!modelId) throw new Error(t("ai.noModel"));
       
-      const res = await api.ai.refine(text, "使其更具文学性", modelId);
+      const res = await api.ai.refine(text, t("editor.refineInstruction"), modelId);
       setRefinedText(res.result);
       setRefineCost(res.usage.cost);
       setIsRefineOpen(true);
       await refreshProfile();
     } catch (error) {
-      showError("AI 请求失败");
+      showError("editor.refineFailed");
     }
   };
 
@@ -277,7 +279,7 @@ const TiptapEditor = ({
             onClick={handleAIPolish}
           >
             <Sparkles className="h-3 w-3 mr-1" />
-            <span className="text-xs font-medium">润色</span>
+            <span className="text-xs font-medium">{t("editor.polish")}</span>
           </Button>
         </BubbleMenu>
       )}

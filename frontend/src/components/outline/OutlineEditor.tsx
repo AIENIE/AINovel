@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   closestCenter,
@@ -18,7 +19,7 @@ import { SortableChapterItem, Chapter } from "./SortableChapterItem";
 import { Button } from "@/components/ui/button";
 import { Plus, Sparkles } from "lucide-react";
 
-// Mock Data
+// Mock Data (示例内容，不翻译)
 const MOCK_CHAPTERS: Chapter[] = [
   { id: "c1", title: "霓虹雨", summary: "主角在港口醒来，发现自己失去了记忆，只有一把生锈的枪。", order: 0 },
   { id: "c2", title: "地下诊所", summary: "为了寻找线索，主角前往地下城的黑市诊所，遇到了神秘的医生。", order: 1 },
@@ -27,6 +28,7 @@ const MOCK_CHAPTERS: Chapter[] = [
 ];
 
 const OutlineEditor = () => {
+  const { t } = useTranslation();
   const [chapters, setChapters] = useState<Chapter[]>(MOCK_CHAPTERS);
 
   const sensors = useSensors(
@@ -55,8 +57,8 @@ const OutlineEditor = () => {
   const handleAddChapter = () => {
     const newChapter: Chapter = {
       id: `new-${Date.now()}`,
-      title: "新章节",
-      summary: "点击编辑章节梗概...",
+      title: t("outline.newChapter"),
+      summary: t("outline.editSummary"),
       order: chapters.length,
     };
     setChapters([...chapters, newChapter]);
@@ -65,15 +67,15 @@ const OutlineEditor = () => {
   return (
     <div className="h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">大纲编排</h2>
+        <h2 className="text-2xl font-bold">{t("outline.title")}</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
             <Sparkles className="mr-2 h-4 w-4" />
-            逻辑检查
+            {t("outline.logicCheck")}
           </Button>
           <Button size="sm" onClick={handleAddChapter}>
             <Plus className="mr-2 h-4 w-4" />
-            添加章节
+            {t("outline.addChapter")}
           </Button>
         </div>
       </div>
@@ -100,7 +102,7 @@ const OutlineEditor = () => {
         
         {chapters.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed rounded-lg text-muted-foreground">
-            <p>暂无章节，点击右上角添加</p>
+            <p>{t("outline.empty")}</p>
           </div>
         )}
       </div>

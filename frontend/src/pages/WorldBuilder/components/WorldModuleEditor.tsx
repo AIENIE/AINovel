@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { WorldModuleDefinition, WorldModuleData } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ interface WorldModuleEditorProps {
 }
 
 const WorldModuleEditor = ({ definitions, moduleData, onUpdateModule, onAutoGenerate, onRefineField }: WorldModuleEditorProps) => {
+  const { t } = useTranslation();
   const [refining, setRefining] = useState<Record<string, boolean>>({});
 
   const getFieldValue = (moduleKey: string, fieldKey: string) => {
@@ -50,7 +52,7 @@ const WorldModuleEditor = ({ definitions, moduleData, onUpdateModule, onAutoGene
                 </div>
                 <Button variant="outline" size="sm" onClick={() => onAutoGenerate(def.key)}>
                   <Sparkles className="mr-2 h-4 w-4" />
-                  AI 生成此模块
+                  {t("worldMod.generateModule")}
                 </Button>
               </div>
             </CardHeader>
@@ -81,7 +83,7 @@ const WorldModuleEditor = ({ definitions, moduleData, onUpdateModule, onAutoGene
                       }}
                     >
                       {refining[`${def.key}:${field.key}`] ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
-                      润色
+                      {t("common.polish")}
                     </Button>
                   </div>
                   {field.type === 'textarea' ? (

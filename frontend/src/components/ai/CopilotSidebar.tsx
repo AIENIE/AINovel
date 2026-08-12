@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { ModelConfig } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,8 +48,9 @@ const formatPercent = (value?: number): string => {
 
 const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
   const { user, refreshProfile } = useAuth();
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', content: '你好！我是你的 AI 写作助手。我可以帮你梳理大纲、润色段落或提供灵感。' }
+    { id: 'welcome', role: 'assistant', content: t('copilot.welcome') }
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -78,7 +80,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
   const handleSend = async () => {
     if (!input.trim() || !selectedModelId) return;
     if (user && user.credits <= 0) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: '项目积分不足，请先在个人中心将通用积分兑换为项目积分后再继续使用 AI。' }]);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: t('copilot.insufficientCredits') }]);
       return;
     }
 
@@ -105,7 +107,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
         role: 'assistant', 
-        content: '抱歉，请求失败，请稍后重试。' 
+        content: t('copilot.requestFailed')
       }]);
     } finally {
       setIsLoading(false);
@@ -126,7 +128,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
         <div className="space-y-1">
           <Select value={selectedModelId} onValueChange={setSelectedModelId}>
             <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="选择模型" />
+              <SelectValue placeholder={t("copilot.selectModel")} />
             </SelectTrigger>
             <SelectContent>
               {models.map(m => (
@@ -141,8 +143,8 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
           </Select>
           {selectedModel && (
             <div className="text-[10px] text-muted-foreground flex justify-between px-1">
-              <span>输入: x{selectedModel.inputMultiplier}</span>
-              <span>输出: x{selectedModel.outputMultiplier}</span>
+              <span>{t("copilot.inputMultiplier", { value: selectedModel.inputMultiplier })}</span>
+              <span>{t("copilot.outputMultiplier", { value: selectedModel.outputMultiplier })}</span>
             </div>
           )}
         </div>
@@ -174,9 +176,9 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
                 <div className="whitespace-pre-wrap">{msg.content}</div>
                 {(msg.cost !== undefined || (msg.cacheTokens !== undefined && msg.cacheTokens > 0)) && (
                   <div className="mt-2 text-[10px] opacity-70 border-t border-border/50 pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    {msg.cost !== undefined && <span><span className="font-mono">-{msg.cost}</span> 积分</span>}
+                    {msg.cost !== undefined && <span>{t("copilot.cost", { cost: msg.cost })}</span>}
                     {msg.cacheTokens !== undefined && msg.cacheTokens > 0 && (
-                      <span>缓存命中 <span className="font-mono">{Math.round(msg.cacheTokens)}</span> token / {formatPercent(msg.cacheHitRate)}</span>
+                      <span>{t("copilot.cacheHit", { tokens: Math.round(msg.cacheTokens), rate: formatPercent(msg.cacheHitRate) })}</span>
                     )}
                   </div>
                 )}
@@ -189,7 +191,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
               <div className="bg-muted/50 border rounded-lg p-3 text-sm text-muted-foreground">
-                AI 正在思考...
+                {t("copilot.thinking")}
               </div>
             </div>
           )}
@@ -201,7 +203,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
         {user && user.credits <= 0 && (
           <div className="mb-2 flex items-center gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
             <AlertTriangle className="h-3 w-3" />
-            项目积分不足，请先兑换项目积分
+            {t("copilot.insufficientShort")}
           </div>
         )}
         <form 
@@ -211,7 +213,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
           <Input 
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="输入指令或问题..."
+            placeholder={t("copilot.inputPlaceholder")}
             className="flex-1"
             disabled={isLoading || (user?.credits ?? 0) <= 0}
           />

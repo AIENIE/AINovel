@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { Manuscript, Outline, SlopDriftRun, Story, V2AnalysisJob, V2AnalysisReport, V2ContinuityIssue } from "@/types";
@@ -11,21 +12,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const issueStatusOptions = ["open", "acknowledged", "resolved", "false_positive"];
-const driftMetricLabels: Record<string, string> = {
-  template_density: "模板密度",
-  causal_coherence: "因果连贯",
-  role_stability: "角色稳定",
-  foreshadow_memory: "伏笔记忆",
-  breath_score: "呼吸节奏",
+const driftMetricLabelKeys: Record<string, string> = {
+  template_density: "analysis.metricTemplateDensity",
+  causal_coherence: "analysis.metricCausalCoherence",
+  role_stability: "analysis.metricRoleStability",
+  foreshadow_memory: "analysis.metricForeshadowMemory",
+  breath_score: "analysis.metricBreathScore",
 };
 const driftMetricColors = ["#7c3aed", "#0f766e", "#b45309", "#dc2626", "#2563eb"];
 
-const driftMetricLabel = (key: string) => driftMetricLabels[key] || key;
-
 const AnalysisDashboard = () => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState("");
   const [outlines, setOutlines] = useState<Outline[]>([]);
@@ -40,7 +41,7 @@ const AnalysisDashboard = () => {
   const [selectedReportId, setSelectedReportId] = useState("");
   const [selectedChapter, setSelectedChapter] = useState("1");
   const [continuityText, setContinuityText] = useState(
-    "凌晨三点，林烬在城门外看见了昨日战死的副将，对方竟毫发无伤地站在雨幕中。"
+    t("analysis.continuitySampleText")
   );
   const [isBusy, setIsBusy] = useState(false);
   const [isDriftBusy, setIsDriftBusy] = useState(false);
@@ -99,21 +100,21 @@ const AnalysisDashboard = () => {
   };
 
   useEffect(() => {
-    loadStories().catch((error: any) => toast({ variant: "destructive", title: "加载故事失败", description: error.message }));
+    loadStories().catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
   }, []);
 
   useEffect(() => {
     if (!storyId) return;
-    loadAnalysis(storyId).catch((error: any) => toast({ variant: "destructive", title: "加载分析数据失败", description: error.message }));
-    loadOutlines(storyId).catch((error: any) => toast({ variant: "destructive", title: "加载大纲失败", description: error.message }));
+    loadAnalysis(storyId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadAnalysisFailed"), description: localizedErrorMessage(error, "analysis.loadAnalysisFailed") }));
+    loadOutlines(storyId).catch((error: any) => toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error, "errors.loadOutlinesFailed") }));
   }, [storyId]);
 
   useEffect(() => {
-    loadManuscripts(selectedOutlineId).catch((error: any) => toast({ variant: "destructive", title: "加载稿件失败", description: error.message }));
+    loadManuscripts(selectedOutlineId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadManuscriptsFailed"), description: localizedErrorMessage(error, "analysis.loadManuscriptsFailed") }));
   }, [selectedOutlineId]);
 
   useEffect(() => {
-    loadDriftRuns(selectedManuscriptId).catch((error: any) => toast({ variant: "destructive", title: "加载 drift 巡检失败", description: error.message }));
+    loadDriftRuns(selectedManuscriptId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadDriftFailed"), description: localizedErrorMessage(error, "analysis.loadDriftFailed") }));
   }, [selectedManuscriptId]);
 
   const hasRunningJob = useMemo(
@@ -129,29 +130,29 @@ const AnalysisDashboard = () => {
     return () => window.clearInterval(timer);
   }, [storyId, hasRunningJob]);
 
-  const runAction = async (label: string, fn: () => Promise<any>) => {
+  const runAction = async (labelKey: string, fn: () => Promise<any>) => {
     if (!storyId) {
-      toast({ variant: "destructive", title: "请先选择故事" });
+      toast({ variant: "destructive", title: t("analysis.selectStoryFirst") });
       return;
     }
     if (hasRunningJob) {
-      toast({ variant: "destructive", title: "当前已有分析任务运行中", description: "请等待当前任务完成后再触发新任务。" });
+      toast({ variant: "destructive", title: t("analysis.jobRunning"), description: t("analysis.jobRunningDesc") });
       return;
     }
     setIsBusy(true);
     try {
       await fn();
       await loadAnalysis(storyId);
-      toast({ title: `${label}已触发` });
+      toast({ title: t("analysis.triggered", { label: t(labelKey) }) });
     } catch (error: any) {
-      toast({ variant: "destructive", title: `${label}失败`, description: error.message });
+      toast({ variant: "destructive", title: t("analysis.triggerFailed", { label: t(labelKey) }), description: localizedErrorMessage(error, "errors.operationFailed") });
     } finally {
       setIsBusy(false);
     }
   };
 
   const runChapterBetaReader = async () =>
-    runAction("章节分析", () =>
+    runAction("analysis.chapterAnalysis", () =>
       api.v2.analysis.triggerBetaReader(storyId, {
         scope: "chapter",
         scopeReference: `chapter-${selectedChapter}`,
@@ -161,9 +162,9 @@ const AnalysisDashboard = () => {
 
   const runFullBetaReader = async () => {
     const estimatedTokens = 180000;
-    const ok = window.confirm(`全稿分析预计消耗约 ${estimatedTokens.toLocaleString()} tokens，是否继续？`);
+    const ok = window.confirm(t("analysis.fullAnalysisConfirm", { count: estimatedTokens }));
     if (!ok) return;
-    await runAction("全稿分析", () =>
+    await runAction("analysis.fullAnalysis", () =>
       api.v2.analysis.triggerBetaReader(storyId, {
         scope: "full_manuscript",
         focus: "overall",
@@ -179,7 +180,7 @@ const AnalysisDashboard = () => {
 
   const runSlopDrift = async () => {
     if (!selectedManuscriptId || !selectedManuscript) {
-      toast({ variant: "destructive", title: "请先选择稿件" });
+      toast({ variant: "destructive", title: t("analysis.selectManuscriptFirst") });
       return;
     }
     const plainLength = Object.values(selectedManuscript.sections || {})
@@ -187,25 +188,25 @@ const AnalysisDashboard = () => {
       .replace(/<[^>]+>/g, "")
       .length;
     const estimatedTokens = Math.max(6000, Math.ceil(plainLength * 1.6));
-    const ok = window.confirm(`长篇 drift 巡检预计消耗约 ${estimatedTokens.toLocaleString()} tokens，是否继续？`);
+    const ok = window.confirm(t("analysis.driftConfirm", { count: estimatedTokens }));
     if (!ok) return;
     setIsDriftBusy(true);
     try {
       await runTrackedAiOperation(api.v2.slopDrift.startAnalyze(selectedManuscriptId));
       const run = (await api.v2.slopDrift.listRuns(selectedManuscriptId))[0];
-      if (!run) throw new Error("长篇漂移诊断未生成结果");
+      if (!run) throw new Error(t("analysis.driftNoResult"));
       await loadDriftRuns(selectedManuscriptId);
       setSelectedDriftRunId(run.id);
-      toast({ title: "长篇 drift 巡检已完成" });
+      toast({ title: t("analysis.driftDone") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "长篇 drift 巡检失败", description: error.message });
+      toast({ variant: "destructive", title: t("analysis.driftFailed"), description: localizedErrorMessage(error, "analysis.driftFailed") });
     } finally {
       setIsDriftBusy(false);
     }
   };
 
   const runContinuityCheck = async () =>
-    runAction("连续性检查", () =>
+    runAction("analysis.continuityCheck", () =>
       api.v2.analysis.triggerContinuity(storyId, {
         scope: "chapter",
         scopeReference: `chapter-${selectedChapter}`,
@@ -241,33 +242,33 @@ const AnalysisDashboard = () => {
   const radarData = useMemo(() => {
     if (!selectedReport) return [];
     return [
-      { metric: "节奏", score: Number(selectedReport.scorePacing ?? 0) },
-      { metric: "角色", score: Number(selectedReport.scoreCharacters ?? 0) },
-      { metric: "对话", score: Number(selectedReport.scoreDialogue ?? 0) },
-      { metric: "一致性", score: Number(selectedReport.scoreConsistency ?? 0) },
-      { metric: "吸引力", score: Number(selectedReport.scoreEngagement ?? 0) },
+      { metric: t("analysis.metricPacing"), score: Number(selectedReport.scorePacing ?? 0) },
+      { metric: t("analysis.metricCharacters"), score: Number(selectedReport.scoreCharacters ?? 0) },
+      { metric: t("analysis.metricDialogue"), score: Number(selectedReport.scoreDialogue ?? 0) },
+      { metric: t("analysis.metricConsistency"), score: Number(selectedReport.scoreConsistency ?? 0) },
+      { metric: t("analysis.metricEngagement"), score: Number(selectedReport.scoreEngagement ?? 0) },
     ];
-  }, [selectedReport]);
+  }, [selectedReport, t]);
 
   const tensionLineData = useMemo(() => {
     const base = Number(selectedReport?.scorePacing ?? 75);
     return [
-      { point: "开篇", value: Math.max(10, base - 12) },
-      { point: "铺垫", value: Math.max(10, base - 5) },
-      { point: "冲突", value: Math.min(100, base + 6) },
-      { point: "高潮", value: Math.min(100, base + 14) },
-      { point: "收束", value: Math.max(10, base - 2) },
+      { point: t("analysis.tensionOpening"), value: Math.max(10, base - 12) },
+      { point: t("analysis.tensionSetup"), value: Math.max(10, base - 5) },
+      { point: t("analysis.tensionConflict"), value: Math.min(100, base + 6) },
+      { point: t("analysis.tensionClimax"), value: Math.min(100, base + 14) },
+      { point: t("analysis.tensionResolution"), value: Math.max(10, base - 2) },
     ];
-  }, [selectedReport]);
+  }, [selectedReport, t]);
 
   const updateIssueStatus = async (issueId: string, status: string) => {
     if (!storyId) return;
     try {
       await api.v2.analysis.updateIssue(storyId, issueId, { status });
       await loadAnalysis(storyId);
-      toast({ title: "问题状态已更新" });
+      toast({ title: t("analysis.issueStatusUpdated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "更新失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.updateFailed"), description: localizedErrorMessage(error, "errors.updateFailed") });
     }
   };
 
@@ -276,10 +277,10 @@ const AnalysisDashboard = () => {
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-end gap-3">
           <div className="w-[300px]">
-            <Label>故事</Label>
+            <Label>{t("common.story")}</Label>
             <Select value={storyId} onValueChange={setStoryId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择故事" />
+                <SelectValue placeholder={t("common.selectStory")} />
               </SelectTrigger>
               <SelectContent>
                 {stories.map((story) => (
@@ -291,10 +292,10 @@ const AnalysisDashboard = () => {
             </Select>
           </div>
           <div className="w-[240px]">
-            <Label>大纲</Label>
+            <Label>{t("analysis.outline")}</Label>
             <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择大纲" />
+                <SelectValue placeholder={t("common.selectOutline")} />
               </SelectTrigger>
               <SelectContent>
                 {outlines.map((outline) => (
@@ -306,10 +307,10 @@ const AnalysisDashboard = () => {
             </Select>
           </div>
           <div className="w-[240px]">
-            <Label>稿件</Label>
+            <Label>{t("analysis.manuscript")}</Label>
             <Select value={selectedManuscriptId} onValueChange={setSelectedManuscriptId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择稿件" />
+                <SelectValue placeholder={t("common.selectManuscript")} />
               </SelectTrigger>
               <SelectContent>
                 {manuscripts.map((manuscript) => (
@@ -321,7 +322,7 @@ const AnalysisDashboard = () => {
             </Select>
           </div>
           <div className="w-[150px]">
-            <Label>章节</Label>
+            <Label>{t("analysis.chapter")}</Label>
             <Select value={selectedChapter} onValueChange={setSelectedChapter}>
               <SelectTrigger>
                 <SelectValue />
@@ -329,23 +330,23 @@ const AnalysisDashboard = () => {
               <SelectContent>
                 {Array.from({ length: 20 }).map((_, index) => (
                   <SelectItem key={index + 1} value={String(index + 1)}>
-                    第 {index + 1} 章
+                    {t("common.chapterShort", { count: index + 1 })}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <Button onClick={runChapterBetaReader} disabled={isBusy || !storyId}>
-            分析本章
+            {t("analysis.analyzeChapter")}
           </Button>
           <Button variant="secondary" onClick={runFullBetaReader} disabled={isBusy || !storyId}>
-            分析全稿
+            {t("analysis.analyzeFull")}
           </Button>
           <Button variant="secondary" onClick={runSlopDrift} disabled={isDriftBusy || !selectedManuscriptId}>
-            长篇 drift 巡检
+            {t("analysis.driftCheck")}
           </Button>
           <Button variant="outline" onClick={runContinuityCheck} disabled={isBusy || !storyId}>
-            连续性检查
+            {t("analysis.continuityCheck")}
           </Button>
           <Button
             variant="ghost"
@@ -355,16 +356,16 @@ const AnalysisDashboard = () => {
             }}
             disabled={!storyId}
           >
-            刷新
+            {t("common.refresh")}
           </Button>
-          {hasRunningJob ? <Badge>任务执行中</Badge> : <Badge variant="outline">空闲</Badge>}
+          {hasRunningJob ? <Badge>{t("analysis.jobRunning")}</Badge> : <Badge variant="outline">{t("analysis.idle")}</Badge>}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>连续性检查输入</CardTitle>
-          <CardDescription>触发连续性检查时会带入这段文本，便于检测角色/时间线矛盾。</CardDescription>
+          <CardTitle>{t("analysis.continuityInputTitle")}</CardTitle>
+          <CardDescription>{t("analysis.continuityInputDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea className="min-h-[100px]" value={continuityText} onChange={(event) => setContinuityText(event.target.value)} />
@@ -373,21 +374,21 @@ const AnalysisDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>长篇 drift 巡检</CardTitle>
-          <CardDescription>按稿件窗口比较模板密度、角色稳定、事件推进和伏笔记忆。</CardDescription>
+          <CardTitle>{t("analysis.driftTitle")}</CardTitle>
+          <CardDescription>{t("analysis.driftDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="w-[360px]">
-              <Label>巡检记录</Label>
+              <Label>{t("analysis.driftRuns")}</Label>
               <Select value={selectedDriftRunId} onValueChange={setSelectedDriftRunId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择巡检记录" />
+                  <SelectValue placeholder={t("analysis.selectDriftRun")} />
                 </SelectTrigger>
                 <SelectContent>
                   {driftRuns.map((run) => (
                     <SelectItem key={run.id} value={run.id}>
-                      {`${run.status} · ${run.riskLabel || "unavailable"} · ${run.createdAt ? new Date(run.createdAt).toLocaleString() : "刚刚"}`}
+                      {`${run.status} · ${run.riskLabel || "unavailable"} · ${run.createdAt ? new Date(run.createdAt).toLocaleString() : t("analysis.justNow")}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -396,9 +397,9 @@ const AnalysisDashboard = () => {
             {selectedDriftRun ? (
               <div className="flex flex-wrap gap-2">
                 <Badge>{selectedDriftRun.status}</Badge>
-                <Badge variant="outline">风险 {selectedDriftRun.overallRiskScore}</Badge>
-                <Badge variant="outline">窗口 {selectedDriftRun.windowCount}</Badge>
-                <Badge variant="outline">字符 {selectedDriftRun.totalCharacters.toLocaleString()}</Badge>
+                <Badge variant="outline">{t("analysis.riskScore", { score: selectedDriftRun.overallRiskScore })}</Badge>
+                <Badge variant="outline">{t("analysis.windows", { count: selectedDriftRun.windowCount })}</Badge>
+                <Badge variant="outline">{t("analysis.charCount", { count: Number(selectedDriftRun.totalCharacters) })}</Badge>
               </div>
             ) : null}
           </div>
@@ -406,8 +407,8 @@ const AnalysisDashboard = () => {
           {selectedDriftRun ? (
             <div className="space-y-4">
               <div className="rounded border p-3 text-sm space-y-2">
-                <p className="font-medium">{selectedDriftRun.summary || "暂无摘要"}</p>
-                <p className="text-muted-foreground">{selectedDriftRun.safeClaim || "暂无安全结论"}</p>
+                <p className="font-medium">{selectedDriftRun.summary || t("analysis.noSummary")}</p>
+                <p className="text-muted-foreground">{selectedDriftRun.safeClaim || t("analysis.noSafeClaim")}</p>
               </div>
 
               {driftCurveRows.length > 0 ? (
@@ -423,7 +424,7 @@ const AnalysisDashboard = () => {
                           key={metric}
                           type="monotone"
                           dataKey={metric}
-                          name={driftMetricLabel(metric)}
+                          name={t(driftMetricLabelKeys[metric] || "analysis.metricUnknown")}
                           stroke={driftMetricColors[index % driftMetricColors.length]}
                           strokeWidth={2}
                         />
@@ -435,18 +436,18 @@ const AnalysisDashboard = () => {
 
               <div className="grid gap-4 xl:grid-cols-3">
                 <div className="rounded border p-3 space-y-2">
-                  <div className="text-sm font-medium">断层点</div>
+                  <div className="text-sm font-medium">{t("analysis.driftPoints")}</div>
                   {selectedDriftRun.driftPoints.map((point, index) => (
                     <div key={`${point.from_window || index}-${point.to_window || index}`} className="text-sm border-t pt-2 first:border-t-0 first:pt-0">
                       <div className="font-medium">{`${point.from_window || "from"} -> ${point.to_window || "to"}`}</div>
-                      <p className="text-muted-foreground">{point.interpretation || point.safe_claim || "暂无说明"}</p>
+                      <p className="text-muted-foreground">{point.interpretation || point.safe_claim || t("analysis.noDescription")}</p>
                     </div>
                   ))}
-                  {!selectedDriftRun.driftPoints.length && <p className="text-sm text-muted-foreground">暂无断层点</p>}
+                  {!selectedDriftRun.driftPoints.length && <p className="text-sm text-muted-foreground">{t("analysis.noDriftPoints")}</p>}
                 </div>
 
                 <div className="rounded border p-3 space-y-2">
-                  <div className="text-sm font-medium">证据</div>
+                  <div className="text-sm font-medium">{t("analysis.evidence")}</div>
                   {selectedDriftRun.evidenceItems.slice(0, 5).map((item, index) => (
                     <div key={`${item.window || "window"}-${index}`} className="text-sm border-t pt-2 first:border-t-0 first:pt-0">
                       <div className="flex flex-wrap gap-2">
@@ -454,21 +455,21 @@ const AnalysisDashboard = () => {
                         <Badge variant="outline">{item.module || "module"}</Badge>
                         <Badge>{item.evidence_level || item.evidenceLevel || "E1"}</Badge>
                       </div>
-                      <p className="mt-1">{item.quote || item.risk_explanation || "暂无证据文本"}</p>
+                      <p className="mt-1">{item.quote || item.risk_explanation || t("analysis.noEvidenceText")}</p>
                     </div>
                   ))}
-                  {!selectedDriftRun.evidenceItems.length && <p className="text-sm text-muted-foreground">暂无证据</p>}
+                  {!selectedDriftRun.evidenceItems.length && <p className="text-sm text-muted-foreground">{t("analysis.noEvidence")}</p>}
                 </div>
 
                 <div className="rounded border p-3 space-y-2">
-                  <div className="text-sm font-medium">修复任务</div>
+                  <div className="text-sm font-medium">{t("analysis.repairTasks")}</div>
                   {selectedDriftRun.rewriteTasks.map((task, index) => (
                     <div key={`${task.task_id || task.taskId || index}`} className="text-sm border-t pt-2 first:border-t-0 first:pt-0">
                       <div className="font-medium">{task.task_id || task.taskId || `D${index + 1}`}</div>
-                      <p className="text-muted-foreground">{task.problem || task.repair_goal || task.repairGoal || "暂无任务说明"}</p>
+                      <p className="text-muted-foreground">{task.problem || task.repair_goal || task.repairGoal || t("analysis.noTaskDescription")}</p>
                     </div>
                   ))}
-                  {!selectedDriftRun.rewriteTasks.length && <p className="text-sm text-muted-foreground">暂无修复任务</p>}
+                  {!selectedDriftRun.rewriteTasks.length && <p className="text-sm text-muted-foreground">{t("analysis.noRepairTasks")}</p>}
                 </div>
               </div>
 
@@ -481,7 +482,7 @@ const AnalysisDashboard = () => {
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">暂无长篇 drift 巡检记录</p>
+            <p className="text-sm text-muted-foreground">{t("analysis.noDriftRuns")}</p>
           )}
         </CardContent>
       </Card>
@@ -489,8 +490,8 @@ const AnalysisDashboard = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>任务列表</CardTitle>
-            <CardDescription>异步任务进度与执行状态。</CardDescription>
+            <CardTitle>{t("analysis.jobList")}</CardTitle>
+            <CardDescription>{t("analysis.jobListDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {jobs.map((job) => (
@@ -500,17 +501,17 @@ const AnalysisDashboard = () => {
                   <Badge variant="outline">{job.status}</Badge>
                 </div>
                 <Progress value={Number(job.progress ?? 0)} />
-                <div className="text-xs text-muted-foreground">{job.progressMessage || "处理中..."}</div>
+                <div className="text-xs text-muted-foreground">{job.progressMessage || t("analysis.processing")}</div>
               </div>
             ))}
-            {!jobs.length && <p className="text-sm text-muted-foreground">暂无分析任务</p>}
+            {!jobs.length && <p className="text-sm text-muted-foreground">{t("analysis.noJobs")}</p>}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>问题追踪</CardTitle>
-            <CardDescription>可将问题标记为 acknowledged / resolved / false_positive。</CardDescription>
+            <CardTitle>{t("analysis.issueTracking")}</CardTitle>
+            <CardDescription>{t("analysis.issueTrackingDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {issues.map((issue) => (
@@ -536,27 +537,27 @@ const AnalysisDashboard = () => {
                 </div>
               </div>
             ))}
-            {!issues.length && <p className="text-sm text-muted-foreground">暂无连续性问题</p>}
+            {!issues.length && <p className="text-sm text-muted-foreground">{t("analysis.noIssues")}</p>}
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>分析报告</CardTitle>
-          <CardDescription>五维评分雷达图 + 张力趋势曲线。</CardDescription>
+          <CardTitle>{t("analysis.reportTitle")}</CardTitle>
+          <CardDescription>{t("analysis.reportDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="w-[320px]">
-            <Label>选择报告</Label>
+            <Label>{t("analysis.selectReport")}</Label>
             <Select value={selectedReportId} onValueChange={setSelectedReportId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择报告" />
+                <SelectValue placeholder={t("analysis.selectReport")} />
               </SelectTrigger>
               <SelectContent>
                 {reports.map((report) => (
                   <SelectItem key={report.id} value={report.id}>
-                    {`${report.scope || "scope"} · ${report.createdAt ? new Date(report.createdAt).toLocaleString() : "未知时间"}`}
+                    {`${report.scope || "scope"} · ${report.createdAt ? new Date(report.createdAt).toLocaleString() : t("analysis.unknownTime")}`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -586,14 +587,14 @@ const AnalysisDashboard = () => {
               </div>
               <div className="xl:col-span-2 rounded border p-3 text-sm space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <Badge>总分 {selectedReport.scoreOverall ?? 0}</Badge>
-                  <Badge variant="outline">Token 消耗 {selectedReport.tokenCost ?? 0}</Badge>
+                  <Badge>{t("analysis.totalScore", { score: selectedReport.scoreOverall ?? 0 })}</Badge>
+                  <Badge variant="outline">{t("analysis.tokenCost", { cost: selectedReport.tokenCost ?? 0 })}</Badge>
                 </div>
-                <p className="text-muted-foreground">{selectedReport.summary || "暂无摘要"}</p>
+                <p className="text-muted-foreground">{selectedReport.summary || t("analysis.noSummary")}</p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">请选择报告查看可视化结果</p>
+            <p className="text-sm text-muted-foreground">{t("analysis.selectReportHint")}</p>
           )}
         </CardContent>
       </Card>

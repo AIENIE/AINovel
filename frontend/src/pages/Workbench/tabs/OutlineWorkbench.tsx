@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption, World } from "@/types";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { ChevronDown, FileText, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 interface OutlineWorkbenchProps {
   initialStoryId?: string;
@@ -44,6 +46,8 @@ const sceneDefaults = (twistId = ""): ScenePlanning => ({
 });
 
 const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
+  const { toast } = useToast();
+  const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [outlines, setOutlines] = useState<Outline[]>([]);
@@ -57,8 +61,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [creatingOutline, setCreatingOutline] = useState(false);
-  const [newOutlineName, setNewOutlineName] = useState("新大纲");
-  const { toast } = useToast();
+  const [newOutlineName, setNewOutlineName] = useState(t("outline.newOutline"));
 
   useEffect(() => { api.worlds.list().then((items) => setWorlds(items.filter((world) => world.status === "active"))).catch(() => setWorlds([])); }, []);
 
@@ -74,10 +77,9 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         }
       })
       .catch((error: unknown) => {
-        const description = error instanceof Error ? error.message : "无法加载故事";
-        toast({ variant: "destructive", title: "加载故事失败", description });
+        toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") });
       });
-  }, [initialStoryId, toast]);
+  }, [initialStoryId, toast, t]);
 
   useEffect(() => {
     if (!selectedStoryId) return;
@@ -89,10 +91,9 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         setSelectedNode(null);
       })
       .catch((error: unknown) => {
-        const description = error instanceof Error ? error.message : "无法加载大纲";
-        toast({ variant: "destructive", title: "加载大纲失败", description });
+        toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error, "errors.loadOutlinesFailed") });
       });
-  }, [selectedStoryId, toast]);
+  }, [selectedStoryId, toast, t]);
 
   const planning = selectedOutline?.planning;
   const twistOptions = useMemo(() => planning?.twistOptions || [], [planning]);
@@ -170,12 +171,11 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       const saved = await api.outlines.save(selectedOutline.id, nextOutline as Outline & { worldId?: string });
       setSelectedOutline(saved);
       setOutlines((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
-      setSaveStatus("已保存");
-      toast({ title: "结构规划已保存" });
+      setSaveStatus(t("outline.saved"));
+      toast({ title: t("outline.structureSaved") });
     } catch (error: unknown) {
-      const description = error instanceof Error ? error.message : "无法保存结构规划";
-      setSaveStatus("保存失败");
-      toast({ variant: "destructive", title: "保存失败", description });
+      setSaveStatus(t("errors.saveFailed"));
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
     }
@@ -184,47 +184,46 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const handleCreateOutline = async () => {
     if (!selectedStoryId) return;
     try {
-      const created = await api.outlines.create(selectedStoryId, { title: newOutlineName.trim() || "新大纲", planning });
+      const created = await api.outlines.create(selectedStoryId, { title: newOutlineName.trim() || t("outline.newOutline"), planning });
       setOutlines((prev) => [created, ...prev]);
       setSelectedOutline(created);
       setSelectedNode(null);
       setCreatingOutline(false);
-      toast({ title: "已创建大纲" });
+      toast({ title: t("outline.created") });
     } catch (error: unknown) {
-      const description = error instanceof Error ? error.message : "无法创建大纲";
-      toast({ variant: "destructive", title: "创建失败", description });
+      toast({ variant: "destructive", title: t("errors.createFailed"), description: localizedErrorMessage(error, "errors.createFailed") });
     }
   };
 
   const handleDeleteOutline = async () => {
-    if (!selectedOutline || !confirm(`确定删除大纲「${selectedOutline.title}」吗？关联稿件也可能受到影响。`)) return;
+    if (!selectedOutline || !confirm(t("outline.deleteConfirm", { title: selectedOutline.title }))) return;
     try {
       await api.outlines.delete(selectedOutline.id);
       const next = outlines.filter((outline) => outline.id !== selectedOutline.id);
       setOutlines(next); setSelectedOutline(next[0] || null); setSelectedNode(null);
-      toast({ title: "大纲已删除" });
-    } catch (error: any) { toast({ variant: "destructive", title: "删除失败", description: error.message }); }
+      toast({ title: t("outline.deleted") });
+    } catch (error: any) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
   const handleGenerateNextChapter = async () => {
     if (!selectedOutline) return;
     const chapterNumber = selectedOutline.chapters.length + 1;
-    const worldName = worlds.find((world) => world.id === selectedOutline.worldId)?.name || "不覆盖故事默认世界观";
-    if (!confirm(`将生成第 ${chapterNumber} 章（默认 3 个场景，每场景目标 2000 字）。\n世界观：${worldName}\n\n该操作会消耗项目积分，确认继续吗？`)) return;
+    const worldName = worlds.find((world) => world.id === selectedOutline.worldId)?.name || t("outline.defaultWorld");
+    if (!confirm(t("outline.generateChapterConfirm", { chapterNumber, worldName }))) return;
     try {
       await runTrackedAiOperation(api.outlines.startGenerateChapter(selectedOutline.id, { chapterNumber, sectionsPerChapter: 3, wordsPerSection: 2000, worldId: selectedOutline.worldId || null }));
       const refreshed = await api.outlines.get(selectedOutline.id);
       setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
       setSelectedOutline(refreshed);
-      toast({ title: `第 ${chapterNumber} 章已生成` });
-    } catch (error: any) { toast({ variant: "destructive", title: "章节生成失败", description: error.message }); }
+      toast({ title: t("outline.chapterGenerated", { chapterNumber }) });
+    } catch (error: any) { toast({ variant: "destructive", title: t("errors.generateChapterFailed"), description: localizedErrorMessage(error, "errors.generateChapterFailed") }); }
   };
 
   const handleAddChapter = () => {
     if (!selectedOutline) return;
     const nextChapter: Outline["chapters"][number] = {
       id: ensureUuid(),
-      title: "新章节",
+      title: t("outline.newChapter"),
       summary: "",
       planning: chapterDefaults(activeTwistId),
       scenes: [],
@@ -241,7 +240,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         chapter.id === selectedNode.id
           ? {
               ...chapter,
-              scenes: [...chapter.scenes, { id: ensureUuid(), title: "新场景", summary: "", content: "", planning: sceneDefaults(activeTwistId) }],
+              scenes: [...chapter.scenes, { id: ensureUuid(), title: t("outline.newScene"), summary: "", content: "", planning: sceneDefaults(activeTwistId) }],
             }
           : chapter,
       ),
@@ -264,18 +263,17 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     try {
       const models = await api.ai.getModels();
       const modelId = models[0]?.id;
-      if (!modelId) throw new Error("暂无可用 AI 模型");
+      if (!modelId) throw new Error(t("outline.noAiModel"));
       const response = await api.ai.refine(
         summary,
         selectedNode?.type === "scene"
-          ? "润色当前场景摘要，使其更适合服务伏笔、误导和揭示节奏。"
-          : "润色当前章节摘要，使其更清晰地体现结构作用和信息释放。",
+          ? t("outline.refineScenePrompt")
+          : t("outline.refineChapterPrompt"),
         modelId,
       );
       setSummary(response.result);
     } catch (error: unknown) {
-      const description = error instanceof Error ? error.message : "AI 润色失败";
-      toast({ variant: "destructive", title: "AI 失败", description });
+      toast({ variant: "destructive", title: t("outline.aiRefineFailed"), description: localizedErrorMessage(error, "outline.aiRefineFailed") });
     }
   };
 
@@ -285,33 +283,33 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>结构总览</CardTitle>
-            <CardDescription>先确认这条大纲服务哪种主问题、隐藏真相和反转路径。</CardDescription>
+            <CardTitle>{t("outline.structureOverview")}</CardTitle>
+            <CardDescription>{t("outline.structureOverviewDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-lg border p-3">
-              <div className="text-xs text-muted-foreground">核心承诺</div>
-              <div className="mt-1 text-sm font-medium">{planning.corePromise || "待补充"}</div>
+              <div className="text-xs text-muted-foreground">{t("outline.corePromise")}</div>
+              <div className="mt-1 text-sm font-medium">{planning.corePromise || t("outline.todo")}</div>
             </div>
             <div className="rounded-lg border p-3">
-              <div className="text-xs text-muted-foreground">主问题</div>
-              <div className="mt-1 text-sm font-medium">{planning.centralQuestion || "待补充"}</div>
+              <div className="text-xs text-muted-foreground">{t("outline.centralQuestion")}</div>
+              <div className="mt-1 text-sm font-medium">{planning.centralQuestion || t("outline.todo")}</div>
             </div>
             <div className="rounded-lg border p-3">
-              <div className="text-xs text-muted-foreground">隐藏真相</div>
-              <div className="mt-1 text-sm font-medium">{planning.hiddenTruth || "待补充"}</div>
+              <div className="text-xs text-muted-foreground">{t("outline.hiddenTruth")}</div>
+              <div className="mt-1 text-sm font-medium">{planning.hiddenTruth || t("outline.todo")}</div>
             </div>
             <div className="rounded-lg border p-3">
-              <div className="text-xs text-muted-foreground">读者误判路径</div>
-              <div className="mt-1 text-sm font-medium">{planning.readerMisdirect || "待补充"}</div>
+              <div className="text-xs text-muted-foreground">{t("outline.readerMisdirect")}</div>
+              <div className="mt-1 text-sm font-medium">{planning.readerMisdirect || t("outline.todo")}</div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>双轨反转比较</CardTitle>
-            <CardDescription>首版仍保留两个方案并行，不让 AI 单方面替你定稿。</CardDescription>
+            <CardTitle>{t("outline.twistComparison")}</CardTitle>
+            <CardDescription>{t("outline.twistComparisonDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 xl:grid-cols-2">
             {twistOptions.map((twist: TwistOption) => {
@@ -321,31 +319,31 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-medium">{twist.label}</div>
-                      <div className="text-xs text-muted-foreground">{twist.track === "structure" ? "结构更强版" : "保留灵感版"}</div>
+                      <div className="text-xs text-muted-foreground">{twist.track === "structure" ? t("outline.trackStructure") : t("outline.trackInspiration")}</div>
                     </div>
                     <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => handleSelectTwist(twist.id)}>
-                      {selected ? "当前采用" : "切换"}
+                      {selected ? t("outline.currentlyAdopted") : t("outline.switch")}
                     </Button>
                   </div>
                   <div className="mt-3 space-y-2 text-sm">
                     <div>
-                      <div className="text-xs text-muted-foreground">钩子</div>
+                      <div className="text-xs text-muted-foreground">{t("outline.hook")}</div>
                       <div>{twist.hook}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">隐藏真相</div>
+                      <div className="text-xs text-muted-foreground">{t("outline.hiddenTruth")}</div>
                       <div>{twist.hiddenTruth}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">揭示时机</div>
+                      <div className="text-xs text-muted-foreground">{t("outline.revealTiming")}</div>
                       <div>{twist.revealTiming}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">回收效果</div>
+                      <div className="text-xs text-muted-foreground">{t("outline.payoff")}</div>
                       <div>{twist.payoff}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">暴露风险</div>
+                      <div className="text-xs text-muted-foreground">{t("outline.exposureRisk")}</div>
                       <div>{twist.risk}</div>
                     </div>
                   </div>
@@ -357,8 +355,8 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>伏笔链</CardTitle>
-            <CardDescription>主路径里先维护最小“埋点 {"->"} 掩护 {"->"} 回收”链条。</CardDescription>
+            <CardTitle>{t("outline.foreshadowChain")}</CardTitle>
+            <CardDescription>{t("outline.foreshadowChainDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {foreshadowPlans.map((item) => (
@@ -366,56 +364,56 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                 <div className="font-medium">{item.clue}</div>
                 <div className="mt-2 grid gap-2 md:grid-cols-3">
                   <div>
-                    <div className="text-xs text-muted-foreground">掩护</div>
+                    <div className="text-xs text-muted-foreground">{t("outline.disguise")}</div>
                     <div>{item.disguise}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">回收</div>
+                    <div className="text-xs text-muted-foreground">{t("outline.payoff")}</div>
                     <div>{item.payoff}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">揭示时机</div>
-                    <div>{item.revealTiming || "待定"}</div>
+                    <div className="text-xs text-muted-foreground">{t("outline.revealTiming")}</div>
+                    <div>{item.revealTiming || t("outline.tbd")}</div>
                   </div>
                 </div>
               </div>
             ))}
-            {!foreshadowPlans.length ? <div className="text-sm text-muted-foreground">当前结构方案还没有显式伏笔链。</div> : null}
+            {!foreshadowPlans.length ? <div className="text-sm text-muted-foreground">{t("outline.noForeshadow")}</div> : null}
           </CardContent>
         </Card>
       </div>
     );
-  }, [planning, twistOptions, activeTwistId, foreshadowPlans, handleSelectTwist]);
+  }, [planning, twistOptions, activeTwistId, foreshadowPlans, handleSelectTwist, t]);
 
   const renderNodeEditor = () => {
     if (!selectedNode) {
-      return overview || <div className="h-full flex items-center justify-center text-muted-foreground">请先选择一个大纲。</div>;
+      return overview || <div className="h-full flex items-center justify-center text-muted-foreground">{t("outline.selectOutlineFirst")}</div>;
     }
 
     return (
       <div className="space-y-6 max-w-3xl">
         <div className="space-y-2">
-          <Label>标题</Label>
+          <Label>{t("outline.title")}</Label>
           <Input value={title} onChange={(event) => setTitle(event.target.value)} />
         </div>
 
         <div className="space-y-2">
-          <Label>梗概 / 摘要</Label>
+          <Label>{t("outline.summary")}</Label>
           <Textarea className="min-h-[180px]" value={summary} onChange={(event) => setSummary(event.target.value)} />
         </div>
 
         {selectedNode.type === "chapter" ? (
           <Card>
             <CardHeader>
-              <CardTitle>章节结构标签</CardTitle>
-              <CardDescription>让每章都明确服务当前采用的反转路径。</CardDescription>
+              <CardTitle>{t("outline.chapterStructureLabel")}</CardTitle>
+              <CardDescription>{t("outline.chapterStructureDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>采用哪条反转</Label>
+                <Label>{t("outline.whichTwist")}</Label>
                 <Select value={chapterPlanning.selectedTwistId || activeTwistId} onValueChange={(value) => setChapterPlanning((current) => ({ ...current, selectedTwistId: value }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择反转方案" />
+                    <SelectValue placeholder={t("outline.selectTwist")} />
                   </SelectTrigger>
                   <SelectContent>
                     {twistOptions.map((twist) => (
@@ -427,36 +425,36 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>张力变化</Label>
-                <Input value={chapterPlanning.tensionShift || ""} onChange={(event) => setChapterPlanning((current) => ({ ...current, tensionShift: event.target.value }))} placeholder="例如：误导加深 / 真相逼近" />
+                <Label>{t("outline.tensionShift")}</Label>
+                <Input value={chapterPlanning.tensionShift || ""} onChange={(event) => setChapterPlanning((current) => ({ ...current, tensionShift: event.target.value }))} placeholder={t("outline.tensionShiftPlaceholder")} />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>本章揭示焦点</Label>
-                <Textarea value={chapterPlanning.revealFocus || ""} onChange={(event) => setChapterPlanning((current) => ({ ...current, revealFocus: event.target.value }))} placeholder="本章希望读者重新理解什么？" />
+                <Label>{t("outline.revealFocus")}</Label>
+                <Textarea value={chapterPlanning.revealFocus || ""} onChange={(event) => setChapterPlanning((current) => ({ ...current, revealFocus: event.target.value }))} placeholder={t("outline.revealFocusPlaceholder")} />
               </div>
             </CardContent>
           </Card>
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>场景结构标签</CardTitle>
-              <CardDescription>把场景的目标、冲突、信息释放和伏笔绑定起来。</CardDescription>
+              <CardTitle>{t("outline.sceneStructureLabel")}</CardTitle>
+              <CardDescription>{t("outline.sceneStructureDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>场景目标</Label>
-                <Input value={scenePlanning.goal || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, goal: event.target.value }))} placeholder="例如：让读者先接受错误答案" />
+                <Label>{t("outline.sceneGoal")}</Label>
+                <Input value={scenePlanning.goal || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, goal: event.target.value }))} placeholder={t("outline.sceneGoalPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>冲突</Label>
-                <Input value={scenePlanning.conflict || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, conflict: event.target.value }))} placeholder="例如：角色理解与真实信息相互冲突" />
+                <Label>{t("outline.sceneConflict")}</Label>
+                <Input value={scenePlanning.conflict || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, conflict: event.target.value }))} placeholder={t("outline.sceneConflictPlaceholder")} />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>本场景释放的信息</Label>
-                <Textarea value={scenePlanning.infoRelease || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, infoRelease: event.target.value }))} placeholder="读者从这个场景里应该得到什么新信息？" />
+                <Label>{t("outline.sceneInfoRelease")}</Label>
+                <Textarea value={scenePlanning.infoRelease || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, infoRelease: event.target.value }))} placeholder={t("outline.sceneInfoReleasePlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>关联伏笔</Label>
+                <Label>{t("outline.relatedForeshadow")}</Label>
                 <Select
                   value={scenePlanning.foreshadowId || NO_FORESHADOW_VALUE}
                   onValueChange={(value) => setScenePlanning((current) => ({
@@ -465,10 +463,10 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                   }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="选择伏笔" />
+                    <SelectValue placeholder={t("outline.selectForeshadow")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NO_FORESHADOW_VALUE}>无</SelectItem>
+                    <SelectItem value={NO_FORESHADOW_VALUE}>{t("outline.none")}</SelectItem>
                     {foreshadowPlans.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.clue}
@@ -478,10 +476,10 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>服务哪条反转</Label>
+                <Label>{t("outline.serveWhichTwist")}</Label>
                 <Select value={scenePlanning.revealFor || activeTwistId} onValueChange={(value) => setScenePlanning((current) => ({ ...current, revealFor: value }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择反转方案" />
+                    <SelectValue placeholder={t("outline.selectTwist")} />
                   </SelectTrigger>
                   <SelectContent>
                     {twistOptions.map((twist) => (
@@ -493,8 +491,8 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                 </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>梗融合方式</Label>
-                <Textarea value={scenePlanning.memeUsage || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, memeUsage: event.target.value }))} placeholder="如果要用梗，它应该如何自然出现而不出戏？" />
+                <Label>{t("outline.memeUsage")}</Label>
+                <Textarea value={scenePlanning.memeUsage || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, memeUsage: event.target.value }))} placeholder={t("outline.memeUsagePlaceholder")} />
               </div>
             </CardContent>
           </Card>
@@ -504,16 +502,16 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
           {selectedNode.type === "chapter" ? (
             <Button variant="outline" onClick={handleAddScene}>
               <Plus className="mr-2 h-4 w-4" />
-              添加场景
+              {t("outline.addScene")}
             </Button>
           ) : null}
           <Button variant="outline" onClick={handleAiRefine}>
             <Sparkles className="mr-2 h-4 w-4" />
-            AI 润色
+            {t("outline.aiRefine")}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             <Save className="mr-2 h-4 w-4" />
-            {isSaving ? "保存中..." : "保存修改"}
+            {isSaving ? t("common.saving") : t("outline.saveChanges")}
           </Button>
         </div>
       </div>
@@ -524,10 +522,10 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     <div className="flex min-w-0 flex-col gap-5 lg:h-[calc(100vh-200px)] lg:flex-row lg:gap-6">
       <div className="flex w-full min-w-0 flex-col gap-4 border-b pb-4 lg:w-80 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4">
         <div className="space-y-2">
-          <Label>当前故事</Label>
+          <Label>{t("common.currentStory")}</Label>
           <Select value={selectedStoryId} onValueChange={setSelectedStoryId}>
             <SelectTrigger>
-              <SelectValue placeholder="选择故事" />
+              <SelectValue placeholder={t("common.selectStory")} />
             </SelectTrigger>
             <SelectContent>
               {stories.map((story) => (
@@ -540,37 +538,37 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label>当前大纲</Label>
-          <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => { setSelectedOutline(outlines.find((outline) => outline.id === id) || null); setSelectedNode(null); }} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder="还没有大纲" /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
+          <Label>{t("outline.currentOutline")}</Label>
+          <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => { setSelectedOutline(outlines.find((outline) => outline.id === id) || null); setSelectedNode(null); }} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={t("outline.noOutlineYet")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
         </div>
 
-        {selectedOutline && <div className="space-y-2"><Label>大纲世界观</Label><Select value={selectedOutline.worldId || "__default__"} onValueChange={(value) => setSelectedOutline({...selectedOutline, worldId: value === "__default__" ? undefined : value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__default__">使用故事默认世界观</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div>}
+        {selectedOutline && <div className="space-y-2"><Label>{t("outline.outlineWorld")}</Label><Select value={selectedOutline.worldId || "__default__"} onValueChange={(value) => setSelectedOutline({...selectedOutline, worldId: value === "__default__" ? undefined : value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__default__">{t("outline.useDefaultWorld")}</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div>}
 
         <div className="rounded-lg border bg-muted/30 p-3">
-          <div className="text-xs text-muted-foreground">当前采用方案</div>
-          <div className="mt-1 font-medium">{activeTwist?.label || "尚未选择"}</div>
-          <div className="mt-1 text-sm text-muted-foreground">{activeTwist?.payoff || "请先从构思入口应用一个结构方案。"}</div>
+          <div className="text-xs text-muted-foreground">{t("outline.currentPlan")}</div>
+          <div className="mt-1 font-medium">{activeTwist?.label || t("outline.notSelected")}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{activeTwist?.payoff || t("outline.applyStructureHint")}</div>
         </div>
 
         <div className="flex items-center justify-between mt-2">
-          <span className="text-sm font-medium text-muted-foreground">大纲结构</span>
+          <span className="text-sm font-medium text-muted-foreground">{t("outline.outlineStructure")}</span>
           <div className="flex gap-1">
             <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCreatingOutline(true)} disabled={!selectedStoryId}>
               <Plus className="mr-1 h-4 w-4" />
-              新大纲
+              {t("outline.newOutline")}
             </Button>
             <Button size="sm" variant="ghost" className="h-6 px-2" onClick={handleAddChapter} disabled={!selectedOutline}>
               <Plus className="mr-1 h-4 w-4" />
-              章节
+              {t("outline.chapter")}
             </Button>
           </div>
         </div>
-        {creatingOutline ? <div className="flex gap-1"><Input value={newOutlineName} onChange={(e) => setNewOutlineName(e.target.value)} placeholder="大纲名称" /><Button size="sm" onClick={() => void handleCreateOutline()} disabled={!newOutlineName.trim()}>创建</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div> : null}
+        {creatingOutline ? <div className="flex gap-1"><Input value={newOutlineName} onChange={(e) => setNewOutlineName(e.target.value)} placeholder={t("outline.outlineName")} /><Button size="sm" onClick={() => void handleCreateOutline()} disabled={!newOutlineName.trim()}>{t("common.create")}</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div> : null}
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => void handleSave()} disabled={!selectedOutline || isSaving}><Save className="mr-1 h-4 w-4" />{isSaving ? "保存中..." : "保存大纲"}</Button>
+          <Button size="sm" onClick={() => void handleSave()} disabled={!selectedOutline || isSaving}><Save className="mr-1 h-4 w-4" />{isSaving ? t("common.saving") : t("outline.saveOutline")}</Button>
           {saveStatus ? <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{saveStatus}</span> : null}
         </div>
-        <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline}><Sparkles className="mr-1 h-4 w-4" />生成下一章</Button>
+        <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline}><Sparkles className="mr-1 h-4 w-4" />{t("outline.generateNextChapter")}</Button>
 
         <ScrollArea className="flex-1">
           {selectedOutline ? (
@@ -581,7 +579,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
                 onClick={() => setSelectedNode(null)}
               >
                 <Sparkles className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium truncate">结构总览</span>
+                <span className="text-sm font-medium truncate">{t("outline.structureOverview")}</span>
               </button>
               {selectedOutline.chapters.map((chapter) => (
                 <div key={chapter.id} className="space-y-1">
@@ -608,13 +606,13 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
               ))}
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-4">暂无大纲</div>
+            <div className="text-sm text-muted-foreground text-center py-4">{t("outline.noOutlines")}</div>
           )}
         </ScrollArea>
       </div>
 
       <div className="flex-1 min-w-0">
-        {selectedOutline ? renderNodeEditor() : <div className="h-full flex items-center justify-center text-muted-foreground">请先创建或选择一个大纲。</div>}
+        {selectedOutline ? renderNodeEditor() : <div className="h-full flex items-center justify-center text-muted-foreground">{t("outline.createOrSelectOutline")}</div>}
       </div>
     </div>
   );

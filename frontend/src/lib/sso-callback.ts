@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 export type SsoSessionResponse = {
   accessToken: string;
 };
@@ -42,12 +44,12 @@ export const createSsoCallbackProcessor = (deps: SsoCallbackProcessorDeps) => {
     const code = params.get("code") || "";
 
     if (!deps.validateState(state)) {
-      if (!isCancelled?.()) deps.onFailure("单点登录失败：state 校验未通过");
+      if (!isCancelled?.()) deps.onFailure(t("auth.ssoFailed"));
       return;
     }
 
     if (!code) {
-      if (!isCancelled?.()) deps.onFailure("单点登录失败：未获取到授权码");
+      if (!isCancelled?.()) deps.onFailure(t("auth.ssoNoCode"));
       return;
     }
 
@@ -55,7 +57,7 @@ export const createSsoCallbackProcessor = (deps: SsoCallbackProcessorDeps) => {
       const session = await deps.exchangeSsoCode(code, redirect);
       await deps.acceptToken(session.accessToken);
     } catch {
-      if (!isCancelled?.()) deps.onFailure("单点登录失败：会话校验未通过");
+      if (!isCancelled?.()) deps.onFailure(t("auth.ssoSessionFailed"));
       return;
     }
 

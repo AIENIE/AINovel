@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +10,7 @@ import { PromptMetadata } from "@/types";
 
 const PromptHelpPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [metadata, setMetadata] = useState<PromptMetadata | null>(null);
 
   useEffect(() => {
@@ -18,24 +20,24 @@ const PromptHelpPage = () => {
   return (
     <div className="container mx-auto py-8 max-w-4xl">
       <Button variant="ghost" onClick={() => navigate("/settings")} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> 返回设置
+        <ArrowLeft className="mr-2 h-4 w-4" /> {t("promptHelp.backToSettings")}
       </Button>
       
-      <h1 className="text-3xl font-bold mb-6">提示词变量指南</h1>
+      <h1 className="text-3xl font-bold mb-6">{t("promptHelp.title")}</h1>
       
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>可用变量表</CardTitle>
-          <CardDescription>按模板列出后端支持的变量。</CardDescription>
+          <CardTitle>{t("promptHelp.variablesTitle")}</CardTitle>
+          <CardDescription>{t("promptHelp.variablesDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>模板</TableHead>
-                <TableHead>变量名</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead>说明</TableHead>
+                <TableHead>{t("promptHelp.colTemplate")}</TableHead>
+                <TableHead>{t("promptHelp.colVariable")}</TableHead>
+                <TableHead>{t("promptHelp.colType")}</TableHead>
+                <TableHead>{t("promptHelp.colDescription")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -54,15 +56,15 @@ const PromptHelpPage = () => {
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>函数</CardTitle>
+          <CardTitle>{t("promptHelp.functionsTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>函数</TableHead>
-                <TableHead>说明</TableHead>
-                <TableHead>示例</TableHead>
+                <TableHead>{t("promptHelp.colFunction")}</TableHead>
+                <TableHead>{t("promptHelp.colDescription")}</TableHead>
+                <TableHead>{t("promptHelp.colExample")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +82,7 @@ const PromptHelpPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>示例</CardTitle>
+          <CardTitle>{t("promptHelp.examplesTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {metadata?.syntaxTips.map((tip) => (

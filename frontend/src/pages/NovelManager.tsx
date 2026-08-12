@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, MoreHorizontal, BookOpen, Clock, Trash2, WandSparkles } from "lucide-react";
@@ -20,6 +21,7 @@ function estimateTextLength(html: string) {
 
 const NovelManager = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [stats, setStats] = useState<StoryCardStats>({});
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ const NovelManager = () => {
       })();
     } catch (e: any) {
       setLoading(false);
-      showError(e?.message || "加载失败");
+      showError(e, "errors.loadFailed");
     }
   };
 
@@ -68,13 +70,13 @@ const NovelManager = () => {
   }, []);
 
   const handleDelete = async (storyId: string) => {
-    if (!confirm("确认删除该故事？此操作不可恢复。")) return;
+    if (!confirm(t("novels.deleteConfirm"))) return;
     try {
       await api.stories.delete(storyId);
-      showSuccess("已删除");
+      showSuccess("novels.deleted");
       refresh();
     } catch (e: any) {
-      showError(e?.message || "删除失败");
+      showError(e, "errors.deleteFailed");
     }
   };
 
@@ -89,17 +91,17 @@ const NovelManager = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">我的小说</h1>
+          <h1 className="text-xl font-bold">{t("novels.title")}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link to="/novels/quick-create">
             <Button className="bg-emerald-700 hover:bg-emerald-800">
-              <WandSparkles className="mr-2 h-4 w-4" /> 引导创作
+              <WandSparkles className="mr-2 h-4 w-4" /> {t("novels.quickCreate")}
             </Button>
           </Link>
           <Link to="/novels/create">
             <Button variant="outline">
-              <Plus className="mr-2 h-4 w-4" /> 传统新建
+              <Plus className="mr-2 h-4 w-4" /> {t("novels.traditionalCreate")}
             </Button>
           </Link>
         </div>
@@ -112,16 +114,16 @@ const NovelManager = () => {
               <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
               </div>
-              <span className="font-medium text-muted-foreground group-hover:text-primary">传统方式创建</span>
+              <span className="font-medium text-muted-foreground group-hover:text-primary">{t("novels.createCard")}</span>
             </div>
           </Link>
 
           {loading && (
-            <div className="col-span-full text-sm text-muted-foreground">加载中...</div>
+            <div className="col-span-full text-sm text-muted-foreground">{t("common.loading")}</div>
           )}
 
           {!loading && displayStories.length === 0 && (
-            <div className="col-span-full text-sm text-muted-foreground">暂无作品，先创建一个吧。</div>
+            <div className="col-span-full text-sm text-muted-foreground">{t("novels.empty")}</div>
           )}
 
           {displayStories.map((novel) => {
@@ -144,15 +146,15 @@ const NovelManager = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/workbench?storyId=${novel.id}`)}>进入工作台</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/workbench?storyId=${novel.id}`)}>{t("novels.enterWorkbench")}</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(novel.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> 删除
+                          <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <div className="absolute bottom-3 left-3 text-white text-xs font-medium bg-black/30 px-2 py-1 rounded backdrop-blur-sm">
-                    {novel.genre || "未分类"}
+                    {novel.genre || t("novels.uncategorized")}
                   </div>
                 </div>
 
@@ -164,15 +166,15 @@ const NovelManager = () => {
                         <Clock className="h-3 w-3" /> {new Date(novel.updatedAt).toLocaleString()}
                       </div>
                       <div className="flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" /> {wordCount.toLocaleString()} 字
+                        <BookOpen className="h-3 w-3" /> {t("novels.wordCount", { count: wordCount, value: wordCount.toLocaleString() })}
                       </div>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{novel.synopsis || "暂无简介"}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{novel.synopsis || t("novels.noSynopsis")}</p>
                   </div>
 
                   <div className="mt-auto">
                     <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-muted-foreground">完稿进度</span>
+                      <span className="text-muted-foreground">{t("novels.progress")}</span>
                       <span className="font-mono font-medium">{progress}%</span>
                     </div>
                     <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">

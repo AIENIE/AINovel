@@ -39,7 +39,7 @@ export function useGuidedCreation() {
       setWorkflow(next);
       navigate({ search: `?run=${encodeURIComponent(id)}` }, { replace: true });
     } catch (error) {
-      showError(error instanceof Error ? error.message : "向导草稿加载失败");
+      showError(error, "guided.loadDraftFailed");
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export function useGuidedCreation() {
           navigate({ search: `?run=${encodeURIComponent(selected.id)}` }, { replace: true });
         }
       })
-      .catch((error) => showError(error instanceof Error ? error.message : "向导草稿加载失败"))
+      .catch((error) => showError(error, "guided.loadDraftFailed"))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -90,7 +90,7 @@ export function useGuidedCreation() {
           setRuns((current) => current.map((item) => item.id === next.id ? next : item));
         }
       } catch (error) {
-        if (!cancelled) showError(error instanceof Error ? error.message : "生成状态刷新失败");
+        if (!cancelled) showError(error, "guided.refreshStatusFailed");
       }
     };
     const timer = window.setInterval(() => void poll(), 1400);
@@ -108,7 +108,7 @@ export function useGuidedCreation() {
       await refreshList();
       return next;
     } catch (error) {
-      showError(error instanceof Error ? error.message : "操作失败");
+      showError(error, "guided.operationFailed");
       return null;
     } finally {
       setBusy(false);
@@ -128,7 +128,7 @@ export function useGuidedCreation() {
       }
       await refreshList();
     } catch (error) {
-      showError(error instanceof Error ? error.message : "向导创建失败");
+      showError(error, "guided.createFailed");
     } finally {
       setBusy(false);
     }

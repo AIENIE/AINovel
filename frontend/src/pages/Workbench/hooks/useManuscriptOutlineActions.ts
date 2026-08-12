@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { api } from "@/lib/api-client";
 import type { Outline } from "@/types";
+import { t } from "@/i18n";
 
 type ToastFn = (options: {
   description?: string;
@@ -54,7 +55,7 @@ export function useManuscriptOutlineActions({
         const saved = await api.outlines.save(selectedOutlineId, nextOutline);
         replaceOutline(saved);
       } catch (e: any) {
-        toast({ variant: "destructive", title: "保存大纲顺序失败", description: e.message });
+        toast({ variant: "destructive", title: t("outlineActions.saveOrderFailed"), description: e.message });
       }
     },
     [replaceOutline, selectedOutlineId, toast],
@@ -110,7 +111,7 @@ export function useManuscriptOutlineActions({
     const sceneId = `scene-${Date.now()}`;
     chapter.scenes.push({
       id: sceneId,
-      title: `新场景 ${chapter.scenes.length + 1}`,
+      title: t("outlineActions.newSceneTitle", { count: chapter.scenes.length + 1 }),
       summary: "",
     });
     setOutlineDraft(nextOutline);
@@ -146,7 +147,7 @@ export function useManuscriptOutlineActions({
 
   const batchDeleteScenes = useCallback(async () => {
     if (!outlineDraft || !selectedSceneIds.length) return;
-    const ok = window.confirm(`确认删除已选 ${selectedSceneIds.length} 个场景？`);
+    const ok = window.confirm(t("outlineActions.confirmDeleteSelected", { count: selectedSceneIds.length }));
     if (!ok) return;
     const selected = new Set(selectedSceneIds);
     const nextOutline = cloneOutline(outlineDraft);
@@ -186,7 +187,7 @@ export function useManuscriptOutlineActions({
     target.scenes.push(...moved);
     setOutlineDraft(nextOutline);
     await persistOutlineDraft(nextOutline);
-    toast({ title: `已移动 ${moved.length} 个场景` });
+    toast({ title: t("outlineActions.movedScenes", { count: moved.length }) });
   }, [
     batchMoveChapterId,
     outlineDraft,

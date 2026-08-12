@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
+import { t } from "@/i18n";
 
 export type WorkbenchSidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goals" | "plot";
 
@@ -95,7 +96,7 @@ export function useWorkbenchLayoutPersistence({
       const payload = buildLayoutPayload();
       const request = activeLayoutId
         ? api.v2.workspace.updateLayout(activeLayoutId, { layout: payload, isActive: true })
-        : api.v2.workspace.createLayout({ name: "写作模式", layout: payload, isActive: true });
+        : api.v2.workspace.createLayout({ name: t("layoutPersistence.writingMode"), layout: payload, isActive: true });
       void request
         .then((layout: any) => {
           if (layout?.id) setActiveLayoutId(String(layout.id));

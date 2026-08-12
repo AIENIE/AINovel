@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
@@ -13,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle, ArrowRight, BookOpen, Loader2, Network, Sparkles, Wand2 } from "lucide-react";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ConceptionResult = {
   storyCard?: { id: string; title: string; synopsis: string; genre: string; tone: string };
@@ -228,6 +230,7 @@ const StoryConception = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [idea, setIdea] = useState("");
   const [genre, setGenre] = useState("");
   const [tone, setTone] = useState("");
@@ -258,7 +261,7 @@ const StoryConception = () => {
 
   const handleGenerate = async () => {
     if (!idea.trim()) {
-      toast({ variant: "destructive", title: "请输入核心创意" });
+      toast({ variant: "destructive", title: t("storyConception.ideaRequired") });
       return;
     }
     setIsGenerating(true);
@@ -267,8 +270,8 @@ const StoryConception = () => {
       const operation = await runTrackedAiOperation(api.stories.startConception({
         title,
         synopsis: idea,
-        genre: genre || "未分类",
-        tone: tone || "默认",
+        genre: genre || t("storyConception.uncategorized"),
+        tone: tone || t("storyConception.defaultTone"),
         plotPlanningHints: {
           corePromise: promiseHint.trim() || undefined,
           hiddenTruth: secretHint.trim() || undefined,
@@ -290,9 +293,9 @@ const StoryConception = () => {
       if (response?.storyCard?.id) {
         writeCache(response.storyCard.id, nextResult);
       }
-      toast({ title: "剧情策划已生成", description: "你现在可以比较双轨反转方案，并把结构落地到大纲。" });
+      toast({ title: t("storyConception.generated"), description: t("storyConception.generatedDesc") });
     } catch {
-      toast({ variant: "destructive", title: "生成失败" });
+      toast({ variant: "destructive", title: t("errors.generateFailed") });
     } finally {
       setIsGenerating(false);
     }
@@ -356,11 +359,10 @@ const StoryConception = () => {
       const created = await api.outlines.create(result.storyCard.id, { title: draft.title, planning: draft.planning });
       await api.outlines.save(created.id, { ...draft, id: created.id });
       await syncPlanningContext(result.storyCard.id, planning);
-      toast({ title: "结构方案已落地到大纲", description: "已同步最小 Lorebook / Graph 节点。" });
+      toast({ title: t("storyConception.applied"), description: t("storyConception.appliedDesc") });
       navigate(`/workbench?storyId=${result.storyCard.id}&tab=outline`);
     } catch (error: unknown) {
-      const description = error instanceof Error ? error.message : "无法把剧情规划落地到大纲";
-      toast({ variant: "destructive", title: "应用失败", description });
+      toast({ variant: "destructive", title: t("storyConception.applyFailed"), description: localizedErrorMessage(error, "storyConception.applyFailed") });
     } finally {
       setIsApplying(false);
     }
@@ -370,14 +372,14 @@ const StoryConception = () => {
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] h-full">
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle>剧情策划入口</CardTitle>
-          <CardDescription>先从一句话创意出发，再逐步展开秘密、反转和伏笔的结构骨架。</CardDescription>
+          <CardTitle>{t("storyConception.entryTitle")}</CardTitle>
+          <CardDescription>{t("storyConception.entryDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>核心创意 / 一句话梗概</Label>
+            <Label>{t("storyConception.ideaLabel")}</Label>
             <Textarea
-              placeholder="例如：一个在末日废土上送快递的机器人，意外发现了一个冷冻的人类婴儿..."
+              placeholder={t("storyConception.ideaPlaceholder")}
               className="min-h-[120px]"
               value={idea}
               onChange={(event) => setIdea(event.target.value)}
@@ -385,55 +387,55 @@ const StoryConception = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>类型流派</Label>
+              <Label>{t("storyConception.genreLabel")}</Label>
               <Select value={genre} onValueChange={setGenre}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择类型" />
+                  <SelectValue placeholder={t("storyConception.selectGenre")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="scifi">科幻</SelectItem>
-                  <SelectItem value="fantasy">奇幻</SelectItem>
-                  <SelectItem value="mystery">悬疑</SelectItem>
-                  <SelectItem value="romance">言情</SelectItem>
-                  <SelectItem value="wuxia">仙侠</SelectItem>
+                  <SelectItem value="scifi">{t("storyConception.genreSciFi")}</SelectItem>
+                  <SelectItem value="fantasy">{t("storyConception.genreFantasy")}</SelectItem>
+                  <SelectItem value="mystery">{t("storyConception.genreMystery")}</SelectItem>
+                  <SelectItem value="romance">{t("storyConception.genreRomance")}</SelectItem>
+                  <SelectItem value="wuxia">{t("storyConception.genreWuxia")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>基调风格</Label>
+              <Label>{t("storyConception.toneLabel")}</Label>
               <Select value={tone} onValueChange={setTone}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择基调" />
+                  <SelectValue placeholder={t("storyConception.selectTone")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dark">暗黑/压抑</SelectItem>
-                  <SelectItem value="humorous">幽默/轻松</SelectItem>
-                  <SelectItem value="epic">史诗/宏大</SelectItem>
-                  <SelectItem value="warm">治愈/温馨</SelectItem>
+                  <SelectItem value="dark">{t("storyConception.toneDark")}</SelectItem>
+                  <SelectItem value="humorous">{t("storyConception.toneHumorous")}</SelectItem>
+                  <SelectItem value="epic">{t("storyConception.toneEpic")}</SelectItem>
+                  <SelectItem value="warm">{t("storyConception.toneWarm")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="rounded-lg border bg-muted/30 p-3">
             <button type="button" className="flex w-full items-center justify-between text-left text-sm font-medium" onClick={() => setShowGuide((value) => !value)}>
-              <span>展开结构引导</span>
+              <span>{t("storyConception.expandGuide")}</span>
               <ArrowRight className={`h-4 w-4 transition-transform ${showGuide ? "rotate-90" : ""}`} />
             </button>
             {showGuide ? (
               <div className="mt-3 space-y-3">
                 <div className="space-y-2">
-                  <Label>核心承诺（可选）</Label>
-                  <Input value={promiseHint} onChange={(event) => setPromiseHint(event.target.value)} placeholder="例如：让读者一直想知道主角究竟在隐瞒什么" />
+                  <Label>{t("storyConception.promiseLabel")}</Label>
+                  <Input value={promiseHint} onChange={(event) => setPromiseHint(event.target.value)} placeholder={t("storyConception.promisePlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>隐藏真相（可选）</Label>
-                  <Input value={secretHint} onChange={(event) => setSecretHint(event.target.value)} placeholder="例如：真正的幕后操控者其实是主角自己" />
+                  <Label>{t("storyConception.secretLabel")}</Label>
+                  <Input value={secretHint} onChange={(event) => setSecretHint(event.target.value)} placeholder={t("storyConception.secretPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>想用的梗 / 圈层气质（可选）</Label>
-                  <Input value={memeHint} onChange={(event) => setMemeHint(event.target.value)} placeholder="例如：赛博社畜梗 / 仙侠论坛黑话" />
+                  <Label>{t("storyConception.memeLabel")}</Label>
+                  <Input value={memeHint} onChange={(event) => setMemeHint(event.target.value)} placeholder={t("storyConception.memePlaceholder")} />
                 </div>
-                <p className="text-xs text-muted-foreground">这些字段首版只用于辅助结构建议，不会把入口变成强制重表单。</p>
+                <p className="text-xs text-muted-foreground">{t("storyConception.guideNote")}</p>
               </div>
             ) : null}
           </div>
@@ -441,10 +443,10 @@ const StoryConception = () => {
         <CardFooter className="gap-2">
           <Button className="flex-1" onClick={handleGenerate} disabled={isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            生成结构骨架
+            {t("storyConception.generateSkeleton")}
           </Button>
           <Button variant="outline" onClick={() => setResult(null)} disabled={!result}>
-            清空结果
+            {t("storyConception.clearResult")}
           </Button>
         </CardFooter>
       </Card>
@@ -453,8 +455,8 @@ const StoryConception = () => {
         {!result || !planning ? (
           <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-muted-foreground h-[520px] bg-muted/20">
             <Wand2 className="h-12 w-12 mb-4 opacity-20" />
-            <p>生成后会在这里展示结构骨架、双轨反转和伏笔链。</p>
-            <p className="text-sm opacity-70">首版先帮助你做出更强的大纲，而不是直接把正文写满。</p>
+            <p>{t("storyConception.emptyHint")}</p>
+            <p className="text-sm opacity-70">{t("storyConception.emptyHint2")}</p>
           </div>
         ) : (
           <>
@@ -464,40 +466,40 @@ const StoryConception = () => {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <BookOpen className="h-5 w-5" />
-                      {result.storyCard?.title || "未命名故事"}
+                      {result.storyCard?.title || t("storyConception.untitledStory")}
                     </CardTitle>
                     <CardDescription>{result.storyCard?.synopsis || idea}</CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Badge variant="secondary">{result.storyCard?.genre || genre || "未分类"}</Badge>
-                    <Badge variant="outline">{result.storyCard?.tone || tone || "默认"}</Badge>
+                    <Badge variant="secondary">{result.storyCard?.genre || genre || t("storyConception.uncategorized")}</Badge>
+                    <Badge variant="outline">{result.storyCard?.tone || tone || t("storyConception.defaultTone")}</Badge>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-lg border p-3">
-                  <div className="text-xs text-muted-foreground">核心承诺</div>
-                  <div className="mt-1 text-sm font-medium">{planning.corePromise || "待补充"}</div>
+                  <div className="text-xs text-muted-foreground">{t("storyConception.corePromise")}</div>
+                  <div className="mt-1 text-sm font-medium">{planning.corePromise || t("outline.todo")}</div>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <div className="text-xs text-muted-foreground">主问题</div>
-                  <div className="mt-1 text-sm font-medium">{planning.centralQuestion || "待补充"}</div>
+                  <div className="text-xs text-muted-foreground">{t("storyConception.centralQuestion")}</div>
+                  <div className="mt-1 text-sm font-medium">{planning.centralQuestion || t("outline.todo")}</div>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <div className="text-xs text-muted-foreground">隐藏真相</div>
-                  <div className="mt-1 text-sm font-medium">{planning.hiddenTruth || "待补充"}</div>
+                  <div className="text-xs text-muted-foreground">{t("storyConception.hiddenTruth")}</div>
+                  <div className="mt-1 text-sm font-medium">{planning.hiddenTruth || t("outline.todo")}</div>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <div className="text-xs text-muted-foreground">读者误判路径</div>
-                  <div className="mt-1 text-sm font-medium">{planning.readerMisdirect || "待补充"}</div>
+                  <div className="text-xs text-muted-foreground">{t("storyConception.readerMisdirect")}</div>
+                  <div className="mt-1 text-sm font-medium">{planning.readerMisdirect || t("outline.todo")}</div>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>结构骨架</CardTitle>
-                <CardDescription>先把剧情的推进骨架拉直，再决定具体章节怎么落地。</CardDescription>
+                <CardTitle>{t("storyConception.structureSkeleton")}</CardTitle>
+                <CardDescription>{t("storyConception.structureSkeletonDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-3">
                 {planning.beats.map((beat) => (
@@ -511,8 +513,8 @@ const StoryConception = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>双轨反转方案</CardTitle>
-                <CardDescription>AI 不替你拍板，而是把“保留灵感版”和“结构更强版”放到同一张桌子上。</CardDescription>
+                <CardTitle>{t("storyConception.dualTwist")}</CardTitle>
+                <CardDescription>{t("storyConception.dualTwistDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 xl:grid-cols-2">
                 {planning.twistOptions.map((twist) => {
@@ -522,46 +524,46 @@ const StoryConception = () => {
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="font-medium">{twist.label}</div>
-                          <div className="text-xs text-muted-foreground">{twist.track === "structure" ? "结构更强版" : "保留灵感版"}</div>
+                          <div className="text-xs text-muted-foreground">{twist.track === "structure" ? t("outline.trackStructure") : t("outline.trackInspiration")}</div>
                         </div>
                         <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => setSelectedTwistId(twist.id)}>
-                          {selected ? "当前方案" : "采用此方案"}
+                          {selected ? t("storyConception.currentPlan") : t("storyConception.adoptPlan")}
                         </Button>
                       </div>
                       <Separator className="my-3" />
                       <div className="space-y-3 text-sm">
                         <div>
-                          <div className="text-xs text-muted-foreground">钩子</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.hook")}</div>
                           <div>{twist.hook}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">隐藏真相</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.hiddenTruth")}</div>
                           <div>{twist.hiddenTruth}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">铺垫点</div>
+                          <div className="text-xs text-muted-foreground">{t("storyConception.setupPoints")}</div>
                           <ul className="mt-1 space-y-1 list-disc pl-5">
                             {twist.setup.map((item, index) => <li key={`${twist.id}-setup-${index}`}>{item}</li>)}
                           </ul>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">误导动作</div>
+                          <div className="text-xs text-muted-foreground">{t("storyConception.misdirection")}</div>
                           <ul className="mt-1 space-y-1 list-disc pl-5">
                             {twist.misdirection.map((item, index) => <li key={`${twist.id}-mis-${index}`}>{item}</li>)}
                           </ul>
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <div>
-                            <div className="text-xs text-muted-foreground">揭示时机</div>
+                            <div className="text-xs text-muted-foreground">{t("outline.revealTiming")}</div>
                             <div>{twist.revealTiming}</div>
                           </div>
                           <div>
-                            <div className="text-xs text-muted-foreground">提前暴露风险</div>
+                            <div className="text-xs text-muted-foreground">{t("storyConception.earlyRevealRisk")}</div>
                             <div>{twist.risk}</div>
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">回收效果</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.payoff")}</div>
                           <div>{twist.payoff}</div>
                         </div>
                       </div>
@@ -574,27 +576,27 @@ const StoryConception = () => {
             <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
               <Card>
                 <CardHeader>
-                  <CardTitle>伏笔链</CardTitle>
-                  <CardDescription>首版先记录“埋点 {"->"} 掩护 {"->"} 回收”，后续再扩成完整链路板。</CardDescription>
+                  <CardTitle>{t("outline.foreshadowChain")}</CardTitle>
+                  <CardDescription>{t("storyConception.foreshadowChainDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {planning.foreshadowPlans.map((item, index) => (
                     <div key={item.id} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium">伏笔 {index + 1}</div>
+                        <div className="font-medium">{t("storyConception.foreshadowItem", { count: index + 1 })}</div>
                         {item.revealTiming ? <Badge variant="outline">{item.revealTiming}</Badge> : null}
                       </div>
                       <div className="mt-2 grid gap-3 md:grid-cols-3 text-sm">
                         <div>
-                          <div className="text-xs text-muted-foreground">埋点</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.seed")}</div>
                           <div>{item.clue}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">掩护</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.disguise")}</div>
                           <div>{item.disguise}</div>
                         </div>
                         <div>
-                          <div className="text-xs text-muted-foreground">回收</div>
+                          <div className="text-xs text-muted-foreground">{t("outline.payoff")}</div>
                           <div>{item.payoff}</div>
                         </div>
                       </div>
@@ -605,31 +607,31 @@ const StoryConception = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>梗融合策略</CardTitle>
-                  <CardDescription>不是单纯好玩，而是确保它不把故事带出戏。</CardDescription>
+                  <CardTitle>{t("storyConception.memeStrategy")}</CardTitle>
+                  <CardDescription>{t("storyConception.memeStrategyDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <div>
-                    <div className="text-xs text-muted-foreground">引用对象</div>
-                    <div>{planning.memeStrategy?.reference || "暂未指定"}</div>
+                    <div className="text-xs text-muted-foreground">{t("storyConception.memeReference")}</div>
+                    <div>{planning.memeStrategy?.reference || t("storyConception.notSpecified")}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">使用目的</div>
-                    <div>{planning.memeStrategy?.purpose || "让角色或世界更有辨识度"}</div>
+                    <div className="text-xs text-muted-foreground">{t("storyConception.memePurpose")}</div>
+                    <div>{planning.memeStrategy?.purpose || t("storyConception.memePurposeDefault")}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">自然融合版</div>
-                    <div>{planning.memeStrategy?.usage || "把梗放进角色视角，而不是直接拿来当段子。"}</div>
+                    <div className="text-xs text-muted-foreground">{t("storyConception.memeNatural")}</div>
+                    <div>{planning.memeStrategy?.usage || t("storyConception.memeNaturalDefault")}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-muted-foreground">保守提醒</div>
-                    <div>{planning.memeStrategy?.caution || "如果它破坏沉浸感，就直接回退到保守版。"}</div>
+                    <div className="text-xs text-muted-foreground">{t("storyConception.memeCaution")}</div>
+                    <div>{planning.memeStrategy?.caution || t("storyConception.memeCautionDefault")}</div>
                   </div>
                   {planning.warnings?.length ? (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium">
                         <AlertCircle className="h-4 w-4" />
-                        风险边界
+                        {t("storyConception.riskBoundary")}
                       </div>
                       <ul className="list-disc pl-5 space-y-1">
                         {planning.warnings.map((item, index) => <li key={`warning-${index}`}>{item}</li>)}
@@ -643,11 +645,11 @@ const StoryConception = () => {
             <div className="flex flex-wrap gap-3">
               <Button onClick={handleApplyToOutline} disabled={isApplying || !planning}>
                 {isApplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Network className="mr-2 h-4 w-4" />}
-                应用当前方案到大纲
+                {t("storyConception.applyToOutline")}
               </Button>
               {result.storyCard?.id ? (
                 <Button variant="outline" onClick={() => navigate(`/workbench?storyId=${result.storyCard?.id}&tab=outline`)}>
-                  查看大纲工作台
+                  {t("storyConception.viewOutlineWorkbench")}
                 </Button>
               ) : null}
             </div>

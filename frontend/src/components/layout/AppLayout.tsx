@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
@@ -23,10 +24,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
 const AppLayout = () => {
   const { user, logout, isAdmin } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -38,34 +41,34 @@ const AppLayout = () => {
 
   const navItems = [
     {
-      title: "创作首页",
+      title: t("nav.dashboard"),
       href: "/dashboard",
       icon: LayoutDashboard,
-      description: "项目总览"
+      description: t("nav.dashboardDesc")
     },
     {
-      title: "工作台",
+      title: t("nav.workbench"),
       href: "/workbench",
       icon: BookOpen,
-      description: "创作中心"
+      description: t("nav.workbenchDesc")
     },
     {
-      title: "小说管理",
+      title: t("nav.novels"),
       href: "/novels",
       icon: BookOpen,
-      description: "作品列表"
+      description: t("nav.novelsDesc")
     },
     {
-      title: "世界构建",
+      title: t("nav.worlds"),
       href: "/worlds",
       icon: Globe,
-      description: "世界观设定"
+      description: t("nav.worldsDesc")
     },
     {
-      title: "素材库",
+      title: t("nav.materials"),
       href: "/materials",
       icon: Library,
-      description: "灵感与资料"
+      description: t("nav.materialsDesc")
     },
   ];
 
@@ -82,7 +85,7 @@ const AppLayout = () => {
 
         <div className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
           <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">
-            主要功能
+            {t("nav.primary")}
           </div>
           {navItems.map((item) => (
             <NavLink
@@ -121,9 +124,14 @@ const AppLayout = () => {
             }
           >
             <Settings className="h-4 w-4" />
-            设置
+            {t("nav.settings")}
           </NavLink>
-          
+
+          <div className="flex items-center justify-between px-3 py-1">
+            <span className="text-xs font-medium text-muted-foreground">{t("app.language")}</span>
+            <LanguageSwitcher showLabel={false} align="start" />
+          </div>
+
           <div className="pt-2 flex items-center gap-3 px-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -143,22 +151,22 @@ const AppLayout = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>我的账户</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("nav.myAccount")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {isAdmin && (
                   <>
                     <DropdownMenuItem onClick={() => navigate("/admin/dashboard")} className="text-red-600 focus:text-red-600 focus:bg-red-50">
                       <ShieldAlert className="mr-2 h-4 w-4" />
-                      后台管理
+                      {t("nav.adminPanel")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem onClick={() => navigate("/profile")}>个人中心</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>系统设置</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/profile")}>{t("nav.profile")}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>{t("nav.systemSettings")}</DropdownMenuItem>
                 <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  退出登录
+                  {t("nav.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -174,9 +182,12 @@ const AppLayout = () => {
           </div>
           <span className="font-bold text-lg">AINovel</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-1">
+          <LanguageSwitcher showLabel={false} />
+          <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -207,19 +218,19 @@ const AppLayout = () => {
               className="flex items-center gap-4 p-4 rounded-lg border bg-card text-muted-foreground"
             >
               <Settings className="h-5 w-5" />
-              <span className="font-medium">系统设置</span>
+              <span className="font-medium">{t("nav.systemSettings")}</span>
             </NavLink>
             <NavLink
               to="/profile"
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-4 p-4 rounded-lg border bg-card text-muted-foreground"
             >
-              <Avatar className="h-5 w-5"><AvatarFallback className="text-[9px]">我</AvatarFallback></Avatar>
-              <span className="font-medium">个人中心</span>
+              <Avatar className="h-5 w-5"><AvatarFallback className="text-[9px]">{t("nav.me")}</AvatarFallback></Avatar>
+              <span className="font-medium">{t("nav.profile")}</span>
             </NavLink>
             {isAdmin && (
               <Button variant="outline" className="w-full mt-4 border-red-200 text-red-600 hover:bg-red-50" onClick={() => navigate("/admin/dashboard")}>
-                <ShieldAlert className="mr-2 h-4 w-4" /> 进入后台管理
+                <ShieldAlert className="mr-2 h-4 w-4" /> {t("nav.adminEntry")}
               </Button>
             )}
             <Button 
@@ -227,7 +238,7 @@ const AppLayout = () => {
               className="w-full mt-8" 
               onClick={handleLogout}
             >
-              退出登录
+              {t("nav.logout")}
             </Button>
           </nav>
         </div>

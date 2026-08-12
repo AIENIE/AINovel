@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Book, FileText, PenTool, Search, Rocket, BookOpen, Network, ClipboardCheck } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
@@ -15,6 +16,7 @@ import KnowledgeGraphTab from "./tabs/KnowledgeGraphTab";
 import AnalysisDashboard from "./tabs/AnalysisDashboard";
 
 const Workbench = () => {
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const storyId = params.get("storyId") || params.get("id") || "";
   const requestedTab = params.get("tab") || "";
@@ -80,50 +82,50 @@ const Workbench = () => {
   return (
     <div className="h-full flex flex-col space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">创作工作台</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("workbench.title")}</h1>
       </div>
 
       <Tabs value={activeTab} onValueChange={selectTab} className="flex-1 flex flex-col min-w-0">
         <div className="space-y-3 border-b pb-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">主流程</span>
+            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.mainFlow")}</span>
             <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="conception" className="gap-2 shrink-0">
-            <Sparkles className="h-4 w-4" /> 故事构思
+            <Sparkles className="h-4 w-4" /> {t("workbench.conception")}
           </TabsTrigger>
           <TabsTrigger value="stories" className="gap-2 shrink-0">
-            <Book className="h-4 w-4" /> 故事管理
+            <Book className="h-4 w-4" /> {t("workbench.stories")}
           </TabsTrigger>
           <TabsTrigger value="outline" className="gap-2 shrink-0">
-            <FileText className="h-4 w-4" /> 大纲编排
+            <FileText className="h-4 w-4" /> {t("workbench.outline")}
           </TabsTrigger>
           <TabsTrigger value="writing" className="gap-2 shrink-0">
-            <PenTool className="h-4 w-4" /> 小说创作
+            <PenTool className="h-4 w-4" /> {t("workbench.writing")}
           </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex min-w-0 items-center gap-3">
-            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">工具</span>
+            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.tools")}</span>
             <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="search" className="gap-2 shrink-0">
-            <Search className="h-4 w-4" /> 素材检索
+            <Search className="h-4 w-4" /> {t("workbench.materialSearch")}
           </TabsTrigger>
           <TabsTrigger value="lorebook" className="gap-2 shrink-0">
-            <BookOpen className="h-4 w-4" /> 知识库
+            <BookOpen className="h-4 w-4" /> {t("workbench.lorebook")}
           </TabsTrigger>
           <TabsTrigger value="graph" className="gap-2 shrink-0">
-            <Network className="h-4 w-4" /> 知识图谱
+            <Network className="h-4 w-4" /> {t("workbench.knowledgeGraph")}
           </TabsTrigger>
           <TabsTrigger value="analysis" className="gap-2 shrink-0">
-            <ClipboardCheck className="h-4 w-4" /> 质量分析
+            <ClipboardCheck className="h-4 w-4" /> {t("workbench.qualityAnalysis")}
           </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex min-w-0 items-center gap-3">
-            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">高级</span>
+            <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.advanced")}</span>
             <TabsList className="h-auto justify-start bg-transparent p-0">
           <TabsTrigger value="v2" className="gap-2 shrink-0">
-            <Rocket className="h-4 w-4" /> 高级工作台
+            <Rocket className="h-4 w-4" /> {t("workbench.advancedWorkbench")}
           </TabsTrigger>
             </TabsList>
           </div>

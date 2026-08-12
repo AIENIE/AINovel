@@ -1,15 +1,16 @@
+import { t } from "@/i18n";
 import type { PlotQualityRun, SlopQualityRun } from "@/types";
 
 export const qualityStatusText = (run?: SlopQualityRun | null) => {
-  if (!run) return "未运行质量门禁";
+  if (!run) return t("qualityStatus.notRun");
   if (run.analysisMode === "manual_scene") {
-    if (run.status === "DEGRADED") return "文本诊断降级";
-    if (run.status === "ACCEPTED_WITH_ISSUES" || ["high", "critical"].includes(run.riskLabel || "")) return "文本风险待处理";
-    return "文本诊断通过";
+    if (run.status === "DEGRADED") return t("qualityStatus.degraded");
+    if (run.status === "ACCEPTED_WITH_ISSUES" || ["high", "critical"].includes(run.riskLabel || "")) return t("qualityStatus.textPending");
+    return t("qualityStatus.textPassed");
   }
-  if (run.status === "REVISED" || run.revised) return "已自动修订";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "仍有建议";
-  return "质量门禁通过";
+  if (run.status === "REVISED" || run.revised) return t("qualityStatus.revised");
+  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return t("qualityStatus.hasSuggestions");
+  return t("qualityStatus.passed");
 };
 
 export const qualityStatusClass = (run?: SlopQualityRun | null) => {
@@ -23,29 +24,29 @@ export const qualityStatusClass = (run?: SlopQualityRun | null) => {
 export const slopModuleLabel = (module?: string) => {
   switch (module) {
     case "surface_template":
-      return "表层模板";
+      return t("slopModule.surfaceTemplate");
     case "voice_fit":
-      return "语域贴合";
+      return t("slopModule.voiceFit");
     case "consistency_assimilation":
-      return "设定吸收";
+      return t("slopModule.assimilation");
     case "breath_focus_pacing":
-      return "呼吸节奏";
+      return t("slopModule.breathPacing");
     case "human_trace":
-      return "作者痕迹";
+      return t("slopModule.humanTrace");
     default:
-      return module || "文本风险";
+      return module || t("slopModule.textRisk");
   }
 };
 
 export const slopRewriteTaskTitle = (task: any, index: number) => task?.task_id || task?.taskId || `R${index + 1}`;
 
 export const plotStatusText = (run?: PlotQualityRun | null) => {
-  if (!run) return "未运行剧情诊断";
-  if (run.revisionApplied) return "候选已采纳";
-  if (run.status === "DEGRADED") return "诊断降级";
-  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "剧情高风险";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "剧情需关注";
-  return "剧情风险低";
+  if (!run) return t("plotStatus.notRun");
+  if (run.revisionApplied) return t("plotStatus.candidateAdopted");
+  if (run.status === "DEGRADED") return t("plotStatus.degraded");
+  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return t("plotStatus.highRisk");
+  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return t("plotStatus.needsAttention");
+  return t("plotStatus.lowRisk");
 };
 
 export const plotStatusClass = (run?: PlotQualityRun | null) => {
@@ -59,16 +60,16 @@ export const plotStatusClass = (run?: PlotQualityRun | null) => {
 
 export const plotDimensionLabel = (dimension?: string) => {
   const labels: Record<string, string> = {
-    GOAL_CONFLICT: "目标冲突",
-    CAUSALITY: "因果链",
-    AGENCY: "角色能动性",
-    STAKES: "风险收益",
-    FORESHADOW_PAYOFF: "伏笔回收",
-    REPETITION: "重复套路",
-    SCENE_FUNCTION: "场景功能",
-    READER_CURIOSITY: "读者悬念",
+    GOAL_CONFLICT: "plotDimension.goalConflict",
+    CAUSALITY: "plotDimension.causality",
+    AGENCY: "plotDimension.agency",
+    STAKES: "plotDimension.stakes",
+    FORESHADOW_PAYOFF: "plotDimension.foreshadowPayoff",
+    REPETITION: "plotDimension.repetition",
+    SCENE_FUNCTION: "plotDimension.sceneFunction",
+    READER_CURIOSITY: "plotDimension.readerCuriosity",
   };
-  return labels[String(dimension || "")] || String(dimension || "未分类");
+  return labels[String(dimension || "")] ? t(labels[String(dimension || "")]) : String(dimension || t("plotDimension.unclassified"));
 };
 
 export const formatDateTime = (value: any) => {
@@ -105,8 +106,8 @@ export const versionWordCount = (version: any) => {
 
 export const snapshotTypeLabel = (snapshotType: any) => {
   const type = String(snapshotType || "manual").toLowerCase();
-  if (type === "auto") return "自动";
-  if (type === "branch_point") return "分支点";
-  if (type === "merge") return "合并";
-  return "手动";
+  if (type === "auto") return t("snapshotType.auto");
+  if (type === "branch_point") return t("snapshotType.branchPoint");
+  if (type === "merge") return t("snapshotType.merge");
+  return t("snapshotType.manual");
 };

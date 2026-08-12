@@ -41,10 +41,10 @@ describe("settings tab query normalization", () => {
 
     await router.navigate("/settings?tab=world");
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /世界观提示词/ }).getAttribute("aria-selected")).toBe("true");
+      expect(screen.getByRole("tab", { name: /世界设定提示词/ }).getAttribute("aria-selected")).toBe("true");
     });
 
-    const experienceTab = screen.getByRole("tab", { name: /工作台体验/ });
+    const experienceTab = screen.getByRole("tab", { name: /创作体验/ });
     experienceTab.focus();
     fireEvent.keyDown(experienceTab, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(router.state.location.search).toBe("?tab=experience"));

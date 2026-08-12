@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +10,7 @@ import { WorldPromptMetadata } from "@/types";
 
 const WorldPromptHelpPage = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [metadata, setMetadata] = useState<WorldPromptMetadata | null>(null);
 
   useEffect(() => {
@@ -18,23 +20,23 @@ const WorldPromptHelpPage = () => {
   return (
     <div className="container mx-auto py-8 max-w-4xl">
       <Button variant="ghost" onClick={() => navigate("/settings")} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> 返回设置
+        <ArrowLeft className="mr-2 h-4 w-4" /> {t("promptHelp.backToSettings")}
       </Button>
       
-      <h1 className="text-3xl font-bold mb-6">世界观构建变量指南</h1>
+      <h1 className="text-3xl font-bold mb-6">{t("worldPromptHelp.title")}</h1>
       
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>世界上下文变量</CardTitle>
-          <CardDescription>变量会在世界观模块生成和字段精修时插入。</CardDescription>
+          <CardTitle>{t("worldPromptHelp.contextTitle")}</CardTitle>
+          <CardDescription>{t("worldPromptHelp.contextDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>变量名</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead>说明</TableHead>
+                <TableHead>{t("promptHelp.colVariable")}</TableHead>
+                <TableHead>{t("promptHelp.colType")}</TableHead>
+                <TableHead>{t("promptHelp.colDescription")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -52,15 +54,15 @@ const WorldPromptHelpPage = () => {
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>模块字段</CardTitle>
+          <CardTitle>{t("worldPromptHelp.moduleFieldsTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>模块</TableHead>
-                <TableHead>字段</TableHead>
-                <TableHead>长度上限</TableHead>
+                <TableHead>{t("worldPromptHelp.colModule")}</TableHead>
+                <TableHead>{t("worldPromptHelp.colField")}</TableHead>
+                <TableHead>{t("worldPromptHelp.colMaxLength")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -78,15 +80,15 @@ const WorldPromptHelpPage = () => {
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>函数</CardTitle>
+          <CardTitle>{t("promptHelp.functionsTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>函数</TableHead>
-                <TableHead>说明</TableHead>
-                <TableHead>示例</TableHead>
+                <TableHead>{t("promptHelp.colFunction")}</TableHead>
+                <TableHead>{t("promptHelp.colDescription")}</TableHead>
+                <TableHead>{t("promptHelp.colExample")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -104,7 +106,7 @@ const WorldPromptHelpPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>示例</CardTitle>
+          <CardTitle>{t("promptHelp.examplesTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {metadata?.examples.map((example) => (

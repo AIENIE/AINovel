@@ -3,6 +3,7 @@ import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import { countWords, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { useWritingSession } from "./useWritingSession";
+import { t } from "@/i18n";
 
 type ToastFn = (options: {
   description?: string;
@@ -68,7 +69,7 @@ export function useManuscriptEditorState({
 
   const applyServerSection = useCallback((manuscript: Manuscript, sceneId: string) => {
     const html = manuscript.sections?.[sceneId];
-    if (typeof html !== "string") throw new Error("服务端未返回目标场景正文");
+    if (typeof html !== "string") throw new Error(t("editorState.noServerSection"));
     if (saveTimer.current[sceneId]) {
       window.clearTimeout(saveTimer.current[sceneId]);
       delete saveTimer.current[sceneId];
@@ -118,11 +119,11 @@ export function useManuscriptEditorState({
         setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] || html }));
         setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
         setLastSavedAt(new Date().toLocaleTimeString());
-        if (!silent) toast({ title: "已保存" });
+        if (!silent) toast({ title: t("editorState.saved") });
       } catch (e: any) {
         toast({
           variant: "destructive",
-          title: silent ? "自动保存失败" : "保存失败",
+          title: silent ? t("editorState.autoSaveFailed") : t("editorState.saveFailed"),
           description: e.message,
         });
       } finally {

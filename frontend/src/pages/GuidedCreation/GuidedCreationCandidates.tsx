@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Check, Crown, UsersRound } from "lucide-react";
 import { GuidedCreationCandidate, GuidedCreationStep } from "@/types";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ type Props = {
 export default function GuidedCreationCandidates({
   step, candidates, recommendedId, selectedId, onSelect,
 }: Props) {
+  const { t } = useTranslation();
   return (
     <div className="grid min-h-[280px] gap-3 xl:grid-cols-3" data-testid="guided-candidates">
       {candidates.map((candidate, index) => {
@@ -32,10 +34,10 @@ export default function GuidedCreationCandidates({
             )}
           >
             <div className="mb-5 flex h-7 items-center justify-between">
-              <span className="text-xs font-semibold text-zinc-400">方向 {index + 1}</span>
+              <span className="text-xs font-semibold text-zinc-400">{t("guided.direction", { index: index + 1 })}</span>
               {recommended ? (
                 <span className="flex items-center gap-1 text-xs font-medium text-emerald-700">
-                  <Crown className="h-3.5 w-3.5" /> 推荐
+                  <Crown className="h-3.5 w-3.5" /> {t("guided.recommended")}
                 </span>
               ) : null}
             </div>
@@ -54,11 +56,12 @@ export default function GuidedCreationCandidates({
 }
 
 function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candidate: GuidedCreationCandidate }) {
+  const { t } = useTranslation();
   const value = (key: string) => typeof candidate[key] === "string" ? String(candidate[key]) : "";
   if (step === "PREMISE") {
     return (
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-zinc-950">{value("title") || "未命名故事"}</h3>
+        <h3 className="text-lg font-semibold text-zinc-950">{value("title") || t("guided.unnamedStory")}</h3>
         <p className="line-clamp-6 text-sm leading-6 text-zinc-600">{value("synopsis")}</p>
         <p className="text-xs font-medium text-zinc-400">{[value("genre"), value("tone")].filter(Boolean).join(" · ")}</p>
       </div>
@@ -67,7 +70,7 @@ function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candi
   if (step === "WORLD") {
     return (
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-zinc-950">{value("name") || "未命名世界"}</h3>
+        <h3 className="text-lg font-semibold text-zinc-950">{value("name") || t("guided.unnamedWorld")}</h3>
         <p className="text-sm font-medium text-emerald-800">{value("tagline")}</p>
         <p className="line-clamp-6 text-sm leading-6 text-zinc-600">{value("creativeIntent")}</p>
       </div>
@@ -79,13 +82,13 @@ function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candi
       : [];
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-zinc-950">{value("label") || `角色阵容`}</h3>
+        <h3 className="text-lg font-semibold text-zinc-950">{value("label") || t("guided.charactersRoster")}</h3>
         <div className="space-y-3">
           {characters.map((character, index) => (
             <div key={index} className="flex gap-3 border-t border-zinc-100 pt-3 first:border-0 first:pt-0">
               <UsersRound className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
               <div>
-                <p className="text-sm font-medium text-zinc-900">{String(character.name || `角色 ${index + 1}`)}</p>
+                <p className="text-sm font-medium text-zinc-900">{String(character.name || t("guided.character", { index: index + 1 }))}</p>
                 <p className="line-clamp-2 text-xs leading-5 text-zinc-500">{String(character.synopsis || "")}</p>
               </div>
             </div>
@@ -104,12 +107,12 @@ function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candi
       : undefined;
     return (
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-zinc-950">{value("title") || "未命名方向"}</h3>
+        <h3 className="text-lg font-semibold text-zinc-950">{value("title") || t("guided.unnamedDirection")}</h3>
         <p className="line-clamp-4 text-sm leading-6 text-zinc-600">{value("summary")}</p>
         <p className="line-clamp-2 text-xs leading-5 text-emerald-800">{value("coreConflict")}</p>
         {development ? (
           <p className="line-clamp-3 border-t border-zinc-100 pt-3 text-xs leading-5 text-zinc-500">
-            最新发展：{String(development.narrativeArc || development.title || "")}
+            {t("guided.latestDevelopment", { text: String(development.narrativeArc || development.title || "") })}
           </p>
         ) : null}
       </div>
@@ -117,11 +120,11 @@ function CandidateSummary({ step, candidate }: { step: GuidedCreationStep; candi
   }
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-zinc-950">{value("title") || "章节大纲"}</h3>
-      <p className="text-sm font-medium text-emerald-800">{chapters.length} 章 · {sceneCount} 场</p>
+      <h3 className="text-lg font-semibold text-zinc-950">{value("title") || t("guided.chapterOutline")}</h3>
+      <p className="text-sm font-medium text-emerald-800">{t("guided.chapterSceneCount", { count: chapters.length, scenes: sceneCount })}</p>
       <ol className="space-y-2 text-sm text-zinc-600">
         {chapters.slice(0, 5).map((chapter, index) => (
-          <li key={index} className="line-clamp-1"><span className="mr-2 text-zinc-400">{index + 1}</span>{String(chapter.title || "未命名章节")}</li>
+          <li key={index} className="line-clamp-1"><span className="mr-2 text-zinc-400">{index + 1}</span>{String(chapter.title || t("guided.unnamedChapter"))}</li>
         ))}
       </ol>
     </div>

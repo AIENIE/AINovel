@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 interface LorebookPanelProps {
   initialStoryId?: string;
@@ -33,7 +35,7 @@ type LorebookEntry = {
 };
 
 const newEntry = (): LorebookEntry => ({
-  displayName: "新条目",
+  displayName: "",
   entryKey: "",
   category: "custom",
   content: "",
@@ -46,6 +48,7 @@ const newEntry = (): LorebookEntry => ({
 
 const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState(initialStoryId || "");
   const [entries, setEntries] = useState<any[]>([]);
@@ -68,7 +71,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
           setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
         }
       })
-      .catch((error: any) => toast({ variant: "destructive", title: "加载故事失败", description: error.message }));
+      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
   }, []);
 
   const loadLorebook = async () => {
@@ -107,7 +110,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     if (!storyId) return;
     setLoading(true);
     Promise.all([loadLorebook(), loadPreview()])
-      .catch((error: any) => toast({ variant: "destructive", title: "加载 Lorebook 失败", description: error.message }))
+      .catch((error: any) => toast({ variant: "destructive", title: t("lorebook.loadFailed"), description: localizedErrorMessage(error, "lorebook.loadFailed") }))
       .finally(() => setLoading(false));
   }, [storyId]);
 
@@ -143,7 +146,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
   const saveEntry = async () => {
     if (!storyId) return;
     if (!editor.displayName.trim()) {
-      toast({ variant: "destructive", title: "请先填写条目名称" });
+      toast({ variant: "destructive", title: t("lorebook.nameRequired") });
       return;
     }
     setLoading(true);
@@ -158,9 +161,9 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
         await api.v2.context.createLorebook(storyId, payload);
       }
       await loadLorebook();
-      toast({ title: "Lorebook 已保存" });
+      toast({ title: t("lorebook.saved") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "保存失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setLoading(false);
     }
@@ -172,9 +175,9 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     try {
       await api.v2.context.deleteLorebook(storyId, editor.id);
       await loadLorebook();
-      toast({ title: "条目已删除" });
+      toast({ title: t("lorebook.deleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     } finally {
       setLoading(false);
     }
@@ -186,13 +189,13 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     try {
       const parsed = JSON.parse(importPayload);
       if (!Array.isArray(parsed)) {
-        throw new Error("JSON 必须是数组");
+        throw new Error(t("lorebook.jsonArrayRequired"));
       }
       await api.v2.context.importLorebook(storyId, parsed);
       await loadLorebook();
-      toast({ title: "导入完成" });
+      toast({ title: t("lorebook.imported") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "导入失败", description: error.message });
+      toast({ variant: "destructive", title: t("lorebook.importFailed"), description: localizedErrorMessage(error, "lorebook.importFailed") });
     } finally {
       setLoading(false);
     }
@@ -203,9 +206,9 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     try {
       await api.v2.context.reviewExtraction(storyId, id, action);
       await loadLorebook();
-      toast({ title: `提取已${action === "approved" ? "通过" : "拒绝"}` });
+      toast({ title: action === "approved" ? t("lorebook.approved") : t("lorebook.rejected") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "操作失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.operationFailed"), description: localizedErrorMessage(error, "errors.operationFailed") });
     }
   };
 
@@ -218,16 +221,16 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       return confidence <= 0.5;
     });
     if (!targets.length) {
-      toast({ title: "没有匹配的提取记录" });
+      toast({ title: t("lorebook.noMatchingExtractions") });
       return;
     }
     setLoading(true);
     try {
       await Promise.all(targets.map((item) => api.v2.context.reviewExtraction(storyId, String(item.id), action)));
       await loadLorebook();
-      toast({ title: `批量${action === "approved" ? "通过" : "拒绝"}完成`, description: `已处理 ${targets.length} 条` });
+      toast({ title: action === "approved" ? t("lorebook.batchApproved") : t("lorebook.batchRejected"), description: t("lorebook.batchProcessed", { count: targets.length }) });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "批量审核失败", description: error.message });
+      toast({ variant: "destructive", title: t("lorebook.batchReviewFailed"), description: localizedErrorMessage(error, "lorebook.batchReviewFailed") });
     } finally {
       setLoading(false);
     }
@@ -237,9 +240,9 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     if (!storyId) return;
     try {
       await api.v2.context.syncGraph(storyId);
-      toast({ title: "知识图谱同步完成" });
+      toast({ title: t("lorebook.graphSynced") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "同步失败", description: error.message });
+      toast({ variant: "destructive", title: t("lorebook.syncFailed"), description: localizedErrorMessage(error, "lorebook.syncFailed") });
     }
   };
 
@@ -257,10 +260,10 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-end gap-3">
           <div className="w-[280px]">
-            <Label>故事</Label>
+            <Label>{t("common.story")}</Label>
             <Select value={storyId} onValueChange={setStoryId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择故事" />
+                <SelectValue placeholder={t("common.selectStory")} />
               </SelectTrigger>
               <SelectContent>
                 {stories.map((story) => (
@@ -272,13 +275,13 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
             </Select>
           </div>
           <Button variant="secondary" onClick={loadLorebook} disabled={!storyId || loading}>
-            刷新
+            {t("common.refresh")}
           </Button>
           <Button variant="outline" onClick={syncGraph} disabled={!storyId || loading}>
-            同步图谱
+            {t("lorebook.syncGraph")}
           </Button>
           <Button variant="outline" onClick={loadPreview} disabled={!storyId || loading}>
-            刷新上下文预览
+            {t("lorebook.refreshContextPreview")}
           </Button>
         </CardContent>
       </Card>
@@ -286,24 +289,24 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       <div className="grid flex-1 gap-4 lg:grid-cols-[360px_1fr] min-h-0">
         <Card className="min-h-0 flex flex-col">
           <CardHeader>
-            <CardTitle>Lorebook 条目</CardTitle>
-            <CardDescription>支持筛选、检索和快速创建。</CardDescription>
+            <CardTitle>{t("lorebook.entries")}</CardTitle>
+            <CardDescription>{t("lorebook.entriesDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 flex-1 min-h-0 flex flex-col">
             <div className="grid grid-cols-[1fr_130px] gap-2">
-              <Input placeholder="搜索条目/关键词" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <Input placeholder={t("lorebook.searchPlaceholder")} value={search} onChange={(event) => setSearch(event.target.value)} />
               <Select value={filter} onValueChange={setFilter}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="character">角色</SelectItem>
-                  <SelectItem value="location">地点</SelectItem>
-                  <SelectItem value="event">事件</SelectItem>
-                  <SelectItem value="item">物品</SelectItem>
-                  <SelectItem value="concept">概念</SelectItem>
-                  <SelectItem value="custom">自定义</SelectItem>
+                  <SelectItem value="all">{t("lorebook.categoryAll")}</SelectItem>
+                  <SelectItem value="character">{t("lorebook.categoryCharacter")}</SelectItem>
+                  <SelectItem value="location">{t("lorebook.categoryLocation")}</SelectItem>
+                  <SelectItem value="event">{t("lorebook.categoryEvent")}</SelectItem>
+                  <SelectItem value="item">{t("lorebook.categoryItem")}</SelectItem>
+                  <SelectItem value="concept">{t("lorebook.categoryConcept")}</SelectItem>
+                  <SelectItem value="custom">{t("lorebook.categoryCustom")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -314,7 +317,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 setEditor(newEntry());
               }}
             >
-              新建条目
+              {t("lorebook.newEntry")}
             </Button>
             <ScrollArea className="flex-1 border rounded-md">
               <div className="p-2 space-y-2">
@@ -333,12 +336,12 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entry.content}</p>
                   </button>
                 ))}
-                {!filtered.length && <p className="text-sm text-muted-foreground p-2">暂无条目</p>}
+                {!filtered.length && <p className="text-sm text-muted-foreground p-2">{t("lorebook.noEntries")}</p>}
               </div>
             </ScrollArea>
             <Separator />
             <div className="space-y-2">
-              <Label>批量导入 JSON</Label>
+              <Label>{t("lorebook.batchImportJson")}</Label>
               <Textarea
                 className="min-h-[120px] font-mono text-xs"
                 value={importPayload}
@@ -346,7 +349,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 placeholder='[{"displayName":"主角","content":"..."}]'
               />
               <Button variant="secondary" onClick={importEntries} disabled={!storyId || loading}>
-                导入条目
+                {t("lorebook.importEntries")}
               </Button>
             </div>
           </CardContent>
@@ -355,11 +358,11 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
         <div className="space-y-4 min-h-0 flex flex-col">
           <Card>
             <CardHeader>
-              <CardTitle>Lorebook 编辑器</CardTitle>
+              <CardTitle>{t("lorebook.editor")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>条目名称</Label>
+                <Label>{t("lorebook.entryName")}</Label>
                 <Input value={editor.displayName} onChange={(event) => setEditor((prev) => ({ ...prev, displayName: event.target.value }))} />
               </div>
               <div className="space-y-2">
@@ -367,23 +370,23 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 <Input value={editor.entryKey} onChange={(event) => setEditor((prev) => ({ ...prev, entryKey: event.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>分类</Label>
+                <Label>{t("lorebook.category")}</Label>
                 <Select value={editor.category} onValueChange={(value) => setEditor((prev) => ({ ...prev, category: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="character">角色</SelectItem>
-                    <SelectItem value="location">地点</SelectItem>
-                    <SelectItem value="event">事件</SelectItem>
-                    <SelectItem value="item">物品</SelectItem>
-                    <SelectItem value="concept">概念</SelectItem>
-                    <SelectItem value="custom">自定义</SelectItem>
+                    <SelectItem value="character">{t("lorebook.categoryCharacter")}</SelectItem>
+                    <SelectItem value="location">{t("lorebook.categoryLocation")}</SelectItem>
+                    <SelectItem value="event">{t("lorebook.categoryEvent")}</SelectItem>
+                    <SelectItem value="item">{t("lorebook.categoryItem")}</SelectItem>
+                    <SelectItem value="concept">{t("lorebook.categoryConcept")}</SelectItem>
+                    <SelectItem value="custom">{t("lorebook.categoryCustom")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>注入位置</Label>
+                <Label>{t("lorebook.insertionPosition")}</Label>
                 <Select
                   value={editor.insertionPosition}
                   onValueChange={(value) => setEditor((prev) => ({ ...prev, insertionPosition: value }))}
@@ -392,14 +395,14 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="before_scene">场景前</SelectItem>
-                    <SelectItem value="after_scene">场景后</SelectItem>
+                    <SelectItem value="before_scene">{t("lorebook.beforeScene")}</SelectItem>
+                    <SelectItem value="after_scene">{t("lorebook.afterScene")}</SelectItem>
                     <SelectItem value="system_prompt">System Prompt</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>优先级 (0-100)</Label>
+                <Label>{t("lorebook.priority")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -409,7 +412,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Token 预算</Label>
+                <Label>{t("lorebook.tokenBudget")}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -418,7 +421,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>内容</Label>
+                <Label>{t("lorebook.content")}</Label>
                 <Textarea
                   className="min-h-[150px]"
                   value={editor.content}
@@ -426,9 +429,9 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>关键词</Label>
+                <Label>{t("lorebook.keywords")}</Label>
                 <div className="flex gap-2">
-                  <Input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder="输入关键词后回车添加" />
+                  <Input value={keywordInput} onChange={(event) => setKeywordInput(event.target.value)} placeholder={t("lorebook.keywordPlaceholder")} />
                   <Button
                     variant="outline"
                     onClick={() => {
@@ -440,7 +443,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                       setKeywordInput("");
                     }}
                   >
-                    添加
+                    {t("common.add")}
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -458,14 +461,14 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
               </div>
               <div className="flex items-center gap-2 md:col-span-2">
                 <Switch checked={editor.enabled} onCheckedChange={(checked) => setEditor((prev) => ({ ...prev, enabled: checked }))} />
-                <Label>启用该条目</Label>
+                <Label>{t("lorebook.enableEntry")}</Label>
               </div>
               <div className="md:col-span-2 flex gap-2">
                 <Button onClick={saveEntry} disabled={!storyId || loading}>
-                  保存条目
+                  {t("lorebook.saveEntry")}
                 </Button>
                 <Button variant="destructive" onClick={removeEntry} disabled={!editor.id || loading}>
-                  删除条目
+                  {t("lorebook.deleteEntry")}
                 </Button>
               </div>
             </CardContent>
@@ -473,31 +476,31 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
 
           <Tabs defaultValue="preview" className="flex-1 min-h-0 flex flex-col">
             <TabsList className="w-[360px]">
-              <TabsTrigger value="preview">上下文预览</TabsTrigger>
-              <TabsTrigger value="extractions">实体审核</TabsTrigger>
+              <TabsTrigger value="preview">{t("lorebook.contextPreview")}</TabsTrigger>
+              <TabsTrigger value="extractions">{t("lorebook.entityReview")}</TabsTrigger>
             </TabsList>
             <TabsContent value="preview" className="flex-1 min-h-0 m-0 mt-3">
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle>Context Preview</CardTitle>
                   <CardDescription>
-                    Token 使用率 {used}/{budget}
+                    {t("lorebook.tokenUsage", { used, budget })}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <Progress value={usagePercent} />
                   <div className="grid md:grid-cols-2 gap-3 text-xs">
                     <div className="rounded border p-2">
-                      <div className="text-muted-foreground">章节</div>
-                      <div className="font-medium">第 {preview?.chapterIndex || 1} 章</div>
+                      <div className="text-muted-foreground">{t("lorebook.chapter")}</div>
+                      <div className="font-medium">{t("lorebook.chapterNumber", { count: preview?.chapterIndex || 1 })}</div>
                     </div>
                     <div className="rounded border p-2">
-                      <div className="text-muted-foreground">场景</div>
+                      <div className="text-muted-foreground">{t("lorebook.scene")}</div>
                       <div className="font-medium">Sc. {preview?.sceneIndex || 1}</div>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">System Prompt 条目</div>
+                    <div className="font-medium text-sm">{t("lorebook.systemPromptEntries")}</div>
                     {systemPromptEntries.map((entry: any) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
@@ -507,11 +510,11 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entry.content}</p>
                       </div>
                     ))}
-                    {!systemPromptEntries.length && <p className="text-sm text-muted-foreground">暂无 System Prompt 条目</p>}
+                    {!systemPromptEntries.length && <p className="text-sm text-muted-foreground">{t("lorebook.noSystemPromptEntries")}</p>}
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">场景前条目</div>
+                    <div className="font-medium text-sm">{t("lorebook.beforeSceneEntries")}</div>
                     {beforeSceneEntries.map((entry: any) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
@@ -521,11 +524,11 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entry.content}</p>
                       </div>
                     ))}
-                    {!beforeSceneEntries.length && <p className="text-sm text-muted-foreground">暂无场景前条目</p>}
+                    {!beforeSceneEntries.length && <p className="text-sm text-muted-foreground">{t("lorebook.noBeforeSceneEntries")}</p>}
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">场景后条目</div>
+                    <div className="font-medium text-sm">{t("lorebook.afterSceneEntries")}</div>
                     {afterSceneEntries.map((entry: any) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
@@ -535,28 +538,28 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{entry.content}</p>
                       </div>
                     ))}
-                    {!afterSceneEntries.length && <p className="text-sm text-muted-foreground">暂无场景后条目</p>}
+                    {!afterSceneEntries.length && <p className="text-sm text-muted-foreground">{t("lorebook.noAfterSceneEntries")}</p>}
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">图谱关系</div>
+                    <div className="font-medium text-sm">{t("lorebook.graphRelations")}</div>
                     {graphRelations.map((relation: string, index: number) => (
                       <div key={`${relation}-${index}`} className="rounded-md border p-2 text-xs">
                         {relation}
                       </div>
                     ))}
-                    {!graphRelations.length && <p className="text-sm text-muted-foreground">暂无图谱关系</p>}
+                    {!graphRelations.length && <p className="text-sm text-muted-foreground">{t("lorebook.noGraphRelations")}</p>}
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">前情摘要</div>
+                    <div className="font-medium text-sm">{t("lorebook.recentSummary")}</div>
                     <div className="rounded-md border p-2 text-xs text-muted-foreground">
-                      {preview?.recentSummary || "暂无前情摘要"}
+                      {preview?.recentSummary || t("lorebook.noRecentSummary")}
                     </div>
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">活跃角色</div>
+                    <div className="font-medium text-sm">{t("lorebook.activeCharacters")}</div>
                     <div className="flex flex-wrap gap-2">
                       {activeCharacters.map((character: string) => (
                         <Badge key={character} variant="outline">
@@ -564,11 +567,11 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                         </Badge>
                       ))}
                     </div>
-                    {!activeCharacters.length && <p className="text-sm text-muted-foreground">暂无活跃角色</p>}
+                    {!activeCharacters.length && <p className="text-sm text-muted-foreground">{t("lorebook.noActiveCharacters")}</p>}
                   </div>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="font-medium text-sm">待审核实体</div>
+                    <div className="font-medium text-sm">{t("lorebook.pendingExtractions")}</div>
                     {(preview?.pendingExtractions || []).map((item: any) => (
                       <div key={item.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
@@ -578,7 +581,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                         <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.sourceText}</p>
                       </div>
                     ))}
-                    {!preview?.pendingExtractions?.length && <p className="text-sm text-muted-foreground">暂无待审核实体</p>}
+                    {!preview?.pendingExtractions?.length && <p className="text-sm text-muted-foreground">{t("lorebook.noPendingExtractions")}</p>}
                   </div>
                 </CardContent>
               </Card>
@@ -586,19 +589,19 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
             <TabsContent value="extractions" className="flex-1 min-h-0 m-0 mt-3">
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle>Entity Extraction Review</CardTitle>
-                  <CardDescription>审核实体提取结果并写回知识库。</CardDescription>
+                  <CardTitle>{t("lorebook.entityExtractionReview")}</CardTitle>
+                  <CardDescription>{t("lorebook.entityExtractionReviewDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => void reviewExtractionBatch("approved", "high")} disabled={loading}>
-                      通过高置信度
+                      {t("lorebook.approveHighConfidence")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => void reviewExtractionBatch("rejected", "low")} disabled={loading}>
-                      拒绝低置信度
+                      {t("lorebook.rejectLowConfidence")}
                     </Button>
                     <Button size="sm" variant="secondary" onClick={() => void reviewExtractionBatch("approved", "all")} disabled={loading}>
-                      全部通过
+                      {t("lorebook.approveAll")}
                     </Button>
                   </div>
                   <ScrollArea className="h-[260px] rounded-md border">
@@ -618,7 +621,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                           <pre className="mt-1 rounded bg-muted p-2 text-[11px] overflow-auto">{JSON.stringify(item.attributes || {}, null, 2)}</pre>
                           <div className="flex gap-2 mt-2">
                             <Button size="sm" onClick={() => reviewExtraction(item.id, "approved")} disabled={item.reviewAction === "approved"}>
-                              通过
+                              {t("lorebook.approve")}
                             </Button>
                             <Button
                               size="sm"
@@ -626,12 +629,12 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                               onClick={() => reviewExtraction(item.id, "rejected")}
                               disabled={item.reviewAction === "rejected"}
                             >
-                              拒绝
+                              {t("lorebook.reject")}
                             </Button>
                           </div>
                         </div>
                       ))}
-                      {!extractions.length && <p className="text-sm text-muted-foreground">暂无待审核提取结果</p>}
+                      {!extractions.length && <p className="text-sm text-muted-foreground">{t("lorebook.noPendingExtractions")}</p>}
                     </div>
                   </ScrollArea>
                 </CardContent>

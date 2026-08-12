@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { World } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,13 +13,14 @@ interface WorldSelectorPanelProps {
 }
 
 const WorldSelectorPanel = ({ worlds, selectedWorldId, onSelect, onCreate }: WorldSelectorPanelProps) => {
+  const { t } = useTranslation();
   return (
     <div className="w-64 border-r bg-card flex flex-col h-full">
       <div className="p-4 border-b flex items-center justify-between">
         <h2 className="font-semibold flex items-center gap-2">
-          <Globe className="h-4 w-4" /> 我的世界
+          <Globe className="h-4 w-4" /> {t("worldSelector.myWorlds")}
         </h2>
-        <Button variant="ghost" size="icon" onClick={onCreate} title="新建世界">
+        <Button variant="ghost" size="icon" onClick={onCreate} title={t("worldSelector.newWorld")}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -46,7 +48,7 @@ const WorldSelectorPanel = ({ worlds, selectedWorldId, onSelect, onCreate }: Wor
           
           {worlds.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              暂无世界设定<br/>点击右上角新建
+              {t("worldSelector.noWorlds")}<br/>{t("worldSelector.noWorldsHint")}
             </div>
           )}
         </div>

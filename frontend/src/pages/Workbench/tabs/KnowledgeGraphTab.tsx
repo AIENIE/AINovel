@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 interface KnowledgeGraphTabProps {
   initialStoryId?: string;
@@ -73,6 +75,7 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const [stories, setStories] = useState<Story[]>([]);
@@ -98,7 +101,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
           setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
         }
       })
-      .catch((error: any) => toast({ variant: "destructive", title: "加载故事失败", description: error.message }));
+      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
   }, []);
 
   const loadGraph = async () => {
@@ -114,7 +117,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
         setSelectedNode(null);
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "加载图谱失败", description: error.message });
+      toast({ variant: "destructive", title: t("graph.loadFailed"), description: localizedErrorMessage(error, "graph.loadFailed") });
     } finally {
       setLoading(false);
     }
@@ -144,7 +147,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
         setSelectedNode(data.nodes[0]);
       }
     } catch (error: any) {
-      toast({ variant: "destructive", title: "检索失败", description: error.message });
+      toast({ variant: "destructive", title: t("graph.queryFailed"), description: localizedErrorMessage(error, "graph.queryFailed") });
     } finally {
       setLoading(false);
     }
@@ -269,11 +272,11 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
   const createRelationship = async () => {
     if (!storyId) return;
     if (!relationSourceId || !relationTargetId) {
-      toast({ variant: "destructive", title: "请选择关系两端节点" });
+      toast({ variant: "destructive", title: t("graph.selectBothNodes") });
       return;
     }
     if (relationSourceId === relationTargetId) {
-      toast({ variant: "destructive", title: "源节点与目标节点不能相同" });
+      toast({ variant: "destructive", title: t("graph.sameNodeError") });
       return;
     }
     setLoading(true);
@@ -284,9 +287,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
         relationType: relationType.trim() || "related_to",
       });
       await loadGraph();
-      toast({ title: "关系已创建" });
+      toast({ title: t("graph.relationCreated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "创建关系失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.createRelationFailed"), description: localizedErrorMessage(error, "errors.createRelationFailed") });
     } finally {
       setLoading(false);
     }
@@ -298,9 +301,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
     try {
       await api.v2.context.deleteRelationship(storyId, relationshipId);
       await loadGraph();
-      toast({ title: "关系已删除" });
+      toast({ title: t("graph.relationDeleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除关系失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.deleteRelationFailed"), description: localizedErrorMessage(error, "errors.deleteRelationFailed") });
     } finally {
       setLoading(false);
     }
@@ -308,17 +311,15 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
 
   const deleteSelectedNode = async () => {
     if (!storyId || !selectedNode?.id) return;
-    const ok = window.confirm(
-      `确定删除节点「${selectedNode.label || selectedNode.name}」吗？\n\n这会删除对应的知识库源条目，以及该节点的全部关联关系。此操作不可撤销。`,
-    );
+    const ok = window.confirm(t("graph.deleteNodeConfirm", { name: selectedNode.label || selectedNode.name }));
     if (!ok) return;
     setLoading(true);
     try {
       await api.v2.context.deleteLorebook(storyId, String(selectedNode.id));
       await loadGraph();
-      toast({ title: "节点已删除" });
+      toast({ title: t("graph.nodeDeleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除节点失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.deleteNodeFailed"), description: localizedErrorMessage(error, "errors.deleteNodeFailed") });
     } finally {
       setLoading(false);
     }
@@ -331,10 +332,10 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-end gap-3">
           <div className="w-[280px]">
-            <Label>故事</Label>
+            <Label>{t("common.story")}</Label>
             <Select value={storyId} onValueChange={setStoryId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择故事" />
+                <SelectValue placeholder={t("common.selectStory")} />
               </SelectTrigger>
               <SelectContent>
                 {stories.map((story) => (
@@ -346,7 +347,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
             </Select>
           </div>
           <div className="w-[320px]">
-            <Label>实体检索</Label>
+            <Label>{t("graph.entitySearch")}</Label>
             <div className="flex gap-2">
               <Input
                 value={keyword}
@@ -354,15 +355,15 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                 onKeyDown={(event) => {
                   if (event.key === "Enter") void queryGraph();
                 }}
-                placeholder="输入关键词，例如：主角 / 地点"
+                placeholder={t("graph.searchPlaceholder")}
               />
               <Button onClick={() => void queryGraph()} disabled={!storyId || loading}>
-                查询
+                {t("graph.search")}
               </Button>
             </div>
           </div>
           <Button variant="secondary" onClick={() => void loadGraph()} disabled={!storyId || loading}>
-            刷新图谱
+            {t("graph.refreshGraph")}
           </Button>
           <Button
             variant="outline"
@@ -372,10 +373,10 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
             }}
             disabled={loading}
           >
-            清空筛选
+            {t("graph.clearFilter")}
           </Button>
           <Button variant="outline" onClick={resetLayout} disabled={loading || !(queryData.nodes || []).length}>
-            重置布局
+            {t("graph.resetLayout")}
           </Button>
         </CardContent>
       </Card>
@@ -383,9 +384,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       <div className="grid flex-1 gap-4 lg:grid-cols-[1fr_320px] min-h-0">
         <Card className="min-h-0 flex flex-col">
           <CardHeader>
-            <CardTitle>知识图谱</CardTitle>
+            <CardTitle>{t("graph.title")}</CardTitle>
             <CardDescription>
-              节点 {visibleNodes.length}/{queryData.nodes?.length || 0} · 关系 {visibleEdges.length}
+              {t("graph.nodeRelationCount", { nodes: visibleNodes.length, total: queryData.nodes?.length || 0, edges: visibleEdges.length })}
             </CardDescription>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 space-y-3">
@@ -405,7 +406,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
             </div>
             <div className="h-[560px] rounded-md border bg-muted/20 relative overflow-hidden">
               {!visibleNodes.length ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">当前没有可展示节点</div>
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">{t("graph.noVisibleNodes")}</div>
               ) : (
                 <svg
                   ref={svgRef}
@@ -472,7 +473,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>节点统计</CardTitle>
+              <CardTitle>{t("graph.nodeStats")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {Object.entries(nodeStats).map(([type, count]) => (
@@ -481,12 +482,12 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                   <Badge variant="secondary">{count}</Badge>
                 </div>
               ))}
-              {!Object.keys(nodeStats).length && <p className="text-sm text-muted-foreground">暂无统计数据</p>}
+              {!Object.keys(nodeStats).length && <p className="text-sm text-muted-foreground">{t("graph.noStats")}</p>}
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>节点详情</CardTitle>
+              <CardTitle>{t("graph.nodeDetails")}</CardTitle>
             </CardHeader>
             <CardContent>
               {selectedNode ? (
@@ -495,7 +496,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                     {selectedNode.type || "custom"}
                   </div>
                   <div>
-                    <span className="text-muted-foreground">名称：</span>
+                    <span className="text-muted-foreground">{t("graph.name")}：</span>
                     <span>{selectedNode.label || selectedNode.name}</span>
                   </div>
                   <div>
@@ -503,29 +504,29 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                     <span className="font-mono text-xs break-all">{selectedNode.id}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">关联关系：</span>
+                    <span className="text-muted-foreground">{t("graph.relations")}：</span>
                     <ScrollArea className="mt-2 h-28 rounded border p-2">
                       <div className="space-y-1 text-xs">
                         {relationEdges.map((edge) => (
                           <div key={edge.id} className="rounded border p-1 flex items-center justify-between gap-2">
                             <span className="truncate">
-                              {edge.source === String(selectedNode.id) ? "->" : "<-"} {edge.label || "关联"} ·{" "}
+                              {edge.source === String(selectedNode.id) ? "->" : "<-"} {edge.label || t("graph.related")} ·{" "}
                               {edge.source === String(selectedNode.id) ? edge.target : edge.source}
                             </span>
                             <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => void deleteRelationship(edge.id)}>
-                              删除
+                              {t("common.delete")}
                             </Button>
                           </div>
                         ))}
-                        {!relationEdges.length && <div className="text-muted-foreground">当前节点没有可见关系</div>}
+                        {!relationEdges.length && <div className="text-muted-foreground">{t("graph.noVisibleRelations")}</div>}
                       </div>
                     </ScrollArea>
                   </div>
                   <div className="space-y-2 rounded border p-2">
-                    <div className="text-xs text-muted-foreground">关系编辑</div>
+                    <div className="text-xs text-muted-foreground">{t("graph.relationEdit")}</div>
                     <Select value={relationSourceId} onValueChange={setRelationSourceId}>
                       <SelectTrigger className="h-8">
-                        <SelectValue placeholder="源节点" />
+                        <SelectValue placeholder={t("graph.sourceNode")} />
                       </SelectTrigger>
                       <SelectContent>
                         {visibleNodes.map((node: any) => (
@@ -537,7 +538,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                     </Select>
                     <Select value={relationTargetId} onValueChange={setRelationTargetId}>
                       <SelectTrigger className="h-8">
-                        <SelectValue placeholder="目标节点" />
+                        <SelectValue placeholder={t("graph.targetNode")} />
                       </SelectTrigger>
                       <SelectContent>
                         {visibleNodes
@@ -549,9 +550,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                           ))}
                       </SelectContent>
                     </Select>
-                    <Input value={relationType} onChange={(event) => setRelationType(event.target.value)} placeholder="关系类型，如 located_at" />
+                    <Input value={relationType} onChange={(event) => setRelationType(event.target.value)} placeholder={t("graph.relationTypePlaceholder")} />
                     <Button size="sm" variant="secondary" onClick={() => void createRelationship()}>
-                      创建关系
+                      {t("graph.createRelation")}
                     </Button>
                   </div>
                   <div className="flex gap-2">
@@ -564,7 +565,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                         void runKeywordQuery(nodeKeyword);
                       }}
                     >
-                      查询子图
+                      {t("graph.querySubgraph")}
                     </Button>
                     <Button
                       size="sm"
@@ -573,15 +574,15 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                         setSelectedNode(null);
                       }}
                     >
-                      清除选中
+                      {t("graph.clearSelection")}
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => void deleteSelectedNode()}>
-                      删除节点
+                      {t("graph.deleteNode")}
                     </Button>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">点击图中节点可查看详情</p>
+                <p className="text-sm text-muted-foreground">{t("graph.clickNodeHint")}</p>
               )}
             </CardContent>
           </Card>

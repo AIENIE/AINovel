@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
+import { t } from "@/i18n";
 
 type ToastFn = (options: {
   description?: string;
@@ -108,7 +109,7 @@ export function useManuscriptSidebarData({
       try {
         return await fetchContextPreview(selectedStoryId);
       } catch (e: any) {
-        toast({ variant: "destructive", title: "加载上下文失败", description: e.message });
+        toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
         throw e;
       }
     },
@@ -123,7 +124,7 @@ export function useManuscriptSidebarData({
       try {
         return await fetchVersionData(selectedManuscriptId);
       } catch (e: any) {
-        toast({ variant: "destructive", title: "加载版本失败", description: e.message });
+        toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: e.message });
         throw e;
       }
     },
@@ -138,7 +139,7 @@ export function useManuscriptSidebarData({
       try {
         return await fetchExportData(selectedManuscriptId);
       } catch (e: any) {
-        toast({ variant: "destructive", title: "加载导出信息失败", description: e.message });
+        toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: e.message });
         throw e;
       }
     },
@@ -153,7 +154,7 @@ export function useManuscriptSidebarData({
       try {
         return await fetchStats();
       } catch (e: any) {
-        toast({ variant: "destructive", title: "加载统计失败", description: e.message });
+        toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: e.message });
         throw e;
       }
     },
@@ -193,7 +194,7 @@ export function useManuscriptSidebarData({
         retry: false,
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "加载上下文失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
       return null;
     }
   }, [queryClient, selectedStoryId, toast]);
@@ -208,7 +209,7 @@ export function useManuscriptSidebarData({
         retry: false,
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "加载版本失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: e.message });
       return null;
     }
   }, [queryClient, selectedManuscriptId, toast]);
@@ -223,7 +224,7 @@ export function useManuscriptSidebarData({
         retry: false,
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "加载导出信息失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: e.message });
       return null;
     }
   }, [queryClient, selectedManuscriptId, toast]);
@@ -237,7 +238,7 @@ export function useManuscriptSidebarData({
         retry: false,
       });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "加载统计失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: e.message });
       return null;
     }
   }, [queryClient, toast]);
@@ -257,7 +258,7 @@ export function useManuscriptSidebarData({
       setDiffResult(await api.v2.version.getDiff(selectedManuscriptId, fromVersionId, toVersionId));
       setAiDiffSummary("");
     } catch (e: any) {
-      toast({ variant: "destructive", title: "对比失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.diffFailed"), description: e.message });
     }
   }, [selectedDiffVersions, selectedManuscriptId, toast]);
 
@@ -265,7 +266,7 @@ export function useManuscriptSidebarData({
     if (!diffResult) return;
     const localSummary = (() => {
       const changes = Array.isArray(diffResult?.changes) ? diffResult.changes : [];
-      if (!changes.length) return "两个版本内容一致，无显著改动。";
+      if (!changes.length) return t("sidebarData.diffNoChanges");
       let added = 0;
       let removed = 0;
       changes.forEach((item: any) => {
@@ -277,21 +278,21 @@ export function useManuscriptSidebarData({
       });
       const sceneNames = changes
         .slice(0, 3)
-        .map((item: any) => String(item?.sceneId || "场景"))
+        .map((item: any) => String(item?.sceneId || t("sidebarData.sceneLabel")))
         .join("、");
-      const suffix = changes.length > 3 ? "等" : "";
+      const suffix = changes.length > 3 ? t("sidebarData.etcLabel") : "";
       return `共变更 ${changes.length} 个场景（${sceneNames}${suffix}），约新增 ${added} 词、减少 ${removed} 词，主要集中在段落措辞与细节调整。`;
     })();
     try {
       const models = await api.ai.getModels();
       const modelId = models[0]?.id;
-      if (!modelId) throw new Error("暂无可用 AI 模型");
-      const prompt = ["请用100字内总结以下改动：", JSON.stringify((diffResult.changes || []).slice(0, 6), null, 2)].join("\n");
+      if (!modelId) throw new Error(t("sidebarData.noAiModel"));
+      const prompt = [t("sidebarData.diffSummaryPrompt"), JSON.stringify((diffResult.changes || []).slice(0, 6), null, 2)].join("\n");
       const result = await api.ai.chat([{ role: "user", content: prompt }], modelId, { manuscriptId: selectedManuscriptId });
       setAiDiffSummary(result.content || localSummary);
     } catch (e: any) {
       setAiDiffSummary(localSummary);
-      toast({ title: "AI 不可用，已使用本地变更摘要", description: e.message });
+      toast({ title: t("sidebarData.aiUnavailableLocalSummary"), description: e.message });
     }
   }, [diffResult, selectedManuscriptId, toast]);
 
@@ -299,7 +300,7 @@ export function useManuscriptSidebarData({
     if (!selectedManuscriptId) return;
     const normalizedChapterRange = chapterRange.trim();
     if (normalizedChapterRange && !/^\d+(-\d+)?$/.test(normalizedChapterRange)) {
-      toast({ variant: "destructive", title: "章节范围格式错误", description: "请使用“3-7”或“5”格式" });
+      toast({ variant: "destructive", title: t("sidebarData.chapterRangeInvalid"), description: t("sidebarData.chapterRangeFormatHint") });
       return;
     }
     try {
@@ -316,10 +317,10 @@ export function useManuscriptSidebarData({
           selectedSceneIds: selectedSceneIds.length > 1 ? selectedSceneIds : undefined,
         },
       });
-      toast({ title: "导出任务已创建" });
+      toast({ title: t("sidebarData.exportJobCreated") });
       await loadExport();
     } catch (e: any) {
-      toast({ variant: "destructive", title: "导出失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.exportFailed"), description: e.message });
     }
   }, [
     chapterRange,
@@ -342,7 +343,7 @@ export function useManuscriptSidebarData({
     let objectUrl = "";
     try {
       const result = await api.v2.export.download(selectedManuscriptId, jobId);
-      if (!result.blob.size) throw new Error("导出文件为空");
+      if (!result.blob.size) throw new Error(t("sidebarData.exportFileEmpty"));
       objectUrl = URL.createObjectURL(result.blob);
       const link = document.createElement("a");
       link.href = objectUrl;
@@ -351,9 +352,9 @@ export function useManuscriptSidebarData({
       document.body.appendChild(link);
       link.click();
       link.remove();
-      toast({ title: "下载已开始" });
+      toast({ title: t("sidebarData.downloadStarted") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "下载失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.downloadFailed"), description: e.message });
     } finally {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       setExportDownloadingJobId("");
@@ -369,9 +370,9 @@ export function useManuscriptSidebarData({
         status: "active",
       });
       await loadGoals();
-      toast({ title: "目标已创建" });
+      toast({ title: t("sidebarData.goalCreated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "创建目标失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.goalCreateFailed"), description: e.message });
     }
   }, [goalTargetValue, goalType, loadGoals, selectedStoryId, toast]);
 
@@ -379,9 +380,9 @@ export function useManuscriptSidebarData({
     try {
       await api.v2.workspace.updateGoal(goalId, patch);
       await loadGoals();
-      toast({ title: "目标已更新" });
+      toast({ title: t("sidebarData.goalUpdated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "更新目标失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.goalUpdateFailed"), description: e.message });
     }
   }, [loadGoals, toast]);
 
@@ -389,15 +390,15 @@ export function useManuscriptSidebarData({
     try {
       await api.v2.workspace.deleteGoal(goalId);
       await loadGoals();
-      toast({ title: "目标已删除" });
+      toast({ title: t("sidebarData.goalDeleted") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "删除目标失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.goalDeleteFailed"), description: e.message });
     }
   }, [loadGoals, toast]);
 
   const createManualVersion = useCallback(async () => {
     if (!selectedManuscriptId) return;
-    const label = window.prompt("检查点标签", `manual-${Date.now()}`)?.trim();
+    const label = window.prompt(t("sidebarData.checkpointLabel"), `manual-${Date.now()}`)?.trim();
     if (!label) return;
     await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
     await loadVersions();
@@ -417,7 +418,7 @@ export function useManuscriptSidebarData({
       );
     }
     setAutoSaveConfig(nextConfig);
-    toast({ title: "自动快照配置已更新" });
+    toast({ title: t("sidebarData.autoSnapshotConfigUpdated") });
   }, [autoSaveConfig, queryClient, selectedManuscriptId, toast]);
 
   const createBranch = useCallback(async () => {
@@ -432,9 +433,9 @@ export function useManuscriptSidebarData({
       });
       setNewBranchName("");
       await loadVersions();
-      toast({ title: "分支创建成功" });
+      toast({ title: t("sidebarData.branchCreated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "创建分支失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.branchCreateFailed"), description: e.message });
     }
   }, [loadVersions, newBranchName, selectedDiffVersions, selectedManuscriptId, toast, versions]);
 
@@ -446,9 +447,9 @@ export function useManuscriptSidebarData({
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
       applyFetchedManuscript(manuscript);
       await loadVersions();
-      toast({ title: "分支已切换" });
+      toast({ title: t("sidebarData.branchSwitched") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "切换分支失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.branchSwitchFailed"), description: e.message });
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
@@ -457,8 +458,8 @@ export function useManuscriptSidebarData({
     try {
       await api.v2.version.updateBranch(selectedManuscriptId, branchId, payload);
       await loadVersions();
-      toast({ title: "分支信息已更新" });
-    } catch (e: any) { toast({ variant: "destructive", title: "更新分支失败", description: e.message }); }
+      toast({ title: t("sidebarData.branchUpdated") });
+    } catch (e: any) { toast({ variant: "destructive", title: t("sidebarData.branchUpdateFailed"), description: e.message }); }
   }, [loadVersions, selectedManuscriptId, toast]);
 
   const abandonBranch = useCallback(async (branchId: string) => {
@@ -466,8 +467,8 @@ export function useManuscriptSidebarData({
     try {
       await api.v2.version.abandonBranch(selectedManuscriptId, branchId);
       await loadVersions();
-      toast({ title: "分支已废弃" });
-    } catch (e: any) { toast({ variant: "destructive", title: "废弃分支失败", description: e.message }); }
+      toast({ title: t("sidebarData.branchAbandoned") });
+    } catch (e: any) { toast({ variant: "destructive", title: t("sidebarData.branchAbandonFailed"), description: e.message }); }
   }, [loadVersions, selectedManuscriptId, toast]);
 
   const rollbackVersion = useCallback(async (versionId: string) => {
@@ -477,9 +478,9 @@ export function useManuscriptSidebarData({
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
       applyFetchedManuscript(manuscript);
       await loadVersions();
-      toast({ title: "回滚成功，已自动备份当前内容" });
+      toast({ title: t("sidebarData.rollbackDone") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "回滚失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.rollbackFailed"), description: e.message });
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
@@ -492,7 +493,7 @@ export function useManuscriptSidebarData({
       });
       if (String(result.status) === "conflict") {
         setMergeConflicts(result.conflicts || []);
-        toast({ variant: "destructive", title: "存在冲突，请先逐场景选择" });
+        toast({ variant: "destructive", title: t("sidebarData.mergeConflictHint") });
         return;
       }
       setMergeConflicts([]);
@@ -500,9 +501,9 @@ export function useManuscriptSidebarData({
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
       applyFetchedManuscript(manuscript);
       await loadVersions();
-      toast({ title: "分支合并成功" });
+      toast({ title: t("sidebarData.mergeDone") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "合并失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.mergeFailed"), description: e.message });
     }
   }, [applyFetchedManuscript, loadVersions, mergeBranchId, mergeStrategy, sceneResolutions, selectedManuscriptId, toast]);
 
@@ -526,9 +527,9 @@ export function useManuscriptSidebarData({
       setTemplateName("");
       setTemplateDescription("");
       await loadExport();
-      toast({ title: "模板创建成功" });
+      toast({ title: t("sidebarData.templateCreated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "创建模板失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.templateCreateFailed"), description: e.message });
     }
   }, [
     exportAuthorName,
@@ -551,9 +552,9 @@ export function useManuscriptSidebarData({
         config: template.config || {},
       });
       await loadExport();
-      toast({ title: "模板已更新" });
+      toast({ title: t("sidebarData.templateUpdated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "更新模板失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.templateUpdateFailed"), description: e.message });
     }
   }, [exportFormat, loadExport, toast]);
 
@@ -561,9 +562,9 @@ export function useManuscriptSidebarData({
     try {
       await api.v2.export.deleteTemplate(templateId);
       await loadExport();
-      toast({ title: "模板已删除" });
+      toast({ title: t("sidebarData.templateDeleted") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "删除模板失败", description: e.message });
+      toast({ variant: "destructive", title: t("sidebarData.templateDeleteFailed"), description: e.message });
     }
   }, [loadExport, toast]);
 

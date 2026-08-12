@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { PromptMetadata, PromptTemplates } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, HelpCircle, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const WorkspacePrompts = () => {
   const [prompts, setPrompts] = useState<PromptTemplates | null>(null);
@@ -25,6 +27,7 @@ const WorkspacePrompts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     Promise.all([api.prompts.getWorkspace(), api.prompts.getWorkspaceMetadata()]).then(([templates, nextMetadata]) => {
@@ -38,7 +41,9 @@ const WorkspacePrompts = () => {
     setIsSaving(true);
     try {
       await api.prompts.updateWorkspace(prompts);
-      toast({ title: "提示词模板已更新" });
+      toast({ title: t("workspacePrompts.saved") });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
     }
@@ -49,20 +54,22 @@ const WorkspacePrompts = () => {
     try {
       const defaults = await api.prompts.resetWorkspace();
       setPrompts(defaults);
-      toast({ title: "提示词模板已恢复默认" });
+      toast({ title: t("workspacePrompts.resetDone") });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("workspacePrompts.resetFailed"), description: localizedErrorMessage(error, "workspacePrompts.resetFailed") });
     } finally {
       setIsResetting(false);
     }
   };
 
-  if (!prompts) return <div>Loading...</div>;
+  if (!prompts) return <div>{t("common.loading")}</div>;
 
-  const templateCards: Array<{ key: keyof PromptTemplates; title: string; description: string }> = [
-    { key: "storyCreation", title: "故事构思", description: "用于从灵感生成故事大纲和角色卡的提示词。" },
-    { key: "outlineChapter", title: "章节生成", description: "用于生成章节场景列表的提示词。" },
-    { key: "manuscriptSection", title: "正文写作", description: "用于根据场景描述撰写正文的提示词。" },
-    { key: "refineWithInstruction", title: "按指令润色", description: "用于根据用户指令改写或优化正文片段的提示词。" },
-    { key: "refineWithoutInstruction", title: "默认润色", description: "用于没有额外指令时润色文本的提示词。" },
+  const templateCards: Array<{ key: keyof PromptTemplates; titleKey: string; descriptionKey: string }> = [
+    { key: "storyCreation", titleKey: "workspacePrompts.storyCreation", descriptionKey: "workspacePrompts.storyCreationDesc" },
+    { key: "outlineChapter", titleKey: "workspacePrompts.outlineChapter", descriptionKey: "workspacePrompts.outlineChapterDesc" },
+    { key: "manuscriptSection", titleKey: "workspacePrompts.manuscriptSection", descriptionKey: "workspacePrompts.manuscriptSectionDesc" },
+    { key: "refineWithInstruction", titleKey: "workspacePrompts.refineWithInstruction", descriptionKey: "workspacePrompts.refineWithInstructionDesc" },
+    { key: "refineWithoutInstruction", titleKey: "workspacePrompts.refineWithoutInstruction", descriptionKey: "workspacePrompts.refineWithoutInstructionDesc" },
   ];
 
   const variablesByTemplate = new Map(metadata?.templates.map((item) => [item.key, item.variables]) ?? []);
@@ -73,24 +80,24 @@ const WorkspacePrompts = () => {
         <Button variant="outline" size="sm" asChild>
           <Link to="/settings/prompt-guide">
             <HelpCircle className="mr-2 h-4 w-4" />
-            查看变量说明与示例
+            {t("workspacePrompts.viewVariables")}
           </Link>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={isResetting}>
               {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              恢复默认
+              {t("workspacePrompts.restoreDefault")}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>恢复默认提示词模板？</AlertDialogTitle>
-              <AlertDialogDescription>当前工作台提示词会被系统默认模板覆盖。</AlertDialogDescription>
+              <AlertDialogTitle>{t("workspacePrompts.resetTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("workspacePrompts.resetDesc")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={handleReset}>恢复默认</AlertDialogAction>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReset}>{t("workspacePrompts.restoreDefault")}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -99,8 +106,8 @@ const WorkspacePrompts = () => {
       {templateCards.map((card) => (
         <Card key={card.key}>
           <CardHeader>
-            <CardTitle>{card.title}</CardTitle>
-            <CardDescription>{card.description}</CardDescription>
+            <CardTitle>{t(card.titleKey)}</CardTitle>
+            <CardDescription>{t(card.descriptionKey)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
@@ -124,7 +131,7 @@ const WorkspacePrompts = () => {
       <div className="sticky bottom-6 flex justify-end bg-background/80 backdrop-blur p-4 border rounded-lg shadow-lg">
         <Button onClick={handleSave} disabled={isSaving} size="lg">
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          保存所有修改
+          {t("workspacePrompts.saveAll")}
         </Button>
       </div>
     </div>

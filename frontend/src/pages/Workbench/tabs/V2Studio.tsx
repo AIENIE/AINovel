@@ -1,40 +1,43 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const V2Studio = () => {
+  const { t } = useTranslation();
   const [storyId, setStoryId] = useState("");
   const [manuscriptId, setManuscriptId] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [entryName, setEntryName] = useState("主角设定");
-  const [entryContent, setEntryContent] = useState("主角在第一章失去记忆，需要通过线索逐步恢复身份。");
+  const [entryName, setEntryName] = useState("");
+  const [entryContent, setEntryContent] = useState("");
   const [output, setOutput] = useState("{}");
 
   const ensureStoryId = () => {
     if (!storyId.trim()) {
-      throw new Error("请先填写 Story ID");
+      throw new Error(t("v2Studio.storyIdRequired"));
     }
   };
 
   const ensureManuscriptId = () => {
     if (!manuscriptId.trim()) {
-      throw new Error("请先填写 Manuscript ID");
+      throw new Error(t("v2Studio.manuscriptIdRequired"));
     }
   };
 
-  const run = async (label: string, action: () => Promise<any>) => {
+  const run = async (labelKey: string, action: () => Promise<any>) => {
     setBusy(true);
     try {
       const data = await action();
-      setOutput(JSON.stringify({ action: label, time: new Date().toISOString(), data }, null, 2));
+      setOutput(JSON.stringify({ action: t(labelKey), time: new Date().toISOString(), data }, null, 2));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "未知错误";
-      setOutput(JSON.stringify({ action: label, error: message }, null, 2));
+      const message = localizedErrorMessage(error, "errors.operationFailed");
+      setOutput(JSON.stringify({ action: t(labelKey), error: message }, null, 2));
     } finally {
       setBusy(false);
     }
@@ -44,13 +47,13 @@ const V2Studio = () => {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>v2 工作台联调面板</CardTitle>
-          <CardDescription>按 doc/api 中的 v2 接口文档做关键路径联调与结果观察。</CardDescription>
+          <CardTitle>{t("v2Studio.title")}</CardTitle>
+          <CardDescription>{t("v2Studio.desc")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="storyId">Story ID</Label>
-            <Input id="storyId" value={storyId} onChange={(e) => setStoryId(e.target.value)} placeholder="填入故事 ID" />
+            <Input id="storyId" value={storyId} onChange={(e) => setStoryId(e.target.value)} placeholder={t("v2Studio.storyIdPlaceholder")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="manuscriptId">Manuscript ID</Label>
@@ -58,12 +61,12 @@ const V2Studio = () => {
               id="manuscriptId"
               value={manuscriptId}
               onChange={(e) => setManuscriptId(e.target.value)}
-              placeholder="填入稿件 ID"
+              placeholder={t("v2Studio.manuscriptIdPlaceholder")}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="entryName">Lorebook 快速条目</Label>
-            <Input id="entryName" value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder="条目标题" />
+            <Label htmlFor="entryName">{t("v2Studio.quickEntry")}</Label>
+            <Input id="entryName" value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder={t("v2Studio.entryTitlePlaceholder")} />
             <Textarea value={entryContent} onChange={(e) => setEntryContent(e.target.value)} className="min-h-[90px]" />
           </div>
         </CardContent>
@@ -72,14 +75,14 @@ const V2Studio = () => {
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>上下文记忆</CardTitle>
+            <CardTitle>{t("v2Studio.contextMemory")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             <Button
               size="sm"
               disabled={busy}
               onClick={() =>
-                run("创建 Lorebook", async () => {
+                run("v2Studio.createLorebook", async () => {
                   ensureStoryId();
                   return api.v2.context.createLorebook(storyId, {
                     displayName: entryName,
@@ -91,48 +94,48 @@ const V2Studio = () => {
                 })
               }
             >
-              新建条目
+              {t("v2Studio.newEntry")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("读取 Lorebook", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.readLorebook", async () => {
               ensureStoryId();
               return api.v2.context.listLorebook(storyId);
             })}>
-              列表
+              {t("common.list")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("上下文预览", async () => {
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.contextPreview", async () => {
               ensureStoryId();
               return api.v2.context.previewContext(storyId, 600);
             })}>
-              预览
+              {t("common.preview")}
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>风格与角色声音</CardTitle>
+            <CardTitle>{t("v2Studio.styleVoice")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("创建风格画像", async () => {
+            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.createProfile", async () => {
               ensureStoryId();
               return api.v2.style.createProfile(storyId, {
-                name: "叙事冷峻风",
+                name: entryName || "Profile",
                 profileType: "narrative",
                 dimensions: { rhythm: 80, imagery: 75 },
               });
             })}>
-              新建画像
+              {t("v2Studio.newProfile")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("画像列表", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.profileList", async () => {
               ensureStoryId();
               return api.v2.style.listProfiles(storyId);
             })}>
-              列表
+              {t("common.list")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("风格分析", async () => {
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.styleAnalysis", async () => {
               return api.v2.style.analyze({ sourceType: "uploaded_text", sourceReference: "workbench", sampleText: entryContent });
             })}>
-              风格分析
+              {t("v2Studio.styleAnalysis")}
             </Button>
           </CardContent>
         </Card>
@@ -142,99 +145,99 @@ const V2Studio = () => {
             <CardTitle>Beta Reader</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("触发 Beta Reader", async () => {
+            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.triggerBetaReader", async () => {
               ensureStoryId();
               return api.v2.analysis.triggerBetaReader(storyId, { scope: "full" });
             })}>
-              触发分析
+              {t("v2Studio.triggerAnalysis")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("查询分析任务", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.analysisJobs", async () => {
               ensureStoryId();
               return api.v2.analysis.listJobs(storyId);
             })}>
-              任务列表
+              {t("common.taskList")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("连续性检查", async () => {
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.continuityCheck", async () => {
               ensureStoryId();
               return api.v2.analysis.triggerContinuity(storyId, { text: entryContent });
             })}>
-              连续性检查
+              {t("v2Studio.continuityCheck")}
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>版本控制</CardTitle>
+            <CardTitle>{t("v2Studio.versionControl")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("创建版本", async () => {
+            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.createVersion", async () => {
               ensureManuscriptId();
               return api.v2.version.createVersion(manuscriptId, { label: `checkpoint-${Date.now()}` });
             })}>
-              新建快照
+              {t("v2Studio.newSnapshot")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("版本列表", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.versionList", async () => {
               ensureManuscriptId();
               return api.v2.version.listVersions(manuscriptId);
             })}>
-              版本列表
+              {t("v2Studio.versionList")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("自动保存配置", async () => {
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.autoSave", async () => {
               return api.v2.version.getAutoSave();
             })}>
-              自动保存
+              {t("v2Studio.autoSave")}
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>导出系统</CardTitle>
+            <CardTitle>{t("v2Studio.exportSystem")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("创建导出任务", async () => {
+            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.createExport", async () => {
               ensureManuscriptId();
               return api.v2.export.createJob(manuscriptId, { format: "txt", config: { lineSpacing: 1.5 } });
             })}>
-              发起导出
+              {t("v2Studio.startExport")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("导出任务列表", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.exportJobs", async () => {
               ensureManuscriptId();
               return api.v2.export.listJobs(manuscriptId);
             })}>
-              任务列表
+              {t("common.taskList")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("模板列表", async () => api.v2.export.listTemplates())}>
-              模板列表
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.templateList", async () => api.v2.export.listTemplates())}>
+              {t("v2Studio.templateList")}
             </Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>多模型与工作台</CardTitle>
+            <CardTitle>{t("v2Studio.modelsWorkspace")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("模型列表", async () => api.v2.models.list())}>
-              模型列表
+            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.modelList", async () => api.v2.models.list())}>
+              {t("v2Studio.modelList")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("模型对比", async () => {
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.modelCompare", async () => {
               ensureStoryId();
               return api.v2.models.compare(storyId, { taskType: "draft_generation", prompt: entryContent });
             })}>
-              模型对比
+              {t("v2Studio.modelCompare")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("新建布局", async () => {
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.newLayout", async () => {
               return api.v2.workspace.createLayout({
-                name: `写作布局-${new Date().toLocaleTimeString()}`,
+                name: `${t("v2Studio.layoutPrefix")}-${new Date().toLocaleTimeString()}`,
                 isActive: true,
                 layout: { left: ["outline", "lorebook"], right: ["copilot", "analysis"] },
               });
             })}>
-              新建布局
+              {t("v2Studio.newLayout")}
             </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run("会话开始/结束", async () => {
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run("v2Studio.sessionToggle", async () => {
               ensureStoryId();
               if (!sessionId) {
                 const started = await api.v2.workspace.startSession({ storyId, wordsWritten: 0, wordsDeleted: 0 });
@@ -245,7 +248,7 @@ const V2Studio = () => {
               setSessionId(null);
               return ended;
             })}>
-              {sessionId ? "结束会话" : "开始会话"}
+              {sessionId ? t("v2Studio.endSession") : t("v2Studio.startSession")}
             </Button>
           </CardContent>
         </Card>
@@ -253,8 +256,8 @@ const V2Studio = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>接口返回</CardTitle>
-          <CardDescription>最近一次操作结果（便于联调排错）。</CardDescription>
+          <CardTitle>{t("v2Studio.apiOutput")}</CardTitle>
+          <CardDescription>{t("v2Studio.apiOutputDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Textarea value={output} readOnly className="min-h-[260px] font-mono text-xs" />

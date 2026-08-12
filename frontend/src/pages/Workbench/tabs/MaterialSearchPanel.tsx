@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { MaterialSearchResult } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const MaterialSearchPanel = () => {
   const [query, setQuery] = useState("");
@@ -14,6 +16,7 @@ const MaterialSearchPanel = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const handleSearch = async () => {
     if (!query) return;
@@ -24,9 +27,9 @@ const MaterialSearchPanel = () => {
       setResults(data);
     } catch (error: any) {
       setResults([]);
-      const message = error?.message || "素材检索失败，请稍后重试";
+      const message = localizedErrorMessage(error, "materialSearch.searchFailed");
       setSearchError(message);
-      toast({ variant: "destructive", title: "检索失败", description: message });
+      toast({ variant: "destructive", title: t("materialSearch.searchFailed"), description: message });
     } finally {
       setIsSearching(false);
     }
@@ -36,7 +39,7 @@ const MaterialSearchPanel = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex gap-2">
         <Input 
-          placeholder="搜索素材库..." 
+          placeholder={t("materialSearch.searchPlaceholder")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -50,8 +53,8 @@ const MaterialSearchPanel = () => {
       <div className="space-y-4">
         {searchError ? (
           <div className="space-y-3 text-center py-12 text-destructive">
-            <p>检索失败：{searchError}</p>
-            <Button variant="outline" onClick={() => void handleSearch()} disabled={isSearching}>重试</Button>
+            <p>{t("materialSearch.searchFailedColon", { detail: searchError })}</p>
+            <Button variant="outline" onClick={() => void handleSearch()} disabled={isSearching}>{t("common.retry")}</Button>
           </div>
         ) : results.length > 0 ? (
           results.map(material => (
@@ -61,7 +64,7 @@ const MaterialSearchPanel = () => {
                   <CardTitle className="text-lg">{material.title}</CardTitle>
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge variant={material.source === "vector" ? "default" : "outline"}>
-                      {material.source === "vector" ? "语义" : "关键词"}
+                      {material.source === "vector" ? t("materialSearch.semantic") : t("materialSearch.keyword")}
                     </Badge>
                     <Badge variant="secondary">{material.score.toFixed(2)}</Badge>
                   </div>
@@ -73,7 +76,7 @@ const MaterialSearchPanel = () => {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {material.chunkSeq !== undefined && (
-                    <Badge variant="outline" className="text-xs">片段 #{material.chunkSeq + 1}</Badge>
+                    <Badge variant="outline" className="text-xs">{t("materialSearch.chunk", { count: material.chunkSeq + 1 })}</Badge>
                   )}
                   {material.matchReasons.map(reason => (
                     <Badge key={reason} variant="secondary" className="text-xs">{reason}</Badge>
@@ -84,7 +87,7 @@ const MaterialSearchPanel = () => {
           ))
         ) : (
           <div className="text-center py-12 text-muted-foreground">
-            {query ? "未找到相关素材" : "输入关键词开始搜索"}
+            {query ? t("materialSearch.noResults") : t("materialSearch.startHint")}
           </div>
         )}
       </div>

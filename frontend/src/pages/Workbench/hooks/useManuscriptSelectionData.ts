@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript, Outline } from "@/types";
+import { t } from "@/i18n";
 
 type ToastFn = (options: {
   description?: string;
@@ -140,7 +141,7 @@ export function useManuscriptSelectionData({
           chapterIndex,
           scene,
           id: scene.id,
-          displayName: `第${chapterIndex + 1}章 Sc.${sceneIndex + 1} ${scene.title}`,
+          displayName: `${t("common.chapterShort", { count: chapterIndex + 1 })} Sc.${sceneIndex + 1} ${scene.title}`,
         });
       });
     });
@@ -191,19 +192,19 @@ export function useManuscriptSelectionData({
 
   const createOutline = useCallback(async (title: string) => {
     if (!selectedStoryId) return null;
-    const created = await api.outlines.create(selectedStoryId, { title: title.trim() || "新大纲" });
+    const created = await api.outlines.create(selectedStoryId, { title: title.trim() || t("selectionData.defaultOutlineTitle") });
     queryClient.setQueryData<Outline[]>(outlinesQueryKey(selectedStoryId), (current = []) => [...current, created]);
     selectOutlineId(created.id);
-    toast({ title: "大纲已创建" });
+    toast({ title: t("selectionData.outlineCreated") });
     return created;
   }, [queryClient, selectOutlineId, selectedStoryId, toast]);
 
   const createManuscript = useCallback(async (title: string) => {
     if (!selectedOutlineId) return null;
-    const created = await api.manuscripts.create(selectedOutlineId, { title: title.trim() || "正文稿" });
+    const created = await api.manuscripts.create(selectedOutlineId, { title: title.trim() || t("selectionData.defaultManuscriptTitle") });
     queryClient.setQueryData<Manuscript[]>(manuscriptsQueryKey(selectedOutlineId), (current = []) => [...current, created]);
     setSelectedManuscriptId(created.id);
-    toast({ title: "稿件已创建" });
+    toast({ title: t("selectionData.manuscriptCreated") });
     return created;
   }, [queryClient, selectedOutlineId, toast]);
 
@@ -309,19 +310,19 @@ export function useManuscriptSelectionData({
   useEffect(() => {
     const error = storiesQuery.error as Error | null;
     if (!error) return;
-    toast({ variant: "destructive", title: "加载故事失败", description: error.message });
+    toast({ variant: "destructive", title: t("selectionData.storyLoadFailed"), description: error.message });
   }, [storiesQuery.error, toast]);
 
   useEffect(() => {
     const error = outlinesQuery.error as Error | null;
     if (!error) return;
-    toast({ variant: "destructive", title: "加载大纲失败", description: error.message });
+    toast({ variant: "destructive", title: t("selectionData.outlineLoadFailed"), description: error.message });
   }, [outlinesQuery.error, toast]);
 
   useEffect(() => {
     const error = manuscriptsQuery.error as Error | null;
     if (!error) return;
-    toast({ variant: "destructive", title: "加载稿件失败", description: error.message });
+    toast({ variant: "destructive", title: t("selectionData.manuscriptLoadFailed"), description: error.message });
   }, [manuscriptsQuery.error, toast]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useTranslation } from "react-i18next";
 import { GripVertical, MoreVertical, Trash2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ interface SortableChapterItemProps {
 }
 
 export function SortableChapterItem({ chapter, index }: SortableChapterItemProps) {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -75,10 +77,10 @@ export function SortableChapterItem({ chapter, index }: SortableChapterItemProps
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem>
-                <Edit2 className="mr-2 h-3 w-3" /> 重命名
+                <Edit2 className="mr-2 h-3 w-3" /> {t("common.rename")}
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive focus:text-destructive">
-                <Trash2 className="mr-2 h-3 w-3" /> 删除
+                <Trash2 className="mr-2 h-3 w-3" /> {t("common.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

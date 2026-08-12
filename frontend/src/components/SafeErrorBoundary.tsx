@@ -3,6 +3,11 @@ import { reportClientError } from "@/lib/client-error-reporting";
 
 type Props = {
   children: ReactNode;
+  /**
+   * 本地化 fallback 渲染器。用户入口传入基于 i18n 的渲染结果；
+   * 管理入口保持默认固定简中，不依赖 i18n。
+   */
+  renderFallback?: () => ReactNode;
 };
 
 type State = {
@@ -22,6 +27,9 @@ export class SafeErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (this.state.failed) {
+      if (this.props.renderFallback) {
+        return this.props.renderFallback();
+      }
       return (
         <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-zinc-100">
           <section className="max-w-md text-center" role="alert">

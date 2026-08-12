@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,15 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_SHORTCUTS, detectShortcutConflicts } from "@/lib/shortcuts";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const WorkspaceExperience = () => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [layouts, setLayouts] = useState<any[]>([]);
   const [shortcuts, setShortcuts] = useState<any[]>([]);
   const [goals, setGoals] = useState<any[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
 
-  const [layoutName, setLayoutName] = useState("默认写作布局");
+  const [layoutName, setLayoutName] = useState(t("workspaceExperience.defaultLayoutName"));
   const [layoutJson, setLayoutJson] = useState('{"left":["outline"],"right":["copilot","context","version"]}');
   const [goalStoryId, setGoalStoryId] = useState("");
   const [goalType, setGoalType] = useState("daily_words");
@@ -44,7 +47,8 @@ const WorkspaceExperience = () => {
   };
 
   useEffect(() => {
-    loadData().catch((error: any) => toast({ variant: "destructive", title: "加载工作台配置失败", description: error.message }));
+    loadData().catch((error: any) => toast({ variant: "destructive", title: t("workspaceExperience.loadFailed"), description: localizedErrorMessage(error, "workspaceExperience.loadFailed") }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createLayout = async () => {
@@ -52,9 +56,9 @@ const WorkspaceExperience = () => {
       const parsed = JSON.parse(layoutJson);
       await api.v2.workspace.createLayout({ name: layoutName, layout: parsed, isActive: true });
       await loadData();
-      toast({ title: "布局已创建并激活" });
+      toast({ title: t("workspaceExperience.layoutCreated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "创建布局失败", description: error.message });
+      toast({ variant: "destructive", title: t("workspaceExperience.layoutCreateFailed"), description: localizedErrorMessage(error, "workspaceExperience.layoutCreateFailed") });
     }
   };
 
@@ -67,8 +71,8 @@ const WorkspaceExperience = () => {
     if (conflicts.some((item) => item.actions.includes(shortcutAction))) {
       toast({
         variant: "destructive",
-        title: "快捷键冲突",
-        description: `当前绑定与其他动作冲突：${conflicts.map((item) => `${item.shortcut} -> ${item.actions.join(",")}`).join("; ")}`,
+        title: t("workspaceExperience.shortcutConflict"),
+        description: t("workspaceExperience.shortcutConflictDesc", { detail: conflicts.map((item) => `${item.shortcut} -> ${item.actions.join(",")}`).join("; ") }),
       });
       return;
     }
@@ -76,9 +80,9 @@ const WorkspaceExperience = () => {
       await api.v2.workspace.updateShortcuts([{ action: shortcutAction, shortcut: shortcutKey }]);
       await loadData();
       window.dispatchEvent(new Event("ainovel-shortcuts-updated"));
-      toast({ title: "快捷键已更新" });
+      toast({ title: t("workspaceExperience.shortcutUpdated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "更新快捷键失败", description: error.message });
+      toast({ variant: "destructive", title: t("workspaceExperience.shortcutUpdateFailed"), description: localizedErrorMessage(error, "workspaceExperience.shortcutUpdateFailed") });
     }
   };
 
@@ -92,9 +96,9 @@ const WorkspaceExperience = () => {
         status: "active",
       });
       await loadData();
-      toast({ title: "写作目标已创建" });
+      toast({ title: t("workspaceExperience.goalCreated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "创建目标失败", description: error.message });
+      toast({ variant: "destructive", title: t("workspaceExperience.goalCreateFailed"), description: localizedErrorMessage(error, "workspaceExperience.goalCreateFailed") });
     }
   };
 
@@ -103,50 +107,50 @@ const WorkspaceExperience = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>布局预设</CardTitle>
-            <CardDescription>支持创建 / 激活 / 删除布局。</CardDescription>
+            <CardTitle>{t("workspaceExperience.layoutTitle")}</CardTitle>
+            <CardDescription>{t("workspaceExperience.layoutDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-2">
-              <Label>布局名称</Label>
+              <Label>{t("workspaceExperience.layoutName")}</Label>
               <Input value={layoutName} onChange={(event) => setLayoutName(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>布局 JSON</Label>
+              <Label>{t("workspaceExperience.layoutJson")}</Label>
               <Textarea className="min-h-[100px] font-mono text-xs" value={layoutJson} onChange={(event) => setLayoutJson(event.target.value)} />
             </div>
-            <Button onClick={createLayout}>创建并激活布局</Button>
+            <Button onClick={createLayout}>{t("workspaceExperience.createActivateLayout")}</Button>
             <div className="space-y-2">
               {layouts.map((layout) => (
                 <div key={layout.id} className="rounded border p-2 flex items-center justify-between text-sm">
                   <div>
                     <div className="font-medium">{layout.name}</div>
-                    <div className="text-muted-foreground">{layout.isActive ? "active" : "inactive"}</div>
+                    <div className="text-muted-foreground">{layout.isActive ? t("workspaceExperience.active") : t("workspaceExperience.inactive")}</div>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => api.v2.workspace.activateLayout(layout.id).then(loadData)}>
-                      激活
+                      {t("workspaceExperience.activate")}
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => api.v2.workspace.deleteLayout(layout.id).then(loadData)}>
-                      删除
+                      {t("common.delete")}
                     </Button>
                   </div>
                 </div>
               ))}
-              {!layouts.length && <p className="text-sm text-muted-foreground">暂无布局预设</p>}
+              {!layouts.length && <p className="text-sm text-muted-foreground">{t("workspaceExperience.noLayouts")}</p>}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>快捷键</CardTitle>
-            <CardDescription>对应 Ctrl+K / Ctrl+S / Ctrl+Shift+F 等动作。</CardDescription>
+            <CardTitle>{t("workspaceExperience.shortcutTitle")}</CardTitle>
+            <CardDescription>{t("workspaceExperience.shortcutDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>动作</Label>
+                <Label>{t("workspaceExperience.action")}</Label>
                 <Select value={shortcutAction} onValueChange={setShortcutAction}>
                   <SelectTrigger>
                     <SelectValue />
@@ -161,16 +165,16 @@ const WorkspaceExperience = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>快捷键</Label>
+                <Label>{t("workspaceExperience.shortcut")}</Label>
                 <Input value={shortcutKey} onChange={(event) => setShortcutKey(event.target.value)} />
               </div>
             </div>
             {!!shortcutConflicts.length && (
               <div className="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                检测到冲突：{shortcutConflicts.map((item) => `${item.shortcut}(${item.actions.join(",")})`).join("；")}
+                {t("workspaceExperience.conflictDetected", { detail: shortcutConflicts.map((item) => `${item.shortcut}(${item.actions.join(",")})`).join("；") })}
               </div>
             )}
-            <Button onClick={updateShortcut}>更新快捷键</Button>
+            <Button onClick={updateShortcut}>{t("workspaceExperience.updateShortcut")}</Button>
             <div className="space-y-2">
               {shortcuts.map((shortcut) => (
                 <div key={shortcut.id} className="rounded border p-2 text-sm flex items-center justify-between">
@@ -178,7 +182,7 @@ const WorkspaceExperience = () => {
                   <span className="font-mono">{shortcut.shortcut}</span>
                 </div>
               ))}
-              {!shortcuts.length && <p className="text-sm text-muted-foreground">暂无快捷键配置</p>}
+              {!shortcuts.length && <p className="text-sm text-muted-foreground">{t("workspaceExperience.noShortcuts")}</p>}
             </div>
           </CardContent>
         </Card>
@@ -186,16 +190,16 @@ const WorkspaceExperience = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>写作目标</CardTitle>
-          <CardDescription>支持创建、删除和状态更新。</CardDescription>
+          <CardTitle>{t("workspaceExperience.goalTitle")}</CardTitle>
+          <CardDescription>{t("workspaceExperience.goalDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
-              <Label>故事</Label>
+              <Label>{t("workspaceExperience.story")}</Label>
               <Select value={goalStoryId} onValueChange={setGoalStoryId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择故事" />
+                  <SelectValue placeholder={t("common.selectStory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {stories.map((story) => (
@@ -207,15 +211,15 @@ const WorkspaceExperience = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>目标类型</Label>
+              <Label>{t("workspaceExperience.goalType")}</Label>
               <Input value={goalType} onChange={(event) => setGoalType(event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>目标值</Label>
+              <Label>{t("workspaceExperience.goalTarget")}</Label>
               <Input type="number" value={goalTarget} onChange={(event) => setGoalTarget(Number(event.target.value || 0))} />
             </div>
           </div>
-          <Button onClick={createGoal}>创建目标</Button>
+          <Button onClick={createGoal}>{t("workspaceExperience.createGoal")}</Button>
           <div className="space-y-2">
             {goals.map((goal) => (
               <div key={goal.id} className="rounded border p-2 text-sm flex items-center justify-between">
@@ -226,11 +230,11 @@ const WorkspaceExperience = () => {
                   </div>
                 </div>
                 <Button size="sm" variant="destructive" onClick={() => api.v2.workspace.deleteGoal(goal.id).then(loadData)}>
-                  删除
+                  {t("common.delete")}
                 </Button>
               </div>
             ))}
-            {!goals.length && <p className="text-sm text-muted-foreground">暂无写作目标</p>}
+            {!goals.length && <p className="text-sm text-muted-foreground">{t("workspaceExperience.noGoals")}</p>}
           </div>
         </CardContent>
       </Card>

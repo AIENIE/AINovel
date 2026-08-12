@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,21 +15,28 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer } from "recharts";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const STYLE_DIMENSIONS = [
-  { key: "formality", label: "正式程度", minHint: "口语", maxHint: "书面" },
-  { key: "sentence_length", label: "句长偏好", minHint: "短句", maxHint: "长句" },
-  { key: "vocabulary_richness", label: "词汇丰富度", minHint: "朴素", maxHint: "文学" },
-  { key: "pacing", label: "叙事节奏", minHint: "舒缓", maxHint: "紧凑" },
-  { key: "descriptiveness", label: "描写密度", minHint: "简洁", maxHint: "浓墨" },
-  { key: "dialogue_ratio", label: "对话占比", minHint: "叙述", maxHint: "对话" },
-  { key: "emotional_intensity", label: "情感强度", minHint: "克制", maxHint: "浓烈" },
-  { key: "rhetoric_frequency", label: "修辞频率", minHint: "直白", maxHint: "修辞" },
+  { key: "formality", labelKey: "styleDims.formality", minHintKey: "styleDims.formalityMin", maxHintKey: "styleDims.formalityMax" },
+  { key: "sentence_length", labelKey: "styleDims.sentenceLength", minHintKey: "styleDims.sentenceLengthMin", maxHintKey: "styleDims.sentenceLengthMax" },
+  { key: "vocabulary_richness", labelKey: "styleDims.vocabulary", minHintKey: "styleDims.vocabularyMin", maxHintKey: "styleDims.vocabularyMax" },
+  { key: "pacing", labelKey: "styleDims.pacing", minHintKey: "styleDims.pacingMin", maxHintKey: "styleDims.pacingMax" },
+  { key: "descriptiveness", labelKey: "styleDims.descriptiveness", minHintKey: "styleDims.descriptivenessMin", maxHintKey: "styleDims.descriptivenessMax" },
+  { key: "dialogue_ratio", labelKey: "styleDims.dialogueRatio", minHintKey: "styleDims.dialogueRatioMin", maxHintKey: "styleDims.dialogueRatioMax" },
+  { key: "emotional_intensity", labelKey: "styleDims.emotion", minHintKey: "styleDims.emotionMin", maxHintKey: "styleDims.emotionMax" },
+  { key: "rhetoric_frequency", labelKey: "styleDims.rhetoric", minHintKey: "styleDims.rhetoricMin", maxHintKey: "styleDims.rhetoricMax" },
 ] as const;
 
 const SCENE_MODES = ["action", "dialogue", "introspection", "description", "flashback"];
 const VOCABULARY_LEVELS = ["colloquial", "neutral", "literary", "formal"];
-const DEFAULT_EMOTIONS = ["冷静", "愤怒", "悲伤", "讽刺", "坚定"];
+const DEFAULT_EMOTIONS = [
+  { value: "冷静", labelKey: "styleDims.emotionCalm" },
+  { value: "愤怒", labelKey: "styleDims.emotionAngry" },
+  { value: "悲伤", labelKey: "styleDims.emotionSad" },
+  { value: "讽刺", labelKey: "styleDims.emotionSarcastic" },
+  { value: "坚定", labelKey: "styleDims.emotionDetermined" },
+] as const;
 
 const buildDefaultDimensions = (score = 6) =>
   STYLE_DIMENSIONS.reduce(
@@ -57,9 +65,9 @@ const toDialogueSamples = (raw: any): DialogueSample[] => {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => {
-      if (typeof item === "string") return { context: "常规", line: item };
+      if (typeof item === "string") return { context: "", line: item };
       if (item && typeof item === "object") {
-        return { context: String(item.context || item.emotion || "常规"), line: String(item.line || item.content || "") };
+        return { context: String(item.context || item.emotion || ""), line: String(item.line || item.content || "") };
       }
       return null;
     })
@@ -104,7 +112,7 @@ const emptyVoiceForm = {
 };
 
 const emptyProfileForm = {
-  name: "叙事基调画像",
+  name: "",
   profileType: "narrative",
   sampleText: "",
   dimensions: buildDefaultDimensions(6),
@@ -114,6 +122,7 @@ const emptyProfileForm = {
 
 const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState(initialStoryId || "");
   const [characters, setCharacters] = useState<any[]>([]);
@@ -123,13 +132,13 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const [selectedVoiceId, setSelectedVoiceId] = useState("");
   const [compareProfileA, setCompareProfileA] = useState("");
   const [compareProfileB, setCompareProfileB] = useState("");
-  const [analysisText, setAnalysisText] = useState("夜风掠过城墙，远处钟声在雾中回荡，巡夜人攥紧披风，沉默地走向灯影尽头。");
+  const [analysisText, setAnalysisText] = useState("");
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [profileForm, setProfileForm] = useState<any>(emptyProfileForm);
   const [voiceForm, setVoiceForm] = useState<any>(emptyVoiceForm);
   const [catchphraseInput, setCatchphraseInput] = useState("");
   const [emotionInput, setEmotionInput] = useState("");
-  const [sampleContextInput, setSampleContextInput] = useState("日常");
+  const [sampleContextInput, setSampleContextInput] = useState("");
   const [sampleLineInput, setSampleLineInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [voicePreview, setVoicePreview] = useState("");
@@ -143,7 +152,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
           setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
         }
       })
-      .catch((error: any) => toast({ variant: "destructive", title: "加载故事失败", description: error.message }));
+      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
   }, []);
 
   const loadData = async () => {
@@ -166,7 +175,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     if (!storyId) return;
     setLoading(true);
     loadData()
-      .catch((error: any) => toast({ variant: "destructive", title: "加载风格数据失败", description: error.message }))
+      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStyleDataFailed"), description: localizedErrorMessage(error, "errors.loadStyleDataFailed") }))
       .finally(() => setLoading(false));
   }, [storyId]);
 
@@ -226,24 +235,24 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const profileB = profiles.find((item) => String(item.id) === String(compareProfileB));
 
   const compareData = useMemo(
-    () => STYLE_DIMENSIONS.map((item) => ({ metric: item.label, A: normalizeDimensionScore(profileA?.dimensions?.[item.key], 6), B: normalizeDimensionScore(profileB?.dimensions?.[item.key], 6) })),
-    [profileA, profileB],
+    () => STYLE_DIMENSIONS.map((item) => ({ metric: t(item.labelKey), A: normalizeDimensionScore(profileA?.dimensions?.[item.key], 6), B: normalizeDimensionScore(profileB?.dimensions?.[item.key], 6) })),
+    [profileA, profileB, t],
   );
 
   const saveProfile = async () => {
     if (!storyId) return;
     if (!profileForm.name?.trim()) {
-      toast({ variant: "destructive", title: "请填写画像名称" });
+      toast({ variant: "destructive", title: t("style.profileNameRequired") });
       return;
     }
     try {
       if (profileForm.id) await api.v2.style.updateProfile(storyId, profileForm.id, profileForm);
       else await api.v2.style.createProfile(storyId, profileForm);
       await loadData();
-      toast({ title: "风格画像已保存" });
+      toast({ title: t("style.profileSaved") });
       setVoicePreview("");
     } catch (error: any) {
-      toast({ variant: "destructive", title: "保存失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
 
@@ -254,9 +263,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       await loadData();
       setSelectedProfileId("");
       setProfileForm(emptyProfileForm);
-      toast({ title: "画像已删除" });
+      toast({ title: t("style.profileDeleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     }
   };
 
@@ -265,9 +274,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     try {
       await api.v2.style.activateProfile(storyId, profileId);
       await loadData();
-      toast({ title: "已激活风格画像" });
+      toast({ title: t("style.profileActivated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "激活失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.activateFailed"), description: localizedErrorMessage(error, "errors.activateFailed") });
     }
   };
 
@@ -275,9 +284,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     try {
       const result = await api.v2.style.analyze({ sourceType: "uploaded_text", sourceReference: "settings-style", sampleText: analysisText });
       setAnalysisResult(result);
-      toast({ title: "风格分析完成" });
+      toast({ title: t("style.analysisDone") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "分析失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.analysisFailed"), description: localizedErrorMessage(error, "errors.analysisFailed") });
     }
   };
 
@@ -286,23 +295,23 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     try {
       const analysisPayload = analysisResult.result || {};
       await api.v2.style.createProfile(storyId, {
-        name: String(analysisPayload.suggestedProfileName || `分析画像-${new Date().toLocaleTimeString()}`),
+        name: String(analysisPayload.suggestedProfileName || `${t("style.analysisProfile")}-${new Date().toLocaleTimeString()}`),
         profileType: "narrative",
         dimensions: mapAnalysisDimensions(analysisResult),
         aiAnalysis: analysisPayload,
         sampleText: analysisText,
       });
       await loadData();
-      toast({ title: "已根据分析创建画像" });
+      toast({ title: t("style.profileCreatedFromAnalysis") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "创建失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.createFailed"), description: localizedErrorMessage(error, "errors.createFailed") });
     }
   };
 
   const saveVoice = async () => {
     if (!storyId) return;
     if (!voiceForm.characterCardId) {
-      toast({ variant: "destructive", title: "请选择角色" });
+      toast({ variant: "destructive", title: t("style.selectCharacterFirst") });
       return;
     }
     try {
@@ -313,9 +322,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       await loadData();
       const nextVoiceId = String(savedVoice?.id || voiceForm.id || "");
       if (nextVoiceId) setSelectedVoiceId(nextVoiceId);
-      toast({ title: "角色声音已保存" });
+      toast({ title: t("style.voiceSaved") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "保存失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
 
@@ -327,9 +336,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       setSelectedVoiceId("");
       setVoiceForm(emptyVoiceForm);
       setVoicePreview("");
-      toast({ title: "角色声音已删除" });
+      toast({ title: t("style.voiceDeleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     }
   };
 
@@ -337,31 +346,30 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     if (!storyId || !voiceForm.id) return;
     const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
     try {
-      await api.v2.style.generateVoice(storyId, voiceForm.id, { characterName: selectedCharacter?.name || "角色" });
+      await api.v2.style.generateVoice(storyId, voiceForm.id, { characterName: selectedCharacter?.name || t("style.characterFallback") });
       await loadData();
-      toast({ title: "AI 已生成声音画像" });
+      toast({ title: t("style.voiceGenerated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "生成失败", description: error.message });
+      toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(error, "errors.generateFailed") });
     }
   };
 
   const previewVoice = async () => {
     if (!voiceForm.characterCardId) {
-      toast({ variant: "destructive", title: "请先选择角色" });
+      toast({ variant: "destructive", title: t("style.selectCharacterFirst") });
       return;
     }
     const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
-    const characterName = selectedCharacter?.name || "角色";
-    const catchphrase = (voiceForm.catchphrases || [])[0] || "让我想想";
-    const mood = (voiceForm.emotionalRange || [])[0] || "平静";
-    const sample = (voiceForm.sampleDialogues || [])[0]?.line || "先看线索，再下结论。";
-    const dialect = voiceForm.dialect ? `（${voiceForm.dialect}口音）` : "";
-    const pattern = voiceForm.speechPattern?.trim() || "说话干脆，先抛结论再补细节";
+    const characterName = selectedCharacter?.name || t("style.characterFallback");
+    const catchphrase = (voiceForm.catchphrases || [])[0] || t("style.catchphraseFallback");
+    const mood = (voiceForm.emotionalRange || [])[0] || t("style.moodFallback");
+    const sample = (voiceForm.sampleDialogues || [])[0]?.line || t("style.sampleLineFallback");
+    const dialect = voiceForm.dialect ? t("style.dialectSuffix", { dialect: voiceForm.dialect }) : "";
+    const pattern = voiceForm.speechPattern?.trim() || t("style.speechPatternFallback");
     setVoicePreview(
-      `${dialect}${characterName}压低声音说：“${catchphrase}，${sample}”\n` +
-      `他在${mood}情绪下保持${voiceForm.vocabularyLevel || "colloquial"}词汇风格，整体说话模式为：${pattern}。`,
+      t("style.voicePreviewTemplate", { dialect, characterName, catchphrase, sample, mood, level: voiceForm.vocabularyLevel || "colloquial", pattern }),
     );
-    toast({ title: "声音预览已生成" });
+    toast({ title: t("style.previewGenerated") });
   };
 
   return (
@@ -369,10 +377,10 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-end gap-3">
           <div className="w-[300px]">
-            <Label>故事</Label>
+            <Label>{t("style.story")}</Label>
             <Select value={storyId} onValueChange={setStoryId}>
               <SelectTrigger>
-                <SelectValue placeholder="选择故事" />
+                <SelectValue placeholder={t("common.selectStory")} />
               </SelectTrigger>
               <SelectContent>
                 {stories.map((story) => (
@@ -381,39 +389,39 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="secondary" onClick={() => void loadData()} disabled={!storyId || loading}>刷新</Button>
-          {activeProfile ? <Badge>当前激活：{activeProfile.name}</Badge> : <Badge variant="outline">暂无激活画像</Badge>}
+          <Button variant="secondary" onClick={() => void loadData()} disabled={!storyId || loading}>{t("common.refresh")}</Button>
+          {activeProfile ? <Badge>{t("style.currentlyActive", { name: activeProfile.name })}</Badge> : <Badge variant="outline">{t("style.noActiveProfile")}</Badge>}
         </CardContent>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>风格画像管理</CardTitle>
-            <CardDescription>覆盖 AC-1/2/3/4/5：CRUD、维度控制、分析转画像。</CardDescription>
+            <CardTitle>{t("style.manageTitle")}</CardTitle>
+            <CardDescription>{t("style.manageDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                <SelectTrigger><SelectValue placeholder="选择画像进行编辑" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("style.selectProfileToEdit")} /></SelectTrigger>
                 <SelectContent>{profiles.map((profile) => <SelectItem key={profile.id} value={String(profile.id)}>{profile.name}</SelectItem>)}</SelectContent>
               </Select>
-              <Button variant="outline" onClick={() => { setSelectedProfileId(""); setProfileForm(emptyProfileForm); }}>新建</Button>
+              <Button variant="outline" onClick={() => { setSelectedProfileId(""); setProfileForm(emptyProfileForm); }}>{t("common.create")}</Button>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>画像名称</Label>
+                <Label>{t("style.profileName")}</Label>
                 <Input value={profileForm.name || ""} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, name: event.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>类型</Label>
+                <Label>{t("style.type")}</Label>
                 <Select value={profileForm.profileType || "narrative"} onValueChange={(value) => setProfileForm((prev: any) => ({ ...prev, profileType: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="narrative">叙事</SelectItem>
-                    <SelectItem value="dialogue">对话</SelectItem>
-                    <SelectItem value="description">描写</SelectItem>
-                    <SelectItem value="global">全局</SelectItem>
+                    <SelectItem value="narrative">{t("style.typeNarrative")}</SelectItem>
+                    <SelectItem value="dialogue">{t("style.typeDialogue")}</SelectItem>
+                    <SelectItem value="description">{t("style.typeDescription")}</SelectItem>
+                    <SelectItem value="global">{t("style.typeGlobal")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -422,18 +430,18 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               {STYLE_DIMENSIONS.map((item) => (
                 <div key={item.key} className="space-y-1 rounded border p-2">
                   <div className="flex items-center justify-between">
-                    <Label>{item.label}</Label>
+                    <Label>{t(item.labelKey)}</Label>
                     <Badge variant="outline">{Number(profileForm.dimensions?.[item.key] ?? 6)}</Badge>
                   </div>
-                  <div className="text-[11px] text-muted-foreground flex justify-between"><span>{item.minHint}</span><span>{item.maxHint}</span></div>
+                  <div className="text-[11px] text-muted-foreground flex justify-between"><span>{t(item.minHintKey)}</span><span>{t(item.maxHintKey)}</span></div>
                   <Slider min={1} max={10} step={1} value={[Number(profileForm.dimensions?.[item.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: any) => ({ ...prev, dimensions: { ...(prev.dimensions || {}), [item.key]: Number(value[0] ?? 6) } }))} />
-                  <Input placeholder="该维度说明（可选）" value={String(profileForm.dimensionNotes?.[item.key] || "")} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, dimensionNotes: { ...(prev.dimensionNotes || {}), [item.key]: event.target.value } }))} />
+                  <Input placeholder={t("style.dimensionNotePlaceholder")} value={String(profileForm.dimensionNotes?.[item.key] || "")} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, dimensionNotes: { ...(prev.dimensionNotes || {}), [item.key]: event.target.value } }))} />
                 </div>
               ))}
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label>场景模式覆盖</Label>
+              <Label>{t("style.sceneOverrides")}</Label>
               <div className="space-y-2">
                 {(profileForm.sceneOverrides || []).map((override: any, index: number) => (
                   <div key={`${override.sceneType}-${index}`} className="rounded border p-2 space-y-2">
@@ -441,7 +449,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {STYLE_DIMENSIONS.map((dim) => (
                         <div key={`${override.sceneType}-${dim.key}`} className="space-y-1">
-                          <Label className="text-xs">{dim.label}</Label>
+                          <Label className="text-xs">{t(dim.labelKey)}</Label>
                           <Slider min={1} max={10} step={1} value={[Number(override.dimensions?.[dim.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: any) => { const nextOverrides = [...(prev.sceneOverrides || [])]; const target = { ...nextOverrides[index] }; target.dimensions = { ...(target.dimensions || {}), [dim.key]: Number(value[0] ?? 6) }; nextOverrides[index] = target; return { ...prev, sceneOverrides: nextOverrides }; })} />
                         </div>
                       ))}
@@ -451,92 +459,92 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>参考样文</Label>
+              <Label>{t("style.sampleText")}</Label>
               <Textarea className="min-h-[120px]" value={profileForm.sampleText || ""} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, sampleText: event.target.value }))} />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={saveProfile} disabled={!storyId}>保存画像</Button>
-              <Button variant="outline" onClick={() => selectedProfileId && activateProfile(selectedProfileId)} disabled={!selectedProfileId}>激活画像</Button>
-              <Button variant="destructive" onClick={removeProfile} disabled={!profileForm.id}>删除画像</Button>
+              <Button onClick={saveProfile} disabled={!storyId}>{t("style.saveProfile")}</Button>
+              <Button variant="outline" onClick={() => selectedProfileId && activateProfile(selectedProfileId)} disabled={!selectedProfileId}>{t("style.activateProfile")}</Button>
+              <Button variant="destructive" onClick={removeProfile} disabled={!profileForm.id}>{t("style.deleteProfile")}</Button>
             </div>
             <Separator />
             <div className="space-y-2">
-              <Label>风格分析文本</Label>
+              <Label>{t("style.analysisText")}</Label>
               <Textarea className="min-h-[120px]" value={analysisText} onChange={(event) => setAnalysisText(event.target.value)} />
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => void runAnalysis()}>分析</Button>
-                <Button variant="outline" onClick={() => void createFromAnalysis()} disabled={!analysisResult}>分析结果转画像</Button>
+                <Button variant="secondary" onClick={() => void runAnalysis()}>{t("style.analyze")}</Button>
+                <Button variant="outline" onClick={() => void createFromAnalysis()} disabled={!analysisResult}>{t("style.analysisToProfile")}</Button>
               </div>
-              {analysisResult && <div className="rounded-md border p-2 text-xs grid grid-cols-2 gap-1">{STYLE_DIMENSIONS.map((item) => <div key={item.key} className="flex items-center justify-between rounded bg-muted px-2 py-1"><span>{item.label}</span><span>{mapAnalysisDimensions(analysisResult)[item.key]}</span></div>)}</div>}
+              {analysisResult && <div className="rounded-md border p-2 text-xs grid grid-cols-2 gap-1">{STYLE_DIMENSIONS.map((item) => <div key={item.key} className="flex items-center justify-between rounded bg-muted px-2 py-1"><span>{t(item.labelKey)}</span><span>{mapAnalysisDimensions(analysisResult)[item.key]}</span></div>)}</div>}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>角色声音</CardTitle>
-            <CardDescription>覆盖 AC-6/7/8：声音 CRUD + AI 生成 + 预览配置。</CardDescription>
+            <CardTitle>{t("style.voiceTitle")}</CardTitle>
+            <CardDescription>{t("style.voiceDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <Select value={selectedVoiceId} onValueChange={setSelectedVoiceId}>
-                <SelectTrigger><SelectValue placeholder="选择声音配置" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("style.selectVoiceConfig")} /></SelectTrigger>
                 <SelectContent>{voices.map((voice) => <SelectItem key={voice.id} value={String(voice.id)}>{String(voice.characterCardId || voice.id).slice(0, 8)}</SelectItem>)}</SelectContent>
               </Select>
-              <Button variant="outline" onClick={() => { setSelectedVoiceId(""); setVoiceForm(emptyVoiceForm); setVoicePreview(""); }}>新建</Button>
+              <Button variant="outline" onClick={() => { setSelectedVoiceId(""); setVoiceForm(emptyVoiceForm); setVoicePreview(""); }}>{t("common.create")}</Button>
             </div>
             <div className="space-y-2">
-              <Label>角色</Label>
+              <Label>{t("style.character")}</Label>
               <Select value={voiceForm.characterCardId || ""} onValueChange={(value) => setVoiceForm((prev: any) => ({ ...prev, characterCardId: value }))}>
-                <SelectTrigger><SelectValue placeholder="选择角色卡" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("style.selectCharacterCard")} /></SelectTrigger>
                 <SelectContent>{characters.map((character) => <SelectItem key={character.id} value={String(character.id)}>{character.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>词汇等级</Label>
+                <Label>{t("style.vocabularyLevel")}</Label>
                 <Select value={voiceForm.vocabularyLevel || "colloquial"} onValueChange={(value) => setVoiceForm((prev: any) => ({ ...prev, vocabularyLevel: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{VOCABULARY_LEVELS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+                  <SelectContent>{VOCABULARY_LEVELS.map((item) => <SelectItem key={item} value={item}>{t(`style.vocab.${item}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label>方言/口音</Label><Input value={voiceForm.dialect || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, dialect: event.target.value }))} /></div>
+              <div className="space-y-2"><Label>{t("style.dialect")}</Label><Input value={voiceForm.dialect || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, dialect: event.target.value }))} /></div>
             </div>
-            <div className="space-y-2"><Label>说话模式</Label><Textarea value={voiceForm.speechPattern || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, speechPattern: event.target.value }))} className="min-h-[100px]" /></div>
+            <div className="space-y-2"><Label>{t("style.speechPattern")}</Label><Textarea value={voiceForm.speechPattern || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, speechPattern: event.target.value }))} className="min-h-[100px]" /></div>
             <div className="space-y-2">
-              <Label>口头禅</Label>
-              <div className="flex gap-2"><Input value={catchphraseInput} onChange={(event) => setCatchphraseInput(event.target.value)} placeholder="输入口头禅" /><Button variant="outline" onClick={() => { const value = catchphraseInput.trim(); if (!value) return; setVoiceForm((prev: any) => ({ ...prev, catchphrases: [...(prev.catchphrases || []), value] })); setCatchphraseInput(""); }}>添加</Button></div>
+              <Label>{t("style.catchphrases")}</Label>
+              <div className="flex gap-2"><Input value={catchphraseInput} onChange={(event) => setCatchphraseInput(event.target.value)} placeholder={t("style.catchphrasePlaceholder")} /><Button variant="outline" onClick={() => { const value = catchphraseInput.trim(); if (!value) return; setVoiceForm((prev: any) => ({ ...prev, catchphrases: [...(prev.catchphrases || []), value] })); setCatchphraseInput(""); }}>{t("common.add")}</Button></div>
               <div className="flex flex-wrap gap-2">{(voiceForm.catchphrases || []).map((item: string) => <Badge key={item} variant="outline" className="cursor-pointer" onClick={() => setVoiceForm((prev: any) => ({ ...prev, catchphrases: (prev.catchphrases || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
             </div>
             <div className="space-y-2">
-              <Label>情绪表达范围</Label>
-              <div className="flex gap-2"><Select value={emotionInput} onValueChange={setEmotionInput}><SelectTrigger><SelectValue placeholder="选择情绪" /></SelectTrigger><SelectContent>{DEFAULT_EMOTIONS.map((emotion) => <SelectItem key={emotion} value={emotion}>{emotion}</SelectItem>)}</SelectContent></Select><Button variant="outline" onClick={() => { const value = emotionInput.trim(); if (!value || (voiceForm.emotionalRange || []).includes(value)) return; setVoiceForm((prev: any) => ({ ...prev, emotionalRange: [...(prev.emotionalRange || []), value] })); setEmotionInput(""); }}>添加</Button></div>
+              <Label>{t("style.emotionalRange")}</Label>
+              <div className="flex gap-2"><Select value={emotionInput} onValueChange={setEmotionInput}><SelectTrigger><SelectValue placeholder={t("style.selectEmotion")} /></SelectTrigger><SelectContent>{DEFAULT_EMOTIONS.map((emotion) => <SelectItem key={emotion.value} value={emotion.value}>{t(emotion.labelKey)}</SelectItem>)}</SelectContent></Select><Button variant="outline" onClick={() => { const value = emotionInput.trim(); if (!value || (voiceForm.emotionalRange || []).includes(value)) return; setVoiceForm((prev: any) => ({ ...prev, emotionalRange: [...(prev.emotionalRange || []), value] })); setEmotionInput(""); }}>{t("common.add")}</Button></div>
               <div className="flex flex-wrap gap-2">{(voiceForm.emotionalRange || []).map((item: string) => <Badge key={item} variant="secondary" className="cursor-pointer" onClick={() => setVoiceForm((prev: any) => ({ ...prev, emotionalRange: (prev.emotionalRange || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
             </div>
             <div className="space-y-2">
-              <Label>示例对白</Label>
-              <div className="grid grid-cols-3 gap-2"><Input value={sampleContextInput} onChange={(event) => setSampleContextInput(event.target.value)} placeholder="场景/情绪" /><Input className="col-span-2" value={sampleLineInput} onChange={(event) => setSampleLineInput(event.target.value)} placeholder="输入示例对白" /></div>
-              <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim() || "常规"; setVoiceForm((prev: any) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>添加示例</Button>
-              <ScrollArea className="h-24 rounded-md border p-2"><div className="space-y-1 text-sm">{(voiceForm.sampleDialogues || []).map((item: DialogueSample, index: number) => <div key={`${item.context}-${item.line}-${index}`} className="rounded border p-1"><div className="text-xs text-muted-foreground">[{item.context}]</div><div>{item.line}</div></div>)}</div></ScrollArea>
+              <Label>{t("style.sampleDialogues")}</Label>
+              <div className="grid grid-cols-3 gap-2"><Input value={sampleContextInput} onChange={(event) => setSampleContextInput(event.target.value)} placeholder={t("style.sampleContextPlaceholder")} /><Input className="col-span-2" value={sampleLineInput} onChange={(event) => setSampleLineInput(event.target.value)} placeholder={t("style.sampleLinePlaceholder")} /></div>
+              <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim(); setVoiceForm((prev: any) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>{t("style.addSample")}</Button>
+              <ScrollArea className="h-24 rounded-md border p-2"><div className="space-y-1 text-sm">{(voiceForm.sampleDialogues || []).map((item: DialogueSample, index: number) => <div key={`${item.context}-${item.line}-${index}`} className="rounded border p-1"><div className="text-xs text-muted-foreground">{item.context ? `[${item.context}]` : ""}</div><div>{item.line}</div></div>)}</div></ScrollArea>
             </div>
-            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>保存声音</Button><Button variant="secondary" onClick={() => void generateVoice()} disabled={!voiceForm.id}>AI 生成</Button><Button variant="outline" onClick={() => void previewVoice()}>预览</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>删除声音</Button></div>
-            {voicePreview && <div className="rounded border bg-muted/40 p-2 text-sm"><div className="font-medium mb-1">声音预览</div><p className="whitespace-pre-wrap text-muted-foreground">{voicePreview}</p></div>}
+            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="secondary" onClick={() => void generateVoice()} disabled={!voiceForm.id}>{t("style.aiGenerate")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>
+            {voicePreview && <div className="rounded border bg-muted/40 p-2 text-sm"><div className="font-medium mb-1">{t("style.voicePreview")}</div><p className="whitespace-pre-wrap text-muted-foreground">{voicePreview}</p></div>}
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>风格画像对比</CardTitle><CardDescription>通过雷达图快速比较两个画像在 8 个维度上的差异。</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{t("style.compareTitle")}</CardTitle><CardDescription>{t("style.compareDesc")}</CardDescription></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2"><Label>画像 A</Label><Select value={compareProfileA} onValueChange={setCompareProfileA}><SelectTrigger><SelectValue placeholder="选择画像 A" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={`A-${profile.id}`} value={String(profile.id)}>{profile.name}</SelectItem>)}</SelectContent></Select></div>
-            <div className="space-y-2"><Label>画像 B</Label><Select value={compareProfileB} onValueChange={setCompareProfileB}><SelectTrigger><SelectValue placeholder="选择画像 B" /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={`B-${profile.id}`} value={String(profile.id)}>{profile.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>{t("style.profileA")}</Label><Select value={compareProfileA} onValueChange={setCompareProfileA}><SelectTrigger><SelectValue placeholder={t("style.selectProfileA")} /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={`A-${profile.id}`} value={String(profile.id)}>{profile.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>{t("style.profileB")}</Label><Select value={compareProfileB} onValueChange={setCompareProfileB}><SelectTrigger><SelectValue placeholder={t("style.selectProfileB")} /></SelectTrigger><SelectContent>{profiles.map((profile) => <SelectItem key={`B-${profile.id}`} value={String(profile.id)}>{profile.name}</SelectItem>)}</SelectContent></Select></div>
           </div>
           <div className="h-[280px] rounded border p-2">
             {profileA && profileB ? (
-              <ResponsiveContainer width="100%" height="100%"><RadarChart data={compareData}><PolarGrid /><PolarAngleAxis dataKey="metric" tick={{ fontSize: 12 }} /><Radar name="画像A" dataKey="A" stroke="#2563eb" fill="#60a5fa" fillOpacity={0.3} /><Radar name="画像B" dataKey="B" stroke="#16a34a" fill="#4ade80" fillOpacity={0.3} /></RadarChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%"><RadarChart data={compareData}><PolarGrid /><PolarAngleAxis dataKey="metric" tick={{ fontSize: 12 }} /><Radar name={t("style.profileA")} dataKey="A" stroke="#2563eb" fill="#60a5fa" fillOpacity={0.3} /><Radar name={t("style.profileB")} dataKey="B" stroke="#16a34a" fill="#4ade80" fillOpacity={0.3} /></RadarChart></ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">请选择两个画像进行对比</div>
+              <div className="h-full flex items-center justify-center text-sm text-muted-foreground">{t("style.selectTwoProfiles")}</div>
             )}
           </div>
         </CardContent>

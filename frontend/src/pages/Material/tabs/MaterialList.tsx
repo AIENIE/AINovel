@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { Material } from "@/types";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const MaterialList = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -34,12 +36,13 @@ const MaterialList = () => {
   const [editTags, setEditTags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     api.materials.list().then(setMaterials).catch((error: any) => {
-      toast({ variant: "destructive", title: "加载素材失败", description: error.message });
+      toast({ variant: "destructive", title: t("material.loadFailed"), description: localizedErrorMessage(error, "material.loadFailed") });
     });
-  }, [toast]);
+  }, [toast, t]);
 
   const openEdit = (material: Material) => {
     setEditing(material);
@@ -59,28 +62,28 @@ const MaterialList = () => {
       });
       setMaterials((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setEditing(null);
-      toast({ title: "素材已更新" });
+      toast({ title: t("material.updated") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "更新素材失败", description: error.message });
+      toast({ variant: "destructive", title: t("material.updateFailed"), description: localizedErrorMessage(error, "material.updateFailed") });
     } finally {
       setIsSaving(false);
     }
   };
 
   const deleteMaterial = async (material: Material) => {
-    if (!window.confirm(`确认删除素材“${material.title}”？`)) return;
+    if (!window.confirm(t("material.deleteConfirm", { title: material.title }))) return;
     try {
       await api.materials.delete(material.id);
       setMaterials((prev) => prev.filter((item) => item.id !== material.id));
-      toast({ title: "素材已删除" });
+      toast({ title: t("material.deleted") });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "删除素材失败", description: error.message });
+      toast({ variant: "destructive", title: t("material.deleteFailed"), description: localizedErrorMessage(error, "material.deleteFailed") });
     }
   };
 
   const filteredMaterials = materials.filter(m => 
     m.title.toLowerCase().includes(search.toLowerCase()) || 
-    m.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))
+    m.tags.some(tag => tag.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -88,7 +91,7 @@ const MaterialList = () => {
       <div className="flex items-center gap-2 max-w-sm">
         <Search className="h-4 w-4 text-muted-foreground" />
         <Input 
-          placeholder="筛选素材..." 
+          placeholder={t("material.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -98,11 +101,11 @@ const MaterialList = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>标题</TableHead>
-              <TableHead>类型</TableHead>
-              <TableHead>标签</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead>{t("common.title")}</TableHead>
+              <TableHead>{t("common.type")}</TableHead>
+              <TableHead>{t("material.colTags")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -119,20 +122,20 @@ const MaterialList = () => {
                 </TableCell>
                 <TableCell>
                   <Badge variant={material.status === 'approved' ? 'default' : 'secondary'}>
-                    {material.status === 'approved' ? '已入库' : material.status}
+                    {material.status === 'approved' ? t("material.statusApproved") : material.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label={`操作 ${material.title}`}>
+                      <Button variant="ghost" size="icon" aria-label={`${t("common.actions")} ${material.title}`}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => openEdit(material)}>编辑</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openEdit(material)}>{t("common.edit")}</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void deleteMaterial(material)}>删除</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => void deleteMaterial(material)}>{t("common.delete")}</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -145,17 +148,17 @@ const MaterialList = () => {
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>编辑素材</DialogTitle>
-            <DialogDescription>更新素材内容和标签后会立即重新建立检索索引。</DialogDescription>
+            <DialogTitle>{t("material.editDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("material.editDialogDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>标题</Label><Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></div>
-            <div className="space-y-2"><Label>内容</Label><Textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} className="min-h-[180px]" /></div>
-            <div className="space-y-2"><Label>标签</Label><Input value={editTags} onChange={(event) => setEditTags(event.target.value)} placeholder="用逗号分隔" /></div>
+            <div className="space-y-2"><Label>{t("common.title")}</Label><Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></div>
+            <div className="space-y-2"><Label>{t("common.content")}</Label><Textarea value={editContent} onChange={(event) => setEditContent(event.target.value)} className="min-h-[180px]" /></div>
+            <div className="space-y-2"><Label>{t("material.colTags")}</Label><Input value={editTags} onChange={(event) => setEditTags(event.target.value)} placeholder={t("material.tagPlaceholder")} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>取消</Button>
-            <Button onClick={() => void saveEdit()} disabled={isSaving || !editTitle.trim() || !editContent.trim()}>{isSaving ? "保存中..." : "保存"}</Button>
+            <Button variant="outline" onClick={() => setEditing(null)}>{t("common.cancel")}</Button>
+            <Button onClick={() => void saveEdit()} disabled={isSaving || !editTitle.trim() || !editContent.trim()}>{isSaving ? t("common.saving") : t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

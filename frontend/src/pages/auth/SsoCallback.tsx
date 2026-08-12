@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { validateSsoState } from "@/lib/sso";
 import { buildSsoCallbackRedirectUrl, createSsoCallbackProcessor, type SsoSessionResponse } from "@/lib/sso-callback";
@@ -24,6 +25,7 @@ const exchangeSsoCode = async (code: string, redirect: string): Promise<SsoSessi
 const SsoCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
   const { acceptToken } = useAuth();
   const processorRef = useRef<ReturnType<typeof createSsoCallbackProcessor> | null>(null);
 
@@ -34,7 +36,7 @@ const SsoCallback = () => {
       acceptToken,
       onSuccess: (nextPath) => {
         window.history.replaceState(null, "", callbackRedirectUrl(window.location));
-        toast.success("单点登录成功");
+        toast.success(t("auth.ssoSuccess"));
         navigate(nextPath, { replace: true });
       },
       onFailure: (message) => {
@@ -52,7 +54,7 @@ const SsoCallback = () => {
       isCancelled: () => cancelled,
     }).catch(() => {
       if (!cancelled) {
-        toast.error("单点登录失败：回调处理异常");
+        toast.error(t("auth.ssoCallbackError"));
         navigate("/login", { replace: true });
       }
     });
@@ -60,11 +62,11 @@ const SsoCallback = () => {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, location.search, navigate]);
+  }, [location.pathname, location.search, navigate, t]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200 flex items-center justify-center p-6">
-      <div className="text-sm text-zinc-500">正在完成单点登录…</div>
+      <div className="text-sm text-zinc-500">{t("auth.ssoRedirecting")}</div>
     </div>
   );
 };

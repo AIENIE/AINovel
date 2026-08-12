@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ export function GoalsSidebarPanel({
   setGoalType,
   updateGoal,
 }: GoalsSidebarPanelProps) {
+  const { t } = useTranslation();
   return (
     <TabsContent value="goals" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
       <div className="grid grid-cols-2 gap-2 mb-2">
@@ -34,15 +36,15 @@ export function GoalsSidebarPanel({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="daily_words">日更字数</SelectItem>
-            <SelectItem value="session_words">单次会话</SelectItem>
-            <SelectItem value="total_words">全书总字数</SelectItem>
+            <SelectItem value="daily_words">{t("goalsPanel.dailyWords")}</SelectItem>
+            <SelectItem value="session_words">{t("goalsPanel.sessionWords")}</SelectItem>
+            <SelectItem value="total_words">{t("goalsPanel.totalWords")}</SelectItem>
           </SelectContent>
         </Select>
         <Input type="number" value={goalTargetValue} onChange={(event) => setGoalTargetValue(Number(event.target.value || 0))} />
       </div>
       <Button size="sm" onClick={() => void createGoal()} className="mb-2">
-        创建目标
+        {t("goalsPanel.createGoal")}
       </Button>
       <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2 text-xs">
         {goals.map((goal) => (
@@ -59,10 +61,10 @@ export function GoalsSidebarPanel({
                 className="h-7"
                 onClick={() => void updateGoal(String(goal.id), { status: goal.status === "completed" ? "active" : "completed" })}
               >
-                切换状态
+                {t("goalsPanel.toggleStatus")}
               </Button>
               <Button size="sm" variant="destructive" className="h-7" onClick={() => void deleteGoal(String(goal.id))}>
-                删除
+                {t("common.delete")}
               </Button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ArrowLeft, ArrowRight, FilePlus2, Loader2, Sparkles, WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GuidedCreationCandidate } from "@/types";
@@ -17,6 +18,7 @@ const EMPTY_CANDIDATES: GuidedCreationCandidate[] = [];
 
 export default function GuidedCreationPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const guided = useGuidedCreation();
   const { workflow } = guided;
   const stepData = workflow && workflow.currentStep !== "COMPLETED"
@@ -50,7 +52,7 @@ export default function GuidedCreationPage() {
   return (
     <div className="min-h-screen bg-[#f5f6f3] text-zinc-950">
       <header className="sticky top-0 z-40 flex h-14 items-center border-b border-zinc-200 bg-white/95 px-3 backdrop-blur md:px-5">
-        <Button variant="ghost" size="icon" asChild title="返回小说列表">
+        <Button variant="ghost" size="icon" asChild title={t("guided.backToNovels")}>
           <Link to="/novels"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div className="ml-2 flex items-center gap-3">
@@ -58,8 +60,8 @@ export default function GuidedCreationPage() {
             <WandSparkles className="h-4 w-4" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold">引导创作</h1>
-            <p className="hidden text-[11px] text-zinc-500 sm:block">{workflow ? workflow.seedIdea : "新草稿"}</p>
+            <h1 className="text-sm font-semibold">{t("guided.title")}</h1>
+            <p className="hidden text-[11px] text-zinc-500 sm:block">{workflow ? workflow.seedIdea : t("guided.newDraft")}</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -77,7 +79,7 @@ export default function GuidedCreationPage() {
           ) : null}
           <ContextSheet workflow={workflow} totalCharged={guided.totalCharged} remainingCredits={guided.remainingCredits} />
           <Button variant="outline" size="sm" className="hidden sm:flex" onClick={guided.newDraft}>
-            <FilePlus2 className="mr-2 h-4 w-4" /> 新草稿
+            <FilePlus2 className="mr-2 h-4 w-4" /> {t("guided.newDraft")}
           </Button>
         </div>
       </header>
@@ -105,7 +107,7 @@ export default function GuidedCreationPage() {
                   </div>
                   {!workflow.autoRun ? (
                     <Button variant="outline" className="border-emerald-700 text-emerald-800 hover:bg-emerald-50" disabled={guided.busy || guided.shouldPoll} onClick={() => void guided.startAuto()}>
-                      <Sparkles className="mr-2 h-4 w-4" /> 自动完成后续
+                      <Sparkles className="mr-2 h-4 w-4" /> {t("guided.autoComplete")}
                     </Button>
                   ) : null}
                 </div>
@@ -124,8 +126,8 @@ export default function GuidedCreationPage() {
                       />
                     ) : (
                       <div className="border-y border-zinc-200 py-5">
-                        <p className="text-xs font-semibold uppercase text-emerald-700">完整大纲预览</p>
-                        <p className="mt-2 text-sm text-zinc-600">确认前可以编辑大纲名称、章节名称和章节目标。</p>
+                        <p className="text-xs font-semibold uppercase text-emerald-700">{t("guided.outlinePreviewTitle")}</p>
+                        <p className="mt-2 text-sm text-zinc-600">{t("guided.outlinePreviewDesc")}</p>
                       </div>
                     )}
 
@@ -145,11 +147,11 @@ export default function GuidedCreationPage() {
                     {!outlineSelection ? (
                       <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          {workflow.currentStep === "WORLD" ? <Button variant="ghost" disabled={guided.busy} onClick={() => void guided.skipWorld()}>跳过世界设定</Button> : null}
+                          {workflow.currentStep === "WORLD" ? <Button variant="ghost" disabled={guided.busy} onClick={() => void guided.skipWorld()}>{t("guided.skipWorld")}</Button> : null}
                         </div>
                         <Button className="bg-zinc-950 px-6 text-white hover:bg-zinc-800" disabled={!draftCandidate || guided.busy} onClick={() => draftCandidate && void guided.confirm(draftCandidate)}>
                           {guided.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          {outlinePreview ? "确认完整大纲" : "确认并继续"} <ArrowRight className="ml-2 h-4 w-4" />
+                          {outlinePreview ? t("guided.confirmOutline") : t("guided.confirmContinue")} <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
                     ) : null}

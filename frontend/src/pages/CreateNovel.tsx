@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,26 +12,27 @@ import { showError, showSuccess } from "@/utils/toast";
 import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 
-const GENRES = [
-  { value: "fantasy", label: "奇幻 / 魔法" },
-  { value: "scifi", label: "科幻 / 赛博朋克" },
-  { value: "mystery", label: "悬疑 / 推理" },
-  { value: "romance", label: "言情 / 都市" },
-  { value: "wuxia", label: "武侠 / 仙侠" },
-  { value: "history", label: "历史 / 架空" },
-  { value: "other", label: "其他" },
-];
-
 const CACHE_PREFIX = "ainovel.plot-planner.conception";
 
 const CreateNovel = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [aiInit, setAiInit] = useState(true);
 
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("fantasy");
   const [synopsis, setSynopsis] = useState("");
+
+  const genres = [
+    { value: "fantasy", label: t("genre.fantasy") },
+    { value: "scifi", label: t("genre.scifi") },
+    { value: "mystery", label: t("genre.mystery") },
+    { value: "romance", label: t("genre.romance") },
+    { value: "wuxia", label: t("genre.wuxia") },
+    { value: "history", label: t("genre.history") },
+    { value: "other", label: t("common.other") },
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,16 +50,16 @@ const CreateNovel = () => {
             // Ignore session storage failures.
           }
         }
-        showSuccess("小说创建成功！");
+        showSuccess("novels.created");
         if (storyId) navigate(`/workbench?storyId=${storyId}&tab=conception`);
         else navigate("/novels");
       } else {
         const story = await api.stories.create({ title: title.trim(), synopsis, genre, tone: "" });
-        showSuccess("小说创建成功！");
+        showSuccess("novels.created");
         navigate(`/workbench?storyId=${story.id}`);
       }
     } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : "创建失败");
+      showError(err, "errors.createFailed");
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +73,10 @@ const CreateNovel = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <h1 className="font-semibold">新建小说</h1>
+        <h1 className="font-semibold">{t("novels.createTitle")}</h1>
         <Link to="/novels/quick-create" className="ml-auto">
           <Button variant="outline" size="sm">
-            <WandSparkles className="mr-2 h-4 w-4" /> 引导创作
+            <WandSparkles className="mr-2 h-4 w-4" /> {t("novels.quickCreate")}
           </Button>
         </Link>
       </header>
@@ -82,19 +84,19 @@ const CreateNovel = () => {
       <main className="flex-1 flex justify-center p-4 lg:p-8">
         <div className="w-full max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">开始一段新的旅程</h2>
-            <p className="text-muted-foreground">填写基本信息，我们将为你准备好写作环境。</p>
+            <h2 className="text-3xl font-bold tracking-tight">{t("novels.newJourney")}</h2>
+            <p className="text-muted-foreground">{t("novels.newJourneyDesc")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-4 p-6 border rounded-xl bg-card shadow-sm">
               <div className="space-y-2">
                 <Label htmlFor="title">
-                  小说标题 <span className="text-red-500">*</span>
+                  {t("novels.titleLabel")} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="title"
-                  placeholder="例如：群星归位之时"
+                  placeholder={t("novels.titlePlaceholder")}
                   required
                   className="text-lg font-medium"
                   value={title}
@@ -103,13 +105,13 @@ const CreateNovel = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="genre">流派分类</Label>
+                <Label htmlFor="genre">{t("novels.genreLabel")}</Label>
                 <Select value={genre} onValueChange={setGenre}>
                   <SelectTrigger>
-                    <SelectValue placeholder="选择流派" />
+                    <SelectValue placeholder={t("novels.genrePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {GENRES.map((g) => (
+                    {genres.map((g) => (
                       <SelectItem key={g.value} value={g.value}>
                         {g.label}
                       </SelectItem>
@@ -119,10 +121,10 @@ const CreateNovel = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="summary">一句话梗概 (可选)</Label>
+                <Label htmlFor="summary">{t("novels.summaryLabel")}</Label>
                 <Textarea
                   id="summary"
-                  placeholder="简单描述你的核心创意..."
+                  placeholder={t("novels.summaryPlaceholder")}
                   className="resize-none min-h-[100px]"
                   value={synopsis}
                   onChange={(e) => setSynopsis(e.target.value)}
@@ -135,9 +137,9 @@ const CreateNovel = () => {
                 <div className="space-y-0.5">
                   <Label className="text-base flex items-center gap-2 text-purple-900">
                     <Sparkles className="h-4 w-4 text-purple-600" />
-                    AI 辅助初始化
+                    {t("novels.aiInit")}
                   </Label>
-                  <p className="text-sm text-purple-700">自动生成初始角色建议（示例流程）</p>
+                  <p className="text-sm text-purple-700">{t("novels.aiInitDesc")}</p>
                 </div>
                 <Switch checked={aiInit} onCheckedChange={setAiInit} />
               </div>
@@ -146,11 +148,11 @@ const CreateNovel = () => {
             <div className="flex gap-4 pt-4">
               <Link to="/novels" className="flex-1">
                 <Button variant="outline" type="button" className="w-full h-12">
-                  取消
+                  {t("common.cancel")}
                 </Button>
               </Link>
               <Button type="submit" className="flex-[2] h-12 text-lg" disabled={isLoading}>
-                {isLoading ? "正在创建..." : "立即创建"}
+                {isLoading ? t("novels.creating") : t("novels.createNow")}
               </Button>
             </div>
           </form>

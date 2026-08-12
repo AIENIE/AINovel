@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,18 +13,19 @@ type Props = {
 const text = (value: unknown) => typeof value === "string" ? value : "";
 
 export default function GuidedCreationCandidateEditor({ step, value, onChange }: Props) {
+  const { t } = useTranslation();
   const patch = (key: string, next: unknown) => onChange({ ...value, [key]: next });
 
   if (step === "PREMISE") {
     return (
       <div className="grid gap-5 border-t border-zinc-200 pt-6 md:grid-cols-2">
-        <Field label="故事名" value={text(value.title)} onChange={(next) => patch("title", next)} />
-        <Field label="类型" value={text(value.genre)} onChange={(next) => patch("genre", next)} />
+        <Field label={t("guided.editorStoryName")} value={text(value.title)} onChange={(next) => patch("title", next)} />
+        <Field label={t("guided.editorGenre")} value={text(value.genre)} onChange={(next) => patch("genre", next)} />
         <div className="md:col-span-2">
-          <Area label="故事梗概" value={text(value.synopsis)} onChange={(next) => patch("synopsis", next)} />
+          <Area label={t("guided.editorSynopsis")} value={text(value.synopsis)} onChange={(next) => patch("synopsis", next)} />
         </div>
-        <Field label="核心承诺" value={text(value.corePromise)} onChange={(next) => patch("corePromise", next)} />
-        <Field label="核心问题" value={text(value.centralQuestion)} onChange={(next) => patch("centralQuestion", next)} />
+        <Field label={t("guided.editorCorePromise")} value={text(value.corePromise)} onChange={(next) => patch("corePromise", next)} />
+        <Field label={t("guided.editorCentralQuestion")} value={text(value.centralQuestion)} onChange={(next) => patch("centralQuestion", next)} />
       </div>
     );
   }
@@ -31,10 +33,10 @@ export default function GuidedCreationCandidateEditor({ step, value, onChange }:
   if (step === "WORLD") {
     return (
       <div className="grid gap-5 border-t border-zinc-200 pt-6 md:grid-cols-2">
-        <Field label="世界名称" value={text(value.name)} onChange={(next) => patch("name", next)} />
-        <Field label="一句话定位" value={text(value.tagline)} onChange={(next) => patch("tagline", next)} />
+        <Field label={t("guided.editorWorldName")} value={text(value.name)} onChange={(next) => patch("name", next)} />
+        <Field label={t("guided.editorTagline")} value={text(value.tagline)} onChange={(next) => patch("tagline", next)} />
         <div className="md:col-span-2">
-          <Area label="创作意图" value={text(value.creativeIntent)} onChange={(next) => patch("creativeIntent", next)} />
+          <Area label={t("guided.editorCreativeIntent")} value={text(value.creativeIntent)} onChange={(next) => patch("creativeIntent", next)} />
         </div>
       </div>
     );
@@ -52,12 +54,12 @@ export default function GuidedCreationCandidateEditor({ step, value, onChange }:
     };
     return (
       <div className="space-y-5 border-t border-zinc-200 pt-6">
-        <Field label="阵容名称" value={text(value.label)} onChange={(next) => patch("label", next)} />
+        <Field label={t("guided.editorRosterName")} value={text(value.label)} onChange={(next) => patch("label", next)} />
         <div className="divide-y divide-zinc-200 border-y border-zinc-200">
           {characters.map((character, index) => (
             <div key={`${index}-${text(character.name)}`} className="grid gap-4 py-5 md:grid-cols-[180px_1fr]">
-              <Field label={`角色 ${index + 1}`} value={text(character.name)} onChange={(next) => updateCharacter(index, "name", next)} />
-              <Area label="人物定位" value={text(character.synopsis)} onChange={(next) => updateCharacter(index, "synopsis", next)} rows={2} />
+              <Field label={t("guided.character", { index: index + 1 })} value={text(character.name)} onChange={(next) => updateCharacter(index, "name", next)} />
+              <Area label={t("guided.editorCharacterRole")} value={text(character.synopsis)} onChange={(next) => updateCharacter(index, "synopsis", next)} rows={2} />
             </div>
           ))}
         </div>
@@ -77,12 +79,12 @@ export default function GuidedCreationCandidateEditor({ step, value, onChange }:
     };
     return (
       <div className="space-y-5 border-t border-zinc-200 pt-6">
-        <Field label="大纲名称" value={text(value.title)} onChange={(next) => patch("title", next)} />
+        <Field label={t("guided.editorOutlineName")} value={text(value.title)} onChange={(next) => patch("title", next)} />
         <div className="divide-y divide-zinc-200 border-y border-zinc-200">
           {chapters.map((chapter, index) => (
             <div key={index} className="grid gap-4 py-5 md:grid-cols-[180px_1fr]">
-              <Field label={`第 ${index + 1} 章`} value={text(chapter.title)} onChange={(next) => updateChapter(index, "title", next)} />
-              <Area label="章节目标" value={text(chapter.summary)} onChange={(next) => updateChapter(index, "summary", next)} rows={2} />
+              <Field label={t("guided.editorChapter", { index: index + 1 })} value={text(chapter.title)} onChange={(next) => updateChapter(index, "title", next)} />
+              <Area label={t("guided.editorChapterGoal")} value={text(chapter.summary)} onChange={(next) => updateChapter(index, "summary", next)} rows={2} />
             </div>
           ))}
         </div>

@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, BookOpen, Globe, Zap } from "lucide-react";
+import { ArrowRight, Coins, LayoutDashboard, LogIn, Sparkles, BookOpen, Globe, UserPlus, Zap } from "lucide-react";
 import { buildSsoUrl, issueSsoState } from "@/lib/sso";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +16,7 @@ import { useState } from "react";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [demoOpen, setDemoOpen] = useState(false);
 
@@ -22,29 +25,65 @@ const Index = () => {
     window.location.href = buildSsoUrl(mode, nextPath, state);
   };
 
+  const demoSections = [
+    { titleKey: "index.demoIdea", descKey: "index.demoIdeaDesc" },
+    { titleKey: "index.demoOutline", descKey: "index.demoOutlineDesc" },
+    { titleKey: "index.demoManuscript", descKey: "index.demoManuscriptDesc" },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
+        <div className="container mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">
               AI
             </div>
-            <span className="font-bold text-xl">AINovel</span>
+            <span className="font-bold text-base sm:text-xl tracking-tight whitespace-nowrap">AINovel</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/pricing")}>积分说明</Button>
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-4 min-w-0">
+            <LanguageSwitcher showLabel={false} />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="px-2 sm:px-3"
+              onClick={() => navigate("/pricing")}
+              aria-label={t("index.pricing")}
+              title={t("index.pricing")}
+            >
+              <Coins className="h-4 w-4 sm:hidden" aria-hidden="true" />
+              <span className="hidden sm:inline">{t("index.pricing")}</span>
+            </Button>
             {isAuthenticated ? (
-              <Button onClick={() => navigate("/dashboard")}>
-                进入创作首页 <ArrowRight className="ml-2 h-4 w-4" />
+              <Button size="sm" className="px-2 sm:px-4" onClick={() => navigate("/dashboard")}>
+                <LayoutDashboard className="h-4 w-4 md:hidden" aria-hidden="true" />
+                <span className="hidden md:inline">{t("index.enterDashboard")}</span>
+                <ArrowRight className="ml-1 h-4 w-4 hidden md:inline" />
               </Button>
             ) : (
               <>
-                <Button variant="ghost" onClick={() => goSso("login")}>
-                  登录
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="px-2 sm:px-3"
+                  onClick={() => goSso("login")}
+                  aria-label={t("index.login")}
+                  title={t("index.login")}
+                >
+                  <LogIn className="h-4 w-4 hidden max-[379px]:inline-flex" aria-hidden="true" />
+                  <span className="max-[379px]:hidden">{t("index.login")}</span>
                 </Button>
-                <Button onClick={() => goSso("register")}>注册</Button>
+                <Button
+                  size="sm"
+                  className="px-2 sm:px-4"
+                  onClick={() => goSso("register")}
+                  aria-label={t("index.register")}
+                  title={t("index.register")}
+                >
+                  <UserPlus className="h-4 w-4 hidden max-[379px]:inline-flex" aria-hidden="true" />
+                  <span className="max-[379px]:hidden">{t("index.register")}</span>
+                </Button>
               </>
             )}
           </div>
@@ -57,15 +96,14 @@ const Index = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10" />
           <div className="container mx-auto px-4 text-center max-w-4xl">
             <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80 mb-8 animate-in fade-in zoom-in duration-500">
-              <Sparkles className="mr-1 h-3 w-3" /> AI 驱动的次世代写作体验
+              <Sparkles className="mr-1 h-3 w-3" /> {t("index.badge")}
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 animate-in slide-in-from-bottom-4 duration-700">
-              从灵感到完本，<br />
-              全流程 AI 辅助创作
+              {t("index.heroTitle1")}<br />
+              {t("index.heroTitle2")}
             </h1>
             <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-in slide-in-from-bottom-5 duration-700 delay-100">
-              不再担心卡文与设定崩坏。AINovel 提供结构化的大纲管理、
-              世界观一致性检查以及智能润色功能，让你的故事栩栩如生。
+              {t("index.heroSubtitle")}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in slide-in-from-bottom-6 duration-700 delay-200">
               <Button
@@ -73,10 +111,10 @@ const Index = () => {
                 className="h-12 px-8 text-lg"
                 onClick={() => (isAuthenticated ? navigate("/dashboard") : goSso("register"))}
               >
-                {isAuthenticated ? "继续创作" : "免费开始"} <ArrowRight className="ml-2 h-5 w-5" />
+                {isAuthenticated ? t("index.continueCreating") : t("index.freeStart")} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button size="lg" variant="outline" className="h-12 px-8 text-lg" onClick={() => setDemoOpen(true)}>
-                查看演示
+                {t("index.viewDemo")}
               </Button>
             </div>
           </div>
@@ -90,27 +128,27 @@ const Index = () => {
                 <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400">
                   <BookOpen className="h-6 w-6" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">结构化大纲</h3>
+                <h3 className="text-xl font-bold mb-3">{t("index.featureOutline")}</h3>
                 <p className="text-muted-foreground">
-                  可视化的章节与场景管理，拖拽排序，自动检测逻辑漏洞，确保故事节奏张弛有度。
+                  {t("index.featureOutlineDesc")}
                 </p>
               </div>
               <div className="bg-card p-8 rounded-xl border shadow-sm hover:shadow-md transition-all">
                 <div className="h-12 w-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-6 text-purple-600 dark:text-purple-400">
                   <Globe className="h-6 w-6" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">世界观构建</h3>
+                <h3 className="text-xl font-bold mb-3">{t("index.featureWorld")}</h3>
                 <p className="text-muted-foreground">
-                  模块化的世界设定工具，从地理到魔法体系，AI 自动补全细节并确保设定不冲突。
+                  {t("index.featureWorldDesc")}
                 </p>
               </div>
               <div className="bg-card p-8 rounded-xl border shadow-sm hover:shadow-md transition-all">
                 <div className="h-12 w-12 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center mb-6 text-amber-600 dark:text-amber-400">
                   <Zap className="h-6 w-6" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">智能润色</h3>
+                <h3 className="text-xl font-bold mb-3">{t("index.featurePolish")}</h3>
                 <p className="text-muted-foreground">
-                  一键扩写、润色、转换风格。内置多种网文风格模型，让你的文字更具感染力。
+                  {t("index.featurePolishDesc")}
                 </p>
               </div>
             </div>
@@ -120,27 +158,23 @@ const Index = () => {
 
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
         <div className="container mx-auto px-4">
-          <p>&copy; 2026 AINovel. All rights reserved.</p>
+          <p>{t("index.copyright")}</p>
         </div>
       </footer>
 
       <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>AINovel 产品演示</DialogTitle>
-            <DialogDescription>从一句话创意到可编辑正文的完整工作流。</DialogDescription>
+            <DialogTitle>{t("index.demoTitle")}</DialogTitle>
+            <DialogDescription>{t("index.demoDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-3">
-            {["构思与反转", "大纲与世界观", "正文与质量门禁"].map((title, index) => (
-              <div key={title} className="rounded-lg border bg-muted/30 p-4">
+            {demoSections.map((section, index) => (
+              <div key={section.titleKey} className="rounded-lg border bg-muted/30 p-4">
                 <div className="mb-2 text-xs font-semibold text-primary">0{index + 1}</div>
-                <div className="font-medium">{title}</div>
+                <div className="font-medium">{t(section.titleKey)}</div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {index === 0
-                    ? "输入核心创意，生成结构骨架、双轨反转和伏笔链。"
-                    : index === 1
-                      ? "把规划落地为章节场景，并保持世界设定一致。"
-                      : "生成、编辑、诊断和导出正文，关键状态始终可追踪。"}
+                  {t(section.descKey)}
                 </p>
               </div>
             ))}

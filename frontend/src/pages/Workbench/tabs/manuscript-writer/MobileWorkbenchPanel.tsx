@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Download, Loader2, Save, Sparkles } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import TiptapEditor from "@/components/editor/TiptapEditor";
@@ -94,18 +95,19 @@ export function MobileWorkbenchPanel({
   sidebarTab,
   versions,
 }: MobileWorkbenchPanelProps) {
+  const { t } = useTranslation();
   return (
     <Tabs value={mobilePane} onValueChange={(value) => onChangeMobilePane(value as MobilePane)} className="h-full rounded-lg border bg-background p-2">
       <TabsList className="grid grid-cols-3">
-        <TabsTrigger value="outline">大纲</TabsTrigger>
-        <TabsTrigger value="editor">编辑</TabsTrigger>
-        <TabsTrigger value="sidebar">参考</TabsTrigger>
+        <TabsTrigger value="outline">{t("mobilePanel.outline")}</TabsTrigger>
+        <TabsTrigger value="editor">{t("mobilePanel.editor")}</TabsTrigger>
+        <TabsTrigger value="sidebar">{t("mobilePanel.reference")}</TabsTrigger>
       </TabsList>
       <TabsContent value="outline" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
         <ScrollArea className="h-full rounded border p-2">
           {outlineChapters.map((chapter, chapterIndex) => (
             <div key={chapter.id} className="mb-2">
-              <div className="text-xs font-semibold text-muted-foreground mb-1">{`第${chapterIndex + 1}章 ${chapter.title}`}</div>
+              <div className="text-xs font-semibold text-muted-foreground mb-1">{t("mobilePanel.chapterTitle", { count: chapterIndex + 1, title: chapter.title })}</div>
               <div className="space-y-1">
                 {chapter.scenes.map((scene, sceneIndex) => (
                   <button
@@ -127,9 +129,9 @@ export function MobileWorkbenchPanel({
       <TabsContent value="editor" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
         <div className="flex h-full min-h-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2 rounded border bg-muted/30 p-2">
-            <Select value={generationMode} onValueChange={(value) => onSetGenerationMode(value as "fast" | "crafted")}><SelectTrigger className="h-8 w-[108px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fast">快速生成</SelectItem><SelectItem value="crafted">精雕生成</SelectItem></SelectContent></Select>
-            <Button size="sm" onClick={() => void onGenerateScene()} disabled={!selectedManuscriptId || !selectedSceneId || isGenerating}>{isGenerating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}生成</Button>
-            <Button size="sm" variant="outline" onClick={() => void onManualSave()} disabled={!selectedManuscriptId || !selectedSceneId || isSaving}>{isSaving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}保存</Button>
+            <Select value={generationMode} onValueChange={(value) => onSetGenerationMode(value as "fast" | "crafted")}><SelectTrigger className="h-8 w-[108px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="fast">{t("mobilePanel.fastGenerate")}</SelectItem><SelectItem value="crafted">{t("mobilePanel.craftedGenerate")}</SelectItem></SelectContent></Select>
+            <Button size="sm" onClick={() => void onGenerateScene()} disabled={!selectedManuscriptId || !selectedSceneId || isGenerating}>{isGenerating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1 h-3.5 w-3.5" />}{t("mobilePanel.generate")}</Button>
+            <Button size="sm" variant="outline" onClick={() => void onManualSave()} disabled={!selectedManuscriptId || !selectedSceneId || isSaving}>{isSaving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}{t("common.save")}</Button>
             <G2EvaluationSubmitDialog manuscriptId={selectedManuscriptId} sceneId={selectedSceneId} />
           </div>
           <div className="min-h-0 flex-1 border rounded overflow-hidden">
@@ -148,9 +150,9 @@ export function MobileWorkbenchPanel({
         <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
           <TabsList className="grid grid-cols-4">
             <TabsTrigger value="copilot">AI</TabsTrigger>
-            <TabsTrigger value="plot">剧情</TabsTrigger>
-            <TabsTrigger value="version">版本</TabsTrigger>
-            <TabsTrigger value="export">导出</TabsTrigger>
+            <TabsTrigger value="plot">{t("mobilePanel.plot")}</TabsTrigger>
+            <TabsTrigger value="version">{t("mobilePanel.version")}</TabsTrigger>
+            <TabsTrigger value="export">{t("mobilePanel.export")}</TabsTrigger>
           </TabsList>
           <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
             <CopilotSidebar context={contextData} className="h-full border-none" />
@@ -159,17 +161,17 @@ export function MobileWorkbenchPanel({
             <div className="flex gap-2 mb-2">
               <Button size="sm" variant="outline" onClick={() => void onRunSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
                 {isSlopBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                文本
+                {t("mobilePanel.text")}
               </Button>
               <Button size="sm" variant="outline" onClick={() => void onRunPlotDiagnosis()} disabled={isPlotBusy || !selectedSceneId || !selectedManuscriptId}>
                 {isPlotBusy ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : null}
-                剧情
+                {t("mobilePanel.plot")}
               </Button>
               <Button size="sm" variant="secondary" onClick={() => void onGeneratePlotRevisionCandidate()} disabled={isPlotRevisionBusy || !selectedPlotRun}>
-                候选
+                {t("mobilePanel.candidate")}
               </Button>
               <Button size="sm" onClick={() => void onApplyPlotRevision()} disabled={isPlotRevisionBusy || !selectedPlotRun?.revisionCandidateText || selectedPlotRun?.revisionApplied}>
-                采纳
+                {t("mobilePanel.adopt")}
               </Button>
             </div>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
@@ -177,10 +179,10 @@ export function MobileWorkbenchPanel({
                 <div className="rounded border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <span>{qualityStatusText(selectedQualityRun)}</span>
-                    <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>风险 {selectedQualityRun?.overallRiskScore ?? "-"}</Badge>
+                    <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>{t("mobilePanel.risk", { score: selectedQualityRun?.overallRiskScore ?? "-" })}</Badge>
                   </div>
                   {!!selectedQualityRun?.safeClaim && <div className="mt-1 text-muted-foreground">{selectedQualityRun.safeClaim}</div>}
-                  {!!selectedQualityRun?.evidenceLevel && <div className="mt-1 text-muted-foreground">证据等级 {selectedQualityRun.evidenceLevel}</div>}
+                  {!!selectedQualityRun?.evidenceLevel && <div className="mt-1 text-muted-foreground">{t("mobilePanel.evidenceLevel", { level: selectedQualityRun.evidenceLevel })}</div>}
                 </div>
                 {(selectedQualityRun?.issues || []).slice(0, 3).map((issue) => (
                   <div key={issue.id} className="rounded border p-2">
@@ -192,7 +194,7 @@ export function MobileWorkbenchPanel({
                 <div className="rounded border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <span>{plotStatusText(selectedPlotRun)}</span>
-                    <Badge variant="outline" className={plotStatusClass(selectedPlotRun)}>风险 {selectedPlotRun?.overallRiskScore ?? "-"}</Badge>
+                    <Badge variant="outline" className={plotStatusClass(selectedPlotRun)}>{t("mobilePanel.risk", { score: selectedPlotRun?.overallRiskScore ?? "-" })}</Badge>
                   </div>
                   {!!selectedPlotRun?.summary && <div className="mt-1 text-muted-foreground">{selectedPlotRun.summary}</div>}
                 </div>
@@ -209,7 +211,7 @@ export function MobileWorkbenchPanel({
             </ScrollArea>
           </TabsContent>
           <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
-            <Button size="sm" variant="outline" className="mb-2" onClick={() => void onLoadVersions()}>刷新版本</Button>
+            <Button size="sm" variant="outline" className="mb-2" onClick={() => void onLoadVersions()}>{t("mobilePanel.refreshVersions")}</Button>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
               {versions.map((version) => (
                 <div key={version.id} className="rounded border p-2 mb-2">
@@ -220,8 +222,8 @@ export function MobileWorkbenchPanel({
             </ScrollArea>
           </TabsContent>
           <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
-            <p className="mb-2 text-muted-foreground">导出任务与下载地址保留 24 小时。</p>
-            <Button size="sm" onClick={() => void onCreateExportJob()} className="mb-2">创建导出任务</Button>
+            <p className="mb-2 text-muted-foreground">{t("exportPanel.retentionNoteShort")}</p>
+            <Button size="sm" onClick={() => void onCreateExportJob()} className="mb-2">{t("exportPanel.createExportJob")}</Button>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
               {exportJobs.map((job) => (
                 <div key={job.id} className="flex items-center justify-between gap-2 rounded border p-2 mb-2">
@@ -235,7 +237,7 @@ export function MobileWorkbenchPanel({
                     >
                       {exportDownloadingJobId === String(job.id)
                         ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                        : <Download className="mr-1 h-3.5 w-3.5" />} 下载
+                        : <Download className="mr-1 h-3.5 w-3.5" />} {t("exportPanel.download")}
                     </Button>
                   ) : null}
                 </div>

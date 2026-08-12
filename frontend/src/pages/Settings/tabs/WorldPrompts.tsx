@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { WorldPromptMetadata, WorldPromptTemplates } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, HelpCircle, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const WorldPrompts = () => {
   const [prompts, setPrompts] = useState<WorldPromptTemplates | null>(null);
@@ -26,6 +28,7 @@ const WorldPrompts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     Promise.all([api.prompts.getWorld(), api.prompts.getWorldMetadata()]).then(([templates, nextMetadata]) => {
@@ -39,7 +42,9 @@ const WorldPrompts = () => {
     setIsSaving(true);
     try {
       await api.prompts.updateWorld(prompts);
-      toast({ title: "世界观模板已更新" });
+      toast({ title: t("worldPrompts.saved") });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
     }
@@ -50,13 +55,15 @@ const WorldPrompts = () => {
     try {
       const defaults = await api.prompts.resetWorld();
       setPrompts(defaults);
-      toast({ title: "世界观模板已恢复默认" });
+      toast({ title: t("worldPrompts.resetDone") });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: t("worldPrompts.resetFailed"), description: localizedErrorMessage(error, "worldPrompts.resetFailed") });
     } finally {
       setIsResetting(false);
     }
   };
 
-  if (!prompts) return <div>Loading...</div>;
+  if (!prompts) return <div>{t("common.loading")}</div>;
 
   const moduleLabels = new Map(metadata?.modules.map((module) => [module.key, module.label]) ?? []);
   const moduleFieldLabels = new Map(
@@ -69,24 +76,24 @@ const WorldPrompts = () => {
         <Button variant="outline" size="sm" asChild>
           <Link to="/settings/world-prompts/help">
             <HelpCircle className="mr-2 h-4 w-4" />
-            查看世界观变量说明
+            {t("worldPrompts.viewVariables")}
           </Link>
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm" disabled={isResetting}>
               {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              恢复默认
+              {t("worldPrompts.restoreDefault")}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>恢复默认世界观模板？</AlertDialogTitle>
-              <AlertDialogDescription>当前世界观模块、整合和字段精修模板会被系统默认模板覆盖。</AlertDialogDescription>
+              <AlertDialogTitle>{t("worldPrompts.resetTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>{t("worldPrompts.resetDesc")}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={handleReset}>恢复默认</AlertDialogAction>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReset}>{t("worldPrompts.restoreDefault")}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -94,9 +101,9 @@ const WorldPrompts = () => {
 
       <Tabs defaultValue="modules">
         <TabsList>
-          <TabsTrigger value="modules">模块生成模板</TabsTrigger>
-          <TabsTrigger value="final">最终整合模板</TabsTrigger>
-          <TabsTrigger value="refine">字段精修模板</TabsTrigger>
+          <TabsTrigger value="modules">{t("worldPrompts.tabModules")}</TabsTrigger>
+          <TabsTrigger value="final">{t("worldPrompts.tabFinal")}</TabsTrigger>
+          <TabsTrigger value="refine">{t("worldPrompts.tabRefine")}</TabsTrigger>
         </TabsList>
         
         <TabsContent value="modules" className="space-y-4 mt-4">
@@ -142,8 +149,8 @@ const WorldPrompts = () => {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>最终整合模板</CardTitle>
-                <CardDescription>当前默认配置未启用单独的最终整合模板。</CardDescription>
+                <CardTitle>{t("worldPrompts.finalTemplateTitle")}</CardTitle>
+                <CardDescription>{t("worldPrompts.finalTemplateDesc")}</CardDescription>
               </CardHeader>
             </Card>
           )}
@@ -152,8 +159,8 @@ const WorldPrompts = () => {
         <TabsContent value="refine" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>字段精修</CardTitle>
-              <CardDescription>用于优化单个设定字段的提示词。</CardDescription>
+              <CardTitle>{t("worldPrompts.fieldRefineTitle")}</CardTitle>
+              <CardDescription>{t("worldPrompts.fieldRefineDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea 
@@ -169,7 +176,7 @@ const WorldPrompts = () => {
       <div className="sticky bottom-6 flex justify-end bg-background/80 backdrop-blur p-4 border rounded-lg shadow-lg">
         <Button onClick={handleSave} disabled={isSaving} size="lg">
           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          保存所有修改
+          {t("worldPrompts.saveAll")}
         </Button>
       </div>
     </div>

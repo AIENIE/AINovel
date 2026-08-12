@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ const sceneStatusClass: Record<SceneStatus, string> = {
 };
 
 const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptId, initialSceneId, onSelectionChange }: ManuscriptWriterProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState<number | null>(null);
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
@@ -369,9 +371,9 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
       {isMobile ? (
         <div className="flex h-full min-w-0 flex-col gap-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <Select value={selectedStoryId} onValueChange={setSelectedStoryId}><SelectTrigger><SelectValue placeholder="选择故事" /></SelectTrigger><SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent></Select>
-            <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}><SelectTrigger><SelectValue placeholder={outlines.length ? "选择大纲" : "请先在大纲编排中新建"} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select>
-            <Select value={selectedManuscriptId} onValueChange={setSelectedManuscriptId} disabled={!selectedOutlineId}><SelectTrigger><SelectValue placeholder={manuscripts.length ? "选择稿件" : "请先新建稿件"} /></SelectTrigger><SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent></Select>
+            <Select value={selectedStoryId} onValueChange={setSelectedStoryId}><SelectTrigger><SelectValue placeholder={t("common.selectStory")} /></SelectTrigger><SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent></Select>
+            <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}><SelectTrigger><SelectValue placeholder={outlines.length ? t("common.selectOutline") : t("manuscript.createOutlineFirst")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select>
+            <Select value={selectedManuscriptId} onValueChange={setSelectedManuscriptId} disabled={!selectedOutlineId}><SelectTrigger><SelectValue placeholder={manuscripts.length ? t("common.selectManuscript") : t("manuscript.createManuscriptFirst")} /></SelectTrigger><SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent></Select>
           </div>
           <div className="min-h-0 flex-1">
           <MobileWorkbenchPanel

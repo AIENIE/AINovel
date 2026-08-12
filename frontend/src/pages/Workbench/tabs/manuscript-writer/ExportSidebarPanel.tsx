@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,9 +68,10 @@ export function ExportSidebarPanel({
   txtEncoding,
   updateTemplate,
 }: ExportSidebarPanelProps) {
+  const { t } = useTranslation();
   return (
     <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
-      <p className="mb-2 text-xs text-muted-foreground">导出任务与下载地址保留 24 小时；过期后请重新创建任务。</p>
+      <p className="mb-2 text-xs text-muted-foreground">{t("exportPanel.retentionNote")}</p>
       <div className="grid grid-cols-2 gap-2 mb-2">
         <Select value={exportFormat} onValueChange={setExportFormat}>
           <SelectTrigger className="h-8">
@@ -84,7 +86,7 @@ export function ExportSidebarPanel({
         </Select>
         <Select value={exportTemplateId} onValueChange={setExportTemplateId}>
           <SelectTrigger className="h-8">
-            <SelectValue placeholder="模板" />
+            <SelectValue placeholder={t("exportPanel.template")} />
           </SelectTrigger>
           <SelectContent>
             {exportTemplates.map((tpl) => (
@@ -96,20 +98,20 @@ export function ExportSidebarPanel({
         </Select>
       </div>
       <div className="grid grid-cols-2 gap-2 mb-2">
-        <Input className="h-8" value={chapterRange} onChange={(event) => setChapterRange(event.target.value)} placeholder="章节范围：如 3-7" />
-        <Input className="h-8" value={exportAuthorName} onChange={(event) => setExportAuthorName(event.target.value)} placeholder="作者名（标题页）" />
+        <Input className="h-8" value={chapterRange} onChange={(event) => setChapterRange(event.target.value)} placeholder={t("exportPanel.chapterRange")} />
+        <Input className="h-8" value={exportAuthorName} onChange={(event) => setExportAuthorName(event.target.value)} placeholder={t("exportPanel.authorName")} />
       </div>
       <div className="grid grid-cols-2 gap-2 mb-2 rounded border p-2 text-xs">
         <label className="flex items-center gap-2">
           <Checkbox checked={includeTitlePage} onCheckedChange={(checked) => setIncludeTitlePage(checked === true)} />
-          标题页
+          {t("exportPanel.titlePage")}
         </label>
         <label className="flex items-center gap-2">
           <Checkbox checked={includeTableOfContents} onCheckedChange={(checked) => setIncludeTableOfContents(checked === true)} />
-          目录
+          {t("exportPanel.toc")}
         </label>
         <div className="col-span-2 grid grid-cols-[56px_1fr] items-center gap-2">
-          <span>编码</span>
+          <span>{t("exportPanel.encoding")}</span>
           <Select value={txtEncoding} onValueChange={setTxtEncoding}>
             <SelectTrigger className="h-8">
               <SelectValue />
@@ -122,17 +124,17 @@ export function ExportSidebarPanel({
         </div>
       </div>
       <div className="rounded border p-2 space-y-2 mb-2 text-xs">
-        <div className="font-medium">模板管理</div>
+        <div className="font-medium">{t("exportPanel.templateManage")}</div>
         <div className="grid grid-cols-2 gap-2">
-          <Input className="h-8" value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="模板名称" />
-          <Input className="h-8" value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="模板说明" />
+          <Input className="h-8" value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder={t("exportPanel.templateName")} />
+          <Input className="h-8" value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder={t("exportPanel.templateDesc")} />
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => void createTemplate()}>
-            新建模板
+            {t("exportPanel.newTemplate")}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => void createExportJob()}>
-            创建导出任务
+            {t("exportPanel.createExportJob")}
           </Button>
         </div>
         <div className="space-y-1">
@@ -141,7 +143,7 @@ export function ExportSidebarPanel({
               <div className="truncate mr-2">{template.name}</div>
               <div className="flex gap-1">
                 <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => void updateTemplate(template)} disabled={!template.userId}>
-                  更新
+                  {t("common.update")}
                 </Button>
                 <Button
                   size="sm"
@@ -150,7 +152,7 @@ export function ExportSidebarPanel({
                   onClick={() => void deleteTemplate(String(template.id))}
                   disabled={!template.userId}
                 >
-                  删除
+                  {t("common.delete")}
                 </Button>
               </div>
             </div>
@@ -177,7 +179,7 @@ export function ExportSidebarPanel({
                 {exportDownloadingJobId === String(job.id)
                   ? <Loader2 className="h-3 w-3 animate-spin" />
                   : <Download className="h-3 w-3" />}
-                下载
+                {t("exportPanel.download")}
               </Button>
             )}
           </div>

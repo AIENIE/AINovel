@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { PenTool, Globe, ArrowRight, BookOpen, Database } from "lucide-react";
@@ -8,6 +9,7 @@ import { UserSummary } from "@/types";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState<UserSummary | null>(null);
 
   useEffect(() => {
@@ -22,10 +24,10 @@ const Dashboard = () => {
       <header className="h-16 border-b flex items-center justify-between px-6 bg-background/95 backdrop-blur fixed top-0 w-full z-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">AI</div>
-          <span className="font-bold text-lg">工作台</span>
+          <span className="font-bold text-lg">{t("dashboard.headerTitle")}</span>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground hidden md:block">欢迎回来，{user?.username || "作家"}</div>
+          <div className="text-sm text-muted-foreground hidden md:block">{t("dashboard.welcome", { name: user?.username || t("dashboard.writer") })}</div>
           <div className="h-8 w-8 rounded-full bg-secondary"></div>
         </div>
       </header>
@@ -42,20 +44,20 @@ const Dashboard = () => {
               <PenTool className="w-10 h-10 text-purple-600" />
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight group-hover:text-purple-600 transition-colors">小说创作</h2>
-            <p className="text-muted-foreground max-w-xs mb-8 text-lg">线性叙事的舞台。管理你的小说项目，编排大纲与正文。</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight group-hover:text-purple-600 transition-colors">{t("dashboard.novels")}</h2>
+            <p className="text-muted-foreground max-w-xs mb-8 text-lg">{t("dashboard.novelsDesc")}</p>
 
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
-                <span>{novelCount === 0 ? "开始你的第一部作品" : `${novelCount} 部作品`}</span>
+                <span>{novelCount === 0 ? t("dashboard.startFirstNovel") : t("dashboard.novelCount", { count: novelCount, value: novelCount })}</span>
               </div>
               <div className="w-px h-4 bg-border" />
-              <div>{(stats?.totalWords ?? 0).toLocaleString()} 字</div>
+              <div>{t("dashboard.wordCount", { count: (stats?.totalWords ?? 0), value: (stats?.totalWords ?? 0).toLocaleString() })}</div>
             </div>
 
             <Button className="rounded-full px-8 h-12 text-base shadow-lg shadow-purple-500/20 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-              进入小说库 <ArrowRight className="ml-2 h-4 w-4" />
+              {t("dashboard.enterNovels")} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </Link>
@@ -68,20 +70,20 @@ const Dashboard = () => {
               <Globe className="w-10 h-10 text-blue-600" />
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight group-hover:text-blue-600 transition-colors">世界构建</h2>
-            <p className="text-muted-foreground max-w-xs mb-8 text-lg">网状设定的百科。独立管理你的世界观，构建逻辑自洽的宇宙。</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight group-hover:text-blue-600 transition-colors">{t("dashboard.worlds")}</h2>
+            <p className="text-muted-foreground max-w-xs mb-8 text-lg">{t("dashboard.worldsDesc")}</p>
 
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
-                <span>{worldCount === 0 ? "开始构建你的第一个世界" : `${worldCount} 个世界`}</span>
+                <span>{worldCount === 0 ? t("dashboard.startFirstWorld") : t("dashboard.worldCount", { count: worldCount, value: worldCount })}</span>
               </div>
               <div className="w-px h-4 bg-border" />
-              <div>{(stats?.totalEntries ?? 0).toLocaleString()} 条设定</div>
+              <div>{t("dashboard.entryCount", { count: (stats?.totalEntries ?? 0), value: (stats?.totalEntries ?? 0).toLocaleString() })}</div>
             </div>
 
             <Button variant="outline" className="rounded-full px-8 h-12 text-base border-blue-200 hover:bg-blue-50 hover:text-blue-600 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-              进入造物主模式 <ArrowRight className="ml-2 h-4 w-4" />
+              {t("dashboard.enterWorlds")} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </Link>
@@ -91,4 +93,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-

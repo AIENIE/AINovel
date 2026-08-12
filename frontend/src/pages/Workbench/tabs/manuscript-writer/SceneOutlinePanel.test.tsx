@@ -73,6 +73,8 @@ describe("SceneOutlinePanel", () => {
         onMoveChapter={vi.fn()}
         onMoveScene={vi.fn()}
         onOpenBatchExport={vi.fn()}
+        onCreateOutline={vi.fn()}
+        onCreateManuscript={vi.fn()}
         onSelectManuscript={vi.fn()}
         onSelectOutline={vi.fn()}
         onSelectStory={vi.fn()}
@@ -102,9 +104,8 @@ describe("SceneOutlinePanel", () => {
 
     expect(screen.getByText("主线故事")).toBeTruthy();
     expect(screen.getByText("已多选 2 个场景")).toBeTruthy();
-    expect(screen.getByText("第1章 开端")).toBeTruthy();
+    expect(screen.getByText("第 1 章 开端")).toBeTruthy();
     expect(screen.getByText("雨夜抵达")).toBeTruthy();
     expect(screen.getByText("Sc.2")).toBeTruthy();
-    expect(screen.getByText("意见冲突")).toBeTruthy();
-  });
+    expect(screen.getByText("意见冲突")).toBeTruthy();  });
 });

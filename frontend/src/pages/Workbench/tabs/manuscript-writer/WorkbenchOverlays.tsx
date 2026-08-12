@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Focus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
@@ -41,11 +42,12 @@ export function WorkbenchOverlays({
   sceneRows,
   shortcuts,
 }: WorkbenchOverlaysProps) {
+  const { t } = useTranslation();
   return (
     <>
       {!focusMode && !isMobile && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1">
-          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onToggleLeftPanelOpen} title={leftPanelOpen ? "收起左栏" : "展开左栏"}>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onToggleLeftPanelOpen} title={leftPanelOpen ? t("overlays.collapseLeft") : t("overlays.expandLeft")}>
             {leftPanelOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
           </Button>
           <Button
@@ -53,7 +55,7 @@ export function WorkbenchOverlays({
             variant="ghost"
             className="h-7 w-7"
             onClick={onToggleFocusMode}
-            title={focusMode ? "退出专注" : "专注模式"}
+            title={focusMode ? t("overlays.exitFocus") : t("overlays.focusMode")}
           >
             <Focus className="h-4 w-4" />
           </Button>
@@ -61,18 +63,18 @@ export function WorkbenchOverlays({
       )}
 
       <CommandDialog open={isCommandOpen} onOpenChange={onChangeCommandOpen}>
-        <CommandInput placeholder="输入命令或场景..." value={commandQuery} onValueChange={onChangeCommandQuery} />
+        <CommandInput placeholder={t("overlays.commandPlaceholder")} value={commandQuery} onValueChange={onChangeCommandQuery} />
         <CommandList>
-          <CommandEmpty>没有匹配命令</CommandEmpty>
-          <CommandGroup heading="快捷操作">
-            <CommandItem onSelect={() => { onChangeCommandOpen(false); void onHandleManualSave(); }}>保存当前场景<CommandShortcut>{shortcuts.save}</CommandShortcut></CommandItem>
-            <CommandItem onSelect={() => { onChangeCommandOpen(false); onToggleSidebarOpen(); }}>切换右侧面板<CommandShortcut>{shortcuts.toggle_right_panel}</CommandShortcut></CommandItem>
-            <CommandItem onSelect={() => { onChangeCommandOpen(false); onToggleFocusMode(); }}>切换专注模式<CommandShortcut>{shortcuts.focus_mode}</CommandShortcut></CommandItem>
-            <CommandItem onSelect={() => { onChangeCommandOpen(false); onJumpScene(1); }}>下一场景<CommandShortcut>{shortcuts.next_chapter}</CommandShortcut></CommandItem>
-            <CommandItem onSelect={() => { onChangeCommandOpen(false); onJumpScene(-1); }}>上一场景<CommandShortcut>{shortcuts.prev_chapter}</CommandShortcut></CommandItem>
+          <CommandEmpty>{t("overlays.noMatch")}</CommandEmpty>
+          <CommandGroup heading={t("overlays.quickActions")}>
+            <CommandItem onSelect={() => { onChangeCommandOpen(false); void onHandleManualSave(); }}>{t("overlays.saveCurrentScene")}<CommandShortcut>{shortcuts.save}</CommandShortcut></CommandItem>
+            <CommandItem onSelect={() => { onChangeCommandOpen(false); onToggleSidebarOpen(); }}>{t("overlays.toggleSidebar")}<CommandShortcut>{shortcuts.toggle_right_panel}</CommandShortcut></CommandItem>
+            <CommandItem onSelect={() => { onChangeCommandOpen(false); onToggleFocusMode(); }}>{t("overlays.toggleFocus")}<CommandShortcut>{shortcuts.focus_mode}</CommandShortcut></CommandItem>
+            <CommandItem onSelect={() => { onChangeCommandOpen(false); onJumpScene(1); }}>{t("overlays.nextScene")}<CommandShortcut>{shortcuts.next_chapter}</CommandShortcut></CommandItem>
+            <CommandItem onSelect={() => { onChangeCommandOpen(false); onJumpScene(-1); }}>{t("overlays.prevScene")}<CommandShortcut>{shortcuts.prev_chapter}</CommandShortcut></CommandItem>
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="场景跳转">
+          <CommandGroup heading={t("overlays.sceneJump")}>
             {sceneRows.map((row) => (
               <CommandItem key={row.id} onSelect={() => { onSelectCommandScene(row.id); onChangeCommandOpen(false); }}>
                 {row.displayName}
@@ -80,7 +82,7 @@ export function WorkbenchOverlays({
             ))}
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="角色检索">
+          <CommandGroup heading={t("overlays.characterSearch")}>
             {characters.map((character) => (
               <CommandItem
                 key={character.id}
@@ -89,7 +91,7 @@ export function WorkbenchOverlays({
                   onOpenCharacterContext(character.name || "");
                 }}
               >
-                {character.name || "未命名角色"}
+                {character.name || t("overlays.unnamedCharacter")}
               </CommandItem>
             ))}
           </CommandGroup>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
 import { Archive, ArrowDownUp, Check, Clock3, Edit, Flag, GitBranch, RotateCcw, Split, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -87,31 +88,32 @@ export function VersionSidebarPanel({
 }: VersionSidebarPanelProps) {
   const [editingBranchId, setEditingBranchId] = useState("");
   const [editingBranchName, setEditingBranchName] = useState("");
+  const { t } = useTranslation();
   return (
     <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
       <div className="space-y-2 mb-2">
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => void loadVersions()}>
-            刷新
+            {t("common.refresh")}
           </Button>
           <Button size="sm" onClick={() => void createManualVersion()} disabled={!selectedManuscriptId}>
             <Flag className="h-3.5 w-3.5 mr-1" />
-            检查点
+            {t("versionPanel.checkpoint")}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => void runVersionDiff()} disabled={selectedDiffVersions.length !== 2}>
-            对比
+            {t("versionPanel.diff")}
           </Button>
         </div>
         <div className="rounded border p-2 space-y-2 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-medium">分支管理</span>
-            <Badge variant="outline">当前 {currentBranchId ? currentBranchId.slice(0, 8) : "-"}</Badge>
+            <span className="font-medium">{t("versionPanel.branchManage")}</span>
+            <Badge variant="outline">{t("versionPanel.current")} {currentBranchId ? currentBranchId.slice(0, 8) : "-"}</Badge>
           </div>
           <div className="flex gap-2">
-            <Input value={newBranchName} onChange={(event) => setNewBranchName(event.target.value)} placeholder="分支名称" className="h-8" />
+            <Input value={newBranchName} onChange={(event) => setNewBranchName(event.target.value)} placeholder={t("versionPanel.branchName")} className="h-8" />
             <Button size="sm" onClick={() => void createBranch()}>
               <GitBranch className="h-3.5 w-3.5 mr-1" />
-              新建分支
+              {t("versionPanel.newBranch")}
             </Button>
           </div>
           <div className="space-y-1">
@@ -123,16 +125,16 @@ export function VersionSidebarPanel({
                 </div>}
                 {editingBranchId === String(branch.id) ? <><Button size="icon" variant="ghost" className="h-7 w-7" disabled={!editingBranchName.trim()} onClick={async () => { await updateBranch(String(branch.id), { name: editingBranchName.trim() }); setEditingBranchId(""); }}><Check className="h-3.5 w-3.5" /></Button><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingBranchId("")}><X className="h-3.5 w-3.5" /></Button></> : <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingBranchId(String(branch.id)); setEditingBranchName(String(branch.name || "")); }}><Edit className="h-3.5 w-3.5" /></Button>}
                 <Button size="sm" variant="outline" className="h-6 px-2" onClick={() => void checkoutBranch(String(branch.id))} disabled={String(branch.status) !== "active"}>
-                  切换
+                  {t("versionPanel.switch")}
                 </Button>
-                {!branch.isMain && String(branch.status) === "active" ? <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="废弃分支" onClick={() => { if (confirm(`确定废弃分支「${branch.name}」吗？历史版本会保留。`)) void abandonBranch(String(branch.id)); }}><Archive className="h-3.5 w-3.5" /></Button> : null}
+                {!branch.isMain && String(branch.status) === "active" ? <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title={t("versionPanel.abandonBranch")} onClick={() => { if (confirm(t("versionPanel.abandonBranchConfirm", { name: branch.name }))) void abandonBranch(String(branch.id)); }}><Archive className="h-3.5 w-3.5" /></Button> : null}
               </div>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Select value={mergeBranchId} onValueChange={setMergeBranchId}>
               <SelectTrigger className="h-8">
-                <SelectValue placeholder="选择分支" />
+                <SelectValue placeholder={t("versionPanel.selectBranch")} />
               </SelectTrigger>
               <SelectContent>
                 {branches
@@ -149,17 +151,17 @@ export function VersionSidebarPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="REPLACE_ALL">整体替换</SelectItem>
-                <SelectItem value="SCENE_SELECT">逐场景选择</SelectItem>
+                <SelectItem value="REPLACE_ALL">{t("versionPanel.replaceAll")}</SelectItem>
+                <SelectItem value="SCENE_SELECT">{t("versionPanel.sceneSelect")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Button size="sm" variant="secondary" onClick={() => void mergeSelectedBranch()} disabled={!mergeBranchId}>
-            合并到主线
+            {t("versionPanel.mergeToMain")}
           </Button>
           {!!mergeConflicts.length && (
             <div className="space-y-2 rounded border border-amber-300 bg-amber-50 p-2">
-              <div className="text-amber-700">检测到冲突，请逐场景选择保留版本。</div>
+              <div className="text-amber-700">{t("versionPanel.conflictDetected")}</div>
               {mergeConflicts.map((conflict) => (
                 <div key={conflict.sceneId} className="rounded border p-2">
                   <div className="font-medium">{conflict.sceneId}</div>
@@ -170,17 +172,17 @@ export function VersionSidebarPanel({
                     }
                   >
                     <SelectTrigger className="h-7 mt-1">
-                      <SelectValue placeholder="选择保留主线或分支" />
+                      <SelectValue placeholder={t("versionPanel.selectKeepVersion")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="target">保留主线</SelectItem>
-                      <SelectItem value="source">保留分支</SelectItem>
+                      <SelectItem value="target">{t("versionPanel.keepMain")}</SelectItem>
+                      <SelectItem value="source">{t("versionPanel.keepBranch")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               ))}
               <Button size="sm" onClick={() => void mergeSelectedBranch(sceneResolutions)}>
-                提交冲突解决
+                {t("versionPanel.submitResolution")}
               </Button>
             </div>
           )}
@@ -196,20 +198,20 @@ export function VersionSidebarPanel({
             <div className="flex-1 rounded border p-2 space-y-1">
               <div className="flex items-center gap-2">
                 <Checkbox checked={selectedDiffVersions.includes(String(version.id))} onCheckedChange={() => toggleVersionSelection(String(version.id))} />
-                <span className="font-medium">{`v${Number(version.versionNumber || index + 1)} ${version.label || "未命名版本"}`}</span>
+                <span className="font-medium">{`v${Number(version.versionNumber || index + 1)} ${version.label || t("versionPanel.unnamed")}`}</span>
                 <Badge variant="outline">{snapshotTypeLabel(version.snapshotType)}</Badge>
                 <Button size="sm" variant="ghost" className="ml-auto h-6 px-2" onClick={() => void rollbackVersion(String(version.id))}>
                   <RotateCcw className="h-3 w-3 mr-1" />
-                  回滚
+                  {t("versionPanel.rollback")}
                 </Button>
               </div>
-              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${versionWordCount(version)} 字`}</div>
+              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${t("versionPanel.wordCount", { count: versionWordCount(version) })}`}</div>
             </div>
           </div>
         ))}
         {hasMoreVersions && (
           <Button size="sm" variant="outline" className="w-full h-7" onClick={() => setVersionVisibleCount((prev) => prev + versionPageSize)}>
-            加载更多版本
+            {t("versionPanel.loadMore")}
           </Button>
         )}
         {!!diffResult && (
@@ -217,20 +219,20 @@ export function VersionSidebarPanel({
             <div className="flex gap-1">
               <Button size="sm" variant={diffViewMode === "split" ? "default" : "outline"} className="h-6 px-2" onClick={() => setDiffViewMode("split")}>
                 <Split className="h-3 w-3 mr-1" />
-                并排
+                {t("versionPanel.split")}
               </Button>
               <Button size="sm" variant={diffViewMode === "unified" ? "default" : "outline"} className="h-6 px-2" onClick={() => setDiffViewMode("unified")}>
                 <ArrowDownUp className="h-3 w-3 mr-1" />
-                统一
+                {t("versionPanel.unified")}
               </Button>
               <Button size="sm" variant="secondary" className="h-6 px-2" onClick={() => void summarizeDiff()}>
-                AI 总结
+                {t("versionPanel.aiSummary")}
               </Button>
             </div>
             {!!aiDiffSummary && <div className="rounded bg-muted p-2">{aiDiffSummary}</div>}
             {(diffResult.changes || []).slice(0, 6).map((change: any) => (
               <div key={change.sceneId} className="rounded border p-2">
-                <div className="font-medium mb-1">场景 {change.sceneId}</div>
+                <div className="font-medium mb-1">{t("versionPanel.scene", { id: change.sceneId })}</div>
                 {diffViewMode === "split" ? (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="bg-rose-50/40 rounded p-1 whitespace-pre-wrap">{change.beforeContent || "<empty>"}</div>
@@ -248,7 +250,7 @@ export function VersionSidebarPanel({
         )}
         {!!autoSaveConfig && (
           <div className="rounded border p-2 text-xs space-y-2">
-            <div className="font-medium">自动快照</div>
+            <div className="font-medium">{t("versionPanel.autoSnapshot")}</div>
             <Input
               type="number"
               value={Number(autoSaveConfig.autoSaveIntervalSeconds || 300)}
@@ -262,7 +264,7 @@ export function VersionSidebarPanel({
               onChange={(event) => setAutoSaveConfig((prev: any) => ({ ...prev, maxAutoVersions: Number(event.target.value || 100) }))}
             />
             <Button size="sm" onClick={() => void saveAutoSaveConfig()}>
-              保存配置
+              {t("versionPanel.saveConfig")}
             </Button>
           </div>
         )}

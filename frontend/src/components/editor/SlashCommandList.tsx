@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ interface SlashCommandListProps {
 
 const SlashCommandList = forwardRef((props: SlashCommandListProps, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { t } = useTranslation();
 
   const selectItem = (index: number) => {
     const item = props.items[index];
@@ -49,7 +51,7 @@ const SlashCommandList = forwardRef((props: SlashCommandListProps, ref) => {
   return (
     <div className="z-50 min-w-[300px] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in zoom-in-95 duration-200">
       <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-        基础块
+        {t("editor.baseBlocks")}
       </div>
       {props.items.map((item, index) => (
         <Button

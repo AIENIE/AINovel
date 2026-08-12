@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, MoreHorizontal, Database, Activity, Trash2 } from "lucide-react";
@@ -16,6 +17,7 @@ type WorldCardStats = Record<string, { entries: number; completeness: number }>;
 
 const WorldManager = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [worlds, setWorlds] = useState<World[]>([]);
   const [stats, setStats] = useState<WorldCardStats>({});
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ const WorldManager = () => {
       })();
     } catch (e: any) {
       setLoading(false);
-      showError(e?.message || "加载失败");
+      showError(e, "errors.loadFailed");
     }
   };
 
@@ -66,13 +68,13 @@ const WorldManager = () => {
   }, []);
 
   const handleDelete = async (worldId: string) => {
-    if (!confirm("确认删除该世界草稿？仅草稿可删。")) return;
+    if (!confirm(t("worlds.deleteConfirm"))) return;
     try {
       await api.worlds.delete(worldId);
-      showSuccess("已删除");
+      showSuccess("worlds.deleted");
       refresh();
     } catch (e: any) {
-      showError(e?.message || "删除失败");
+      showError(e, "errors.deleteFailed");
     }
   };
 
@@ -87,11 +89,11 @@ const WorldManager = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">我的世界</h1>
+          <h1 className="text-xl font-bold">{t("worlds.title")}</h1>
         </div>
         <Link to="/worlds/create">
           <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-            <Plus className="mr-2 h-4 w-4" /> 新建世界
+            <Plus className="mr-2 h-4 w-4" /> {t("worlds.create")}
           </Button>
         </Link>
       </header>
@@ -103,12 +105,12 @@ const WorldManager = () => {
               <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Plus className="h-6 w-6 text-muted-foreground group-hover:text-blue-600" />
               </div>
-              <span className="font-medium text-muted-foreground group-hover:text-blue-600">构建新世界</span>
+              <span className="font-medium text-muted-foreground group-hover:text-blue-600">{t("worlds.createCard")}</span>
             </div>
           </Link>
 
-          {loading && <div className="col-span-full text-sm text-muted-foreground">加载中...</div>}
-          {!loading && displayWorlds.length === 0 && <div className="col-span-full text-sm text-muted-foreground">暂无世界，先创建一个吧。</div>}
+          {loading && <div className="col-span-full text-sm text-muted-foreground">{t("common.loading")}</div>}
+          {!loading && displayWorlds.length === 0 && <div className="col-span-full text-sm text-muted-foreground">{t("worlds.empty")}</div>}
 
           {displayWorlds.map((world) => {
             const s = stats[world.id];
@@ -132,10 +134,10 @@ const WorldManager = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/world-editor?id=${world.id}`)}>进入编辑</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/world-editor?id=${world.id}`)}>{t("worlds.enterEdit")}</DropdownMenuItem>
                         {world.status === "draft" && (
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(world.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" /> 删除草稿
+                            <Trash2 className="mr-2 h-4 w-4" /> {t("worlds.deleteDraft")}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -143,15 +145,15 @@ const WorldManager = () => {
                   </div>
 
                   <h3 className="font-bold text-lg mb-1 group-hover:text-blue-600 transition-colors">{world.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{world.tagline || "暂无简介"}</p>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{world.tagline || t("worlds.noTagline")}</p>
 
                   <div className="mt-auto grid grid-cols-2 gap-4 pt-4 border-t">
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">设定条目</div>
+                      <div className="text-xs text-muted-foreground mb-1">{t("worlds.entries")}</div>
                       <div className="font-mono font-medium">{entries}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground mb-1">完整度</div>
+                      <div className="text-xs text-muted-foreground mb-1">{t("worlds.completeness")}</div>
                       <div className="flex items-center gap-1 font-mono font-medium text-blue-600">
                         <Activity className="h-3 w-3" /> {completeness}%
                       </div>

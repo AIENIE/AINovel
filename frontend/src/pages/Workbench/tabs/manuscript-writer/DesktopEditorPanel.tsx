@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { History, Loader2, PanelRightClose, PanelRightOpen, Save, Sparkles, X, Wand2 } from "lucide-react";
 import TiptapEditor from "@/components/editor/TiptapEditor";
 import { Badge } from "@/components/ui/badge";
@@ -75,17 +76,18 @@ export function DesktopEditorPanel({
   sessionDurationSeconds,
   sessionNetWords,
 }: DesktopEditorPanelProps) {
+  const { t } = useTranslation();
   return (
     <div className="h-full flex flex-col min-w-0 transition-all duration-300">
       {!focusMode && (
         <div className="flex items-center justify-between mb-2 px-2 pt-2">
           <div className="text-sm text-muted-foreground">
-            {isSaving ? "正在保存..." : lastSavedAt ? `上次保存: ${lastSavedAt}` : "未保存"}
+            {isSaving ? t("editorPanel.saving") : lastSavedAt ? t("editorPanel.lastSavedAt", { time: lastSavedAt }) : t("editorPanel.unsaved")}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onOpenVersionPanel}><History className="mr-2 h-4 w-4" /> 历史版本</Button>
+            <Button variant="outline" size="sm" onClick={onOpenVersionPanel}><History className="mr-2 h-4 w-4" /> {t("editorPanel.history")}</Button>
             <Button size="sm" onClick={() => void onHandleManualSave()} disabled={!selectedManuscriptId || !selectedSceneId}>
-              <Save className="mr-2 h-4 w-4" /> 保存
+              <Save className="mr-2 h-4 w-4" /> {t("common.save")}
             </Button>
             <div className="flex rounded-md border overflow-hidden">
               <Button
@@ -94,10 +96,10 @@ export function DesktopEditorPanel({
                 className="rounded-none border-0 px-3"
                 onClick={() => onSetGenerationMode("fast")}
                 disabled={isGenerating}
-                title="快速模式：标准生成"
+                title={t("editorPanel.fastTitle")}
               >
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                快速
+                {t("editorPanel.fast")}
               </Button>
               <div className="w-px bg-border" />
               <Button
@@ -106,10 +108,10 @@ export function DesktopEditorPanel({
                 className="rounded-none border-0 px-3"
                 onClick={() => onSetGenerationMode("crafted")}
                 disabled={isGenerating}
-                title="精雕模式：注入反 AI 味约束和叙事目标"
+                title={t("editorPanel.craftedTitle")}
               >
                 <Wand2 className="mr-1.5 h-3.5 w-3.5" />
-                精雕
+                {t("editorPanel.crafted")}
               </Button>
             </div>
             <Button
@@ -119,10 +121,10 @@ export function DesktopEditorPanel({
               disabled={isGenerating || !selectedSceneId || !selectedManuscriptId}
             >
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              生成本场景
+              {t("editorPanel.generateScene")}
             </Button>
             <G2EvaluationSubmitDialog manuscriptId={selectedManuscriptId} sceneId={selectedSceneId} />
-            <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="ml-2" title={isSidebarOpen ? "收起右栏" : "展开右栏"}>
+            <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="ml-2" title={isSidebarOpen ? t("overlays.collapseRight") : t("overlays.expandRight")}>
               {isSidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </Button>
           </div>
@@ -138,11 +140,11 @@ export function DesktopEditorPanel({
         </Badge>
         {selectedQualityRun ? (
           <>
-            <span className="text-muted-foreground">风险 {selectedQualityRun.overallRiskScore}</span>
+            <span className="text-muted-foreground">{t("editorPanel.risk", { score: selectedQualityRun.overallRiskScore })}</span>
             {selectedQualityRun.summary ? <span className="text-muted-foreground truncate max-w-[520px]">{selectedQualityRun.summary}</span> : null}
           </>
         ) : (
-          <span className="text-muted-foreground">生成场景后会自动记录反 slop 检查结果</span>
+          <span className="text-muted-foreground">{t("editorPanel.slopNote")}</span>
         )}
       </div>
 
@@ -194,13 +196,13 @@ export function DesktopEditorPanel({
       {!focusMode && (
         <div className="h-8 mt-2 border-t px-3 flex items-center justify-between text-xs text-muted-foreground bg-muted/30">
           <div className="flex items-center gap-3">
-            <span>字数 {currentWordCount}</span>
-            <span>选中 {selectedWordCount}</span>
-            <span>会话 {Math.floor(sessionDurationSeconds / 60)}m{sessionDurationSeconds % 60}s</span>
+            <span>{t("editorPanel.words", { count: currentWordCount })}</span>
+            <span>{t("editorPanel.selected", { count: selectedWordCount })}</span>
+            <span>{t("editorPanel.session", { m: Math.floor(sessionDurationSeconds / 60), s: sessionDurationSeconds % 60 })}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span>净增 {sessionNetWords}</span>
-            {!!activeGoal && <span>目标 {activeGoal.currentValue || 0}/{activeGoal.targetValue || 0}</span>}
+            <span>{t("editorPanel.netAdded", { count: sessionNetWords })}</span>
+            {!!activeGoal && <span>{t("editorPanel.goal", { current: activeGoal.currentValue || 0, target: activeGoal.targetValue || 0 })}</span>}
           </div>
         </div>
       )}

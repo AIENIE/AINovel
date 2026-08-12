@@ -5,6 +5,7 @@ import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { plotStatusText, qualityStatusText, slopRewriteTaskTitle } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
+import { t } from "@/i18n";
 
 type ToastFn = (options: {
   description?: string;
@@ -152,9 +153,9 @@ export function useManuscriptQuality({
       const run = await fetchSlopQualityRun(selectedManuscriptId, sceneId);
       queryClient.setQueryData(slopQualityQueryKey(selectedManuscriptId, sceneId), run);
       setSidebarTab("plot");
-      toast({ title: "文本 Slop 诊断已完成", description: run.safeClaim || qualityStatusText(run) });
+      toast({ title: t("manuscriptQuality.slopDone"), description: run.safeClaim || qualityStatusText(run) });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "文本诊断失败", description: e.message });
+      toast({ variant: "destructive", title: t("manuscriptQuality.slopFailed"), description: e.message });
     } finally {
       setIsSlopBusy(false);
     }
@@ -163,17 +164,17 @@ export function useManuscriptQuality({
   const copySlopRewriteTask = useCallback(async (task: any, index: number) => {
     const title = slopRewriteTaskTitle(task, index);
     const lines = [
-      `任务 ${title}`,
-      task?.problem ? `问题：${task.problem}` : "",
-      task?.repair_goal || task?.repairGoal ? `修复目标：${task.repair_goal || task.repairGoal}` : "",
-      Array.isArray(task?.constraints) && task.constraints.length ? `约束：${task.constraints.join("；")}` : "",
-      "请只针对目标片段做证据驱动改写，不要改变关键设定、人物关系和场景核心事件。",
+      `${t("manuscriptQuality.taskLabel")} ${title}`,
+      task?.problem ? `${t("manuscriptQuality.problemLabel")}：${task.problem}` : "",
+      task?.repair_goal || task?.repairGoal ? `${t("manuscriptQuality.repairGoalLabel")}：${task.repair_goal || task.repairGoal}` : "",
+      Array.isArray(task?.constraints) && task.constraints.length ? `${t("manuscriptQuality.constraintsLabel")}：${task.constraints.join("；")}` : "",
+      t("manuscriptQuality.rewriteInstruction"),
     ].filter(Boolean);
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
-      toast({ title: "改写任务已复制" });
+      toast({ title: t("manuscriptQuality.taskCopied") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "复制失败", description: e.message });
+      toast({ variant: "destructive", title: t("manuscriptQuality.copyFailed"), description: e.message });
     }
   }, [toast]);
 
@@ -185,14 +186,14 @@ export function useManuscriptQuality({
       await ensureSceneSaved(sceneId);
       await runTrackedAiOperation(api.v2.plotQuality.startAnalyzeScene(selectedManuscriptId, sceneId));
       const run = await fetchPlotRun(selectedManuscriptId, sceneId);
-      if (!run) throw new Error("剧情诊断未生成结果");
+      if (!run) throw new Error(t("manuscriptQuality.noPlotResult"));
       const trend = await api.v2.plotQuality.getTrend(selectedManuscriptId);
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       queryClient.setQueryData(plotTrendQueryKey(selectedManuscriptId), trend);
       setSidebarTab("plot");
-      toast({ title: "剧情诊断已完成", description: plotStatusText(run) });
+      toast({ title: t("manuscriptQuality.plotDone"), description: plotStatusText(run) });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "剧情诊断失败", description: e.message });
+      toast({ variant: "destructive", title: t("manuscriptQuality.plotFailed"), description: e.message });
     } finally {
       setIsPlotBusy(false);
     }
@@ -206,11 +207,11 @@ export function useManuscriptQuality({
       await ensureSceneSaved(sceneId);
       await runTrackedAiOperation(api.v2.plotQuality.startGenerateRevisionCandidate(selectedManuscriptId, selectedPlotRun.id));
       const run = await fetchPlotRun(selectedManuscriptId, sceneId);
-      if (!run) throw new Error("修订候选未生成结果");
+      if (!run) throw new Error(t("manuscriptQuality.noRevisionResult"));
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
-      toast({ title: "候选修订已生成" });
+      toast({ title: t("manuscriptQuality.revisionGenerated") });
     } catch (e: any) {
-      toast({ variant: "destructive", title: "生成候选失败", description: e.message });
+      toast({ variant: "destructive", title: t("manuscriptQuality.revisionGenerateFailed"), description: e.message });
     } finally {
       setIsPlotRevisionBusy(false);
     }
@@ -227,12 +228,12 @@ export function useManuscriptQuality({
       applyServerSection(manuscript, sceneId);
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       await loadPlotQuality(sceneId);
-      toast({ title: "候选修订已采纳" });
+      toast({ title: t("manuscriptQuality.revisionApplied") });
     } catch (e: any) {
       toast({
         variant: "destructive",
-        title: "采纳候选失败",
-        description: String(e.message || "").includes("409") ? "场景内容已变化，请重新诊断后再生成候选。" : e.message,
+        title: t("manuscriptQuality.revisionApplyFailed"),
+        description: String(e.message || "").includes("409") ? t("manuscriptQuality.sceneChangedHint") : e.message,
       });
     } finally {
       setIsPlotRevisionBusy(false);
