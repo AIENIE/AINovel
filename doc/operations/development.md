@@ -5,26 +5,25 @@
 - Node.js 20+
 - JDK 25
 - Maven 3.9+
-- Docker 与 Docker Compose
+- Windows 本地开发使用 PowerShell 7；Docker 与 Docker Compose 仅是非 Windows 容器部署的前置条件。
 
 ## 本地检查
 
 后端：
 
-```bash
+```powershell
 mvn -q -f backend/pom.xml test
 ```
 
 前端：
 
-```bash
-cd frontend
-npm ci --legacy-peer-deps
-npm run test
-npm run build
+```powershell
+npm --prefix frontend ci --legacy-peer-deps
+npm --prefix frontend test
+npm --prefix frontend run build
 ```
 
-以 `backend/` 作为 VSCode 工作区时，可选择 `Backend: Spring Boot (env.txt)` 进行宿主机调试；先从 `env.example` 创建本地 `env.txt`。该文件包含运行秘密并被 Git 忽略。
+运行时调试与浏览器验收另按 [部署与本地运行](deployment.md) 操作：Windows 使用 `scripts/windows/Start-Local.ps1` 和 ACL 收紧的 `%LOCALAPPDATA%\Aienie\secrets\ainovel-localbase.env`，不得从仓库根目录 `env.txt` 加载秘密。
 
 ## 修改约束
 

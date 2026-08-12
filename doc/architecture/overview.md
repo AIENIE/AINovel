@@ -8,7 +8,8 @@
 - `backend/`：Spring Boot 后端、Flyway 迁移和三服务客户端。
 - `doc/`：研发、接口、运维、规划和研究文档。
 - `user-doc/`：创作者与管理员使用手册。
-- `build.sh`：唯一 Docker Compose 构建与部署入口。
+- `scripts/windows/`：Windows 原生开发与验收启停入口。
+- `build.sh`：非 Windows Docker Compose 构建与部署入口。
 
 ## 产品入口
 
@@ -42,7 +43,7 @@
 ## 数据与迁移
 
 - 数据库结构以 `backend/src/main/resources/db/migration/V{n}__*.sql` 为准。
-- `V1` 是完整基线，`V2` 初始化 slop 模式，`V3` 补齐 v2 持久化，`V4` 增加 G2 盲测，`V5` 增加 G1 工作流与 `async_jobs`。
+- `V1` 是完整基线，`V2` 初始化 slop 模式，`V3` 补齐 v2 持久化，`V4` 增加 G2 盲测，`V5` 增加 G1 工作流与 `async_jobs`，当前迁移到 `V13`，由 `scene_generation_runs` 保存场景生成与编辑归因。
 - `backend/sql/schema.sql` 仅是历史入口说明，不接受新 DDL。
 - Redis 用于运行时能力，Qdrant 用于向量检索；依赖均由部署环境提供。
 

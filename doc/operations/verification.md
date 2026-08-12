@@ -4,14 +4,13 @@
 
 ## 标准验证链
 
-```bash
+```powershell
 mvn -q -f backend/pom.xml clean test
-cd frontend
-npm test
-npm run build
+npm --prefix frontend test
+npm --prefix frontend run build
 ```
 
-部署与浏览器验收是独立步骤，不属于默认代码验证。需要部署时按 `operations/deployment.md` 执行，并确认当前工作树、容器挂载和目标环境后再操作。
+运行时与浏览器验收是独立步骤，不属于默认代码验证。Windows 本地验收按 `operations/deployment.md` 使用 PowerShell 原生启动入口，并确认当前工作树、安全配置文件和外部依赖后再操作；非 Windows Docker 部署另行执行。
 
 ## 通用验收约束
 
@@ -25,7 +24,7 @@ npm run build
 
 ## 国际化（i18n）
 
-1. 三语 locale 键集一致性与插值变量一致性：`python3` 遍历 `src/i18n/locales/*.ts`，比对三语键集合与 `{{var}}` 插值变量，应无差异。
+1. 三语 locale 键集一致性与插值变量一致性：使用 Windows 原生 `python` 遍历 `src/i18n/locales/*.ts`，比对三语键集合与 `{{var}}` 插值变量，应无差异。
 2. key 引用完整性：递归扫描 `src` 下用户侧 `.ts/.tsx` 中 `t("...")` 静态键（排除 `Admin`、测试、locale 文件），所有引用键应在 zh-CN 键表中存在。
 3. 语言切换：切换 zh-CN / zh-TW / en，确认全部业务文案即时更新、不刷新页面；刷新后语言保持（`aienie.user.locale.v1`）。
 4. 管理后台隔离：构建后确认 `dist/assets/AdminEntry-*.js` 不含 locale 资源（如 `app.title`、业务 key 字面量）与 i18n 引用；管理后台界面保持简体中文。
@@ -56,7 +55,7 @@ npm run build
 1. 运行受影响的上下文、归因、迁移、API 与前端面板测试。默认质量测试应校验 36 个 fixture 的冻结分布、六类单缺陷、6 个 holdout、逐字证据及上下文引用，且不得访问网络。
 2. 执行 `mvn -q -f backend/pom.xml clean test`、`npm --prefix frontend test`、`npm --prefix frontend run build`。
 3. 分别验证新库从 V1 完整迁移到 V13，以及已有 V12 数据库只执行 V13 升级；确认 `scene_generation_runs` 的字段、索引和外键完整。
-4. 经 WSL 使用本独立工作树的安全 `env.txt` 和 `build.sh` 部署。非 `master` 使用共享部署名时显式设置 `AINOVEL_ALLOW_SHARED_DEPLOY=1`，不得读取原工作树的部署改动或环境文件作为替代。
+4. 确认 MySQL、Redis、Qdrant 已在 `172.20.0.2` 对应端口可达，ai-service、user-service、pay-service 已在本机 loopback 启动；使用本独立工作树的 `%LOCALAPPDATA%\Aienie\secrets\ainovel-localbase.env` 和 `scripts/windows/Start-Local.ps1` 启动 AINovel。不得读取原工作树的部署改动或环境文件作为替代。
 5. 检查 `/api/actuator/health/liveness`、`/api/actuator/health/readiness` 和 `/api/actuator/health`。
 6. 使用真实 SSO 会话依次走通：跨章上下文预览 → fast/crafted 生成 → 等长与非等长编辑 → 标签确认 → 再生成 → 版本回滚 → 页面刷新恢复。
 7. 验证同一场景的上下文预览与生成 manifest 具有相同 `scene-draft-v2`、来源顺序、固定 3500 预算占用和 hash；未来场景、禁用 Lorebook 与待复核提取不得入选。
@@ -65,13 +64,17 @@ npm run build
 10. Beta Reader 与连续性触发器必须返回 HTTP 501/`ANALYSIS_NOT_IMPLEMENTED`，且数据库不新增任务、报告或问题。
 11. 检查控制台、失败网络请求、数据库刷新后持久化、结构化错误日志及日志敏感信息；原始提示词、上下文正文、令牌和会话不得进入 generation run 或日志。
 
-付费离线模型回归不属于 L4 默认验收。只有获得单独授权后，才可从 `backend/` 显式运行：
+付费离线模型回归不属于 L4 默认验收。只有获得单独授权后，才可从仓库根目录显式运行：
 
-```bash
-mvn -Pquality-regression -Dtest=QualityRegressionOfflineTest -DqualityRegression.remoteUserId=<remote-uid> test
+```powershell
+$envFile = Join-Path $env:LOCALAPPDATA 'Aienie\secrets\ainovel-localbase.env'
+mvn -f backend/pom.xml -Pquality-regression `
+  "-Dtest=QualityRegressionOfflineTest" `
+  "-DqualityRegression.envFile=$envFile" `
+  "-DqualityRegression.remoteUserId=<remote-uid>" test
 ```
 
-该 profile 从 `../env.txt` 读取既有 AI 网关地址与 HMAC 配置，只写 `backend/target/quality-regression/quality-regression-report.json`，不写 AINovel 产品表。不得将其分数计入 G2 真人票数。
+该 profile 从显式指定的 Windows 安全配置文件读取既有 AI 网关地址与 HMAC 配置，只写 `backend/target/quality-regression/quality-regression-report.json`，不写 AINovel 产品表。不得将其分数计入 G2 真人票数。
 
 ## 安全与可观测性
 

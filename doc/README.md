@@ -31,5 +31,5 @@
 1. 当前行为与文档冲突时，以代码为准并同步修正文档。
 2. 后续状态、优先级和门槛只写入 `roadmap.md`，专题文档只保留设计依据。
 3. 不新增日期化执行结论、测试快照、截图证据、临时备份或第二份路线图；`operations/verification.md` 只维护可重复步骤，具体结果由 CI、提交记录或外部交付记录保存。
-4. 跨服务正式契约维护在 `/home/duwei/aienie-doc/interfaces/<service>/`，本仓库只记录消费方式。
+4. 跨服务正式契约维护在与 `aienie-projects` 同级的 `aienie-doc` 仓库 `interfaces/<service>/`（标准布局下从项目根目录解析为 `..\..\aienie-doc\interfaces\<service>\`），本仓库只记录消费方式。
 5. 删除过时内容时依赖 Git 历史追溯，不在仓库内建立归档副本。

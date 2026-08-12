@@ -4,10 +4,10 @@
 
 ## 配置来源
 
-- 标准部署只从仓库外、本地 Git 忽略的 `0600` 普通文件 `env.txt` 加载实际运行地址与凭据；宿主同名环境变量不能补齐或覆盖该文件契约。
-- 本地测试网站使用 `localainovel.testhut.top`。
-- 本地三服务地址由同一份 `env.txt` 显式配置，不使用旧 `testaiservice`、`testpayservice` 或 `testuserservice` 域名作为隐式 fallback。
-- MySQL、Redis、Qdrant 等共享基础设施地址由环境提供，`build.sh` 不创建这些依赖。
+- Windows 本地开发与验收由 `scripts/windows/Start-Local.ps1` 读取 `%LOCALAPPDATA%\Aienie\secrets\ainovel-localbase.env`。安全目录和配置文件的 owner 必须是当前用户或本机 Administrators，初始化不得自动夺取所有权；目录必须是非重解析普通目录、关闭 ACL 继承，并以 `(OI)(CI)` Full Control 只允许当前用户、SYSTEM 和本机 Administrators；配置文件必须是非重解析普通文件、关闭 ACL 继承，并以显式 Full Control 只允许同三个主体。
+- Windows 本地固定使用 `127.0.0.1:11040`；MySQL、Redis、Qdrant 位于 `172.20.0.2`，三项业务服务通过本机 loopback 访问，不使用旧测试域名作为隐式 fallback。
+- 非 Windows Docker 部署才使用仓库内 Git 忽略、权限为 `0600` 的 `env.txt`；宿主同名环境变量不能补齐或覆盖该文件契约。
+- 两条路径都只消费既有外部依赖，不负责创建 MySQL、Redis、Qdrant 或三项业务服务。
 
 ## 三服务边界
 
@@ -17,7 +17,7 @@
 | ai-service | 模型列表、对话、嵌入和写作生成 | HMAC metadata |
 | pay-service | 通用积分余额与通用转专属扣减 | Bearer service JWT |
 
-正式契约优先读取 `/home/duwei/aienie-doc/interfaces/<service>/`。当前 ai-service 契约提供 `ListModels.supports_streaming` 与 `ChatCompletionsStream`；AINovel 在长任务调用前确认模型支持真实流式输出，并按 `STARTED -> CONTENT_DELTA -> COMPLETED` 严格校验请求标识、事件序号和单调 token 进度。仓库内 proto 只保留 AINovel 实际消费的兼容子集。
+正式契约优先读取与 `aienie-projects` 同级的 `aienie-doc` 仓库 `interfaces/<service>/`；标准布局下从项目根目录解析为 `..\..\aienie-doc\interfaces\<service>\`，不依赖某个用户的 home 目录。当前 ai-service 契约提供 `ListModels.supports_streaming` 与 `ChatCompletionsStream`；AINovel 在长任务调用前确认模型支持真实流式输出，并按 `STARTED -> CONTENT_DELTA -> COMPLETED` 严格校验请求标识、事件序号和单调 token 进度。仓库内 proto 只保留 AINovel 实际消费的兼容子集。
 
 ## 会话校验
 
@@ -27,8 +27,8 @@
 
 ## 部署约束
 
-- `build.sh` 只执行 Docker Compose 构建与部署。
-- `env.txt` 必须是 `0600` 普通文件；`build.sh` 校验同一文件后通过 Compose `--env-file` 插值，并只读挂载进后端容器加载完整运行时配置。
+- Windows 本地只使用 PowerShell 7 的 `Start-Local.ps1` / `Stop-Local.ps1`，并只停止本工作树记录的进程。
+- `build.sh` 只用于非 Windows Docker Compose 构建与部署；它校验同一份 `env.txt` 后完成 Compose 插值并只读挂载进后端容器。
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
 - gRPC TLS/plaintext 由 `EXTERNAL_GRPC_TLS_ENABLED` 和 `EXTERNAL_GRPC_PLAINTEXT_ENABLED` 控制。
 - 数据库结构只通过 Flyway 演进，不使用 Hibernate 自动 DDL 管理运行库。

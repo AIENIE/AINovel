@@ -9,9 +9,12 @@
 - 前端对外端口: 11040
 - 后端对外端口: 11041
 
-在 linux 环境下，执行 sudo 的密码请从 `SUDO_PASSWORD` 环境变量获取。
-
-- 部署脚本: 本项目仅保留 `build.sh`；脚本只执行 Docker Compose 构建与部署，并要求本地 Git 忽略的 `env.txt` 是 `0600` 普通文件；脚本以同一文件完成 Compose `--env-file` 插值并只读挂载进后端容器，宿主同名环境变量不能补齐或覆盖该文件契约。
+- Windows 本地开发、测试和验收只使用 PowerShell 7；WSL 不再作为本项目的执行环境。
+- Windows 本地入口：`scripts/windows/Start-Local.ps1`；停止入口：`scripts/windows/Stop-Local.ps1`。启动脚本要求先完成前端构建，并要求 MySQL、Redis、Qdrant 位于 `172.20.0.2`，ai-service、user-service、pay-service 已在本机对应端口启动。
+- Windows 本地安全配置默认位于 `%LOCALAPPDATA%\Aienie\secrets\ainovel-localbase.env`。`secrets` 目录和配置文件的 owner 必须是当前用户或本机 Administrators；目录必须是非重解析普通目录、关闭 ACL 继承，并以 `(OI)(CI)` Full Control 只允许当前用户、SYSTEM 和本机 Administrators；配置文件不得提交，必须是非重解析普通文件、关闭 ACL 继承，并以显式 Full Control 只允许同三个主体。初始化不得自动夺取所有权。
+- Windows 本地访问入口为 `http://127.0.0.1:11040`，后端为 `http://127.0.0.1:11041`；三服务通过 loopback 访问，不依赖本地域名或反向代理。
+- 非 Windows Docker 部署入口仍为 `build.sh`。脚本只执行 Docker Compose 构建与部署，并要求仓库内 Git 忽略的 `env.txt` 是 `0600` 普通文件；脚本以同一文件完成 Compose `--env-file` 插值并只读挂载进后端容器，宿主同名环境变量不能补齐或覆盖该文件契约。该入口不得用于 Windows 本地开发或验收。
+- 跨服务正式契约位于与 `aienie-projects` 同级的 `aienie-doc` 仓库 `interfaces/<service>/`；从本项目根目录按标准布局解析为 `..\..\aienie-doc\interfaces\<service>\`。不要硬编码用户主目录；目录缺失时先报告契约缺失，不把运行时反射当作正式契约。
 
 ## 后续分期事项 / Pending Phases
 
