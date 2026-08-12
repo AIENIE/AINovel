@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -11,9 +12,11 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -57,6 +60,11 @@ class V2PersistenceServiceTest {
         @Bean
         ObjectMapper objectMapper() {
             return new ObjectMapper();
+        }
+
+        @Bean
+        ApplicationEventPublisher applicationEventPublisher() {
+            return event -> { };
         }
     }
 
@@ -151,6 +159,39 @@ class V2PersistenceServiceTest {
                 .orElseThrow()
                 .get("name"));
         assertEquals(60, versionService.getAutoSave(user).get("autoSaveIntervalSeconds"));
+    }
+
+    @Test
+    void generationSnapshotShouldBeInternalAndStoreMetadataOnly() {
+        User user = persistUser("v2-generation-snapshot");
+        Story story = persistStory(user);
+        ManuscriptFixture fixture = persistManuscript(story, "{\"scene-1\":\"before\"}");
+        versionService.ensureGenerationBaseline(fixture.manuscript, user);
+        UUID sceneId = UUID.randomUUID();
+        fixture.manuscript.setSectionsJson("{\"" + sceneId + "\":\"generated\"}");
+
+        UUID versionId = versionService.createGenerationSnapshot(
+                fixture.manuscript,
+                user,
+                sceneId,
+                Map.of(
+                        "schemaVersion", 1,
+                        "model", "writer-model",
+                        "prompt", "must not persist"
+                )
+        );
+        Map<String, Object> version = versionService.getVersion(fixture.manuscript, user, versionId);
+        Map<?, ?> metadata = (Map<?, ?>) version.get("metadata");
+        Map<?, ?> manifest = (Map<?, ?>) metadata.get("generationManifest");
+
+        assertEquals("generation", version.get("snapshotType"));
+        assertEquals("writer-model", manifest.get("model"));
+        assertFalse(manifest.containsKey("prompt"));
+        assertThrows(BusinessException.class, () -> versionService.createVersion(
+                fixture.manuscript,
+                user,
+                Map.of("snapshotType", "generation")
+        ));
     }
 
     @Test
