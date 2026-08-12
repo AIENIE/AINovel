@@ -33,6 +33,7 @@ export const zhCN = {
   "common.status": "状态",
   "common.actions": "操作",
   "common.none": "无",
+  "common.notImplemented": "尚未实现",
   "common.other": "其他",
   "common.search": "搜索",
   "common.add": "添加",

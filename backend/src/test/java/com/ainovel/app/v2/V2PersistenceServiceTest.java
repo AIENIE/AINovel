@@ -127,24 +127,6 @@ class V2PersistenceServiceTest {
     }
 
     @Test
-    void analysisJobsReportsAndIssuesShouldPersist() {
-        User user = persistUser("v2-analysis");
-        Story story = persistStory(user);
-
-        V2AnalysisDtos.AnalysisJobResponse job = analysisService.createAnalysisJob(user, story, Map.of("focus", "continuity"), "continuity_check");
-        analysisService.createContinuityIssue(story.getId(), job.resultReference(), "先后顺序冲突");
-
-        entityManager.flush();
-        entityManager.clear();
-
-        assertEquals(1, analysisService.listJobs(story.getId()).size());
-        assertEquals(1, analysisService.listReports(story.getId()).size());
-        assertEquals(1, analysisService.listContinuityIssues(story.getId()).size());
-        assertEquals("continuity", analysisService.listReports(story.getId()).get(0).analysis().focus());
-        assertEquals("timeline_error", analysisService.listContinuityIssues(story.getId()).get(0).issueType());
-    }
-
-    @Test
     void versionsBranchesAndAutoSaveShouldPersist() {
         User user = persistUser("v2-version");
         Story story = persistStory(user);

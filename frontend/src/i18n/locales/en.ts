@@ -33,6 +33,7 @@ export const en = {
   "common.status": "Status",
   "common.actions": "Actions",
   "common.none": "None",
+  "common.notImplemented": "Not implemented yet",
   "common.other": "Other",
   "common.search": "Search",
   "common.add": "Add",

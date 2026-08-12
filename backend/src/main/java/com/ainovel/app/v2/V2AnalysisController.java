@@ -2,9 +2,10 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
-import com.ainovel.app.story.model.Story;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,26 +29,27 @@ public class V2AnalysisController {
     @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/analysis/beta-reader")
-    public V2AnalysisDtos.AnalysisJobResponse triggerBetaReader(@AuthenticationPrincipal UserDetails principal,
-                                                                @PathVariable UUID storyId,
-                                                                @RequestBody(required = false) Map<String, Object> payload) {
+    public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerBetaReader(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID storyId,
+            @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        Story story = accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.createAnalysisJob(user, story, payloadOrEmpty(payload), "beta_reader");
+        accessGuard.requireOwnedStory(storyId, user);
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                .body(V2AnalysisDtos.AnalysisUnavailableResponse.notImplemented());
     }
 
     @Operation(summary = "v2 API endpoint")
 
     @PostMapping("/stories/{storyId}/analysis/continuity-check")
-    public V2AnalysisDtos.AnalysisJobResponse triggerContinuityCheck(@AuthenticationPrincipal UserDetails principal,
-                                                                     @PathVariable UUID storyId,
-                                                                     @RequestBody(required = false) Map<String, Object> payload) {
+    public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerContinuityCheck(
+            @AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID storyId,
+            @RequestBody(required = false) Map<String, Object> payload) {
         User user = accessGuard.currentUser(principal);
-        Story story = accessGuard.requireOwnedStory(storyId, user);
-        Map<String, Object> safePayload = payloadOrEmpty(payload);
-        V2AnalysisDtos.AnalysisJobResponse job = persistenceService.createAnalysisJob(user, story, safePayload, "continuity_check");
-        persistenceService.createContinuityIssue(storyId, job.resultReference(), str(safePayload.get("text"), ""));
-        return job;
+        accessGuard.requireOwnedStory(storyId, user);
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+                .body(V2AnalysisDtos.AnalysisUnavailableResponse.notImplemented());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -114,15 +116,4 @@ public class V2AnalysisController {
         return persistenceService.updateContinuityIssue(storyId, issueId, payload);
     }
 
-    private String str(Object value, String fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        String text = value.toString().trim();
-        return text.isEmpty() ? fallback : text;
-    }
-
-    private Map<String, Object> payloadOrEmpty(Map<String, Object> payload) {
-        return payload == null ? Map.of() : payload;
-    }
 }

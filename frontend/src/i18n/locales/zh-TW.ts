@@ -33,6 +33,7 @@ export const zhTW = {
   "common.status": "狀態",
   "common.actions": "操作",
   "common.none": "無",
+  "common.notImplemented": "尚未實現",
   "common.other": "其他",
   "common.search": "搜尋",
   "common.add": "新增",
