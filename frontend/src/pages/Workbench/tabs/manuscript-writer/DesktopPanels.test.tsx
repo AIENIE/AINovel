@@ -75,6 +75,7 @@ describe("desktop manuscript workbench panels", () => {
     render(
       <DesktopSidebarPanel
         aiDiffSummary=""
+        abandonBranch={vi.fn()}
         applyPlotRevision={vi.fn()}
         autoSaveConfig={{ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 }}
         branches={[]}
@@ -92,9 +93,11 @@ describe("desktop manuscript workbench panels", () => {
         dailyHeatmap={[]}
         deleteGoal={vi.fn()}
         deleteTemplate={vi.fn()}
+        downloadExport={vi.fn()}
         diffResult={null}
         diffViewMode="split"
         exportAuthorName=""
+        exportDownloadingJobId=""
         exportFormat="txt"
         exportJobs={[]}
         exportTemplateId=""
@@ -160,6 +163,7 @@ describe("desktop manuscript workbench panels", () => {
         toggleVersionSelection={vi.fn()}
         txtEncoding="UTF-8"
         updateGoal={vi.fn()}
+        updateBranch={vi.fn()}
         updateTemplate={vi.fn()}
         versionPageSize={10}
         visibleVersions={[]}
@@ -168,6 +172,7 @@ describe("desktop manuscript workbench panels", () => {
     );
 
     expect(screen.getByText("plot")).toBeTruthy();
+    expect(screen.getByText("反馈")).toBeTruthy();
     expect(screen.getByText("文本 Slop 风险")).toBeTruthy();
   });
 });

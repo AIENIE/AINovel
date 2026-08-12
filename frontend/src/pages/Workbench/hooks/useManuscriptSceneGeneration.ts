@@ -47,6 +47,7 @@ export function useManuscriptSceneGeneration({
 }: UseManuscriptSceneGenerationOptions) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("fast");
+  const [generationRevision, setGenerationRevision] = useState(0);
 
   const generateScene = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId) return;
@@ -61,6 +62,7 @@ export function useManuscriptSceneGeneration({
         throw new Error(t("sceneGeneration.noGeneratedContent"));
       }
       applyServerSection(saved, sceneId);
+      setGenerationRevision((current) => current + 1);
       const latestRun = await loadSlopQuality(sceneId, saved.id).catch((): null => null);
       await loadPlotQuality(sceneId, saved.id).catch((): { run: null; trend: null } => ({ run: null, trend: null }));
       toast({
@@ -85,6 +87,7 @@ export function useManuscriptSceneGeneration({
 
   return {
     generateScene,
+    generationRevision,
     generationMode,
     isGenerating,
     setGenerationMode,

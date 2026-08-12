@@ -213,6 +213,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     applyFetchedManuscript,
     isSidebarOpen,
     selectedManuscriptId,
+    selectedSceneId: activeSceneId,
     selectedSceneIds,
     selectedStoryId,
     sidebarTab,
@@ -336,6 +337,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
 
   const {
     generateScene,
+    generationRevision,
     generationMode,
     isGenerating,
     setGenerationMode,
@@ -379,6 +381,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           <MobileWorkbenchPanel
           content={content}
           contextData={contextData}
+          contextPreview={contextPreview}
           exportJobs={exportJobs}
           exportDownloadingJobId={exportDownloadingJobId}
           focusMode={focusMode}
@@ -388,10 +391,17 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           isGenerating={isGenerating}
           isSaving={isSaving}
           generationMode={generationMode}
+          latestGenerationRunId={`${selectedManuscript?.lastGenerationRun?.id || "none"}:${generationRevision}`}
           mobilePane={mobilePane}
           onApplyPlotRevision={applyPlotRevision}
-          onChangeMobilePane={setMobilePane}
-          onChangeSidebarTab={setSidebarTab}
+          onChangeMobilePane={(pane) => {
+            if (pane === "sidebar") setIsSidebarOpen(true);
+            setMobilePane(pane);
+          }}
+          onChangeSidebarTab={(tab) => {
+            setIsSidebarOpen(true);
+            setSidebarTab(tab);
+          }}
           onCreateExportJob={createExportJob}
           onDownloadExport={downloadExport}
           onEditorChange={handleEditorChange}
@@ -399,6 +409,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           onGenerateScene={generateScene}
           onManualSave={handleManualSave}
           onSetGenerationMode={setGenerationMode}
+          onLoadContextPreview={loadContextPreview}
           onLoadVersions={loadVersions}
           onRunPlotDiagnosis={runPlotDiagnosis}
           onRunSlopDiagnosis={runSlopDiagnosis}
@@ -557,6 +568,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
                 isPlotBusy={isPlotBusy}
                 isPlotRevisionBusy={isPlotRevisionBusy}
                 isSlopBusy={isSlopBusy}
+                latestGenerationRunId={`${selectedManuscript?.lastGenerationRun?.id || "none"}:${generationRevision}`}
                 loadContextPreview={loadContextPreview}
                 loadPlotQuality={loadPlotQuality}
                 loadStats={loadStats}

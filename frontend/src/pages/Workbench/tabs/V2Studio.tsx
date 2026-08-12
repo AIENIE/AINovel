@@ -105,7 +105,7 @@ const V2Studio = () => {
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.contextPreview", async () => {
               ensureStoryId();
-              return api.v2.context.previewContext(storyId, 600);
+              return api.v2.context.previewContext(storyId, { tokenBudget: 600 });
             })}>
               {t("common.preview")}
             </Button>

@@ -27,6 +27,7 @@ describe("useManuscriptSidebarData", () => {
           applyFetchedManuscript: vi.fn(),
           isSidebarOpen: true,
           selectedManuscriptId: "manuscript-1",
+          selectedSceneId: "scene-1",
           selectedSceneIds: [],
           selectedStoryId: "story-1",
           sidebarTab: "version",
@@ -60,6 +61,7 @@ describe("useManuscriptSidebarData", () => {
           applyFetchedManuscript: vi.fn(),
           isSidebarOpen: false,
           selectedManuscriptId: "manuscript-2",
+          selectedSceneId: "scene-1",
           selectedSceneIds: ["scene-1", "scene-2"],
           selectedStoryId: "story-2",
           sidebarTab: "export",
@@ -100,6 +102,7 @@ describe("useManuscriptSidebarData", () => {
       applyFetchedManuscript: vi.fn(),
       isSidebarOpen: true,
       selectedManuscriptId: "manuscript-1",
+      selectedSceneId: "scene-1",
       selectedSceneIds: [] as string[],
       selectedStoryId: "story-1",
       sidebarTab: "version" as const,
@@ -144,6 +147,7 @@ describe("useManuscriptSidebarData", () => {
       applyFetchedManuscript: vi.fn(),
       isSidebarOpen: true,
       selectedManuscriptId: "manuscript-1",
+      selectedSceneId: "scene-1",
       selectedSceneIds: [],
       selectedStoryId: "story-1",
       sidebarTab: "export",
@@ -159,5 +163,35 @@ describe("useManuscriptSidebarData", () => {
     expect(click).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:novel");
     expect(toast).toHaveBeenCalledWith({ title: "下载已开始" });
+  });
+
+  it("requests a context preview for the active manuscript scene", async () => {
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
+    const preview = {
+      promptVersion: "scene-draft-v2",
+      contextHash: "ctx-hash",
+      tokenBudget: 3500,
+      tokenUsed: 840,
+      sources: [],
+    };
+    const previewSpy = vi.spyOn(api.v2.context, "previewContext").mockResolvedValue(preview);
+    const wrapper = createQueryClientWrapper(createTestQueryClient());
+    const { result } = renderHook(() => useManuscriptSidebarData({
+      applyFetchedManuscript: vi.fn(),
+      isSidebarOpen: true,
+      selectedManuscriptId: "manuscript-1",
+      selectedSceneId: "scene-7",
+      selectedSceneIds: ["scene-7"],
+      selectedStoryId: "story-1",
+      sidebarTab: "context",
+      toast: vi.fn(),
+    }), { wrapper });
+
+    await waitFor(() => expect(result.current.contextPreview).toEqual(preview));
+
+    expect(previewSpy).toHaveBeenCalledWith("story-1", {
+      manuscriptId: "manuscript-1",
+      sceneId: "scene-7",
+    });
   });
 });
