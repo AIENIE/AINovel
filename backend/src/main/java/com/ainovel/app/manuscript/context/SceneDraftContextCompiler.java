@@ -135,7 +135,7 @@ public class SceneDraftContextCompiler {
         Set<String> includedLorebookIds = sourceIds(rendered.sources(), "lorebook");
         List<Map<String, Object>> includedLorebook = lorebookSelection.entries().stream()
                 .filter(entry -> includedLorebookIds.contains(text(entry.get("id"))))
-                .map(LinkedHashMap::new)
+                .<Map<String, Object>>map(LinkedHashMap::new)
                 .toList();
         List<String> includedRelations = filterRelations(lorebookSelection, includedLorebookIds);
         List<String> activeCharacters = activeCharacters(includedLorebook, rendered.sources());
@@ -377,10 +377,10 @@ public class SceneDraftContextCompiler {
     private LorebookSelection selectLorebook(UUID storyId, String queryText, Set<String> queryTerms) {
         List<Map<String, Object>> enabled = contextPersistenceService.listLorebook(storyId).stream()
                 .filter(entry -> boolValue(entry.get("enabled"), true))
-                .map(LinkedHashMap::new)
+                .<Map<String, Object>>map(LinkedHashMap::new)
                 .toList();
         List<Map<String, Object>> relationships = contextPersistenceService.listRelationships(storyId).stream()
-                .map(LinkedHashMap::new)
+                .<Map<String, Object>>map(LinkedHashMap::new)
                 .sorted(relationshipComparator())
                 .toList();
         Map<String, Integer> relevance = new HashMap<>();

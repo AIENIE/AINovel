@@ -14,6 +14,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Testcontainers(disabledWithoutDocker = true)
 class FlywaySchemaGovernanceTest {
     private static final String MYSQL_IMAGE = "mysql:8.0.36";
 
@@ -301,17 +303,8 @@ class FlywaySchemaGovernanceTest {
                     .migrate();
 
             assertEquals(1, result.migrationsExecuted);
-            assertTableExists(mysql, databaseName, "scene_generation_runs");
-            for (String column : List.of(
-                    "generation_version_id", "created_by", "previous_run_id", "status", "mode",
-                    "model_key", "prompt_version", "attempt_count", "context_hash", "prompt_hash",
-                    "context_manifest_json", "generated_content_hash", "added_characters",
-                    "deleted_characters", "retention_rate", "first_edited_at", "last_edited_at",
-                    "tags_json", "note", "preference_confirmed")) {
-                assertColumnExists(mysql, databaseName, "scene_generation_runs", column);
-            }
-            assertIndexExists(mysql, databaseName, "scene_generation_runs", "idx_scene_generation_run_scene");
-            assertIndexExists(mysql, databaseName, "scene_generation_runs", "idx_scene_generation_run_version");
+            SceneGenerationSchemaAssertions.assertV13Schema(
+                    databaseUrl, mysql.getUsername(), mysql.getPassword(), databaseName);
         }
     }
 

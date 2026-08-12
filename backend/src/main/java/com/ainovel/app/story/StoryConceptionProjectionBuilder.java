@@ -3,6 +3,7 @@ package com.ainovel.app.story;
 import com.ainovel.app.story.dto.CharacterRequest;
 import com.ainovel.app.story.dto.StoryCreateRequest;
 import com.ainovel.app.story.dto.StoryUpdateRequest;
+import com.ainovel.app.story.model.SceneType;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

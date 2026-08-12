@@ -14,6 +14,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -98,7 +99,7 @@ class QualityRegressionOfflineTest {
                 rows.add(row);
             }
         } finally {
-            client.close();
+            client.shutdown();
         }
 
         double precision = ratio(truePositive, truePositive + falsePositive);
@@ -139,9 +140,14 @@ class QualityRegressionOfflineTest {
     }
 
     private static Map<String, String> loadLocalConfig() throws Exception {
-        Path path = Path.of(System.getProperty("qualityRegression.envFile", "../env.txt"))
+        String configuredPath = requiredSystemProperty("qualityRegression.envFile");
+        Path path = Path.of(configuredPath)
                 .toAbsolutePath()
                 .normalize();
+        if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(path)) {
+            throw new IllegalStateException(
+                    "qualityRegression.envFile must point to a non-symlink regular file");
+        }
         Map<String, String> values = new LinkedHashMap<>();
         for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) {
             String trimmed = line.trim();
