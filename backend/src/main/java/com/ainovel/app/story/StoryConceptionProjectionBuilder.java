@@ -123,17 +123,20 @@ public class StoryConceptionProjectionBuilder {
             List<Map<String, Object>> scenes = new ArrayList<>();
             for (Map<String, Object> scene : readObjectList(chapter.get("scenes"))) {
                 Map<String, Object> scenePlanning = readObjectMap(scene.get("planning"));
+                Map<String, Object> projectedPlanning = new HashMap<>();
+                SceneType.parse(scenePlanning.get("sceneType"))
+                        .map(SceneType::value)
+                        .ifPresent(value -> projectedPlanning.put("sceneType", value));
+                projectedPlanning.put("goal", asText(scenePlanning.get("goal"), asText(chapterPlanning.get("purpose"), "推进主线")));
+                projectedPlanning.put("conflict", asText(scenePlanning.get("conflict"), "让角色面对新阻力"));
+                projectedPlanning.put("infoRelease", asText(scenePlanning.get("informationRelease"), asText(chapterPlanning.get("informationRelease"), "")));
+                projectedPlanning.put("foreshadowId", asText(scenePlanning.get("foreshadowId"), ""));
+                projectedPlanning.put("revealFor", asText(planning.get("selectedTwistId"), "twist-intuition"));
+                projectedPlanning.put("memeUsage", asText(scenePlanning.get("memeUsage"), ""));
                 scenes.add(Map.of(
                         "title", asText(scene.get("title"), "场景"),
                         "summary", asText(scene.get("summary"), "推进剧情。"),
-                        "planning", Map.of(
-                                "goal", asText(scenePlanning.get("goal"), asText(chapterPlanning.get("purpose"), "推进主线")),
-                                "conflict", asText(scenePlanning.get("conflict"), "让角色面对新阻力"),
-                                "infoRelease", asText(scenePlanning.get("informationRelease"), asText(chapterPlanning.get("informationRelease"), "")),
-                                "foreshadowId", asText(scenePlanning.get("foreshadowId"), ""),
-                                "revealFor", asText(planning.get("selectedTwistId"), "twist-intuition"),
-                                "memeUsage", asText(scenePlanning.get("memeUsage"), "")
-                        )
+                        "planning", projectedPlanning
                 ));
             }
             normalizedChapters.add(Map.of(

@@ -9,6 +9,7 @@ import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.CreationWorkflowRun;
 import com.ainovel.app.workflow.model.GuidedCreationOperation;
 import com.ainovel.app.workflow.model.GuidedCreationStep;
+import com.ainovel.app.story.model.SceneType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -216,6 +217,19 @@ public class GuidedCreationGenerationService {
                     || !(chapter.get("scenes") instanceof List<?> scenes)
                     || scenes.size() < 2 || scenes.size() > 4) {
                 throw new BusinessException("每章必须包含 2-4 个场景");
+            }
+            for (Object sceneItem : scenes) {
+                if (!(sceneItem instanceof Map<?, ?> scene)) {
+                    throw new BusinessException("场景格式无效");
+                }
+                Object planningValue = scene.get("planning");
+                if (!(planningValue instanceof Map<?, ?> planning)) {
+                    throw new BusinessException("场景缺少 planning");
+                }
+                Object sceneType = planning.get("sceneType");
+                if (!SceneType.isExplicitlySupported(sceneType)) {
+                    throw new BusinessException("场景 sceneType 必须为 action/dialogue/introspection/description/flashback");
+                }
             }
         }
     }

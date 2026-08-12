@@ -1,6 +1,9 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.manuscript.context.CompiledSceneDraftContext;
+import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
+import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -12,6 +15,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
 
@@ -21,11 +27,19 @@ import java.util.*;
 public class V2ContextController {
     private final ResourceAccessGuard accessGuard;
     private final V2ContextPersistenceService persistenceService;
+    private final SceneDraftContextCompiler sceneDraftContextCompiler;
 
     @Autowired
-    public V2ContextController(ResourceAccessGuard accessGuard, V2ContextPersistenceService persistenceService) {
+    public V2ContextController(ResourceAccessGuard accessGuard,
+                               V2ContextPersistenceService persistenceService,
+                               SceneDraftContextCompiler sceneDraftContextCompiler) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
+        this.sceneDraftContextCompiler = sceneDraftContextCompiler;
+    }
+
+    public V2ContextController(ResourceAccessGuard accessGuard, V2ContextPersistenceService persistenceService) {
+        this(accessGuard, persistenceService, null);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -288,9 +302,26 @@ public class V2ContextController {
                                               @PathVariable UUID storyId,
                                               @RequestParam(required = false, defaultValue = "1") int chapterIndex,
                                               @RequestParam(required = false, defaultValue = "1") int sceneIndex,
-                                              @RequestParam(required = false, defaultValue = "3500") int tokenBudget) {
+                                              @RequestParam(required = false, defaultValue = "3500") int tokenBudget,
+                                              @RequestParam(required = false) UUID manuscriptId,
+                                              @RequestParam(required = false) UUID sceneId) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
+
+        if ((manuscriptId == null) != (sceneId == null)) {
+            throw new BusinessException("manuscriptId 与 sceneId 必须同时提供");
+        }
+        if (manuscriptId != null && sceneDraftContextCompiler != null) {
+            Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+            Story manuscriptStory = manuscript.getOutline() == null ? null : manuscript.getOutline().getStory();
+            if (manuscriptStory == null || !storyId.equals(manuscriptStory.getId())) {
+                throw new BusinessException("稿件不属于当前故事");
+            }
+            CompiledSceneDraftContext compiled = sceneDraftContextCompiler.compile(
+                    manuscript, sceneId, SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET
+            );
+            return compiledPreview(storyId, compiled);
+        }
 
         List<Map<String, Object>> enabled = listLorebookInternal(storyId).stream()
                 .filter(entry -> boolVal(entry.get("enabled"), true))
@@ -372,8 +403,12 @@ public class V2ContextController {
         response.put("storyId", storyId);
         response.put("chapterIndex", chapterIndex);
         response.put("sceneIndex", sceneIndex);
+        response.put("promptVersion", "legacy-context-preview-v1");
+        response.put("compilerVersion", "legacy-context-preview-v1");
+        response.put("contextHash", genericPreviewHash(storyId, chapterIndex, sceneIndex, tokenBudget, selected));
         response.put("tokenBudget", tokenBudget);
         response.put("tokenUsed", usedBudget);
+        response.put("sources", genericPreviewSources(selected));
         response.put("lorebookEntries", selected);
         response.put("systemPromptEntries", systemPromptEntries);
         response.put("beforeSceneEntries", beforeSceneEntries);
@@ -381,6 +416,103 @@ public class V2ContextController {
         response.put("graphRelations", graphRelations);
         response.put("recentSummary", recentSummary);
         response.put("activeCharacters", activeCharacters);
+        response.put("pendingExtractions", pendingExtractions);
+        response.put("generatedAt", Instant.now());
+        return response;
+    }
+
+    private List<Map<String, Object>> genericPreviewSources(List<Map<String, Object>> selected) {
+        List<Map<String, Object>> sources = new ArrayList<>();
+        for (Map<String, Object> entry : selected) {
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("sourceType", "lorebook");
+            source.put("sourceId", str(entry.get("id"), ""));
+            source.put("label", str(entry.get("displayName"), "未命名条目"));
+            source.put("reason", "通用预览按启用状态、优先级与条目预算入选");
+            source.put("estimatedTokens", intVal(entry.get("tokenBudget"), 500));
+            source.put("truncated", false);
+            sources.add(Map.copyOf(source));
+        }
+        return List.copyOf(sources);
+    }
+
+    private String genericPreviewHash(UUID storyId,
+                                      int chapterIndex,
+                                      int sceneIndex,
+                                      int tokenBudget,
+                                      List<Map<String, Object>> selected) {
+        StringBuilder canonical = new StringBuilder("legacy-context-preview-v1")
+                .append('\n').append(storyId)
+                .append('\n').append(chapterIndex)
+                .append('\n').append(sceneIndex)
+                .append('\n').append(tokenBudget);
+        for (Map<String, Object> entry : selected) {
+            canonical.append('\n').append(str(entry.get("id"), ""))
+                    .append('|').append(str(entry.get("displayName"), ""))
+                    .append('|').append(str(entry.get("insertionPosition"), "before_scene"))
+                    .append('|').append(intVal(entry.get("tokenBudget"), 500));
+        }
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
+        }
+    }
+
+    public Map<String, Object> previewContext(UserDetails principal,
+                                              UUID storyId,
+                                              int chapterIndex,
+                                              int sceneIndex,
+                                              int tokenBudget) {
+        return previewContext(principal, storyId, chapterIndex, sceneIndex, tokenBudget, null, null);
+    }
+
+    private Map<String, Object> compiledPreview(UUID storyId, CompiledSceneDraftContext compiled) {
+        List<Map<String, Object>> selected = compiled.lorebookEntries();
+        List<Map<String, Object>> systemPromptEntries = new ArrayList<>();
+        List<Map<String, Object>> beforeSceneEntries = new ArrayList<>();
+        List<Map<String, Object>> afterSceneEntries = new ArrayList<>();
+        for (Map<String, Object> entry : selected) {
+            String insertionPosition = str(entry.get("insertionPosition"), "before_scene");
+            if ("system_prompt".equals(insertionPosition)) {
+                systemPromptEntries.add(entry);
+            } else if ("after_scene".equals(insertionPosition)) {
+                afterSceneEntries.add(entry);
+            } else {
+                beforeSceneEntries.add(entry);
+            }
+        }
+
+        List<Map<String, Object>> pendingExtractions = new ArrayList<>();
+        for (Map<String, Object> extraction : persistenceService.listExtractions(storyId)) {
+            if (!boolVal(extraction.get("reviewed"), false)) {
+                pendingExtractions.add(extraction);
+            }
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("storyId", storyId);
+        response.put("manuscriptId", compiled.manifest().manuscriptId());
+        response.put("sceneId", compiled.manifest().sceneId());
+        response.put("chapterIndex", compiled.manifest().chapterOrder());
+        response.put("sceneIndex", compiled.manifest().sceneOrder());
+        response.put("promptVersion", compiled.compilerVersion());
+        response.put("compilerVersion", compiled.compilerVersion());
+        response.put("contextHash", compiled.contextHash());
+        response.put("tokenBudget", compiled.manifest().tokenBudget());
+        response.put("tokenUsed", compiled.manifest().tokenUsed());
+        response.put("compiledContext", compiled.content());
+        response.put("manifest", compiled.manifest());
+        response.put("sources", compiled.manifest().sources());
+        response.put("lorebookEntries", selected);
+        response.put("systemPromptEntries", systemPromptEntries);
+        response.put("beforeSceneEntries", beforeSceneEntries);
+        response.put("afterSceneEntries", afterSceneEntries);
+        response.put("graphRelations", compiled.graphRelations());
+        response.put("recentSummary", compiled.recentSceneContext());
+        response.put("activeCharacters", compiled.activeCharacters());
         response.put("pendingExtractions", pendingExtractions);
         response.put("generatedAt", Instant.now());
         return response;

@@ -1,6 +1,7 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.story.dto.StoryCreateRequest;
+import com.ainovel.app.story.model.SceneType;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -195,8 +196,31 @@ public class StoryConceptionDraftNormalizer {
                     )
             );
         }
-        outline.put("chapters", chapters);
+        outline.put("chapters", normalizeSceneTypes(chapters));
         return outline;
+    }
+
+    private List<Map<String, Object>> normalizeSceneTypes(List<Map<String, Object>> chapters) {
+        List<Map<String, Object>> normalizedChapters = new ArrayList<>();
+        for (Map<String, Object> chapterSource : chapters) {
+            Map<String, Object> chapter = new HashMap<>(chapterSource);
+            List<Map<String, Object>> scenes = new ArrayList<>();
+            for (Map<String, Object> sceneSource : readObjectList(chapter.get("scenes"))) {
+                Map<String, Object> scene = new HashMap<>(sceneSource);
+                Map<String, Object> planning = new HashMap<>(readObjectMap(scene.get("planning")));
+                SceneType.parse(planning.get("sceneType"))
+                        .map(SceneType::value)
+                        .ifPresentOrElse(
+                                value -> planning.put("sceneType", value),
+                                () -> planning.remove("sceneType")
+                        );
+                scene.put("planning", planning);
+                scenes.add(scene);
+            }
+            chapter.put("scenes", scenes);
+            normalizedChapters.add(chapter);
+        }
+        return normalizedChapters;
     }
 
     private List<Map<String, Object>> normalizeLorebookSeeds(List<Map<String, Object>> rawSeeds,

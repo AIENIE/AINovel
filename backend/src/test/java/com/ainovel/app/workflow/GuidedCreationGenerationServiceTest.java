@@ -108,8 +108,31 @@ class GuidedCreationGenerationServiceTest {
                         "instruction", ""));
 
         assertEquals(6, ((List<?>) result.stepData().get("chapters")).size());
-        assertEquals("g1.quick-book.outline-expansion.v1", result.stepData().get("promptVersion"));
+        assertEquals("g1.quick-book.outline-expansion.v2", result.stepData().get("promptVersion"));
         assertEquals(4L, result.chargedCredits());
+    }
+
+    @Test
+    void rejectsUnsupportedSceneTypeInExpandedOutline() {
+        AiService aiService = mock(AiService.class);
+        CreationWorkflowRun run = run(user(), 6);
+        run.setStepsJson("{\"OUTLINE\":{\"outlinePhase\":\"DIRECTION_SELECTION\",\"candidates\":["
+                + "{\"candidateId\":\"direction-a\",\"title\":\"钟楼路线\",\"summary\":\"追查停摆真相\"}]}}");
+        AsyncJob job = job(GuidedCreationStep.OUTLINE);
+        String invalidChapter = chapterJson().replace("\"action\"", "\"cinematic\"");
+        String outline = "{\"title\":\"钟楼路线完整大纲\",\"chapters\":["
+                + String.join(",", java.util.Collections.nCopies(6, invalidChapter)) + "]}";
+        when(aiService.chat(any(), any(), any())).thenReturn(response(outline, 1, 99), response(outline, 1, 98));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service(aiService).generate(
+                run, job, Map.of(
+                        "operation", GuidedCreationOperation.OUTLINE_EXPAND.name(),
+                        "directionId", "direction-a",
+                        "editedPayload", Map.of(),
+                        "instruction", "")
+        ));
+
+        assertTrue(error.getMessage().contains("sceneType"));
     }
 
     @Test
@@ -177,6 +200,8 @@ class GuidedCreationGenerationServiceTest {
     }
 
     private String chapterJson() {
-        return "{\"title\":\"章节\",\"scenes\":[{\"title\":\"场景一\"},{\"title\":\"场景二\"}]}";
+        return "{\"title\":\"章节\",\"scenes\":["
+                + "{\"title\":\"场景一\",\"planning\":{\"sceneType\":\"action\"}},"
+                + "{\"title\":\"场景二\",\"planning\":{\"sceneType\":\"dialogue\"}}]}";
     }
 }

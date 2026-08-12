@@ -78,6 +78,7 @@ public class StoryConceptionPromptFactory {
                             "title":"场景标题",
                             "summary":"场景摘要",
                             "planning":{
+                              "sceneType":"action|dialogue|introspection|description|flashback",
                               "foreshadowHint":"本场景埋什么",
                               "misdirectionAction":"如何误导",
                               "revealTrigger":"触发揭示的条件",
@@ -95,6 +96,7 @@ public class StoryConceptionPromptFactory {
                     {"sourceKey":"seed-1","targetKey":"truth","relationType":"foreshadows","label":"指向隐藏真相"}
                   ]
                 }
+                outlineSuggestion 中每个场景的 planning.sceneType 必须且只能从 action、dialogue、introspection、description、flashback 中选择一个。
                 用户输入：
                 标题：%s
                 梗概：%s

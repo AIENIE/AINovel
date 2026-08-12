@@ -387,7 +387,7 @@ public class OutlineService {
                             s.summary(),
                             s.content(),
                             so,
-                            copyMap(s.planning())
+                            normalizeScenePlanning(s.planning())
                     ));
                 }
             }
@@ -408,6 +408,22 @@ public class OutlineService {
             return new HashMap<>();
         }
         return new HashMap<>(source);
+    }
+
+    private Map<String, Object> normalizeScenePlanning(Map<String, Object> source) {
+        Map<String, Object> planning = copyMap(source);
+        if (!planning.containsKey("sceneType") || planning.get("sceneType") == null
+                || planning.get("sceneType").toString().isBlank()) {
+            planning.remove("sceneType");
+            return planning;
+        }
+        String normalized = com.ainovel.app.story.model.SceneType.parse(planning.get("sceneType"))
+                .map(com.ainovel.app.story.model.SceneType::value)
+                .orElseThrow(() -> new BusinessException(
+                        "sceneType 必须为 action/dialogue/introspection/description/flashback"
+                ));
+        planning.put("sceneType", normalized);
+        return planning;
     }
 
     private Outline findOutlineContainingChapter(UUID chapterId) {
