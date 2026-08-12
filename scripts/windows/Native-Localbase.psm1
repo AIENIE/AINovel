@@ -330,7 +330,13 @@ function Clear-NativeProcessEnvironment {
 
     foreach ($name in $Names) {
         if (-not [string]::IsNullOrWhiteSpace($name)) {
-            [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+            # Setting a process variable to $null can leave an empty value in
+            # Windows PowerShell. Remove the Env: provider entry so Spring and
+            # other child processes observe the variable as genuinely absent.
+            $environmentPath = "Env:$name"
+            if (Test-Path -LiteralPath $environmentPath) {
+                Remove-Item -LiteralPath $environmentPath -Force -ErrorAction Stop
+            }
         }
     }
 }
@@ -381,10 +387,15 @@ function Import-LiteralEnvironmentFile {
         }
         $seen[$name] = $true
 
-        # The value is deliberately not evaluated, unquoted, trimmed, or expanded.
-        # This accepts only literal NAME=value lines and protects config values whose
-        # whitespace is security-significant.
         $value = $match.Groups['value'].Value
+        # Parse only the literal suffix after the first equals sign. Matching outer
+        # quotes are environment-file delimiters; remove those delimiters without
+        # evaluating, expanding, trimming, or unescaping the enclosed value.
+        if ($value.Length -ge 2 -and (
+                ($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                ($value.StartsWith("'") -and $value.EndsWith("'")))) {
+            $value = $value.Substring(1, $value.Length - 2)
+        }
         [Environment]::SetEnvironmentVariable($name, $value, 'Process')
     }
 }
@@ -550,7 +561,32 @@ function Start-NativeProcess {
     }
     $stdoutPath = Join-Path $logDirectory ($Name + '.stdout.log')
     $stderrPath = Join-Path $logDirectory ($Name + '.stderr.log')
-    $process = Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -WorkingDirectory $WorkingDirectory -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
+    $launchFilePath = $FilePath
+    $launchArgumentList = $ArgumentList
+    if ([IO.Path]::GetExtension($FilePath) -in @('.cmd', '.bat')) {
+        $commandProcessor = [Environment]::GetEnvironmentVariable('ComSpec', 'Process')
+        if ([string]::IsNullOrWhiteSpace($commandProcessor) -or -not (Test-Path -LiteralPath $commandProcessor -PathType Leaf)) {
+            throw 'Windows command processor COMSPEC is unavailable for the native launcher.'
+        }
+        if (@($ArgumentList | Where-Object { $_ -match '[&|<>()^\"]' }).Count -gt 0) {
+            throw "Native batch command '$FilePath' includes unsupported command-shell metacharacters."
+        }
+
+        # cmd.exe normally transfers control to a nested batch file, which can
+        # make the recorded outer PID exit while Maven and its JVM continue.
+        # `call` preserves the cmd.exe process as the tree root until its child
+        # command exits, so Stop-NativeProcess can safely stop only the PID it
+        # recorded and its descendants.
+        $quotedBatchPath = '"' + $FilePath.Replace('"', '""') + '"'
+        $quotedArguments = @(
+            foreach ($argument in $ArgumentList) {
+                if ($argument -match '\s') { '"' + $argument + '"' } else { $argument }
+            }
+        )
+        $launchFilePath = $commandProcessor
+        $launchArgumentList = @('/d', '/s', '/c', ('call ' + $quotedBatchPath + ' ' + ($quotedArguments -join ' ')))
+    }
+    $process = Start-Process -FilePath $launchFilePath -ArgumentList $launchArgumentList -WorkingDirectory $WorkingDirectory -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
 
     try {
         $processStart = (Get-Process -Id $process.Id -ErrorAction Stop).StartTime.ToUniversalTime().ToString('o')
