@@ -78,7 +78,3 @@ ai_artifacts/generated-tests/
 
 # Codex codebase intelligence local state
 .codegraph/
-.serena/cache/
-.serena/project.local.yml
-.serena/memories/
-.serena/logs/
