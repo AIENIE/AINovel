@@ -18,6 +18,7 @@
 - [`api/README.md`](api/README.md)：HTTP API 索引。
 - [`operations/development.md`](operations/development.md)：开发环境和本地检查。
 - [`operations/deployment.md`](operations/deployment.md)：配置、部署、迁移与故障处理。
+- [`operations/windows-native.md`](operations/windows-native.md)：Windows 原生按需 Build/Start/Status/Stop/Test 入口。
 - [`operations/verification.md`](operations/verification.md)：标准验证链和可重复验收步骤。
 
 ## 计划与研究
@@ -31,5 +32,5 @@
 1. 当前行为与文档冲突时，以代码为准并同步修正文档。
 2. 后续状态、优先级和门槛只写入 `roadmap.md`，专题文档只保留设计依据。
 3. 不新增日期化执行结论、测试快照、截图证据、临时备份或第二份路线图；`operations/verification.md` 只维护可重复步骤，具体结果由 CI、提交记录或外部交付记录保存。
-4. 跨服务正式契约维护在 `/home/duwei/aienie-doc/interfaces/<service>/`，本仓库只记录消费方式。
+4. 跨服务正式契约维护在工作区相对目录 `../../aienie-doc/interfaces/<service>/`，本仓库只记录消费方式；不要写入用户主目录绝对路径。
 5. 删除过时内容时依赖 Git 历史追溯，不在仓库内建立归档副本。

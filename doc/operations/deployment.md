@@ -38,6 +38,9 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 访问入口：
 
 - `https://localainovel.testhut.top`
+- 预发布：`https://ainovel.testhut.top`
+- 生产迁移目标：`https://ainovel.seekerhut.com`（切换验收前不得作为当前入口）
+- 历史生产兼容：`https://ainovel.aienie.com`（只用于迁移兼容；切换验收后至少保留 12 个月）
 - 后端端口 `11041`
 - 前端端口 `11040`
 

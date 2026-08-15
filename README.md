@@ -7,6 +7,7 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 - 本地域名：`localainovel.testhut.top`
 - 预发布域名：`ainovel.testhut.top`
 - 生产环境目标域名：`ainovel.seekerhut.com`（切换验收完成前不是当前入口）
+- 历史生产兼容域名：`ainovel.aienie.com`（仅作迁移兼容；切换验收后至少保留 12 个月，不作为新配置或默认入口）
 - 前端端口：`11040`
 - 后端端口：`11041`
 
@@ -23,7 +24,22 @@ AINovel 是一个前后端分离的 AI 小说创作业务项目。
 - 项目积分：本地项目专属积分、通用转专属、兑换码、流水和 AI 用量扣费。
 - 管理后台：独立本地账号、密码优先 TOTP/本地单密码策略、服务端会话和操作级二次验证；覆盖运营、用户、素材、资产、质量、G2、积分、运维观测和维护模式。
 
-## 快速部署
+## Windows 原生按需运行
+
+Windows 本地开发与静态验证使用 PowerShell 7，不调用 WSL 或 Docker：
+
+```powershell
+.\scripts\windows\Build-Local.ps1
+.\scripts\windows\Start-Local.ps1 -EnvironmentFile <private-env-file>
+.\scripts\windows\Get-LocalStatus.ps1
+.\scripts\windows\Stop-Local.ps1
+```
+
+私有环境文件保留在仓库外。首次启动前先执行 Build；L1/L2 入口分别为
+`.\scripts\windows\Test-Local.ps1 -Level L1` 和 `-Level L2`。完整边界见
+[`doc/operations/windows-native.md`](doc/operations/windows-native.md)。
+
+## Linux Compose 部署
 
 复制安全模板 `env.example` 为本地、Git 忽略的 `env.txt`，填入部署平台生成的实际值并设置为 `0600` 普通文件后执行：
 
@@ -49,6 +65,7 @@ cd frontend && npm ci --legacy-peer-deps && npm run test && npm run build
 - `doc/`：架构、API、运维、路线图、提案和研究文档。
 - `user-doc/`：创作者与管理员使用手册。
 - `build.sh`：唯一部署入口。
+- `scripts/windows/`：Windows 原生按需 Build/Start/Status/Stop/Test 入口，不属于 Linux Compose 部署。
 - `docker-compose.yml`：前后端容器编排。
 
 研发文档见 [`doc/README.md`](doc/README.md)，用户手册见 [`user-doc/README.md`](user-doc/README.md)，后续工作见 [`doc/roadmap.md`](doc/roadmap.md)。

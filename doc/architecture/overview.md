@@ -9,6 +9,7 @@
 - `doc/`：研发、接口、运维、规划和研究文档。
 - `user-doc/`：创作者与管理员使用手册。
 - `build.sh`：唯一 Docker Compose 构建与部署入口。
+- `scripts/windows/`：Windows 原生按需运维与 L1/L2 静态验证入口；不调用 WSL 或容器工具。
 
 ## 产品入口
 
@@ -42,7 +43,7 @@
 ## 数据与迁移
 
 - 数据库结构以 `backend/src/main/resources/db/migration/V{n}__*.sql` 为准。
-- `V1` 是完整基线，`V2` 初始化 slop 模式，`V3` 补齐 v2 持久化，`V4` 增加 G2 盲测，`V5` 增加 G1 工作流与 `async_jobs`。
+- 当前 Flyway 迁移链为 `V1` 到 `V12`：`V1` 是完整基线，`V2-V4` 建立质量、v2 持久化与 G2，`V5` 增加 G1 工作流与 `async_jobs`，`V6-V9` 补齐质量证据、级联删除和 AI 操作进度，`V10-V11` 建立并加固本地管理员 TOTP/会话/操作证明，`V12` 将新建 G2 活动的本地管理员主体与普通用户身份解耦。
 - `backend/sql/schema.sql` 仅是历史入口说明，不接受新 DDL。
 - Redis 用于运行时能力，Qdrant 用于向量检索；依赖均由部署环境提供。
 

@@ -17,7 +17,7 @@
 | ai-service | 模型列表、对话、嵌入和写作生成 | HMAC metadata |
 | pay-service | 通用积分余额与通用转专属扣减 | Bearer service JWT |
 
-正式契约优先读取 `/home/duwei/aienie-doc/interfaces/<service>/`。当前 ai-service 契约提供 `ListModels.supports_streaming` 与 `ChatCompletionsStream`；AINovel 在长任务调用前确认模型支持真实流式输出，并按 `STARTED -> CONTENT_DELTA -> COMPLETED` 严格校验请求标识、事件序号和单调 token 进度。仓库内 proto 只保留 AINovel 实际消费的兼容子集。
+正式契约优先读取工作区相对目录 `../../aienie-doc/interfaces/<service>/`。当前 ai-service 契约提供 `ListModels.supports_streaming` 与 `ChatCompletionsStream`；AINovel 在长任务调用前确认模型支持真实流式输出，并按 `STARTED -> CONTENT_DELTA -> COMPLETED` 严格校验请求标识、事件序号和单调 token 进度。仓库内 proto 只保留 AINovel 实际消费的兼容子集。
 
 ## 会话校验
 
