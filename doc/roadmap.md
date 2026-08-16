@@ -85,7 +85,7 @@
 
 - 与 ai-service 确认正式 gRPC 契约、温度与 `min-p` 语义和计费。
 - 无参数时保持网关默认行为，参数只用于批准的创意/候选任务。
-- 若工作区相对目录 `../../aienie-doc/interfaces/ai-service/` 仍缺失，先补齐跨服务契约再改调用方。
+- 若工作区相对目录 `../../aienie-doc/service-integration/ai-service/` 仍缺失，先补齐跨服务契约再改调用方。
 
 ## 已确认后续
 
