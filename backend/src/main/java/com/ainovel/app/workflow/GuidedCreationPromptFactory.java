@@ -21,7 +21,7 @@ public class GuidedCreationPromptFactory {
             case STEP_CANDIDATES -> "g1.quick-book.outline-directions.v2";
             case OUTLINE_DEVELOP -> "g1.quick-book.outline-development.v1";
             case OUTLINE_REWRITE -> "g1.quick-book.outline-rewrite.v1";
-            case OUTLINE_EXPAND -> "g1.quick-book.outline-expansion.v1";
+            case OUTLINE_EXPAND -> "g1.quick-book.outline-expansion.v2";
         };
     }
 
@@ -95,7 +95,8 @@ public class GuidedCreationPromptFactory {
                     """;
             case OUTLINE_EXPAND -> """
                     将当前根方向和最新发展稿展开为一套完整、可直接编辑的章节/场景大纲。
-                    输出结构：{"title":"","planning":{"corePromise":"","centralQuestion":"","stakes":""},"chapters":[{"title":"","summary":"","planning":{"purpose":"","tensionShift":""},"scenes":[{"title":"","summary":"","planning":{"goal":"","conflict":"","infoRelease":""}}]}]}。
+                    输出结构：{"title":"","planning":{"corePromise":"","centralQuestion":"","stakes":""},"chapters":[{"title":"","summary":"","planning":{"purpose":"","tensionShift":""},"scenes":[{"title":"","summary":"","planning":{"sceneType":"action|dialogue|introspection|description|flashback","goal":"","conflict":"","infoRelease":""}}]}]}。
+                    每个场景的 planning.sceneType 必须且只能从 action、dialogue、introspection、description、flashback 中选择一个。
                     必须包含 %d 章，每章 2-4 个场景。只输出这一套完整大纲，不要输出候选数组。
                     """.formatted(run.getTargetChapterCount());
             case STEP_CANDIDATES -> throw new IllegalArgumentException("初始候选应使用步骤提示词");

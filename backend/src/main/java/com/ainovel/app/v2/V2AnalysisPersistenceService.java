@@ -1,8 +1,6 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.common.BusinessException;
-import com.ainovel.app.story.model.Story;
-import com.ainovel.app.user.User;
 import com.ainovel.app.v2.model.V2AnalysisJob;
 import com.ainovel.app.v2.model.V2BetaReaderReport;
 import com.ainovel.app.v2.model.V2ContinuityIssue;
@@ -30,59 +28,6 @@ public class V2AnalysisPersistenceService {
         this.reportRepository = reportRepository;
         this.issueRepository = issueRepository;
         this.v2Json = v2Json;
-    }
-
-    @Transactional
-    public V2AnalysisDtos.AnalysisJobResponse createAnalysisJob(User user, Story story, Map<String, Object> payload, String jobType) {
-        Map<String, Object> safePayload = payload == null ? Map.of() : payload;
-        V2AnalysisDtos.AnalysisSummaryResponse analysis = buildReportAnalysis(safePayload);
-
-        V2BetaReaderReport report = new V2BetaReaderReport();
-        report.setStory(story);
-        report.setUser(user);
-        report.setScope(str(safePayload.get("scope"), "full_manuscript"));
-        report.setScopeReference(safePayload.get("scopeReference") == null ? null : safePayload.get("scopeReference").toString());
-        report.setStatus("completed");
-        report.setAnalysisJson(v2Json.write(analysis));
-        report.setSummary("分析已完成，可查看建议与风险项。");
-        report.setScoreOverall(80);
-        report.setScorePacing(78);
-        report.setScoreCharacters(82);
-        report.setScoreDialogue(76);
-        report.setScoreConsistency(79);
-        report.setScoreEngagement(81);
-        report.setTokenCost(1200);
-        report = reportRepository.save(report);
-
-        V2AnalysisJob job = new V2AnalysisJob();
-        job.setStory(story);
-        job.setUser(user);
-        job.setJobType(jobType);
-        job.setScope(str(safePayload.get("scope"), "full"));
-        job.setScopeReference(safePayload.get("scopeReference") == null ? null : safePayload.get("scopeReference").toString());
-        job.setStatus("completed");
-        job.setProgress(100);
-        job.setProgressMessage("分析完成");
-        job.setResultReference(report.getId());
-        job.setErrorMessage(null);
-        return jobResponse(jobRepository.save(job));
-    }
-
-    @Transactional
-    public V2AnalysisDtos.ContinuityIssueResponse createContinuityIssue(UUID storyId, UUID reportId, String text) {
-        V2BetaReaderReport report = reportRepository.findByStoryIdAndId(storyId, reportId)
-                .orElseThrow(() -> new BusinessException("分析报告不存在"));
-        V2ContinuityIssue issue = new V2ContinuityIssue();
-        issue.setStory(report.getStory());
-        issue.setReport(report);
-        issue.setIssueType("timeline_error");
-        issue.setSeverity("warning");
-        String snippet = text == null || text.isBlank() ? "未提供文本，建议补充上下文后重试" : text.substring(0, Math.min(text.length(), 60));
-        issue.setDescription("时间线存在潜在冲突：" + snippet);
-        issue.setEvidenceJson(v2Json.write(List.of(new V2AnalysisDtos.ContinuityEvidenceItem(1, "事件顺序可能前后颠倒"))));
-        issue.setSuggestion("补充过渡段并在下一章回收冲突细节");
-        issue.setStatus("open");
-        return issueResponse(issueRepository.save(issue));
     }
 
     @Transactional(readOnly = true)
@@ -174,14 +119,6 @@ public class V2AnalysisPersistenceService {
                 issue.getStatus(),
                 issue.getResolvedAt(),
                 issue.getCreatedAt()
-        );
-    }
-
-    private V2AnalysisDtos.AnalysisSummaryResponse buildReportAnalysis(Map<String, Object> payload) {
-        return new V2AnalysisDtos.AnalysisSummaryResponse(
-                str(payload.get("focus"), "overall"),
-                List.of("角色动机较清晰", "章节节奏总体稳定"),
-                List.of("个别场景承接略跳跃", "伏笔回收密度偏低")
         );
     }
 

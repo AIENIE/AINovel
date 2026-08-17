@@ -2,6 +2,7 @@ package com.ainovel.app.story;
 
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.dto.ChapterUpdateRequest;
@@ -26,6 +27,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -87,6 +89,49 @@ class OutlineServiceTest {
         assertTrue(outline.getContentJson().contains("第一章"));
         verify(accessGuard).assertOwner(owner);
         verify(outlineRepository).save(outline);
+    }
+
+    @Test
+    void saveOutlineShouldRejectUnsupportedSceneTypeButKeepItOptional() {
+        OutlineRepository outlineRepository = mock(OutlineRepository.class);
+        OutlineService service = service(
+                outlineRepository,
+                mock(StoryRepository.class),
+                mock(ResourceAccessGuard.class),
+                mock(AiService.class),
+                mock(UserRepository.class)
+        );
+        Outline outline = outline(outlineId(), story(user("scene_type_author")), Map.of(
+                "planning", Map.of(),
+                "chapters", List.of()
+        ));
+        when(outlineRepository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.saveOutline(
+                outline.getId(),
+                new OutlineSaveRequest(
+                        "大纲",
+                        null,
+                        Map.of(),
+                        List.of(new OutlineSaveRequest.ChapterPayload(
+                                null,
+                                "第一章",
+                                "",
+                                1,
+                                Map.of(),
+                                List.of(new OutlineSaveRequest.ScenePayload(
+                                        null,
+                                        "第一场",
+                                        "",
+                                        null,
+                                        1,
+                                        Map.of("sceneType", "cinematic")
+                                ))
+                        ))
+                )
+        ));
+
+        assertTrue(error.getMessage().contains("sceneType"));
     }
 
     @Test

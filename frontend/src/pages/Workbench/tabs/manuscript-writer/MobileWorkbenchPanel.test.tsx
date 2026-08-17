@@ -84,18 +84,26 @@ describe("MobileWorkbenchPanel", () => {
       <MobileWorkbenchPanel
         content=""
         contextData={null}
+        exportDownloadingJobId=""
         exportJobs={[]}
         focusMode={false}
+        generationMode="fast"
+        isGenerating={false}
+        isSaving={false}
         onApplyPlotRevision={vi.fn()}
         onChangeMobilePane={vi.fn()}
         onChangeSidebarTab={vi.fn()}
         onCreateExportJob={vi.fn()}
+        onDownloadExport={vi.fn()}
         onEditorChange={vi.fn()}
         onGeneratePlotRevisionCandidate={vi.fn()}
+        onGenerateScene={vi.fn()}
         onLoadVersions={vi.fn()}
+        onManualSave={vi.fn()}
         onRunPlotDiagnosis={vi.fn()}
         onRunSlopDiagnosis={vi.fn()}
         onSelectOutlineScene={vi.fn()}
+        onSetGenerationMode={vi.fn()}
         outlineChapters={chapters}
         isPlotBusy={false}
         isPlotRevisionBusy={false}
@@ -120,18 +128,26 @@ describe("MobileWorkbenchPanel", () => {
       <MobileWorkbenchPanel
         content=""
         contextData={null}
+        exportDownloadingJobId=""
         exportJobs={[]}
         focusMode={false}
+        generationMode="fast"
+        isGenerating={false}
+        isSaving={false}
         onApplyPlotRevision={vi.fn()}
         onChangeMobilePane={vi.fn()}
         onChangeSidebarTab={vi.fn()}
         onCreateExportJob={vi.fn()}
+        onDownloadExport={vi.fn()}
         onEditorChange={vi.fn()}
         onGeneratePlotRevisionCandidate={vi.fn()}
+        onGenerateScene={vi.fn()}
         onLoadVersions={vi.fn()}
+        onManualSave={vi.fn()}
         onRunPlotDiagnosis={vi.fn()}
         onRunSlopDiagnosis={vi.fn()}
         onSelectOutlineScene={vi.fn()}
+        onSetGenerationMode={vi.fn()}
         outlineChapters={chapters}
         isPlotBusy={false}
         isPlotRevisionBusy={false}
@@ -147,6 +163,66 @@ describe("MobileWorkbenchPanel", () => {
     );
 
     expect(screen.getByText("刷新版本")).toBeTruthy();
+    expect(screen.getByText("上下文")).toBeTruthy();
+    expect(screen.getByText("反馈")).toBeTruthy();
     expect(screen.getByText("版本 1")).toBeTruthy();
+  });
+
+  it("renders the scene-scoped context preview on narrow screens", () => {
+    render(
+      <MobileWorkbenchPanel
+        content=""
+        contextData={null}
+        contextPreview={{
+          promptVersion: "scene-generation-v3",
+          contextHash: "ctx-hash",
+          tokenBudget: 1200,
+          tokenUsed: 800,
+          sources: [{
+            sourceType: "outline_scene",
+            sourceId: "scene-1",
+            label: "本场大纲",
+            reason: "约束场景目标",
+            estimatedTokens: 120,
+            truncated: false,
+          }],
+        }}
+        exportDownloadingJobId=""
+        exportJobs={[]}
+        focusMode={false}
+        generationMode="fast"
+        isGenerating={false}
+        isSaving={false}
+        onApplyPlotRevision={vi.fn()}
+        onChangeMobilePane={vi.fn()}
+        onChangeSidebarTab={vi.fn()}
+        onCreateExportJob={vi.fn()}
+        onDownloadExport={vi.fn()}
+        onEditorChange={vi.fn()}
+        onGeneratePlotRevisionCandidate={vi.fn()}
+        onGenerateScene={vi.fn()}
+        onLoadContextPreview={vi.fn()}
+        onLoadVersions={vi.fn()}
+        onManualSave={vi.fn()}
+        onRunPlotDiagnosis={vi.fn()}
+        onRunSlopDiagnosis={vi.fn()}
+        onSelectOutlineScene={vi.fn()}
+        onSetGenerationMode={vi.fn()}
+        outlineChapters={chapters}
+        isPlotBusy={false}
+        isPlotRevisionBusy={false}
+        isSlopBusy={false}
+        mobilePane="sidebar"
+        selectedManuscriptId="manuscript-1"
+        selectedPlotRun={null}
+        selectedQualityRun={null}
+        selectedSceneId="scene-1"
+        sidebarTab="context"
+        versions={[]}
+      />,
+    );
+
+    expect(screen.getByText(/scene-generation-v3/)).toBeTruthy();
+    expect(screen.getByText("约束场景目标")).toBeTruthy();
   });
 });

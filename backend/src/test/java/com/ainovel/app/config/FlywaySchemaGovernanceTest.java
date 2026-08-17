@@ -14,6 +14,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Testcontainers(disabledWithoutDocker = true)
 class FlywaySchemaGovernanceTest {
     private static final String MYSQL_IMAGE = "mysql:8.0.36";
 
@@ -38,7 +40,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(12, result.migrationsExecuted);
+            assertEquals(13, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "stories");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -57,6 +59,9 @@ class FlywaySchemaGovernanceTest {
             assertTableExists(mysql, databaseName, "admin_operation_proofs");
             assertColumnExists(mysql, databaseName, "admin_sessions", "assurance");
             assertColumnExists(mysql, databaseName, "admin_sessions", "auth_mode");
+            assertTableExists(mysql, databaseName, "scene_generation_runs");
+            assertColumnExists(mysql, databaseName, "scene_generation_runs", "prompt_hash");
+            assertColumnExists(mysql, databaseName, "scene_generation_runs", "context_manifest_json");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
             assertTableExists(mysql, databaseName, "flyway_schema_history");
         }
@@ -80,12 +85,13 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(11, migrateResult.migrationsExecuted);
+            assertEquals(12, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
             assertTableExists(mysql, databaseName, "g2_evaluation_samples");
             assertTableExists(mysql, databaseName, "creation_workflow_runs");
+            assertTableExists(mysql, databaseName, "scene_generation_runs");
             assertRowCount(mysql, databaseName, "slop_patterns", 38);
         }
     }
@@ -108,7 +114,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(11, migrateResult.migrationsExecuted);
+            assertEquals(12, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -117,6 +123,7 @@ class FlywaySchemaGovernanceTest {
             assertTableExists(mysql, databaseName, "creation_workflow_runs");
             assertTableExists(mysql, databaseName, "async_jobs");
             assertTableExists(mysql, databaseName, "ai_operation_runs");
+            assertTableExists(mysql, databaseName, "scene_generation_runs");
             assertColumnExists(mysql, databaseName, "manuscripts", "current_branch_id");
             assertCurrentBranchForeignKeyExists(mysql, databaseName);
             assertNoDanglingCurrentBranchReferences(mysql, databaseName);
@@ -141,7 +148,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(11, migrateResult.migrationsExecuted);
+            assertEquals(12, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
@@ -201,7 +208,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
                     .locations("classpath:db/migration").load().migrate();
-            assertEquals(4, result.migrationsExecuted);
+            assertEquals(5, result.migrationsExecuted);
 
             try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
                  Statement statement = connection.createStatement()) {
@@ -236,7 +243,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
                     .locations("classpath:db/migration").load().migrate();
-            assertEquals(1, result.migrationsExecuted);
+            assertEquals(2, result.migrationsExecuted);
             assertColumnNullable(mysql, databaseName, "g2_evaluation_experiments", "created_by");
             assertColumnExists(mysql, databaseName, "g2_evaluation_experiments", "created_by_admin_subject");
 
@@ -272,6 +279,32 @@ class FlywaySchemaGovernanceTest {
                     assertFalse(local.next());
                 }
             }
+        }
+    }
+
+    @Test
+    void upgradesV12DatabaseWithSceneGenerationAttributionSchema() throws Exception {
+        try (MySQLContainer<?> mysql = new MySQLContainer<>(MYSQL_IMAGE)) {
+            mysql.start();
+            String databaseName = mysql.getDatabaseName();
+            String databaseUrl = databaseUrl(mysql, databaseName);
+
+            Flyway.configure()
+                    .dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration")
+                    .target("12")
+                    .load()
+                    .migrate();
+
+            var result = Flyway.configure()
+                    .dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
+                    .locations("classpath:db/migration")
+                    .load()
+                    .migrate();
+
+            assertEquals(1, result.migrationsExecuted);
+            SceneGenerationSchemaAssertions.assertV13Schema(
+                    databaseUrl, mysql.getUsername(), mysql.getPassword(), databaseName);
         }
     }
 

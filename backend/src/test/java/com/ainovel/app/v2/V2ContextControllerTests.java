@@ -1,6 +1,11 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.manuscript.context.CompiledSceneDraftContext;
+import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
+import com.ainovel.app.manuscript.context.SceneDraftContextManifest;
+import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
+import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,6 +68,9 @@ class V2ContextControllerTests {
 
         assertTrue(tokenUsed <= 250);
         assertEquals(1, selected.size(), "预算不足时应仅注入一个条目");
+        assertEquals("legacy-context-preview-v1", preview.get("promptVersion"));
+        assertEquals(64, preview.get("contextHash").toString().length());
+        assertEquals(1, ((List<?>) preview.get("sources")).size());
         verify(persistenceService).listLorebook(storyId);
         verify(persistenceService).listExtractions(storyId);
         verify(persistenceService).listRelationships(storyId);
@@ -150,6 +158,73 @@ class V2ContextControllerTests {
         assertNotNull(preview.get("recentSummary"));
         assertEquals(1, ((List<?>) preview.get("pendingExtractions")).size());
         verify(persistenceService).listExtractions(storyId);
+    }
+
+    @Test
+    void previewWithManuscriptAndSceneShouldReuseSceneDraftCompiler() {
+        SceneDraftContextCompiler compiler = mock(SceneDraftContextCompiler.class);
+        V2ContextController compiledController = new V2ContextController(accessGuard, persistenceService, compiler);
+        UUID manuscriptId = UUID.randomUUID();
+        UUID sceneId = UUID.randomUUID();
+        UUID lorebookId = UUID.randomUUID();
+
+        Story story = new Story();
+        story.setId(storyId);
+        story.setUser(user);
+        Outline outline = new Outline();
+        outline.setId(UUID.randomUUID());
+        outline.setStory(story);
+        Manuscript manuscript = new Manuscript();
+        manuscript.setId(manuscriptId);
+        manuscript.setOutline(outline);
+
+        Map<String, Object> lorebook = lorebookEntry(
+                lorebookId, "林烬", "character", 80, 10, "before_scene", true
+        );
+        SceneDraftContextManifest manifest = new SceneDraftContextManifest(
+                "scene-draft-v2",
+                "b".repeat(64),
+                "SHA-256",
+                3500,
+                420,
+                storyId,
+                outline.getId(),
+                manuscriptId,
+                sceneId,
+                null,
+                2,
+                3,
+                "dialogue",
+                List.of(),
+                List.of()
+        );
+        CompiledSceneDraftContext compiled = new CompiledSceneDraftContext(
+                "SCENE_DRAFT_CONTEXT scene-draft-v2",
+                manifest,
+                "第二章前一场正文尾部",
+                List.of(lorebook),
+                List.of("林烬 --holds_clue--> 铜扣"),
+                List.of("林烬")
+        );
+        when(accessGuard.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
+        when(compiler.compile(manuscript, sceneId, 3500)).thenReturn(compiled);
+        when(persistenceService.listExtractions(storyId)).thenReturn(List.of());
+
+        Map<String, Object> preview = compiledController.previewContext(
+                principal, storyId, 1, 1, 900, manuscriptId, sceneId
+        );
+
+        assertEquals("scene-draft-v2", preview.get("compilerVersion"));
+        assertEquals("scene-draft-v2", preview.get("promptVersion"));
+        assertEquals("b".repeat(64), preview.get("contextHash"));
+        assertEquals(420, preview.get("tokenUsed"));
+        assertEquals(3500, preview.get("tokenBudget"));
+        assertEquals(2, preview.get("chapterIndex"));
+        assertEquals(3, preview.get("sceneIndex"));
+        assertEquals("第二章前一场正文尾部", preview.get("recentSummary"));
+        assertSame(manifest, preview.get("manifest"));
+        assertEquals(manifest.sources(), preview.get("sources"));
+        verify(compiler).compile(manuscript, sceneId, 3500);
     }
 
     @Test

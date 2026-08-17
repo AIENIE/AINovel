@@ -7,12 +7,10 @@ const STORAGE_KEY = "ainovel.active-ai-operation";
 let current: AiOperationProgress | null = null;
 const listeners = new Set<() => void>();
 let watching: string | null = null;
-const AI_OPERATION_TIMEOUT_MS = 180_000;
 let activeWatch: {
   operationId: string;
   controller: AbortController;
   cancelRequested: boolean;
-  timedOut: boolean;
 } | null = null;
 
 export class AiOperationCancelledError extends Error {
@@ -58,25 +56,14 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
   watching = operationId;
   window.sessionStorage.setItem(STORAGE_KEY, operationId);
   const controller = new AbortController();
-  const watchState = { operationId, controller, cancelRequested: false, timedOut: false };
+  const watchState = { operationId, controller, cancelRequested: false };
   activeWatch = watchState;
-  const timeoutId = window.setTimeout(() => {
-    watchState.timedOut = true;
-    controller.abort();
-  }, AI_OPERATION_TIMEOUT_MS);
   let final: AiOperationProgress;
   try {
     final = await api.aiOperations.wait(operationId, (progress) => {
       if (watching === operationId) emit(progress);
     }, controller.signal);
   } catch (error) {
-    if (watchState.timedOut) {
-      await api.aiOperations.cancel(operationId).catch(() => undefined);
-      const cancelled = await api.aiOperations.get(operationId).catch(() => null);
-      if (cancelled) emit(cancelled);
-      clearTracked(operationId);
-      throw new Error(t("aiOperation.timedOut"));
-    }
     if (watchState.cancelRequested) {
       const cancelled = await api.aiOperations.get(operationId).catch(() => null);
       if (cancelled) emit(cancelled);
@@ -85,7 +72,6 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
     }
     throw error;
   } finally {
-    window.clearTimeout(timeoutId);
     if (activeWatch?.operationId === operationId) activeWatch = null;
   }
   if (watchState.cancelRequested || final.status === "CANCELLED") {

@@ -1,5 +1,11 @@
 [CmdletBinding()]
 param([ValidateSet('All', 'Backend', 'Frontend')][string]$Component = 'All')
 
-& (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Stop -Component $Component
-exit $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+try {
+    & (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Stop -Component $Component
+    exit 0
+} catch {
+    Write-Error $_
+    exit 1
+}

@@ -15,6 +15,18 @@ public final class V2AnalysisDtos {
     ) {
     }
 
+    public record AnalysisUnavailableResponse(
+            String code,
+            String message
+    ) {
+        public static AnalysisUnavailableResponse notImplemented() {
+            return new AnalysisUnavailableResponse(
+                    "ANALYSIS_NOT_IMPLEMENTED",
+                    "Beta Reader 与连续性分析尚未接入真实评估能力"
+            );
+        }
+    }
+
     public record AnalysisJobResponse(
             UUID id,
             UUID storyId,

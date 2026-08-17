@@ -107,8 +107,18 @@ describe("manuscript writer sidebar panels", () => {
       <Tabs value="context" onValueChange={() => undefined}>
         <ContextSidebarPanel
           contextPreview={{
+            promptVersion: "scene-generation-v3",
+            contextHash: "ctx-hash",
             tokenUsed: 120,
             tokenBudget: 1200,
+            sources: [{
+              sourceType: "previous_scene",
+              sourceId: "scene-0",
+              label: "上一场",
+              reason: "保证动作衔接",
+              estimatedTokens: 80,
+              truncated: false,
+            }],
             generatedAt: "2026-07-06T00:00:00Z",
             systemPromptEntries: [],
             beforeSceneEntries: [],
@@ -123,6 +133,9 @@ describe("manuscript writer sidebar panels", () => {
     );
 
     expect(screen.getByText("刷新上下文")).toBeTruthy();
+    expect(screen.getByText(/scene-generation-v3/)).toBeTruthy();
+    expect(screen.getByText(/ctx-hash/)).toBeTruthy();
+    expect(screen.getByText("保证动作衔接")).toBeTruthy();
 
     rerender(
       <Tabs value="export" onValueChange={() => undefined}>

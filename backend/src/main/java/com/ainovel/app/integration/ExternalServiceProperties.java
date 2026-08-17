@@ -72,6 +72,7 @@ public class ExternalServiceProperties {
     public static class Grpc {
         private boolean tlsEnabled = true;
         private boolean plaintextEnabled = false;
+        private String trustCertCollection = "";
 
         public boolean isTlsEnabled() {
             return tlsEnabled;
@@ -87,6 +88,14 @@ public class ExternalServiceProperties {
 
         public void setPlaintextEnabled(boolean plaintextEnabled) {
             this.plaintextEnabled = plaintextEnabled;
+        }
+
+        public String getTrustCertCollection() {
+            return trustCertCollection;
+        }
+
+        public void setTrustCertCollection(String trustCertCollection) {
+            this.trustCertCollection = trustCertCollection;
         }
     }
 

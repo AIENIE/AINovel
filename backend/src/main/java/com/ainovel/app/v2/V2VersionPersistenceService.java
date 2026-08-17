@@ -1,6 +1,9 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.manuscript.attribution.ManuscriptRollbackEvent;
+import com.ainovel.app.manuscript.attribution.SceneGenerationManifest;
+import com.ainovel.app.manuscript.attribution.SceneGenerationSnapshotStore;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -15,6 +18,7 @@ import com.ainovel.app.v2.repo.V2ManuscriptVersionRepository;
 import com.ainovel.app.v2.repo.V2VersionDiffRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +28,7 @@ import java.time.Instant;
 import java.util.*;
 
 @Service
-public class V2VersionPersistenceService {
+public class V2VersionPersistenceService implements SceneGenerationSnapshotStore {
     private final V2ManuscriptBranchRepository branchRepository;
     private final V2ManuscriptVersionRepository versionRepository;
     private final V2VersionDiffRepository diffRepository;
@@ -33,6 +37,7 @@ public class V2VersionPersistenceService {
     private final ObjectMapper objectMapper;
     private final V2Json v2Json;
     private final JsonColumnCodec jsonColumnCodec;
+    private final ApplicationEventPublisher eventPublisher;
 
     public V2VersionPersistenceService(V2ManuscriptBranchRepository branchRepository,
                                        V2ManuscriptVersionRepository versionRepository,
@@ -41,7 +46,8 @@ public class V2VersionPersistenceService {
                                        ManuscriptRepository manuscriptRepository,
                                        ObjectMapper objectMapper,
                                        V2Json v2Json,
-                                       JsonColumnCodec jsonColumnCodec) {
+                                       JsonColumnCodec jsonColumnCodec,
+                                       ApplicationEventPublisher eventPublisher) {
         this.branchRepository = branchRepository;
         this.versionRepository = versionRepository;
         this.diffRepository = diffRepository;
@@ -50,6 +56,7 @@ public class V2VersionPersistenceService {
         this.objectMapper = objectMapper;
         this.v2Json = v2Json;
         this.jsonColumnCodec = jsonColumnCodec;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -71,6 +78,11 @@ public class V2VersionPersistenceService {
             branchId = UUID.fromString(payload.get("branchId").toString());
         }
 
+        String snapshotType = str(payload == null ? null : payload.get("snapshotType"), "manual");
+        if ("generation".equalsIgnoreCase(snapshotType)) {
+            throw new BusinessException("generation 快照只能由场景生成事务创建");
+        }
+
         V2ManuscriptVersion latest = latestVersion(manuscript.getId(), branchId);
         String currentHash = sha256(str(manuscript.getSectionsJson(), "{}"));
         if (latest != null && Objects.equals(latest.getContentHash(), currentHash)) {
@@ -79,7 +91,6 @@ public class V2VersionPersistenceService {
             return dedup;
         }
 
-        String snapshotType = str(payload == null ? null : payload.get("snapshotType"), "manual");
         V2ManuscriptVersion version = buildVersion(
                 manuscript,
                 user,
@@ -96,6 +107,38 @@ public class V2VersionPersistenceService {
         return versionMap(version);
     }
 
+    @Override
+    @Transactional
+    public void ensureGenerationBaseline(Manuscript manuscript, User user) {
+        ensureMainBranchAndInitialVersion(manuscript, user);
+    }
+
+    @Override
+    @Transactional
+    public UUID createGenerationSnapshot(
+            Manuscript manuscript,
+            User user,
+            UUID sceneId,
+            Map<String, Object> manifest
+    ) {
+        ensureMainBranchAndInitialVersion(manuscript, user);
+        UUID branchId = manuscript.getCurrentBranchId();
+        V2ManuscriptBranch branch = requireBranch(manuscript.getId(), branchId);
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("sceneId", sceneId);
+        metadata.put("generationManifest", SceneGenerationManifest.sanitize(manifest));
+        V2ManuscriptVersion version = versionRepository.saveAndFlush(buildVersion(
+                manuscript,
+                user,
+                branch,
+                "场景生成 " + sceneId,
+                "generation",
+                str(manuscript.getSectionsJson(), "{}"),
+                metadata
+        ));
+        return version.getId();
+    }
+
     @Transactional
     public Map<String, Object> getVersion(Manuscript manuscript, User user, UUID versionId) {
         ensureMainBranchAndInitialVersion(manuscript, user);
@@ -106,6 +149,10 @@ public class V2VersionPersistenceService {
     public Map<String, Object> rollback(Manuscript manuscript, User user, UUID versionId) {
         ensureMainBranchAndInitialVersion(manuscript, user);
         V2ManuscriptVersion target = requireVersion(manuscript.getId(), versionId);
+        Set<UUID> changedSceneIds = changedSceneIds(
+                str(manuscript.getSectionsJson(), "{}"),
+                str(target.getSectionsJson(), "{}")
+        );
         UUID currentBranchId = manuscript.getCurrentBranchId() == null ? mainBranchId(manuscript.getId()) : manuscript.getCurrentBranchId();
         V2ManuscriptBranch branch = requireBranch(manuscript.getId(), currentBranchId);
 
@@ -121,6 +168,7 @@ public class V2VersionPersistenceService {
 
         manuscript.setSectionsJson(str(target.getSectionsJson(), "{}"));
         manuscriptRepository.save(manuscript);
+        eventPublisher.publishEvent(new ManuscriptRollbackEvent(manuscript.getId(), versionId, changedSceneIds));
 
         V2ManuscriptVersion rollback = versionRepository.saveAndFlush(buildVersion(
                 manuscript,
@@ -552,6 +600,26 @@ public class V2VersionPersistenceService {
 
     private String writeSections(Map<String, String> sections) {
         return jsonColumnCodec.write(sections, "{}");
+    }
+
+    private Set<UUID> changedSceneIds(String beforeJson, String afterJson) {
+        Map<String, String> before = parseSections(beforeJson);
+        Map<String, String> after = parseSections(afterJson);
+        Set<String> keys = new LinkedHashSet<>();
+        keys.addAll(before.keySet());
+        keys.addAll(after.keySet());
+        Set<UUID> changed = new LinkedHashSet<>();
+        for (String key : keys) {
+            if (Objects.equals(before.getOrDefault(key, ""), after.getOrDefault(key, ""))) {
+                continue;
+            }
+            try {
+                changed.add(UUID.fromString(key));
+            } catch (IllegalArgumentException ignored) {
+                // Manuscript sections are scene UUID keyed; malformed legacy keys have no generation run.
+            }
+        }
+        return Set.copyOf(changed);
     }
 
     private Map<String, Object> map(Object value) {

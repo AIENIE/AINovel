@@ -2,7 +2,11 @@ import {
   AdminDashboardStats,
   CreditConversionRecord,
   CreditLedgerItem,
+  ContextPreview,
+  ContextPreviewOptions,
   FileImportJob,
+  GenerationRunFeedbackUpdateRequest,
+  GenerationRunSummary,
   Material,
   MaterialCitation,
   MaterialDuplicateCandidate,
@@ -15,6 +19,7 @@ import {
   PlotQualityTrend,
   PromptMetadata,
   PromptTemplates,
+  ScenePlanning,
   SlopDriftRun,
   SlopQualityRun,
   Story,
@@ -479,6 +484,7 @@ function toOutline(dto: any): Outline {
         content: s.content || undefined,
         planning: s?.planning
           ? {
+              sceneType: toSceneType(s.planning.sceneType),
               goal: s.planning.goal || s.planning.foreshadowHint || "",
               conflict: s.planning.conflict || s.planning.misdirectionAction || "",
               infoRelease: s.planning.infoRelease || s.planning.revealTrigger || "",
@@ -497,6 +503,16 @@ function toOutline(dto: any): Outline {
     planning,
     activeTwistId: dto.activeTwistId || planning?.selectedTwistId || planning?.twistOptions[0]?.id,
   };
+}
+
+function toSceneType(value: unknown): ScenePlanning["sceneType"] {
+  return value === "action"
+    || value === "dialogue"
+    || value === "introspection"
+    || value === "description"
+    || value === "flashback"
+    ? value
+    : undefined;
 }
 
 function toWorld(dto: any): World {
@@ -559,6 +575,14 @@ function toManuscript(dto: any): Manuscript {
     title: dto.title,
     worldId: dto.worldId || undefined,
     sections: dto.sections || {},
+    lastGenerationRun: dto.lastGenerationRun
+      ? {
+          id: String(dto.lastGenerationRun.id),
+          generationVersionId: String(dto.lastGenerationRun.generationVersionId),
+          status: String(dto.lastGenerationRun.status),
+          createdAt: String(dto.lastGenerationRun.createdAt),
+        }
+      : null,
     updatedAt: dto.updatedAt || new Date().toISOString(),
   };
 }
@@ -1179,6 +1203,21 @@ export const api = {
     },
     startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: "{}" }),
+    listGenerationRuns: async (manuscriptId: string, sceneId: string, limit = 10): Promise<GenerationRunSummary[]> =>
+      requestJson<GenerationRunSummary[]>(
+        `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs?limit=${encodeURIComponent(String(limit))}`,
+        { method: "GET" },
+      ),
+    updateGenerationRunFeedback: async (
+      manuscriptId: string,
+      sceneId: string,
+      runId: string,
+      payload: GenerationRunFeedbackUpdateRequest,
+    ): Promise<GenerationRunSummary> =>
+      requestJson<GenerationRunSummary>(
+        `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs/${runId}/feedback`,
+        { method: "PATCH", body: JSON.stringify(payload) },
+      ),
     saveSection: async (manuscriptId: string, sceneId: string, content: string): Promise<Manuscript> => {
       const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/sections/${sceneId}`, { method: "PUT", body: JSON.stringify({ content }) });
       return toManuscript(dto);
@@ -1350,8 +1389,20 @@ export const api = {
           method: "PUT",
           body: JSON.stringify({ reviewAction }),
         }),
-      previewContext: async (storyId: string, tokenBudget = 3500) =>
-        requestJson<any>(`/v2/stories/${storyId}/context/preview?tokenBudget=${tokenBudget}`, { method: "GET" }),
+      previewContext: async (
+        storyId: string,
+        options: ContextPreviewOptions = {},
+      ): Promise<ContextPreview> => {
+        const query = new URLSearchParams();
+        if (options.tokenBudget != null) query.set("tokenBudget", String(options.tokenBudget));
+        if (options.manuscriptId) query.set("manuscriptId", options.manuscriptId);
+        if (options.sceneId) query.set("sceneId", options.sceneId);
+        const queryString = query.toString();
+        return requestJson<ContextPreview>(
+          `/v2/stories/${storyId}/context/preview${queryString ? `?${queryString}` : ""}`,
+          { method: "GET" },
+        );
+      },
     },
 
     style: {

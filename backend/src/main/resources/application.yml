@@ -3,7 +3,7 @@ spring:
     servlet:
       path: /api
   datasource:
-    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:base.seekerhut.com}:${MYSQL_PORT:23306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:localbase.testhut.top}:${MYSQL_PORT:23306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${DB_USERNAME:${MYSQL_USER:ainovel}}
     password: ${DB_PASSWORD:${MYSQL_PASSWORD:ainovelpwd}}
   jpa:
@@ -22,7 +22,7 @@ spring:
     clean-disabled: true
   data:
     redis:
-      host: ${REDIS_HOST:base.seekerhut.com}
+      host: ${REDIS_HOST:localbase.testhut.top}
       port: ${REDIS_PORT:26379}
       password: ${REDIS_PASSWORD:}
   cache:
@@ -107,6 +107,7 @@ app:
     grpc:
       tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:true}
       plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:false}
+      trust-cert-collection: ${EXTERNAL_GRPC_TRUST_CERT_COLLECTION:}
     security:
       fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
       ai:
@@ -135,7 +136,7 @@ sso:
     grpc-address: ${USER_GRPC_ADDR:static://userservice.seekerhut.com:443}
 
 qdrant:
-  host: ${QDRANT_HOST:http://base.seekerhut.com}
+  host: ${QDRANT_HOST:http://localbase.testhut.top}
   http-port: ${QDRANT_PORT:26333}
   enabled: ${QDRANT_ENABLED:true}
 

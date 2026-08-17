@@ -1,5 +1,6 @@
 package com.ainovel.app.v2;
 
+import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -11,9 +12,11 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -57,6 +60,11 @@ class V2PersistenceServiceTest {
         @Bean
         ObjectMapper objectMapper() {
             return new ObjectMapper();
+        }
+
+        @Bean
+        ApplicationEventPublisher applicationEventPublisher() {
+            return event -> { };
         }
     }
 
@@ -127,24 +135,6 @@ class V2PersistenceServiceTest {
     }
 
     @Test
-    void analysisJobsReportsAndIssuesShouldPersist() {
-        User user = persistUser("v2-analysis");
-        Story story = persistStory(user);
-
-        V2AnalysisDtos.AnalysisJobResponse job = analysisService.createAnalysisJob(user, story, Map.of("focus", "continuity"), "continuity_check");
-        analysisService.createContinuityIssue(story.getId(), job.resultReference(), "先后顺序冲突");
-
-        entityManager.flush();
-        entityManager.clear();
-
-        assertEquals(1, analysisService.listJobs(story.getId()).size());
-        assertEquals(1, analysisService.listReports(story.getId()).size());
-        assertEquals(1, analysisService.listContinuityIssues(story.getId()).size());
-        assertEquals("continuity", analysisService.listReports(story.getId()).get(0).analysis().focus());
-        assertEquals("timeline_error", analysisService.listContinuityIssues(story.getId()).get(0).issueType());
-    }
-
-    @Test
     void versionsBranchesAndAutoSaveShouldPersist() {
         User user = persistUser("v2-version");
         Story story = persistStory(user);
@@ -169,6 +159,39 @@ class V2PersistenceServiceTest {
                 .orElseThrow()
                 .get("name"));
         assertEquals(60, versionService.getAutoSave(user).get("autoSaveIntervalSeconds"));
+    }
+
+    @Test
+    void generationSnapshotShouldBeInternalAndStoreMetadataOnly() {
+        User user = persistUser("v2-generation-snapshot");
+        Story story = persistStory(user);
+        ManuscriptFixture fixture = persistManuscript(story, "{\"scene-1\":\"before\"}");
+        versionService.ensureGenerationBaseline(fixture.manuscript, user);
+        UUID sceneId = UUID.randomUUID();
+        fixture.manuscript.setSectionsJson("{\"" + sceneId + "\":\"generated\"}");
+
+        UUID versionId = versionService.createGenerationSnapshot(
+                fixture.manuscript,
+                user,
+                sceneId,
+                Map.of(
+                        "schemaVersion", 1,
+                        "model", "writer-model",
+                        "prompt", "must not persist"
+                )
+        );
+        Map<String, Object> version = versionService.getVersion(fixture.manuscript, user, versionId);
+        Map<?, ?> metadata = (Map<?, ?>) version.get("metadata");
+        Map<?, ?> manifest = (Map<?, ?>) metadata.get("generationManifest");
+
+        assertEquals("generation", version.get("snapshotType"));
+        assertEquals("writer-model", manifest.get("model"));
+        assertFalse(manifest.containsKey("prompt"));
+        assertThrows(BusinessException.class, () -> versionService.createVersion(
+                fixture.manuscript,
+                user,
+                Map.of("snapshotType", "generation")
+        ));
     }
 
     @Test

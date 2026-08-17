@@ -53,6 +53,27 @@ public class ManuscriptController {
         return manuscriptService.updateSection(id, sceneId, request);
     }
 
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-runs")
+    @Operation(summary = "查询场景生成历史", description = "按时间倒序返回生成记录；待重算记录会在查询中再次尝试精确归因。")
+    public List<SceneGenerationRunDto> listSceneGenerationRuns(
+            @PathVariable UUID id,
+            @PathVariable UUID sceneId,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return manuscriptService.listSceneGenerationRuns(id, sceneId, limit);
+    }
+
+    @PatchMapping("/manuscripts/{id}/scenes/{sceneId}/generation-runs/{runId}/feedback")
+    @Operation(summary = "更新生成反馈", description = "局部更新最多 8 个标签、500 字备注和偏好确认状态。")
+    public SceneGenerationRunDto patchSceneGenerationFeedback(
+            @PathVariable UUID id,
+            @PathVariable UUID sceneId,
+            @PathVariable UUID runId,
+            @Valid @RequestBody SceneGenerationFeedbackPatchRequest request
+    ) {
+        return manuscriptService.patchSceneGenerationFeedback(id, sceneId, runId, request);
+    }
+
     @PostMapping("/manuscript/scenes/{sceneId}/generate")
     @Operation(summary = "生成场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件生成场景正文。")
     public ManuscriptDto generateScene(@PathVariable UUID sceneId) { return manuscriptService.generateForScene(sceneId); }

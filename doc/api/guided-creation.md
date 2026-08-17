@@ -14,7 +14,7 @@
 
 - `POST /api/v1/creation-workflows/{id}/steps/{step}/generate`：为当前步骤生成三个候选；outline 返回三条简要方向而非三套完整大纲。Body `{hint?}`，返回 `202 {workflowId,jobId}`。
 - `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/develop`：继续发展或按反馈重写一条方向。Body `{action:"continue"|"rewrite",instruction?,editedPayload?,version?}`；rewrite 的 instruction 必填且最多 500 字。
-- `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/expand`：把选定方向展开成完整大纲预览。Body `{editedPayload?,version?}`，返回 `202 {workflowId,jobId}`。
+- `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/expand`：把选定方向展开成完整大纲预览。Body `{editedPayload?,version?}`，返回 `202 {workflowId,jobId}`。新展开结果的每个场景都包含 `planning.sceneType`，且值只允许 `action/dialogue/introspection/description/flashback`；旧大纲仍可不含该字段。
 - `POST /api/v1/creation-workflows/{id}/steps/{step}/confirm`：确认并可编辑候选，Body `{candidateId,editedPayload?,version?}`。
 - `POST /api/v1/creation-workflows/{id}/steps/world/skip?version=`：跳过世界设定。
 - `POST /api/v1/creation-workflows/{id}/auto-run`：从当前状态采用推荐候选并自动推进，Body `{targetChapterCount?}`，返回 `202`。

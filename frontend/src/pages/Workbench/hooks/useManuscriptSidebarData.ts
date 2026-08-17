@@ -15,6 +15,7 @@ type UseManuscriptSidebarDataOptions = {
   applyFetchedManuscript: (manuscript: Manuscript) => void;
   isSidebarOpen: boolean;
   selectedManuscriptId: string;
+  selectedSceneId: string;
   selectedSceneIds: string[];
   selectedStoryId: string;
   sidebarTab: WorkbenchSidebarTab;
@@ -25,7 +26,8 @@ const VERSION_PAGE_SIZE = 10;
 const WORKBENCH_QUERY_STALE_TIME = 60_000;
 
 const goalsQueryKey = ["workbench", "sidebar", "goals"] as const;
-const contextPreviewQueryKey = (storyId: string) => ["workbench", "sidebar", "context", storyId] as const;
+const contextPreviewQueryKey = (storyId: string, manuscriptId: string, sceneId: string) =>
+  ["workbench", "sidebar", "context", storyId, manuscriptId, sceneId] as const;
 const versionDataQueryKey = (manuscriptId: string) => ["workbench", "sidebar", "versions", manuscriptId] as const;
 const exportDataQueryKey = (manuscriptId: string) => ["workbench", "sidebar", "export", manuscriptId] as const;
 const statsQueryKey = ["workbench", "sidebar", "stats"] as const;
@@ -38,8 +40,8 @@ async function fetchGoals() {
   }
 }
 
-async function fetchContextPreview(storyId: string) {
-  return await api.v2.context.previewContext(storyId, 1200);
+async function fetchContextPreview(storyId: string, manuscriptId: string, sceneId: string) {
+  return await api.v2.context.previewContext(storyId, { manuscriptId, sceneId });
 }
 
 async function fetchVersionData(manuscriptId: string) {
@@ -65,6 +67,7 @@ export function useManuscriptSidebarData({
   applyFetchedManuscript,
   isSidebarOpen,
   selectedManuscriptId,
+  selectedSceneId,
   selectedSceneIds,
   selectedStoryId,
   sidebarTab,
@@ -104,16 +107,18 @@ export function useManuscriptSidebarData({
     refetchOnWindowFocus: false,
   });
   const contextPreviewQuery = useQuery({
-    queryKey: contextPreviewQueryKey(selectedStoryId),
+    queryKey: contextPreviewQueryKey(selectedStoryId, selectedManuscriptId, selectedSceneId),
     queryFn: async () => {
       try {
-        return await fetchContextPreview(selectedStoryId);
+        return await fetchContextPreview(selectedStoryId, selectedManuscriptId, selectedSceneId);
       } catch (e: any) {
         toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
         throw e;
       }
     },
-    enabled: isSidebarOpen && sidebarTab === "context" && Boolean(selectedStoryId),
+    enabled: isSidebarOpen
+      && sidebarTab === "context"
+      && Boolean(selectedStoryId && selectedManuscriptId && selectedSceneId),
     staleTime: WORKBENCH_QUERY_STALE_TIME,
     retry: false,
     refetchOnWindowFocus: false,
@@ -185,11 +190,11 @@ export function useManuscriptSidebarData({
   }, [queryClient]);
 
   const loadContextPreview = useCallback(async () => {
-    if (!selectedStoryId) return null;
+    if (!selectedStoryId || !selectedManuscriptId || !selectedSceneId) return null;
     try {
       return await queryClient.fetchQuery({
-        queryKey: contextPreviewQueryKey(selectedStoryId),
-        queryFn: () => fetchContextPreview(selectedStoryId),
+        queryKey: contextPreviewQueryKey(selectedStoryId, selectedManuscriptId, selectedSceneId),
+        queryFn: () => fetchContextPreview(selectedStoryId, selectedManuscriptId, selectedSceneId),
         staleTime: 0,
         retry: false,
       });
@@ -197,7 +202,7 @@ export function useManuscriptSidebarData({
       toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
       return null;
     }
-  }, [queryClient, selectedStoryId, toast]);
+  }, [queryClient, selectedManuscriptId, selectedSceneId, selectedStoryId, toast]);
 
   const loadVersions = useCallback(async () => {
     if (!selectedManuscriptId) return null;
