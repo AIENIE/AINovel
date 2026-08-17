@@ -77,6 +77,9 @@ public class V2ExportPersistenceService {
                                          String fileName, String contentType) {
         UUID templateId = payload.get("templateId") == null ? null : UUID.fromString(payload.get("templateId").toString());
         V2ExportTemplate template = templateId == null ? null : requireTemplate(templateId);
+        if (template != null && template.getUser() != null && !Objects.equals(template.getUser().getId(), user.getId())) {
+            throw new BusinessException("导出模板不存在");
+        }
         Object config = payload.get("config");
         if (!(config instanceof Map<?, ?>) && template != null) {
             config = v2Json.map(template.getConfigJson());
@@ -101,6 +104,12 @@ public class V2ExportPersistenceService {
         job.setProgress(0);
         job.setFileName(fileName);
         job.setFileSizeBytes(0L);
+        job.setSnapshotJson(v2Json.write(Map.of(
+                "title", str(manuscript.getTitle(), "AINovel"),
+                "author", str(user.getUsername(), ""),
+                "outline", manuscript.getOutline().getContentJson() == null ? "{}" : manuscript.getOutline().getContentJson(),
+                "sections", manuscript.getSectionsJson() == null ? "{}" : manuscript.getSectionsJson()
+        )));
         job.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
         return jobMap(jobRepository.saveAndFlush(job), contentType);
     }
@@ -207,12 +216,13 @@ public class V2ExportPersistenceService {
         out.put("filePath", job.getFilePath());
         out.put("fileSizeBytes", job.getFileSizeBytes() == null ? 0L : job.getFileSizeBytes());
         out.put("errorMessage", job.getErrorMessage());
+        out.put("checksum", job.getChecksum());
         out.put("contentType", explicitContentType == null ? contentType(job.getFormat()) : explicitContentType);
         out.put("contentBytes", null);
         out.put("expiresAt", job.getExpiresAt());
         out.put("createdAt", job.getCreatedAt());
-        out.put("startedAt", null);
-        out.put("completedAt", null);
+        out.put("startedAt", job.getStartedAt());
+        out.put("completedAt", job.getCompletedAt());
         return out;
     }
 

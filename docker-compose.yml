@@ -39,6 +39,9 @@ services:
         max-file: "${DOCKER_LOG_MAX_FILE:-5}"
     ports:
       - "${FRONTEND_PORT:-11040}:11040"
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - ainovel
 

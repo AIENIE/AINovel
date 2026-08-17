@@ -25,7 +25,8 @@ public class MaterialChunker {
             String text = content.substring(start, end).trim();
             if (!text.isBlank()) {
                 String chunkId = UUID.nameUUIDFromBytes((material.getId() + ":" + seq).getBytes(StandardCharsets.UTF_8)).toString();
-                chunks.add(new MaterialChunk(chunkId, material.getId(), material.getTitle(), text, seq, material.getTagsJson()));
+                chunks.add(new MaterialChunk(chunkId, material.getId(), material.getTitle(), text, seq,
+                        material.getTagsJson(), material.getUser() == null ? null : material.getUser().getId(), material.getStatus()));
                 seq++;
             }
             if (end >= content.length()) {
