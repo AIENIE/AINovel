@@ -1,7 +1,6 @@
 package com.ainovel.app.security;
 
-import com.ainovel.app.settings.repo.GlobalSettingsRepository;
-import com.ainovel.app.user.UserRepository;
+import com.ainovel.app.user.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,9 +17,7 @@ import java.io.IOException;
 @Component
 public class SystemGuardFilter extends OncePerRequestFilter {
     @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private GlobalSettingsRepository globalSettingsRepository;
+    private MaintenanceModeCache maintenanceModeCache;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -31,8 +28,7 @@ public class SystemGuardFilter extends OncePerRequestFilter {
             return;
         }
 
-        String username = auth.getName();
-        var user = userRepository.findByUsername(username).orElse(null);
+        User user = auth.getPrincipal() instanceof AuthenticatedUserPrincipal principal ? principal.user() : null;
         if (user == null) {
             filterChain.doFilter(request, response);
             return;
@@ -45,9 +41,7 @@ public class SystemGuardFilter extends OncePerRequestFilter {
             return;
         }
 
-        boolean maintenance = globalSettingsRepository.findTopByOrderByUpdatedAtDesc()
-                .map(g -> g.isMaintenanceMode())
-                .orElse(false);
+        boolean maintenance = maintenanceModeCache.enabled();
         if (maintenance && !user.hasRole("ROLE_ADMIN")) {
             response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
             response.setContentType("application/json;charset=UTF-8");
@@ -58,4 +52,3 @@ public class SystemGuardFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

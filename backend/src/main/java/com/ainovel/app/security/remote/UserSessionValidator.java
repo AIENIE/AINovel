@@ -16,8 +16,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +36,12 @@ public class UserSessionValidator {
     private final GrpcChannelFactory channelFactory;
 
     private final ConcurrentMap<String, EndpointClient> endpointClients = new ConcurrentHashMap<>();
+    private final java.util.Map<SessionKey, Instant> positiveCache = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<>(128, 0.75f, true) {
+                @Override protected boolean removeEldestEntry(java.util.Map.Entry<SessionKey, Instant> eldest) {
+                    return size() > 10_000;
+                }
+            });
 
     public UserSessionValidator(
             ConsulUserGrpcEndpointResolver consulResolver,
@@ -54,23 +59,20 @@ public class UserSessionValidator {
         if (userId <= 0 || sessionId == null || sessionId.isBlank()) {
             return false;
         }
+        SessionKey cacheKey = new SessionKey(userId, sessionId);
+        Instant cachedUntil = positiveCache.get(cacheKey);
+        if (cachedUntil != null && cachedUntil.isAfter(Instant.now())) return true;
+        if (cachedUntil != null) positiveCache.remove(cacheKey);
         String internalToken = externalServiceProperties.getSecurity().getUser().getInternalGrpcToken();
         if (internalToken == null || internalToken.isBlank()) {
             log.warn("Userservice session validation token is empty");
             return false;
         }
 
-        int connectTimeout = (int) Math.max(300L, properties.getTimeoutMs());
         Exception terminalFailure = null;
         String failureStage = null;
-        boolean endpointUnreachable = false;
         boolean rpcCompleted = false;
         for (ConsulUserGrpcEndpointResolver.Endpoint endpoint : resolveCandidates()) {
-            if (!isTcpReachable(endpoint.host(), endpoint.port(), connectTimeout)) {
-                endpointUnreachable = true;
-                continue;
-            }
-
             EndpointClient client;
             try {
                 client = getOrCreateClient(endpoint);
@@ -82,7 +84,7 @@ public class UserSessionValidator {
 
             try {
                 boolean valid = client.stub()
-                        .withDeadlineAfter(Math.max(500L, properties.getTimeoutMs()), TimeUnit.MILLISECONDS)
+                        .withDeadlineAfter(Math.max(500L, externalServiceProperties.getSessionTimeoutMs()), TimeUnit.MILLISECONDS)
                         .validateSession(ValidateSessionRequest.newBuilder()
                                 .setUserId(userId)
                                 .setSessionId(sessionId)
@@ -90,6 +92,7 @@ public class UserSessionValidator {
                         .getValid();
                 rpcCompleted = true;
                 if (valid) {
+                    positiveCache.put(cacheKey, Instant.now().plusSeconds(10));
                     return true;
                 }
             } catch (Exception e) {
@@ -100,10 +103,12 @@ public class UserSessionValidator {
         if (!rpcCompleted && terminalFailure != null) {
             log.warn("Userservice session validation failed stage={} errorType={}",
                     failureStage, terminalFailure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(terminalFailure));
-        } else if (!rpcCompleted && endpointUnreachable) {
-            log.warn("Userservice session validation failed reason=NO_REACHABLE_ENDPOINT");
         }
         return false;
+    }
+
+    public boolean dependencyAvailable() {
+        return !resolveCandidates().isEmpty();
     }
 
     private EndpointClient getOrCreateClient(ConsulUserGrpcEndpointResolver.Endpoint endpoint) {
@@ -198,12 +203,5 @@ public class UserSessionValidator {
         }
     }
 
-    private boolean isTcpReachable(String host, int port, int timeoutMs) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), timeoutMs);
-            return true;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
+    private record SessionKey(long userId, String sessionId) { }
 }

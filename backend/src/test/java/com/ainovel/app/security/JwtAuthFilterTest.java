@@ -44,6 +44,10 @@ class JwtAuthFilterTest {
         when(users.loadUserByUsername("goodboy95"))
                 .thenReturn(User.withUsername("goodboy95").password("n/a").authorities("ROLE_USER").build());
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
+        com.ainovel.app.user.User localUser = new com.ainovel.app.user.User();
+        localUser.setUsername("goodboy95");
+        localUser.setRoles(java.util.Set.of("USER"));
+        when(provisioning.ensureExistsBestEffort("goodboy95", "USER", 18L)).thenReturn(localUser);
         UserSessionValidator validator = mock(UserSessionValidator.class);
         when(validator.validate(18L, "sid-001")).thenReturn(true);
         ObjectProvider<UserSessionValidator> provider = provider(validator);

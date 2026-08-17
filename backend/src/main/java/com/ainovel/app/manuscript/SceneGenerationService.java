@@ -179,6 +179,15 @@ public class SceneGenerationService {
         return new EvaluationPair(fastText, craftedText);
     }
 
+    public String generateEvaluationCandidate(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId,
+                                              GenerationMode mode) {
+        Map<String, String> sections = existingSections(manuscript);
+        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, sections);
+        AiUsageContext context = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId),
+                "pair:" + mode.name().toLowerCase(java.util.Locale.ROOT));
+        return generateEvaluationCandidate(manuscript, sceneId, sections, mode, context, compiledContext);
+    }
+
     private String generateEvaluationCandidate(Manuscript manuscript,
                                                UUID sceneId,
                                                Map<String, String> existingSections,

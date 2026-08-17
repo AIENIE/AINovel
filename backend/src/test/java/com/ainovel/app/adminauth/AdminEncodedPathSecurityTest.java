@@ -72,12 +72,8 @@ class AdminEncodedPathSecurityTest {
         Claims claims = signedUserClaims();
         when(jwtService.parseClaims("signed-sso-admin")).thenReturn(claims);
         when(userSessionValidator.validate(18L, "session-001")).thenReturn(true);
-        when(userDetailsService.loadUserByUsername("sso-admin"))
-                .thenReturn(org.springframework.security.core.userdetails.User
-                        .withUsername("sso-admin")
-                        .password("n/a")
-                        .authorities("ROLE_ADMIN")
-                        .build());
+        when(provisioningService.ensureExistsBestEffort("sso-admin", "ADMIN", 18L))
+                .thenReturn(localUser("sso-admin", "ADMIN"));
 
         mockMvc.perform(get(URI.create("/api/v2/%61dmin/model-routing"))
                         .servletPath("/api")
@@ -86,7 +82,7 @@ class AdminEncodedPathSecurityTest {
                 .andExpect(jsonPath("$.code").value("LOCAL_ADMIN_REQUIRED"));
 
         verify(userSessionValidator).validate(18L, "session-001");
-        verify(userDetailsService).loadUserByUsername("sso-admin");
+        verify(provisioningService).ensureExistsBestEffort("sso-admin", "ADMIN", 18L);
     }
 
     @Test
@@ -114,12 +110,8 @@ class AdminEncodedPathSecurityTest {
         Claims claims = signedUserClaims("ordinary-user", 19L, "session-ordinary", "USER");
         when(jwtService.parseClaims("signed-ordinary-user")).thenReturn(claims);
         when(userSessionValidator.validate(19L, "session-ordinary")).thenReturn(true);
-        when(userDetailsService.loadUserByUsername("ordinary-user"))
-                .thenReturn(org.springframework.security.core.userdetails.User
-                        .withUsername("ordinary-user")
-                        .password("n/a")
-                        .authorities("ROLE_USER")
-                        .build());
+        when(provisioningService.ensureExistsBestEffort("ordinary-user", "USER", 19L))
+                .thenReturn(localUser("ordinary-user", "USER"));
         when(resourceAccessGuard.currentUser(any(UserDetails.class))).thenReturn(new User());
         when(persistenceService.listModels()).thenReturn(List.of());
 
@@ -132,7 +124,7 @@ class AdminEncodedPathSecurityTest {
 
         verify(adminSessionService, never()).resolve(any());
         verify(jwtService).parseClaims("signed-ordinary-user");
-        verify(userDetailsService).loadUserByUsername("ordinary-user");
+        verify(provisioningService).ensureExistsBestEffort("ordinary-user", "USER", 19L);
         verify(resourceAccessGuard).currentUser(org.mockito.ArgumentMatchers.argThat(
                 details -> "ordinary-user".equals(details.getUsername())
         ));
@@ -140,6 +132,13 @@ class AdminEncodedPathSecurityTest {
 
     private Claims signedUserClaims() {
         return signedUserClaims("sso-admin", 18L, "session-001", "ADMIN");
+    }
+
+    private User localUser(String username, String role) {
+        User user = new User();
+        user.setUsername(username);
+        user.setRoles(java.util.Set.of(role));
+        return user;
     }
 
     private Claims signedUserClaims(String username, long uid, String sessionId, String role) {

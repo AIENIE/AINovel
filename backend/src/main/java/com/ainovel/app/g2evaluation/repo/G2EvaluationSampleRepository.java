@@ -37,4 +37,6 @@ public interface G2EvaluationSampleRepository extends JpaRepository<G2Evaluation
     );
 
     Optional<G2EvaluationSample> findByIdAndExperiment(UUID id, G2EvaluationExperiment experiment);
+    List<G2EvaluationSample> findTop100ByStatusOrderByCreatedAtAsc(G2EvaluationSampleStatus status);
+    List<G2EvaluationSample> findByStatus(G2EvaluationSampleStatus status);
 }

@@ -32,6 +32,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class G2EvaluationService {
@@ -43,6 +47,7 @@ public class G2EvaluationService {
     private final ManuscriptRepository manuscriptRepository;
     private final G2EvaluationGenerationWorker generationWorker;
     private final Executor executor;
+    private final Set<UUID> dispatched = ConcurrentHashMap.newKeySet();
 
     public G2EvaluationService(G2EvaluationExperimentRepository experimentRepository,
                                G2EvaluationInviteRepository inviteRepository,
@@ -214,15 +219,34 @@ public class G2EvaluationService {
 
     private void scheduleGenerationAfterCommit(UUID sampleId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            executor.execute(() -> generationWorker.generate(sampleId));
+            dispatch(sampleId);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                executor.execute(() -> generationWorker.generate(sampleId));
+                dispatch(sampleId);
             }
         });
+    }
+
+    @Scheduled(fixedDelayString = "${app.g2-evaluation.dispatch-delay-ms:3000}")
+    public void dispatchPendingSamples() {
+        generationWorker.recoverExpiredLeases();
+        sampleRepository.findTop100ByStatusOrderByCreatedAtAsc(G2EvaluationSampleStatus.PENDING)
+                .forEach(sample -> dispatch(sample.getId()));
+    }
+
+    private void dispatch(UUID sampleId) {
+        if (!dispatched.add(sampleId)) return;
+        try {
+            executor.execute(() -> {
+                try { generationWorker.generate(sampleId); }
+                finally { dispatched.remove(sampleId); }
+            });
+        } catch (RejectedExecutionException ex) {
+            dispatched.remove(sampleId);
+        }
     }
 
     private void acceptInvite(G2EvaluationExperiment experiment, User reviewer) {
