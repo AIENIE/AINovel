@@ -4,6 +4,16 @@
 
 ## 标准验证链
 
+Windows 原生 L1/L2 统一入口：
+
+```powershell
+.\scripts\windows\Test-Local.ps1 -Level L1
+# 仅在明确选择 L2 时使用：
+.\scripts\windows\Test-Local.ps1 -Level L2
+```
+
+以下命令是 Linux/CI 的等价项目级验证链：
+
 ```bash
 mvn -q -f backend/pom.xml clean test
 cd frontend
