@@ -2,20 +2,15 @@ package com.ainovel.app.integration;
 
 import com.google.protobuf.Timestamp;
 import fireflychat.billing.v1.BillingBalanceServiceGrpc;
-import fireflychat.billing.v1.BillingCheckinServiceGrpc;
 import fireflychat.billing.v1.BillingConversionServiceGrpc;
 import fireflychat.billing.v1.BillingGrantServiceGrpc;
 import fireflychat.billing.v1.BillingQueryServiceGrpc;
 import fireflychat.billing.v1.BillingRedeemCodeServiceGrpc;
 import fireflychat.billing.v1.BillingUsageServiceGrpc;
-import fireflychat.billing.v1.CheckinRequest;
-import fireflychat.billing.v1.CheckinResponse;
 import fireflychat.billing.v1.ConvertPublicToProjectRequest;
 import fireflychat.billing.v1.ConvertPublicToProjectResponse;
 import fireflychat.billing.v1.DeductUsageRequest;
 import fireflychat.billing.v1.DeductUsageResponse;
-import fireflychat.billing.v1.GetCheckinStatusRequest;
-import fireflychat.billing.v1.GetCheckinStatusResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
 import fireflychat.billing.v1.GrantProjectPermanentTokensRequest;
@@ -56,24 +51,6 @@ public class BillingGrpcClient {
         );
     }
 
-    public CheckinResult checkin(long remoteUserId) {
-        CheckinResponse response = stubs().checkinStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .checkin(CheckinRequest.newBuilder()
-                        .setRequestId(UUID.randomUUID().toString())
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .build());
-        long total = balanceFromProject(response.getProjectBalance()) + publicBalance(remoteUserId);
-        return new CheckinResult(
-                response.getSuccess(),
-                firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
-                total,
-                response.getAlreadyCheckedIn(),
-                response.getErrorMessage()
-        );
-    }
-
     public RedeemResult redeem(long remoteUserId, String code) {
         RedeemCodeResponse response = stubs().redeemStub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
@@ -90,20 +67,6 @@ public class BillingGrpcClient {
                 firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
                 total,
                 response.getErrorMessage()
-        );
-    }
-
-    public CheckinStatus checkinStatus(long remoteUserId) {
-        GetCheckinStatusResponse response = stubs().checkinStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .getCheckinStatus(GetCheckinStatusRequest.newBuilder()
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .build());
-        return new CheckinStatus(
-                response.getCheckedInToday(),
-                toInstant(response.getLastCheckinDate()),
-                firstPositive(response.getCreditsGrantedToday(), response.getTokensGrantedToday())
         );
     }
 
@@ -301,8 +264,6 @@ public class BillingGrpcClient {
                 endpoint.host(),
                 endpoint.port(),
                 channel,
-                BillingCheckinServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingRedeemCodeServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingBalanceServiceGrpc.newBlockingStub(channel)
@@ -319,7 +280,7 @@ public class BillingGrpcClient {
     }
 
     private long timeoutMs() {
-        return Math.max(800L, properties.getTimeoutMs());
+        return Math.max(800L, properties.getBillingTimeoutMs());
     }
 
     private String bearerToken() {
@@ -336,27 +297,11 @@ public class BillingGrpcClient {
         endpointManager.shutdown();
     }
 
-    public record CheckinResult(
-            boolean success,
-            long tokensGranted,
-            long totalTokens,
-            boolean alreadyCheckedIn,
-            String errorMessage
-    ) {
-    }
-
     public record RedeemResult(
             boolean success,
             long tokensGranted,
             long totalTokens,
             String errorMessage
-    ) {
-    }
-
-    public record CheckinStatus(
-            boolean checkedInToday,
-            Instant lastCheckinAt,
-            long tokensGrantedToday
     ) {
     }
 
@@ -394,7 +339,6 @@ public class BillingGrpcClient {
             String host,
             int port,
             ManagedChannel channel,
-            BillingCheckinServiceGrpc.BillingCheckinServiceBlockingStub checkinStub,
             BillingRedeemCodeServiceGrpc.BillingRedeemCodeServiceBlockingStub redeemStub,
             BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub,
             BillingConversionServiceGrpc.BillingConversionServiceBlockingStub conversionStub,

@@ -41,6 +41,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.of(ex.getMessage()));
     }
 
+    @ExceptionHandler(ApiStatusException.class)
+    public ResponseEntity<ApiError> handleApiStatus(ApiStatusException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(ApiError.of(ex.getMessage()));
+    }
+
     @ExceptionHandler(StatusRuntimeException.class)
     public ResponseEntity<ApiError> handleGrpc(StatusRuntimeException ex) {
         Status.Code code = ex.getStatus() == null ? Status.Code.UNKNOWN : ex.getStatus().getCode();

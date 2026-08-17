@@ -28,6 +28,10 @@ public final class RuntimeEnvironmentPreflight {
     private static final List<String> TOTP_REQUIRED = List.of(
             "ADMIN_TOTP_ENCRYPTION_KEYS", "ADMIN_TOTP_ACTIVE_KEY_VERSION"
     );
+    private static final List<String> NON_LOCAL_DATA_SECURITY_REQUIRED = List.of(
+            "DB_URL", "DB_USERNAME", "REDIS_SSL_ENABLED", "REDIS_USERNAME",
+            "REDIS_PASSWORD", "QDRANT_HOST", "QDRANT_API_KEY"
+    );
     private static final String TEMPLATE_PLACEHOLDER_RESOURCE = "env-template-placeholders.properties";
     private static final Map<String, String> TEMPLATE_PLACEHOLDERS = loadTemplatePlaceholders();
 
@@ -44,6 +48,9 @@ public final class RuntimeEnvironmentPreflight {
         if ("totp".equals(authMode)) {
             require(environment, TOTP_REQUIRED, missing);
         }
+        if (!"local".equals(env)) {
+            require(environment, NON_LOCAL_DATA_SECURITY_REQUIRED, missing);
+        }
         if (!missing.isEmpty()) {
             throw new IllegalStateException("Missing required runtime environment variables: "
                     + String.join(", ", missing));
@@ -57,6 +64,30 @@ public final class RuntimeEnvironmentPreflight {
         if (!placeholders.isEmpty()) {
             throw new IllegalStateException("Runtime environment contains template placeholder values for: "
                     + String.join(", ", placeholders));
+        }
+
+        if ("local".equals(env)) {
+            System.getLogger(RuntimeEnvironmentPreflight.class.getName()).log(
+                    System.Logger.Level.WARNING,
+                    "Local profile permits plaintext MySQL/Redis/Qdrant for development only; never reuse it for test or production"
+            );
+            return;
+        }
+
+        String dbUrl = environment.get("DB_URL");
+        if (dbUrl == null || !dbUrl.toLowerCase(java.util.Locale.ROOT).contains("sslmode=verify_identity")) {
+            throw new IllegalStateException("DB_URL must require sslMode=VERIFY_IDENTITY outside local");
+        }
+        String dbUsername = environment.get("DB_USERNAME");
+        if ("root".equalsIgnoreCase(dbUsername) || "ainovel".equalsIgnoreCase(dbUsername)) {
+            throw new IllegalStateException("DB_USERNAME must be a non-template least-privilege account outside local");
+        }
+        if (!"true".equals(environment.get("REDIS_SSL_ENABLED"))) {
+            throw new IllegalStateException("REDIS_SSL_ENABLED must be exactly true outside local");
+        }
+        String qdrantHost = environment.get("QDRANT_HOST");
+        if (qdrantHost == null || !qdrantHost.toLowerCase(java.util.Locale.ROOT).startsWith("https://")) {
+            throw new IllegalStateException("QDRANT_HOST must use https outside local");
         }
     }
 

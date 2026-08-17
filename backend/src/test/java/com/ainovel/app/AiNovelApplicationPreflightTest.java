@@ -92,6 +92,22 @@ class AiNovelApplicationPreflightTest {
         assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
     }
 
+    @Test
+    void nonLocalRequiresAuthenticatedEncryptedDataServices() {
+        Map<String, String> environment = validEnvironment();
+        environment.put("ENV", "production");
+        environment.keySet().removeAll(java.util.Set.of("DB_URL", "DB_USERNAME", "REDIS_SSL_ENABLED", "REDIS_USERNAME", "QDRANT_HOST", "QDRANT_API_KEY"));
+        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(environment));
+
+        environment.put("DB_URL", "jdbc:mysql://db.example/ainovel?sslMode=VERIFY_IDENTITY");
+        environment.put("DB_USERNAME", "ainovel_runtime");
+        environment.put("REDIS_SSL_ENABLED", "true");
+        environment.put("REDIS_USERNAME", "ainovel_runtime");
+        environment.put("QDRANT_HOST", "https://qdrant.example");
+        environment.put("QDRANT_API_KEY", "unit-test-qdrant-key");
+        assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
+    }
+
     private Map<String, String> validEnvironment() {
         Map<String, String> environment = new HashMap<>();
         environment.put("ENV", "local");
@@ -112,6 +128,12 @@ class AiNovelApplicationPreflightTest {
         environment.put("EXTERNAL_AI_HMAC_SECRET", "unit-test-hmac-secret-with-at-least-32-bytes");
         environment.put("EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "unit-test-user-token");
         environment.put("EXTERNAL_PAY_SERVICE_JWT", "header.payload.signature");
+        environment.put("DB_URL", "jdbc:mysql://db.example/ainovel?sslMode=VERIFY_IDENTITY");
+        environment.put("DB_USERNAME", "ainovel_runtime");
+        environment.put("REDIS_SSL_ENABLED", "true");
+        environment.put("REDIS_USERNAME", "ainovel_runtime");
+        environment.put("QDRANT_HOST", "https://qdrant.example");
+        environment.put("QDRANT_API_KEY", "unit-test-qdrant-key");
         return environment;
     }
 

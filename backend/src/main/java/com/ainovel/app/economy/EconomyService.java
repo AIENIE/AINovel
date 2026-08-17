@@ -3,6 +3,7 @@ package com.ainovel.app.economy;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.economy.model.ConversionOrderStatus;
+import com.ainovel.app.economy.model.AiCreditReservation;
 import com.ainovel.app.economy.model.CreditLedgerType;
 import com.ainovel.app.economy.model.CreditConversionOrder;
 import com.ainovel.app.economy.model.ProjectCreditAccount;
@@ -10,6 +11,7 @@ import com.ainovel.app.economy.model.ProjectCreditLedger;
 import com.ainovel.app.economy.model.RedeemCode;
 import com.ainovel.app.economy.model.RedeemCodeUsage;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
+import com.ainovel.app.economy.repo.AiCreditReservationRepository;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
 import com.ainovel.app.economy.repo.RedeemCodeRepository;
@@ -25,6 +27,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.http.HttpStatus;
+import com.ainovel.app.common.ApiStatusException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.util.Locale;
@@ -47,6 +54,11 @@ public class EconomyService {
     private RedeemCodeRepository redeemCodeRepository;
     @Autowired
     private RedeemCodeUsageRepository redeemCodeUsageRepository;
+    @Autowired
+    private AiCreditReservationRepository aiReservationRepository;
+    @Autowired
+    private TransactionTemplate transactions;
+    private final String conversionLeaseOwner = UUID.randomUUID().toString();
 
     public EconomyService(
             BillingGrpcClient billingGrpcClient,
@@ -83,6 +95,13 @@ public class EconomyService {
     }
 
     public record AiChargeResult(long charged, long remainingProjectCredits) {
+    }
+
+    public record AiReservationStart(boolean replay, String content, long promptTokens,
+                                     long completionTokens, long cacheTokens, long charged) {
+        public static AiReservationStart reserved() {
+            return new AiReservationStart(false, null, 0, 0, 0, 0);
+        }
     }
 
     public record LedgerItem(
@@ -130,13 +149,14 @@ public class EconomyService {
     ) {
     }
 
-    @Transactional
-    public CreditChangeResult checkIn(User user) {
-        throw new IllegalStateException("CHECKIN_DISABLED");
+    public CreditChangeResult redeem(User user, String code) {
+        CreditChangeResult local = Objects.requireNonNull(transactions.execute(status -> redeemLocally(user, code)));
+        long publicCredits = fetchPublicBalance(user);
+        return new CreditChangeResult(true, local.points(), local.projectCredits(), publicCredits,
+                local.projectCredits() + publicCredits, local.message());
     }
 
-    @Transactional
-    public CreditChangeResult redeem(User user, String code) {
+    private CreditChangeResult redeemLocally(User user, String code) {
         String normalized = normalizeRedeemCode(code);
         if (normalized.isBlank()) {
             throw new BusinessException("兑换码不能为空");
@@ -176,11 +196,9 @@ public class EconomyService {
         usage.setRedeemCode(redeemCode);
         usage.setUser(user);
         redeemCodeUsageRepository.save(usage);
-        long publicCredits = fetchPublicBalance(user);
-        return new CreditChangeResult(true, redeemCode.getGrantAmount(), projectCredits, publicCredits, projectCredits + publicCredits, "REDEEM_SUCCESS");
+        return new CreditChangeResult(true, redeemCode.getGrantAmount(), projectCredits, 0L, projectCredits, "REDEEM_SUCCESS");
     }
 
-    @Transactional(readOnly = true)
     public BalanceSnapshot currentBalance(User user) {
         long project = accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
         long pub = fetchPublicBalance(user);
@@ -190,6 +208,118 @@ public class EconomyService {
     @Transactional(readOnly = true)
     public long projectBalance(User user) {
         return accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
+    }
+
+    @Transactional
+    public AiReservationStart reserveAiUsage(User user, long maximumCost, String referenceType,
+                                             String referenceId, String idempotencyKey, String requestHash) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BusinessException("缺少 Idempotency-Key");
+        }
+        user = lockUser(user);
+        long reservationCost = Math.max(1L, maximumCost);
+        AiCreditReservation reservation = aiReservationRepository
+                .findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
+        if (reservation != null) {
+            if (!Objects.equals(reservation.getRequestHash(), requestHash)) {
+                throw new BusinessException("Idempotency-Key 已用于不同请求");
+            }
+            if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
+                return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount());
+            }
+            if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
+                throw new BusinessException("相同 AI 请求正在处理中");
+            }
+        }
+
+        ProjectCreditAccount account = accountForUpdate(user);
+        if (account.getBalance() < reservationCost) {
+            throw new BusinessException("项目积分不足，请先兑换项目积分");
+        }
+        long nextBalance = account.getBalance() - reservationCost;
+        account.setBalance(nextBalance);
+        accountRepository.save(account);
+        syncUserCreditSnapshot(user, nextBalance);
+
+        if (reservation == null) {
+            reservation = new AiCreditReservation();
+            reservation.setUser(user);
+            reservation.setIdempotencyKey(idempotencyKey);
+            reservation.setRequestHash(requestHash);
+            reservation.setReferenceType(referenceType);
+            reservation.setReferenceId(referenceId);
+        }
+        reservation.setReservedAmount(reservationCost);
+        reservation.setAttemptCount(reservation.getAttemptCount() + 1);
+        reservation.setSettledAmount(0);
+        reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setResultContent(null);
+        aiReservationRepository.save(reservation);
+        writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
+                referenceType, referenceId, "AI 调用额度预留",
+                "ai-reserve:" + idempotencyKey + ":" + reservation.getAttemptCount());
+        return AiReservationStart.reserved();
+    }
+
+    @Transactional
+    public AiChargeResult settleAiUsage(User user, String idempotencyKey, String content,
+                                       long inputTokens, long outputTokens, long cacheTokens) {
+        user = lockUser(user);
+        AiCreditReservation reservation = aiReservationRepository
+                .findByUserAndIdempotencyKey(user, idempotencyKey)
+                .orElseThrow(() -> new IllegalStateException("AI reservation missing"));
+        if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
+            return new AiChargeResult(reservation.getSettledAmount(), projectBalance(user));
+        }
+        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED) {
+            throw new IllegalStateException("AI reservation is not active");
+        }
+
+        long actualCost = calculateAiCost(inputTokens, outputTokens);
+        long adjustment = reservation.getReservedAmount() - actualCost;
+        ProjectCreditAccount account = accountForUpdate(user);
+        if (adjustment < 0 && account.getBalance() < -adjustment) {
+            throw new IllegalStateException("AI usage exceeded reserved credit boundary");
+        }
+        if (adjustment != 0) {
+            long nextBalance = account.getBalance() + adjustment;
+            account.setBalance(nextBalance);
+            accountRepository.save(account);
+            syncUserCreditSnapshot(user, nextBalance);
+            writeLedger(user, adjustment > 0 ? CreditLedgerType.AI_RESERVATION_RELEASE : CreditLedgerType.AI_DEBIT,
+                    adjustment, nextBalance, reservation.getReferenceType(), reservation.getReferenceId(),
+                    adjustment > 0 ? "释放未使用的 AI 预留额度" : "补充 AI 实际用量扣费",
+                    "ai-settle:" + idempotencyKey + ":" + reservation.getAttemptCount());
+        }
+        reservation.setSettledAmount(actualCost);
+        reservation.setResultContent(content);
+        reservation.setPromptTokens(inputTokens);
+        reservation.setCompletionTokens(outputTokens);
+        reservation.setCacheTokens(cacheTokens);
+        reservation.setStatus(AiCreditReservation.Status.COMPLETED);
+        aiReservationRepository.save(reservation);
+        return new AiChargeResult(actualCost, account.getBalance());
+    }
+
+    @Transactional
+    public void releaseAiReservation(User user, String idempotencyKey) {
+        user = lockUser(user);
+        AiCreditReservation reservation = aiReservationRepository
+                .findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
+        if (reservation == null || reservation.getStatus() != AiCreditReservation.Status.RESERVED) {
+            return;
+        }
+        ProjectCreditAccount account = accountForUpdate(user);
+        long nextBalance = account.getBalance() + reservation.getReservedAmount();
+        account.setBalance(nextBalance);
+        accountRepository.save(account);
+        syncUserCreditSnapshot(user, nextBalance);
+        reservation.setStatus(AiCreditReservation.Status.RELEASED);
+        aiReservationRepository.save(reservation);
+        writeLedger(user, CreditLedgerType.AI_RESERVATION_RELEASE, reservation.getReservedAmount(), nextBalance,
+                reservation.getReferenceType(), reservation.getReferenceId(), "AI 调用失败，释放预留额度",
+                "ai-release:" + idempotencyKey + ":" + reservation.getAttemptCount());
     }
 
     @Transactional
@@ -267,91 +397,156 @@ public class EconomyService {
         }
 
         CreditConversionOrder existing = conversionOrderRepository.findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
-        if (existing != null) {
-            if (existing.getStatus() == ConversionOrderStatus.SUCCESS) {
-                long projectAfter = existing.getProjectAfter();
-                long publicAfter = existing.getPublicAfter();
-                return new ConversionResult(
-                        existing.getOrderNo(),
-                        existing.getConvertedAmount(),
-                        existing.getProjectBefore(),
-                        projectAfter,
-                        existing.getPublicBefore(),
-                        publicAfter,
-                        projectAfter + publicAfter
-                );
-            }
-            throw new BusinessException("该兑换请求正在处理或已失败，请更换 idempotencyKey");
+        if (existing != null && existing.getStatus() == ConversionOrderStatus.SUCCESS) return conversionResult(existing);
+        if (existing != null && existing.getStatus() == ConversionOrderStatus.FAILED) {
+            throw new BusinessException("该兑换请求已被业务拒绝");
         }
 
-        long projectBefore = projectBalance(user);
-        long publicBefore = fetchPublicBalance(user);
+        UUID orderId = existing == null ? createConversionOrder(user, amount, idempotencyKey) : existing.getId();
+        return executeConversion(orderId, true);
+    }
 
-        String orderNo = "CVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase(Locale.ROOT);
-        CreditConversionOrder order = new CreditConversionOrder();
-        order.setOrderNo(orderNo);
-        order.setUser(user);
-        order.setIdempotencyKey(idempotencyKey);
-        order.setRequestedAmount(amount);
-        order.setConvertedAmount(0);
-        order.setProjectBefore(projectBefore);
-        order.setProjectAfter(projectBefore);
-        order.setPublicBefore(publicBefore);
-        order.setPublicAfter(publicBefore);
-        order.setStatus(ConversionOrderStatus.PENDING);
-        order.setRemoteRequestId(UUID.randomUUID().toString());
-        conversionOrderRepository.save(order);
+    private UUID createConversionOrder(User user, long amount, String idempotencyKey) {
+        long publicBefore = fetchPublicBalance(user);
+        try {
+            return Objects.requireNonNull(transactions.execute(status -> {
+                CreditConversionOrder duplicate = conversionOrderRepository
+                        .findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
+                if (duplicate != null) return duplicate.getId();
+                ProjectCreditAccount account = accountForUpdate(user);
+                CreditConversionOrder order = new CreditConversionOrder();
+                order.setOrderNo("CVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20).toUpperCase(Locale.ROOT));
+                order.setUser(user);
+                order.setIdempotencyKey(idempotencyKey);
+                order.setRequestedAmount(amount);
+                order.setConvertedAmount(0);
+                order.setProjectBefore(account.getBalance());
+                order.setProjectAfter(account.getBalance());
+                order.setPublicBefore(publicBefore);
+                order.setPublicAfter(publicBefore);
+                order.setStatus(ConversionOrderStatus.PENDING);
+                order.setRemoteRequestId(UUID.randomUUID().toString());
+                order.setNextAttemptAt(Instant.now());
+                return conversionOrderRepository.saveAndFlush(order).getId();
+            }));
+        } catch (DataIntegrityViolationException ex) {
+            return conversionOrderRepository.findByUserAndIdempotencyKey(user, idempotencyKey)
+                    .orElseThrow(() -> ex).getId();
+        }
+    }
+
+    private ConversionResult executeConversion(UUID orderId, boolean reportPending) {
+        ConversionClaim claim = transactions.execute(status -> {
+            CreditConversionOrder order = conversionOrderRepository.findForUpdateById(orderId).orElse(null);
+            if (order == null || order.getStatus() != ConversionOrderStatus.PENDING) return null;
+            Instant now = Instant.now();
+            if (order.getLeaseExpiresAt() != null && order.getLeaseExpiresAt().isAfter(now)) return null;
+            if (order.getNextAttemptAt() != null && order.getNextAttemptAt().isAfter(now)) return null;
+            order.setLeaseOwner(conversionLeaseOwner);
+            order.setLeaseExpiresAt(now.plusSeconds(30));
+            order.setAttemptCount(order.getAttemptCount() + 1);
+            return new ConversionClaim(order.getId(), order.getUser().getId(), order.getUser().getRemoteUid(),
+                    order.getRequestedAmount(), order.getRemoteRequestId());
+        });
+        if (claim == null) {
+            CreditConversionOrder order = conversionOrderRepository.findById(orderId).orElseThrow();
+            if (order.getStatus() == ConversionOrderStatus.SUCCESS) return conversionResult(order);
+            if (reportPending) throw new ApiStatusException(HttpStatus.CONFLICT, "CONVERSION_PENDING");
+            return null;
+        }
 
         BillingGrpcClient.ConversionResult remote;
         try {
-            remote = billingGrpcClient.convertPublicToProject(remoteUid, amount, order.getRemoteRequestId());
+            remote = billingGrpcClient.convertPublicToProject(claim.remoteUid(), claim.amount(), claim.remoteRequestId());
         } catch (RuntimeException ex) {
-            order.setStatus(ConversionOrderStatus.FAILED);
-            order.setRemoteMessage(ex.getMessage());
-            conversionOrderRepository.save(order);
-            throw ex;
+            scheduleConversionRetry(orderId, ex.getClass().getSimpleName());
+            if (reportPending) throw new ApiStatusException(HttpStatus.SERVICE_UNAVAILABLE, "CONVERSION_PENDING_RETRY");
+            return null;
         }
         if (!remote.success()) {
-            order.setStatus(ConversionOrderStatus.FAILED);
-            order.setRemoteMessage(remote.errorMessage());
-            conversionOrderRepository.save(order);
-            throw new BusinessException(remote.errorMessage() == null || remote.errorMessage().isBlank() ? "通用积分兑换失败" : remote.errorMessage());
+            if (isTransientRemoteFailure(remote.errorMessage())) {
+                scheduleConversionRetry(orderId, remote.errorMessage());
+                if (reportPending) throw new ApiStatusException(HttpStatus.SERVICE_UNAVAILABLE, "CONVERSION_PENDING_RETRY");
+                return null;
+            }
+            transactions.executeWithoutResult(status -> conversionOrderRepository.findForUpdateById(orderId).ifPresent(order -> {
+                order.setStatus(ConversionOrderStatus.FAILED);
+                order.setRemoteMessage(remote.errorMessage());
+                order.setNextAttemptAt(null);
+                clearConversionLease(order);
+            }));
+            throw new BusinessException(normalizeRemoteError(remote.errorMessage(), "通用积分兑换失败"));
         }
 
-        long converted = remote.convertedProjectTokens() > 0 ? remote.convertedProjectTokens() : amount;
-        ProjectCreditAccount account = accountForUpdate(user);
-        long projectAfter = addProjectCredits(
-                user,
-                account,
-                converted,
-                CreditLedgerType.CONVERT_IN,
-                "CONVERSION",
-                orderNo,
-                "通用积分兑换项目专属积分",
-                "convert:" + idempotencyKey
-        );
-        long publicAfter = remote.publicRemainingTokens() >= 0 ? remote.publicRemainingTokens() : fetchPublicBalance(user);
-        order.setConvertedAmount(converted);
-        order.setStatus(ConversionOrderStatus.SUCCESS);
-        order.setRemoteMessage(remote.errorMessage());
-        order.setProjectAfter(projectAfter);
-        order.setPublicAfter(publicAfter);
-        conversionOrderRepository.save(order);
-        syncUserCreditSnapshot(user, projectAfter);
-
-        return new ConversionResult(
-                orderNo,
-                converted,
-                order.getProjectBefore(),
-                order.getProjectAfter(),
-                order.getPublicBefore(),
-                order.getPublicAfter(),
-                order.getProjectAfter() + order.getPublicAfter()
-        );
+        return Objects.requireNonNull(transactions.execute(status -> {
+            CreditConversionOrder order = conversionOrderRepository.findForUpdateById(orderId).orElseThrow();
+            if (order.getStatus() == ConversionOrderStatus.SUCCESS) return conversionResult(order);
+            User user = order.getUser();
+            long converted = remote.convertedProjectTokens() > 0 ? remote.convertedProjectTokens() : order.getRequestedAmount();
+            ProjectCreditAccount account = accountForUpdate(user);
+            long projectAfter = addProjectCredits(user, account, converted, CreditLedgerType.CONVERT_IN,
+                    "CONVERSION", order.getOrderNo(), "通用积分兑换项目专属积分",
+                    "convert:" + order.getIdempotencyKey());
+            order.setConvertedAmount(converted);
+            order.setStatus(ConversionOrderStatus.SUCCESS);
+            order.setRemoteMessage(remote.errorMessage());
+            order.setProjectAfter(projectAfter);
+            order.setPublicAfter(Math.max(0, remote.publicRemainingTokens()));
+            order.setNextAttemptAt(null);
+            clearConversionLease(order);
+            return conversionResult(order);
+        }));
     }
 
-    @Transactional
+    @Scheduled(fixedDelayString = "${app.economy.conversion-reconcile-delay-ms:10000}")
+    public void reconcilePendingConversions() {
+        conversionOrderRepository.findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
+                        ConversionOrderStatus.PENDING, Instant.now(), org.springframework.data.domain.PageRequest.of(0, 100))
+                .forEach(order -> {
+                    try { executeConversion(order.getId(), false); }
+                    catch (RuntimeException ex) {
+                        log.warn("event=conversion_reconcile_failed orderId={} errorType={}",
+                                order.getId(), ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+                    }
+                });
+    }
+
+    private void scheduleConversionRetry(UUID orderId, String message) {
+        transactions.executeWithoutResult(status -> conversionOrderRepository.findForUpdateById(orderId).ifPresent(order -> {
+            order.setRemoteMessage(message == null ? "TRANSIENT_REMOTE_FAILURE" : message);
+            long delay = Math.min(300L, 1L << Math.min(8, Math.max(1, order.getAttemptCount())));
+            order.setNextAttemptAt(Instant.now().plusSeconds(delay));
+            clearConversionLease(order);
+        }));
+    }
+
+    private boolean isTransientRemoteFailure(String message) {
+        String value = message == null ? "" : message.toUpperCase(Locale.ROOT);
+        return value.contains("UNAVAILABLE") || value.contains("DEADLINE_EXCEEDED")
+                || value.contains("RESOURCE_EXHAUSTED") || value.contains("INTERNAL") || value.contains("UNKNOWN");
+    }
+
+    private void clearConversionLease(CreditConversionOrder order) {
+        order.setLeaseOwner(null);
+        order.setLeaseExpiresAt(null);
+    }
+
+    private ConversionResult conversionResult(CreditConversionOrder order) {
+        return new ConversionResult(order.getOrderNo(), order.getConvertedAmount(), order.getProjectBefore(),
+                order.getProjectAfter(), order.getPublicBefore(), order.getPublicAfter(),
+                order.getProjectAfter() + order.getPublicAfter());
+    }
+
+    private record ConversionClaim(UUID orderId, UUID userId, long remoteUid, long amount, String remoteRequestId) { }
+
     public CreditChangeResult grantProjectCredits(User target, long amount, String reason, String operator) {
+        CreditChangeResult local = Objects.requireNonNull(transactions.execute(status -> grantProjectCreditsLocally(target, amount, reason, operator)));
+        long publicCredits = fetchPublicBalance(target);
+        return new CreditChangeResult(true, local.points(), local.projectCredits(), publicCredits,
+                local.projectCredits() + publicCredits, local.message());
+    }
+
+    private CreditChangeResult grantProjectCreditsLocally(User target, long amount, String reason, String operator) {
         if (amount <= 0) {
             throw new BusinessException("发放积分必须大于 0");
         }
@@ -366,8 +561,7 @@ public class EconomyService {
                 reason == null || reason.isBlank() ? "AINovel admin grant by " + operator : reason,
                 "grant:" + operator + ":" + Instant.now().toEpochMilli()
         );
-        long publicCredits = fetchPublicBalance(target);
-        return new CreditChangeResult(true, amount, nextBalance, publicCredits, nextBalance + publicCredits, "GRANT_SUCCESS");
+        return new CreditChangeResult(true, amount, nextBalance, 0L, nextBalance, "GRANT_SUCCESS");
     }
 
     @Transactional(readOnly = true)
@@ -469,6 +663,14 @@ public class EconomyService {
         return accountRepository.save(created);
     }
 
+    private User lockUser(User user) {
+        if (user == null || user.getId() == null) {
+            throw new BusinessException("用户不存在");
+        }
+        return userRepository.findByIdForUpdate(user.getId())
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+    }
+
     private long addProjectCredits(
             User user,
             ProjectCreditAccount account,
@@ -552,13 +754,11 @@ public class EconomyService {
         if (remoteUid == null || remoteUid <= 0) {
             return 0L;
         }
-        RuntimeException lastError = null;
-        for (int attempt = 1; attempt <= 2; attempt++) {
-            try {
-                return billingGrpcClient.publicBalance(remoteUid);
-            } catch (RuntimeException ex) {
-                lastError = ex;
-            }
+        RuntimeException lastError;
+        try {
+            return billingGrpcClient.publicBalance(remoteUid);
+        } catch (RuntimeException ex) {
+            lastError = ex;
         }
 
         long fallback = conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)

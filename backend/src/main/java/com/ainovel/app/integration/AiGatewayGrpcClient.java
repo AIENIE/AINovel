@@ -81,8 +81,12 @@ public class AiGatewayGrpcClient {
     }
 
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
+        return chatCompletions(UUID.randomUUID().toString(), remoteUserId, model, messages);
+    }
+
+    public ChatResult chatCompletions(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
         AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
-        ChatCompletionsRequest request = buildChatRequest(UUID.randomUUID().toString(), remoteUserId, model, messages);
+        ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
         ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .chatCompletions(request);
         return new ChatResult(
@@ -98,7 +102,14 @@ public class AiGatewayGrpcClient {
                                             String model,
                                             List<AiChatRequest.Message> messages,
                                             StreamProgressListener listener) {
-        String requestId = UUID.randomUUID().toString();
+        return chatCompletionsStream(UUID.randomUUID().toString(), remoteUserId, model, messages, listener);
+    }
+
+    public ChatResult chatCompletionsStream(String requestId,
+                                            long remoteUserId,
+                                            String model,
+                                            List<AiChatRequest.Message> messages,
+                                            StreamProgressListener listener) {
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
         Iterator<ChatCompletionsStreamEvent> events = stub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
@@ -215,7 +226,7 @@ public class AiGatewayGrpcClient {
     }
 
     private long timeoutMs() {
-        return Math.max(800L, properties.getTimeoutMs());
+        return Math.max(800L, properties.getAiTimeoutMs());
     }
 
     @PreDestroy

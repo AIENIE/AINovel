@@ -9,6 +9,9 @@ public class ExternalServiceProperties {
 
     private String projectKey = "ainovel";
     private long timeoutMs = 2500;
+    private long aiTimeoutMs = 60_000;
+    private long billingTimeoutMs = 5_000;
+    private long sessionTimeoutMs = 3_000;
     private final Grpc grpc = new Grpc();
     private final Security security = new Security();
     private final ServiceTarget userserviceHttp = new ServiceTarget();
@@ -36,6 +39,13 @@ public class ExternalServiceProperties {
     public void setTimeoutMs(long timeoutMs) {
         this.timeoutMs = timeoutMs;
     }
+
+    public long getAiTimeoutMs() { return aiTimeoutMs; }
+    public void setAiTimeoutMs(long aiTimeoutMs) { this.aiTimeoutMs = aiTimeoutMs; }
+    public long getBillingTimeoutMs() { return billingTimeoutMs; }
+    public void setBillingTimeoutMs(long billingTimeoutMs) { this.billingTimeoutMs = billingTimeoutMs; }
+    public long getSessionTimeoutMs() { return sessionTimeoutMs; }
+    public void setSessionTimeoutMs(long sessionTimeoutMs) { this.sessionTimeoutMs = sessionTimeoutMs; }
 
     public Grpc getGrpc() {
         return grpc;
