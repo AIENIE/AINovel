@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
@@ -27,7 +27,7 @@ const WorldManager = () => {
     api.worlds.getDefinitions().then(setDefinitions).catch(() => setDefinitions([]));
   }, []);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const list = await api.worlds.list();
@@ -57,15 +57,15 @@ const WorldManager = () => {
         );
         setStats(next);
       })();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLoading(false);
       showError(e, "errors.loadFailed");
     }
-  };
+  }, [definitions]);
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   const handleDelete = async (worldId: string) => {
     if (!confirm(t("worlds.deleteConfirm"))) return;
@@ -73,7 +73,7 @@ const WorldManager = () => {
       await api.worlds.delete(worldId);
       showSuccess("worlds.deleted");
       refresh();
-    } catch (e: any) {
+    } catch (e: unknown) {
       showError(e, "errors.deleteFailed");
     }
   };

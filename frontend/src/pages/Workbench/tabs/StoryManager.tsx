@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Edit, Palette, Plus, Trash2 } from "lucide-react";
@@ -30,7 +31,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [characters, setCharacters] = useState<any[]>([]);
+  const [characters, setCharacters] = useState<NetworkObject[]>([]);
   const [storyDialogOpen, setStoryDialogOpen] = useState(false);
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false);
   const [storyDraft, setStoryDraft] = useState<Partial<Story>>({});
@@ -77,11 +78,11 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
       setSelectedStory(saved);
       setStoryDialogOpen(false);
       toast({ title: t("storyManager.storySaved") });
-    } catch (error: any) { toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") }); }
+    } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") }); }
     finally { setIsSaving(false); }
   };
 
-  const openCharacterEditor = (character?: any) => {
+  const openCharacterEditor = (character?: NetworkObject) => {
     setCharacterDraft(character ? {
       id: character.id, name: character.name || "", synopsis: character.synopsis || character.summary || "",
       role: character.role || "", archetype: character.archetype || "",
@@ -99,14 +100,14 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
       await loadCharacters(selectedStory.id);
       setCharacterDialogOpen(false);
       toast({ title: characterDraft.id ? t("storyManager.characterUpdated") : t("storyManager.characterAdded") });
-    } catch (error: any) { toast({ variant: "destructive", title: t("storyManager.characterSaveFailed"), description: localizedErrorMessage(error, "storyManager.characterSaveFailed") }); }
+    } catch (error: unknown) { toast({ variant: "destructive", title: t("storyManager.characterSaveFailed"), description: localizedErrorMessage(error, "storyManager.characterSaveFailed") }); }
     finally { setIsSaving(false); }
   };
 
-  const deleteCharacter = async (character: any) => {
+  const deleteCharacter = async (character: NetworkObject) => {
     if (!selectedStory || !confirm(t("storyManager.deleteCharacterConfirm", { name: character.name }))) return;
     try { await api.stories.deleteCharacter(character.id); await loadCharacters(selectedStory.id); toast({ title: t("storyManager.characterDeleted") }); }
-    catch (error: any) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
+    catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
   const deleteStory = async () => {
@@ -116,7 +117,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
       const next = stories.filter((story) => story.id !== selectedStory.id);
       const nextStory = next[0] || null;
       setStories(next); setSelectedStory(nextStory); onStoryChange?.(nextStory?.id || ""); toast({ title: t("storyManager.storyDeleted") });
-    } catch (error: any) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
+    } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
   return (
@@ -144,7 +145,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
         <Button asChild variant="outline"><Link to={`/settings?tab=style&storyId=${selectedStory.id}`}><Palette className="mr-2 h-4 w-4" />{t("storyManager.manageStyleVoice")}</Link></Button>
       </section> : <div className="flex items-center justify-center rounded-lg border border-dashed text-muted-foreground">{t("storyManager.selectStory")}</div>}
 
-      <Dialog open={storyDialogOpen} onOpenChange={setStoryDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t("storyManager.editStoryTitle")}</DialogTitle><DialogDescription>{t("storyManager.editStoryDesc")}</DialogDescription></DialogHeader><div className="grid gap-4 py-2 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.title")}</Label><Input value={storyDraft.title || ""} onChange={(e) => setStoryDraft({...storyDraft,title:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.genre")}</Label><Input value={storyDraft.genre || ""} onChange={(e) => setStoryDraft({...storyDraft,genre:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.tone")}</Label><Input value={storyDraft.tone || ""} onChange={(e) => setStoryDraft({...storyDraft,tone:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.status")}</Label><Select value={storyDraft.status || "draft"} onValueChange={(value:any) => setStoryDraft({...storyDraft,status:value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">{t("storyManager.statusDraft")}</SelectItem><SelectItem value="published">{t("storyManager.statusPublished")}</SelectItem><SelectItem value="archived">{t("storyManager.statusArchived")}</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>{t("storyManager.world")}</Label><Select value={storyDraft.worldId || "__none__"} onValueChange={(value) => setStoryDraft({...storyDraft,worldId:value === "__none__" ? "" : value})}><SelectTrigger><SelectValue placeholder={t("storyManager.notLinked")} /></SelectTrigger><SelectContent><SelectItem value="__none__">{t("storyManager.noWorld")}</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.synopsis")}</Label><Textarea className="min-h-32" value={storyDraft.synopsis || ""} onChange={(e) => setStoryDraft({...storyDraft,synopsis:e.target.value})} /></div></div><DialogFooter><Button variant="outline" onClick={() => setStoryDialogOpen(false)}>{t("common.cancel")}</Button><Button disabled={isSaving || !storyDraft.title?.trim()} onClick={() => void saveStory()}>{isSaving ? t("common.saving") : t("common.save")}</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={storyDialogOpen} onOpenChange={setStoryDialogOpen}><DialogContent><DialogHeader><DialogTitle>{t("storyManager.editStoryTitle")}</DialogTitle><DialogDescription>{t("storyManager.editStoryDesc")}</DialogDescription></DialogHeader><div className="grid gap-4 py-2 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.title")}</Label><Input value={storyDraft.title || ""} onChange={(e) => setStoryDraft({...storyDraft,title:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.genre")}</Label><Input value={storyDraft.genre || ""} onChange={(e) => setStoryDraft({...storyDraft,genre:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.tone")}</Label><Input value={storyDraft.tone || ""} onChange={(e) => setStoryDraft({...storyDraft,tone:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.status")}</Label><Select value={storyDraft.status || "draft"} onValueChange={(value: string) => setStoryDraft({...storyDraft,status:value as Story["status"]})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="draft">{t("storyManager.statusDraft")}</SelectItem><SelectItem value="published">{t("storyManager.statusPublished")}</SelectItem><SelectItem value="archived">{t("storyManager.statusArchived")}</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>{t("storyManager.world")}</Label><Select value={storyDraft.worldId || "__none__"} onValueChange={(value) => setStoryDraft({...storyDraft,worldId:value === "__none__" ? "" : value})}><SelectTrigger><SelectValue placeholder={t("storyManager.notLinked")} /></SelectTrigger><SelectContent><SelectItem value="__none__">{t("storyManager.noWorld")}</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.synopsis")}</Label><Textarea className="min-h-32" value={storyDraft.synopsis || ""} onChange={(e) => setStoryDraft({...storyDraft,synopsis:e.target.value})} /></div></div><DialogFooter><Button variant="outline" onClick={() => setStoryDialogOpen(false)}>{t("common.cancel")}</Button><Button disabled={isSaving || !storyDraft.title?.trim()} onClick={() => void saveStory()}>{isSaving ? t("common.saving") : t("common.save")}</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}><DialogContent><DialogHeader><DialogTitle>{characterDraft.id ? t("storyManager.editCharacter") : t("storyManager.addCharacter")}</DialogTitle><DialogDescription>{t("storyManager.editCharacterDesc")}</DialogDescription></DialogHeader><div className="grid gap-4 py-2 sm:grid-cols-2"><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.characterName")}</Label><Input value={characterDraft.name} onChange={(e) => setCharacterDraft({...characterDraft,name:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.characterRole")}</Label><Input value={characterDraft.role} onChange={(e) => setCharacterDraft({...characterDraft,role:e.target.value})} /></div><div className="space-y-2"><Label>{t("storyManager.characterArchetype")}</Label><Input value={characterDraft.archetype} onChange={(e) => setCharacterDraft({...characterDraft,archetype:e.target.value})} /></div><div className="space-y-2 sm:col-span-2"><Label>{t("storyManager.synopsis")}</Label><Textarea className="min-h-28" value={characterDraft.synopsis} onChange={(e) => setCharacterDraft({...characterDraft,synopsis:e.target.value})} /></div></div><DialogFooter><Button variant="outline" onClick={() => setCharacterDialogOpen(false)}>{t("common.cancel")}</Button><Button disabled={isSaving || !characterDraft.name.trim()} onClick={() => void saveCharacter()}>{isSaving ? t("common.saving") : t("storyManager.saveCharacter")}</Button></DialogFooter></DialogContent></Dialog>
     </div>

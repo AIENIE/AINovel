@@ -9,7 +9,7 @@ const tracked = vi.hoisted(() => ({
   retry: vi.fn(),
 }));
 
-vi.mock("@/contexts/AuthContext", () => ({
+vi.mock("@/contexts/auth-state", () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 

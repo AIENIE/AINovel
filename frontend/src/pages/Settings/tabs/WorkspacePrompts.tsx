@@ -42,7 +42,7 @@ const WorkspacePrompts = () => {
     try {
       await api.prompts.updateWorkspace(prompts);
       toast({ title: t("workspacePrompts.saved") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
@@ -55,7 +55,7 @@ const WorkspacePrompts = () => {
       const defaults = await api.prompts.resetWorkspace();
       setPrompts(defaults);
       toast({ title: t("workspacePrompts.resetDone") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("workspacePrompts.resetFailed"), description: localizedErrorMessage(error, "workspacePrompts.resetFailed") });
     } finally {
       setIsResetting(false);

@@ -1,19 +1,8 @@
-import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { User } from "@/types";
+import { AuthContext } from "@/contexts/auth-state";
 import { api, isApiError } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-error-reporting";
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  isLoading: boolean;
-  acceptToken: (token: string) => Promise<void>;
-  logout: () => void;
-  refreshProfile: () => Promise<void>; // V2: Refresh profile and credit status
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const isAuthFailure = (error: unknown) => {
   return isApiError(error) && (error.status === 401 || error.status === 403);
@@ -92,12 +81,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };

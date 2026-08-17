@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api-client";
+import { api, type NetworkObject } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,15 +51,15 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
   const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState(initialStoryId || "");
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<NetworkObject[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [editor, setEditor] = useState<LorebookEntry>(newEntry());
   const [keywordInput, setKeywordInput] = useState("");
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [importPayload, setImportPayload] = useState("[]");
-  const [extractions, setExtractions] = useState<any[]>([]);
-  const [preview, setPreview] = useState<any>(null);
+  const [extractions, setExtractions] = useState<NetworkObject[]>([]);
+  const [preview, setPreview] = useState<NetworkObject | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -67,14 +67,12 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       .list()
       .then((list) => {
         setStories(list);
-        if (!storyId && list.length > 0) {
-          setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
-        }
+        setStoryId((current) => current || (initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0]?.id || ""));
       })
-      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
-  }, []);
+      .catch((error: NetworkObject) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
+  }, [initialStoryId, t, toast]);
 
-  const loadLorebook = async () => {
+  const loadLorebook = useCallback(async () => {
     if (!storyId) return;
     const [entryList, extractionList] = await Promise.all([api.v2.context.listLorebook(storyId), api.v2.context.listExtractions(storyId)]);
     setEntries(entryList);
@@ -98,21 +96,21 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       setSelectedId("");
       setEditor(newEntry());
     }
-  };
+  }, [storyId]);
 
-  const loadPreview = async () => {
+  const loadPreview = useCallback(async () => {
     if (!storyId) return;
     const data = await api.v2.context.previewContext(storyId, { tokenBudget: 1200 });
     setPreview(data);
-  };
+  }, [storyId]);
 
   useEffect(() => {
     if (!storyId) return;
     setLoading(true);
     Promise.all([loadLorebook(), loadPreview()])
-      .catch((error: any) => toast({ variant: "destructive", title: t("lorebook.loadFailed"), description: localizedErrorMessage(error, "lorebook.loadFailed") }))
+      .catch((error: NetworkObject) => toast({ variant: "destructive", title: t("lorebook.loadFailed"), description: localizedErrorMessage(error, "lorebook.loadFailed") }))
       .finally(() => setLoading(false));
-  }, [storyId]);
+  }, [loadLorebook, loadPreview, storyId, t, toast]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -127,7 +125,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     });
   }, [entries, filter, search]);
 
-  const pickEntry = (entry: any) => {
+  const pickEntry = (entry: NetworkObject) => {
     setSelectedId(entry.id);
     setEditor({
       id: entry.id,
@@ -162,7 +160,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       }
       await loadLorebook();
       toast({ title: t("lorebook.saved") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setLoading(false);
@@ -176,7 +174,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       await api.v2.context.deleteLorebook(storyId, editor.id);
       await loadLorebook();
       toast({ title: t("lorebook.deleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     } finally {
       setLoading(false);
@@ -194,7 +192,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       await api.v2.context.importLorebook(storyId, parsed);
       await loadLorebook();
       toast({ title: t("lorebook.imported") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("lorebook.importFailed"), description: localizedErrorMessage(error, "lorebook.importFailed") });
     } finally {
       setLoading(false);
@@ -207,7 +205,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       await api.v2.context.reviewExtraction(storyId, id, action);
       await loadLorebook();
       toast({ title: action === "approved" ? t("lorebook.approved") : t("lorebook.rejected") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.operationFailed"), description: localizedErrorMessage(error, "errors.operationFailed") });
     }
   };
@@ -229,7 +227,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
       await Promise.all(targets.map((item) => api.v2.context.reviewExtraction(storyId, String(item.id), action)));
       await loadLorebook();
       toast({ title: action === "approved" ? t("lorebook.batchApproved") : t("lorebook.batchRejected"), description: t("lorebook.batchProcessed", { count: targets.length }) });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("lorebook.batchReviewFailed"), description: localizedErrorMessage(error, "lorebook.batchReviewFailed") });
     } finally {
       setLoading(false);
@@ -241,7 +239,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     try {
       await api.v2.context.syncGraph(storyId);
       toast({ title: t("lorebook.graphSynced") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("lorebook.syncFailed"), description: localizedErrorMessage(error, "lorebook.syncFailed") });
     }
   };
@@ -501,7 +499,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                   </div>
                   <div className="space-y-2">
                     <div className="font-medium text-sm">{t("lorebook.systemPromptEntries")}</div>
-                    {systemPromptEntries.map((entry: any) => (
+                    {systemPromptEntries.map((entry: NetworkObject) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{entry.displayName}</span>
@@ -515,7 +513,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                   <Separator />
                   <div className="space-y-2">
                     <div className="font-medium text-sm">{t("lorebook.beforeSceneEntries")}</div>
-                    {beforeSceneEntries.map((entry: any) => (
+                    {beforeSceneEntries.map((entry: NetworkObject) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{entry.displayName}</span>
@@ -529,7 +527,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                   <Separator />
                   <div className="space-y-2">
                     <div className="font-medium text-sm">{t("lorebook.afterSceneEntries")}</div>
-                    {afterSceneEntries.map((entry: any) => (
+                    {afterSceneEntries.map((entry: NetworkObject) => (
                       <div key={entry.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">{entry.displayName}</span>
@@ -572,7 +570,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
                   <Separator />
                   <div className="space-y-2">
                     <div className="font-medium text-sm">{t("lorebook.pendingExtractions")}</div>
-                    {(preview?.pendingExtractions || []).map((item: any) => (
+                    {(preview?.pendingExtractions || []).map((item: NetworkObject) => (
                       <div key={item.id} className="rounded-md border p-2">
                         <div className="flex items-center justify-between">
                           <span>{item.entityName}</span>

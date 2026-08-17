@@ -22,7 +22,7 @@ type PlotSidebarPanelProps = {
   isPlotRevisionBusy: boolean;
   isSlopBusy: boolean;
   onApplyPlotRevision: () => Promise<void> | void;
-  onCopySlopRewriteTask: (task: any, index: number) => Promise<void> | void;
+  onCopySlopRewriteTask: (task: unknown, index: number) => Promise<void> | void;
   onGeneratePlotRevisionCandidate: () => Promise<void> | void;
   onRefreshPlotQuality: () => Promise<unknown> | void;
   onRunPlotDiagnosis: () => Promise<void> | void;

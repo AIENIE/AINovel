@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,10 @@ const Register = () => {
     return raw.startsWith("/") ? raw : "/dashboard";
   }, [location.search]);
 
-  const redirectToSso = (mode: "login" | "register") => {
+  const redirectToSso = useCallback((mode: "login" | "register") => {
     const state = issueSsoState();
     window.location.replace(buildSsoUrl(mode, next, state));
-  };
+  }, [next]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -28,7 +28,7 @@ const Register = () => {
       return;
     }
     redirectToSso("register");
-  }, [next]);
+  }, [next, redirectToSso]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">

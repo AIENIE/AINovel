@@ -202,7 +202,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       const next = outlines.filter((outline) => outline.id !== selectedOutline.id);
       setOutlines(next); setSelectedOutline(next[0] || null); setSelectedNode(null);
       toast({ title: t("outline.deleted") });
-    } catch (error: any) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
+    } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
   const handleGenerateNextChapter = async () => {
@@ -216,7 +216,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
       setSelectedOutline(refreshed);
       toast({ title: t("outline.chapterGenerated", { chapterNumber }) });
-    } catch (error: any) { toast({ variant: "destructive", title: t("errors.generateChapterFailed"), description: localizedErrorMessage(error, "errors.generateChapterFailed") }); }
+    } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.generateChapterFailed"), description: localizedErrorMessage(error, "errors.generateChapterFailed") }); }
   };
 
   const handleAddChapter = () => {

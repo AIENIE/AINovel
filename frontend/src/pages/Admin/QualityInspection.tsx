@@ -38,7 +38,7 @@ const QualityInspection = () => {
     setIsLoading(true);
     setError("");
     try {
-      setRuns(await api.admin.listQualityRuns());
+      setRuns(await api.admin.listQualityRuns() as unknown as QualityRun[]);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "质量巡检记录加载失败"));
     } finally {

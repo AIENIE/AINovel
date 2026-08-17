@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2, Save, Sparkles } from "lucide-react";
@@ -28,9 +29,9 @@ type MobilePane = "outline" | "editor" | "sidebar";
 
 type MobileWorkbenchPanelProps = {
   content: string;
-  contextData: any;
+  contextData: NetworkObject | null;
   contextPreview?: ContextPreview | null;
-  exportJobs: any[];
+  exportJobs: NetworkObject[];
   exportDownloadingJobId: string;
   focusMode: boolean;
   isPlotBusy: boolean;
@@ -45,7 +46,7 @@ type MobileWorkbenchPanelProps = {
   onChangeMobilePane: (pane: MobilePane) => void;
   onChangeSidebarTab: (tab: SidebarTab) => void;
   onCreateExportJob: () => Promise<void> | void;
-  onDownloadExport: (job: any) => Promise<void> | void;
+  onDownloadExport: (job: NetworkObject) => Promise<void> | void;
   onEditorChange: (html: string) => void;
   onGeneratePlotRevisionCandidate: () => Promise<void> | void;
   onGenerateScene: () => Promise<void> | void;
@@ -62,7 +63,7 @@ type MobileWorkbenchPanelProps = {
   selectedQualityRun: SlopQualityRun | null;
   selectedSceneId: string;
   sidebarTab: SidebarTab;
-  versions: any[];
+  versions: NetworkObject[];
 };
 
 export function MobileWorkbenchPanel({
@@ -165,7 +166,7 @@ export function MobileWorkbenchPanel({
             <TabsTrigger className="shrink-0" value="export">{t("mobilePanel.export")}</TabsTrigger>
           </TabsList>
           <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
-            <CopilotSidebar context={contextData} className="h-full border-none" />
+            <CopilotSidebar context={contextData ?? undefined} className="h-full border-none" />
           </TabsContent>
           <ContextSidebarPanel contextPreview={contextPreview} onRefresh={() => onLoadContextPreview?.()} />
           <GenerationFeedbackPanel

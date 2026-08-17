@@ -32,7 +32,10 @@ export function useWritingSession({
 
   const sessionNetWords = sessionWordsWritten - sessionWordsDeleted;
   const sessionDurationSeconds = useMemo(
-    () => (sessionStartedAt ? Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000)) : 0),
+    () => {
+      void tick;
+      return sessionStartedAt ? Math.max(0, Math.floor((Date.now() - sessionStartedAt) / 1000)) : 0;
+    },
     [sessionStartedAt, tick],
   );
 

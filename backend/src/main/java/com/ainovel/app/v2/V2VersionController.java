@@ -42,10 +42,10 @@ public class V2VersionController {
     @PostMapping("/manuscripts/{manuscriptId}/versions")
     public Map<String, Object> createVersion(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable UUID manuscriptId,
-                                             @RequestBody(required = false) Map<String, Object> payload) {
+                                             @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.createVersion(manuscript, user, payload == null ? Map.of() : payload);
+        return versionService.createVersion(manuscript, user, payload == null ? Map.of() : payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -102,10 +102,10 @@ public class V2VersionController {
     @PostMapping("/manuscripts/{manuscriptId}/branches")
     public Map<String, Object> createBranch(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID manuscriptId,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.createBranch(manuscript, user, payload);
+        return versionService.createBranch(manuscript, user, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -113,10 +113,10 @@ public class V2VersionController {
     public Map<String, Object> updateBranch(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID manuscriptId,
                                             @PathVariable UUID branchId,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.updateBranch(manuscriptId, branchId, payload);
+        return versionService.updateBranch(manuscriptId, branchId, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -124,10 +124,10 @@ public class V2VersionController {
     public Map<String, Object> mergeBranch(@AuthenticationPrincipal UserDetails principal,
                                            @PathVariable UUID manuscriptId,
                                            @PathVariable UUID branchId,
-                                           @RequestBody(required = false) Map<String, Object> payload) {
+                                           @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.mergeBranch(manuscript, user, branchId, payload == null ? Map.of() : payload);
+        return versionService.mergeBranch(manuscript, user, branchId, payload == null ? Map.of() : payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -151,8 +151,8 @@ public class V2VersionController {
     @Operation(summary = "v2 API endpoint")
     @PutMapping("/users/me/auto-save-config")
     public Map<String, Object> updateAutoSave(@AuthenticationPrincipal UserDetails principal,
-                                              @RequestBody Map<String, Object> payload) {
+                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return versionService.updateAutoSave(user, payload);
+        return versionService.updateAutoSave(user, payload.asMap());
     }
 }

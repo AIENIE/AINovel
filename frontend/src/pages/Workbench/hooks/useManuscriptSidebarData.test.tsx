@@ -11,13 +11,13 @@ describe("useManuscriptSidebarData", () => {
   });
 
   it("loads versions and seeds active branch state when the version tab opens", async () => {
-    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
-    vi.spyOn(api.v2.version, "listVersions").mockResolvedValue([{ id: "version-2" }, { id: "version-1" }] as any);
-    vi.spyOn(api.v2.version, "getAutoSave").mockResolvedValue({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 } as any);
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
+    vi.spyOn(api.v2.version, "listVersions").mockResolvedValue([{ id: "version-2" }, { id: "version-1" }] as never);
+    vi.spyOn(api.v2.version, "getAutoSave").mockResolvedValue({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 } as never);
     vi.spyOn(api.v2.version, "listBranches").mockResolvedValue([
       { id: "branch-main", status: "active", isMain: true },
       { id: "branch-feature", status: "active", isMain: false },
-    ] as any);
+    ] as never);
 
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
@@ -49,8 +49,8 @@ describe("useManuscriptSidebarData", () => {
   });
 
   it("rejects invalid export chapter ranges before creating a job", async () => {
-    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
-    const createJob = vi.spyOn(api.v2.export, "createJob").mockResolvedValue({} as any);
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
+    const createJob = vi.spyOn(api.v2.export, "createJob").mockResolvedValue({} as never);
     const toast = vi.fn();
 
     const queryClient = createTestQueryClient();
@@ -88,14 +88,14 @@ describe("useManuscriptSidebarData", () => {
   });
 
   it("reuses cached sidebar queries when the same tab remounts", async () => {
-    const goalsSpy = vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
-    const versionsSpy = vi.spyOn(api.v2.version, "listVersions").mockResolvedValue([{ id: "version-1" }] as any);
+    const goalsSpy = vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
+    const versionsSpy = vi.spyOn(api.v2.version, "listVersions").mockResolvedValue([{ id: "version-1" }] as never);
     const autoSaveSpy = vi
       .spyOn(api.v2.version, "getAutoSave")
-      .mockResolvedValue({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 } as any);
+      .mockResolvedValue({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 } as never);
     const branchesSpy = vi
       .spyOn(api.v2.version, "listBranches")
-      .mockResolvedValue([{ id: "branch-main", status: "active", isMain: true }] as any);
+      .mockResolvedValue([{ id: "branch-main", status: "active", isMain: true }] as never);
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
     const options = {
@@ -130,9 +130,9 @@ describe("useManuscriptSidebarData", () => {
   });
 
   it("downloads export jobs through a temporary object URL and cleans it up", async () => {
-    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
-    vi.spyOn(api.v2.export, "listJobs").mockResolvedValue([] as any);
-    vi.spyOn(api.v2.export, "listTemplates").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
+    vi.spyOn(api.v2.export, "listJobs").mockResolvedValue([] as never);
+    vi.spyOn(api.v2.export, "listTemplates").mockResolvedValue([] as never);
     vi.spyOn(api.v2.export, "download").mockResolvedValue({
       blob: new Blob(["content"], { type: "text/plain" }),
       fileName: "novel.txt",
@@ -166,7 +166,7 @@ describe("useManuscriptSidebarData", () => {
   });
 
   it("requests a context preview for the active manuscript scene", async () => {
-    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
     const preview = {
       promptVersion: "scene-draft-v2",
       contextHash: "ctx-hash",

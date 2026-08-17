@@ -8,6 +8,7 @@ const makeManuscript = (sections: Record<string, string>): Manuscript => ({
   id: "manuscript-1",
   outlineId: "outline-1",
   title: "正文稿",
+  version: 0,
   updatedAt: "2026-07-06T00:00:00Z",
   sections,
 });
@@ -59,12 +60,13 @@ describe("useManuscriptEditorState", () => {
     vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
       makeManuscript({
         "scene-1": "<p>second</p>",
-      }) as any,
+      }),
     );
 
     const { result } = renderHook(() =>
       useManuscriptEditorState({
         replaceManuscript: vi.fn(),
+        selectedManuscript: makeManuscript({ "scene-1": "" }),
         selectedManuscriptId: "manuscript-1",
         selectedSceneId: "scene-1",
         selectedStoryId: "story-1",
@@ -85,7 +87,7 @@ describe("useManuscriptEditorState", () => {
     });
 
     expect(api.manuscripts.saveSection).toHaveBeenCalledTimes(1);
-    expect(api.manuscripts.saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>second</p>");
+    expect(api.manuscripts.saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>second</p>", 0);
     expect(result.current.dirtyScenes["scene-1"]).toBe(false);
     expect(result.current.sceneDrafts["scene-1"]).toBe("<p>second</p>");
   });
@@ -93,7 +95,7 @@ describe("useManuscriptEditorState", () => {
   it("cancels a pending empty autosave when server generation is applied and preserves other drafts", async () => {
     vi.useFakeTimers();
     const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
-      makeManuscript({ "scene-1": "<p></p>" }) as any,
+      makeManuscript({ "scene-1": "<p></p>" }),
     );
     const { result } = renderHook(() =>
       useManuscriptEditorState({
@@ -135,10 +137,10 @@ describe("useManuscriptEditorState", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as Awaited<ReturnType<typeof api.v2.workspace.startSession>>);
+    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.workspace.heartbeatSession>>);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.workspace.endSession>>);
+    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.version.createVersion>>);
 
     const { result } = renderHook(() =>
       useManuscriptEditorState({
@@ -151,7 +153,7 @@ describe("useManuscriptEditorState", () => {
         selectedStoryId: "story-1",
         autoSaveIntervalSeconds: null,
         toast: vi.fn(),
-      } as any),
+      }),
     );
 
     await flushAsync();
@@ -171,7 +173,7 @@ describe("useManuscriptEditorState", () => {
   it("does not autosave the editor's empty pre-hydration value over server content", async () => {
     vi.useFakeTimers();
     const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
-      makeManuscript({ "scene-1": "<p>edited</p>" }) as any,
+      makeManuscript({ "scene-1": "<p>edited</p>" }),
     );
     const { result, rerender } = renderHook(
       ({ selectedManuscript }: { selectedManuscript?: Manuscript }) =>
@@ -210,7 +212,7 @@ describe("useManuscriptEditorState", () => {
       await Promise.resolve();
     });
 
-    expect(saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>edited</p>");
+    expect(saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>edited</p>", 0);
   });
 
   it("handles editor changes, tracks session deltas, and debounces save", async () => {
@@ -220,14 +222,14 @@ describe("useManuscriptEditorState", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as Awaited<ReturnType<typeof api.v2.workspace.startSession>>);
+    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.workspace.heartbeatSession>>);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.workspace.endSession>>);
+    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as Awaited<ReturnType<typeof api.v2.version.createVersion>>);
     vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
       makeManuscript({
         "scene-1": "<p>abcd</p>",
-      }) as any,
+      }),
     );
 
     const { result } = renderHook(() =>
@@ -241,26 +243,26 @@ describe("useManuscriptEditorState", () => {
         selectedStoryId: "story-1",
         autoSaveIntervalSeconds: null,
         toast: vi.fn(),
-      } as any),
+      }),
     );
 
     await flushAsync();
 
     act(() => {
-      (result.current as any).handleEditorChange("<p>abcd</p>");
+      result.current.handleEditorChange("<p>abcd</p>");
     });
 
     expect(result.current.content).toBe("<p>abcd</p>");
     expect(result.current.sceneDrafts["scene-1"]).toBe("<p>abcd</p>");
     expect(result.current.dirtyScenes["scene-1"]).toBe(true);
-    expect((result.current as any).sessionNetWords).toBe(2);
+    expect(result.current.sessionNetWords).toBe(2);
 
     await act(async () => {
       vi.advanceTimersByTime(1200);
       await Promise.resolve();
     });
 
-    expect(api.manuscripts.saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>abcd</p>");
+    expect(api.manuscripts.saveSection).toHaveBeenCalledWith("manuscript-1", "scene-1", "<p>abcd</p>", 0);
     expect(result.current.dirtyScenes["scene-1"]).toBe(false);
   });
 });

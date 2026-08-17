@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +45,7 @@ const ProfilePage = () => {
     if (user) {
       loadRecords();
     }
-  }, [user?.id]);
+  }, [user]);
 
   const handleRedeem = async () => {
     if (!redeemCode) return;
@@ -60,7 +60,7 @@ const ProfilePage = () => {
       setRedeemCode("");
       await refreshProfile();
       await loadRecords();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("profile.redeemFailed"), description: localizedErrorMessage(error, "profile.redeemFailed") });
     } finally {
       setIsRedeeming(false);
@@ -82,7 +82,7 @@ const ProfilePage = () => {
       setConvertAmount("");
       await refreshProfile();
       await loadRecords();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("profile.redeemFailed"), description: localizedErrorMessage(error, "profile.redeemFailed") });
     } finally {
       setIsConverting(false);

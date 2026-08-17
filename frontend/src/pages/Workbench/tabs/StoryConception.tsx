@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -319,20 +320,20 @@ const StoryConception = () => {
 
     const existingEntries = await api.v2.context.listLorebook(storyId);
     const existingByKey = new Map(existingEntries.map((entry) => [String(entry.entryKey || ""), entry]));
-    const syncedEntries = new Map<string, { id?: string } & Record<string, unknown>>();
+    const syncedEntries = new Map<string, { id?: string } & Record<string, NetworkObject>>();
 
     for (const seed of lorebookSeeds) {
-      const entryKey = String((seed as Record<string, unknown>).entryKey || "").trim();
+      const entryKey = String((seed as Record<string, NetworkObject>).entryKey || "").trim();
       if (!entryKey) continue;
       const payload = {
         entryKey,
-        displayName: String((seed as Record<string, unknown>).displayName || entryKey),
-        category: String((seed as Record<string, unknown>).category || "concept"),
-        content: String((seed as Record<string, unknown>).content || ""),
-        keywords: Array.isArray((seed as Record<string, unknown>).keywords) ? (seed as Record<string, unknown>).keywords : [],
-        insertionPosition: String((seed as Record<string, unknown>).insertionPosition || "system_prompt"),
-        tokenBudget: Number((seed as Record<string, unknown>).tokenBudget || 160),
-        priority: Number((seed as Record<string, unknown>).priority || 50),
+        displayName: String((seed as Record<string, NetworkObject>).displayName || entryKey),
+        category: String((seed as Record<string, NetworkObject>).category || "concept"),
+        content: String((seed as Record<string, NetworkObject>).content || ""),
+        keywords: Array.isArray((seed as Record<string, NetworkObject>).keywords) ? (seed as Record<string, NetworkObject>).keywords : [],
+        insertionPosition: String((seed as Record<string, NetworkObject>).insertionPosition || "system_prompt"),
+        tokenBudget: Number((seed as Record<string, NetworkObject>).tokenBudget || 160),
+        priority: Number((seed as Record<string, NetworkObject>).priority || 50),
         enabled: true,
       };
       const existing = existingByKey.get(entryKey);
@@ -345,19 +346,19 @@ const StoryConception = () => {
     const currentGraph = await api.v2.context.getGraph(storyId);
     const managedRelations = new Set(["foreshadows", "echoes_meme", "misleads", "reveals", "pays_off"]);
     await Promise.all(
-      ((currentGraph.edges as Array<Record<string, unknown>>) || [])
+      ((currentGraph.edges as Array<Record<string, NetworkObject>>) || [])
         .filter((edge) => managedRelations.has(String(edge.relationType || edge.type || "")))
         .map((edge) => api.v2.context.deleteRelationship(storyId, String(edge.id))),
     );
 
     for (const relation of graphSeeds) {
-      const source = syncedEntries.get(String((relation as Record<string, unknown>).sourceKey || ""));
-      const target = syncedEntries.get(String((relation as Record<string, unknown>).targetKey || ""));
+      const source = syncedEntries.get(String((relation as Record<string, NetworkObject>).sourceKey || ""));
+      const target = syncedEntries.get(String((relation as Record<string, NetworkObject>).targetKey || ""));
       if (!source?.id || !target?.id) continue;
       await api.v2.context.createRelationship(storyId, {
         source: String(source.id),
         target: String(target.id),
-        relationType: String((relation as Record<string, unknown>).relationType || "related_to"),
+        relationType: String((relation as Record<string, NetworkObject>).relationType || "related_to"),
       });
     }
   };

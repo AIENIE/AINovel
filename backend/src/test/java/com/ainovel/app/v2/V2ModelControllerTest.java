@@ -64,12 +64,12 @@ class V2ModelControllerTest {
         ));
         V2ModelController controller = new V2ModelController(accessGuard, persistenceService, recordFileSink);
 
-        Map<String, Object> result = controller.compareModels(principal, storyId, Map.of(
+        Map<String, Object> result = controller.compareModels(principal, storyId, V2RequestPayload.of(Map.of(
                 "modelAId", modelAId.toString(),
                 "modelBId", modelBId.toString(),
                 "taskType", "analysis",
                 "prompt", "请分析这段剧情"
-        ));
+        )));
 
         assertEquals("analysis", result.get("taskType"));
         assertEquals("请分析这段剧情", result.get("prompt"));
@@ -95,7 +95,7 @@ class V2ModelControllerTest {
         Map<String, Object> result = controller.updateRouting(
                 new UsernamePasswordAuthenticationToken("local-operator", "n/a"),
                 "draft_generation",
-                Map.of("recommendedModelId", recommended.toString())
+                V2RequestPayload.of(Map.of("recommendedModelId", recommended.toString()))
         );
 
         assertEquals(updated, result);

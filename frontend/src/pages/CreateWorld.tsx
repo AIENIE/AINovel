@@ -24,7 +24,7 @@ const CreateWorld = () => {
       const world = await api.worlds.create({ name: name.trim(), tagline: tagline.trim() || "" });
       showSuccess("worlds.created");
       navigate(`/world-editor?id=${world.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       showError(err, "errors.createFailed");
     } finally {
       setIsLoading(false);

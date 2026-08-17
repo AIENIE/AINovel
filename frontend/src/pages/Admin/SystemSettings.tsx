@@ -29,7 +29,7 @@ const SystemSettingsPage = () => {
     setIsLoading(true);
     setError("");
     try {
-      setSettings(await api.admin.getSystemConfig());
+      setSettings(await api.admin.getSystemConfig() as unknown as AdminSystemConfig);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "系统配置加载失败"));
     } finally {
@@ -46,7 +46,7 @@ const SystemSettingsPage = () => {
     setIsSaving(true);
     try {
       const updated = await api.admin.updateSystemConfig({ maintenanceMode: settings.maintenanceMode });
-      setSettings(updated);
+      setSettings(updated as unknown as AdminSystemConfig);
       toast({ title: "维护设置已更新" });
     } catch (err: unknown) {
       toast({ variant: "destructive", title: "保存失败", description: getErrorMessage(err, "请求失败") });

@@ -1,8 +1,9 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { api } from "@/lib/api-client";
-import type { Outline } from "@/types";
+import type { Outline, Scene } from "@/types";
 import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ToastFn = (options: {
   description?: string;
@@ -54,8 +55,8 @@ export function useManuscriptOutlineActions({
       try {
         const saved = await api.outlines.save(selectedOutlineId, nextOutline);
         replaceOutline(saved);
-      } catch (e: any) {
-        toast({ variant: "destructive", title: t("outlineActions.saveOrderFailed"), description: e.message });
+      } catch (e: unknown) {
+        toast({ variant: "destructive", title: t("outlineActions.saveOrderFailed"), description: localizedErrorMessage(e) });
       }
     },
     [replaceOutline, selectedOutlineId, toast],
@@ -173,9 +174,9 @@ export function useManuscriptOutlineActions({
     if (!outlineDraft || !selectedSceneIds.length || !batchMoveChapterId) return;
     const selected = new Set(selectedSceneIds);
     const nextOutline = cloneOutline(outlineDraft);
-    const moved: any[] = [];
+    const moved: Scene[] = [];
     nextOutline.chapters.forEach((chapter) => {
-      const keep: any[] = [];
+      const keep: Scene[] = [];
       chapter.scenes.forEach((scene) => {
         if (selected.has(scene.id)) moved.push(scene);
         else keep.push(scene);

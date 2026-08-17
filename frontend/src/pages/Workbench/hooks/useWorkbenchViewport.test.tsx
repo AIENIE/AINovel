@@ -24,8 +24,8 @@ describe("useWorkbenchViewport", () => {
     const { result } = renderHook(() =>
       useWorkbenchViewport({
         focusMode: false,
-        setLeftPanelOpen: setLeftPanelOpen as any,
-        setIsSidebarOpen: setIsSidebarOpen as any,
+        setLeftPanelOpen: setLeftPanelOpen as never,
+        setIsSidebarOpen: setIsSidebarOpen as never,
       }),
     );
 
@@ -54,8 +54,8 @@ describe("useWorkbenchViewport", () => {
       ({ focusMode }) =>
         useWorkbenchViewport({
           focusMode,
-          setLeftPanelOpen: setLeftPanelOpen as any,
-          setIsSidebarOpen: setIsSidebarOpen as any,
+          setLeftPanelOpen: setLeftPanelOpen as never,
+          setIsSidebarOpen: setIsSidebarOpen as never,
         }),
       {
         initialProps: { focusMode: false },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
@@ -43,15 +43,13 @@ const AnalysisDashboard = () => {
   const continuityText = t("analysis.continuitySampleText");
   const [isDriftBusy, setIsDriftBusy] = useState(false);
 
-  const loadStories = async () => {
+  const loadStories = useCallback(async () => {
     const list = await api.stories.list();
     setStories(list);
-    if (!storyId && list.length > 0) {
-      setStoryId(list[0].id);
-    }
-  };
+    setStoryId((current) => current || list[0]?.id || "");
+  }, []);
 
-  const loadAnalysis = async (targetStoryId: string) => {
+  const loadAnalysis = useCallback(async (targetStoryId: string) => {
     if (!targetStoryId) return;
     const [jobList, reportList, issueList] = await Promise.all([
       api.v2.analysis.listJobs(targetStoryId),
@@ -61,19 +59,17 @@ const AnalysisDashboard = () => {
     setJobs(jobList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
     setReports(reportList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
     setIssues(issueList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
-    if (!selectedReportId && reportList[0]) {
-      setSelectedReportId(reportList[0].id);
-    }
-  };
+    setSelectedReportId((current) => current || reportList[0]?.id || "");
+  }, []);
 
-  const loadOutlines = async (targetStoryId: string) => {
+  const loadOutlines = useCallback(async (targetStoryId: string) => {
     if (!targetStoryId) return;
     const list = await api.outlines.listByStory(targetStoryId);
     setOutlines(list);
     setSelectedOutlineId((current) => (current && list.some((outline) => outline.id === current) ? current : list[0]?.id || ""));
-  };
+  }, []);
 
-  const loadManuscripts = async (outlineId: string) => {
+  const loadManuscripts = useCallback(async (outlineId: string) => {
     if (!outlineId) {
       setManuscripts([]);
       setSelectedManuscriptId("");
@@ -82,9 +78,9 @@ const AnalysisDashboard = () => {
     const list = await api.manuscripts.listByOutline(outlineId);
     setManuscripts(list);
     setSelectedManuscriptId((current) => (current && list.some((manuscript) => manuscript.id === current) ? current : list[0]?.id || ""));
-  };
+  }, []);
 
-  const loadDriftRuns = async (manuscriptId: string) => {
+  const loadDriftRuns = useCallback(async (manuscriptId: string) => {
     if (!manuscriptId) {
       setDriftRuns([]);
       setSelectedDriftRunId("");
@@ -94,25 +90,25 @@ const AnalysisDashboard = () => {
     const sorted = list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     setDriftRuns(sorted);
     setSelectedDriftRunId((current) => (current && sorted.some((run) => run.id === current) ? current : sorted[0]?.id || ""));
-  };
-
-  useEffect(() => {
-    loadStories().catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
   }, []);
 
   useEffect(() => {
+    loadStories().catch((error: unknown) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
+  }, [loadStories, t, toast]);
+
+  useEffect(() => {
     if (!storyId) return;
-    loadAnalysis(storyId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadAnalysisFailed"), description: localizedErrorMessage(error, "analysis.loadAnalysisFailed") }));
-    loadOutlines(storyId).catch((error: any) => toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error, "errors.loadOutlinesFailed") }));
-  }, [storyId]);
+    loadAnalysis(storyId).catch((error: unknown) => toast({ variant: "destructive", title: t("analysis.loadAnalysisFailed"), description: localizedErrorMessage(error, "analysis.loadAnalysisFailed") }));
+    loadOutlines(storyId).catch((error: unknown) => toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error, "errors.loadOutlinesFailed") }));
+  }, [loadAnalysis, loadOutlines, storyId, t, toast]);
 
   useEffect(() => {
-    loadManuscripts(selectedOutlineId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadManuscriptsFailed"), description: localizedErrorMessage(error, "analysis.loadManuscriptsFailed") }));
-  }, [selectedOutlineId]);
+    loadManuscripts(selectedOutlineId).catch((error: unknown) => toast({ variant: "destructive", title: t("analysis.loadManuscriptsFailed"), description: localizedErrorMessage(error, "analysis.loadManuscriptsFailed") }));
+  }, [loadManuscripts, selectedOutlineId, t, toast]);
 
   useEffect(() => {
-    loadDriftRuns(selectedManuscriptId).catch((error: any) => toast({ variant: "destructive", title: t("analysis.loadDriftFailed"), description: localizedErrorMessage(error, "analysis.loadDriftFailed") }));
-  }, [selectedManuscriptId]);
+    loadDriftRuns(selectedManuscriptId).catch((error: unknown) => toast({ variant: "destructive", title: t("analysis.loadDriftFailed"), description: localizedErrorMessage(error, "analysis.loadDriftFailed") }));
+  }, [loadDriftRuns, selectedManuscriptId, t, toast]);
 
   const hasRunningJob = useMemo(
     () => jobs.some((job) => ["queued", "running", "processing"].includes(String(job.status || "").toLowerCase())),
@@ -125,7 +121,7 @@ const AnalysisDashboard = () => {
       loadAnalysis(storyId).catch(() => {});
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [storyId, hasRunningJob]);
+  }, [storyId, hasRunningJob, loadAnalysis]);
 
   const selectedManuscript = useMemo(
     () => manuscripts.find((item) => item.id === selectedManuscriptId) || null,
@@ -152,7 +148,7 @@ const AnalysisDashboard = () => {
       await loadDriftRuns(selectedManuscriptId);
       setSelectedDriftRunId(run.id);
       toast({ title: t("analysis.driftDone") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("analysis.driftFailed"), description: localizedErrorMessage(error, "analysis.driftFailed") });
     } finally {
       setIsDriftBusy(false);
@@ -167,10 +163,10 @@ const AnalysisDashboard = () => {
 
   const driftCurveRows = useMemo(() => {
     if (!selectedDriftRun) return [];
-    const rows: Record<string, any> = {};
+    const rows: Record<string, Record<string, string | number>> = {};
     Object.entries(selectedDriftRun.metricCurves || {}).forEach(([metric, points]) => {
       if (!Array.isArray(points)) return;
-      points.forEach((point: any) => {
+      points.forEach((point) => {
         const windowName = String(point.window || point.label || "window");
         rows[windowName] = rows[windowName] || { window: windowName };
         rows[windowName][metric] = Number(point.score || point.value || 0);

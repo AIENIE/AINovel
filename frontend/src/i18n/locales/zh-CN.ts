@@ -52,7 +52,6 @@ export const zhCN = {
   "common.custom": "自定义",
   "common.notice": "提示",
   "common.error": "错误",
-  "common.rename": "重命名",
 
   // 导航
   "nav.primary": "主要功能",
@@ -553,10 +552,6 @@ export const zhCN = {
   "guided.unnamedStory": "未命名故事",
   "guided.unnamedWorld": "未命名世界",
   "guided.waitingFirstConfirm": "等待首次确认",
-  "outline.addChapter": "添加章节",
-  "outline.editSummary": "点击编辑章节梗概...",
-  "outline.empty": "暂无章节，点击右上角添加",
-  "outline.logicCheck": "逻辑检查",
   "outline.newChapter": "新章节",
   "outline.title": "大纲编排",
 
@@ -1286,10 +1281,6 @@ export const zhCN = {
   "workbench.title": "创作工作台",
   "workbench.tools": "工具",
   "workbench.writing": "小说创作",
-  "worldSelector.myWorlds": "我的世界",
-  "worldSelector.newWorld": "新建世界",
-  "worldSelector.noWorlds": "暂无世界设定",
-  "worldSelector.noWorldsHint": "点击右上角新建",
 
   "contextPanel.activeCharacters": "活跃角色",
   "contextPanel.after": "后",

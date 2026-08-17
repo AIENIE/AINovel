@@ -37,7 +37,7 @@ const MaterialUpload = () => {
       if (latest.status === "completed") {
         toast({ title: t("material.parseDone"), description: t("material.parseDoneDesc") });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = localizedErrorMessage(error, "material.queryFailed");
       setUploadError(message);
       toast({ variant: "destructive", title: t("material.queryFailed"), description: message });
@@ -68,7 +68,7 @@ const MaterialUpload = () => {
       setJob(newJob);
       setIsUploading(false);
       await queryUntilTerminal(newJob.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = localizedErrorMessage(error, "material.queryFailed");
       setUploadError(message);
       toast({ variant: "destructive", title: t("material.uploadFailed"), description: message });

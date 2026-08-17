@@ -37,9 +37,9 @@ describe("useWorkbenchLayoutPersistence", () => {
           sidebarTab: "context",
         },
       },
-    ] as any);
-    vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-1" } as any);
-    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-new" } as any);
+    ] as never);
+    vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-1" } as never);
+    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-new" } as never);
 
     const { result } = renderHook(() =>
       useWorkbenchLayoutPersistence({
@@ -73,9 +73,9 @@ describe("useWorkbenchLayoutPersistence", () => {
           sidebarTab: "version",
         },
       },
-    ] as any);
-    vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-2" } as any);
-    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-created" } as any);
+    ] as never);
+    vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-2" } as never);
+    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-created" } as never);
 
     const { result } = renderHook(() =>
       useWorkbenchLayoutPersistence({
@@ -99,9 +99,9 @@ describe("useWorkbenchLayoutPersistence", () => {
     vi.useFakeTimers();
     vi.spyOn(api.v2.workspace, "listLayouts").mockResolvedValue([
       { id: "layout-3", isActive: true, layout: {} },
-    ] as any);
-    const updateLayout = vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-3" } as any);
-    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-created" } as any);
+    ] as never);
+    const updateLayout = vi.spyOn(api.v2.workspace, "updateLayout").mockResolvedValue({ id: "layout-3" } as never);
+    vi.spyOn(api.v2.workspace, "createLayout").mockResolvedValue({ id: "layout-created" } as never);
 
     const { result } = renderHook(() =>
       useWorkbenchLayoutPersistence({

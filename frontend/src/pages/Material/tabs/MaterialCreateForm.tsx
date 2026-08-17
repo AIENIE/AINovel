@@ -29,7 +29,7 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
     try {
       await api.materials.create({
         title,
-        type: type as any,
+        type: type as unknown,
         content,
         tags: tags.split(",").map(tag => tag.trim()).filter(Boolean),
       });

@@ -59,7 +59,7 @@ const NovelManager = () => {
         );
         setStats(next);
       })();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLoading(false);
       showError(e, "errors.loadFailed");
     }
@@ -75,7 +75,7 @@ const NovelManager = () => {
       await api.stories.delete(storyId);
       showSuccess("novels.deleted");
       refresh();
-    } catch (e: any) {
+    } catch (e: unknown) {
       showError(e, "errors.deleteFailed");
     }
   };

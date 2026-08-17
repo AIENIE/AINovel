@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api-client";
+import { api, type NetworkObject } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ const nodeStyle = (type: string) => {
   }
 };
 
-const normalizeEdge = (edge: any, index: number): GraphEdge | null => {
+const normalizeEdge = (edge: NetworkObject, index: number): GraphEdge | null => {
   const source = String(edge?.source ?? edge?.sourceId ?? edge?.from ?? "");
   const target = String(edge?.target ?? edge?.targetId ?? edge?.to ?? "");
   if (!source || !target) return null;
@@ -55,7 +55,7 @@ const normalizeEdge = (edge: any, index: number): GraphEdge | null => {
   };
 };
 
-const buildCircularLayout = (nodes: any[]) => {
+const buildCircularLayout = (nodes: NetworkObject[]) => {
   const centerX = GRAPH_WIDTH / 2;
   const centerY = GRAPH_HEIGHT / 2;
   const radius = Math.min(GRAPH_WIDTH, GRAPH_HEIGHT) * 0.34;
@@ -81,9 +81,9 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState(initialStoryId || "");
   const [keyword, setKeyword] = useState("");
-  const [graphData, setGraphData] = useState<any>({ nodes: [], edges: [] });
-  const [queryData, setQueryData] = useState<any>({ nodes: [], edges: [] });
-  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [graphData, setGraphData] = useState<NetworkObject>({ nodes: [], edges: [] });
+  const [queryData, setQueryData] = useState<NetworkObject>({ nodes: [], edges: [] });
+  const [selectedNode, setSelectedNode] = useState<NetworkObject | null>(null);
   const [visibleTypes, setVisibleTypes] = useState<Record<string, boolean>>({});
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [draggingNodeId, setDraggingNodeId] = useState("");
@@ -97,14 +97,12 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       .list()
       .then((list) => {
         setStories(list);
-        if (!storyId && list.length > 0) {
-          setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
-        }
+        setStoryId((current) => current || (initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0]?.id || ""));
       })
-      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
-  }, []);
+      .catch((error: NetworkObject) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
+  }, [initialStoryId, t, toast]);
 
-  const loadGraph = async () => {
+  const loadGraph = useCallback(async () => {
     if (!storyId) return;
     setLoading(true);
     try {
@@ -116,16 +114,16 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       } else {
         setSelectedNode(null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("graph.loadFailed"), description: localizedErrorMessage(error, "graph.loadFailed") });
     } finally {
       setLoading(false);
     }
-  };
+  }, [storyId, t, toast]);
 
   useEffect(() => {
     void loadGraph();
-  }, [storyId]);
+  }, [loadGraph]);
 
   const queryGraph = async () => {
     if (!storyId) return;
@@ -146,7 +144,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       if (data.nodes?.length) {
         setSelectedNode(data.nodes[0]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("graph.queryFailed"), description: localizedErrorMessage(error, "graph.queryFailed") });
     } finally {
       setLoading(false);
@@ -180,7 +178,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
     const fallback = buildCircularLayout(nodes);
     setPositions((prev) => {
       const next: Record<string, { x: number; y: number }> = {};
-      nodes.forEach((node: any) => {
+      nodes.forEach((node: NetworkObject) => {
         const id = String(node.id);
         next[id] = prev[id] || fallback[id];
       });
@@ -190,7 +188,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
 
   const normalizedEdges = useMemo(() => {
     const list: GraphEdge[] = [];
-    (queryData.edges || []).forEach((edge: any, index: number) => {
+    (queryData.edges || []).forEach((edge: NetworkObject, index: number) => {
       const normalized = normalizeEdge(edge, index);
       if (normalized) list.push(normalized);
     });
@@ -199,7 +197,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
 
   const visibleNodes = useMemo(
     () =>
-      (queryData.nodes || []).filter((node: any) => {
+      (queryData.nodes || []).filter((node: NetworkObject) => {
         const type = String(node.type || "custom");
         return visibleTypes[type] ?? true;
       }),
@@ -207,7 +205,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
   );
 
   const visibleNodeMap = useMemo(
-    () => Object.fromEntries(visibleNodes.map((node: any) => [String(node.id), node])),
+    () => Object.fromEntries(visibleNodes.map((node: NetworkObject) => [String(node.id), node])),
     [visibleNodes],
   );
 
@@ -229,7 +227,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
 
   useEffect(() => {
     if (relationTargetId) return;
-    const firstTarget = visibleNodes.find((node: any) => String(node.id) !== relationSourceId);
+    const firstTarget = visibleNodes.find((node: NetworkObject) => String(node.id) !== relationSourceId);
     if (firstTarget) {
       setRelationTargetId(String(firstTarget.id));
     }
@@ -288,7 +286,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       });
       await loadGraph();
       toast({ title: t("graph.relationCreated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.createRelationFailed"), description: localizedErrorMessage(error, "errors.createRelationFailed") });
     } finally {
       setLoading(false);
@@ -302,7 +300,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       await api.v2.context.deleteRelationship(storyId, relationshipId);
       await loadGraph();
       toast({ title: t("graph.relationDeleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.deleteRelationFailed"), description: localizedErrorMessage(error, "errors.deleteRelationFailed") });
     } finally {
       setLoading(false);
@@ -318,7 +316,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
       await api.v2.context.deleteLorebook(storyId, String(selectedNode.id));
       await loadGraph();
       toast({ title: t("graph.nodeDeleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.deleteNodeFailed"), description: localizedErrorMessage(error, "errors.deleteNodeFailed") });
     } finally {
       setLoading(false);
@@ -433,7 +431,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                       </g>
                     );
                   })}
-                  {visibleNodes.map((node: any) => {
+                  {visibleNodes.map((node: NetworkObject) => {
                     const id = String(node.id);
                     const pos = positions[id];
                     if (!pos) return null;
@@ -529,7 +527,7 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                         <SelectValue placeholder={t("graph.sourceNode")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {visibleNodes.map((node: any) => (
+                        {visibleNodes.map((node: NetworkObject) => (
                           <SelectItem key={`source-${node.id}`} value={String(node.id)}>
                             {node.label || node.name}
                           </SelectItem>
@@ -542,8 +540,8 @@ const KnowledgeGraphTab = ({ initialStoryId }: KnowledgeGraphTabProps) => {
                       </SelectTrigger>
                       <SelectContent>
                         {visibleNodes
-                          .filter((node: any) => String(node.id) !== relationSourceId)
-                          .map((node: any) => (
+                          .filter((node: NetworkObject) => String(node.id) !== relationSourceId)
+                          .map((node: NetworkObject) => (
                             <SelectItem key={`target-${node.id}`} value={String(node.id)}>
                               {node.label || node.name}
                             </SelectItem>

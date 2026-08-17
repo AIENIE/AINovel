@@ -47,9 +47,9 @@ public class V2WorkspaceController {
 
     @PostMapping("/users/me/workspace-layouts")
     public Map<String, Object> createLayout(@AuthenticationPrincipal UserDetails principal,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.createLayout(user, payload);
+        return persistenceService.createLayout(user, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -57,9 +57,9 @@ public class V2WorkspaceController {
     @PutMapping("/users/me/workspace-layouts/{id}")
     public Map<String, Object> updateLayout(@AuthenticationPrincipal UserDetails principal,
                                             @PathVariable UUID id,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.updateLayout(user, id, payload);
+        return persistenceService.updateLayout(user, id, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -85,14 +85,14 @@ public class V2WorkspaceController {
 
     @PostMapping("/writing-sessions/start")
     public Map<String, Object> startSession(@AuthenticationPrincipal UserDetails principal,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         UUID storyId = uuid(payload.get("storyId"));
         if (storyId == null) {
             throw new BusinessException("storyId 不能为空");
         }
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.startSession(user, story, payload);
+        return persistenceService.startSession(user, story, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -100,9 +100,9 @@ public class V2WorkspaceController {
     @PutMapping("/writing-sessions/{id}/heartbeat")
     public Map<String, Object> heartbeat(@AuthenticationPrincipal UserDetails principal,
                                          @PathVariable UUID id,
-                                         @RequestBody Map<String, Object> payload) {
+                                         @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.updateSession(user, id, payload, false);
+        return persistenceService.updateSession(user, id, payload.asMap(), false);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -110,9 +110,9 @@ public class V2WorkspaceController {
     @PostMapping("/writing-sessions/{id}/end")
     public Map<String, Object> endSession(@AuthenticationPrincipal UserDetails principal,
                                           @PathVariable UUID id,
-                                          @RequestBody(required = false) Map<String, Object> payload) {
+                                          @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.updateSession(user, id, payload == null ? Map.of() : payload, true);
+        return persistenceService.updateSession(user, id, payload == null ? Map.of() : payload.asMap(), true);
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -224,14 +224,14 @@ public class V2WorkspaceController {
 
     @PostMapping("/users/me/writing-goals")
     public Map<String, Object> createGoal(@AuthenticationPrincipal UserDetails principal,
-                                          @RequestBody Map<String, Object> payload) {
+                                          @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         UUID storyId = uuid(payload.get("storyId"));
         if (storyId != null) {
             Story story = accessGuard.requireOwnedStory(storyId, user);
-            return persistenceService.createGoal(user, story, payload);
+            return persistenceService.createGoal(user, story, payload.asMap());
         }
-        return persistenceService.createGoal(user, null, payload);
+        return persistenceService.createGoal(user, null, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -239,9 +239,9 @@ public class V2WorkspaceController {
     @PutMapping("/users/me/writing-goals/{id}")
     public Map<String, Object> updateGoal(@AuthenticationPrincipal UserDetails principal,
                                           @PathVariable UUID id,
-                                          @RequestBody Map<String, Object> payload) {
+                                          @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.updateGoal(user, id, payload);
+        return persistenceService.updateGoal(user, id, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -266,7 +266,7 @@ public class V2WorkspaceController {
 
     @PutMapping("/users/me/shortcuts")
     public List<Map<String, Object>> updateShortcuts(@AuthenticationPrincipal UserDetails principal,
-                                                     @RequestBody Map<String, Object> payload) {
+                                                     @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Object shortcutsObj = payload.get("shortcuts");
         if (!(shortcutsObj instanceof List<?> list)) {

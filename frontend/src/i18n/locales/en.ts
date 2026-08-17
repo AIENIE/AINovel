@@ -52,7 +52,6 @@ export const en = {
   "common.custom": "Custom",
   "common.notice": "Notice",
   "common.error": "Error",
-  "common.rename": "Rename",
 
   // Navigation
   "nav.primary": "Main Features",
@@ -553,10 +552,6 @@ export const en = {
   "guided.unnamedStory": "Untitled story",
   "guided.unnamedWorld": "Untitled world",
   "guided.waitingFirstConfirm": "Awaiting first confirmation",
-  "outline.addChapter": "Add Chapter",
-  "outline.editSummary": "Click to edit chapter summary...",
-  "outline.empty": "No chapters yet. Click add in the top right.",
-  "outline.logicCheck": "Logic Check",
   "outline.newChapter": "New Chapter",
   "outline.title": "Outline Editor",
 
@@ -1286,10 +1281,6 @@ export const en = {
   "workbench.title": "Writing Workbench",
   "workbench.tools": "Tools",
   "workbench.writing": "Novel Writing",
-  "worldSelector.myWorlds": "My Worlds",
-  "worldSelector.newWorld": "New World",
-  "worldSelector.noWorlds": "No world settings",
-  "worldSelector.noWorldsHint": "Click the plus button in the top right",
 
   "contextPanel.activeCharacters": "Active Characters",
   "contextPanel.after": "After",

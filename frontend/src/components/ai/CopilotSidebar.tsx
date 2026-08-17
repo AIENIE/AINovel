@@ -1,8 +1,9 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import { ModelConfig } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,7 +21,7 @@ interface Message {
 }
 
 interface CopilotSidebarProps {
-  context?: any; // Context data (story, chapter, etc.)
+  context?: NetworkObject; // Context data (story, chapter, etc.)
   className?: string;
 }
 
@@ -90,7 +91,7 @@ const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
     setIsLoading(true);
 
     try {
-      const response = await api.ai.chat([...messages, userMsg], selectedModelId, context);
+      const response = await api.ai.chat([...messages, userMsg], selectedModelId, context ?? {});
       
       const aiMsg: Message = { 
         id: (Date.now() + 1).toString(), 

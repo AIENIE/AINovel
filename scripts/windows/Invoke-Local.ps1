@@ -357,7 +357,13 @@ function Publish-OperationalState {
     } else {
         'unknown'
     }
-    & $operationalStateWriter -Component 'ai-novel' -DesiredState $desiredState -Health $health
+    try {
+        & $operationalStateWriter -Component 'ai-novel' -DesiredState $desiredState -Health $health
+    } catch {
+        # Publishing shared desktop/runtime observability must not turn a
+        # successful project build or test run into a false negative.
+        Write-Warning "Could not publish AINovel operational state: $($_.Exception.Message)"
+    }
 }
 
 Assert-NativePowerShell
@@ -377,11 +383,18 @@ switch ($Action) {
     'Test' {
         foreach ($spec in Get-SelectedComponents) {
             $command = Get-NativeCommand -Name $spec.Command
-            if ($TestLevel -eq 'L1') {
-                $arguments = if ($spec.Name -eq 'Frontend') { @('run', 'build') } else { @('-q', '-DskipTests', 'package') }
-                Invoke-NativeCommand -Command $command -Arguments $arguments -WorkingDirectory $spec.Directory -Label "$($spec.Name) L1 verification"
+            if ($spec.Name -eq 'Frontend') {
+                Invoke-NativeCommand -Command $command -Arguments @('run', 'lint') -WorkingDirectory $spec.Directory -Label 'Frontend lint'
+                Invoke-NativeCommand -Command $command -Arguments @('run', 'typecheck') -WorkingDirectory $spec.Directory -Label 'Frontend typecheck'
+                Invoke-NativeCommand -Command $command -Arguments @('run', 'build') -WorkingDirectory $spec.Directory -Label 'Frontend production build'
+                if ($TestLevel -eq 'L2') {
+                    Invoke-NativeCommand -Command $command -Arguments $spec.TestArguments -WorkingDirectory $spec.Directory -Label 'Frontend L2 tests'
+                }
             } else {
-                Invoke-NativeCommand -Command $command -Arguments $spec.TestArguments -WorkingDirectory $spec.Directory -Label "$($spec.Name) L2 tests"
+                Invoke-NativeCommand -Command $command -Arguments @('-q', '-DskipTests', 'package') -WorkingDirectory $spec.Directory -Label 'Backend compile'
+                if ($TestLevel -eq 'L2') {
+                    Invoke-NativeCommand -Command $command -Arguments $spec.TestArguments -WorkingDirectory $spec.Directory -Label 'Backend L2 tests'
+                }
             }
         }
         Publish-OperationalState

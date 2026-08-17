@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +15,13 @@ type ExportSidebarPanelProps = {
   createExportJob: () => Promise<void> | void;
   createTemplate: () => Promise<void> | void;
   deleteTemplate: (templateId: string) => Promise<void> | void;
-  downloadExport: (job: any) => Promise<void> | void;
+  downloadExport: (job: NetworkObject) => Promise<void> | void;
   exportAuthorName: string;
   exportFormat: string;
   exportDownloadingJobId: string;
-  exportJobs: any[];
+  exportJobs: NetworkObject[];
   exportTemplateId: string;
-  exportTemplates: any[];
+  exportTemplates: NetworkObject[];
   includeTableOfContents: boolean;
   includeTitlePage: boolean;
   selectedManuscriptId: string;
@@ -36,7 +37,7 @@ type ExportSidebarPanelProps = {
   templateDescription: string;
   templateName: string;
   txtEncoding: string;
-  updateTemplate: (template: any) => Promise<void> | void;
+  updateTemplate: (template: NetworkObject) => Promise<void> | void;
 };
 
 export function ExportSidebarPanel({

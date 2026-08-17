@@ -69,7 +69,7 @@ public class V2ModelController {
     @SecurityRequirement(name = "adminSessionCookie")
     public Map<String, Object> updateRouting(Authentication authentication,
                                              @PathVariable String taskType,
-                                             @RequestBody Map<String, Object> payload) {
+                                             @RequestBody V2RequestPayload payload) {
         Map<String, Object> updated = persistenceService.updateRouting(
                 taskType,
                 uuid(payload.get("recommendedModelId")),
@@ -102,7 +102,7 @@ public class V2ModelController {
     @PutMapping("/users/me/model-preferences/{taskType}")
     public Map<String, Object> putPreference(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable String taskType,
-                                             @RequestBody Map<String, Object> payload) {
+                                             @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         return persistenceService.savePreference(user, taskType, uuid(payload.get("preferredModelId")));
     }
@@ -139,7 +139,7 @@ public class V2ModelController {
     @PostMapping("/stories/{storyId}/compare-models")
     public Map<String, Object> compareModels(@AuthenticationPrincipal UserDetails principal,
                                              @PathVariable UUID storyId,
-                                             @RequestBody Map<String, Object> payload) {
+                                             @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
 

@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { Extension } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
@@ -48,7 +49,7 @@ const getSuggestionItems = ({ query }: { query: string }) => {
             const content = resp?.content || "";
             editor.chain().focus().deleteRange({ from, to }).insertContent(content).run();
             showSuccess("editor.continueWriteDone");
-          } catch (e: any) {
+          } catch (e: unknown) {
             editor.chain().focus().deleteRange({ from, to }).insertContent("【AI 续写失败】").run();
             showError(e, "editor.continueWriteFailed");
           }
@@ -125,7 +126,7 @@ export const SlashCommand = Extension.create({
     return {
       suggestion: {
         char: "/",
-        command: ({ editor, range, props }: any) => {
+        command: ({ editor, range, props }: NetworkObject) => {
           props.command({ editor, range });
         },
       },
@@ -146,10 +147,10 @@ export const suggestionOptions = {
   items: getSuggestionItems,
   render: () => {
     let component: ReactRenderer;
-    let popup: any;
+    let popup: NetworkObject;
 
     return {
-      onStart: (props: any) => {
+      onStart: (props: NetworkObject) => {
         component = new ReactRenderer(SlashCommandList, {
           props,
           editor: props.editor,
@@ -170,7 +171,7 @@ export const suggestionOptions = {
         });
       },
 
-      onUpdate(props: any) {
+      onUpdate(props: NetworkObject) {
         component.updateProps(props);
 
         if (!props.clientRect) {
@@ -182,13 +183,13 @@ export const suggestionOptions = {
         });
       },
 
-      onKeyDown(props: any) {
+      onKeyDown(props: NetworkObject) {
         if (props.event.key === "Escape") {
           popup[0].hide();
           return true;
         }
 
-        return ((component.ref as { onKeyDown?: (nextProps: unknown) => boolean } | null)?.onKeyDown?.(props)) ?? false;
+        return ((component.ref as { onKeyDown?: (nextProps: NetworkObject) => boolean } | null)?.onKeyDown?.(props)) ?? false;
       },
 
       onExit() {

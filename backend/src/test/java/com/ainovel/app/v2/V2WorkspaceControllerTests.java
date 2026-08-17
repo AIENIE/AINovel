@@ -73,7 +73,7 @@ class V2WorkspaceControllerTests {
         Map<String, Object> session = Map.of("id", sessionId, "status", "active");
         when(persistenceService.updateSession(user, sessionId, payload, false)).thenReturn(session);
 
-        Map<String, Object> result = controller.heartbeat(principal, sessionId, payload);
+        Map<String, Object> result = controller.heartbeat(principal, sessionId, V2RequestPayload.of(payload));
 
         assertEquals(sessionId, result.get("id"));
         verify(persistenceService).updateSession(user, sessionId, payload, false);
@@ -89,7 +89,7 @@ class V2WorkspaceControllerTests {
         Map<String, Object> goal = Map.of("id", UUID.randomUUID(), "storyId", storyId);
         when(persistenceService.createGoal(user, story, payload)).thenReturn(goal);
 
-        Map<String, Object> result = controller.createGoal(principal, payload);
+        Map<String, Object> result = controller.createGoal(principal, V2RequestPayload.of(payload));
 
         assertEquals(storyId, result.get("storyId"));
         verify(accessGuard).requireOwnedStory(storyId, user);
@@ -141,7 +141,7 @@ class V2WorkspaceControllerTests {
     @Test
     void updateShortcutsShouldRejectNonArrayPayload() {
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-                controller.updateShortcuts(principal, Map.of("shortcuts", Map.of("action", "save")))
+                controller.updateShortcuts(principal, V2RequestPayload.of(Map.of("shortcuts", Map.of("action", "save"))))
         );
         assertTrue(ex.getMessage().contains("数组"));
     }
@@ -153,7 +153,7 @@ class V2WorkspaceControllerTests {
         );
         when(persistenceService.updateShortcuts(user, shortcuts)).thenReturn(shortcuts);
 
-        List<Map<String, Object>> result = controller.updateShortcuts(principal, Map.of("shortcuts", shortcuts));
+        List<Map<String, Object>> result = controller.updateShortcuts(principal, V2RequestPayload.of(Map.of("shortcuts", shortcuts)));
 
         assertEquals("Ctrl+Shift+S", result.get(0).get("shortcut"));
         verify(persistenceService).updateShortcuts(user, shortcuts);

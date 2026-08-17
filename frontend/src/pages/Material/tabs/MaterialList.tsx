@@ -39,7 +39,7 @@ const MaterialList = () => {
   const { t } = useTranslation();
 
   useEffect(() => {
-    api.materials.list().then(setMaterials).catch((error: any) => {
+    api.materials.list().then(setMaterials).catch((error: unknown) => {
       toast({ variant: "destructive", title: t("material.loadFailed"), description: localizedErrorMessage(error, "material.loadFailed") });
     });
   }, [toast, t]);
@@ -63,7 +63,7 @@ const MaterialList = () => {
       setMaterials((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setEditing(null);
       toast({ title: t("material.updated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("material.updateFailed"), description: localizedErrorMessage(error, "material.updateFailed") });
     } finally {
       setIsSaving(false);
@@ -76,7 +76,7 @@ const MaterialList = () => {
       await api.materials.delete(material.id);
       setMaterials((prev) => prev.filter((item) => item.id !== material.id));
       toast({ title: t("material.deleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("material.deleteFailed"), description: localizedErrorMessage(error, "material.deleteFailed") });
     }
   };

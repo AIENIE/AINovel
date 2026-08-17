@@ -9,7 +9,7 @@ import {
   retryTrackedAiOperation,
   useTrackedAiOperation,
 } from "@/lib/ai-operation-store";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 
 export function AiOperationProgressPanel() {
   const { isAuthenticated } = useAuth();

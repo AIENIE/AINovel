@@ -51,7 +51,7 @@ export function G2EvaluationSubmitDialog({ manuscriptId, sceneId }: { manuscript
       await api.g2Evaluations.submitSample(selectedId, manuscriptId, sceneId);
       toast({ title: t("g2.submitted"), description: t("g2.submittedDesc") });
       setOpen(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("g2.submitFailed"), description: localizedErrorMessage(error, "g2.submitFailed") });
     } finally {
       setIsSubmitting(false);

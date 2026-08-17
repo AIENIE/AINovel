@@ -1,5 +1,6 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { t } from "@/i18n";
-import type { PlotQualityRun, SlopQualityRun } from "@/types";
+import type { PlotQualityRun, SlopQualityRun, SlopRewriteTask } from "@/types";
 
 export const qualityStatusText = (run?: SlopQualityRun | null) => {
   if (!run) return t("qualityStatus.notRun");
@@ -38,7 +39,7 @@ export const slopModuleLabel = (module?: string) => {
   }
 };
 
-export const slopRewriteTaskTitle = (task: any, index: number) => task?.task_id || task?.taskId || `R${index + 1}`;
+export const slopRewriteTaskTitle = (task: SlopRewriteTask, index: number) => task?.task_id || task?.taskId || `R${index + 1}`;
 
 export const plotStatusText = (run?: PlotQualityRun | null) => {
   if (!run) return t("plotStatus.notRun");
@@ -72,9 +73,9 @@ export const plotDimensionLabel = (dimension?: string) => {
   return labels[String(dimension || "")] ? t(labels[String(dimension || "")]) : String(dimension || t("plotDimension.unclassified"));
 };
 
-export const formatDateTime = (value: any) => {
+export const formatDateTime = (value: unknown) => {
   if (!value) return "-";
-  const d = new Date(value);
+  const d = new Date(String(value));
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
 };
 
@@ -89,13 +90,13 @@ export const countWords = (text: string) => {
   return text.replace(/\s+/g, "").trim().length;
 };
 
-export const versionWordCount = (version: any) => {
+export const versionWordCount = (version: NetworkObject) => {
   const fromMeta = Number(version?.metadata?.word_count ?? version?.metadata?.wordCount);
   if (Number.isFinite(fromMeta) && fromMeta >= 0) return Math.round(fromMeta);
   try {
     const sections = typeof version?.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version?.sectionsJson;
     if (!sections || typeof sections !== "object") return 0;
-    return Object.values(sections as Record<string, unknown>).reduce<number>(
+    return Object.values(sections as Record<string, NetworkObject>).reduce<number>(
       (total, scene) => total + countWords(stripHtml(String(scene || ""))),
       0,
     );
@@ -104,7 +105,7 @@ export const versionWordCount = (version: any) => {
   }
 };
 
-export const snapshotTypeLabel = (snapshotType: any) => {
+export const snapshotTypeLabel = (snapshotType: unknown) => {
   const type = String(snapshotType || "manual").toLowerCase();
   if (type === "auto") return t("snapshotType.auto");
   if (type === "branch_point") return t("snapshotType.branchPoint");

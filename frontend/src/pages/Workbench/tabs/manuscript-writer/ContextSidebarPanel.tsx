@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export function ContextSidebarPanel({ contextPreview, onRefresh }: ContextSideba
         </div>
         <div className="rounded border p-2">
           <div className="font-medium mb-1">System Prompt</div>
-          {(contextPreview?.systemPromptEntries || []).map((entry: any) => (
+          {(contextPreview?.systemPromptEntries || []).map((entry: NetworkObject) => (
             <div key={entry.id} className="mb-1 last:mb-0">
               {entry.displayName}
             </div>

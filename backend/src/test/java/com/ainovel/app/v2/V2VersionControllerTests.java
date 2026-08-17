@@ -94,7 +94,7 @@ class V2VersionControllerTests {
         Map<String, Object> branch = Map.of("id", branchId, "name", "rewrite");
         when(versionService.updateBranch(manuscriptId, branchId, payload)).thenReturn(branch);
 
-        Map<String, Object> result = controller.updateBranch(principal, manuscriptId, branchId, payload);
+        Map<String, Object> result = controller.updateBranch(principal, manuscriptId, branchId, V2RequestPayload.of(payload));
 
         assertEquals("rewrite", result.get("name"));
         verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
@@ -138,7 +138,7 @@ class V2VersionControllerTests {
         );
         when(versionService.updateAutoSave(user, payload)).thenReturn(config);
 
-        Map<String, Object> result = controller.updateAutoSave(principal, payload);
+        Map<String, Object> result = controller.updateAutoSave(principal, V2RequestPayload.of(payload));
 
         assertEquals(30, result.get("autoSaveIntervalSeconds"));
         verify(versionService).updateAutoSave(user, payload);

@@ -40,10 +40,10 @@ public class V2StyleController {
     @PostMapping("/stories/{storyId}/style-profiles")
     public Map<String, Object> createStyleProfile(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId,
-                                                  @RequestBody Map<String, Object> payload) {
+                                                  @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.createStyleProfile(user, story, payload);
+        return styleService.createStyleProfile(user, story, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -51,10 +51,10 @@ public class V2StyleController {
     public Map<String, Object> updateStyleProfile(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId,
                                                   @PathVariable UUID id,
-                                                  @RequestBody Map<String, Object> payload) {
+                                                  @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.updateStyleProfile(story, id, payload);
+        return styleService.updateStyleProfile(story, id, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -81,9 +81,9 @@ public class V2StyleController {
     @Operation(summary = "v2 API endpoint")
     @PostMapping("/style-analysis")
     public Map<String, Object> analyzeStyle(@AuthenticationPrincipal UserDetails principal,
-                                            @RequestBody Map<String, Object> payload) {
+                                            @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        return styleService.analyzeStyle(user, payload);
+        return styleService.analyzeStyle(user, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -99,10 +99,10 @@ public class V2StyleController {
     @PostMapping("/stories/{storyId}/character-voices")
     public Map<String, Object> createCharacterVoice(@AuthenticationPrincipal UserDetails principal,
                                                     @PathVariable UUID storyId,
-                                                    @RequestBody Map<String, Object> payload) {
+                                                    @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.createCharacterVoice(story, payload);
+        return styleService.createCharacterVoice(story, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -110,10 +110,10 @@ public class V2StyleController {
     public Map<String, Object> updateCharacterVoice(@AuthenticationPrincipal UserDetails principal,
                                                     @PathVariable UUID storyId,
                                                     @PathVariable UUID id,
-                                                    @RequestBody Map<String, Object> payload) {
+                                                    @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.updateCharacterVoice(story, id, payload);
+        return styleService.updateCharacterVoice(story, id, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -132,9 +132,9 @@ public class V2StyleController {
     public Map<String, Object> generateCharacterVoice(@AuthenticationPrincipal UserDetails principal,
                                                       @PathVariable UUID storyId,
                                                       @PathVariable UUID id,
-                                                      @RequestBody(required = false) Map<String, Object> payload) {
+                                                      @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.generateCharacterVoice(story, id, payload);
+        return styleService.generateCharacterVoice(story, id, payload.asMap());
     }
 }

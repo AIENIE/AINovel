@@ -10,15 +10,15 @@ describe("OutlineWorkbench", () => {
   });
 
   it("does not create data while loading and creates a named outline only after confirmation", async () => {
-    vi.spyOn(api.worlds, "list").mockResolvedValue([] as any);
-    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as any);
-    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([] as any);
+    vi.spyOn(api.worlds, "list").mockResolvedValue([] as never);
+    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as never);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([] as never);
     const createSpy = vi.spyOn(api.outlines, "create").mockResolvedValue({
       id: "outline-1",
       storyId: "story-1",
       title: "支线大纲",
       chapters: [],
-    } as any);
+    } as never);
 
     render(<OutlineWorkbench initialStoryId="story-1" />);
 
@@ -34,8 +34,8 @@ describe("OutlineWorkbench", () => {
   });
 
   it("saves outline-level changes from the structure overview", async () => {
-    vi.spyOn(api.worlds, "list").mockResolvedValue([] as any);
-    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as any);
+    vi.spyOn(api.worlds, "list").mockResolvedValue([] as never);
+    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as never);
     const outline = {
       id: "outline-1",
       storyId: "story-1",
@@ -43,8 +43,8 @@ describe("OutlineWorkbench", () => {
       chapters: [],
       planning: { twistOptions: [], foreshadowPlans: [] },
     };
-    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([outline] as any);
-    const saveSpy = vi.spyOn(api.outlines, "save").mockResolvedValue(outline as any);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([outline] as never);
+    const saveSpy = vi.spyOn(api.outlines, "save").mockResolvedValue(outline as never);
 
     render(<OutlineWorkbench initialStoryId="story-1" />);
 
@@ -59,15 +59,15 @@ describe("OutlineWorkbench", () => {
       configurable: true,
       value: vi.fn(),
     });
-    vi.spyOn(api.worlds, "list").mockResolvedValue([] as any);
-    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as any);
+    vi.spyOn(api.worlds, "list").mockResolvedValue([] as never);
+    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as never);
     vi.spyOn(api.outlines, "listByStory").mockResolvedValue([{
       id: "outline-1",
       storyId: "story-1",
       title: "大纲",
       chapters: [{ id: "chapter-1", title: "第一章", summary: "", scenes: [] }],
       planning: { twistOptions: [], foreshadowPlans: [] },
-    }] as any);
+    }] as never);
 
     render(<OutlineWorkbench initialStoryId="story-1" />);
 

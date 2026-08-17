@@ -1,9 +1,11 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
 import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ToastFn = (options: {
   description?: string;
@@ -78,14 +80,14 @@ export function useManuscriptSidebarData({
   const [newBranchName, setNewBranchName] = useState("");
   const [mergeBranchId, setMergeBranchId] = useState("");
   const [mergeStrategy, setMergeStrategy] = useState<"REPLACE_ALL" | "SCENE_SELECT">("REPLACE_ALL");
-  const [mergeConflicts, setMergeConflicts] = useState<any[]>([]);
+  const [mergeConflicts, setMergeConflicts] = useState<NetworkObject[]>([]);
   const [sceneResolutions, setSceneResolutions] = useState<Record<string, "target" | "source">>({});
   const [selectedDiffVersions, setSelectedDiffVersions] = useState<string[]>([]);
-  const [diffResult, setDiffResult] = useState<any>(null);
+  const [diffResult, setDiffResult] = useState<NetworkObject | null>(null);
   const [diffViewMode, setDiffViewMode] = useState<"split" | "unified">("split");
   const [versionVisibleCount, setVersionVisibleCount] = useState(VERSION_PAGE_SIZE);
   const [aiDiffSummary, setAiDiffSummary] = useState("");
-  const [autoSaveConfig, setAutoSaveConfig] = useState<any>(null);
+  const [autoSaveConfig, setAutoSaveConfig] = useState<NetworkObject | null>(null);
   const [exportFormat, setExportFormat] = useState("txt");
   const [exportTemplateId, setExportTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -111,8 +113,8 @@ export function useManuscriptSidebarData({
     queryFn: async () => {
       try {
         return await fetchContextPreview(selectedStoryId, selectedManuscriptId, selectedSceneId);
-      } catch (e: any) {
-        toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
+      } catch (e: unknown) {
+        toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: localizedErrorMessage(e) });
         throw e;
       }
     },
@@ -128,8 +130,8 @@ export function useManuscriptSidebarData({
     queryFn: async () => {
       try {
         return await fetchVersionData(selectedManuscriptId);
-      } catch (e: any) {
-        toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: e.message });
+      } catch (e: unknown) {
+        toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: localizedErrorMessage(e) });
         throw e;
       }
     },
@@ -143,8 +145,8 @@ export function useManuscriptSidebarData({
     queryFn: async () => {
       try {
         return await fetchExportData(selectedManuscriptId);
-      } catch (e: any) {
-        toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: e.message });
+      } catch (e: unknown) {
+        toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: localizedErrorMessage(e) });
         throw e;
       }
     },
@@ -158,8 +160,8 @@ export function useManuscriptSidebarData({
     queryFn: async () => {
       try {
         return await fetchStats();
-      } catch (e: any) {
-        toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: e.message });
+      } catch (e: unknown) {
+        toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: localizedErrorMessage(e) });
         throw e;
       }
     },
@@ -171,9 +173,9 @@ export function useManuscriptSidebarData({
 
   const goals = goalsQuery.data ?? [];
   const contextPreview = contextPreviewQuery.data ?? null;
-  const versions = versionDataQuery.data?.versions ?? [];
+  const versions = useMemo(() => versionDataQuery.data?.versions ?? [], [versionDataQuery.data?.versions]);
   const branches = versionDataQuery.data?.branches ?? [];
-  const exportJobs = exportDataQuery.data?.jobs ?? [];
+  const exportJobs = useMemo(() => exportDataQuery.data?.jobs ?? [], [exportDataQuery.data?.jobs]);
   const exportTemplates = exportDataQuery.data?.templates ?? [];
   const workspaceStats = statsQuery.data ?? null;
 
@@ -198,8 +200,8 @@ export function useManuscriptSidebarData({
         staleTime: 0,
         retry: false,
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.contextLoadFailed"), description: localizedErrorMessage(e) });
       return null;
     }
   }, [queryClient, selectedManuscriptId, selectedSceneId, selectedStoryId, toast]);
@@ -213,8 +215,8 @@ export function useManuscriptSidebarData({
         staleTime: 0,
         retry: false,
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.versionLoadFailed"), description: localizedErrorMessage(e) });
       return null;
     }
   }, [queryClient, selectedManuscriptId, toast]);
@@ -228,8 +230,8 @@ export function useManuscriptSidebarData({
         staleTime: 0,
         retry: false,
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.exportLoadFailed"), description: localizedErrorMessage(e) });
       return null;
     }
   }, [queryClient, selectedManuscriptId, toast]);
@@ -242,8 +244,8 @@ export function useManuscriptSidebarData({
         staleTime: 0,
         retry: false,
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.statsLoadFailed"), description: localizedErrorMessage(e) });
       return null;
     }
   }, [queryClient, toast]);
@@ -262,8 +264,8 @@ export function useManuscriptSidebarData({
       const [fromVersionId, toVersionId] = selectedDiffVersions;
       setDiffResult(await api.v2.version.getDiff(selectedManuscriptId, fromVersionId, toVersionId));
       setAiDiffSummary("");
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.diffFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.diffFailed"), description: localizedErrorMessage(e) });
     }
   }, [selectedDiffVersions, selectedManuscriptId, toast]);
 
@@ -274,7 +276,7 @@ export function useManuscriptSidebarData({
       if (!changes.length) return t("sidebarData.diffNoChanges");
       let added = 0;
       let removed = 0;
-      changes.forEach((item: any) => {
+      changes.forEach((item: NetworkObject) => {
         const beforeWords = Number(item?.beforeWordCount ?? 0);
         const afterWords = Number(item?.afterWordCount ?? 0);
         const delta = afterWords - beforeWords;
@@ -283,7 +285,7 @@ export function useManuscriptSidebarData({
       });
       const sceneNames = changes
         .slice(0, 3)
-        .map((item: any) => String(item?.sceneId || t("sidebarData.sceneLabel")))
+        .map((item: NetworkObject) => String(item?.sceneId || t("sidebarData.sceneLabel")))
         .join("、");
       const suffix = changes.length > 3 ? t("sidebarData.etcLabel") : "";
       return `共变更 ${changes.length} 个场景（${sceneNames}${suffix}），约新增 ${added} 词、减少 ${removed} 词，主要集中在段落措辞与细节调整。`;
@@ -295,9 +297,9 @@ export function useManuscriptSidebarData({
       const prompt = [t("sidebarData.diffSummaryPrompt"), JSON.stringify((diffResult.changes || []).slice(0, 6), null, 2)].join("\n");
       const result = await api.ai.chat([{ role: "user", content: prompt }], modelId, { manuscriptId: selectedManuscriptId });
       setAiDiffSummary(result.content || localSummary);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAiDiffSummary(localSummary);
-      toast({ title: t("sidebarData.aiUnavailableLocalSummary"), description: e.message });
+      toast({ title: t("sidebarData.aiUnavailableLocalSummary"), description: localizedErrorMessage(e) });
     }
   }, [diffResult, selectedManuscriptId, toast]);
 
@@ -324,8 +326,8 @@ export function useManuscriptSidebarData({
       });
       toast({ title: t("sidebarData.exportJobCreated") });
       await loadExport();
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.exportFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.exportFailed"), description: localizedErrorMessage(e) });
     }
   }, [
     chapterRange,
@@ -341,7 +343,7 @@ export function useManuscriptSidebarData({
     txtEncoding,
   ]);
 
-  const downloadExport = useCallback(async (job: any) => {
+  const downloadExport = useCallback(async (job: NetworkObject) => {
     if (!selectedManuscriptId || !job?.id) return;
     const jobId = String(job.id);
     setExportDownloadingJobId(jobId);
@@ -358,8 +360,8 @@ export function useManuscriptSidebarData({
       link.click();
       link.remove();
       toast({ title: t("sidebarData.downloadStarted") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.downloadFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.downloadFailed"), description: localizedErrorMessage(e) });
     } finally {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       setExportDownloadingJobId("");
@@ -376,18 +378,18 @@ export function useManuscriptSidebarData({
       });
       await loadGoals();
       toast({ title: t("sidebarData.goalCreated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.goalCreateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.goalCreateFailed"), description: localizedErrorMessage(e) });
     }
   }, [goalTargetValue, goalType, loadGoals, selectedStoryId, toast]);
 
-  const updateGoal = useCallback(async (goalId: string, patch: Record<string, unknown>) => {
+  const updateGoal = useCallback(async (goalId: string, patch: Record<string, NetworkObject>) => {
     try {
       await api.v2.workspace.updateGoal(goalId, patch);
       await loadGoals();
       toast({ title: t("sidebarData.goalUpdated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.goalUpdateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.goalUpdateFailed"), description: localizedErrorMessage(e) });
     }
   }, [loadGoals, toast]);
 
@@ -396,8 +398,8 @@ export function useManuscriptSidebarData({
       await api.v2.workspace.deleteGoal(goalId);
       await loadGoals();
       toast({ title: t("sidebarData.goalDeleted") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.goalDeleteFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.goalDeleteFailed"), description: localizedErrorMessage(e) });
     }
   }, [loadGoals, toast]);
 
@@ -417,7 +419,7 @@ export function useManuscriptSidebarData({
     };
     await api.v2.version.updateAutoSave(nextConfig);
     if (selectedManuscriptId) {
-      queryClient.setQueryData<{ autoSaveConfig: any; branches: any[]; versions: any[] } | undefined>(
+      queryClient.setQueryData<{ autoSaveConfig: NetworkObject; branches: NetworkObject[]; versions: NetworkObject[] } | undefined>(
         versionDataQueryKey(selectedManuscriptId),
         (prev) => (prev ? { ...prev, autoSaveConfig: nextConfig } : prev),
       );
@@ -439,8 +441,8 @@ export function useManuscriptSidebarData({
       setNewBranchName("");
       await loadVersions();
       toast({ title: t("sidebarData.branchCreated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.branchCreateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.branchCreateFailed"), description: localizedErrorMessage(e) });
     }
   }, [loadVersions, newBranchName, selectedDiffVersions, selectedManuscriptId, toast, versions]);
 
@@ -453,18 +455,18 @@ export function useManuscriptSidebarData({
       applyFetchedManuscript(manuscript);
       await loadVersions();
       toast({ title: t("sidebarData.branchSwitched") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.branchSwitchFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.branchSwitchFailed"), description: localizedErrorMessage(e) });
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
-  const updateBranch = useCallback(async (branchId: string, payload: Record<string, unknown>) => {
+  const updateBranch = useCallback(async (branchId: string, payload: Record<string, NetworkObject>) => {
     if (!selectedManuscriptId) return;
     try {
       await api.v2.version.updateBranch(selectedManuscriptId, branchId, payload);
       await loadVersions();
       toast({ title: t("sidebarData.branchUpdated") });
-    } catch (e: any) { toast({ variant: "destructive", title: t("sidebarData.branchUpdateFailed"), description: e.message }); }
+    } catch (e: unknown) { toast({ variant: "destructive", title: t("sidebarData.branchUpdateFailed"), description: localizedErrorMessage(e) }); }
   }, [loadVersions, selectedManuscriptId, toast]);
 
   const abandonBranch = useCallback(async (branchId: string) => {
@@ -473,7 +475,7 @@ export function useManuscriptSidebarData({
       await api.v2.version.abandonBranch(selectedManuscriptId, branchId);
       await loadVersions();
       toast({ title: t("sidebarData.branchAbandoned") });
-    } catch (e: any) { toast({ variant: "destructive", title: t("sidebarData.branchAbandonFailed"), description: e.message }); }
+    } catch (e: unknown) { toast({ variant: "destructive", title: t("sidebarData.branchAbandonFailed"), description: localizedErrorMessage(e) }); }
   }, [loadVersions, selectedManuscriptId, toast]);
 
   const rollbackVersion = useCallback(async (versionId: string) => {
@@ -484,8 +486,8 @@ export function useManuscriptSidebarData({
       applyFetchedManuscript(manuscript);
       await loadVersions();
       toast({ title: t("sidebarData.rollbackDone") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.rollbackFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.rollbackFailed"), description: localizedErrorMessage(e) });
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
@@ -507,8 +509,8 @@ export function useManuscriptSidebarData({
       applyFetchedManuscript(manuscript);
       await loadVersions();
       toast({ title: t("sidebarData.mergeDone") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.mergeFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.mergeFailed"), description: localizedErrorMessage(e) });
     }
   }, [applyFetchedManuscript, loadVersions, mergeBranchId, mergeStrategy, sceneResolutions, selectedManuscriptId, toast]);
 
@@ -533,8 +535,8 @@ export function useManuscriptSidebarData({
       setTemplateDescription("");
       await loadExport();
       toast({ title: t("sidebarData.templateCreated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.templateCreateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.templateCreateFailed"), description: localizedErrorMessage(e) });
     }
   }, [
     exportAuthorName,
@@ -548,7 +550,7 @@ export function useManuscriptSidebarData({
     txtEncoding,
   ]);
 
-  const updateTemplate = useCallback(async (template: any) => {
+  const updateTemplate = useCallback(async (template: NetworkObject) => {
     try {
       await api.v2.export.updateTemplate(String(template.id), {
         name: template.name,
@@ -558,8 +560,8 @@ export function useManuscriptSidebarData({
       });
       await loadExport();
       toast({ title: t("sidebarData.templateUpdated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.templateUpdateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.templateUpdateFailed"), description: localizedErrorMessage(e) });
     }
   }, [exportFormat, loadExport, toast]);
 
@@ -568,8 +570,8 @@ export function useManuscriptSidebarData({
       await api.v2.export.deleteTemplate(templateId);
       await loadExport();
       toast({ title: t("sidebarData.templateDeleted") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sidebarData.templateDeleteFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sidebarData.templateDeleteFailed"), description: localizedErrorMessage(e) });
     }
   }, [loadExport, toast]);
 
@@ -590,7 +592,7 @@ export function useManuscriptSidebarData({
   useEffect(() => {
     const templates = exportDataQuery.data?.templates ?? [];
     setExportTemplateId((prev) => {
-      if (prev && templates.some((template: any) => String(template.id) === prev)) return prev;
+      if (prev && templates.some((template: NetworkObject) => String(template.id) === prev)) return prev;
       return String(templates[0]?.id || "");
     });
   }, [exportDataQuery.data]);
