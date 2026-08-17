@@ -22,3 +22,10 @@ repository. Browser L4 workflows are intentionally separate: start a verified
 runtime first, then run the matrix-owned browser acceptance flow against it.
 Successful start, stop, status, and test commands also update the shared
 product operational-state metric when its configured writer is available.
+
+The native launcher always uses the shared service plane on the VM identified
+operationally by `ssh aienie-wsl`: MySQL `23306`, Redis `26379`, Qdrant
+`26333`, and the user/pay/AI TLS gRPC ingresses `12001/12021/12011`. The
+application does not SSH at runtime. Its gRPC clients load the fixed Aienie
+local CA root from `C:\ProgramData\AieniePki\pki\root`; plaintext and direct
+VM container ports are not local-start fallbacks.

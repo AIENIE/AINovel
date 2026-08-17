@@ -8,6 +8,7 @@ export default defineConfig(() => ({
     host: "::",
     port: 11040,
     strictPort: true,
+    allowedHosts: ["localhost", "127.0.0.1", "localainovel.testhut.top"],
     proxy: {
       "/api": {
         target: "http://127.0.0.1:11041",
