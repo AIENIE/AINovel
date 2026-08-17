@@ -12,7 +12,8 @@ application directly on Windows; they do not invoke WSL or container tooling.
 | L1/L2 checks | `.\scripts\windows\Test-Local.ps1 -Level L1` / `-Level L2` |
 
 `Start-Local.ps1` starts only the requested local application components,
-waits for their local HTTP health endpoints, and records owned process IDs
+requires a 2xx response from backend
+`/api/actuator/health/readiness` and the frontend root, and records owned process IDs
 under `%LOCALAPPDATA%\Aienie\native-runs\ainovel`. `Stop-Local.ps1` stops only
 processes whose recorded PID and start time still match. Run `Build-Local.ps1`
 before the first native start so frontend dependencies are present.

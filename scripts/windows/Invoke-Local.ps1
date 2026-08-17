@@ -38,7 +38,7 @@ $components = @(
         TestArguments = @('-q', 'test')
         StartArguments = @('-q', 'spring-boot:run')
         Port = 11041
-        HealthPath = '/actuator/health'
+        HealthPath = '/api/actuator/health/readiness'
         NodeModulesPath = $null
     },
     [pscustomobject]@{
@@ -235,7 +235,7 @@ function Test-LocalHttpEndpoint {
 
     try {
         $response = Invoke-WebRequest -Uri ("http://127.0.0.1:{0}{1}" -f $Port, $Path) -TimeoutSec 3 -SkipHttpErrorCheck
-        return $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+        return $response.StatusCode -ge 200 -and $response.StatusCode -lt 300
     } catch {
         return $false
     }
