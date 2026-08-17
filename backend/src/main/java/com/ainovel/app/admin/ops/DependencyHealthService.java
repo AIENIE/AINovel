@@ -46,7 +46,7 @@ public class DependencyHealthService {
     private final OpsRecordFileSink recordFileSink;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
-    @Value("${qdrant.host:http://base.seekerhut.com}")
+    @Value("${qdrant.host:http://localbase.testhut.top}")
     private String qdrantHost;
 
     @Value("${qdrant.http-port:26333}")
@@ -156,7 +156,7 @@ public class DependencyHealthService {
     }
 
     private String qdrantBaseUrl() {
-        String value = qdrantHost == null || qdrantHost.isBlank() ? "http://base.seekerhut.com" : qdrantHost.trim();
+        String value = qdrantHost == null || qdrantHost.isBlank() ? "http://localbase.testhut.top" : qdrantHost.trim();
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);
         }
