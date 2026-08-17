@@ -1,9 +1,13 @@
 package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.AiService;
+import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.manuscript.context.CompiledSceneDraftContext;
+import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
+import com.ainovel.app.manuscript.context.SceneDraftContextManifest;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.quality.SlopQualityGate;
 import com.ainovel.app.quality.SlopQualityRequest;
@@ -19,7 +23,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +40,7 @@ public class SceneGenerationService {
     private static final int MAX_SECTION_HAN = 3200;
     private static final int MAX_GENERATION_ATTEMPTS = 3;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
+    public static final String SCENE_DRAFT_SYSTEM_RULES_VERSION = "AINOVEL_SCENE_DRAFT_RULES_V1";
 
     @Autowired
     private CharacterCardRepository characterCardRepository;
@@ -44,10 +53,22 @@ public class SceneGenerationService {
     @Autowired
     private SceneGenerationPromptBuilder sceneGenerationPromptBuilder;
     @Autowired
+    private SceneDraftContextCompiler sceneDraftContextCompiler;
+    @Autowired
     private ObjectMapper objectMapper;
 
     public record EvaluationPair(String fastText, String craftedText) {
     }
+
+    public record GenerationMetadata(
+            String modelKey,
+            String promptVersion,
+            String promptHash,
+            int attemptCount,
+            SceneDraftContextManifest contextManifest
+    ) {}
+
+    public record GenerationResult(String html, GenerationMetadata metadata) {}
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections) {
         return generateSceneSectionHtml(manuscript, sceneId, existingSections, GenerationMode.FAST);
@@ -55,12 +76,21 @@ public class SceneGenerationService {
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections,
                                             GenerationMode mode) {
+        return generateSceneSection(manuscript, sceneId, existingSections, mode).html();
+    }
+
+    public GenerationResult generateSceneSection(Manuscript manuscript, UUID sceneId,
+                                                   Map<String, String> existingSections,
+                                                   GenerationMode mode) {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
         List<CharacterCard> characters = characterCardRepository.findByStory(story);
         String characterContext = buildCharacterContext(characters);
-        String previousContext = buildPreviousContext(sceneContext, existingSections);
+        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, existingSections);
+        String previousContext = compiledContext == null
+                ? buildPreviousContext(sceneContext, existingSections)
+                : compiledContext.recentSceneContext();
         String outlinePlanning = outlinePlanning(manuscript.getOutline());
 
         String previousDraft = null;
@@ -78,7 +108,8 @@ public class SceneGenerationService {
                     attempt,
                     MIN_SECTION_HAN,
                     MAX_SECTION_HAN,
-                    mode
+                    mode,
+                    compiledContext
             );
             String raw = aiService.chat(owner, new AiChatRequest(
                     prompt.messages(),
@@ -113,7 +144,16 @@ public class SceneGenerationService {
                         characterContext,
                         qualityResult.acceptedText()
                 );
-                return toEditorHtml(qualityResult.acceptedText());
+                return new GenerationResult(
+                        toEditorHtml(qualityResult.acceptedText()),
+                        new GenerationMetadata(
+                                AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
+                                SceneDraftContextCompiler.COMPILER_VERSION,
+                                promptHash(prompt.messages()),
+                                attempt,
+                                compiledContext == null ? null : compiledContext.manifest()
+                        )
+                );
             }
             previousDraft = normalized;
             previousCount = hanCount;
@@ -130,11 +170,12 @@ public class SceneGenerationService {
      */
     public EvaluationPair generateEvaluationPair(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId) {
         Map<String, String> sections = existingSections(manuscript);
+        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, sections);
         AiUsageContext baseContext = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId), "pair");
         String fastText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.FAST,
-                baseContext.forOperation("fast"));
+                baseContext.forOperation("fast"), compiledContext);
         String craftedText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.CRAFTED,
-                baseContext.forOperation("crafted"));
+                baseContext.forOperation("crafted"), compiledContext);
         return new EvaluationPair(fastText, craftedText);
     }
 
@@ -142,19 +183,22 @@ public class SceneGenerationService {
                                                UUID sceneId,
                                                Map<String, String> existingSections,
                                                GenerationMode mode,
-                                               AiUsageContext usageContext) {
+                                               AiUsageContext usageContext,
+                                               CompiledSceneDraftContext compiledContext) {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
         String characterContext = buildCharacterContext(characterCardRepository.findByStory(story));
-        String previousContext = buildPreviousContext(sceneContext, existingSections);
+        String previousContext = compiledContext == null
+                ? buildPreviousContext(sceneContext, existingSections)
+                : compiledContext.recentSceneContext();
         String previousDraft = null;
         int previousCount = 0;
 
         for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
             var prompt = sceneGenerationPromptBuilder.build(
                     owner, story, sceneContext, characterContext, previousContext,
-                    previousDraft, previousCount, attempt, MIN_SECTION_HAN, MAX_SECTION_HAN, mode
+                    previousDraft, previousCount, attempt, MIN_SECTION_HAN, MAX_SECTION_HAN, mode, compiledContext
             );
             String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null),
                     usageContext.forOperation("draft-" + attempt)).content();
@@ -190,6 +234,37 @@ public class SceneGenerationService {
             return objectMapper.readValue(manuscript.getSectionsJson(), new TypeReference<Map<String, String>>() {});
         } catch (Exception ex) {
             throw new BusinessException("稿件正文数据异常，无法创建盲测样本");
+        }
+    }
+
+    private CompiledSceneDraftContext compileContext(Manuscript manuscript,
+                                                     UUID sceneId,
+                                                     Map<String, String> existingSections) {
+        if (sceneDraftContextCompiler == null) {
+            return null;
+        }
+        return sceneDraftContextCompiler.compile(manuscript, sceneId, existingSections);
+    }
+
+    private String promptHash(List<AiChatRequest.Message> messages) {
+        StringBuilder canonical = new StringBuilder(SCENE_DRAFT_SYSTEM_RULES_VERSION);
+        if (messages != null) {
+            for (AiChatRequest.Message message : messages) {
+                if (message == null) {
+                    continue;
+                }
+                canonical.append('\n')
+                        .append(message.role() == null ? "" : message.role().trim())
+                        .append('\n')
+                        .append(message.content() == null ? "" : message.content());
+            }
+        }
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
         }
     }
 

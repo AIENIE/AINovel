@@ -102,7 +102,7 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
 
   const loadPreview = async () => {
     if (!storyId) return;
-    const data = await api.v2.context.previewContext(storyId, 1200);
+    const data = await api.v2.context.previewContext(storyId, { tokenBudget: 1200 });
     setPreview(data);
   };
 

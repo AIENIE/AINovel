@@ -40,10 +40,7 @@ const AnalysisDashboard = () => {
   const [selectedDriftRunId, setSelectedDriftRunId] = useState("");
   const [selectedReportId, setSelectedReportId] = useState("");
   const [selectedChapter, setSelectedChapter] = useState("1");
-  const [continuityText, setContinuityText] = useState(
-    t("analysis.continuitySampleText")
-  );
-  const [isBusy, setIsBusy] = useState(false);
+  const continuityText = t("analysis.continuitySampleText");
   const [isDriftBusy, setIsDriftBusy] = useState(false);
 
   const loadStories = async () => {
@@ -130,49 +127,6 @@ const AnalysisDashboard = () => {
     return () => window.clearInterval(timer);
   }, [storyId, hasRunningJob]);
 
-  const runAction = async (labelKey: string, fn: () => Promise<any>) => {
-    if (!storyId) {
-      toast({ variant: "destructive", title: t("analysis.selectStoryFirst") });
-      return;
-    }
-    if (hasRunningJob) {
-      toast({ variant: "destructive", title: t("analysis.jobRunning"), description: t("analysis.jobRunningDesc") });
-      return;
-    }
-    setIsBusy(true);
-    try {
-      await fn();
-      await loadAnalysis(storyId);
-      toast({ title: t("analysis.triggered", { label: t(labelKey) }) });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: t("analysis.triggerFailed", { label: t(labelKey) }), description: localizedErrorMessage(error, "errors.operationFailed") });
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  const runChapterBetaReader = async () =>
-    runAction("analysis.chapterAnalysis", () =>
-      api.v2.analysis.triggerBetaReader(storyId, {
-        scope: "chapter",
-        scopeReference: `chapter-${selectedChapter}`,
-        focus: "chapter_quality",
-      })
-    );
-
-  const runFullBetaReader = async () => {
-    const estimatedTokens = 180000;
-    const ok = window.confirm(t("analysis.fullAnalysisConfirm", { count: estimatedTokens }));
-    if (!ok) return;
-    await runAction("analysis.fullAnalysis", () =>
-      api.v2.analysis.triggerBetaReader(storyId, {
-        scope: "full_manuscript",
-        focus: "overall",
-        estimatedTokenCost: estimatedTokens,
-      })
-    );
-  };
-
   const selectedManuscript = useMemo(
     () => manuscripts.find((item) => item.id === selectedManuscriptId) || null,
     [manuscripts, selectedManuscriptId]
@@ -204,15 +158,6 @@ const AnalysisDashboard = () => {
       setIsDriftBusy(false);
     }
   };
-
-  const runContinuityCheck = async () =>
-    runAction("analysis.continuityCheck", () =>
-      api.v2.analysis.triggerContinuity(storyId, {
-        scope: "chapter",
-        scopeReference: `chapter-${selectedChapter}`,
-        text: continuityText,
-      })
-    );
 
   const selectedReport = useMemo(() => reports.find((item) => String(item.id) === String(selectedReportId)) || null, [reports, selectedReportId]);
   const selectedDriftRun = useMemo(
@@ -260,17 +205,6 @@ const AnalysisDashboard = () => {
       { point: t("analysis.tensionResolution"), value: Math.max(10, base - 2) },
     ];
   }, [selectedReport, t]);
-
-  const updateIssueStatus = async (issueId: string, status: string) => {
-    if (!storyId) return;
-    try {
-      await api.v2.analysis.updateIssue(storyId, issueId, { status });
-      await loadAnalysis(storyId);
-      toast({ title: t("analysis.issueStatusUpdated") });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: t("errors.updateFailed"), description: localizedErrorMessage(error, "errors.updateFailed") });
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -336,17 +270,17 @@ const AnalysisDashboard = () => {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={runChapterBetaReader} disabled={isBusy || !storyId}>
-            {t("analysis.analyzeChapter")}
+          <Button disabled title={t("common.notImplemented")}>
+            {t("analysis.analyzeChapter")} · {t("common.notImplemented")}
           </Button>
-          <Button variant="secondary" onClick={runFullBetaReader} disabled={isBusy || !storyId}>
-            {t("analysis.analyzeFull")}
+          <Button variant="secondary" disabled title={t("common.notImplemented")}>
+            {t("analysis.analyzeFull")} · {t("common.notImplemented")}
           </Button>
           <Button variant="secondary" onClick={runSlopDrift} disabled={isDriftBusy || !selectedManuscriptId}>
             {t("analysis.driftCheck")}
           </Button>
-          <Button variant="outline" onClick={runContinuityCheck} disabled={isBusy || !storyId}>
-            {t("analysis.continuityCheck")}
+          <Button variant="outline" disabled title={t("common.notImplemented")}>
+            {t("analysis.continuityCheck")} · {t("common.notImplemented")}
           </Button>
           <Button
             variant="ghost"
@@ -364,11 +298,14 @@ const AnalysisDashboard = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("analysis.continuityInputTitle")}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle>{t("analysis.continuityInputTitle")}</CardTitle>
+            <Badge variant="secondary">{t("common.notImplemented")}</Badge>
+          </div>
           <CardDescription>{t("analysis.continuityInputDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Textarea className="min-h-[100px]" value={continuityText} onChange={(event) => setContinuityText(event.target.value)} />
+          <Textarea disabled className="min-h-[100px]" value={continuityText} readOnly />
         </CardContent>
       </Card>
 
@@ -510,7 +447,10 @@ const AnalysisDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>{t("analysis.issueTracking")}</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>{t("analysis.issueTracking")}</CardTitle>
+              <Badge variant="secondary">{t("common.notImplemented")}</Badge>
+            </div>
             <CardDescription>{t("analysis.issueTrackingDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -522,7 +462,7 @@ const AnalysisDashboard = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{issue.description}</p>
                 <div className="mt-2">
-                  <Select value={issue.status || "open"} onValueChange={(value) => updateIssueStatus(issue.id, value)}>
+                  <Select value={issue.status || "open"} disabled>
                     <SelectTrigger className="h-8">
                       <SelectValue />
                     </SelectTrigger>

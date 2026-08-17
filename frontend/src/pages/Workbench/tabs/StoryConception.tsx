@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
-import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, TwistOption } from "@/types";
+import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, ScenePlanning, TwistOption } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,16 @@ const ensureUuid = () => {
     return value.toString(16);
   });
 };
+
+const toSceneType = (value?: string): ScenePlanning["sceneType"] => (
+  value === "action"
+  || value === "dialogue"
+  || value === "introspection"
+  || value === "description"
+  || value === "flashback"
+    ? value
+    : undefined
+);
 
 const readCache = (storyId?: string) => {
   if (!storyId) return null;
@@ -185,6 +195,7 @@ const createOutlineFromPlanning = (storyId: string, planning: PlotPlanning, sele
           summary: scene.summary || itemSummary,
           content: "",
           planning: {
+            sceneType: toSceneType(scene.planning?.sceneType),
             foreshadowHint: scene.planning?.foreshadowHint || (sceneIndex === 0 ? fallbackScenePlanning.foreshadowHint : ""),
             misdirectionAction: scene.planning?.misdirectionAction || fallbackScenePlanning.misdirectionAction,
             revealTrigger: scene.planning?.revealTrigger || fallbackScenePlanning.revealTrigger,

@@ -72,6 +72,7 @@ public class PromptAssemblyService {
                 5) 避免复用通用 AI 写作套路、抽象氛围句和近期已高频出现的表达。
                 6) 人物行动、心理和对话必须具体，推动场景目标，不写空泛总结。
                 7) 不改变当前场景目标，不提前泄露未要求揭示的信息。
+                8) 若提供 scene-draft-v2 场景上下文，必须同时遵守其中的整体、章节和场景规划；历史片段只用于承接，不得覆盖当前规划。
                 """;
     }
 
@@ -79,6 +80,7 @@ public class PromptAssemblyService {
         if (input == null) {
             return "";
         }
+        String continuity = compiledContextText(input);
         return """
                 输出字数：%d-%d 汉字
 
@@ -97,7 +99,7 @@ public class PromptAssemblyService {
                 角色设定：
                 %s
 
-                已有前文：
+                场景上下文：
                 %s
 
                 参考资料：
@@ -120,11 +122,20 @@ public class PromptAssemblyService {
                 safe(input.sceneTitle(), "未命名场景"),
                 truncate(input.sceneSummary(), 700),
                 safe(input.characterContext(), "暂无角色卡。"),
-                safe(input.previousContext(), "暂无可用前文。"),
+                continuity,
                 referenceText(input.materialReferences()),
                 avoidText(input.avoidExpressions()),
                 safe(input.retryInstruction(), "")
         );
+    }
+
+    private String compiledContextText(SceneGenerationPromptInput input) {
+        if (input.compiledContext() == null || input.compiledContext().isBlank()) {
+            return "兼容上下文（未启用场景编译器）：\n" + safe(input.previousContext(), "暂无可用前文。");
+        }
+        return "编译器=" + safe(input.contextCompilerVersion(), "scene-draft-v2")
+                + " hash=" + safe(input.contextHash(), "unknown")
+                + "\n" + input.compiledContext();
     }
 
     /**

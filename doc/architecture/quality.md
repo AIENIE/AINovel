@@ -9,6 +9,14 @@
 
 这些能力评价文本风险，不输出 AI 概率或作者归因。E1-E4 证据等级、替代解释和最小修复建议用于降低误伤。
 
+Beta Reader 与通用连续性分析尚未接入真实模型评估。两个触发接口稳定返回 `ANALYSIS_NOT_IMPLEMENTED`，不会再把固定分数或固定风险持久化成已完成报告；历史记录仅为兼容读取。
+
+## 单开发者回归基线
+
+- `backend/src/test/resources/quality/novel-quality-regression-fixtures.json` 冻结 36 个仓库自有中文样本，包含 12 个无缺陷基线和六类各 4 个单缺陷变体；6 个 holdout 不参与日常调参。
+- 默认测试只校验 fixture 数量、类型分布、逐字证据和上下文引用，不访问模型或网络。
+- 手动模型回归只报告缺陷类型 precision、recall、F1 和证据命中率，不给小说总体文学分，也不能替代 G2 真人盲测。
+
 ## 本地规则注册表
 
 - 运行时入口为 `backend/src/main/resources/quality/slop-patterns/index.json`；它按正文规则、高置信输出残留、影子观测和生成约束拆分 JSON 资源。

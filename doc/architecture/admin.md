@@ -4,7 +4,7 @@
 
 - 登录页：`/admin/login`；后台前缀：`/admin/*`。
 - 管理员使用本地 `/api/v1/admin-auth/*` 和服务端不透明会话，不复用普通用户 SSO token。浏览器只持有 `HttpOnly`、`Secure`、`SameSite=Strict` Cookie；数据库只保存 token 的 SHA-256 摘要，响应 JSON 和浏览器存储都不保存会话 token。
-- `ENV` 与 `AUTH_MODE` 从进程环境读取且必须精确匹配；标准部署只由经过门禁的 `0600` 普通文件 `env.txt` 注入，宿主同名变量不能补齐或覆盖。只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`；测试和生产不能降级到单密码模式。
+- `ENV` 与 `AUTH_MODE` 从进程环境读取且必须精确匹配。Windows 本地由 `Start-Local.ps1` 从 ACL 收紧的仓库外安全文件注入；非 Windows Docker 部署只由经过门禁的 `0600` 普通文件 `env.txt` 注入，宿主同名变量不能补齐或覆盖。只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`；测试和生产不能降级到单密码模式。
 - 固定单一管理员由 `ADMIN_USERNAME` 标识；`ADMIN_PASSWORD_HASH` 保存 BCrypt 摘要。TOTP 模式的日常登录也先校验账号密码，再签发 120 秒、最多 5 次尝试的 TOTP 挑战。
 - TOTP 密钥以 AES-GCM 加密保存，使用版本化 `ADMIN_TOTP_ENCRYPTION_KEYS` 密钥环和 `ADMIN_TOTP_ACTIVE_KEY_VERSION`。
 - 后端普通管理接口只接受独立权限 `AUTH_LOCAL_ADMIN`。普通 SSO 的 `ROLE_ADMIN` 无法进入本地后台；恢复码登录只授予 `AUTH_LOCAL_ADMIN_RECOVERY`，仅允许查询会话、退出和重新绑定验证器。

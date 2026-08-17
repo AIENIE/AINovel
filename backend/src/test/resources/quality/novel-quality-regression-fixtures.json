@@ -1,0 +1,268 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "id": "qf-01-clean", "groupId": "qf-01", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-01-s1"], "targetSceneId": "qf-01-s2",
+      "context": {"planning": {"goal": "取回账册", "conflict": "仓库停电且守卫巡逻"}, "facts": ["账册锁在东仓的青瓷杯暗格内", "港区停电尚未恢复"], "sourceScenes": [{"id": "qf-01-s1", "order": 1, "text": "林澄确认港区总闸烧毁，至少两小时无法供电。老船工说，账册藏在东仓那只缺口青瓷杯的暗格里。"}]},
+      "text": "林澄摸黑进入东仓，凭杯沿的缺口找到青瓷杯。他没有点灯，只借窗外的月光撬开暗格，取出了账册。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-01-s1"], "excludedSourceIds": ["qf-01-s3"], "requiredTerms": ["东仓", "青瓷杯", "停电"]}
+    },
+    {
+      "id": "qf-01-space-entity", "groupId": "qf-01", "split": "development", "holdout": false, "defectType": "SPACE_ENTITY",
+      "sourceSceneIds": ["qf-01-s1"], "targetSceneId": "qf-01-s2",
+      "context": {"planning": {"goal": "取回账册", "conflict": "仓库停电且守卫巡逻"}, "facts": ["账册锁在东仓的青瓷杯暗格内", "港区停电尚未恢复"], "sourceScenes": [{"id": "qf-01-s1", "order": 1, "text": "老船工说，账册藏在东仓那只缺口青瓷杯的暗格里。"}]},
+      "text": "林澄摸黑进入东仓，一眼认出完好无缺的赤铜杯。他撬开杯底暗格，取出了账册。",
+      "evidence": [{"sourceId": "qf-01-s1", "text": "缺口青瓷杯"}, {"sourceId": "qf-01-s2", "text": "完好无缺的赤铜杯"}], "expectedContext": {"requiredSourceIds": ["qf-01-s1"], "excludedSourceIds": ["qf-01-s3"], "requiredTerms": ["东仓", "青瓷杯"]}
+    },
+    {
+      "id": "qf-01-causal", "groupId": "qf-01", "split": "development", "holdout": false, "defectType": "CAUSAL_AFTERSHOCK",
+      "sourceSceneIds": ["qf-01-s1"], "targetSceneId": "qf-01-s2",
+      "context": {"planning": {"goal": "取回账册", "conflict": "仓库停电且守卫巡逻"}, "facts": ["港区总闸烧毁，至少两小时无法供电"], "sourceScenes": [{"id": "qf-01-s1", "order": 1, "text": "林澄亲眼看见总闸爆出火花，维修工判断两小时内不可能恢复供电。"}]},
+      "text": "一分钟后，东仓所有吊灯同时亮起。林澄没有在意，也没有人检查总闸，他就在稳定的灯光下读完了账册。",
+      "evidence": [{"sourceId": "qf-01-s1", "text": "两小时内不可能恢复供电"}, {"sourceId": "qf-01-s2", "text": "一分钟后，东仓所有吊灯同时亮起"}], "expectedContext": {"requiredSourceIds": ["qf-01-s1"], "excludedSourceIds": ["qf-01-s3"], "requiredTerms": ["总闸", "停电"]}
+    },
+
+    {
+      "id": "qf-02-clean", "groupId": "qf-02", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-02-s1"], "targetSceneId": "qf-02-s2",
+      "context": {"planning": {"goal": "确认匿名药单来源", "conflict": "梅岚不愿惊动父亲"}, "facts": ["梅岚不知道药单是谁送来的", "梅岚承诺暂不联系父亲"], "sourceScenes": [{"id": "qf-02-s1", "order": 1, "text": "护士只说药单被塞在值班室门缝里，没有署名。梅岚答应母亲，在查清之前不联系父亲。"}]},
+      "text": "梅岚把药单装进证物袋，先去查值班室监控。号码栏被墨水涂掉，她只能从纸张和折痕入手。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-02-s1"], "excludedSourceIds": ["qf-02-s3"], "requiredTerms": ["匿名", "不联系父亲"]}
+    },
+    {
+      "id": "qf-02-pov", "groupId": "qf-02", "split": "development", "holdout": false, "defectType": "POV_KNOWLEDGE",
+      "sourceSceneIds": ["qf-02-s1"], "targetSceneId": "qf-02-s2",
+      "context": {"planning": {"goal": "确认匿名药单来源"}, "facts": ["梅岚不知道药单是谁送来的"], "sourceScenes": [{"id": "qf-02-s1", "order": 1, "text": "药单没有署名，监控也尚未调取。"}]},
+      "text": "梅岚捏住药单，立刻明白这是周医生为了掩护自己的调职计划而送来的。她还没看监控，却连他昨夜十点放下药单的时间都很清楚。",
+      "evidence": [{"sourceId": "qf-02-s1", "text": "药单没有署名，监控也尚未调取"}, {"sourceId": "qf-02-s2", "text": "连他昨夜十点放下药单的时间都很清楚"}], "expectedContext": {"requiredSourceIds": ["qf-02-s1"], "excludedSourceIds": ["qf-02-s3"], "requiredTerms": ["未知来源"]}
+    },
+    {
+      "id": "qf-02-motivation", "groupId": "qf-02", "split": "development", "holdout": false, "defectType": "MOTIVATION_GOAL",
+      "sourceSceneIds": ["qf-02-s1"], "targetSceneId": "qf-02-s2",
+      "context": {"planning": {"goal": "暗查药单来源", "conflict": "不能惊动父亲"}, "facts": ["梅岚刚承诺不联系父亲"], "sourceScenes": [{"id": "qf-02-s1", "order": 1, "text": "梅岚握住母亲的手，明确承诺在查清药单前绝不联系父亲。"}]},
+      "text": "走出病房，梅岚心情平静地拨通父亲电话，把匿名药单的每个细节都告诉了他。没有新证据，也没有迫使她违背承诺的事件。",
+      "evidence": [{"sourceId": "qf-02-s1", "text": "绝不联系父亲"}, {"sourceId": "qf-02-s2", "text": "拨通父亲电话"}], "expectedContext": {"requiredSourceIds": ["qf-02-s1"], "excludedSourceIds": ["qf-02-s3"], "requiredTerms": ["承诺", "暗查"]}
+    },
+
+    {
+      "id": "qf-03-clean", "groupId": "qf-03", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-03-s1"], "targetSceneId": "qf-03-s2",
+      "context": {"planning": {"goal": "检查钟塔异响", "foreshadowHint": "分针固定在十七分"}, "facts": ["分针异常的含义应在第五章揭示", "裴渡说话使用短句"], "sourceScenes": [{"id": "qf-03-s1", "order": 1, "text": "裴渡听见钟塔在整点前多响了一声。他只记下时间，没有解释。"}]},
+      "text": "分针停在十七分。裴渡抄下刻度，收起本子。‘先查齿轮。别猜。’他说。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-03-s1"], "excludedSourceIds": ["qf-03-s5"], "requiredTerms": ["十七分", "短句"]}
+    },
+    {
+      "id": "qf-03-foreshadow", "groupId": "qf-03", "split": "development", "holdout": false, "defectType": "FORESHADOW_REPEAT",
+      "sourceSceneIds": ["qf-03-s1"], "targetSceneId": "qf-03-s2",
+      "context": {"planning": {"goal": "检查钟塔异响", "foreshadowHint": "只展示分针异常", "revealFor": "第五章"}, "facts": ["本场不得解释十七分的含义"], "sourceScenes": [{"id": "qf-03-s1", "order": 1, "text": "钟塔多响了一声，原因未知。"}]},
+      "text": "分针停在十七分。裴渡当场断定，十七正是失踪案凶手人数，钟声就是管家的认罪暗号；他连续三次向同伴解释了这个最终答案。",
+      "evidence": [{"sourceId": "qf-03-s1", "text": "原因未知"}, {"sourceId": "qf-03-s2", "text": "当场断定"}], "expectedContext": {"requiredSourceIds": ["qf-03-s1"], "excludedSourceIds": ["qf-03-s5"], "requiredTerms": ["第五章揭示", "不解释"]}
+    },
+    {
+      "id": "qf-03-style", "groupId": "qf-03", "split": "development", "holdout": false, "defectType": "VOICE_STYLE_PROTOCOL",
+      "sourceSceneIds": ["qf-03-s1"], "targetSceneId": "qf-03-s2",
+      "context": {"planning": {"goal": "检查钟塔异响"}, "facts": ["裴渡说话使用短句和排除法", "输出只能是小说正文"], "sourceScenes": [{"id": "qf-03-s1", "order": 1, "text": "‘先记。后查。’裴渡从不在证据不足时长篇议论。"}]},
+      "text": "### 场景分析\n以下是优化后的正文：裴渡微微一笑，发表了一段热情洋溢的长篇演说，向大家系统总结了所有可能性。",
+      "evidence": [{"sourceId": "qf-03-s1", "text": "从不在证据不足时长篇议论"}, {"sourceId": "qf-03-s2", "text": "### 场景分析"}], "expectedContext": {"requiredSourceIds": ["qf-03-s1"], "excludedSourceIds": ["qf-03-s5"], "requiredTerms": ["短句", "仅正文"]}
+    },
+
+    {
+      "id": "qf-04-clean", "groupId": "qf-04", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-04-s1"], "targetSceneId": "qf-04-s2",
+      "context": {"planning": {"goal": "守住雪线营地", "conflict": "左踝受伤且敌台未知"}, "facts": ["岑野左踝不能负重", "敌方电台频率尚未查明"], "sourceScenes": [{"id": "qf-04-s1", "order": 1, "text": "医生固定了岑野的左踝，要求他不得负重。缴获的电台被锁住，频率表还在敌方手中。"}]},
+      "text": "岑野坐在营门内，用镜面反光指挥队员加固雪墙。他没有碰那部尚未解锁的电台。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-04-s1"], "excludedSourceIds": ["qf-04-s3"], "requiredTerms": ["左踝", "频率未知"]}
+    },
+    {
+      "id": "qf-04-space-entity", "groupId": "qf-04", "split": "development", "holdout": false, "defectType": "SPACE_ENTITY",
+      "sourceSceneIds": ["qf-04-s1"], "targetSceneId": "qf-04-s2",
+      "context": {"planning": {"goal": "守住雪线营地"}, "facts": ["岑野左踝不能负重"], "sourceScenes": [{"id": "qf-04-s1", "order": 1, "text": "岑野左踝骨裂，被夹板固定，医生禁止负重。"}]},
+      "text": "警报响起，岑野甩开夹板，独自全速跑过三公里雪坡。他的左脚落地稳健，没有疼痛，也没有任何治疗过程。",
+      "evidence": [{"sourceId": "qf-04-s1", "text": "左踝骨裂"}, {"sourceId": "qf-04-s2", "text": "全速跑过三公里雪坡"}], "expectedContext": {"requiredSourceIds": ["qf-04-s1"], "excludedSourceIds": ["qf-04-s3"], "requiredTerms": ["左踝骨裂"]}
+    },
+    {
+      "id": "qf-04-pov", "groupId": "qf-04", "split": "development", "holdout": false, "defectType": "POV_KNOWLEDGE",
+      "sourceSceneIds": ["qf-04-s1"], "targetSceneId": "qf-04-s2",
+      "context": {"planning": {"goal": "守住雪线营地"}, "facts": ["敌方频率表未取得，电台未解锁"], "sourceScenes": [{"id": "qf-04-s1", "order": 1, "text": "缴获电台无法解锁，队伍不知道敌方频率。"}]},
+      "text": "岑野没有碰电台，却准确知道敌军将在一百四十二点七兆赫下达凌晨突袭命令，连口令内容也一字不差。",
+      "evidence": [{"sourceId": "qf-04-s1", "text": "不知道敌方频率"}, {"sourceId": "qf-04-s2", "text": "准确知道敌军将在一百四十二点七兆赫"}], "expectedContext": {"requiredSourceIds": ["qf-04-s1"], "excludedSourceIds": ["qf-04-s3"], "requiredTerms": ["频率未知"]}
+    },
+
+    {
+      "id": "qf-05-clean", "groupId": "qf-05", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-05-s1"], "targetSceneId": "qf-05-s2",
+      "context": {"planning": {"goal": "保护证人身份", "conflict": "检方逼问名单"}, "facts": ["闻秋决定不公开证人姓名", "走廊爆炸会造成听力与疏散影响"], "sourceScenes": [{"id": "qf-05-s1", "order": 1, "text": "闻秋把证人名单锁回柜中，决定在转移完成前不向任何人透露姓名。"}]},
+      "text": "面对追问，闻秋只确认名单人数，不说姓名。走廊传来爆响后，她耳中嗡鸣，先带陪审员撤离。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-05-s1"], "excludedSourceIds": ["qf-05-s3"], "requiredTerms": ["保护证人", "爆炸余波"]}
+    },
+    {
+      "id": "qf-05-motivation", "groupId": "qf-05", "split": "development", "holdout": false, "defectType": "MOTIVATION_GOAL",
+      "sourceSceneIds": ["qf-05-s1"], "targetSceneId": "qf-05-s2",
+      "context": {"planning": {"goal": "保护证人身份"}, "facts": ["闻秋决定不公开证人姓名"], "sourceScenes": [{"id": "qf-05-s1", "order": 1, "text": "闻秋知道泄露姓名会让证人立即遇险，因此拒绝公开名单。"}]},
+      "text": "检方尚未提出新证据，闻秋便主动念出全部证人姓名和住址。她没有受到威胁，也没有说明为何突然放弃保护目标。",
+      "evidence": [{"sourceId": "qf-05-s1", "text": "拒绝公开名单"}, {"sourceId": "qf-05-s2", "text": "主动念出全部证人姓名和住址"}], "expectedContext": {"requiredSourceIds": ["qf-05-s1"], "excludedSourceIds": ["qf-05-s3"], "requiredTerms": ["保护证人"]}
+    },
+    {
+      "id": "qf-05-causal", "groupId": "qf-05", "split": "development", "holdout": false, "defectType": "CAUSAL_AFTERSHOCK",
+      "sourceSceneIds": ["qf-05-s1"], "targetSceneId": "qf-05-s2",
+      "context": {"planning": {"goal": "保护证人身份", "conflict": "法院走廊爆炸"}, "facts": ["近距离爆炸震碎门窗并触发疏散"], "sourceScenes": [{"id": "qf-05-s1", "order": 1, "text": "爆炸掀开走廊门，玻璃雨落进法庭，警报和浓烟同时涌入。"}]},
+      "text": "爆炸声刚落，所有人立即坐回原位继续喝茶。碎玻璃、浓烟、伤者和警报都不再出现，庭审像什么也没发生一样继续。",
+      "evidence": [{"sourceId": "qf-05-s1", "text": "玻璃雨落进法庭"}, {"sourceId": "qf-05-s2", "text": "像什么也没发生一样继续"}], "expectedContext": {"requiredSourceIds": ["qf-05-s1"], "excludedSourceIds": ["qf-05-s3"], "requiredTerms": ["爆炸", "疏散"]}
+    },
+
+    {
+      "id": "qf-06-clean", "groupId": "qf-06", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-06-s1"], "targetSceneId": "qf-06-s2",
+      "context": {"planning": {"goal": "找出配方被换的时间", "foreshadowHint": "肉桂罐没有粉尘"}, "facts": ["肉桂异常只作线索", "小满说话朴素，不使用网络黑话"], "sourceScenes": [{"id": "qf-06-s1", "order": 1, "text": "小满发现面团味道不对，但还不能判断是谁动了配方。"}]},
+      "text": "小满擦过肉桂罐，指腹没有沾到粉。她把罐子单独封好，只对师傅说：‘先别用了，我去查进货单。’",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-06-s1"], "excludedSourceIds": ["qf-06-s4"], "requiredTerms": ["肉桂", "只作线索"]}
+    },
+    {
+      "id": "qf-06-foreshadow", "groupId": "qf-06", "split": "development", "holdout": false, "defectType": "FORESHADOW_REPEAT",
+      "sourceSceneIds": ["qf-06-s1"], "targetSceneId": "qf-06-s2",
+      "context": {"planning": {"goal": "找出配方被换的时间", "foreshadowHint": "肉桂罐没有粉尘", "revealFor": "第四章"}, "facts": ["本场只埋线索"], "sourceScenes": [{"id": "qf-06-s1", "order": 1, "text": "配方被换，但动手者未知。"}]},
+      "text": "小满摸到干净的肉桂罐，马上宣布夜班经理就是换配方的人，还完整复述了他第四章才会暴露的作案步骤。随后她又把同一答案说了两遍。",
+      "evidence": [{"sourceId": "qf-06-s1", "text": "动手者未知"}, {"sourceId": "qf-06-s2", "text": "马上宣布夜班经理就是换配方的人"}], "expectedContext": {"requiredSourceIds": ["qf-06-s1"], "excludedSourceIds": ["qf-06-s4"], "requiredTerms": ["第四章", "只埋线索"]}
+    },
+    {
+      "id": "qf-06-style", "groupId": "qf-06", "split": "development", "holdout": false, "defectType": "VOICE_STYLE_PROTOCOL",
+      "sourceSceneIds": ["qf-06-s1"], "targetSceneId": "qf-06-s2",
+      "context": {"planning": {"goal": "检查配方"}, "facts": ["小满语言朴素克制", "输出仅正文"], "sourceScenes": [{"id": "qf-06-s1", "order": 1, "text": "小满只说必要的话，从不用夸张网络词。"}]},
+      "text": "下面给出改写建议：\n- 小满大喊：‘家人们谁懂啊，这个肉桂罐简直绝绝子！’\n- 建议下一段加强悬念。",
+      "evidence": [{"sourceId": "qf-06-s1", "text": "从不用夸张网络词"}, {"sourceId": "qf-06-s2", "text": "下面给出改写建议"}], "expectedContext": {"requiredSourceIds": ["qf-06-s1"], "excludedSourceIds": ["qf-06-s4"], "requiredTerms": ["朴素", "仅正文"]}
+    },
+
+    {
+      "id": "qf-07-clean", "groupId": "qf-07", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-07-s1"], "targetSceneId": "qf-07-s2",
+      "context": {"planning": {"goal": "封闭破损气闸", "conflict": "外舱失压"}, "facts": ["苏湛没有舱外服", "气闸破损会持续失压"], "sourceScenes": [{"id": "qf-07-s1", "order": 1, "text": "爆片撕开外舱气闸。苏湛的舱外服留在维修艇上，只能从内侧操作。"}]},
+      "text": "苏湛扣紧内舱安全索，隔着观察窗操纵机械臂压上补片。漏气声减弱后，他才让同伴检查压力曲线。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-07-s1"], "excludedSourceIds": ["qf-07-s3"], "requiredTerms": ["无舱外服", "持续失压"]}
+    },
+    {
+      "id": "qf-07-space-entity", "groupId": "qf-07", "split": "holdout", "holdout": true, "defectType": "SPACE_ENTITY",
+      "sourceSceneIds": ["qf-07-s1"], "targetSceneId": "qf-07-s2",
+      "context": {"planning": {"goal": "封闭破损气闸"}, "facts": ["苏湛没有舱外服，外舱真空"], "sourceScenes": [{"id": "qf-07-s1", "order": 1, "text": "苏湛的舱外服不在空间站，外舱已经完全失压。"}]},
+      "text": "苏湛推门走进真空外舱，没穿舱外服也没有屏住呼吸。他在甲板上散步五分钟，把补片徒手按好后才回来。",
+      "evidence": [{"sourceId": "qf-07-s1", "text": "舱外服不在空间站"}, {"sourceId": "qf-07-s2", "text": "没穿舱外服"}], "expectedContext": {"requiredSourceIds": ["qf-07-s1"], "excludedSourceIds": ["qf-07-s3"], "requiredTerms": ["真空", "无舱外服"]}
+    },
+    {
+      "id": "qf-07-causal", "groupId": "qf-07", "split": "holdout", "holdout": true, "defectType": "CAUSAL_AFTERSHOCK",
+      "sourceSceneIds": ["qf-07-s1"], "targetSceneId": "qf-07-s2",
+      "context": {"planning": {"goal": "封闭破损气闸"}, "facts": ["外舱破口导致持续失压和警报"], "sourceScenes": [{"id": "qf-07-s1", "order": 1, "text": "舱压快速下降，未固定的工具被吸向破口，红色警报覆盖全站。"}]},
+      "text": "破口仍敞着，下一秒舱压却自动恢复正常。警报、飞散工具和缺氧风险全部消失，众人没有修补或解释便开始庆祝晚餐。",
+      "evidence": [{"sourceId": "qf-07-s1", "text": "舱压快速下降"}, {"sourceId": "qf-07-s2", "text": "破口仍敞着，下一秒舱压却自动恢复正常"}], "expectedContext": {"requiredSourceIds": ["qf-07-s1"], "excludedSourceIds": ["qf-07-s3"], "requiredTerms": ["失压", "警报"]}
+    },
+
+    {
+      "id": "qf-08-clean", "groupId": "qf-08", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-08-s1"], "targetSceneId": "qf-08-s2",
+      "context": {"planning": {"goal": "找到失踪妹妹", "conflict": "族谱被撕去一页"}, "facts": ["阿禾不知道自己是被收养的", "当前首要目标是寻找妹妹"], "sourceScenes": [{"id": "qf-08-s1", "order": 1, "text": "阿禾只发现族谱少了一页，长老拒绝解释。妹妹的脚印通向祠堂后门。"}]},
+      "text": "阿禾沿脚印追到后门，把族谱疑问暂时记下。她先问守门人妹妹何时经过，没有替空白页强作解释。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-08-s1"], "excludedSourceIds": ["qf-08-s4"], "requiredTerms": ["收养未知", "寻找妹妹"]}
+    },
+    {
+      "id": "qf-08-pov", "groupId": "qf-08", "split": "holdout", "holdout": true, "defectType": "POV_KNOWLEDGE",
+      "sourceSceneIds": ["qf-08-s1"], "targetSceneId": "qf-08-s2",
+      "context": {"planning": {"goal": "调查族谱缺页"}, "facts": ["阿禾不知道自己的身世"], "sourceScenes": [{"id": "qf-08-s1", "order": 1, "text": "族谱缺页，长老没有透露任何身世信息。"}]},
+      "text": "阿禾看见缺页便想起自己出生当夜被陈家送到村口的全部经过，还知道长老把收养文书藏在井下第三块砖后，尽管无人告诉过她。",
+      "evidence": [{"sourceId": "qf-08-s1", "text": "没有透露任何身世信息"}, {"sourceId": "qf-08-s2", "text": "知道长老把收养文书藏在井下第三块砖后"}], "expectedContext": {"requiredSourceIds": ["qf-08-s1"], "excludedSourceIds": ["qf-08-s4"], "requiredTerms": ["身世未知"]}
+    },
+    {
+      "id": "qf-08-motivation", "groupId": "qf-08", "split": "development", "holdout": false, "defectType": "MOTIVATION_GOAL",
+      "sourceSceneIds": ["qf-08-s1"], "targetSceneId": "qf-08-s2",
+      "context": {"planning": {"goal": "尽快找到失踪妹妹"}, "facts": ["妹妹可能正处于危险中"], "sourceScenes": [{"id": "qf-08-s1", "order": 1, "text": "阿禾发誓天黑前必须找到妹妹，脚印刚在后门出现。"}]},
+      "text": "脚印还很新，阿禾却忽然放弃追踪，转身参加一场与妹妹无关的猜灯谜游戏。没有障碍、诱因或信息改变她的目标。",
+      "evidence": [{"sourceId": "qf-08-s1", "text": "天黑前必须找到妹妹"}, {"sourceId": "qf-08-s2", "text": "忽然放弃追踪"}], "expectedContext": {"requiredSourceIds": ["qf-08-s1"], "excludedSourceIds": ["qf-08-s4"], "requiredTerms": ["寻找妹妹"]}
+    },
+
+    {
+      "id": "qf-09-clean", "groupId": "qf-09", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-09-s1"], "targetSceneId": "qf-09-s2",
+      "context": {"planning": {"goal": "带商队穿过盐海", "foreshadowHint": "罗盘总偏北三度"}, "facts": ["罗盘偏差真因后续揭示", "领队夏弥语气冷静专业"], "sourceScenes": [{"id": "qf-09-s1", "order": 1, "text": "连续两晚，罗盘都向北多偏三度，夏弥尚未找到原因。"}]},
+      "text": "夏弥把三度偏差记在地图边缘，改用星位校准路线。她提醒队员保留水囊，没有宣称已经知道答案。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-09-s1"], "excludedSourceIds": ["qf-09-s5"], "requiredTerms": ["偏北三度", "后续揭示"]}
+    },
+    {
+      "id": "qf-09-foreshadow", "groupId": "qf-09", "split": "development", "holdout": false, "defectType": "FORESHADOW_REPEAT",
+      "sourceSceneIds": ["qf-09-s1"], "targetSceneId": "qf-09-s2",
+      "context": {"planning": {"goal": "校准路线", "foreshadowHint": "记录罗盘偏差", "revealFor": "盐海核心"}, "facts": ["当前不能揭示地下磁塔"], "sourceScenes": [{"id": "qf-09-s1", "order": 1, "text": "罗盘偏北三度，原因未知。"}]},
+      "text": "夏弥当场宣布地下磁塔就在盐海中心，并准确画出尚未抵达的塔室结构。她反复解释四次，把后续核心揭示全部说完。",
+      "evidence": [{"sourceId": "qf-09-s1", "text": "原因未知"}, {"sourceId": "qf-09-s2", "text": "把后续核心揭示全部说完"}], "expectedContext": {"requiredSourceIds": ["qf-09-s1"], "excludedSourceIds": ["qf-09-s5"], "requiredTerms": ["盐海核心", "不能揭示"]}
+    },
+    {
+      "id": "qf-09-style", "groupId": "qf-09", "split": "development", "holdout": false, "defectType": "VOICE_STYLE_PROTOCOL",
+      "sourceSceneIds": ["qf-09-s1"], "targetSceneId": "qf-09-s2",
+      "context": {"planning": {"goal": "校准路线"}, "facts": ["夏弥冷静专业，避免抒情总结", "输出仅正文"], "sourceScenes": [{"id": "qf-09-s1", "order": 1, "text": "夏弥用方位、风速和余水量说话，从不吟诵抒情句。"}]},
+      "text": "```markdown\n夏弥望向命运的远方，感叹宇宙齿轮正在转动。\n```\n以上内容可直接使用。",
+      "evidence": [{"sourceId": "qf-09-s1", "text": "从不吟诵抒情句"}, {"sourceId": "qf-09-s2", "text": "```markdown"}], "expectedContext": {"requiredSourceIds": ["qf-09-s1"], "excludedSourceIds": ["qf-09-s5"], "requiredTerms": ["冷静专业", "仅正文"]}
+    },
+
+    {
+      "id": "qf-10-clean", "groupId": "qf-10", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-10-s1"], "targetSceneId": "qf-10-s2",
+      "context": {"planning": {"goal": "找回舞台道具匕首", "conflict": "后台封锁"}, "facts": ["道具匕首仍在舞台桌上", "顾言不知道舞监私下换过演员表"], "sourceScenes": [{"id": "qf-10-s1", "order": 1, "text": "谢幕后，道具匕首留在舞台中央的桌上。顾言被保安带到后台，未再返回舞台。"}]},
+      "text": "顾言先请保安封住舞台出口，再隔着门询问谁最后碰过桌子。他没有声称匕首已经在自己手里。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-10-s1"], "excludedSourceIds": ["qf-10-s3"], "requiredTerms": ["匕首在舞台", "换表未知"]}
+    },
+    {
+      "id": "qf-10-space-entity", "groupId": "qf-10", "split": "development", "holdout": false, "defectType": "SPACE_ENTITY",
+      "sourceSceneIds": ["qf-10-s1"], "targetSceneId": "qf-10-s2",
+      "context": {"planning": {"goal": "找回舞台道具匕首"}, "facts": ["匕首在舞台桌上，顾言在封锁后台"], "sourceScenes": [{"id": "qf-10-s1", "order": 1, "text": "道具匕首留在舞台桌上，顾言被带进后台且通道已经上锁。"}]},
+      "text": "顾言一直待在上锁的后台，却从大衣口袋里掏出那把舞台匕首。正文没有交代他如何越过封锁或取得道具。",
+      "evidence": [{"sourceId": "qf-10-s1", "text": "匕首留在舞台桌上"}, {"sourceId": "qf-10-s2", "text": "从大衣口袋里掏出那把舞台匕首"}], "expectedContext": {"requiredSourceIds": ["qf-10-s1"], "excludedSourceIds": ["qf-10-s3"], "requiredTerms": ["舞台桌上", "后台上锁"]}
+    },
+    {
+      "id": "qf-10-pov", "groupId": "qf-10", "split": "development", "holdout": false, "defectType": "POV_KNOWLEDGE",
+      "sourceSceneIds": ["qf-10-s1"], "targetSceneId": "qf-10-s2",
+      "context": {"planning": {"goal": "调查演员表"}, "facts": ["顾言不知道舞监换表，相关对话发生时他不在场"], "sourceScenes": [{"id": "qf-10-s1", "order": 1, "text": "舞监独自在办公室换掉演员表，顾言当时正在舞台演出，没有目击者。"}]},
+      "text": "顾言没有进入办公室，也没问任何人，却清楚知道舞监在九点十二分用蓝笔换了第三行名字，还知道他当时心里在害怕什么。",
+      "evidence": [{"sourceId": "qf-10-s1", "text": "顾言当时正在舞台演出"}, {"sourceId": "qf-10-s2", "text": "清楚知道舞监在九点十二分用蓝笔换了第三行名字"}], "expectedContext": {"requiredSourceIds": ["qf-10-s1"], "excludedSourceIds": ["qf-10-s3"], "requiredTerms": ["未目击"]}
+    },
+
+    {
+      "id": "qf-11-clean", "groupId": "qf-11", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-11-s1"], "targetSceneId": "qf-11-s2",
+      "context": {"planning": {"goal": "把退烧药送到北岸诊所", "conflict": "石桥被洪水冲断"}, "facts": ["药箱必须在一小时内送达", "程砚刚从洪水中救人，衣服湿透且体力下降"], "sourceScenes": [{"id": "qf-11-s1", "order": 1, "text": "石桥断裂，北岸诊所催要退烧药。程砚救起落水孩子后浑身湿透，右臂被木片划伤。"}]},
+      "text": "程砚用防水布重新裹紧药箱，沿上游索桥绕行。他的右臂发抖，只能把绳结交给同行者。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-11-s1"], "excludedSourceIds": ["qf-11-s3"], "requiredTerms": ["送药", "湿透受伤"]}
+    },
+    {
+      "id": "qf-11-motivation", "groupId": "qf-11", "split": "holdout", "holdout": true, "defectType": "MOTIVATION_GOAL",
+      "sourceSceneIds": ["qf-11-s1"], "targetSceneId": "qf-11-s2",
+      "context": {"planning": {"goal": "一小时内送药"}, "facts": ["北岸患儿急需药物"], "sourceScenes": [{"id": "qf-11-s1", "order": 1, "text": "程砚知道药物晚到一小时就会危及患儿，决定立即绕行。"}]},
+      "text": "程砚走到岔路口，毫无缘由地把药箱丢进草丛，转去观看与任务无关的海报展。没有新风险或价值冲突促使他放弃送药。",
+      "evidence": [{"sourceId": "qf-11-s1", "text": "药物晚到一小时就会危及患儿"}, {"sourceId": "qf-11-s2", "text": "把药箱丢进草丛"}], "expectedContext": {"requiredSourceIds": ["qf-11-s1"], "excludedSourceIds": ["qf-11-s3"], "requiredTerms": ["一小时内送药"]}
+    },
+    {
+      "id": "qf-11-causal", "groupId": "qf-11", "split": "development", "holdout": false, "defectType": "CAUSAL_AFTERSHOCK",
+      "sourceSceneIds": ["qf-11-s1"], "targetSceneId": "qf-11-s2",
+      "context": {"planning": {"goal": "送药", "conflict": "刚完成洪水救援"}, "facts": ["程砚湿透、右臂受伤、药箱进水风险"], "sourceScenes": [{"id": "qf-11-s1", "order": 1, "text": "程砚在激流中救人，衣服灌满泥水，右臂裂开一道伤口，药箱外层也被浪打湿。"}]},
+      "text": "他刚爬上岸，下一句便衣裤全干、伤口消失、药箱纸壳完好。无人处理这些后果，他轻松跑完全程，救援像未发生过。",
+      "evidence": [{"sourceId": "qf-11-s1", "text": "衣服灌满泥水，右臂裂开一道伤口"}, {"sourceId": "qf-11-s2", "text": "衣裤全干、伤口消失"}], "expectedContext": {"requiredSourceIds": ["qf-11-s1"], "excludedSourceIds": ["qf-11-s3"], "requiredTerms": ["救援余波", "受伤"]}
+    },
+
+    {
+      "id": "qf-12-clean", "groupId": "qf-12", "split": "development", "holdout": false, "defectType": "NONE",
+      "sourceSceneIds": ["qf-12-s1"], "targetSceneId": "qf-12-s2",
+      "context": {"planning": {"goal": "确认蜡封来自哪批藏品", "foreshadowHint": "蜡封里夹有白色纤维"}, "facts": ["纤维来源第六章揭示", "馆员陆寻措辞正式克制"], "sourceScenes": [{"id": "qf-12-s1", "order": 1, "text": "陆寻在破损蜡封中看见一根白色纤维，暂时无法判断材质。"}]},
+      "text": "陆寻给蜡封编号，隔着透明袋拍下纤维位置。‘先送材质室。结论等检测。’他对记录员说。",
+      "evidence": [], "expectedContext": {"requiredSourceIds": ["qf-12-s1"], "excludedSourceIds": ["qf-12-s6"], "requiredTerms": ["白色纤维", "第六章揭示"]}
+    },
+    {
+      "id": "qf-12-foreshadow", "groupId": "qf-12", "split": "holdout", "holdout": true, "defectType": "FORESHADOW_REPEAT",
+      "sourceSceneIds": ["qf-12-s1"], "targetSceneId": "qf-12-s2",
+      "context": {"planning": {"goal": "检查蜡封", "foreshadowHint": "展示白色纤维", "revealFor": "第六章"}, "facts": ["当前没有检测结果"], "sourceScenes": [{"id": "qf-12-s1", "order": 1, "text": "纤维材质未知，需要送检。"}]},
+      "text": "陆寻没有送检便宣布纤维来自馆长第六章才会公开的伪造手套，并把馆长全部作案动机和密室方法连续解释了三遍。",
+      "evidence": [{"sourceId": "qf-12-s1", "text": "纤维材质未知"}, {"sourceId": "qf-12-s2", "text": "把馆长全部作案动机和密室方法连续解释了三遍"}], "expectedContext": {"requiredSourceIds": ["qf-12-s1"], "excludedSourceIds": ["qf-12-s6"], "requiredTerms": ["第六章", "需要送检"]}
+    },
+    {
+      "id": "qf-12-style", "groupId": "qf-12", "split": "holdout", "holdout": true, "defectType": "VOICE_STYLE_PROTOCOL",
+      "sourceSceneIds": ["qf-12-s1"], "targetSceneId": "qf-12-s2",
+      "context": {"planning": {"goal": "检查蜡封"}, "facts": ["陆寻措辞正式克制", "输出仅小说正文"], "sourceScenes": [{"id": "qf-12-s1", "order": 1, "text": "陆寻只报告观察结果，不使用网络俚语。"}]},
+      "text": "## Beta Reader 结论\n陆寻拍桌大笑：‘这波稳了，馆长直接寄！’\n评分：节奏 9/10，建议继续强化反转。",
+      "evidence": [{"sourceId": "qf-12-s1", "text": "不使用网络俚语"}, {"sourceId": "qf-12-s2", "text": "## Beta Reader 结论"}], "expectedContext": {"requiredSourceIds": ["qf-12-s1"], "excludedSourceIds": ["qf-12-s6"], "requiredTerms": ["正式克制", "仅正文"]}
+    }
+  ]
+}

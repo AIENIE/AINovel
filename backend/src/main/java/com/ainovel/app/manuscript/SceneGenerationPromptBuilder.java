@@ -3,6 +3,7 @@ package com.ainovel.app.manuscript;
 import com.ainovel.app.material.MaterialRetrievalService;
 import com.ainovel.app.material.dto.MaterialSearchRequest;
 import com.ainovel.app.material.dto.MaterialSearchResultDto;
+import com.ainovel.app.manuscript.context.CompiledSceneDraftContext;
 import com.ainovel.app.prompt.AssembledPrompt;
 import com.ainovel.app.prompt.PromptAssemblyService;
 import com.ainovel.app.prompt.PromptReference;
@@ -52,6 +53,22 @@ public class SceneGenerationPromptBuilder {
                                  int minSectionHan,
                                  int maxSectionHan,
                                  GenerationMode mode) {
+        return build(owner, story, scene, characterContext, previousContext, previousDraft, previousCount,
+                attempt, minSectionHan, maxSectionHan, mode, null);
+    }
+
+    public AssembledPrompt build(User owner,
+                                 Story story,
+                                 SceneGenerationContext scene,
+                                 String characterContext,
+                                 String previousContext,
+                                 String previousDraft,
+                                 int previousCount,
+                                 int attempt,
+                                 int minSectionHan,
+                                 int maxSectionHan,
+                                 GenerationMode mode,
+                                 CompiledSceneDraftContext compiledContext) {
         String retryInstruction = "";
         if (attempt > 1) {
             String direction = previousCount < minSectionHan ? "扩写" : "压缩";
@@ -80,7 +97,10 @@ public class SceneGenerationPromptBuilder {
                 minSectionHan,
                 maxSectionHan,
                 retryInstruction,
-                128000
+                128000,
+                compiledContext == null ? "" : compiledContext.content(),
+                compiledContext == null ? "" : compiledContext.compilerVersion(),
+                compiledContext == null ? "" : compiledContext.contextHash()
         );
 
         if (mode == GenerationMode.CRAFTED) {

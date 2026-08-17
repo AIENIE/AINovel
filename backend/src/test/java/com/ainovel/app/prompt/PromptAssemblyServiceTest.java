@@ -78,4 +78,25 @@ class PromptAssemblyServiceTest {
         assertFalse(system.content().contains("具体经验质感"));
         assertTrue(user.content().contains("雨夜门外"));
     }
+
+    @Test
+    void shouldUseCompiledSceneDraftV2ContextInsteadOfLegacyPreviousFragment() {
+        PromptAssemblyService service = new PromptAssemblyService();
+        SceneGenerationPromptInput input = new SceneGenerationPromptInput(
+                "雨城疑案", "悬疑", "冷峻克制", "旧城连续失踪案", "第二章", "重返码头", 2,
+                "逼问", "林烬逼问守门人", 2, "林烬：谨慎、重证据", "不应重复的旧前文", List.of(),
+                List.of(), 2800, 3200, "", 128000,
+                "SCENE_DRAFT_CONTEXT scene-draft-v2\n[当前场景规划]\n目标=确认铜扣主人",
+                "scene-draft-v2",
+                "a".repeat(64)
+        );
+
+        AssembledPrompt prompt = service.assembleSceneDraft(input);
+        String user = prompt.messages().get(1).content();
+
+        assertTrue(user.contains("编译器=scene-draft-v2"));
+        assertTrue(user.contains("hash=" + "a".repeat(64)));
+        assertTrue(user.contains("目标=确认铜扣主人"));
+        assertFalse(user.contains("不应重复的旧前文"));
+    }
 }

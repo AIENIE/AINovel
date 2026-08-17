@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApiError, api, normalizeConceptionResult } from "@/lib/api-client";
 import { registerAdminOperationCodePrompt } from "@/lib/admin-operation-proof";
+import type { GenerationRunSummary } from "@/types";
 
 describe("api client", () => {
   beforeEach(() => {
@@ -883,6 +884,125 @@ describe("api client", () => {
     expect(result.blob.size).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v2/manuscripts/manuscript-1/export/jobs/job-1/download",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("normalizes the latest generation reference on manuscripts", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([{
+      id: "manuscript-1",
+      outlineId: "outline-1",
+      title: "正文",
+      sections: {},
+      lastGenerationRun: {
+        id: "run-9",
+        generationVersionId: "version-9",
+        status: "COMPLETED",
+        createdAt: "2026-08-12T10:00:00Z",
+      },
+      updatedAt: "2026-08-12T10:00:00Z",
+    }]), { status: 200, headers: { "content-type": "application/json" } })));
+
+    const manuscripts = await api.manuscripts.listByOutline("outline-1");
+
+    expect(manuscripts[0].lastGenerationRun).toEqual({
+      id: "run-9",
+      generationVersionId: "version-9",
+      status: "COMPLETED",
+      createdAt: "2026-08-12T10:00:00Z",
+    });
+  });
+
+  it("lists scene generation runs and patches explicit feedback", async () => {
+    const generationRun: GenerationRunSummary = {
+      id: "run-1",
+      manuscriptId: "manuscript-1",
+      sceneId: "scene-2",
+      createdBy: "user-1",
+      mode: "crafted",
+      status: "GENERATED",
+      modelKey: "text-premium",
+      promptVersion: "scene-draft-v2",
+      attemptCount: 1,
+      contextHash: "ctx-hash",
+      contextManifest: {
+        promptVersion: "scene-draft-v2",
+        tokenBudget: 3500,
+        tokenUsed: 840,
+        sources: [{
+          sourceType: "outline_scene",
+          sourceId: "scene-2",
+          label: "本场大纲",
+          reason: "约束场景目标",
+          estimatedTokens: 120,
+          truncated: false,
+        }],
+      },
+      generationVersionId: "version-1",
+      previousRunId: null,
+      firstEditedAt: null,
+      lastEditedAt: null,
+      addedCharacters: 0,
+      deletedCharacters: 0,
+      retentionRate: 1,
+      recalculationPending: false,
+      feedbackTags: [],
+      feedbackNote: null,
+      preferenceConfirmed: false,
+      createdAt: "2026-08-12T10:00:00Z",
+      updatedAt: "2026-08-12T10:00:00Z",
+    };
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      const responseBody = init?.method === "PATCH"
+        ? {
+            ...generationRun,
+            feedbackTags: ["PLOT_CAUSALITY"],
+            feedbackNote: "人物声音可以保留",
+            preferenceConfirmed: true,
+          }
+        : [generationRun];
+      return new Response(JSON.stringify(responseBody), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    await api.manuscripts.listGenerationRuns("manuscript-1", "scene-2", 3);
+    await api.manuscripts.updateGenerationRunFeedback("manuscript-1", "scene-2", "run-1", {
+      tags: ["PLOT_CAUSALITY"],
+      note: "人物声音可以保留",
+      preferenceConfirmed: true,
+    });
+
+    expect(requests[0]).toMatchObject({
+      url: "/api/v1/manuscripts/manuscript-1/scenes/scene-2/generation-runs?limit=3",
+      init: expect.objectContaining({ method: "GET" }),
+    });
+    expect(requests[1].url).toBe("/api/v1/manuscripts/manuscript-1/scenes/scene-2/generation-runs/run-1/feedback");
+    expect(requests[1].init?.method).toBe("PATCH");
+    expect(JSON.parse(String(requests[1].init?.body))).toEqual({
+      tags: ["PLOT_CAUSALITY"],
+      note: "人物声音可以保留",
+      preferenceConfirmed: true,
+    });
+  });
+
+  it("scopes context preview to the active manuscript and scene", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      promptVersion: "scene-draft-v2",
+      contextHash: "ctx-hash",
+      tokenBudget: 3500,
+      tokenUsed: 840,
+      sources: [],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api.v2.context.previewContext("story-1", {
+      manuscriptId: "manuscript-1",
+      sceneId: "scene-2",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v2/stories/story-1/context/preview?manuscriptId=manuscript-1&sceneId=scene-2",
       expect.objectContaining({ method: "GET" }),
     );
   });

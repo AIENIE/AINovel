@@ -6,6 +6,8 @@ import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,7 +16,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class V2AnalysisControllerTests {
@@ -46,34 +47,26 @@ class V2AnalysisControllerTests {
     }
 
     @Test
-    void triggerContinuityCheckShouldCreateIssueUsingResultReference() {
+    void triggerContinuityCheckShouldReturnStableNotImplementedCode() {
         Map<String, Object> payload = Map.of(
                 "scope", "chapter",
                 "scopeReference", "chapter-2",
                 "text", "章节衔接前后矛盾"
         );
-        UUID reportId = UUID.randomUUID();
-        V2AnalysisDtos.AnalysisJobResponse response = new V2AnalysisDtos.AnalysisJobResponse(
-                UUID.randomUUID(),
-                storyId,
-                user.getId(),
-                "continuity_check",
-                "chapter",
-                "chapter-2",
-                "completed",
-                100,
-                "分析完成",
-                reportId,
-                null,
-                Instant.now(),
-                Instant.now()
-        );
-        when(persistenceService.createAnalysisJob(user, story, payload, "continuity_check")).thenReturn(response);
+        ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
+                controller.triggerContinuityCheck(principal, storyId, payload);
 
-        V2AnalysisDtos.AnalysisJobResponse result = controller.triggerContinuityCheck(principal, storyId, payload);
+        assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
+        assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());
+    }
 
-        assertEquals(reportId, result.resultReference());
-        verify(persistenceService).createContinuityIssue(storyId, reportId, "章节衔接前后矛盾");
+    @Test
+    void triggerBetaReaderShouldReturnStableNotImplementedCode() {
+        ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
+                controller.triggerBetaReader(principal, storyId, Map.of());
+
+        assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
+        assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());
     }
 
     @Test

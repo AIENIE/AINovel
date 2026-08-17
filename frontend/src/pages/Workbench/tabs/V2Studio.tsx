@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,7 +105,7 @@ const V2Studio = () => {
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.contextPreview", async () => {
               ensureStoryId();
-              return api.v2.context.previewContext(storyId, 600);
+              return api.v2.context.previewContext(storyId, { tokenBudget: 600 });
             })}>
               {t("common.preview")}
             </Button>
@@ -142,14 +143,14 @@ const V2Studio = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Beta Reader</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>Beta Reader</CardTitle>
+              <Badge variant="secondary">{t("common.notImplemented")}</Badge>
+            </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run("v2Studio.triggerBetaReader", async () => {
-              ensureStoryId();
-              return api.v2.analysis.triggerBetaReader(storyId, { scope: "full" });
-            })}>
-              {t("v2Studio.triggerAnalysis")}
+            <Button size="sm" disabled title={t("common.notImplemented")}>
+              {t("v2Studio.triggerAnalysis")} · {t("common.notImplemented")}
             </Button>
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.analysisJobs", async () => {
               ensureStoryId();
@@ -157,11 +158,8 @@ const V2Studio = () => {
             })}>
               {t("common.taskList")}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.continuityCheck", async () => {
-              ensureStoryId();
-              return api.v2.analysis.triggerContinuity(storyId, { text: entryContent });
-            })}>
-              {t("v2Studio.continuityCheck")}
+            <Button size="sm" variant="outline" disabled title={t("common.notImplemented")}>
+              {t("v2Studio.continuityCheck")} · {t("common.notImplemented")}
             </Button>
           </CardContent>
         </Card>

@@ -85,6 +85,7 @@ export interface ChapterPlanning {
 }
 
 export interface ScenePlanning {
+  sceneType?: 'action' | 'dialogue' | 'introspection' | 'description' | 'flashback';
   goal?: string;
   conflict?: string;
   infoRelease?: string;
@@ -177,8 +178,84 @@ export interface Manuscript {
   title: string;
   worldId?: string;
   sections: Record<string, string>; // sceneId -> html content
+  lastGenerationRun?: LastGenerationRunSummary | null;
   updatedAt: string;
 }
+
+export interface LastGenerationRunSummary {
+  id: string;
+  generationVersionId: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface GenerationContextSource {
+  sourceType: string;
+  sourceId: string;
+  label: string;
+  reason: string;
+  estimatedTokens: number;
+  truncated: boolean;
+}
+
+export interface GenerationContextManifest {
+  promptVersion: string;
+  tokenBudget: number;
+  tokenUsed: number;
+  sources: GenerationContextSource[];
+}
+
+export interface GenerationRunSummary {
+  id: string;
+  manuscriptId: string;
+  sceneId: string;
+  createdBy: string;
+  mode: string;
+  status: string;
+  modelKey: string;
+  promptVersion: string;
+  attemptCount: number;
+  contextHash: string;
+  contextManifest: GenerationContextManifest;
+  generationVersionId: string;
+  previousRunId: string | null;
+  firstEditedAt: string | null;
+  lastEditedAt: string | null;
+  addedCharacters: number | null;
+  deletedCharacters: number | null;
+  retentionRate: number | null;
+  recalculationPending: boolean;
+  feedbackTags: string[];
+  feedbackNote: string | null;
+  preferenceConfirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerationRunFeedbackUpdateRequest {
+  tags: string[];
+  note: string;
+  preferenceConfirmed: boolean;
+}
+
+export interface ContextPreview {
+  promptVersion: string;
+  contextHash: string;
+  tokenBudget: number;
+  tokenUsed: number;
+  sources: GenerationContextSource[];
+  generatedAt?: string;
+  systemPromptEntries?: Array<{ id: string; displayName: string }>;
+  beforeSceneEntries?: unknown[];
+  afterSceneEntries?: unknown[];
+  graphRelations?: string[];
+  activeCharacters?: string[];
+  recentSummary?: string;
+}
+
+export type ContextPreviewOptions =
+  | { manuscriptId: string; sceneId: string; tokenBudget?: number }
+  | { manuscriptId?: never; sceneId?: never; tokenBudget?: number };
 
 export interface SlopQualityIssue {
   id: string;

@@ -8,7 +8,11 @@ import com.ainovel.app.manuscript.ManuscriptService;
 import com.ainovel.app.manuscript.SceneGenerationPromptBuilder;
 import com.ainovel.app.manuscript.SceneGenerationService;
 import com.ainovel.app.manuscript.ScenePlotQualitySupport;
+import com.ainovel.app.manuscript.attribution.SceneGenerationAttributionService;
+import com.ainovel.app.manuscript.attribution.SceneGenerationRunStatus;
+import com.ainovel.app.manuscript.attribution.SceneGenerationSnapshotStore;
 import com.ainovel.app.manuscript.dto.ManuscriptDto;
+import com.ainovel.app.manuscript.dto.SceneGenerationRunDto;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.MaterialRetrievalService;
@@ -33,8 +37,10 @@ import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -226,6 +232,50 @@ class ManuscriptServiceTest {
                 materialRetrievalService,
                 styleContextProvider
         ));
+        SceneGenerationSnapshotStore snapshotStore = mock(SceneGenerationSnapshotStore.class);
+        when(snapshotStore.createGenerationSnapshot(any(), any(), any(), any())).thenReturn(UUID.randomUUID());
+        SceneGenerationAttributionService attributionService = mock(SceneGenerationAttributionService.class);
+        when(attributionService.recordGeneration(any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    Manuscript generatedManuscript = invocation.getArgument(0);
+                    UUID generatedSceneId = invocation.getArgument(1);
+                    UUID generationVersionId = invocation.getArgument(2);
+                    Instant createdAt = Instant.now();
+                    return new SceneGenerationRunDto(
+                            UUID.randomUUID(),
+                            generatedManuscript.getId(),
+                            generatedSceneId,
+                            generatedManuscript.getOutline().getStory().getUser().getId(),
+                            "fast",
+                            SceneGenerationRunStatus.GENERATED,
+                            "deepseek-v4-flash",
+                            "scene-draft-v2",
+                            1,
+                            "a".repeat(64),
+                            Map.of(
+                                    "promptVersion", "scene-draft-v2",
+                                    "tokenBudget", 0,
+                                    "tokenUsed", 0,
+                                    "sources", List.of()
+                            ),
+                            generationVersionId,
+                            null,
+                            null,
+                            null,
+                            0,
+                            0,
+                            1.0d,
+                            false,
+                            List.of(),
+                            null,
+                            false,
+                            createdAt,
+                            createdAt
+                    );
+                });
+        ReflectionTestUtils.setField(service, "sceneGenerationSnapshotStore", snapshotStore);
+        ReflectionTestUtils.setField(service, "sceneGenerationAttributionService", attributionService);
+        ReflectionTestUtils.setField(service, "eventPublisher", mock(ApplicationEventPublisher.class));
         return service;
     }
 

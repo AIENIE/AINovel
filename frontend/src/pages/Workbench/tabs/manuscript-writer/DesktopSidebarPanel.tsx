@@ -1,14 +1,17 @@
+import { useTranslation } from "react-i18next";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import type { ContextPreview } from "@/types";
 import { ContextSidebarPanel } from "./ContextSidebarPanel";
 import { ExportSidebarPanel } from "./ExportSidebarPanel";
 import { GoalsSidebarPanel } from "./GoalsSidebarPanel";
+import { GenerationFeedbackPanel } from "./GenerationFeedbackPanel";
 import { PlotSidebarPanel } from "./PlotSidebarPanel";
 import { StatsSidebarPanel } from "./StatsSidebarPanel";
 import { VersionSidebarPanel } from "./VersionSidebarPanel";
 
-type SidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goals" | "plot";
+type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot";
 
 type DesktopSidebarPanelProps = {
   aiDiffSummary: string;
@@ -19,7 +22,7 @@ type DesktopSidebarPanelProps = {
   chapterRange: string;
   checkoutBranch: (branchId: string) => Promise<void> | void;
   contextData: any;
-  contextPreview: any;
+  contextPreview: ContextPreview | null;
   copySlopRewriteTask: (task: any, index: number) => Promise<void> | void;
   createBranch: () => Promise<void> | void;
   createExportJob: () => Promise<void> | void;
@@ -49,6 +52,7 @@ type DesktopSidebarPanelProps = {
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
   isSlopBusy: boolean;
+  latestGenerationRunId?: string;
   loadContextPreview: () => Promise<unknown> | void;
   loadPlotQuality: () => Promise<unknown> | void;
   loadStats: () => Promise<unknown> | void;
@@ -146,6 +150,7 @@ export function DesktopSidebarPanel({
   isPlotBusy,
   isPlotRevisionBusy,
   isSlopBusy,
+  latestGenerationRunId,
   loadContextPreview,
   loadPlotQuality,
   loadStats,
@@ -203,21 +208,29 @@ export function DesktopSidebarPanel({
   visibleVersions,
   workspaceStats,
 }: DesktopSidebarPanelProps) {
+  const { t } = useTranslation();
   return (
     <div className={cn("h-full", !showRightPanel && "invisible")}>
       <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-        <TabsList className="grid grid-cols-7 mx-2 mt-2">
-          <TabsTrigger value="copilot">copilot</TabsTrigger>
-          <TabsTrigger value="context">context</TabsTrigger>
-          <TabsTrigger value="plot">plot</TabsTrigger>
-          <TabsTrigger value="version">version</TabsTrigger>
-          <TabsTrigger value="export">export</TabsTrigger>
-          <TabsTrigger value="stats">stats</TabsTrigger>
-          <TabsTrigger value="goals">goals</TabsTrigger>
+        <TabsList className="mx-2 mt-2 flex h-auto justify-start overflow-x-auto">
+          <TabsTrigger className="shrink-0" value="copilot">copilot</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="context">context</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="plot">plot</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="version">version</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="export">export</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="stats">stats</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="goals">goals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData} className="h-full border-none" /></TabsContent>
         <ContextSidebarPanel contextPreview={contextPreview} onRefresh={loadContextPreview} />
+        <GenerationFeedbackPanel
+          active={showRightPanel && sidebarTab === "feedback"}
+          latestRunId={latestGenerationRunId}
+          manuscriptId={selectedManuscriptId}
+          sceneId={selectedSceneId}
+        />
 
         <PlotSidebarPanel
           isPlotBusy={isPlotBusy}

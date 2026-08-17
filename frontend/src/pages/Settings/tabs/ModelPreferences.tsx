@@ -16,8 +16,8 @@ const TASKS = [
   { key: "draft_generation", labelKey: "models.taskDraft" },
   { key: "entity_extraction", labelKey: "models.taskEntity" },
   { key: "style_analysis", labelKey: "models.taskStyle" },
-  { key: "beta_reader", labelKey: "models.taskBetaReader" },
-  { key: "continuity_check", labelKey: "models.taskContinuity" },
+  { key: "beta_reader", labelKey: "models.taskBetaReader", unavailable: true },
+  { key: "continuity_check", labelKey: "models.taskContinuity", unavailable: true },
   { key: "refine", labelKey: "models.taskRefine" },
 ] as const;
 
@@ -80,6 +80,8 @@ const ModelPreferences = () => {
   }, []);
 
   const currentPref = useMemo(() => prefs.find((pref) => pref.taskType === taskType), [prefs, taskType]);
+  const taskUnavailable = Boolean(TASKS.find((task) => task.key === taskType && "unavailable" in task));
+  const compareTaskUnavailable = Boolean(TASKS.find((task) => task.key === compareTaskType && "unavailable" in task));
 
   const selectedModel = useMemo(() => {
     const prefModelId = currentPref?.preferredModelId ? String(currentPref.preferredModelId) : "";
@@ -222,8 +224,8 @@ const ModelPreferences = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {TASKS.map((task) => (
-                    <SelectItem key={task.key} value={task.key}>
-                      {t(task.labelKey)}
+                    <SelectItem key={task.key} value={task.key} disabled={"unavailable" in task}>
+                      {t(task.labelKey)}{"unavailable" in task ? ` · ${t("common.notImplemented")}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -267,8 +269,8 @@ const ModelPreferences = () => {
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={savePreference}>{t("models.savePreference")}</Button>
-              <Button variant="outline" onClick={resetPreference}>
+              <Button onClick={savePreference} disabled={taskUnavailable}>{t("models.savePreference")}</Button>
+              <Button variant="outline" onClick={resetPreference} disabled={taskUnavailable}>
                 {t("models.restoreDefault")}
               </Button>
             </div>
@@ -378,8 +380,8 @@ const ModelPreferences = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {TASKS.map((task) => (
-                    <SelectItem key={task.key} value={task.key}>
-                      {t(task.labelKey)}
+                    <SelectItem key={task.key} value={task.key} disabled={"unavailable" in task}>
+                      {t(task.labelKey)}{"unavailable" in task ? ` · ${t("common.notImplemented")}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -425,7 +427,7 @@ const ModelPreferences = () => {
           <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {t("models.compareNotice")}
           </div>
-          <Button onClick={compareModels}>{t("models.runCompare")}</Button>
+          <Button onClick={compareModels} disabled={compareTaskUnavailable}>{t("models.runCompare")}</Button>
 
           {!!compareResult?.candidates?.length && (
             <div className="grid gap-3 md:grid-cols-2">

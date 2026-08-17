@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import type { Chapter, PlotQualityRun, SlopQualityRun } from "@/types";
+import type { Chapter, ContextPreview, PlotQualityRun, SlopQualityRun } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { G2EvaluationSubmitDialog } from "./G2EvaluationSubmitDialog";
+import { GenerationFeedbackPanel } from "./GenerationFeedbackPanel";
+import { ContextSidebarPanel } from "./ContextSidebarPanel";
 import {
   formatDateTime,
   plotDimensionLabel,
@@ -21,12 +23,13 @@ import {
   slopModuleLabel,
 } from "./shared";
 
-type SidebarTab = "copilot" | "context" | "version" | "export" | "stats" | "goals" | "plot";
+type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot";
 type MobilePane = "outline" | "editor" | "sidebar";
 
 type MobileWorkbenchPanelProps = {
   content: string;
   contextData: any;
+  contextPreview?: ContextPreview | null;
   exportJobs: any[];
   exportDownloadingJobId: string;
   focusMode: boolean;
@@ -36,6 +39,7 @@ type MobileWorkbenchPanelProps = {
   isGenerating: boolean;
   isSaving: boolean;
   generationMode: "fast" | "crafted";
+  latestGenerationRunId?: string;
   mobilePane: MobilePane;
   onApplyPlotRevision: () => Promise<void> | void;
   onChangeMobilePane: (pane: MobilePane) => void;
@@ -47,6 +51,7 @@ type MobileWorkbenchPanelProps = {
   onGenerateScene: () => Promise<void> | void;
   onManualSave: () => Promise<void> | void;
   onSetGenerationMode: (mode: "fast" | "crafted") => void;
+  onLoadContextPreview?: () => Promise<unknown> | void;
   onLoadVersions: () => Promise<unknown> | void;
   onRunPlotDiagnosis: () => Promise<void> | void;
   onRunSlopDiagnosis: () => Promise<void> | void;
@@ -63,6 +68,7 @@ type MobileWorkbenchPanelProps = {
 export function MobileWorkbenchPanel({
   content,
   contextData,
+  contextPreview = null,
   exportJobs,
   exportDownloadingJobId,
   focusMode,
@@ -72,6 +78,7 @@ export function MobileWorkbenchPanel({
   isGenerating,
   isSaving,
   generationMode,
+  latestGenerationRunId,
   mobilePane,
   onApplyPlotRevision,
   onChangeMobilePane,
@@ -83,6 +90,7 @@ export function MobileWorkbenchPanel({
   onGenerateScene,
   onManualSave,
   onSetGenerationMode,
+  onLoadContextPreview,
   onLoadVersions,
   onRunPlotDiagnosis,
   onRunSlopDiagnosis,
@@ -148,15 +156,24 @@ export function MobileWorkbenchPanel({
       </TabsContent>
       <TabsContent value="sidebar" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
         <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="copilot">AI</TabsTrigger>
-            <TabsTrigger value="plot">{t("mobilePanel.plot")}</TabsTrigger>
-            <TabsTrigger value="version">{t("mobilePanel.version")}</TabsTrigger>
-            <TabsTrigger value="export">{t("mobilePanel.export")}</TabsTrigger>
+          <TabsList className="flex h-auto justify-start overflow-x-auto">
+            <TabsTrigger className="shrink-0" value="copilot">AI</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="context">{t("mobilePanel.context")}</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="plot">{t("mobilePanel.plot")}</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="version">{t("mobilePanel.version")}</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="export">{t("mobilePanel.export")}</TabsTrigger>
           </TabsList>
           <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
             <CopilotSidebar context={contextData} className="h-full border-none" />
           </TabsContent>
+          <ContextSidebarPanel contextPreview={contextPreview} onRefresh={() => onLoadContextPreview?.()} />
+          <GenerationFeedbackPanel
+            active={mobilePane === "sidebar" && sidebarTab === "feedback"}
+            latestRunId={latestGenerationRunId}
+            manuscriptId={selectedManuscriptId}
+            sceneId={selectedSceneId}
+          />
           <TabsContent value="plot" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
             <div className="flex gap-2 mb-2">
               <Button size="sm" variant="outline" onClick={() => void onRunSlopDiagnosis()} disabled={isSlopBusy || !selectedSceneId || !selectedManuscriptId}>
