@@ -107,6 +107,7 @@ app:
     grpc:
       tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:true}
       plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:false}
+      trust-cert-collection: ${EXTERNAL_GRPC_TRUST_CERT_COLLECTION:}
     security:
       fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
       ai:

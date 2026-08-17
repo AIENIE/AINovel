@@ -149,6 +149,20 @@ function Get-ChildEnvironment {
     foreach ($entry in $ProjectEnvironment.GetEnumerator()) {
         $child[[string]$entry.Key] = [string]$entry.Value
     }
+    # Local Windows processes consume the shared runtime and public services
+    # through the canonical HostOnly/TLS ingress on aienie-devvm (the same VM
+    # reached by the compatibility SSH alias aienie-wsl). Environment files
+    # still provide credentials and database names, but cannot redirect these
+    # reviewed local endpoints to retired Docker/localhut defaults.
+    $child['MYSQL_HOST'] = 'localbase.testhut.top'
+    $child['REDIS_HOST'] = 'localbase.testhut.top'
+    $child['QDRANT_HOST'] = 'http://localbase.testhut.top'
+    $child['AI_GRPC_ADDR'] = 'static://localaiservice.testhut.top:12011'
+    $child['USER_GRPC_ADDR'] = 'static://localuserservice.testhut.top:12001'
+    $child['PAY_GRPC_ADDR'] = 'static://localpayservice.testhut.top:12021'
+    $child['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'] = 'C:\ProgramData\AieniePki\pki\root\aienie-local-root-ca.crt'
+    $child['EXTERNAL_GRPC_TLS_ENABLED'] = 'true'
+    $child['EXTERNAL_GRPC_PLAINTEXT_ENABLED'] = 'false'
     return $child
 }
 
@@ -168,7 +182,11 @@ function Test-RecordedProcess {
 
     try {
         $process = Get-Process -Id ([int]$Record.Pid) -ErrorAction Stop
-        $expected = [DateTime]::Parse([string]$Record.ProcessStartTimeUtc).ToUniversalTime()
+        $expected = if ($Record.ProcessStartTimeUtc -is [DateTime]) {
+            ([DateTime]$Record.ProcessStartTimeUtc).ToUniversalTime()
+        } else {
+            [DateTimeOffset]::Parse([string]$Record.ProcessStartTimeUtc).UtcDateTime
+        }
         return [Math]::Abs(($process.StartTime.ToUniversalTime() - $expected).TotalSeconds) -le 2
     } catch {
         return $false
@@ -269,6 +287,44 @@ function Start-NativeComponent {
     }
 }
 
+function Resolve-NativeProcessRecord {
+    param(
+        [Parameter(Mandatory)]$Record,
+        [Parameter(Mandatory)]$Spec
+    )
+
+    $connection = Get-NetTCPConnection -State Listen -LocalPort $Spec.Port -ErrorAction Stop |
+        Where-Object { $_.LocalAddress -in @('127.0.0.1', '::1', '::') } |
+        Select-Object -First 1
+    if ($null -eq $connection) {
+        throw "Native $($Spec.Name) has no listener on port $($Spec.Port) after readiness."
+    }
+
+    $minimumStart = [DateTime]::Parse([string]$Record.processStartTimeUtc).ToUniversalTime().AddSeconds(-2)
+    $current = Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $connection.OwningProcess) -ErrorAction Stop
+    $managedRoot = $current
+    while ($current.ParentProcessId -gt 0) {
+        $parent = Get-CimInstance Win32_Process -Filter ("ProcessId={0}" -f $current.ParentProcessId) -ErrorAction SilentlyContinue
+        if ($null -eq $parent -or $parent.CreationDate.ToUniversalTime() -lt $minimumStart) {
+            break
+        }
+        $current = $parent
+        if ($current.Name -notin @('cmd.exe', 'powershell.exe', 'pwsh.exe')) {
+            $managedRoot = $current
+        }
+    }
+
+    $managed = Get-Process -Id $managedRoot.ProcessId -ErrorAction Stop
+    return [pscustomobject]@{
+        name = $Record.name
+        pid = $managedRoot.ProcessId
+        processStartTimeUtc = $managed.StartTime.ToUniversalTime().ToString('o')
+        port = $Record.port
+        healthPath = $Record.healthPath
+        process = $Record.process
+    }
+}
+
 function Stop-NativeRecord {
     param([Parameter(Mandatory)]$Record)
 
@@ -302,9 +358,6 @@ function Publish-OperationalState {
         'unknown'
     }
     & $operationalStateWriter -Component 'ai-novel' -DesiredState $desiredState -Health $health
-    if ($LASTEXITCODE -ne 0) {
-        throw "Operational-state writer failed with exit code $LASTEXITCODE."
-    }
 }
 
 Assert-NativePowerShell
@@ -356,6 +409,19 @@ switch ($Action) {
                 $record = Start-NativeComponent -Spec $spec -ChildEnvironment $childEnvironment
                 $started += $record
                 Wait-LocalReadiness -Spec $spec -Process $record.process
+                $resolved = Resolve-NativeProcessRecord -Record $record -Spec $spec
+                $started[$started.Count - 1] = $resolved
+                $record = $resolved
+                $checkpoint = @($records) + @($started | ForEach-Object {
+                        [pscustomobject]@{
+                            Name = $_.name
+                            Pid = $_.pid
+                            ProcessStartTimeUtc = $_.processStartTimeUtc
+                            Port = $_.port
+                            HealthPath = $_.healthPath
+                        }
+                    })
+                Save-ProcessState -Records $checkpoint
             }
             $persisted = @($records) + @($started | ForEach-Object {
                     [pscustomobject]@{
