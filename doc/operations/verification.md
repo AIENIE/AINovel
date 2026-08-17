@@ -91,3 +91,9 @@ mvn -f backend/pom.xml -Pquality-regression `
 - 执行日志敏感信息扫描，确认 token、cookie、密码、兑换码、提示词、原始响应和本地绝对路径不进入日志。
 - 校验 requestId/MDC、结构化文件日志、轮转与容量配置；异步任务需验证上下文传播。
 - 执行 secret 增量扫描、`git diff --check` 和文档链接检查。
+# v1.0 审计整改补充（2026-08-17）
+
+- Windows L1：后端编译，前端 lint、typecheck、production build。
+- Windows L2：包含 L1，并运行前端全量 Vitest 与后端全量 Maven 测试。
+- L3：依次运行 `Build-Local.ps1`、`Start-Local.ps1 -EnvironmentFile .\env.txt`，验证 `127.0.0.1:11040`、后端 liveness/readiness 及 `https://localainovel.testhut.top`，最后运行 `Stop-Local.ps1`。
+- Docker/Testcontainers 不可用属于验收阻塞，不得把跳过测试记录成通过。

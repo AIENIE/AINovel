@@ -35,3 +35,8 @@
 - 所有资源访问复用 `ResourceAccessGuard` 与领域所有者校验。
 - 前端 API 统一位于 `frontend/src/lib/api-client.ts`，接口详情见 [`../api/README.md`](../api/README.md)。
 - 导出下载通过带 Bearer 的 Blob 请求完成，桌面和移动端共用同一鉴权与错误处理链路。
+# v1.0 审计整改补充（2026-08-17）
+
+- 编辑器保存携带稿件乐观版本，冲突不会静默覆盖其他标签页或设备上的更新。
+- 通用 AI、G2、导出、素材索引均以数据库状态和租约为权威；线程池拒绝或进程重启后由 dispatcher 恢复。
+- G2 fast/crafted 候选独立持久化；恢复时只补缺失候选。通用 AI 已产生流式输出的异常任务进入 `RECOVERY_REQUIRED`。

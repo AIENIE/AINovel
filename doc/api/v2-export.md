@@ -13,3 +13,9 @@
 - `POST /export-templates`：创建用户模板。
 - `PUT /export-templates/{id}`：更新用户模板。
 - `DELETE /export-templates/{id}`：删除用户模板。
+# v1.0 审计整改补充（2026-08-17）
+
+- 创建导出任务会冻结稿件正文快照并立即返回 `queued`，不在 HTTP 请求线程渲染文件。
+- 后台 worker 使用数据库租约恢复过期任务，在系统临时文件中生成并通过 JDBC 流式写入 BLOB。
+- 状态响应新增 `checksum`、`sizeBytes`、`startedAt`、`completedAt`；下载接口仅流式读取已完成产物。
+- 用户配额在锁定用户记录后检查；过期任务会清除大对象和冻结快照。

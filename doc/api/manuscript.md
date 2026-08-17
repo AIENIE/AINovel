@@ -45,3 +45,8 @@
 - `SceneGenerationRunDto`：`{id,manuscriptId,sceneId,createdBy,mode,status,modelKey,promptVersion,attemptCount,contextHash,contextManifest,generationVersionId,previousRunId,firstEditedAt,lastEditedAt,addedCharacters,deletedCharacters,retentionRate,recalculationPending,feedbackTags,feedbackNote,preferenceConfirmed,createdAt,updatedAt}`。待重算时三个差异指标为 `null`。
 - `contextManifest`：`{promptVersion,tokenBudget,tokenUsed,sources}`；source 为 `{sourceType,sourceId,label,reason,estimatedTokens,truncated}`。
 - `CharacterChangeLogDto`：`{id, characterId, summary, createdAt}`。
+# v1.0 审计整改补充（2026-08-17）
+
+- 稿件响应新增单调递增的 `version`。
+- `PUT /v1/manuscripts/{manuscriptId}/sections/{sceneId}` 请求必须包含 `expectedVersion`；服务端版本不一致时返回 `409`，客户端应重新加载并显式处理冲突。
+- 场景 AI 生成以读取时版本为提交前提：AI 在事务外执行，正文已被其他请求修改时不会覆盖新内容。

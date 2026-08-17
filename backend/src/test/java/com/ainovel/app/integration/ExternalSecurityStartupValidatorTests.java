@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ExternalSecurityStartupValidatorTests {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String PAY_SCOPES = "billing.balance.read billing.balance.convert billing.grant.write billing.usage.deduct billing.checkin.read billing.checkin.write billing.redeem.write billing.ledger.read";
+    private static final String PAY_SCOPES = "billing.balance.read billing.balance.convert billing.grant.write billing.usage.deduct billing.redeem.write billing.ledger.read";
 
 
     @Test

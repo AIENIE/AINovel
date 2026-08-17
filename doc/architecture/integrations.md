@@ -32,3 +32,9 @@
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
 - gRPC TLS/plaintext 由 `EXTERNAL_GRPC_TLS_ENABLED` 和 `EXTERNAL_GRPC_PLAINTEXT_ENABLED` 控制。
 - 数据库结构只通过 Flyway 演进，不使用 Hibernate 自动 DDL 管理运行库。
+# v1.0 审计整改补充（2026-08-17）
+
+- SSO 本地身份由不可变 `(issuer, remote_uid)` 唯一映射；username 仅作为同 UID 的可变展示字段，冲突登录会失败并记录安全事件。
+- ai-service、pay-service、user-service 使用独立 deadline；远程调用不得占用本地数据库事务。
+- 公共积分转换使用稳定 `remoteRequestId` 的可恢复 Saga，瞬态失败保留 `PENDING` 并退避重放，确定性拒绝才进入 `FAILED`。
+- `test`/`production` 强制 MySQL `VERIFY_IDENTITY`、Redis TLS+ACL、Qdrant HTTPS+API key；`local` 明文仅允许带显式启动告警运行。

@@ -87,3 +87,8 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 ```
 
 命令会撤销全部管理员会话、恢复码和旧验证器凭据，写入审计记录后退出；下一次访问将回到首次绑定流程。审批编号不可包含密钥、验证码或恢复码。
+# v1.0 审计整改补充（2026-08-17）
+
+- 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
+- 后端 healthcheck 使用 readiness；前端须等待后端 healthy。`build.sh` 最多等待 120 秒，任一服务未就绪会输出日志并返回非零。
+- 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
