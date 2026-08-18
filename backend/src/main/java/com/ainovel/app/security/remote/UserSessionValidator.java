@@ -34,6 +34,7 @@ public class UserSessionValidator {
     private final UserSessionValidationProperties properties;
     private final ExternalServiceProperties externalServiceProperties;
     private final GrpcChannelFactory channelFactory;
+    private final UserServiceJwtProvider userServiceJwtProvider;
 
     private final ConcurrentMap<String, EndpointClient> endpointClients = new ConcurrentHashMap<>();
     private final java.util.Map<SessionKey, Instant> positiveCache = java.util.Collections.synchronizedMap(
@@ -47,12 +48,14 @@ public class UserSessionValidator {
             ConsulUserGrpcEndpointResolver consulResolver,
             UserSessionValidationProperties properties,
             ExternalServiceProperties externalServiceProperties,
-            GrpcChannelFactory channelFactory
+            GrpcChannelFactory channelFactory,
+            UserServiceJwtProvider userServiceJwtProvider
     ) {
         this.consulResolver = consulResolver;
         this.properties = properties;
         this.externalServiceProperties = externalServiceProperties;
         this.channelFactory = channelFactory;
+        this.userServiceJwtProvider = userServiceJwtProvider;
     }
 
     public boolean validate(long userId, String sessionId) {
@@ -63,9 +66,11 @@ public class UserSessionValidator {
         Instant cachedUntil = positiveCache.get(cacheKey);
         if (cachedUntil != null && cachedUntil.isAfter(Instant.now())) return true;
         if (cachedUntil != null) positiveCache.remove(cacheKey);
-        String internalToken = externalServiceProperties.getSecurity().getUser().getInternalGrpcToken();
-        if (internalToken == null || internalToken.isBlank()) {
-            log.warn("Userservice session validation token is empty");
+        String serviceToken;
+        try {
+            serviceToken = userServiceJwtProvider.currentToken();
+        } catch (RuntimeException ex) {
+            log.warn("Userservice caller JWT issuance failed errorType={}", ex.getClass().getSimpleName());
             return false;
         }
 
@@ -83,7 +88,13 @@ public class UserSessionValidator {
             }
 
             try {
+                Metadata metadata = new Metadata();
+                metadata.put(
+                        Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER),
+                        serviceToken
+                );
                 boolean valid = client.stub()
+                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withDeadlineAfter(Math.max(500L, externalServiceProperties.getSessionTimeoutMs()), TimeUnit.MILLISECONDS)
                         .validateSession(ValidateSessionRequest.newBuilder()
                                 .setUserId(userId)
@@ -115,17 +126,11 @@ public class UserSessionValidator {
         String key = endpoint.host() + ":" + endpoint.port();
         return endpointClients.computeIfAbsent(key, ignored -> {
             ManagedChannel channel = channelFactory.create(endpoint.host(), endpoint.port());
-            Metadata metadata = new Metadata();
-            metadata.put(
-                    Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER),
-                    externalServiceProperties.getSecurity().getUser().getInternalGrpcToken().trim()
-            );
             return new EndpointClient(
                     endpoint.host(),
                     endpoint.port(),
                     channel,
                     UserAuthServiceGrpc.newBlockingStub(channel)
-                            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
             );
         });
     }

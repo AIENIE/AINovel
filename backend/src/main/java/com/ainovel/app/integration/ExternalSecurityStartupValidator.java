@@ -44,8 +44,18 @@ public class ExternalSecurityStartupValidator implements ApplicationRunner {
         } else if (security.getAi().getHmacSecret().trim().getBytes(StandardCharsets.UTF_8).length < 32) {
             missing.add("EXTERNAL_AI_HMAC_SECRET(min 32 bytes)");
         }
-        if (isUnset(security.getUser().getInternalGrpcToken())) {
-            missing.add("EXTERNAL_USER_INTERNAL_GRPC_TOKEN");
+        try {
+            ExternalServiceProperties.User user = security.getUser();
+            UserServiceJwtConfigurationValidator.validate(
+                    user.getCallerId(),
+                    user.getIssuer(),
+                    user.getSecret(),
+                    user.getAudience(),
+                    user.getTtlSeconds(),
+                    user.getScopes()
+            );
+        } catch (IllegalArgumentException ex) {
+            missing.add("EXTERNAL_USER_SERVICE_JWT_CONFIGURATION");
         }
         if (isUnset(security.getPay().getServiceJwt())) {
             missing.add("EXTERNAL_PAY_SERVICE_JWT");

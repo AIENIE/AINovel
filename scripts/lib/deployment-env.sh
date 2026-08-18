@@ -146,7 +146,29 @@ ainovel_require_deployment_env_sources() {
     MYSQL_PASSWORD SPRING_JPA_HIBERNATE_DDL_AUTO \
     ADMIN_TRUSTED_ORIGINS ADMIN_SESSION_COOKIE_SECURE \
     EXTERNAL_AI_HMAC_CALLER EXTERNAL_AI_HMAC_SECRET \
-    EXTERNAL_USER_INTERNAL_GRPC_TOKEN EXTERNAL_PAY_SERVICE_JWT || return 1
+    EXTERNAL_USER_SERVICE_JWT_CALLER_ID EXTERNAL_USER_SERVICE_JWT_ISSUER \
+    EXTERNAL_USER_SERVICE_JWT_SECRET EXTERNAL_USER_SERVICE_JWT_AUDIENCE \
+    EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS EXTERNAL_USER_SERVICE_JWT_SCOPES \
+    EXTERNAL_PAY_SERVICE_JWT || return 1
+
+  if [[ -n "${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_INTERNAL_GRPC_TOKEN]:-}" ]]; then
+    echo "Legacy UserService static gRPC token is forbidden" >&2
+    return 1
+  fi
+  local user_jwt_ttl="${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS]}"
+  if [[ ! "${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_CALLER_ID]}" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ \
+    || ! "${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_ISSUER]}" =~ ^[a-z0-9][a-z0-9._-]{1,63}$ \
+    || "${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_AUDIENCE]}" != "aienie-userservice-grpc" \
+    || "${AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_SCOPES]}" != "user.auth.session.read" \
+    || ! "$user_jwt_ttl" =~ ^[0-9]+$ \
+    || ${#AINOVEL_ENV_FILE_VALUES[EXTERNAL_USER_SERVICE_JWT_SECRET]} -lt 32 ]]; then
+    echo "Invalid UserService caller JWT configuration" >&2
+    return 1
+  fi
+  if (( 10#$user_jwt_ttl < 30 || 10#$user_jwt_ttl > 900 )); then
+    echo "Invalid UserService caller JWT configuration" >&2
+    return 1
+  fi
 
   ainovel_validate_admin_auth_policy || return 1
 

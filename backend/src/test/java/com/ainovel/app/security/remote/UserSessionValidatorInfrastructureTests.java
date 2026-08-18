@@ -4,11 +4,25 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.integration.ExternalServiceProperties;
 import com.ainovel.app.integration.GrpcChannelFactory;
+import fireflychat.user.v1.UserAuthServiceGrpc;
+import fireflychat.user.v1.ValidateSessionRequest;
+import fireflychat.user.v1.ValidateSessionResponse;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
+import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.Optional;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +34,63 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class UserSessionValidatorInfrastructureTests {
+
+    @Test
+    void shouldAttachARecentlyIssuedCallerJwtToEveryRemoteValidation() throws Exception {
+        Metadata.Key<String> tokenHeader = Metadata.Key.of(
+                "x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
+        List<String> observedTokens = new CopyOnWriteArrayList<>();
+        Server server = ServerBuilder.forPort(0)
+                .addService(ServerInterceptors.intercept(
+                        new UserAuthServiceGrpc.UserAuthServiceImplBase() {
+                            @Override
+                            public void validateSession(ValidateSessionRequest request,
+                                                        StreamObserver<ValidateSessionResponse> responseObserver) {
+                                responseObserver.onNext(ValidateSessionResponse.newBuilder().setValid(true).build());
+                                responseObserver.onCompleted();
+                            }
+                        },
+                        new ServerInterceptor() {
+                            @Override
+                            public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                                    ServerCall<ReqT, RespT> call,
+                                    Metadata headers,
+                                    ServerCallHandler<ReqT, RespT> next) {
+                                observedTokens.add(headers.get(tokenHeader));
+                                return next.startCall(call, headers);
+                            }
+                        }
+                ))
+                .build()
+                .start();
+        UserSessionValidator validator = null;
+        try {
+            String host = InetAddress.getLoopbackAddress().getHostAddress();
+            int port = server.getPort();
+            ConsulUserGrpcEndpointResolver resolver = mock(ConsulUserGrpcEndpointResolver.class);
+            when(resolver.resolve()).thenReturn(Optional.of(
+                    new ConsulUserGrpcEndpointResolver.Endpoint(host, port)));
+            UserSessionValidationProperties validationProperties = new UserSessionValidationProperties();
+            ExternalServiceProperties externalProperties = new ExternalServiceProperties();
+            GrpcChannelFactory channelFactory = mock(GrpcChannelFactory.class);
+            when(channelFactory.create(host, port)).thenReturn(
+                    ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());
+            UserServiceJwtProvider tokenProvider = mock(UserServiceJwtProvider.class);
+            when(tokenProvider.currentToken()).thenReturn("caller.jwt.one", "caller.jwt.two");
+            validator = new UserSessionValidator(
+                    resolver, validationProperties, externalProperties, channelFactory, tokenProvider);
+
+            assertTrue(validator.validate(41L, "session-one"));
+            assertTrue(validator.validate(42L, "session-two"));
+            assertEquals(List.of("caller.jwt.one", "caller.jwt.two"), observedTokens);
+        } finally {
+            if (validator != null) {
+                validator.shutdown();
+            }
+            server.shutdownNow();
+            server.awaitTermination();
+        }
+    }
 
     @Test
     void shouldResolveGrpcEndpointFromConfiguredAddress() {
@@ -67,13 +138,12 @@ class UserSessionValidatorInfrastructureTests {
             ));
             UserSessionValidationProperties properties = new UserSessionValidationProperties();
             ExternalServiceProperties externalProperties = new ExternalServiceProperties();
-            externalProperties.getSecurity().getUser().setInternalGrpcToken("internal-token-secret");
             GrpcChannelFactory channelFactory = mock(GrpcChannelFactory.class);
             when(channelFactory.create(host, port)).thenThrow(new IllegalStateException(
                     "endpoint=" + host + ":" + port + " token=remote-token-secret path=/private/session"
             ));
             UserSessionValidator validator = new UserSessionValidator(
-                    resolver, properties, externalProperties, channelFactory
+                    resolver, properties, externalProperties, channelFactory, mock(UserServiceJwtProvider.class)
             );
             var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(UserSessionValidator.class);
             ListAppender<ILoggingEvent> appender = new ListAppender<>();

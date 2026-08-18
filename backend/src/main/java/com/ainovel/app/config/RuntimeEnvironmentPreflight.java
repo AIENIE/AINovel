@@ -1,6 +1,7 @@
 package com.ainovel.app.config;
 
 import com.ainovel.app.adminauth.AdminAuthPolicyRules;
+import com.ainovel.app.integration.UserServiceJwtConfigurationValidator;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +25,10 @@ public final class RuntimeEnvironmentPreflight {
             "MYSQL_PASSWORD", "SPRING_JPA_HIBERNATE_DDL_AUTO",
             "ADMIN_TRUSTED_ORIGINS", "ADMIN_SESSION_COOKIE_SECURE",
             "EXTERNAL_AI_HMAC_CALLER", "EXTERNAL_AI_HMAC_SECRET",
-            "EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "EXTERNAL_PAY_SERVICE_JWT"
+            "EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "EXTERNAL_USER_SERVICE_JWT_ISSUER",
+            "EXTERNAL_USER_SERVICE_JWT_SECRET", "EXTERNAL_USER_SERVICE_JWT_AUDIENCE",
+            "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "EXTERNAL_USER_SERVICE_JWT_SCOPES",
+            "EXTERNAL_PAY_SERVICE_JWT"
     );
     private static final List<String> TOTP_REQUIRED = List.of(
             "ADMIN_TOTP_ENCRYPTION_KEYS", "ADMIN_TOTP_ACTIVE_KEY_VERSION"
@@ -73,6 +77,11 @@ public final class RuntimeEnvironmentPreflight {
             throw new IllegalStateException("Runtime environment contains template placeholder values for: "
                     + String.join(", ", placeholders));
         }
+
+        if (hasText(environment.get("EXTERNAL_USER_INTERNAL_GRPC_TOKEN"))) {
+            throw new IllegalStateException("Legacy UserService static gRPC token is forbidden");
+        }
+        validateUserServiceJwtConfiguration(environment);
 
         if ("local".equals(env)) {
             System.getLogger(RuntimeEnvironmentPreflight.class.getName()).log(
@@ -130,6 +139,27 @@ public final class RuntimeEnvironmentPreflight {
                 || hasText(environment.get("QDRANT_API_KEY"))) {
             throw new IllegalStateException(
                     "test Redis and Qdrant credentials must stay empty because the rebaselined listeners are unauthenticated");
+        }
+    }
+
+    private static void validateUserServiceJwtConfiguration(Map<String, String> environment) {
+        long ttlSeconds;
+        try {
+            ttlSeconds = Long.parseLong(environment.get("EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS"));
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException("EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS must be an integer");
+        }
+        try {
+            UserServiceJwtConfigurationValidator.validate(
+                    environment.get("EXTERNAL_USER_SERVICE_JWT_CALLER_ID"),
+                    environment.get("EXTERNAL_USER_SERVICE_JWT_ISSUER"),
+                    environment.get("EXTERNAL_USER_SERVICE_JWT_SECRET"),
+                    environment.get("EXTERNAL_USER_SERVICE_JWT_AUDIENCE"),
+                    ttlSeconds,
+                    environment.get("EXTERNAL_USER_SERVICE_JWT_SCOPES")
+            );
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Invalid UserService caller JWT configuration", ex);
         }
     }
 

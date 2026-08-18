@@ -158,14 +158,59 @@ public class ExternalServiceProperties {
     }
 
     public static class User {
-        private String internalGrpcToken = "";
+        private String callerId = "ainovel";
+        private String issuer = "ainovel";
+        private String secret = "";
+        private String audience = UserServiceJwtConfigurationValidator.REQUIRED_AUDIENCE;
+        private long ttlSeconds = 300L;
+        private String scopes = UserServiceJwtConfigurationValidator.REQUIRED_SCOPE;
 
-        public String getInternalGrpcToken() {
-            return internalGrpcToken;
+        public String getCallerId() {
+            return callerId;
         }
 
-        public void setInternalGrpcToken(String internalGrpcToken) {
-            this.internalGrpcToken = internalGrpcToken;
+        public void setCallerId(String callerId) {
+            this.callerId = callerId;
+        }
+
+        public String getIssuer() {
+            return issuer;
+        }
+
+        public void setIssuer(String issuer) {
+            this.issuer = issuer;
+        }
+
+        public String getSecret() {
+            return secret;
+        }
+
+        public void setSecret(String secret) {
+            this.secret = secret;
+        }
+
+        public String getAudience() {
+            return audience;
+        }
+
+        public void setAudience(String audience) {
+            this.audience = audience;
+        }
+
+        public long getTtlSeconds() {
+            return ttlSeconds;
+        }
+
+        public void setTtlSeconds(long ttlSeconds) {
+            this.ttlSeconds = ttlSeconds;
+        }
+
+        public String getScopes() {
+            return scopes;
+        }
+
+        public void setScopes(String scopes) {
+            this.scopes = scopes;
         }
     }
 

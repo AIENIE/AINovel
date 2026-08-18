@@ -140,6 +140,30 @@ class AiNovelApplicationPreflightTest {
         assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(fakeRedisCredential));
     }
 
+    @Test
+    void userServiceCallerJwtContractRejectsLegacyOrOverPrivilegedConfiguration() {
+        Map<String, String> environment = validEnvironment();
+        assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
+
+        for (Map.Entry<String, String> invalid : Map.of(
+                "EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "AINovel",
+                "EXTERNAL_USER_SERVICE_JWT_ISSUER", "issuer with spaces",
+                "EXTERNAL_USER_SERVICE_JWT_SECRET", "short-secret",
+                "EXTERNAL_USER_SERVICE_JWT_AUDIENCE", "wrong-audience",
+                "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "901",
+                "EXTERNAL_USER_SERVICE_JWT_SCOPES", "user.auth.session.read,user.directory.read"
+        ).entrySet()) {
+            Map<String, String> rejected = new HashMap<>(environment);
+            rejected.put(invalid.getKey(), invalid.getValue());
+            assertThrows(IllegalStateException.class,
+                    () -> AiNovelApplication.preflight(rejected), invalid.getKey());
+        }
+
+        Map<String, String> legacy = new HashMap<>(environment);
+        legacy.put("EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "legacy-shared-static-token");
+        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(legacy));
+    }
+
     private Map<String, String> validEnvironment() {
         Map<String, String> environment = new HashMap<>();
         environment.put("ENV", "local");
@@ -158,7 +182,12 @@ class AiNovelApplicationPreflightTest {
         environment.put("SPRING_JPA_HIBERNATE_DDL_AUTO", "none");
         environment.put("EXTERNAL_AI_HMAC_CALLER", "ainovel-unit-test");
         environment.put("EXTERNAL_AI_HMAC_SECRET", "unit-test-hmac-secret-with-at-least-32-bytes");
-        environment.put("EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "unit-test-user-token");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "ainovel");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_ISSUER", "ainovel");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_SECRET", "unit-test-user-service-jwt-secret-32-bytes");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_AUDIENCE", "aienie-userservice-grpc");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "300");
+        environment.put("EXTERNAL_USER_SERVICE_JWT_SCOPES", "user.auth.session.read");
         environment.put("EXTERNAL_PAY_SERVICE_JWT", "header.payload.signature");
         environment.put("DB_URL",
                 "jdbc:mysql://db.example/ainovel?sslMode=VERIFY_IDENTITY&allowPublicKeyRetrieval=false");

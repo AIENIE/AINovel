@@ -18,7 +18,12 @@ class ExternalServiceApplicationYamlTests {
 
         assertTrue(yaml.contains("hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}"));
         assertTrue(yaml.contains("hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}"));
-        assertTrue(yaml.contains("internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:}"));
+        assertTrue(yaml.contains("caller-id: ${EXTERNAL_USER_SERVICE_JWT_CALLER_ID:ainovel}"));
+        assertTrue(yaml.contains("issuer: ${EXTERNAL_USER_SERVICE_JWT_ISSUER:ainovel}"));
+        assertTrue(yaml.contains("secret: ${EXTERNAL_USER_SERVICE_JWT_SECRET:}"));
+        assertTrue(yaml.contains("audience: ${EXTERNAL_USER_SERVICE_JWT_AUDIENCE:aienie-userservice-grpc}"));
+        assertTrue(yaml.contains("ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}"));
+        assertTrue(yaml.contains("scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}"));
         assertTrue(yaml.contains("service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:}"));
     }
 
@@ -29,6 +34,7 @@ class ExternalServiceApplicationYamlTests {
         assertFalse(yaml.contains("APP_EXTERNAL_AI_HMAC_CALLER"));
         assertFalse(yaml.contains("APP_EXTERNAL_AI_HMAC_SECRET"));
         assertFalse(yaml.contains("APP_EXTERNAL_USER_INTERNAL_TOKEN"));
+        assertFalse(yaml.contains("EXTERNAL_USER_INTERNAL_GRPC_TOKEN"));
         assertFalse(yaml.contains("APP_EXTERNAL_PAY_SERVICE_JWT"));
     }
 

@@ -215,7 +215,7 @@
                         <excludedEnvironmentVariable>REDIS_PASSWORD</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>QDRANT_ENABLED</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>EXTERNAL_AI_HMAC_SECRET</excludedEnvironmentVariable>
-                        <excludedEnvironmentVariable>EXTERNAL_USER_INTERNAL_GRPC_TOKEN</excludedEnvironmentVariable>
+                        <excludedEnvironmentVariable>EXTERNAL_USER_SERVICE_JWT_SECRET</excludedEnvironmentVariable>
                         <excludedEnvironmentVariable>EXTERNAL_PAY_SERVICE_JWT</excludedEnvironmentVariable>
                     </excludedEnvironmentVariables>
                 </configuration>

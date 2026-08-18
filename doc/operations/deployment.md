@@ -12,7 +12,7 @@
 - 管理员密码：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（BCrypt cost 至少 10；不接受明文密码配置）
 - 管理员 TOTP 密钥环：`ADMIN_TOTP_ENCRYPTION_KEYS`、`ADMIN_TOTP_ACTIVE_KEY_VERSION`
 - 管理员来源与会话：`ADMIN_TRUSTED_ORIGINS`、`ADMIN_SESSION_COOKIE_SECURE`、`ADMIN_SESSION_MINUTES`、`ADMIN_SESSION_IDLE_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES`；非本地环境必须启用 Secure Cookie，本地隔离 HTTP 验收可显式设为 `false`
-- 外部鉴权：AI HMAC、user-service internal token、pay-service service JWT
+- 外部鉴权：AI HMAC、user-service caller 独立短期 JWT 签名配置、pay-service service JWT；user-service 仅允许 `aud=aienie-userservice-grpc`、`scope=user.auth.session.read`、TTL `30..900` 秒，旧共享静态 token 会被部署和启动门禁拒绝
 - 数据库：`SPRING_JPA_HIBERNATE_DDL_AUTO=none`
 
 日志与运维记录默认写入挂载目录，并可通过环境变量收紧容量：
@@ -71,7 +71,7 @@ mvn -q -f backend/pom.xml -Pexternal-mysql-verification `
 - `/api/actuator/health`：综合依赖诊断，仍包含 Redis，可能在 Redis 短暂重连时显示 `DOWN`。
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
-- SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、internal token 和 user-service `ValidateSession` 可达性。
+- SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、caller JWT 的 id/issuer/audience/scope 配对和 user-service `ValidateSession` 可达性；不得以恢复旧共享静态 token 排障。
 - 管理员登录失败：先确认 `env.txt` 中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
 - 通用积分转换失败：检查 pay-service gRPC 地址、项目标识和 service JWT。
 - `curl` 出现代理相关 TLS 异常：对本地域名使用 `--noproxy '*'`。

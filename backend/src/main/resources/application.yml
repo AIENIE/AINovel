@@ -134,7 +134,12 @@ app:
         hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}
         hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}
       user:
-        internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:}
+        caller-id: ${EXTERNAL_USER_SERVICE_JWT_CALLER_ID:ainovel}
+        issuer: ${EXTERNAL_USER_SERVICE_JWT_ISSUER:ainovel}
+        secret: ${EXTERNAL_USER_SERVICE_JWT_SECRET:}
+        audience: ${EXTERNAL_USER_SERVICE_JWT_AUDIENCE:aienie-userservice-grpc}
+        ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}
+        scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}
       pay:
         service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:}
         jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}

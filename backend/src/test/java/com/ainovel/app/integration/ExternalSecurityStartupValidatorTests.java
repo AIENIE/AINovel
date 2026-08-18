@@ -33,7 +33,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().setFailFast(true);
         properties.getSecurity().getAi().setHmacCaller("caller");
         properties.getSecurity().getAi().setHmacSecret("secret-32-bytes-minimum-for-testing");
-        properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
+        configureValidUserJwt(properties);
         properties.getSecurity().getPay().setServiceJwt(validPayJwt());
 
         ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
@@ -46,7 +46,8 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().setFailFast(true);
         properties.getSecurity().getAi().setHmacCaller("REPLACE_ME_AI_CALLER");
         properties.getSecurity().getAi().setHmacSecret("REPLACE_ME_AI_HMAC_SECRET_MIN_32_BYTES");
-        properties.getSecurity().getUser().setInternalGrpcToken("REPLACE_ME_USER_INTERNAL_GRPC_TOKEN");
+        configureValidUserJwt(properties);
+        properties.getSecurity().getUser().setSecret("REPLACE_ME_USER_SERVICE_JWT_SECRET");
         properties.getSecurity().getPay().setServiceJwt("REPLACE_ME_PAY_SERVICE_JWT");
 
         ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
@@ -59,7 +60,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().setFailFast(true);
         properties.getSecurity().getAi().setHmacCaller("caller");
         properties.getSecurity().getAi().setHmacSecret("secret-32-bytes-minimum-for-testing");
-        properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
+        configureValidUserJwt(properties);
         properties.getSecurity().getPay().setServiceJwt("not-a-jwt");
 
         ExternalSecurityStartupValidator validator = new ExternalSecurityStartupValidator(properties, OBJECT_MAPPER);
@@ -72,7 +73,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().setFailFast(true);
         properties.getSecurity().getAi().setHmacCaller("caller");
         properties.getSecurity().getAi().setHmacSecret("secret-32-bytes-minimum-for-testing");
-        properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
+        configureValidUserJwt(properties);
         properties.getSecurity().getPay().setServiceJwt(jwtWithClaims(Map.of(
                 "role", "internal_service",
                 "iss", "aienie-services",
@@ -91,7 +92,7 @@ class ExternalSecurityStartupValidatorTests {
         properties.getSecurity().setFailFast(true);
         properties.getSecurity().getAi().setHmacCaller("caller");
         properties.getSecurity().getAi().setHmacSecret("secret-32-bytes-minimum-for-testing");
-        properties.getSecurity().getUser().setInternalGrpcToken("internal-token");
+        configureValidUserJwt(properties);
         properties.getSecurity().getPay().setServiceJwt(jwtWithClaims(Map.of(
                 "role", "SERVICE",
                 "iss", "aienie-services",
@@ -111,6 +112,15 @@ class ExternalSecurityStartupValidatorTests {
                 "scopes", PAY_SCOPES,
                 "exp", Instant.now().plusSeconds(1800).getEpochSecond()
         ));
+    }
+
+    private void configureValidUserJwt(ExternalServiceProperties properties) {
+        properties.getSecurity().getUser().setCallerId("ainovel");
+        properties.getSecurity().getUser().setIssuer("ainovel");
+        properties.getSecurity().getUser().setSecret("user-service-jwt-secret-with-at-least-32-bytes");
+        properties.getSecurity().getUser().setAudience("aienie-userservice-grpc");
+        properties.getSecurity().getUser().setTtlSeconds(300L);
+        properties.getSecurity().getUser().setScopes("user.auth.session.read");
     }
 
     private String jwtWithClaims(Map<String, Object> claims) {
