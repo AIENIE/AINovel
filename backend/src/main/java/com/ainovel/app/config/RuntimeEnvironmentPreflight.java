@@ -5,6 +5,7 @@ import com.ainovel.app.adminauth.AdminAuthPolicyRules;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +30,13 @@ public final class RuntimeEnvironmentPreflight {
             "ADMIN_TOTP_ENCRYPTION_KEYS", "ADMIN_TOTP_ACTIVE_KEY_VERSION"
     );
     private static final List<String> NON_LOCAL_DATA_SECURITY_REQUIRED = List.of(
-            "DB_URL", "DB_USERNAME", "REDIS_SSL_ENABLED", "REDIS_USERNAME",
-            "REDIS_PASSWORD", "QDRANT_HOST", "QDRANT_API_KEY"
+            "DB_URL", "DB_USERNAME", "REDIS_HOST", "REDIS_PORT", "REDIS_SSL_ENABLED",
+            "QDRANT_HOST", "QDRANT_PORT"
     );
+    private static final List<String> PRODUCTION_DATA_CREDENTIALS_REQUIRED = List.of(
+            "REDIS_USERNAME", "REDIS_PASSWORD", "QDRANT_API_KEY"
+    );
+    private static final String STAGING_DATA_HOST = "base.testhut.top";
     private static final String TEMPLATE_PLACEHOLDER_RESOURCE = "env-template-placeholders.properties";
     private static final Map<String, String> TEMPLATE_PLACEHOLDERS = loadTemplatePlaceholders();
 
@@ -51,6 +56,9 @@ public final class RuntimeEnvironmentPreflight {
         if (!"local".equals(env)) {
             require(environment, NON_LOCAL_DATA_SECURITY_REQUIRED, missing);
         }
+        if ("production".equals(env)) {
+            require(environment, PRODUCTION_DATA_CREDENTIALS_REQUIRED, missing);
+        }
         if (!missing.isEmpty()) {
             throw new IllegalStateException("Missing required runtime environment variables: "
                     + String.join(", ", missing));
@@ -69,26 +77,103 @@ public final class RuntimeEnvironmentPreflight {
         if ("local".equals(env)) {
             System.getLogger(RuntimeEnvironmentPreflight.class.getName()).log(
                     System.Logger.Level.WARNING,
-                    "Local profile permits plaintext MySQL/Redis/Qdrant for development only; never reuse it for test or production"
+                    "Local profile permits unrestricted plaintext data services for development only; test allows only the rebaselined canonical endpoints"
             );
             return;
         }
 
-        String dbUrl = environment.get("DB_URL");
-        if (dbUrl == null || !dbUrl.toLowerCase(java.util.Locale.ROOT).contains("sslmode=verify_identity")) {
-            throw new IllegalStateException("DB_URL must require sslMode=VERIFY_IDENTITY outside local");
-        }
         String dbUsername = environment.get("DB_USERNAME");
         if ("root".equalsIgnoreCase(dbUsername) || "ainovel".equalsIgnoreCase(dbUsername)) {
             throw new IllegalStateException("DB_USERNAME must be a non-template least-privilege account outside local");
         }
+        if ("test".equals(env)) {
+            validateStagingDataServices(environment);
+            return;
+        }
+
+        String dbUrl = environment.get("DB_URL");
+        if (!hasMysqlEndpoint(dbUrl, null, -1)
+                || !hasOnlyQueryValue(dbUrl, "sslMode", "VERIFY_IDENTITY")
+                || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
+            throw new IllegalStateException(
+                    "production DB_URL must use MySQL sslMode=VERIFY_IDENTITY and disable allowPublicKeyRetrieval");
+        }
         if (!"true".equals(environment.get("REDIS_SSL_ENABLED"))) {
-            throw new IllegalStateException("REDIS_SSL_ENABLED must be exactly true outside local");
+            throw new IllegalStateException("production REDIS_SSL_ENABLED must be exactly true");
         }
         String qdrantHost = environment.get("QDRANT_HOST");
         if (qdrantHost == null || !qdrantHost.toLowerCase(java.util.Locale.ROOT).startsWith("https://")) {
-            throw new IllegalStateException("QDRANT_HOST must use https outside local");
+            throw new IllegalStateException("production QDRANT_HOST must use https");
         }
+    }
+
+    private static void validateStagingDataServices(Map<String, String> environment) {
+        String dbUrl = environment.get("DB_URL");
+        if (!hasMysqlEndpoint(dbUrl, STAGING_DATA_HOST, 13306)
+                || !hasOnlyQueryValue(dbUrl, "sslMode", "DISABLED")
+                || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
+            throw new IllegalStateException(
+                    "test DB_URL must use base.testhut.top:13306, sslMode=DISABLED, and allowPublicKeyRetrieval=false");
+        }
+        if (!STAGING_DATA_HOST.equalsIgnoreCase(environment.get("REDIS_HOST"))
+                || !"16379".equals(environment.get("REDIS_PORT"))
+                || !"false".equals(environment.get("REDIS_SSL_ENABLED"))) {
+            throw new IllegalStateException(
+                    "test Redis must use plaintext base.testhut.top:16379 exactly as rebaselined");
+        }
+        if (!("http://" + STAGING_DATA_HOST).equalsIgnoreCase(environment.get("QDRANT_HOST"))
+                || !"16333".equals(environment.get("QDRANT_PORT"))) {
+            throw new IllegalStateException(
+                    "test Qdrant must use http://base.testhut.top:16333 exactly as rebaselined");
+        }
+        if (hasText(environment.get("REDIS_USERNAME")) || hasText(environment.get("REDIS_PASSWORD"))
+                || hasText(environment.get("QDRANT_API_KEY"))) {
+            throw new IllegalStateException(
+                    "test Redis and Qdrant credentials must stay empty because the rebaselined listeners are unauthenticated");
+        }
+    }
+
+    private static boolean hasMysqlEndpoint(String jdbcUrl, String expectedHost, int expectedPort) {
+        if (jdbcUrl == null || !jdbcUrl.regionMatches(true, 0, "jdbc:mysql://", 0, 13)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(jdbcUrl.substring(5));
+            if (!"mysql".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
+                    || uri.getPath() == null || uri.getPath().length() <= 1) {
+                return false;
+            }
+            return expectedHost == null
+                    || (expectedHost.equalsIgnoreCase(uri.getHost()) && expectedPort == uri.getPort());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean hasOnlyQueryValue(String url, String expectedKey, String expectedValue) {
+        if (url == null) {
+            return false;
+        }
+        int queryStart = url.indexOf('?');
+        if (queryStart < 0 || queryStart == url.length() - 1) {
+            return false;
+        }
+        boolean found = false;
+        for (String parameter : url.substring(queryStart + 1).split("&", -1)) {
+            int equals = parameter.indexOf('=');
+            if (equals <= 0 || !parameter.substring(0, equals).equalsIgnoreCase(expectedKey)) {
+                continue;
+            }
+            if (!parameter.substring(equals + 1).equalsIgnoreCase(expectedValue)) {
+                return false;
+            }
+            found = true;
+        }
+        return found;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private static String exact(String value, String name, String... allowed) {
