@@ -90,8 +90,8 @@ public class UserSessionValidator {
             try {
                 Metadata metadata = new Metadata();
                 metadata.put(
-                        Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER),
-                        serviceToken
+                        Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
+                        "Bearer " + serviceToken
                 );
                 boolean valid = client.stub()
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))

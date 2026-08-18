@@ -13,7 +13,7 @@
 
 | 服务 | AINovel 使用方式 | 鉴权 |
 | --- | --- | --- |
-| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `x-internal-token` 携带 AINovel 独立密钥签发的短期 caller JWT |
+| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `authorization: Bearer <JWT>` 携带 AINovel 独立密钥签发的短期 caller JWT；旧 `x-internal-token` 禁用 |
 | ai-service | 模型列表、对话、嵌入和写作生成 | HMAC metadata |
 | pay-service | 通用积分余额与通用转专属扣减 | Bearer service JWT |
 
