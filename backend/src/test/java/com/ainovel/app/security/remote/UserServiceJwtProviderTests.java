@@ -76,7 +76,7 @@ class UserServiceJwtProviderTests {
                 () -> new UserServiceJwtProvider(expandedScopeProperties).currentToken());
 
         ExternalServiceProperties invalidTtlProperties = validProperties();
-        invalidTtlProperties.getSecurity().getUser().setTtlSeconds(901L);
+        invalidTtlProperties.getSecurity().getUser().setTtlSeconds(301L);
         assertThrows(IllegalArgumentException.class,
                 () -> new UserServiceJwtProvider(invalidTtlProperties).currentToken());
     }

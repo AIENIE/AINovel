@@ -100,13 +100,13 @@ class UserSessionValidatorInfrastructureTests {
     @Test
     void shouldResolveGrpcEndpointFromConfiguredAddress() {
         UserSessionValidationProperties props = new UserSessionValidationProperties();
-        props.setGrpcAddress("static://userservice.localhut.com:10001");
+        props.setGrpcAddress("static://userservice.example:10001");
 
         ConsulUserGrpcEndpointResolver resolver = new ConsulUserGrpcEndpointResolver(props);
         Optional<ConsulUserGrpcEndpointResolver.Endpoint> endpoint = resolver.resolve();
 
         assertTrue(endpoint.isPresent());
-        assertEquals("userservice.localhut.com", endpoint.get().host());
+        assertEquals("userservice.example", endpoint.get().host());
         assertEquals(10001, endpoint.get().port());
     }
 
@@ -120,9 +120,9 @@ class UserSessionValidatorInfrastructureTests {
 
     @Test
     void shouldParseDnsGrpcAddress() {
-        Optional<ConsulUserGrpcEndpointResolver.Endpoint> endpoint = UserSessionValidator.parseGrpcAddress("dns:///userservice.localhut.com:10001");
+        Optional<ConsulUserGrpcEndpointResolver.Endpoint> endpoint = UserSessionValidator.parseGrpcAddress("dns:///userservice.example:10001");
         assertTrue(endpoint.isPresent());
-        assertEquals("userservice.localhut.com", endpoint.get().host());
+        assertEquals("userservice.example", endpoint.get().host());
         assertEquals(10001, endpoint.get().port());
     }
 

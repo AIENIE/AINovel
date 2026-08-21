@@ -270,7 +270,7 @@ public class AiGatewayGrpcClient {
         }
     }
 
-    private static class AiHmacAuthInterceptor implements ClientInterceptor {
+    static final class AiHmacAuthInterceptor implements ClientInterceptor {
         private static final Metadata.Key<String> CALLER_KEY =
                 Metadata.Key.of("x-aienie-caller", Metadata.ASCII_STRING_MARSHALLER);
         private static final Metadata.Key<String> TS_KEY =
@@ -285,7 +285,7 @@ public class AiGatewayGrpcClient {
         private final ExternalServiceProperties properties;
         private final Clock clock;
 
-        private AiHmacAuthInterceptor(ExternalServiceProperties properties, Clock clock) {
+        AiHmacAuthInterceptor(ExternalServiceProperties properties, Clock clock) {
             this.properties = properties;
             this.clock = clock;
         }
@@ -328,8 +328,8 @@ public class AiGatewayGrpcClient {
                         return;
                     }
                     Metadata headers = pendingHeaders == null ? new Metadata() : pendingHeaders;
-                    String caller = properties.getSecurity().getAi().getHmacCaller().trim();
-                    String secret = properties.getSecurity().getAi().getHmacSecret().trim();
+                    String caller = properties.getSecurity().getAi().getHmacCaller();
+                    String secret = properties.getSecurity().getAi().getHmacSecret();
                     long ts = clock.instant().getEpochSecond();
                     String nonce = UUID.randomUUID().toString().replace("-", "");
                     String fullMethod = method.getFullMethodName();

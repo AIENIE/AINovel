@@ -72,7 +72,7 @@ class JwtAuthFilterTest {
         JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(validator));
 
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(bearer("eyJhbGciOiJub25lIn0.eyJzdWIiOiJmb3JnZWQtYWRtaW4iLCJyb2xlIjoiQURNSU4iLCJ1aWQiOjE4LCJzaWQiOiJzaWQtMDAxIn0."),
+        filter.doFilter(bearer("eyJhbGciOiJub25lIn0.eyJzdWIiOiJmb3JnZWQtYWRtaW4iLCJyb2xlIjoiQURNSU4iLCJ1aWQiOjE4LCJzaWQiOiJzaWQtMDAxIn0."), // gitleaks:allow -- deliberately unsigned negative-test JWT
                 response, (request, downstreamResponse) -> {
                     if (SecurityContextHolder.getContext().getAuthentication() == null) {
                         ((jakarta.servlet.http.HttpServletResponse) downstreamResponse).setStatus(403);

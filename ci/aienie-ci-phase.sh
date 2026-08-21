@@ -368,6 +368,8 @@ aienie_ci_build_static_node() {
 aienie_ci_prepare_phase() {
   AIENIE_CI_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd -P)"
   export AIENIE_CI_REPO_ROOT
+  unset MAVEN_ARGS MAVEN_OPTS
+  export MAVEN_SKIP_RC=1
   aienie_ci_require_value AIENIE_CI_PHASE
   aienie_ci_require_value AIENIE_CI_CACHE_DIR
   aienie_ci_require_value AIENIE_CI_OUTPUT_DIR
@@ -436,8 +438,8 @@ aienie_ci_prepare_phase() {
       aienie_ci_build_maven; aienie_ci_build_npm; aienie_ci_build_pnpm; aienie_ci_build_static_node
       export npm_config_offline=true npm_config_audit=false npm_config_fund=false
       export npm_config_cache="$AIENIE_CI_CACHE_DIR/npm" npm_config_store_dir="$AIENIE_CI_CACHE_DIR/pnpm"
-      export MAVEN_ARGS="-o -Dmaven.repo.local=$AIENIE_CI_CACHE_DIR/maven ${MAVEN_ARGS:-}"
-      export MAVEN_OPTS="-Dmaven.repo.local=$AIENIE_CI_CACHE_DIR/maven ${MAVEN_OPTS:-}"
+      export MAVEN_ARGS="-o -Dmaven.repo.local=$AIENIE_CI_CACHE_DIR/maven"
+      export MAVEN_OPTS="-Dmaven.repo.local=$AIENIE_CI_CACHE_DIR/maven"
       aienie_ci_detach_manifest
       ;;
     *) aienie_ci_fail 'AIENIE_CI_PHASE must be resolve or build' ;;

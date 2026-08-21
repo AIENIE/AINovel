@@ -188,7 +188,17 @@ class AiNovelApplicationPreflightTest {
         environment.put("EXTERNAL_USER_SERVICE_JWT_AUDIENCE", "aienie-userservice-grpc");
         environment.put("EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "300");
         environment.put("EXTERNAL_USER_SERVICE_JWT_SCOPES", "user.auth.session.read");
-        environment.put("EXTERNAL_PAY_SERVICE_JWT", "header.payload.signature");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_CALLER_ID", "ainovel");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_ISSUER", "ainovel");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME", "ainovel");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_SECRET",
+                "unit-test-pay-service-jwt-secret-32-bytes");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_AUDIENCE", "aienie-payservice-grpc");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_ROLE", "SERVICE");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS", "300");
+        environment.put("EXTERNAL_PAY_SERVICE_JWT_SCOPES",
+                "billing.balance.read,billing.balance.convert,billing.grant.write,"
+                        + "billing.usage.deduct,billing.redeem.write,billing.ledger.read");
         environment.put("DB_URL",
                 "jdbc:mysql://db.example/ainovel?sslMode=VERIFY_IDENTITY&allowPublicKeyRetrieval=false");
         environment.put("DB_USERNAME", "ainovel_runtime");

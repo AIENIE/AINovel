@@ -47,7 +47,7 @@ spring:
     time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
 
 server:
-  port: ${PORT:${BACKEND_PORT:11041}}
+  port: ${PORT:11041}
 
 logging:
   file:
@@ -141,11 +141,15 @@ app:
         ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}
         scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}
       pay:
-        service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:}
-        jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}
-        jwt-audience: ${EXTERNAL_PAY_JWT_AUDIENCE:aienie-payservice-grpc}
-        required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}
-        required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read}
+        caller-id: ${EXTERNAL_PAY_SERVICE_JWT_CALLER_ID:ainovel}
+        issuer: ${EXTERNAL_PAY_SERVICE_JWT_ISSUER:ainovel}
+        service-name: ${EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME:ainovel}
+        secret: ${EXTERNAL_PAY_SERVICE_JWT_SECRET:}
+        audience: ${EXTERNAL_PAY_SERVICE_JWT_AUDIENCE:aienie-payservice-grpc}
+        role: ${EXTERNAL_PAY_SERVICE_JWT_ROLE:SERVICE}
+        ttl-seconds: ${EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS:300}
+        scopes: ${EXTERNAL_PAY_SERVICE_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read}
+        legacy-static-token: ${EXTERNAL_PAY_SERVICE_JWT:}
     userservice-http:
       address: ${USER_HTTP_ADDR:https://userservice.seekerhut.com}
     aiservice-grpc:

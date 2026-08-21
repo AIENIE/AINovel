@@ -1,6 +1,8 @@
 package com.ainovel.app.config;
 
 import com.ainovel.app.adminauth.AdminAuthPolicyRules;
+import com.ainovel.app.integration.ExternalServiceProperties;
+import com.ainovel.app.integration.PayServiceJwtConfigurationValidator;
 import com.ainovel.app.integration.UserServiceJwtConfigurationValidator;
 
 import java.io.IOException;
@@ -28,7 +30,10 @@ public final class RuntimeEnvironmentPreflight {
             "EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "EXTERNAL_USER_SERVICE_JWT_ISSUER",
             "EXTERNAL_USER_SERVICE_JWT_SECRET", "EXTERNAL_USER_SERVICE_JWT_AUDIENCE",
             "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "EXTERNAL_USER_SERVICE_JWT_SCOPES",
-            "EXTERNAL_PAY_SERVICE_JWT"
+            "EXTERNAL_PAY_SERVICE_JWT_CALLER_ID", "EXTERNAL_PAY_SERVICE_JWT_ISSUER",
+            "EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME", "EXTERNAL_PAY_SERVICE_JWT_SECRET",
+            "EXTERNAL_PAY_SERVICE_JWT_AUDIENCE", "EXTERNAL_PAY_SERVICE_JWT_ROLE",
+            "EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS", "EXTERNAL_PAY_SERVICE_JWT_SCOPES"
     );
     private static final List<String> TOTP_REQUIRED = List.of(
             "ADMIN_TOTP_ENCRYPTION_KEYS", "ADMIN_TOTP_ACTIVE_KEY_VERSION"
@@ -82,6 +87,7 @@ public final class RuntimeEnvironmentPreflight {
             throw new IllegalStateException("Legacy UserService static gRPC token is forbidden");
         }
         validateUserServiceJwtConfiguration(environment);
+        validatePayServiceJwtConfiguration(environment);
 
         if ("local".equals(env)) {
             System.getLogger(RuntimeEnvironmentPreflight.class.getName()).log(
@@ -160,6 +166,32 @@ public final class RuntimeEnvironmentPreflight {
             );
         } catch (IllegalArgumentException ex) {
             throw new IllegalStateException("Invalid UserService caller JWT configuration", ex);
+        }
+    }
+
+    private static void validatePayServiceJwtConfiguration(Map<String, String> environment) {
+        if (hasText(environment.get("EXTERNAL_PAY_SERVICE_JWT"))) {
+            throw new IllegalStateException("Legacy PayService static JWT is forbidden");
+        }
+        long ttlSeconds;
+        try {
+            ttlSeconds = Long.parseLong(environment.get("EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS"));
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException("EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS must be an integer");
+        }
+        ExternalServiceProperties.Pay pay = new ExternalServiceProperties.Pay();
+        pay.setCallerId(environment.get("EXTERNAL_PAY_SERVICE_JWT_CALLER_ID"));
+        pay.setIssuer(environment.get("EXTERNAL_PAY_SERVICE_JWT_ISSUER"));
+        pay.setServiceName(environment.get("EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME"));
+        pay.setSecret(environment.get("EXTERNAL_PAY_SERVICE_JWT_SECRET"));
+        pay.setAudience(environment.get("EXTERNAL_PAY_SERVICE_JWT_AUDIENCE"));
+        pay.setRole(environment.get("EXTERNAL_PAY_SERVICE_JWT_ROLE"));
+        pay.setTtlSeconds(ttlSeconds);
+        pay.setScopes(environment.get("EXTERNAL_PAY_SERVICE_JWT_SCOPES"));
+        try {
+            PayServiceJwtConfigurationValidator.validate(pay);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("Invalid PayService caller JWT configuration", ex);
         }
     }
 

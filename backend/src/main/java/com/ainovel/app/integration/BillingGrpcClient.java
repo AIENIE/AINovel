@@ -22,9 +22,7 @@ import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
 import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
-import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
@@ -38,12 +36,15 @@ public class BillingGrpcClient {
 
     private final ExternalServiceProperties properties;
     private final GrpcEndpointManager<EndpointClient> endpointManager;
+    private final PayServiceJwtClientInterceptor jwtInterceptor;
 
     public BillingGrpcClient(
             ExternalServiceProperties properties,
-            GrpcChannelFactory channelFactory
+            GrpcChannelFactory channelFactory,
+            PayServiceJwtProvider tokenProvider
     ) {
         this.properties = properties;
+        this.jwtInterceptor = new PayServiceJwtClientInterceptor(tokenProvider);
         this.endpointManager = new GrpcEndpointManager<>(
                 properties.getPayserviceGrpc(),
                 "payservice-grpc",
@@ -258,38 +259,27 @@ public class BillingGrpcClient {
     }
 
     private synchronized EndpointClient getOrCreateClient() {
-        Metadata metadata = new Metadata();
-        metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER), bearerToken());
         return endpointManager.getOrCreate((endpoint, channel) -> new EndpointClient(
                 endpoint.host(),
                 endpoint.port(),
                 channel,
                 BillingRedeemCodeServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingBalanceServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingConversionServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingGrantServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingUsageServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingQueryServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
+                        .withInterceptors(jwtInterceptor)
         ));
     }
 
     private long timeoutMs() {
         return Math.max(800L, properties.getBillingTimeoutMs());
-    }
-
-    private String bearerToken() {
-        String raw = properties.getSecurity().getPay().getServiceJwt();
-        String token = raw == null ? "" : raw.trim();
-        if (token.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
-            return token;
-        }
-        return "Bearer " + token;
     }
 
     @PreDestroy
