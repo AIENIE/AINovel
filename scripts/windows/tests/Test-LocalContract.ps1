@@ -103,6 +103,10 @@ $same = [pscustomobject]@{
 if (-not (Test-AienieProcessIdentitySnapshot -Expected $expected -Actual $same)) {
     throw 'AINovel exact process identity fixture was rejected.'
 }
+$jsonRoundTrip = $expected | ConvertTo-Json | ConvertFrom-Json
+if (-not (Test-AienieProcessIdentitySnapshot -Expected $jsonRoundTrip -Actual $same)) {
+    throw 'AINovel JSON DateTime coercion changed the exact process identity.'
+}
 $pidReuse = $same.PSObject.Copy()
 $pidReuse.StartedUtc = $started.AddMinutes(1).ToString('o')
 if (Test-AienieProcessIdentitySnapshot -Expected $expected -Actual $pidReuse) {

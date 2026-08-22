@@ -123,7 +123,7 @@ function Invoke-AienieBoundedHttp {
         $response = $client.GetAsync($Uri, [Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
         try {
             if ([int]$response.StatusCode -ne 200 -or
-                ($response.Content.Headers.ContentLength.HasValue -and $response.Content.Headers.ContentLength.Value -gt $MaximumBytes)) {
+                ($null -ne $response.Content.Headers.ContentLength -and $response.Content.Headers.ContentLength -gt $MaximumBytes)) {
                 return $false
             }
             $stream = $response.Content.ReadAsStream()
@@ -161,6 +161,18 @@ function Get-AienieProcessIdentitySnapshot {
     }
 }
 
+function ConvertTo-AienieUtcDateTime {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Value)
+
+    if ($Value -is [DateTime]) { return ([DateTime]$Value).ToUniversalTime() }
+    if ($Value -is [DateTimeOffset]) { return ([DateTimeOffset]$Value).UtcDateTime }
+    return [DateTimeOffset]::Parse(
+        [string]$Value,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::RoundtripKind).UtcDateTime
+}
+
 function Test-AienieProcessIdentitySnapshot {
     [CmdletBinding()]
     param(
@@ -169,8 +181,8 @@ function Test-AienieProcessIdentitySnapshot {
     )
 
     if ($null -eq $Actual -or [int]$Expected.ProcessId -ne [int]$Actual.ProcessId) { return $false }
-    $expectedStart = [DateTimeOffset]::Parse([string]$Expected.StartedUtc).UtcDateTime
-    $actualStart = [DateTimeOffset]::Parse([string]$Actual.StartedUtc).UtcDateTime
+    $expectedStart = ConvertTo-AienieUtcDateTime -Value $Expected.StartedUtc
+    $actualStart = ConvertTo-AienieUtcDateTime -Value $Actual.StartedUtc
     if ([Math]::Abs(($actualStart - $expectedStart).TotalMilliseconds) -gt 1000) { return $false }
     if ([string]::IsNullOrWhiteSpace([string]$Expected.ExecutablePath) -or
         -not [IO.Path]::GetFullPath([string]$Actual.ExecutablePath).Equals(
