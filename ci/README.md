@@ -43,6 +43,13 @@ Build 在执行仓库 L2 编译/测试前重新验证清单、工具链、锁文
 进入产物。任何缺失输入、写权限或联网降级都会直接失败。运行时配置、秘密、证书和 Config
 Center 文件都不是这两个阶段的输入，也不得进入产物。
 
+## Production bundle
+
+Build 阶段设置 `AIENIE_RELEASE_ENVIRONMENT=production` 后，入口生成 production Compose、
+`release/production-runtime-contract.json` 和完整 Flyway ledger。可写目录只允许位于
+`/srv/aienie-products/ai-novel`，版本化 artifact 从 release root 只读挂载；生产包不挂载本地
+`/etc` CA，数据库、Redis、Qdrant 和公共服务均使用审核过的 `seekerhut.com` TLS authority。
+
 ## 本仓库模块
 
 - Maven: `backend`

@@ -22,5 +22,9 @@ cleanup() {
 trap cleanup EXIT
 WORKSPACE="$repo_root" bash "$helper" "AINovel" "$legacy_dir"
 bash "$flatten" "AINovel" "$legacy_dir" "$output_dir"
-bash "$repo_root/ci/assemble-ainovel-runtime.sh" "$repo_root" "$output_dir"
+case "${AIENIE_RELEASE_ENVIRONMENT:-staging}" in
+  staging) bash "$repo_root/ci/assemble-ainovel-runtime.sh" "$repo_root" "$output_dir" ;;
+  production) bash "$repo_root/ci/assemble-ainovel-production-runtime.sh" "$repo_root" "$output_dir" ;;
+  *) echo 'AIENIE_RELEASE_ENVIRONMENT must be staging or production' >&2; exit 2 ;;
+esac
 aienie_ci_finalize_build_inputs

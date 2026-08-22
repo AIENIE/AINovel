@@ -1,0 +1,48 @@
+services:
+  backend:
+    container_name: ainovel-backend
+    image: "${AINOVEL_BACKEND_IMAGE:?production release contract must inject the immutable backend image digest}"
+    user: "${AIENIE_RUNTIME_UID:?AIENIE_RUNTIME_UID is required}:${AIENIE_RUNTIME_GID:?AIENIE_RUNTIME_GID is required}"
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    tmpfs: ["/tmp:mode=1777,size=256m"]
+    working_dir: /app
+    entrypoint: ["/app/bin/start-production-backend.sh"]
+    command: ["/app/env.txt"]
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "2.0"
+    pids_limit: 256
+    ports: ["127.0.0.1:11041:11041"]
+    volumes:
+      - {type: bind, source: ./backend/start-production-backend.sh, target: /app/bin/start-production-backend.sh, read_only: true, bind: {create_host_path: false}}
+      - {type: bind, source: ./docker/production-load-env-file.sh, target: /app/bin/production-load-env-file.sh, read_only: true, bind: {create_host_path: false}}
+      - {type: bind, source: ./env.txt, target: /app/env.txt, read_only: true, bind: {create_host_path: false}}
+      - {type: bind, source: /srv/aienie-products/ai-novel/logs, target: /app/logs, bind: {create_host_path: false}}
+      - {type: bind, source: /srv/aienie-products/ai-novel/records, target: /app/records, bind: {create_host_path: false}}
+    healthcheck:
+      test: ["CMD", "/opt/java/openjdk/bin/java", "-Dloader.main=com.ainovel.app.health.StrictHttpHealthProbe", "-cp", "/app/app.jar", "org.springframework.boot.loader.launch.PropertiesLauncher", "http://127.0.0.1:11041/api/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [ainovel]
+  frontend:
+    container_name: ainovel-frontend
+    image: "${AINOVEL_FRONTEND_IMAGE:?production release contract must inject the immutable frontend image digest}"
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    entrypoint: ["nginx"]
+    command: ["-g", "daemon off;"]
+    tmpfs: ["/var/cache/nginx:mode=1777,size=64m", "/var/run:mode=1777,size=16m", "/tmp:mode=1777,size=16m"]
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 128
+    ports: ["127.0.0.1:11040:10010"]
+    depends_on: {backend: {condition: service_healthy}}
+    networks: [ainovel]
+networks:
+  ainovel: {}
