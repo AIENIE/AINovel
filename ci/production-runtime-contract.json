@@ -16,9 +16,18 @@
     {"id": "ai-service", "authority": "aiservice.seekerhut.com:12011", "tls_required": true}
   ],
   "persistent_bindings": [
-    {"source": "/srv/aienie-products/ai-novel/logs", "target": "/app/logs", "purpose": "retained-logs"},
+    {"source": "/srv/aienie-products/ai-novel/logs", "target": "/app/logs", "purpose": "operational-log"},
     {"source": "/srv/aienie-products/ai-novel/records", "target": "/app/records", "purpose": "audit-records"}
   ],
+  "backup": {
+    "schema_version": "aienie-production-backup-contract-v1",
+    "nightly": {
+      "include": ["/srv/aienie-products/ai-novel/records"],
+      "exclude": [
+        {"source": "/srv/aienie-products/ai-novel/logs", "classification": "operational-log"}
+      ]
+    }
+  },
   "ownership": {"uid_source": "AIENIE_RUNTIME_UID", "gid_source": "AIENIE_RUNTIME_GID", "must_match": true},
   "artifact_mount_policy": "release-root-relative-read-only",
   "migration": {"engine": "flyway", "location": "classpath:db/migration", "ledger": "release/migrations/flyway-ledger.json", "latest_version": "14", "baseline_on_migrate": false, "validate_on_migrate": true, "clean_disabled": true},

@@ -229,4 +229,5 @@ if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/arb
 fi
 grep -q 'must be the platform output file' "$work_dir/arbitrary-manifest.log"
 [[ ! -e "$AIENIE_DEPENDENCY_MANIFEST" ]] || { echo 'Rejected manifest path was written.' >&2; exit 1; }
+bash "$repo_root/ci/test-production-backup-contract.sh"
 printf 'Aienie repository CI contract test passed.\n'
