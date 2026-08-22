@@ -5,6 +5,9 @@ set -euo pipefail
 # release platform.  The caller must declare the module arrays before calling
 # aienie_ci_prepare_phase.
 
+readonly AIENIE_CI_REQUIRED_NODE_VERSION='v22.23.2'
+readonly AIENIE_CI_REQUIRED_PNPM_VERSION='11.22.0'
+
 aienie_ci_fail() {
   printf 'Aienie repository CI contract failed: %s\n' "$*" >&2
   exit 2
@@ -395,6 +398,14 @@ aienie_ci_prepare_phase() {
   (( ${#AIENIE_CI_MAVEN_MODULES[@]} == 0 )) || { aienie_ci_need mvn; aienie_ci_need java; }
   (( ${#AIENIE_CI_NPM_MODULES[@]} == 0 && ${#AIENIE_CI_STATIC_NODE_MODULES[@]} == 0 )) || { aienie_ci_need node; aienie_ci_need npm; }
   (( ${#AIENIE_CI_PNPM_MODULES[@]} == 0 )) || { aienie_ci_need node; aienie_ci_need pnpm; }
+  if (( ${#AIENIE_CI_NPM_MODULES[@]} > 0 || ${#AIENIE_CI_PNPM_MODULES[@]} > 0 || ${#AIENIE_CI_STATIC_NODE_MODULES[@]} > 0 )); then
+    [[ "$(node --version)" == "$AIENIE_CI_REQUIRED_NODE_VERSION" ]] ||
+      aienie_ci_fail "Node.js must be exactly ${AIENIE_CI_REQUIRED_NODE_VERSION#v}"
+  fi
+  if (( ${#AIENIE_CI_PNPM_MODULES[@]} > 0 )); then
+    [[ "$(pnpm --version)" == "$AIENIE_CI_REQUIRED_PNPM_VERSION" ]] ||
+      aienie_ci_fail "pnpm must be exactly $AIENIE_CI_REQUIRED_PNPM_VERSION"
+  fi
   aienie_ci_assert_native_architecture
   AIENIE_CI_SCRATCH_DIR="$(mktemp -d)"
   specs="$AIENIE_CI_SCRATCH_DIR/modules.tsv"; toolchains="$AIENIE_CI_SCRATCH_DIR/toolchains.tsv"

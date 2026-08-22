@@ -10,7 +10,7 @@ unset JAVA_OPTS JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS _JAVA_OPTIONS MAVEN_OPTS MAVE
 [ "${ENV:-}" = production ] || { echo 'AINovel production ENV is required' >&2; exit 1; }
 export SPRING_PROFILES_ACTIVE=production SERVER_ADDRESS=0.0.0.0 SERVER_PORT=11041 PORT=11041
 export DB_URL='jdbc:mysql://base.seekerhut.com:13306/ainovel?sslMode=VERIFY_IDENTITY&allowPublicKeyRetrieval=false&serverTimezone=Asia/Shanghai'
-export SPRING_FLYWAY_ENABLED=true SPRING_JPA_HIBERNATE_DDL_AUTO=none
+export SPRING_FLYWAY_ENABLED=false SPRING_JPA_HIBERNATE_DDL_AUTO=none
 export REDIS_HOST=base.seekerhut.com REDIS_PORT=16379 REDIS_SSL_ENABLED=true
 export QDRANT_HOST=https://base.seekerhut.com QDRANT_PORT=16333
 export USER_HTTP_ADDR=https://userservice.seekerhut.com

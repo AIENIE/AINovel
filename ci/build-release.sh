@@ -2,8 +2,8 @@
 set -euo pipefail
 
 AIENIE_CI_MAVEN_MODULES=(backend)
-AIENIE_CI_NPM_MODULES=(frontend)
-AIENIE_CI_PNPM_MODULES=()
+AIENIE_CI_NPM_MODULES=()
+AIENIE_CI_PNPM_MODULES=(frontend)
 AIENIE_CI_STATIC_NODE_MODULES=()
 AIENIE_CI_MAVEN_EXTRA_ARTIFACTS=()
 source "$(cd "$(dirname "$0")" && pwd -P)/aienie-ci-phase.sh"

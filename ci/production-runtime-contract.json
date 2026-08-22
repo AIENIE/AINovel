@@ -28,9 +28,46 @@
       ]
     }
   },
+  "protected_config_overlay_contract": {
+    "schema_version": "aienie-production-protected-config-overlay-contract-v1",
+    "allowed_files": [
+      {
+        "target_path": "env.txt",
+        "file_mode": "0600",
+        "owner": "runtime_identity",
+        "consumers": ["backend-runtime", "production-migration-executor"]
+      }
+    ],
+    "forbidden_exact_paths": ["docker-compose.yml", "application.yml", "prompt.yml"],
+    "forbidden_prefixes": ["backend/", "frontend/", "release/"],
+    "artifact_override_policy": "deny",
+    "unlisted_path_policy": "deny"
+  },
   "ownership": {"uid_source": "AIENIE_RUNTIME_UID", "gid_source": "AIENIE_RUNTIME_GID", "must_match": true},
   "artifact_mount_policy": "release-root-relative-read-only",
-  "migration": {"engine": "flyway", "location": "classpath:db/migration", "ledger": "release/migrations/flyway-ledger.json", "latest_version": "14", "baseline_on_migrate": false, "validate_on_migrate": true, "clean_disabled": true},
+  "migration": {
+    "mode": "flyway-one-shot",
+    "location": "filesystem:/app/release/migrations/sql",
+    "ledger": "release/migrations/flyway-ledger.json",
+    "latest_version": "14",
+    "baseline_on_migrate": false,
+    "validate_on_migrate": true,
+    "clean_disabled": true,
+    "execution": "one-shot-before-app",
+    "startup_behavior": "flyway-current-validation-only-after-preactivation",
+    "executor": {
+      "path": "release/production-migration-executor",
+      "cli": "precheck|execute|reconcile <component>",
+      "stdin": "none",
+      "environment": "fixed-protected-candidate-only",
+      "stdout": "compact-canonical-secret-free-json"
+    },
+    "artifact_manifest": "release/production-migration-artifacts.json",
+    "precheck": "strict-read-only",
+    "restore_point": "consistent-jdbc-logical-checkpoint-before-execute",
+    "authority": "signed-v4-platform-evidence-and-helper-invocation",
+    "stdout_schema": "aienie-production-migration-executor-receipt-v1"
+  },
   "authorization": {"minimum_release_manifest_version": 4, "policy": "signed-v4-only", "outer_signature_required": true},
   "platform_injected_digest_fields": ["source_commit", "config_digest", "artifact_digest", "image_digests"]
 }

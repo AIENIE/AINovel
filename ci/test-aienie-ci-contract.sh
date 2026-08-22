@@ -38,9 +38,9 @@ write_fake python3 "exec \"$real_python\" \"\$@\""
 write_fake uname 'case "${1:-}" in -s) echo Linux;; -m) echo x86_64;; *) echo Linux;; esac'
 write_fake java 'echo "openjdk version 25-test" >&2'
 write_fake mvn 'if [[ " $* " == *" --version "* ]]; then echo "Apache Maven 3.9.99-test"; else mkdir -p "$AIENIE_CI_CACHE_DIR/maven"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/maven/$AIENIE_CI_PHASE.bin"; fi'
-write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.99.0-test; else exit 0; fi'
+write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.23.2; else exit 0; fi'
 write_fake npm 'if [[ "${1:-}" == "--version" ]]; then echo 10.99.0-test; else mkdir -p "$AIENIE_CI_CACHE_DIR/npm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/npm/$AIENIE_CI_PHASE.bin"; fi'
-write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.99.0-test; else mkdir -p "$AIENIE_CI_CACHE_DIR/pnpm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/pnpm/$AIENIE_CI_PHASE.bin"; fi'
+write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.22.0; else mkdir -p "$AIENIE_CI_CACHE_DIR/pnpm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/pnpm/$AIENIE_CI_PHASE.bin"; fi'
 write_fake trivy 'exit 0'
 write_fake bundle-helper 'mkdir -p "$2/components/backend" "$2/components/frontend/dist"; printf jar >"$2/components/backend/app.jar"; printf html >"$2/components/frontend/dist/index.html"'
 write_fake flatten-helper 'rm -rf -- "$3"; mkdir -p "$3/backend" "$3/frontend/dist"; cp -- "$2/components/backend/app.jar" "$3/backend/app.jar"; cp -- "$2/components/frontend/dist/index.html" "$3/frontend/dist/index.html"; printf nginx >"$3/frontend/nginx.conf"; printf "%s\n" "command: java \${JAVA_OPTS:-} -jar /app/app.jar" >"$3/docker-compose.yml"; printf payload >"$3/payload.bin"'
@@ -66,6 +66,31 @@ assert value['cache']['file_count'] > 1
 PY
 
 resolved_manifest="$AIENIE_DEPENDENCY_MANIFEST"
+write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.23.1; else exit 0; fi'
+export AIENIE_CI_CACHE_DIR="$work_dir/wrong-node-cache"
+export AIENIE_CI_OUTPUT_DIR="$work_dir/wrong-node-output"
+export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
+if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-node.log" 2>&1; then
+  echo 'Resolve unexpectedly accepted a non-authoritative Node.js version.' >&2
+  exit 1
+fi
+grep -q 'Node.js must be exactly 22.23.2' "$work_dir/wrong-node.log"
+write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.23.2; else exit 0; fi'
+
+write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.21.0; else exit 0; fi'
+export AIENIE_CI_CACHE_DIR="$work_dir/wrong-pnpm-cache"
+export AIENIE_CI_OUTPUT_DIR="$work_dir/wrong-pnpm-output"
+export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
+if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-pnpm.log" 2>&1; then
+  echo 'Resolve unexpectedly accepted a non-authoritative pnpm version.' >&2
+  exit 1
+fi
+grep -q 'pnpm must be exactly 11.22.0' "$work_dir/wrong-pnpm.log"
+write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.22.0; else mkdir -p "$AIENIE_CI_CACHE_DIR/pnpm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/pnpm/$AIENIE_CI_PHASE.bin"; fi'
+
+export AIENIE_CI_CACHE_DIR="$work_dir/cache"
+export AIENIE_CI_OUTPUT_DIR="$work_dir/resolve-output"
+export AIENIE_DEPENDENCY_MANIFEST="$resolved_manifest"
 cache_before="$("$fake_bin/python3" - "$AIENIE_CI_CACHE_DIR" <<'PY'
 import hashlib,pathlib,sys
 root=pathlib.Path(sys.argv[1]); h=hashlib.sha256()
