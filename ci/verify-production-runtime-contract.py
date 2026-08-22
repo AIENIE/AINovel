@@ -6,6 +6,7 @@ if (v.get('schema_version'),v.get('canonical_component_id'),v.get('profile_id'),
 o=urlparse(v.get('public_origin',''))
 if o.scheme!='https' or not o.hostname or not o.hostname.endswith('.seekerhut.com'): raise SystemExit('invalid public origin')
 if v.get('platform_injected_digest_fields')!=['source_commit','config_digest','artifact_digest','image_digests']: raise SystemExit('digest contract drifted')
+if v.get('authorization')!={'minimum_release_manifest_version':4,'policy':'signed-v4-only','outer_signature_required':True}: raise SystemExit('production releases require a signed outer v4 manifest')
 for bad in ('.testhut.top','.aienie.com','.localhut.com','localhost','extra_hosts','host-gateway','/etc/aienie','env_file:','build:'):
     if bad in runtime: raise SystemExit(f'forbidden production value: {bad}')
 for m in re.finditer(r'(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])',runtime):
