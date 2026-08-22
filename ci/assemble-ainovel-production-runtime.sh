@@ -7,6 +7,10 @@ put "$repo/docker/production-load-env-file.sh" "$out/docker/production-load-env-
 put "$repo/ci/ainovel-production-runtime-compose.yml" "$out/docker-compose.yml" 0444
 put "$repo/ci/production-runtime-contract.json" "$out/release/production-runtime-contract.json" 0444
 put "$repo/ci/production-persistence-preflight.sh" "$out/release/production-persistence-preflight.sh" 0555
+put "$repo/ci/images/ainovel-nginx.conf" "$out/frontend/nginx.conf" 0444
+grep -Eq '^[[:space:]]*listen[[:space:]]+10010;' "$out/frontend/nginx.conf"||fail 'frontend nginx must listen on 10010'
+grep -Fq 'location = /healthz' "$out/frontend/nginx.conf"||fail 'frontend nginx must expose /healthz'
+if grep -Eq '^[[:space:]]*listen[[:space:]]+(80|443)([[:space:];]|$)|^[[:space:]]*user[[:space:]]+root' "$out/frontend/nginx.conf";then fail 'frontend nginx requires privileged execution';fi
 python3 "$repo/ci/write-flyway-migration-ledger.py" "$repo" "$out/release/migrations/flyway-ledger.json"; chmod 0444 "$out/release/migrations/flyway-ledger.json"
 python3 "$repo/ci/verify-production-runtime-contract.py" "$out/release/production-runtime-contract.json" "$out/docker-compose.yml" ai-novel "$out/backend/start-production-backend.sh"
 python3 - "$out" <<'PY'

@@ -50,6 +50,7 @@ Build 阶段设置 `AIENIE_RELEASE_ENVIRONMENT=production` 后，入口生成 pr
 `/srv/aienie-products/ai-novel`，版本化 artifact 从 release root 只读挂载；生产包不挂载本地
 `/etc` CA，数据库、Redis、Qdrant 和公共服务均使用审核过的 `seekerhut.com` TLS authority。
 夜间备份只包含 records；logs 按 `operational-log` 分类排除，env/admin 等保护配置不在备份集合内。
+production bundle 固定携带 `frontend/nginx.conf`，以非特权容器端口 10010 提供 SPA 和 `/healthz`。
 
 ## 本仓库模块
 
