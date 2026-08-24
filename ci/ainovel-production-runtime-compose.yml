@@ -17,6 +17,7 @@ services:
     volumes:
       - {type: bind, source: ./backend/start-production-backend.sh, target: /app/bin/start-production-backend.sh, read_only: true, bind: {create_host_path: false}}
       - {type: bind, source: ./backend/production-migration-entrypoint.sh, target: /app/bin/production-migration-entrypoint.sh, read_only: true, bind: {create_host_path: false}}
+      - {type: bind, source: ./backend/app.jar, target: /app/app.jar, read_only: true, bind: {create_host_path: false}}
       - {type: bind, source: ./docker/production-load-env-file.sh, target: /app/bin/production-load-env-file.sh, read_only: true, bind: {create_host_path: false}}
       - {type: bind, source: ./release/migrations, target: /app/release/migrations, read_only: true, bind: {create_host_path: false}}
       - {type: bind, source: ./env.txt, target: /app/env.txt, read_only: true, bind: {create_host_path: false}}
@@ -43,6 +44,9 @@ services:
     pids_limit: 128
     ports: ["127.0.0.1:11040:10010"]
     depends_on: {backend: {condition: service_healthy}}
+    volumes:
+      - {type: bind, source: ./frontend/dist, target: /usr/share/nginx/html, read_only: true, bind: {create_host_path: false}}
+      - {type: bind, source: ./frontend/nginx.conf, target: /etc/nginx/conf.d/default.conf, read_only: true, bind: {create_host_path: false}}
     networks: [ainovel]
 networks:
   ainovel: {}

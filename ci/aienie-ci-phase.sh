@@ -212,6 +212,30 @@ aienie_ci_resolve_maven() {
       mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
         dependency:go-offline dependency:resolve dependency:resolve-plugins
     )
+    if grep -q '<artifactId>[[:space:]]*protobuf-maven-plugin[[:space:]]*</artifactId>' \
+      "$AIENIE_CI_REPO_ROOT/$module/pom.xml"; then
+      local effective_pom resolver classifier
+      effective_pom="$AIENIE_CI_SCRATCH_DIR/effective-pom-${module//\//_}.xml"
+      (
+        cd "$AIENIE_CI_REPO_ROOT/$module"
+        mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
+          help:effective-pom -Doutput="$effective_pom" >/dev/null
+      )
+      case "$(uname -m)" in
+        x86_64|amd64) classifier='linux-x86_64' ;;
+        aarch64|arm64) classifier='linux-aarch_64' ;;
+        *) aienie_ci_fail "unsupported native classifier for protobuf tools: $(uname -m)" ;;
+      esac
+      resolver="${AIENIE_CI_PROTOBUF_TOOL_RESOLVER:-/opt/aienie-ci/resolve_maven_protobuf_tools.py}"
+      [[ -f "$resolver" && ! -L "$resolver" ]] || aienie_ci_fail "protobuf tool resolver is missing or unsafe: $resolver"
+      mapfile -t protobuf_artifacts < <(python3 "$resolver" "$effective_pom" "$classifier")
+      (( ${#protobuf_artifacts[@]} == 2 )) || aienie_ci_fail "protobuf tool resolver returned an unexpected artifact set for $module"
+      local artifact
+      for artifact in "${protobuf_artifacts[@]}"; do
+        mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
+          dependency:get -Dtransitive=true -Dartifact="$artifact"
+      done
+    fi
   done
   local artifact
   for artifact in "${AIENIE_CI_MAVEN_EXTRA_ARTIFACTS[@]}"; do
