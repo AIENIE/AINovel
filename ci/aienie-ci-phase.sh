@@ -236,6 +236,17 @@ aienie_ci_resolve_maven() {
           dependency:get -Dtransitive=true -Dartifact="$artifact"
       done
     fi
+
+    # Maven's go-offline goal does not reliably include the provider used by
+    # the configured Surefire plugin.  Warm the two versions used by the
+    # Aienie Java repositories while network access is still allowed; the
+    # sealed build phase then runs the same tests fully offline.
+    local surefire_version
+    for surefire_version in 3.2.5 3.5.2; do
+      mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
+        dependency:get -Dtransitive=true \
+        -Dartifact="org.apache.maven.surefire:surefire-junit-platform:${surefire_version}"
+    done
   done
   local artifact
   for artifact in "${AIENIE_CI_MAVEN_EXTRA_ARTIFACTS[@]}"; do
