@@ -247,6 +247,13 @@ aienie_ci_resolve_maven() {
         dependency:get -Dtransitive=true \
         -Dartifact="org.apache.maven.surefire:surefire-junit-platform:${surefire_version}"
     done
+
+    # Resolve the complete test class path without running tests.  Maven's
+    # dependency plugin can omit provider-transitive artifacts (for example
+    # junit-platform-launcher), while the test lifecycle resolves them
+    # authoritatively.
+    (cd "$AIENIE_CI_REPO_ROOT/$module" && mvn -B -ntp \
+      -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" -DskipTests test)
   done
   local artifact
   for artifact in "${AIENIE_CI_MAVEN_EXTRA_ARTIFACTS[@]}"; do
