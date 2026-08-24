@@ -237,16 +237,75 @@ aienie_ci_resolve_maven() {
       done
     fi
 
-    # Maven's go-offline goal does not reliably include the provider used by
-    # the configured Surefire plugin.  Warm the two versions used by the
-    # Aienie Java repositories while network access is still allowed; the
-    # sealed build phase then runs the same tests fully offline.
+    # Materialize the effective POM once so plugin-managed test dependencies
+    # are resolved from the repository's actual dependency management rather
+    # than guessed versions. Maven's go-offline goal does not reliably include
+    # the provider used by the configured Surefire plugin.
+    local effective_pom
+    effective_pom="$AIENIE_CI_SCRATCH_DIR/effective-pom-${module//\//_}.xml"
+    (
+      cd "$AIENIE_CI_REPO_ROOT/$module"
+      mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
+        help:effective-pom -Doutput="$effective_pom" >/dev/null
+    )
+
+    local launcher_version
+    launcher_version="$(python3 - "$effective_pom" <<'PY'
+import pathlib
+import sys
+import xml.etree.ElementTree as ET
+
+root = ET.parse(pathlib.Path(sys.argv[1])).getroot()
+
+def local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+def children(element):
+    return {local_name(child.tag): (child.text or "").strip()
+            for child in list(element)}
+
+property_values = {}
+for element in root.iter():
+    if local_name(element.tag) == "properties":
+        for child in list(element):
+            value = (child.text or "").strip()
+            if value:
+                property_values[local_name(child.tag)] = value
+
+for element in root.iter():
+    if local_name(element.tag) != "dependency":
+        continue
+    values = children(element)
+    if (values.get("groupId") == "org.junit.platform"
+            and values.get("artifactId") == "junit-platform-launcher"
+            and values.get("version")
+            and "${" not in values["version"]):
+        print(values["version"])
+        raise SystemExit(0)
+
+for key in ("junit-platform.version", "junit.platform.version"):
+    value = property_values.get(key, "")
+    if value and "${" not in value:
+        print(value)
+        raise SystemExit(0)
+raise SystemExit("effective POM does not expose junit-platform-launcher version")
+PY
+)"
+    [[ "$launcher_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] ||
+      aienie_ci_fail "could not resolve junit-platform-launcher version for $module"
+
+    # Warm both Surefire providers used by Aienie and the exact JUnit Platform
+    # launcher selected by the effective POM while repository access is still
+    # allowed; the sealed build phase then runs the same tests fully offline.
     local surefire_version
     for surefire_version in 3.2.5 3.5.2; do
       mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
         dependency:get -Dtransitive=true \
         -Dartifact="org.apache.maven.surefire:surefire-junit-platform:${surefire_version}"
     done
+    mvn -B -ntp -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" \
+      dependency:get -Dtransitive=true \
+      -Dartifact="org.junit.platform:junit-platform-launcher:${launcher_version}"
 
     # Resolve the complete test class path without running tests.  Maven's
     # dependency plugin can omit provider-transitive artifacts (for example
