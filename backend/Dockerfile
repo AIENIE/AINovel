@@ -2,10 +2,10 @@
 FROM maven:3.9-eclipse-temurin-25@sha256:dde1fa3cdee15fc123221a5b325b30eb30d74c9a3433305704cdcbc1ce67b111 AS builder
 WORKDIR /app
 COPY pom.xml .
-RUN --mount=type=cache,target=/root/.m2 \
+RUN \
     mvn -q -e -DskipTests dependency:go-offline
 COPY src ./src
-RUN --mount=type=cache,target=/root/.m2 \
+RUN \
     mvn -q -e -DskipTests clean package
 
 # Runtime stage
