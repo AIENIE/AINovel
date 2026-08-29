@@ -58,8 +58,8 @@ services:
         - http://127.0.0.1:11041/api/actuator/health/readiness
       interval: 10s
       timeout: 5s
-      retries: 12
-      start_period: 30s
+      retries: 20
+      start_period: 300s
     networks: [ainovel]
 
   frontend:
