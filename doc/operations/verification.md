@@ -16,8 +16,8 @@ Windows 原生 L1/L2 统一入口：
 
 ```bash
 mvn -q -f backend/pom.xml clean test
-npm --prefix frontend test
-npm --prefix frontend run build
+corepack pnpm@11.22.0 --dir frontend test
+corepack pnpm@11.22.0 --dir frontend run build
 ```
 
 运行时与浏览器验收是独立步骤，不属于默认代码验证。Windows 本地验收按 `operations/deployment.md` 使用 PowerShell 原生启动入口，并确认当前工作树、安全配置文件和外部依赖后再操作；非 Windows Docker 部署另行执行。
@@ -63,7 +63,7 @@ npm --prefix frontend run build
 收到开发者明确的“开始部署和验证”通知后，按以下 L4 顺序执行；在此之前不得运行本节命令或运行时步骤：
 
 1. 运行受影响的上下文、归因、迁移、API 与前端面板测试。默认质量测试应校验 36 个 fixture 的冻结分布、六类单缺陷、6 个 holdout、逐字证据及上下文引用，且不得访问网络。
-2. 执行 `mvn -q -f backend/pom.xml clean test`、`npm --prefix frontend test`、`npm --prefix frontend run build`。
+2. 执行 `mvn -q -f backend/pom.xml clean test`、`corepack pnpm@11.22.0 --dir frontend test`、`corepack pnpm@11.22.0 --dir frontend run build`。
 3. 分别验证新库从 V1 完整迁移到 V13，以及已有 V12 数据库只执行 V13 升级；确认 `scene_generation_runs` 的字段、索引和外键完整。
 4. 确认 MySQL、Redis、Qdrant 已在 `aienie-wsl` 对应 VM 的 `23306`、`26379`、`26333` 端口可达，ai-service、user-service、pay-service 的 local TLS/gRPC 入口分别为 `12011`、`12001`、`12021`；使用当前工作树的私有环境文件和 `scripts/windows/Start-Local.ps1 -EnvironmentFile <private-env-file>` 启动 AINovel，不得读取其他工作树的部署改动或环境文件作为替代。
 5. 检查 `/api/actuator/health/liveness`、`/api/actuator/health/readiness` 和 `/api/actuator/health`。

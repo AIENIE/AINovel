@@ -2,7 +2,8 @@
 
 ## 环境要求
 
-- Node.js 20+
+- Node.js 22.23.2
+- pnpm 11.22.0（通过 Corepack 调用）
 - JDK 25
 - Maven 3.9+
 - Docker 与 Docker Compose
@@ -19,9 +20,9 @@ mvn -q -f backend/pom.xml test
 
 ```bash
 cd frontend
-npm ci --legacy-peer-deps
-npm run test
-npm run build
+corepack pnpm@11.22.0 install --frozen-lockfile
+corepack pnpm@11.22.0 run test
+corepack pnpm@11.22.0 run build
 ```
 
 以 `backend/` 作为 VSCode 工作区时，可选择 `Backend: Spring Boot (env.txt)` 进行宿主机调试；先从 `env.example` 创建本地 `env.txt`。该文件包含运行秘密并被 Git 忽略。

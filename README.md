@@ -56,7 +56,7 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 
 ```bash
 mvn -q -f backend/pom.xml test
-cd frontend && npm ci --legacy-peer-deps && npm run test && npm run build
+cd frontend && corepack pnpm@11.22.0 install --frozen-lockfile && corepack pnpm@11.22.0 run test && corepack pnpm@11.22.0 run build
 ```
 
 ## 目录

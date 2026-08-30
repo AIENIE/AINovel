@@ -24,6 +24,7 @@ $stateRoot = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     Join-Path $env:LOCALAPPDATA 'Aienie\native-runs\ainovel'
 }
 $statePath = Join-Path $stateRoot 'processes.json'
+$frontendPackageManager = 'pnpm@11.22.0'
 $components = @(
     [pscustomobject]@{
         Name = 'Backend'
@@ -40,10 +41,10 @@ $components = @(
     [pscustomobject]@{
         Name = 'Frontend'
         Directory = Join-Path $repoRoot 'frontend'
-        Command = 'npm.cmd'
-        BuildArguments = @('ci', '--no-audit', '--no-fund')
-        TestArguments = @('run', 'test', '--', '--maxWorkers=2')
-        StartArguments = @('--prefix', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--', '--host', '127.0.0.1', '--port', '11040', '--strictPort')
+        Command = 'corepack.cmd'
+        BuildArguments = @($frontendPackageManager, 'install', '--frozen-lockfile')
+        TestArguments = @($frontendPackageManager, 'run', 'test', '--', '--maxWorkers=2')
+        StartArguments = @($frontendPackageManager, 'run', 'dev', '--', '--host', '127.0.0.1', '--port', '11040', '--strictPort')
         Port = 11040
         HealthPath = '/'
         HealthKind = 'Http200'
@@ -320,7 +321,7 @@ switch ($Action) {
             $command = Get-NativeCommand -Name $spec.Command
             if ($spec.Name -eq 'Frontend') {
                 Invoke-NativeCommand -Command $command -Arguments $spec.BuildArguments -WorkingDirectory $spec.Directory -Label 'Frontend dependency installation'
-                Invoke-NativeCommand -Command $command -Arguments @('run', 'build') -WorkingDirectory $spec.Directory -Label 'Frontend build'
+                Invoke-NativeCommand -Command $command -Arguments @($frontendPackageManager, 'run', 'build') -WorkingDirectory $spec.Directory -Label 'Frontend build'
             } else {
                 Invoke-NativeCommand -Command $command -Arguments $spec.BuildArguments -WorkingDirectory $spec.Directory -Label 'Backend build'
             }
@@ -331,9 +332,9 @@ switch ($Action) {
             $command = Get-NativeCommand -Name $spec.Command
             if ($spec.Name -eq 'Frontend') {
                 Invoke-NativeCommand -Command $command -Arguments $spec.BuildArguments -WorkingDirectory $spec.Directory -Label 'Frontend dependency installation'
-                Invoke-NativeCommand -Command $command -Arguments @('run', 'lint') -WorkingDirectory $spec.Directory -Label 'Frontend lint'
-                Invoke-NativeCommand -Command $command -Arguments @('run', 'typecheck') -WorkingDirectory $spec.Directory -Label 'Frontend typecheck'
-                Invoke-NativeCommand -Command $command -Arguments @('run', 'build') -WorkingDirectory $spec.Directory -Label 'Frontend production build'
+                Invoke-NativeCommand -Command $command -Arguments @($frontendPackageManager, 'run', 'lint') -WorkingDirectory $spec.Directory -Label 'Frontend lint'
+                Invoke-NativeCommand -Command $command -Arguments @($frontendPackageManager, 'run', 'typecheck') -WorkingDirectory $spec.Directory -Label 'Frontend typecheck'
+                Invoke-NativeCommand -Command $command -Arguments @($frontendPackageManager, 'run', 'build') -WorkingDirectory $spec.Directory -Label 'Frontend production build'
                 if ($TestLevel -eq 'L2') {
                     Invoke-NativeCommand -Command $command -Arguments $spec.TestArguments -WorkingDirectory $spec.Directory -Label 'Frontend L2 tests'
                 }
