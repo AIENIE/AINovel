@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Loader2, RefreshCcw } from "lucide-react";
@@ -17,20 +17,20 @@ const G2EvaluationReview = () => {
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     setError("");
     try {
       setSample(await api.g2Evaluations.nextReviewSample(id));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(localizedErrorMessage(err, "g2.loadSampleFailed"));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { void load(); }, [id]);
+  useEffect(() => { void load(); }, [load]);
 
   const vote = async (choice: "LEFT" | "RIGHT" | "NEUTRAL") => {
     if (!sample || !id) return;
@@ -38,7 +38,7 @@ const G2EvaluationReview = () => {
     try {
       await api.g2Evaluations.vote(id, sample.sampleId, choice);
       await load();
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({ variant: "destructive", title: t("g2.voteFailed"), description: localizedErrorMessage(err, "g2.voteFailedDesc") });
     } finally {
       setIsVoting(false);

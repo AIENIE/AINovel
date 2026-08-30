@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setUserLocale } from "@/i18n";
 import Index from "@/pages/Index";
 
-vi.mock("@/contexts/AuthContext", () => ({
+vi.mock("@/contexts/auth-state", () => ({
   useAuth: () => ({ isAuthenticated: false, user: null, logout: vi.fn(), isAdmin: false }),
 }));
 

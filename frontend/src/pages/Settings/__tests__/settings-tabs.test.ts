@@ -2,7 +2,8 @@ import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import Settings, { normalizeSettingsTabParam } from "@/pages/Settings/Settings";
+import Settings from "@/pages/Settings/Settings";
+import { normalizeSettingsTabParam } from "@/pages/Settings/settings-tabs";
 
 vi.mock("@/pages/Settings/tabs/WorkspacePrompts", () => ({ default: () => null }));
 vi.mock("@/pages/Settings/tabs/WorldPrompts", () => ({ default: () => null }));

@@ -12,4 +12,7 @@ public interface AiOperationRepository extends JpaRepository<AiOperationRun, UUI
     Optional<AiOperationRun> findFirstByUserIdAndScopeTypeAndScopeIdAndStatusInOrderByCreatedAtDesc(
             UUID userId, String scopeType, UUID scopeId, Collection<AiOperationStatus> statuses);
     List<AiOperationRun> findByStatusIn(Collection<AiOperationStatus> statuses);
+    Optional<AiOperationRun> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
+    Optional<AiOperationRun> findByActiveScopeKey(String activeScopeKey);
+    List<AiOperationRun> findTop100ByStatusOrderByCreatedAtAsc(AiOperationStatus status);
 }

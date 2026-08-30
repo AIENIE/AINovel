@@ -58,4 +58,26 @@ class SsoUserProvisioningServiceTests {
         provisioningService.ensureExistsBestEffort("   ", "ADMIN", 1L);
         assertEquals(before, userRepository.count());
     }
+
+    @Test
+    @Transactional
+    void refusesToRebindUsernameToAnotherRemoteIdentity() {
+        provisioningService.ensureExistsBestEffort("identity-owner", null, 1001L);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> provisioningService.ensureExistsBestEffort("identity-owner", null, 1002L));
+
+        assertEquals("SSO_IDENTITY_CONFLICT", error.getMessage());
+        assertEquals(1001L, userRepository.findByUsername("identity-owner").orElseThrow().getRemoteUid());
+    }
+
+    @Test
+    @Transactional
+    void allowsUsernameChangeOnlyForSameRemoteIdentity() {
+        provisioningService.ensureExistsBestEffort("before-rename", null, 1003L);
+        provisioningService.ensureExistsBestEffort("after-rename", null, 1003L);
+
+        User renamed = userRepository.findByRemoteUid(1003L).orElseThrow();
+        assertEquals("after-rename", renamed.getUsername());
+    }
 }

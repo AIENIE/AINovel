@@ -52,7 +52,6 @@ export const zhTW = {
   "common.custom": "自訂",
   "common.notice": "提示",
   "common.error": "錯誤",
-  "common.rename": "重新命名",
 
   // 導覽
   "nav.primary": "主要功能",
@@ -553,10 +552,6 @@ export const zhTW = {
   "guided.unnamedStory": "未命名故事",
   "guided.unnamedWorld": "未命名世界",
   "guided.waitingFirstConfirm": "等待首次確認",
-  "outline.addChapter": "新增章節",
-  "outline.editSummary": "點擊編輯章節梗概...",
-  "outline.empty": "暫無章節，點擊右上角新增",
-  "outline.logicCheck": "邏輯檢查",
   "outline.newChapter": "新章節",
   "outline.title": "大綱編排",
 
@@ -1286,10 +1281,6 @@ export const zhTW = {
   "workbench.title": "創作工作台",
   "workbench.tools": "工具",
   "workbench.writing": "小說創作",
-  "worldSelector.myWorlds": "我的世界",
-  "worldSelector.newWorld": "新增世界",
-  "worldSelector.noWorlds": "暫無世界設定",
-  "worldSelector.noWorldsHint": "點擊右上角新增",
 
   "contextPanel.activeCharacters": "活躍角色",
   "contextPanel.after": "後",

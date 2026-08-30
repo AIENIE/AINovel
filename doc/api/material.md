@@ -32,3 +32,8 @@
 
 - 查重会排除 `rejected` 素材，并按分数倒序返回候选；它不会自动合并，仍需调用 `/merge` 执行人工确认后的合并。
 - 引用查询仅返回当前素材所有者名下稿件中的命中片段；HTML 正文会先剥离标签再做信号匹配。
+# v1.0 审计整改补充（2026-08-17）
+
+- 审核事务只更新素材状态、chunk 投影及持久索引任务；embedding/Qdrant 写入由可重试 worker 完成。
+- 关键词检索在数据库按 `approved` 与 `owner/public` 权限过滤并分页。
+- Qdrant payload 包含 material/chunk/owner/status/text，服务端同时过滤；返回前再次以数据库投影核验，陈旧或已删除向量不会泄露。

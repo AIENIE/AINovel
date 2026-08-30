@@ -179,6 +179,7 @@ export interface Manuscript {
   worldId?: string;
   sections: Record<string, string>; // sceneId -> html content
   lastGenerationRun?: LastGenerationRunSummary | null;
+  version: number;
   updatedAt: string;
 }
 
@@ -324,12 +325,12 @@ export interface SlopDriftRun {
   totalCharacters: number;
   windowCount: number;
   sourceTextHash?: string;
-  windowSummaries: any[];
-  metricCurves: Record<string, any>;
-  driftPoints: any[];
-  evidenceItems: any[];
+  windowSummaries: Array<{ label?: string; summary?: string }>;
+  metricCurves: Record<string, Array<{ window?: string; label?: string; score?: number; value?: number }>>;
+  driftPoints: Array<{ from_window?: string; to_window?: string; interpretation?: string; safe_claim?: string }>;
+  evidenceItems: Array<{ window?: string; module?: string; evidence_level?: string; evidenceLevel?: string; quote?: string; risk_explanation?: string }>;
   alternativeExplanations: string[];
-  rewriteTasks: any[];
+  rewriteTasks: Array<{ task_id?: string; taskId?: string; problem?: string; repair_goal?: string; repairGoal?: string }>;
   createdAt?: string;
 }
 

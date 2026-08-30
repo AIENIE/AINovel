@@ -27,3 +27,28 @@ app:
     session-idle-minutes: 10
     recovery-session-minutes: 15
     recovery-session-idle-minutes: 10
+  external:
+    grpc:
+      tls-enabled: true
+      plaintext-enabled: false
+    security:
+      ai:
+        hmac-caller: ai-novel
+        hmac-secret: test-ai-hmac-secret-32-bytes-distinct-value
+      user:
+        caller-id: ainovel
+        issuer: ainovel
+        secret: test-user-service-jwt-secret-32-bytes-distinct
+        audience: aienie-userservice-grpc
+        ttl-seconds: 300
+        scopes: user.auth.session.read
+      pay:
+        caller-id: ainovel
+        issuer: ainovel
+        service-name: ainovel
+        secret: test-pay-service-jwt-secret-32-bytes-distinct
+        audience: aienie-payservice-grpc
+        role: SERVICE
+        ttl-seconds: 300
+        scopes: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read
+        legacy-static-token: ''

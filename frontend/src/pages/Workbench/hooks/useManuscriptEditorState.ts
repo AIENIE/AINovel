@@ -4,6 +4,7 @@ import type { Manuscript } from "@/types";
 import { countWords, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { useWritingSession } from "./useWritingSession";
 import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ToastFn = (options: {
   description?: string;
@@ -101,8 +102,9 @@ export function useManuscriptEditorState({
   }, [primeSceneHtml, sceneDrafts, sceneKey, selectedManuscript, selectedSceneId]);
 
   useEffect(() => {
-    Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
-    return () => Object.values(saveTimer.current).forEach((timer) => window.clearTimeout(timer));
+    const timers = saveTimer.current;
+    Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+    return () => Object.values(timers).forEach((timer) => window.clearTimeout(timer));
   }, []);
 
   const persistSection = useCallback(
@@ -114,23 +116,29 @@ export function useManuscriptEditorState({
       }
       setIsSaving(true);
       try {
-        const saved = await api.manuscripts.saveSection(selectedManuscriptId, sceneId, html);
+        if (!selectedManuscript) throw new Error(t("editorState.noServerSection"));
+        const saved = await api.manuscripts.saveSection(
+          selectedManuscriptId,
+          sceneId,
+          html,
+          selectedManuscript.version,
+        );
         replaceManuscript(saved);
         setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] || html }));
         setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
         setLastSavedAt(new Date().toLocaleTimeString());
         if (!silent) toast({ title: t("editorState.saved") });
-      } catch (e: any) {
+      } catch (e: unknown) {
         toast({
           variant: "destructive",
           title: silent ? t("editorState.autoSaveFailed") : t("editorState.saveFailed"),
-          description: e.message,
+          description: localizedErrorMessage(e),
         });
       } finally {
         setIsSaving(false);
       }
     },
-    [replaceManuscript, selectedManuscriptId, toast],
+    [replaceManuscript, selectedManuscript, selectedManuscriptId, toast],
   );
 
   const scheduleSave = useCallback(

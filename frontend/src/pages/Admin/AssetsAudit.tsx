@@ -33,7 +33,11 @@ const AssetsAudit = () => {
     setError("");
     try {
       const [stories, worlds, manuscripts] = await Promise.all(tabs.map((tab) => api.admin.listAssets(tab.key)));
-      setItems({ stories, worlds, manuscripts });
+      setItems({
+        stories: stories as unknown as AdminAssetItem[],
+        worlds: worlds as unknown as AdminAssetItem[],
+        manuscripts: manuscripts as unknown as AdminAssetItem[],
+      });
     } catch (err: unknown) {
       setError(getErrorMessage(err, "创作资产加载失败"));
     } finally {

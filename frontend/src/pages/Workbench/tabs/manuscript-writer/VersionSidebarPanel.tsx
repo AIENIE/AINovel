@@ -10,22 +10,23 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TabsContent } from "@/components/ui/tabs";
 import { formatDateTime, snapshotTypeLabel, versionWordCount } from "./shared";
+import type { NetworkObject } from "@/lib/api-client";
 
 type VersionSidebarPanelProps = {
   abandonBranch: (branchId: string) => Promise<void> | void;
   aiDiffSummary: string;
-  autoSaveConfig: any;
-  branches: any[];
+  autoSaveConfig: NetworkObject | null;
+  branches: NetworkObject[];
   createBranch: () => Promise<void> | void;
   createManualVersion: () => Promise<void> | void;
   checkoutBranch: (branchId: string) => Promise<void> | void;
   currentBranchId: string;
-  diffResult: any;
+  diffResult: NetworkObject | null;
   diffViewMode: "split" | "unified";
   hasMoreVersions: boolean;
   loadVersions: () => Promise<unknown> | void;
   mergeBranchId: string;
-  mergeConflicts: any[];
+  mergeConflicts: NetworkObject[];
   mergeSelectedBranch: (resolutions?: Record<string, "target" | "source">) => Promise<void> | void;
   mergeStrategy: "REPLACE_ALL" | "SCENE_SELECT";
   newBranchName: string;
@@ -35,7 +36,7 @@ type VersionSidebarPanelProps = {
   sceneResolutions: Record<string, "target" | "source">;
   selectedDiffVersions: string[];
   selectedManuscriptId: string;
-  setAutoSaveConfig: Dispatch<SetStateAction<any>>;
+  setAutoSaveConfig: Dispatch<SetStateAction<NetworkObject>>;
   setDiffViewMode: Dispatch<SetStateAction<"split" | "unified">>;
   setMergeBranchId: Dispatch<SetStateAction<string>>;
   setMergeStrategy: Dispatch<SetStateAction<"REPLACE_ALL" | "SCENE_SELECT">>;
@@ -45,7 +46,7 @@ type VersionSidebarPanelProps = {
   summarizeDiff: () => Promise<void> | void;
   toggleVersionSelection: (versionId: string) => void;
   versionPageSize: number;
-  visibleVersions: any[];
+  visibleVersions: NetworkObject[];
   updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
 };
 
@@ -230,7 +231,7 @@ export function VersionSidebarPanel({
               </Button>
             </div>
             {!!aiDiffSummary && <div className="rounded bg-muted p-2">{aiDiffSummary}</div>}
-            {(diffResult.changes || []).slice(0, 6).map((change: any) => (
+            {(diffResult.changes || []).slice(0, 6).map((change: NetworkObject) => (
               <div key={change.sceneId} className="rounded border p-2">
                 <div className="font-medium mb-1">{t("versionPanel.scene", { id: change.sceneId })}</div>
                 {diffViewMode === "split" ? (
@@ -255,13 +256,13 @@ export function VersionSidebarPanel({
               type="number"
               value={Number(autoSaveConfig.autoSaveIntervalSeconds || 300)}
               onChange={(event) =>
-                setAutoSaveConfig((prev: any) => ({ ...prev, autoSaveIntervalSeconds: Number(event.target.value || 300) }))
+                setAutoSaveConfig((prev: NetworkObject) => ({ ...prev, autoSaveIntervalSeconds: Number(event.target.value || 300) }))
               }
             />
             <Input
               type="number"
               value={Number(autoSaveConfig.maxAutoVersions || 100)}
-              onChange={(event) => setAutoSaveConfig((prev: any) => ({ ...prev, maxAutoVersions: Number(event.target.value || 100) }))}
+              onChange={(event) => setAutoSaveConfig((prev: NetworkObject) => ({ ...prev, maxAutoVersions: Number(event.target.value || 100) }))}
             />
             <Button size="sm" onClick={() => void saveAutoSaveConfig()}>
               {t("versionPanel.saveConfig")}

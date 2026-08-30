@@ -39,6 +39,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -109,7 +111,7 @@ class ManuscriptServiceTest {
         String acceptedText = "稿".repeat(2900);
 
         when(manuscriptRepository.findWithStoryById(manuscript.getId())).thenReturn(Optional.of(manuscript));
-        when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(manuscriptRepository.saveAndFlush(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(characterCardRepository.findByStory(story)).thenReturn(List.of(character));
         when(promptAssemblyService.assembleSceneDraft(any())).thenReturn(new AssembledPrompt(
                 List.of(new AiChatRequest.Message("user", "生成本场景")),
@@ -134,8 +136,8 @@ class ManuscriptServiceTest {
         assertEquals(manuscript.getId(), dto.id());
         assertTrue(dto.sections().get(targetSceneId.toString()).startsWith("<p>稿稿稿"));
         assertEquals("<p>上一场景留下铜扣线索。</p>", dto.sections().get(previousSceneId.toString()));
-        verify(accessGuard).assertOwner(owner);
-        verify(manuscriptRepository).save(manuscript);
+        verify(accessGuard, times(2)).assertOwner(owner);
+        verify(manuscriptRepository).saveAndFlush(manuscript);
 
         ArgumentCaptor<SlopQualityRequest> gateRequestCaptor = ArgumentCaptor.forClass(SlopQualityRequest.class);
         verify(slopQualityGate).evaluateAndRepair(eq(owner), gateRequestCaptor.capture());
@@ -276,6 +278,10 @@ class ManuscriptServiceTest {
         ReflectionTestUtils.setField(service, "sceneGenerationSnapshotStore", snapshotStore);
         ReflectionTestUtils.setField(service, "sceneGenerationAttributionService", attributionService);
         ReflectionTestUtils.setField(service, "eventPublisher", mock(ApplicationEventPublisher.class));
+        TransactionTemplate transactions = mock(TransactionTemplate.class);
+        when(transactions.execute(any())).thenAnswer(invocation ->
+                ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
+        ReflectionTestUtils.setField(service, "transactionTemplate", transactions);
         return service;
     }
 

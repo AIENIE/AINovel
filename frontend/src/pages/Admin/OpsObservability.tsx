@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
@@ -53,12 +54,12 @@ const fmt = (value: unknown) => {
 };
 
 const OpsObservability = () => {
-  const [summary, setSummary] = useState<any>(null);
+  const [summary, setSummary] = useState<NetworkObject | null>(null);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
   const [events, setEvents] = useState<OpsRecordPage | null>(null);
   const [audit, setAudit] = useState<OpsRecordPage | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [diagnostics, setDiagnostics] = useState<Record<string, unknown> | null>(null);
+  const [diagnostics, setDiagnostics] = useState<Record<string, NetworkObject> | null>(null);
   const [activeView, setActiveView] = useState<"events" | "audit">("events");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,11 +77,11 @@ const OpsObservability = () => {
         api.admin.listAuditRecords({ page: 0, size: 20 }),
       ]);
       setSummary(summaryData);
-      setDependencies(dependencyData || []);
-      setAlerts(alertData || []);
-      setDiagnostics(diagnosticsData || null);
-      setEvents(eventData || null);
-      setAudit(auditData || null);
+      setDependencies((dependencyData || []) as unknown as Dependency[]);
+      setAlerts((alertData || []) as unknown as AlertItem[]);
+      setDiagnostics((diagnosticsData || null) as unknown as Record<string, NetworkObject> | null);
+      setEvents((eventData || null) as unknown as OpsRecordPage | null);
+      setAudit((auditData || null) as unknown as OpsRecordPage | null);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "运维观测数据加载失败"));
     } finally {

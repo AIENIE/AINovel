@@ -9,6 +9,9 @@ public class ExternalServiceProperties {
 
     private String projectKey = "ainovel";
     private long timeoutMs = 2500;
+    private long aiTimeoutMs = 60_000;
+    private long billingTimeoutMs = 5_000;
+    private long sessionTimeoutMs = 3_000;
     private final Grpc grpc = new Grpc();
     private final Security security = new Security();
     private final ServiceTarget userserviceHttp = new ServiceTarget();
@@ -17,8 +20,8 @@ public class ExternalServiceProperties {
 
     public ExternalServiceProperties() {
         userserviceHttp.setAddress("https://userservice.seekerhut.com");
-        aiserviceGrpc.setAddress("static://aiservice.seekerhut.com:443");
-        payserviceGrpc.setAddress("static://payservice.seekerhut.com:443");
+        aiserviceGrpc.setAddress("static://aiservice.seekerhut.com:12011");
+        payserviceGrpc.setAddress("static://payservice.seekerhut.com:12021");
     }
 
     public String getProjectKey() {
@@ -36,6 +39,13 @@ public class ExternalServiceProperties {
     public void setTimeoutMs(long timeoutMs) {
         this.timeoutMs = timeoutMs;
     }
+
+    public long getAiTimeoutMs() { return aiTimeoutMs; }
+    public void setAiTimeoutMs(long aiTimeoutMs) { this.aiTimeoutMs = aiTimeoutMs; }
+    public long getBillingTimeoutMs() { return billingTimeoutMs; }
+    public void setBillingTimeoutMs(long billingTimeoutMs) { this.billingTimeoutMs = billingTimeoutMs; }
+    public long getSessionTimeoutMs() { return sessionTimeoutMs; }
+    public void setSessionTimeoutMs(long sessionTimeoutMs) { this.sessionTimeoutMs = sessionTimeoutMs; }
 
     public Grpc getGrpc() {
         return grpc;
@@ -148,62 +158,91 @@ public class ExternalServiceProperties {
     }
 
     public static class User {
-        private String internalGrpcToken = "";
+        private String callerId = "ainovel";
+        private String issuer = "ainovel";
+        private String secret = "";
+        private String audience = UserServiceJwtConfigurationValidator.REQUIRED_AUDIENCE;
+        private long ttlSeconds = 300L;
+        private String scopes = UserServiceJwtConfigurationValidator.REQUIRED_SCOPE;
 
-        public String getInternalGrpcToken() {
-            return internalGrpcToken;
+        public String getCallerId() {
+            return callerId;
         }
 
-        public void setInternalGrpcToken(String internalGrpcToken) {
-            this.internalGrpcToken = internalGrpcToken;
+        public void setCallerId(String callerId) {
+            this.callerId = callerId;
+        }
+
+        public String getIssuer() {
+            return issuer;
+        }
+
+        public void setIssuer(String issuer) {
+            this.issuer = issuer;
+        }
+
+        public String getSecret() {
+            return secret;
+        }
+
+        public void setSecret(String secret) {
+            this.secret = secret;
+        }
+
+        public String getAudience() {
+            return audience;
+        }
+
+        public void setAudience(String audience) {
+            this.audience = audience;
+        }
+
+        public long getTtlSeconds() {
+            return ttlSeconds;
+        }
+
+        public void setTtlSeconds(long ttlSeconds) {
+            this.ttlSeconds = ttlSeconds;
+        }
+
+        public String getScopes() {
+            return scopes;
+        }
+
+        public void setScopes(String scopes) {
+            this.scopes = scopes;
         }
     }
 
     public static class Pay {
-        private String serviceJwt = "";
-        private String jwtIssuer = "aienie-services";
-        private String jwtAudience = "aienie-payservice-grpc";
-        private String requiredRole = "SERVICE";
-        private String requiredScopes = "billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read";
+        private String callerId = PayServiceJwtConfigurationValidator.REQUIRED_CALLER_ID;
+        private String issuer = PayServiceJwtConfigurationValidator.REQUIRED_CALLER_ID;
+        private String serviceName = PayServiceJwtConfigurationValidator.REQUIRED_CALLER_ID;
+        private String secret = "";
+        private String audience = PayServiceJwtConfigurationValidator.REQUIRED_AUDIENCE;
+        private String role = PayServiceJwtConfigurationValidator.REQUIRED_ROLE;
+        private long ttlSeconds = 300L;
+        private String scopes = String.join(",", PayServiceJwtConfigurationValidator.REQUIRED_SCOPES);
+        /** Detection-only compatibility input. It is never attached to an RPC. */
+        private String legacyStaticToken = "";
 
-        public String getServiceJwt() {
-            return serviceJwt;
-        }
-
-        public void setServiceJwt(String serviceJwt) {
-            this.serviceJwt = serviceJwt;
-        }
-
-        public String getJwtIssuer() {
-            return jwtIssuer;
-        }
-
-        public void setJwtIssuer(String jwtIssuer) {
-            this.jwtIssuer = jwtIssuer;
-        }
-
-        public String getJwtAudience() {
-            return jwtAudience;
-        }
-
-        public void setJwtAudience(String jwtAudience) {
-            this.jwtAudience = jwtAudience;
-        }
-
-        public String getRequiredRole() {
-            return requiredRole;
-        }
-
-        public void setRequiredRole(String requiredRole) {
-            this.requiredRole = requiredRole;
-        }
-
-        public String getRequiredScopes() {
-            return requiredScopes;
-        }
-
-        public void setRequiredScopes(String requiredScopes) {
-            this.requiredScopes = requiredScopes;
-        }
+        public String getCallerId() { return callerId; }
+        public void setCallerId(String callerId) { this.callerId = callerId; }
+        public String getIssuer() { return issuer; }
+        public void setIssuer(String issuer) { this.issuer = issuer; }
+        public String getServiceName() { return serviceName; }
+        public void setServiceName(String serviceName) { this.serviceName = serviceName; }
+        public String getSecret() { return secret; }
+        public void setSecret(String secret) { this.secret = secret; }
+        public String getAudience() { return audience; }
+        public void setAudience(String audience) { this.audience = audience; }
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+        public long getTtlSeconds() { return ttlSeconds; }
+        public void setTtlSeconds(long ttlSeconds) { this.ttlSeconds = ttlSeconds; }
+        public String getScopes() { return scopes; }
+        public void setScopes(String scopes) { this.scopes = scopes; }
+        public String getLegacyStaticToken() { return legacyStaticToken; }
+        public void setLegacyStaticToken(String legacyStaticToken) { this.legacyStaticToken = legacyStaticToken; }
     }
 }

@@ -26,6 +26,9 @@ public class G2EvaluationSample {
     @Lob @Column(name = "crafted_text", columnDefinition = "mediumtext") private String craftedText;
     @Column(length = 500) private String failureMessage;
     private Instant refundedAt;
+    @Column(length = 100) private String leaseOwner;
+    private Instant leaseExpiresAt;
+    private int attemptCount;
     @CreationTimestamp private Instant createdAt;
     @UpdateTimestamp private Instant updatedAt;
 
@@ -48,6 +51,12 @@ public class G2EvaluationSample {
     public void setFailureMessage(String failureMessage) { this.failureMessage = failureMessage; }
     public Instant getRefundedAt() { return refundedAt; }
     public void setRefundedAt(Instant refundedAt) { this.refundedAt = refundedAt; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String value) { this.leaseOwner = value; }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt = value; }
+    public int getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(int value) { this.attemptCount = value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

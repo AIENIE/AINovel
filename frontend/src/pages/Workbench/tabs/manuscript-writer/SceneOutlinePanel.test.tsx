@@ -30,6 +30,7 @@ const manuscripts: Manuscript[] = [
     id: "manuscript-1",
     outlineId: "outline-1",
     title: "初稿",
+    version: 0,
     sections: {},
     updatedAt: "2026-07-06T00:00:00Z",
   },

@@ -13,4 +13,5 @@ public record ManuscriptDto(UUID id,
                             Map<String, String> sections,
                             @JsonInclude(JsonInclude.Include.NON_NULL)
                             SceneGenerationRunSummaryDto lastGenerationRun,
+                            long version,
                             Instant updatedAt) {}

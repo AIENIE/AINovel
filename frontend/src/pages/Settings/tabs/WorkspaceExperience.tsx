@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
@@ -15,9 +16,9 @@ import { localizedErrorMessage } from "@/lib/error-messages";
 const WorkspaceExperience = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [layouts, setLayouts] = useState<any[]>([]);
-  const [shortcuts, setShortcuts] = useState<any[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
+  const [layouts, setLayouts] = useState<NetworkObject[]>([]);
+  const [shortcuts, setShortcuts] = useState<NetworkObject[]>([]);
+  const [goals, setGoals] = useState<NetworkObject[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
 
   const [layoutName, setLayoutName] = useState(t("workspaceExperience.defaultLayoutName"));
@@ -47,7 +48,7 @@ const WorkspaceExperience = () => {
   };
 
   useEffect(() => {
-    loadData().catch((error: any) => toast({ variant: "destructive", title: t("workspaceExperience.loadFailed"), description: localizedErrorMessage(error, "workspaceExperience.loadFailed") }));
+    loadData().catch((error: NetworkObject) => toast({ variant: "destructive", title: t("workspaceExperience.loadFailed"), description: localizedErrorMessage(error, "workspaceExperience.loadFailed") }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,7 +58,7 @@ const WorkspaceExperience = () => {
       await api.v2.workspace.createLayout({ name: layoutName, layout: parsed, isActive: true });
       await loadData();
       toast({ title: t("workspaceExperience.layoutCreated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("workspaceExperience.layoutCreateFailed"), description: localizedErrorMessage(error, "workspaceExperience.layoutCreateFailed") });
     }
   };
@@ -81,7 +82,7 @@ const WorkspaceExperience = () => {
       await loadData();
       window.dispatchEvent(new Event("ainovel-shortcuts-updated"));
       toast({ title: t("workspaceExperience.shortcutUpdated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("workspaceExperience.shortcutUpdateFailed"), description: localizedErrorMessage(error, "workspaceExperience.shortcutUpdateFailed") });
     }
   };
@@ -97,7 +98,7 @@ const WorkspaceExperience = () => {
       });
       await loadData();
       toast({ title: t("workspaceExperience.goalCreated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("workspaceExperience.goalCreateFailed"), description: localizedErrorMessage(error, "workspaceExperience.goalCreateFailed") });
     }
   };

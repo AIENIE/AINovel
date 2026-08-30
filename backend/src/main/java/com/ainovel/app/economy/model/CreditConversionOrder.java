@@ -69,6 +69,10 @@ public class CreditConversionOrder {
 
     @Column(name = "remote_message", length = 500)
     private String remoteMessage;
+    private int attemptCount;
+    private Instant nextAttemptAt;
+    @Column(length = 100) private String leaseOwner;
+    private Instant leaseExpiresAt;
 
     @CreationTimestamp
     private Instant createdAt;
@@ -179,6 +183,14 @@ public class CreditConversionOrder {
     public void setRemoteMessage(String remoteMessage) {
         this.remoteMessage = remoteMessage;
     }
+    public int getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(int value) { this.attemptCount = value; }
+    public Instant getNextAttemptAt() { return nextAttemptAt; }
+    public void setNextAttemptAt(Instant value) { this.nextAttemptAt = value; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String value) { this.leaseOwner = value; }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt = value; }
 
     public Instant getCreatedAt() {
         return createdAt;

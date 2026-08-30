@@ -1,7 +1,7 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api-client";
+import { api, type NetworkObject } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ interface StyleProfilesProps {
   initialStoryId?: string;
 }
 
-const normalizeDimensionScore = (value: any, fallback = 6) => {
+const normalizeDimensionScore = (value: unknown, fallback = 6) => {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
   if (num <= 10 && num >= 1) return Math.round(num);
@@ -61,7 +61,7 @@ const normalizeDimensionScore = (value: any, fallback = 6) => {
   return fallback;
 };
 
-const toDialogueSamples = (raw: any): DialogueSample[] => {
+const toDialogueSamples = (raw: NetworkObject): DialogueSample[] => {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((item) => {
@@ -74,7 +74,7 @@ const toDialogueSamples = (raw: any): DialogueSample[] => {
     .filter((item): item is DialogueSample => !!item && !!item.line.trim());
 };
 
-const mapAnalysisDimensions = (analysisResult: any) => {
+const mapAnalysisDimensions = (analysisResult: NetworkObject) => {
   const raw = analysisResult?.result || analysisResult || {};
   const mapped = buildDefaultDimensions(6);
   const keyMap: Record<string, string> = {
@@ -125,17 +125,17 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
   const [storyId, setStoryId] = useState(initialStoryId || "");
-  const [characters, setCharacters] = useState<any[]>([]);
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [voices, setVoices] = useState<any[]>([]);
+  const [characters, setCharacters] = useState<NetworkObject[]>([]);
+  const [profiles, setProfiles] = useState<NetworkObject[]>([]);
+  const [voices, setVoices] = useState<NetworkObject[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [selectedVoiceId, setSelectedVoiceId] = useState("");
   const [compareProfileA, setCompareProfileA] = useState("");
   const [compareProfileB, setCompareProfileB] = useState("");
   const [analysisText, setAnalysisText] = useState("");
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const [profileForm, setProfileForm] = useState<any>(emptyProfileForm);
-  const [voiceForm, setVoiceForm] = useState<any>(emptyVoiceForm);
+  const [analysisResult, setAnalysisResult] = useState<NetworkObject | null>(null);
+  const [profileForm, setProfileForm] = useState<NetworkObject>(emptyProfileForm);
+  const [voiceForm, setVoiceForm] = useState<NetworkObject>(emptyVoiceForm);
   const [catchphraseInput, setCatchphraseInput] = useState("");
   const [emotionInput, setEmotionInput] = useState("");
   const [sampleContextInput, setSampleContextInput] = useState("");
@@ -148,14 +148,12 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       .list()
       .then((list) => {
         setStories(list);
-        if (!storyId && list.length > 0) {
-          setStoryId(initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0].id);
-        }
+        setStoryId((current) => current || (initialStoryId && list.some((story) => story.id === initialStoryId) ? initialStoryId : list[0]?.id || ""));
       })
-      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
-  }, []);
+      .catch((error: NetworkObject) => toast({ variant: "destructive", title: t("errors.loadStoriesFailed"), description: localizedErrorMessage(error, "errors.loadStoriesFailed") }));
+  }, [initialStoryId, t, toast]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!storyId) return;
     const [profileList, voiceList, characterList] = await Promise.all([
       api.v2.style.listProfiles(storyId),
@@ -165,7 +163,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     setProfiles(profileList);
     setVoices(voiceList);
     setCharacters(characterList);
-  };
+  }, [storyId]);
 
   useEffect(() => {
     setSelectedProfileId("");
@@ -175,9 +173,9 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     if (!storyId) return;
     setLoading(true);
     loadData()
-      .catch((error: any) => toast({ variant: "destructive", title: t("errors.loadStyleDataFailed"), description: localizedErrorMessage(error, "errors.loadStyleDataFailed") }))
+      .catch((error: NetworkObject) => toast({ variant: "destructive", title: t("errors.loadStyleDataFailed"), description: localizedErrorMessage(error, "errors.loadStyleDataFailed") }))
       .finally(() => setLoading(false));
-  }, [storyId]);
+  }, [loadData, storyId, t, toast]);
 
   useEffect(() => {
     if (!profiles.length) return;
@@ -201,7 +199,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       },
       sceneOverrides:
         profile.sceneOverrides && profile.sceneOverrides.length
-          ? profile.sceneOverrides.map((override: any) => ({
+          ? profile.sceneOverrides.map((override: NetworkObject) => ({
               sceneType: override.sceneType || "action",
               dimensions: {
                 ...baseDimensions,
@@ -251,7 +249,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       await loadData();
       toast({ title: t("style.profileSaved") });
       setVoicePreview("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
@@ -264,7 +262,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       setSelectedProfileId("");
       setProfileForm(emptyProfileForm);
       toast({ title: t("style.profileDeleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     }
   };
@@ -275,7 +273,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       await api.v2.style.activateProfile(storyId, profileId);
       await loadData();
       toast({ title: t("style.profileActivated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.activateFailed"), description: localizedErrorMessage(error, "errors.activateFailed") });
     }
   };
@@ -285,7 +283,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       const result = await api.v2.style.analyze({ sourceType: "uploaded_text", sourceReference: "settings-style", sampleText: analysisText });
       setAnalysisResult(result);
       toast({ title: t("style.analysisDone") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.analysisFailed"), description: localizedErrorMessage(error, "errors.analysisFailed") });
     }
   };
@@ -303,7 +301,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       });
       await loadData();
       toast({ title: t("style.profileCreatedFromAnalysis") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.createFailed"), description: localizedErrorMessage(error, "errors.createFailed") });
     }
   };
@@ -323,7 +321,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       const nextVoiceId = String(savedVoice?.id || voiceForm.id || "");
       if (nextVoiceId) setSelectedVoiceId(nextVoiceId);
       toast({ title: t("style.voiceSaved") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
@@ -337,7 +335,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       setVoiceForm(emptyVoiceForm);
       setVoicePreview("");
       toast({ title: t("style.voiceDeleted") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") });
     }
   };
@@ -349,7 +347,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       await api.v2.style.generateVoice(storyId, voiceForm.id, { characterName: selectedCharacter?.name || t("style.characterFallback") });
       await loadData();
       toast({ title: t("style.voiceGenerated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(error, "errors.generateFailed") });
     }
   };
@@ -411,11 +409,11 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("style.profileName")}</Label>
-                <Input value={profileForm.name || ""} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, name: event.target.value }))} />
+                <Input value={profileForm.name || ""} onChange={(event) => setProfileForm((prev: NetworkObject) => ({ ...prev, name: event.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label>{t("style.type")}</Label>
-                <Select value={profileForm.profileType || "narrative"} onValueChange={(value) => setProfileForm((prev: any) => ({ ...prev, profileType: value }))}>
+                <Select value={profileForm.profileType || "narrative"} onValueChange={(value) => setProfileForm((prev: NetworkObject) => ({ ...prev, profileType: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="narrative">{t("style.typeNarrative")}</SelectItem>
@@ -434,8 +432,8 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
                     <Badge variant="outline">{Number(profileForm.dimensions?.[item.key] ?? 6)}</Badge>
                   </div>
                   <div className="text-[11px] text-muted-foreground flex justify-between"><span>{t(item.minHintKey)}</span><span>{t(item.maxHintKey)}</span></div>
-                  <Slider min={1} max={10} step={1} value={[Number(profileForm.dimensions?.[item.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: any) => ({ ...prev, dimensions: { ...(prev.dimensions || {}), [item.key]: Number(value[0] ?? 6) } }))} />
-                  <Input placeholder={t("style.dimensionNotePlaceholder")} value={String(profileForm.dimensionNotes?.[item.key] || "")} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, dimensionNotes: { ...(prev.dimensionNotes || {}), [item.key]: event.target.value } }))} />
+                  <Slider min={1} max={10} step={1} value={[Number(profileForm.dimensions?.[item.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: NetworkObject) => ({ ...prev, dimensions: { ...(prev.dimensions || {}), [item.key]: Number(value[0] ?? 6) } }))} />
+                  <Input placeholder={t("style.dimensionNotePlaceholder")} value={String(profileForm.dimensionNotes?.[item.key] || "")} onChange={(event) => setProfileForm((prev: NetworkObject) => ({ ...prev, dimensionNotes: { ...(prev.dimensionNotes || {}), [item.key]: event.target.value } }))} />
                 </div>
               ))}
             </div>
@@ -443,14 +441,14 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
             <div className="space-y-2">
               <Label>{t("style.sceneOverrides")}</Label>
               <div className="space-y-2">
-                {(profileForm.sceneOverrides || []).map((override: any, index: number) => (
+                {(profileForm.sceneOverrides || []).map((override: NetworkObject, index: number) => (
                   <div key={`${override.sceneType}-${index}`} className="rounded border p-2 space-y-2">
                     <div className="font-medium text-sm">{override.sceneType}</div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                       {STYLE_DIMENSIONS.map((dim) => (
                         <div key={`${override.sceneType}-${dim.key}`} className="space-y-1">
                           <Label className="text-xs">{t(dim.labelKey)}</Label>
-                          <Slider min={1} max={10} step={1} value={[Number(override.dimensions?.[dim.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: any) => { const nextOverrides = [...(prev.sceneOverrides || [])]; const target = { ...nextOverrides[index] }; target.dimensions = { ...(target.dimensions || {}), [dim.key]: Number(value[0] ?? 6) }; nextOverrides[index] = target; return { ...prev, sceneOverrides: nextOverrides }; })} />
+                          <Slider min={1} max={10} step={1} value={[Number(override.dimensions?.[dim.key] ?? 6)]} onValueChange={(value) => setProfileForm((prev: NetworkObject) => { const nextOverrides = [...(prev.sceneOverrides || [])]; const target = { ...nextOverrides[index] }; target.dimensions = { ...(target.dimensions || {}), [dim.key]: Number(value[0] ?? 6) }; nextOverrides[index] = target; return { ...prev, sceneOverrides: nextOverrides }; })} />
                         </div>
                       ))}
                     </div>
@@ -460,7 +458,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
             </div>
             <div className="space-y-2">
               <Label>{t("style.sampleText")}</Label>
-              <Textarea className="min-h-[120px]" value={profileForm.sampleText || ""} onChange={(event) => setProfileForm((prev: any) => ({ ...prev, sampleText: event.target.value }))} />
+              <Textarea className="min-h-[120px]" value={profileForm.sampleText || ""} onChange={(event) => setProfileForm((prev: NetworkObject) => ({ ...prev, sampleText: event.target.value }))} />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={saveProfile} disabled={!storyId}>{t("style.saveProfile")}</Button>
@@ -495,7 +493,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
             </div>
             <div className="space-y-2">
               <Label>{t("style.character")}</Label>
-              <Select value={voiceForm.characterCardId || ""} onValueChange={(value) => setVoiceForm((prev: any) => ({ ...prev, characterCardId: value }))}>
+              <Select value={voiceForm.characterCardId || ""} onValueChange={(value) => setVoiceForm((prev: NetworkObject) => ({ ...prev, characterCardId: value }))}>
                 <SelectTrigger><SelectValue placeholder={t("style.selectCharacterCard")} /></SelectTrigger>
                 <SelectContent>{characters.map((character) => <SelectItem key={character.id} value={String(character.id)}>{character.name}</SelectItem>)}</SelectContent>
               </Select>
@@ -503,28 +501,28 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>{t("style.vocabularyLevel")}</Label>
-                <Select value={voiceForm.vocabularyLevel || "colloquial"} onValueChange={(value) => setVoiceForm((prev: any) => ({ ...prev, vocabularyLevel: value }))}>
+                <Select value={voiceForm.vocabularyLevel || "colloquial"} onValueChange={(value) => setVoiceForm((prev: NetworkObject) => ({ ...prev, vocabularyLevel: value }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{VOCABULARY_LEVELS.map((item) => <SelectItem key={item} value={item}>{t(`style.vocab.${item}`)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label>{t("style.dialect")}</Label><Input value={voiceForm.dialect || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, dialect: event.target.value }))} /></div>
+              <div className="space-y-2"><Label>{t("style.dialect")}</Label><Input value={voiceForm.dialect || ""} onChange={(event) => setVoiceForm((prev: NetworkObject) => ({ ...prev, dialect: event.target.value }))} /></div>
             </div>
-            <div className="space-y-2"><Label>{t("style.speechPattern")}</Label><Textarea value={voiceForm.speechPattern || ""} onChange={(event) => setVoiceForm((prev: any) => ({ ...prev, speechPattern: event.target.value }))} className="min-h-[100px]" /></div>
+            <div className="space-y-2"><Label>{t("style.speechPattern")}</Label><Textarea value={voiceForm.speechPattern || ""} onChange={(event) => setVoiceForm((prev: NetworkObject) => ({ ...prev, speechPattern: event.target.value }))} className="min-h-[100px]" /></div>
             <div className="space-y-2">
               <Label>{t("style.catchphrases")}</Label>
-              <div className="flex gap-2"><Input value={catchphraseInput} onChange={(event) => setCatchphraseInput(event.target.value)} placeholder={t("style.catchphrasePlaceholder")} /><Button variant="outline" onClick={() => { const value = catchphraseInput.trim(); if (!value) return; setVoiceForm((prev: any) => ({ ...prev, catchphrases: [...(prev.catchphrases || []), value] })); setCatchphraseInput(""); }}>{t("common.add")}</Button></div>
-              <div className="flex flex-wrap gap-2">{(voiceForm.catchphrases || []).map((item: string) => <Badge key={item} variant="outline" className="cursor-pointer" onClick={() => setVoiceForm((prev: any) => ({ ...prev, catchphrases: (prev.catchphrases || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
+              <div className="flex gap-2"><Input value={catchphraseInput} onChange={(event) => setCatchphraseInput(event.target.value)} placeholder={t("style.catchphrasePlaceholder")} /><Button variant="outline" onClick={() => { const value = catchphraseInput.trim(); if (!value) return; setVoiceForm((prev: NetworkObject) => ({ ...prev, catchphrases: [...(prev.catchphrases || []), value] })); setCatchphraseInput(""); }}>{t("common.add")}</Button></div>
+              <div className="flex flex-wrap gap-2">{(voiceForm.catchphrases || []).map((item: string) => <Badge key={item} variant="outline" className="cursor-pointer" onClick={() => setVoiceForm((prev: NetworkObject) => ({ ...prev, catchphrases: (prev.catchphrases || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
             </div>
             <div className="space-y-2">
               <Label>{t("style.emotionalRange")}</Label>
-              <div className="flex gap-2"><Select value={emotionInput} onValueChange={setEmotionInput}><SelectTrigger><SelectValue placeholder={t("style.selectEmotion")} /></SelectTrigger><SelectContent>{DEFAULT_EMOTIONS.map((emotion) => <SelectItem key={emotion.value} value={emotion.value}>{t(emotion.labelKey)}</SelectItem>)}</SelectContent></Select><Button variant="outline" onClick={() => { const value = emotionInput.trim(); if (!value || (voiceForm.emotionalRange || []).includes(value)) return; setVoiceForm((prev: any) => ({ ...prev, emotionalRange: [...(prev.emotionalRange || []), value] })); setEmotionInput(""); }}>{t("common.add")}</Button></div>
-              <div className="flex flex-wrap gap-2">{(voiceForm.emotionalRange || []).map((item: string) => <Badge key={item} variant="secondary" className="cursor-pointer" onClick={() => setVoiceForm((prev: any) => ({ ...prev, emotionalRange: (prev.emotionalRange || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
+              <div className="flex gap-2"><Select value={emotionInput} onValueChange={setEmotionInput}><SelectTrigger><SelectValue placeholder={t("style.selectEmotion")} /></SelectTrigger><SelectContent>{DEFAULT_EMOTIONS.map((emotion) => <SelectItem key={emotion.value} value={emotion.value}>{t(emotion.labelKey)}</SelectItem>)}</SelectContent></Select><Button variant="outline" onClick={() => { const value = emotionInput.trim(); if (!value || (voiceForm.emotionalRange || []).includes(value)) return; setVoiceForm((prev: NetworkObject) => ({ ...prev, emotionalRange: [...(prev.emotionalRange || []), value] })); setEmotionInput(""); }}>{t("common.add")}</Button></div>
+              <div className="flex flex-wrap gap-2">{(voiceForm.emotionalRange || []).map((item: string) => <Badge key={item} variant="secondary" className="cursor-pointer" onClick={() => setVoiceForm((prev: NetworkObject) => ({ ...prev, emotionalRange: (prev.emotionalRange || []).filter((value: string) => value !== item) }))}>{item} ×</Badge>)}</div>
             </div>
             <div className="space-y-2">
               <Label>{t("style.sampleDialogues")}</Label>
               <div className="grid grid-cols-3 gap-2"><Input value={sampleContextInput} onChange={(event) => setSampleContextInput(event.target.value)} placeholder={t("style.sampleContextPlaceholder")} /><Input className="col-span-2" value={sampleLineInput} onChange={(event) => setSampleLineInput(event.target.value)} placeholder={t("style.sampleLinePlaceholder")} /></div>
-              <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim(); setVoiceForm((prev: any) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>{t("style.addSample")}</Button>
+              <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim(); setVoiceForm((prev: NetworkObject) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>{t("style.addSample")}</Button>
               <ScrollArea className="h-24 rounded-md border p-2"><div className="space-y-1 text-sm">{(voiceForm.sampleDialogues || []).map((item: DialogueSample, index: number) => <div key={`${item.context}-${item.line}-${index}`} className="rounded border p-1"><div className="text-xs text-muted-foreground">{item.context ? `[${item.context}]` : ""}</div><div>{item.line}</div></div>)}</div></ScrollArea>
             </div>
             <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="secondary" onClick={() => void generateVoice()} disabled={!voiceForm.id}>{t("style.aiGenerate")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>

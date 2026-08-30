@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
-import type { Manuscript } from "@/types";
+import type { Manuscript, PlotQualityRun, PlotQualityTrend, SlopQualityRun } from "@/types";
 import { qualityStatusText, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 type GenerationMode = "fast" | "crafted";
 
@@ -14,8 +15,8 @@ type ToastFn = (options: {
 }) => void;
 
 type UseManuscriptSceneGenerationOptions = {
-  loadPlotQuality: (sceneId?: string, manuscriptId?: string) => Promise<{ run: unknown; trend: unknown }>;
-  loadSlopQuality: (sceneId?: string, manuscriptId?: string) => Promise<unknown>;
+  loadPlotQuality: (sceneId?: string, manuscriptId?: string) => Promise<{ run: PlotQualityRun | null; trend: PlotQualityTrend | null }>;
+  loadSlopQuality: (sceneId?: string, manuscriptId?: string) => Promise<SlopQualityRun | null>;
   applyServerSection: (manuscript: Manuscript, sceneId: string) => void;
   cancelPendingSectionSave: (sceneId: string) => void;
   selectedManuscriptId: string;
@@ -67,10 +68,10 @@ export function useManuscriptSceneGeneration({
       await loadPlotQuality(sceneId, saved.id).catch((): { run: null; trend: null } => ({ run: null, trend: null }));
       toast({
         title: t("sceneGeneration.generated"),
-        description: qualityStatusText(latestRun as any),
+        description: qualityStatusText(latestRun),
       });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("sceneGeneration.generationFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("sceneGeneration.generationFailed"), description: localizedErrorMessage(e) });
     } finally {
       setIsGenerating(false);
     }

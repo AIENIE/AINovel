@@ -18,7 +18,7 @@ type SceneRow = {
   chapterTitle: string;
   sceneIndex: number;
   chapterIndex: number;
-  scene: any;
+  scene: unknown;
   id: string;
   displayName: string;
 };
@@ -86,7 +86,7 @@ export function useManuscriptSelectionData({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const stories = storiesQuery.data ?? [];
+  const stories = useMemo(() => storiesQuery.data ?? [], [storiesQuery.data]);
 
   const charactersQuery = useQuery({
     queryKey: charactersQueryKey(selectedStoryId),
@@ -106,7 +106,7 @@ export function useManuscriptSelectionData({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const outlines = outlinesQuery.data ?? [];
+  const outlines = useMemo(() => outlinesQuery.data ?? [], [outlinesQuery.data]);
 
   const manuscriptsQuery = useQuery({
     queryKey: manuscriptsQueryKey(selectedOutlineId),
@@ -116,7 +116,7 @@ export function useManuscriptSelectionData({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const manuscripts = manuscriptsQuery.data ?? [];
+  const manuscripts = useMemo(() => manuscriptsQuery.data ?? [], [manuscriptsQuery.data]);
 
   const selectedStory = useMemo(
     () => stories.find((story) => story.id === selectedStoryId) || null,

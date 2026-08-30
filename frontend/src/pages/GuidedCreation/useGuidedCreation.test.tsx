@@ -21,7 +21,7 @@ describe("useGuidedCreation", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("keeps explicit new-draft mode blank instead of restoring a failed run", async () => {
-    vi.spyOn(api.creationWorkflows, "list").mockResolvedValue([failedRun] as any);
+    vi.spyOn(api.creationWorkflows, "list").mockResolvedValue([failedRun] as never);
     const wrapper = ({ children }: PropsWithChildren) => (
       <MemoryRouter initialEntries={["/novels/quick-create?new=1"]}>{children}</MemoryRouter>
     );
@@ -34,7 +34,7 @@ describe("useGuidedCreation", () => {
   });
 
   it("does not reselect the failed run after the user clicks new draft", async () => {
-    vi.spyOn(api.creationWorkflows, "list").mockResolvedValue([failedRun] as any);
+    vi.spyOn(api.creationWorkflows, "list").mockResolvedValue([failedRun] as never);
     const wrapper = ({ children }: PropsWithChildren) => (
       <MemoryRouter initialEntries={["/novels/quick-create"]}>{children}</MemoryRouter>
     );

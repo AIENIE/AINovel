@@ -87,9 +87,9 @@ class V2ContextControllerTests {
                 "reviewAction", "approved"
         ))).thenReturn(reviewedPayload);
 
-        Map<String, Object> reviewed = controller.reviewExtraction(principal, storyId, extractionId, Map.of(
+        Map<String, Object> reviewed = controller.reviewExtraction(principal, storyId, extractionId, V2RequestPayload.of(Map.of(
                 "reviewAction", "approved"
-        ));
+        )));
 
         assertEquals(true, reviewed.get("reviewed"));
         assertEquals("approved", reviewed.get("reviewAction"));
@@ -229,13 +229,13 @@ class V2ContextControllerTests {
 
     @Test
     void importLorebookShouldDelegateEachEntryToPersistenceService() {
-        controller.importLorebook(principal, storyId, Map.of(
+        controller.importLorebook(principal, storyId, V2RequestPayload.of(Map.of(
                 "entries", List.of(
                         Map.of("displayName", "角色设定", "category", "character"),
                         Map.of("displayName", "地点设定", "category", "location"),
                         "ignored"
                 )
-        ));
+        )));
 
         verify(persistenceService).createLorebook(eq(user), any(Story.class), eq(new HashMap<>(Map.of(
                 "displayName", "角色设定",

@@ -13,7 +13,11 @@ public class NoopMaterialVectorIndex implements MaterialVectorIndex {
     }
 
     @Override
-    public List<VectorMatch> search(float[] vector, int limit) {
+    public void deleteMaterial(java.util.UUID materialId) {
+    }
+
+    @Override
+    public List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId) {
         return List.of();
     }
 }

@@ -13,7 +13,7 @@ describe("useManuscriptShortcuts", () => {
     vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([
       { action: "save", shortcut: "Ctrl+Shift+S" },
       { action: "next_tab", shortcut: "Alt+L" },
-    ] as any);
+    ] as never);
 
     const { result } = renderHook(() =>
       useManuscriptShortcuts({
@@ -31,7 +31,7 @@ describe("useManuscriptShortcuts", () => {
   });
 
   it("dispatches matched shortcuts and ignores blocked editable targets", async () => {
-    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as never);
     const onAction = vi.fn();
 
     renderHook(() =>
@@ -57,7 +57,7 @@ describe("useManuscriptShortcuts", () => {
   });
 
   it("exits focus mode on escape", async () => {
-    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as never);
     const onExitFocusMode = vi.fn();
 
     renderHook(() =>

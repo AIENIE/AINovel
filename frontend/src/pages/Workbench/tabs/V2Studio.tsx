@@ -31,7 +31,7 @@ const V2Studio = () => {
     }
   };
 
-  const run = async (labelKey: string, action: () => Promise<any>) => {
+  const run = async (labelKey: string, action: () => Promise<unknown>) => {
     setBusy(true);
     try {
       const data = await action();

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface WorldMetadataFormProps {
   data: WorldDetail;
-  onChange: (field: keyof WorldDetail, value: any) => void;
+  onChange: (field: keyof WorldDetail, value: unknown) => void;
 }
 
 const WorldMetadataForm = ({ data, onChange }: WorldMetadataFormProps) => {

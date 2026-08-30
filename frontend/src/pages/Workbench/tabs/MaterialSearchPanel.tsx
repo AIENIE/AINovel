@@ -25,7 +25,7 @@ const MaterialSearchPanel = () => {
     try {
       const data = await api.materials.search(query);
       setResults(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setResults([]);
       const message = localizedErrorMessage(error, "materialSearch.searchFailed");
       setSearchError(message);

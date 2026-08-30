@@ -45,7 +45,11 @@ class MaterialRetrievalServiceTest {
                     }
 
                     @Override
-                    public List<VectorMatch> search(float[] vector, int limit) {
+                    public void deleteMaterial(UUID materialId) {
+                    }
+
+                    @Override
+                    public List<VectorMatch> search(float[] vector, int limit, UUID ownerUserId) {
                         throw new RuntimeException("qdrant unavailable");
                     }
                 }

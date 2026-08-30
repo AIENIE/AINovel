@@ -4,6 +4,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.economy.model.ProjectCreditAccount;
 import com.ainovel.app.economy.model.ProjectCreditLedger;
+import com.ainovel.app.economy.model.AiCreditReservation;
+import com.ainovel.app.economy.repo.AiCreditReservationRepository;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
 import com.ainovel.app.economy.repo.ProjectCreditLedgerRepository;
@@ -20,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +58,8 @@ class EconomyServiceTests {
     private RedeemCodeRepository redeemCodeRepository;
     @Mock
     private RedeemCodeUsageRepository usageRepository;
+    @Mock
+    private AiCreditReservationRepository aiReservationRepository;
 
     private EconomyService economyService;
 
@@ -64,11 +70,11 @@ class EconomyServiceTests {
         ReflectionTestUtils.setField(economyService, "ledgerRepository", ledgerRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeRepository", redeemCodeRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeUsageRepository", usageRepository);
-    }
-
-    @Test
-    void checkIn_shouldBeDisabledInAinovel() {
-        assertThrows(IllegalStateException.class, () -> economyService.checkIn(user()));
+        ReflectionTestUtils.setField(economyService, "aiReservationRepository", aiReservationRepository);
+        TransactionTemplate transactions = org.mockito.Mockito.mock(TransactionTemplate.class);
+        org.mockito.Mockito.lenient().when(transactions.execute(any())).thenAnswer(invocation ->
+                ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
+        ReflectionTestUtils.setField(economyService, "transactions", transactions);
     }
 
     @Test
@@ -132,16 +138,56 @@ class EconomyServiceTests {
     }
 
     @Test
+    void aiReservation_shouldDebitBeforeCallSettleActualUsageAndReplayWithoutAnotherDebit() {
+        User user = user();
+        ProjectCreditAccount account = account(user, 10L);
+        java.util.concurrent.atomic.AtomicReference<AiCreditReservation> saved = new java.util.concurrent.atomic.AtomicReference<>();
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user, "request-1"))
+                .thenAnswer(invocation -> Optional.ofNullable(saved.get()));
+        when(aiReservationRepository.save(any())).thenAnswer(invocation -> {
+            AiCreditReservation reservation = invocation.getArgument(0);
+            saved.set(reservation);
+            return reservation;
+        });
+
+        EconomyService.AiReservationStart started = economyService.reserveAiUsage(
+                user, 2L, "AI_USAGE", "request-1", "request-1", "hash-1");
+        assertFalse(started.replay());
+        assertEquals(8L, account.getBalance());
+
+        EconomyService.AiChargeResult settled = economyService.settleAiUsage(
+                user, "request-1", "result", 100_000L, 0L, 0L);
+        assertEquals(1L, settled.charged());
+        assertEquals(9L, account.getBalance());
+
+        EconomyService.AiReservationStart replay = economyService.reserveAiUsage(
+                user, 2L, "AI_USAGE", "request-1", "request-1", "hash-1");
+        assertEquals(true, replay.replay());
+        assertEquals("result", replay.content());
+        assertEquals(9L, account.getBalance());
+    }
+
+    @Test
     void convert_shouldDeductPublicCreditsInPayServiceThenCreditLocalProjectAccount() {
         User user = user();
         ProjectCreditAccount account = account(user, 100L);
         when(conversionOrderRepository.findByUserAndIdempotencyKey(user, "k1")).thenReturn(Optional.empty());
-        when(accountRepository.findByUser(user)).thenReturn(Optional.of(account));
         when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
         when(billingGrpcClient.publicBalance(42L)).thenReturn(80L);
         when(billingGrpcClient.convertPublicToProject(eq(42L), eq(30L), any()))
                 .thenReturn(new BillingGrpcClient.ConversionResult(true, 30L, 30L, 50L, null));
-        when(conversionOrderRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        java.util.concurrent.atomic.AtomicReference<com.ainovel.app.economy.model.CreditConversionOrder> savedOrder =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        when(conversionOrderRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            com.ainovel.app.economy.model.CreditConversionOrder order = invocation.getArgument(0);
+            order.setId(UUID.randomUUID());
+            savedOrder.set(order);
+            return order;
+        });
+        when(conversionOrderRepository.findForUpdateById(any())).thenAnswer(invocation ->
+                Optional.ofNullable(savedOrder.get()));
 
         EconomyService.ConversionResult result = economyService.convertPublicToProject(user, 30L, "k1");
 

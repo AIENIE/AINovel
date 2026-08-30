@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Manuscript } from "@/types";
@@ -6,6 +7,8 @@ import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { plotStatusText, qualityStatusText, slopRewriteTaskTitle } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import type { WorkbenchSidebarTab } from "./useWorkbenchLayoutPersistence";
 import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
+import { isApiError } from "@/lib/api-client";
 
 type ToastFn = (options: {
   description?: string;
@@ -154,14 +157,14 @@ export function useManuscriptQuality({
       queryClient.setQueryData(slopQualityQueryKey(selectedManuscriptId, sceneId), run);
       setSidebarTab("plot");
       toast({ title: t("manuscriptQuality.slopDone"), description: run.safeClaim || qualityStatusText(run) });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("manuscriptQuality.slopFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("manuscriptQuality.slopFailed"), description: localizedErrorMessage(e) });
     } finally {
       setIsSlopBusy(false);
     }
   }, [ensureSceneSaved, queryClient, selectedManuscriptId, selectedSceneId, setSidebarTab, toast]);
 
-  const copySlopRewriteTask = useCallback(async (task: any, index: number) => {
+  const copySlopRewriteTask = useCallback(async (task: NetworkObject, index: number) => {
     const title = slopRewriteTaskTitle(task, index);
     const lines = [
       `${t("manuscriptQuality.taskLabel")} ${title}`,
@@ -173,8 +176,8 @@ export function useManuscriptQuality({
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
       toast({ title: t("manuscriptQuality.taskCopied") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("manuscriptQuality.copyFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("manuscriptQuality.copyFailed"), description: localizedErrorMessage(e) });
     }
   }, [toast]);
 
@@ -192,8 +195,8 @@ export function useManuscriptQuality({
       queryClient.setQueryData(plotTrendQueryKey(selectedManuscriptId), trend);
       setSidebarTab("plot");
       toast({ title: t("manuscriptQuality.plotDone"), description: plotStatusText(run) });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("manuscriptQuality.plotFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("manuscriptQuality.plotFailed"), description: localizedErrorMessage(e) });
     } finally {
       setIsPlotBusy(false);
     }
@@ -210,8 +213,8 @@ export function useManuscriptQuality({
       if (!run) throw new Error(t("manuscriptQuality.noRevisionResult"));
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       toast({ title: t("manuscriptQuality.revisionGenerated") });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: t("manuscriptQuality.revisionGenerateFailed"), description: e.message });
+    } catch (e: unknown) {
+      toast({ variant: "destructive", title: t("manuscriptQuality.revisionGenerateFailed"), description: localizedErrorMessage(e) });
     } finally {
       setIsPlotRevisionBusy(false);
     }
@@ -229,11 +232,11 @@ export function useManuscriptQuality({
       queryClient.setQueryData(plotRunQueryKey(selectedManuscriptId, sceneId), run);
       await loadPlotQuality(sceneId);
       toast({ title: t("manuscriptQuality.revisionApplied") });
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         variant: "destructive",
         title: t("manuscriptQuality.revisionApplyFailed"),
-        description: String(e.message || "").includes("409") ? t("manuscriptQuality.sceneChangedHint") : e.message,
+        description: isApiError(e) && e.status === 409 ? t("manuscriptQuality.sceneChangedHint") : localizedErrorMessage(e),
       });
     } finally {
       setIsPlotRevisionBusy(false);

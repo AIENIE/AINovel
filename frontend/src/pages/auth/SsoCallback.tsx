@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { validateSsoState } from "@/lib/sso";
 import { buildSsoCallbackRedirectUrl, createSsoCallbackProcessor, type SsoSessionResponse } from "@/lib/sso-callback";
 

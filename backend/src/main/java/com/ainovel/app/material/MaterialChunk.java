@@ -8,6 +8,8 @@ public record MaterialChunk(
         String title,
         String text,
         int chunkSeq,
-        String tags
+        String tags,
+        UUID ownerUserId,
+        String status
 ) {
 }

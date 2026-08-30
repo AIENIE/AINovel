@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { t } from "@/i18n";
@@ -28,7 +29,7 @@ export function useWorkbenchLayoutPersistence({
     [selectedManuscriptId, selectedStoryId],
   );
 
-  const applyLayoutPayload = useCallback((layout: any) => {
+  const applyLayoutPayload = useCallback((layout: NetworkObject) => {
     if (!layout || typeof layout !== "object") return;
     const raw = layout.layout && typeof layout.layout === "object" ? layout.layout : layout;
     if (typeof raw.leftPanelOpen === "boolean") setLeftPanelOpen(raw.leftPanelOpen);
@@ -68,7 +69,7 @@ export function useWorkbenchLayoutPersistence({
       try {
         const layouts = await api.v2.workspace.listLayouts();
         if (cancelled) return;
-        const activeLayout = layouts.find((layout: any) => Boolean(layout.isActive));
+        const activeLayout = layouts.find((layout: NetworkObject) => Boolean(layout.isActive));
         if (activeLayout?.id) setActiveLayoutId(String(activeLayout.id));
         if (!localApplied && activeLayout?.layout) {
           applyLayoutPayload(activeLayout.layout);
@@ -98,7 +99,7 @@ export function useWorkbenchLayoutPersistence({
         ? api.v2.workspace.updateLayout(activeLayoutId, { layout: payload, isActive: true })
         : api.v2.workspace.createLayout({ name: t("layoutPersistence.writingMode"), layout: payload, isActive: true });
       void request
-        .then((layout: any) => {
+        .then((layout: NetworkObject) => {
           if (layout?.id) setActiveLayoutId(String(layout.id));
         })
         .catch(() => {});

@@ -3,6 +3,7 @@ package com.ainovel.app.ai.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Schema(description = "AI 对话请求")
 public record AiChatRequest(
@@ -11,7 +12,7 @@ public record AiChatRequest(
         @Schema(description = "模型 ID", example = "2")
         String modelId,
         @Schema(description = "上下文对象（可选）", example = "{\"scene\":\"chapter-1\"}")
-        Object context
+        JsonNode context
 ) {
     @Schema(description = "单条对话消息")
     public record Message(

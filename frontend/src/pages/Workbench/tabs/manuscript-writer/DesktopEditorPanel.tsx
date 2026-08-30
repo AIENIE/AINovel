@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { History, Loader2, PanelRightClose, PanelRightOpen, Save, Sparkles, X, Wand2 } from "lucide-react";
 import TiptapEditor from "@/components/editor/TiptapEditor";
@@ -12,7 +13,7 @@ import { plotStatusClass, plotStatusText, qualityStatusClass, qualityStatusText 
 type GenerationMode = "fast" | "crafted";
 
 type DesktopEditorPanelProps = {
-  activeGoal: any;
+  activeGoal: NetworkObject | null;
   content: string;
   currentWordCount: number;
   dirtyScenes: Record<string, boolean>;
@@ -34,7 +35,7 @@ type DesktopEditorPanelProps = {
   onSetGenerationMode: (mode: GenerationMode) => void;
   onToggleSidebar: () => void;
   openSceneIds: string[];
-  sceneMap: Record<string, any>;
+  sceneMap: Record<string, NetworkObject>;
   selectedManuscriptId: string;
   selectedPlotRun: PlotQualityRun | null;
   selectedQualityRun: SlopQualityRun | null;

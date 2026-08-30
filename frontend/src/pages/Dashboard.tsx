@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { PenTool, Globe, ArrowRight, BookOpen, Database } from "lucide-react";
 import { api } from "@/lib/api-client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { UserSummary } from "@/types";
 
 const Dashboard = () => {

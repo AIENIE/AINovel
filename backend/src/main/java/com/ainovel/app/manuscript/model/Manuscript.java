@@ -30,6 +30,9 @@ public class Manuscript {
 
     private UUID currentBranchId;
 
+    @Version
+    private long version;
+
     @CreationTimestamp
     private Instant createdAt;
     @UpdateTimestamp
@@ -51,6 +54,8 @@ public class Manuscript {
     public void setCharacterLogsJson(String characterLogsJson) { this.characterLogsJson = characterLogsJson; }
     public UUID getCurrentBranchId() { return currentBranchId; }
     public void setCurrentBranchId(UUID currentBranchId) { this.currentBranchId = currentBranchId; }
+    public long getVersion() { return version; }
+    public void setVersion(long version) { this.version = version; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

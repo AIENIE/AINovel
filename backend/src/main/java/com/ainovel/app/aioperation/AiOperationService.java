@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -23,6 +25,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicLong;
@@ -43,6 +46,8 @@ public class AiOperationService {
     private final Map<String, AiOperationHandler> handlers = new HashMap<>();
     private final Map<UUID, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
     private final Map<UUID, Future<?>> tasks = new ConcurrentHashMap<>();
+    private final String leaseOwner = UUID.randomUUID().toString();
+    private static final java.time.Duration LEASE_DURATION = java.time.Duration.ofMinutes(15);
 
     public AiOperationService(AiOperationRepository repository,
                               ObjectMapper objectMapper,
@@ -58,28 +63,48 @@ public class AiOperationService {
 
     public AiOperationDtos.Accepted submit(User user, String type, String scopeType, UUID scopeId,
                                            Object payload, int totalSteps, String firstStep) {
+        return submit(user, type, scopeType, scopeId, payload, totalSteps, firstStep, UUID.randomUUID().toString());
+    }
+
+    public AiOperationDtos.Accepted submit(User user, String type, String scopeType, UUID scopeId,
+                                           Object payload, int totalSteps, String firstStep, String idempotencyKey) {
         if (!handlers.containsKey(type)) throw new BusinessException("不支持的 AI 操作：" + type);
-        if (scopeType != null && scopeId != null) {
-            Optional<AiOperationRun> active = repository
-                    .findFirstByUserIdAndScopeTypeAndScopeIdAndStatusInOrderByCreatedAtDesc(
-                            user.getId(), scopeType, scopeId, ACTIVE);
-            if (active.isPresent()) return new AiOperationDtos.Accepted(active.get().getId());
+        String key = normalizeIdempotencyKey(idempotencyKey);
+        String activeScopeKey = scopeType == null || scopeId == null ? null
+                : user.getId() + ":" + type + ":" + scopeType + ":" + scopeId;
+        UUID runId;
+        try {
+            runId = transactions.execute(status -> {
+                AiOperationRun existing = repository.findByUserIdAndIdempotencyKey(user.getId(), key).orElse(null);
+                if (existing != null) return existing.getId();
+                if (activeScopeKey != null) {
+                    AiOperationRun active = repository.findByActiveScopeKey(activeScopeKey).orElse(null);
+                    if (active != null) return active.getId();
+                }
+                AiOperationRun run = new AiOperationRun();
+                run.setUser(user);
+                run.setOperationType(type);
+                run.setScopeType(scopeType);
+                run.setScopeId(scopeId);
+                run.setStatus(AiOperationStatus.QUEUED);
+                run.setCurrentStep(firstStep);
+                run.setTotalSteps(Math.max(1, totalSteps));
+                run.setCompletedSteps(0);
+                run.setOutputTokens(0);
+                run.setOutputTokensEstimated(true);
+                run.setPayloadJson(write(payload));
+                run.setIdempotencyKey(key);
+                run.setActiveScopeKey(activeScopeKey);
+                return repository.saveAndFlush(run).getId();
+            });
+        } catch (DataIntegrityViolationException ex) {
+            AiOperationRun existing = repository.findByUserIdAndIdempotencyKey(user.getId(), key)
+                    .orElseGet(() -> activeScopeKey == null ? null : repository.findByActiveScopeKey(activeScopeKey).orElse(null));
+            if (existing == null) throw ex;
+            runId = existing.getId();
         }
-        AiOperationRun run = new AiOperationRun();
-        run.setUser(user);
-        run.setOperationType(type);
-        run.setScopeType(scopeType);
-        run.setScopeId(scopeId);
-        run.setStatus(AiOperationStatus.QUEUED);
-        run.setCurrentStep(firstStep);
-        run.setTotalSteps(Math.max(1, totalSteps));
-        run.setCompletedSteps(0);
-        run.setOutputTokens(0);
-        run.setOutputTokensEstimated(true);
-        run.setPayloadJson(write(payload));
-        repository.save(run);
-        dispatch(run.getId());
-        return new AiOperationDtos.Accepted(run.getId());
+        dispatch(runId);
+        return new AiOperationDtos.Accepted(runId);
     }
 
     public AiOperationDtos.Progress get(User user, UUID id) {
@@ -122,6 +147,7 @@ public class AiOperationService {
         run.setModelKey(null);
         run.setResultJson(null);
         run.setCompletedAt(null);
+        run.setActiveScopeKey(scopeKey(run));
         repository.save(run);
         cancelTask(id);
         dispatch(id);
@@ -133,6 +159,7 @@ public class AiOperationService {
         if (run.getStatus() == AiOperationStatus.SUCCEEDED || run.getStatus() == AiOperationStatus.FAILED) return;
         run.setStatus(AiOperationStatus.CANCELLED);
         run.setCompletedAt(Instant.now());
+        releaseLeaseAndScope(run);
         repository.save(run);
         publish(id);
         cancelTask(id);
@@ -140,14 +167,28 @@ public class AiOperationService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void recover() {
-        transactions.executeWithoutResult(status -> {
-            for (AiOperationRun run : repository.findByStatusIn(List.of(
-                    AiOperationStatus.RUNNING, AiOperationStatus.STREAMING))) {
-                run.setStatus(AiOperationStatus.RECOVERY_REQUIRED);
-                run.setErrorMessage("服务重启时 AI 调用状态不确定，请确认后重试");
-            }
-        });
+        recoverExpiredLeases();
         repository.findByStatusIn(List.of(AiOperationStatus.QUEUED)).forEach(run -> dispatch(run.getId()));
+    }
+
+    @Scheduled(fixedDelayString = "${app.ai-operation.dispatch-delay-ms:2000}")
+    public void dispatchQueued() {
+        recoverExpiredLeases();
+        repository.findTop100ByStatusOrderByCreatedAtAsc(AiOperationStatus.QUEUED)
+                .forEach(run -> dispatch(run.getId()));
+    }
+
+    private void recoverExpiredLeases() {
+        Instant now = Instant.now();
+        transactions.executeWithoutResult(status -> repository.findByStatusIn(
+                List.of(AiOperationStatus.RUNNING, AiOperationStatus.STREAMING)).stream()
+                .filter(run -> run.getLeaseExpiresAt() != null && run.getLeaseExpiresAt().isBefore(now))
+                .forEach(run -> {
+                    run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.QUEUED);
+                    run.setLeaseOwner(null);
+                    run.setLeaseExpiresAt(null);
+                    if (run.isStreamStarted()) run.setActiveScopeKey(null);
+                }));
     }
 
     private void dispatch(UUID id) {
@@ -161,7 +202,14 @@ public class AiOperationService {
             return null;
         });
         reference.set(task);
-        if (tasks.putIfAbsent(id, task) == null) executor.execute(task);
+        if (tasks.putIfAbsent(id, task) == null) {
+            try {
+                executor.execute(task);
+            } catch (RejectedExecutionException ex) {
+                tasks.remove(id, task);
+                log.warn("AI operation dispatch rejected operationId={} queuedForRetry=true", id);
+            }
+        }
     }
 
     private void cancelTask(UUID id) {
@@ -174,6 +222,8 @@ public class AiOperationService {
             AiOperationRun run = repository.findById(id).orElse(null);
             if (run == null || run.getStatus() != AiOperationStatus.QUEUED) return null;
             run.setStatus(AiOperationStatus.RUNNING);
+            run.setLeaseOwner(leaseOwner);
+            run.setLeaseExpiresAt(Instant.now().plus(LEASE_DURATION));
             run.setAttemptCount(run.getAttemptCount() + 1);
             run.setErrorMessage(null);
             run.setStreamStarted(false);
@@ -250,11 +300,12 @@ public class AiOperationService {
             }
             update(id, run -> {
                 if (run.getStatus() == AiOperationStatus.CANCELLED) return;
-                run.setStatus(AiOperationStatus.SUCCEEDED);
+                    run.setStatus(AiOperationStatus.SUCCEEDED);
                 run.setCompletedSteps(run.getTotalSteps());
                 run.setResultJson(write(result));
                 run.setCompletedAt(Instant.now());
-                run.setCurrentStep("已完成");
+                    run.setCurrentStep("已完成");
+                    releaseLeaseAndScope(run);
             });
             log.info("AI operation completed operationId={} type={} attempt={}", id, claim.type(),
                     getAttemptCount(id));
@@ -273,6 +324,7 @@ public class AiOperationService {
             run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.FAILED);
             run.setErrorMessage(truncate(failure.getMessage()));
             run.setCompletedAt(Instant.now());
+            releaseLeaseAndScope(run);
         });
         log.warn("AI operation failed operationId={} errorType={}",
                 id, failure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(failure));
@@ -338,6 +390,23 @@ public class AiOperationService {
     private String truncate(String message) {
         String value = message == null || message.isBlank() ? "AI 操作失败" : message;
         return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+
+    private String normalizeIdempotencyKey(String raw) {
+        String key = raw == null ? "" : raw.trim();
+        if (key.isBlank() || key.length() > 128) throw new BusinessException("Idempotency-Key 必须为 1-128 个字符");
+        return key;
+    }
+
+    private String scopeKey(AiOperationRun run) {
+        return run.getScopeType() == null || run.getScopeId() == null ? null
+                : run.getUser().getId() + ":" + run.getOperationType() + ":" + run.getScopeType() + ":" + run.getScopeId();
+    }
+
+    private void releaseLeaseAndScope(AiOperationRun run) {
+        run.setLeaseOwner(null);
+        run.setLeaseExpiresAt(null);
+        run.setActiveScopeKey(null);
     }
 
     private record Claim(UUID id, User user, String type, String payloadJson) {}

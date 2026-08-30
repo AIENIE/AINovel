@@ -98,6 +98,7 @@ public class MaterialService {
         Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
         accessGuard.assertOwner(material.getUser());
         materialRepository.delete(material);
+        materialRetrievalService.deleteIndexAfterCommit(id);
     }
 
     public FileImportJobDto createUploadJob(User user, String fileName, String content) {

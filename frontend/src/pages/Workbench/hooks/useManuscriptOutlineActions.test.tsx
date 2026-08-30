@@ -38,7 +38,7 @@ describe("useManuscriptOutlineActions", () => {
     const replaceOutline = vi.fn();
     const toast = vi.fn();
     vi.spyOn(Date, "now").mockReturnValue(1700000000000);
-    vi.spyOn(api.outlines, "save").mockImplementation(async (_outlineId, outline) => outline as any);
+    vi.spyOn(api.outlines, "save").mockImplementation(async (_outlineId, outline) => outline as never);
 
     const { result } = renderHook(() => {
       const [outlineDraft, setOutlineDraft] = useState<Outline | null>(makeOutline());
@@ -89,7 +89,7 @@ describe("useManuscriptOutlineActions", () => {
   it("moves the selected scenes into the target chapter in one batch", async () => {
     const replaceOutline = vi.fn();
     const toast = vi.fn();
-    vi.spyOn(api.outlines, "save").mockImplementation(async (_outlineId, outline) => outline as any);
+    vi.spyOn(api.outlines, "save").mockImplementation(async (_outlineId, outline) => outline as never);
 
     const { result } = renderHook(() => {
       const [outlineDraft, setOutlineDraft] = useState<Outline | null>(makeOutline());

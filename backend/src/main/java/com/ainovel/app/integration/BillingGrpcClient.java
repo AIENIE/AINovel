@@ -2,20 +2,15 @@ package com.ainovel.app.integration;
 
 import com.google.protobuf.Timestamp;
 import fireflychat.billing.v1.BillingBalanceServiceGrpc;
-import fireflychat.billing.v1.BillingCheckinServiceGrpc;
 import fireflychat.billing.v1.BillingConversionServiceGrpc;
 import fireflychat.billing.v1.BillingGrantServiceGrpc;
 import fireflychat.billing.v1.BillingQueryServiceGrpc;
 import fireflychat.billing.v1.BillingRedeemCodeServiceGrpc;
 import fireflychat.billing.v1.BillingUsageServiceGrpc;
-import fireflychat.billing.v1.CheckinRequest;
-import fireflychat.billing.v1.CheckinResponse;
 import fireflychat.billing.v1.ConvertPublicToProjectRequest;
 import fireflychat.billing.v1.ConvertPublicToProjectResponse;
 import fireflychat.billing.v1.DeductUsageRequest;
 import fireflychat.billing.v1.DeductUsageResponse;
-import fireflychat.billing.v1.GetCheckinStatusRequest;
-import fireflychat.billing.v1.GetCheckinStatusResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
 import fireflychat.billing.v1.GrantProjectPermanentTokensRequest;
@@ -27,9 +22,7 @@ import fireflychat.billing.v1.ProjectBalance;
 import fireflychat.billing.v1.RedeemCodeRequest;
 import fireflychat.billing.v1.RedeemCodeResponse;
 import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
-import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
 
@@ -43,34 +36,19 @@ public class BillingGrpcClient {
 
     private final ExternalServiceProperties properties;
     private final GrpcEndpointManager<EndpointClient> endpointManager;
+    private final PayServiceJwtClientInterceptor jwtInterceptor;
 
     public BillingGrpcClient(
             ExternalServiceProperties properties,
-            GrpcChannelFactory channelFactory
+            GrpcChannelFactory channelFactory,
+            PayServiceJwtProvider tokenProvider
     ) {
         this.properties = properties;
+        this.jwtInterceptor = new PayServiceJwtClientInterceptor(tokenProvider);
         this.endpointManager = new GrpcEndpointManager<>(
                 properties.getPayserviceGrpc(),
                 "payservice-grpc",
                 channelFactory
-        );
-    }
-
-    public CheckinResult checkin(long remoteUserId) {
-        CheckinResponse response = stubs().checkinStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .checkin(CheckinRequest.newBuilder()
-                        .setRequestId(UUID.randomUUID().toString())
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .build());
-        long total = balanceFromProject(response.getProjectBalance()) + publicBalance(remoteUserId);
-        return new CheckinResult(
-                response.getSuccess(),
-                firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
-                total,
-                response.getAlreadyCheckedIn(),
-                response.getErrorMessage()
         );
     }
 
@@ -90,20 +68,6 @@ public class BillingGrpcClient {
                 firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
                 total,
                 response.getErrorMessage()
-        );
-    }
-
-    public CheckinStatus checkinStatus(long remoteUserId) {
-        GetCheckinStatusResponse response = stubs().checkinStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .getCheckinStatus(GetCheckinStatusRequest.newBuilder()
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .build());
-        return new CheckinStatus(
-                response.getCheckedInToday(),
-                toInstant(response.getLastCheckinDate()),
-                firstPositive(response.getCreditsGrantedToday(), response.getTokensGrantedToday())
         );
     }
 
@@ -295,40 +259,27 @@ public class BillingGrpcClient {
     }
 
     private synchronized EndpointClient getOrCreateClient() {
-        Metadata metadata = new Metadata();
-        metadata.put(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER), bearerToken());
         return endpointManager.getOrCreate((endpoint, channel) -> new EndpointClient(
                 endpoint.host(),
                 endpoint.port(),
                 channel,
-                BillingCheckinServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
                 BillingRedeemCodeServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingBalanceServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingConversionServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingGrantServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingUsageServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)),
+                        .withInterceptors(jwtInterceptor),
                 BillingQueryServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
+                        .withInterceptors(jwtInterceptor)
         ));
     }
 
     private long timeoutMs() {
-        return Math.max(800L, properties.getTimeoutMs());
-    }
-
-    private String bearerToken() {
-        String raw = properties.getSecurity().getPay().getServiceJwt();
-        String token = raw == null ? "" : raw.trim();
-        if (token.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
-            return token;
-        }
-        return "Bearer " + token;
+        return Math.max(800L, properties.getBillingTimeoutMs());
     }
 
     @PreDestroy
@@ -336,27 +287,11 @@ public class BillingGrpcClient {
         endpointManager.shutdown();
     }
 
-    public record CheckinResult(
-            boolean success,
-            long tokensGranted,
-            long totalTokens,
-            boolean alreadyCheckedIn,
-            String errorMessage
-    ) {
-    }
-
     public record RedeemResult(
             boolean success,
             long tokensGranted,
             long totalTokens,
             String errorMessage
-    ) {
-    }
-
-    public record CheckinStatus(
-            boolean checkedInToday,
-            Instant lastCheckinAt,
-            long tokensGrantedToday
     ) {
     }
 
@@ -394,7 +329,6 @@ public class BillingGrpcClient {
             String host,
             int port,
             ManagedChannel channel,
-            BillingCheckinServiceGrpc.BillingCheckinServiceBlockingStub checkinStub,
             BillingRedeemCodeServiceGrpc.BillingRedeemCodeServiceBlockingStub redeemStub,
             BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub,
             BillingConversionServiceGrpc.BillingConversionServiceBlockingStub conversionStub,

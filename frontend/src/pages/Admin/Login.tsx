@@ -150,7 +150,7 @@ const AdminLogin = () => {
   const submitRecovery = (event: FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      const result = await api.adminAuth.loginRecovery(challengeId, code);
+      await api.adminAuth.loginRecovery(challengeId, code);
       navigate("/admin/login?rebind=1", { replace: true });
     });
   };

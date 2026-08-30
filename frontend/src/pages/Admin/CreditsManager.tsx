@@ -82,9 +82,9 @@ const CreditsManager = () => {
         api.admin.listCreditLedger(ledgerPage, pageSize),
         api.admin.getUsers(),
       ]);
-      setItems(list || []);
-      setConversionItems(conversions || []);
-      setLedgerItems(ledger || []);
+      setItems((list || []) as unknown as RedeemCodeItem[]);
+      setConversionItems((conversions || []) as unknown as AdminConversionItem[]);
+      setLedgerItems((ledger || []) as unknown as AdminLedgerItem[]);
       setUsers(userList || []);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "积分数据加载失败"));

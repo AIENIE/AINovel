@@ -30,6 +30,10 @@ public class AiOperationRun {
     @Lob @Column(name = "result_json") private String resultJson;
     @Column(name = "error_message", length = 500) private String errorMessage;
     @Column(name = "completed_at") private Instant completedAt;
+    @Column(name = "idempotency_key", length = 128) private String idempotencyKey;
+    @Column(name = "active_scope_key", length = 255) private String activeScopeKey;
+    @Column(name = "lease_owner", length = 100) private String leaseOwner;
+    @Column(name = "lease_expires_at") private Instant leaseExpiresAt;
     @Column(name = "created_at") private Instant createdAt;
     @Column(name = "updated_at") private Instant updatedAt;
 
@@ -73,6 +77,14 @@ public class AiOperationRun {
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public Instant getCompletedAt() { return completedAt; }
     public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String value) { this.idempotencyKey = value; }
+    public String getActiveScopeKey() { return activeScopeKey; }
+    public void setActiveScopeKey(String value) { this.activeScopeKey = value; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String value) { this.leaseOwner = value; }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt = value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

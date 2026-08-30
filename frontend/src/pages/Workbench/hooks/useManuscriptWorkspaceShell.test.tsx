@@ -11,7 +11,7 @@ describe("useManuscriptWorkspaceShell", () => {
   });
 
   it("jumps to the next scene and opens its tab when needed", async () => {
-    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as never);
     window.innerWidth = 1440;
 
     const { result } = renderHook(() => {
@@ -58,7 +58,7 @@ describe("useManuscriptWorkspaceShell", () => {
   });
 
   it("restores panel visibility after leaving focus mode", async () => {
-    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.workspace, "listShortcuts").mockResolvedValue([] as never);
     window.innerWidth = 1440;
 
     const { result } = renderHook(() => {

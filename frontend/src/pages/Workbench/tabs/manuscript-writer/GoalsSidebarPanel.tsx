@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ type GoalsSidebarPanelProps = {
   deleteGoal: (goalId: string) => Promise<void> | void;
   goalTargetValue: number;
   goalType: string;
-  goals: any[];
+  goals: NetworkObject[];
   setGoalTargetValue: (value: number) => void;
   setGoalType: (value: string) => void;
   updateGoal: (goalId: string, patch: Record<string, unknown>) => Promise<void> | void;

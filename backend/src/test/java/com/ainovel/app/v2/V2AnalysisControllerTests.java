@@ -54,7 +54,7 @@ class V2AnalysisControllerTests {
                 "text", "章节衔接前后矛盾"
         );
         ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
-                controller.triggerContinuityCheck(principal, storyId, payload);
+                controller.triggerContinuityCheck(principal, storyId, V2RequestPayload.of(payload));
 
         assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
         assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());
@@ -63,7 +63,7 @@ class V2AnalysisControllerTests {
     @Test
     void triggerBetaReaderShouldReturnStableNotImplementedCode() {
         ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
-                controller.triggerBetaReader(principal, storyId, Map.of());
+                controller.triggerBetaReader(principal, storyId, V2RequestPayload.of(Map.of()));
 
         assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
         assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());

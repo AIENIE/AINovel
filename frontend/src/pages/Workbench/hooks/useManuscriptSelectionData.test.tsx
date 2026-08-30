@@ -54,12 +54,12 @@ describe("useManuscriptSelectionData", () => {
     vi.spyOn(api.stories, "list").mockResolvedValue([
       makeStory("story-1", "故事一"),
       makeStory("story-2", "故事二"),
-    ] as any);
-    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([{ id: "character-1", name: "主角" }] as any);
-    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([] as any);
-    vi.spyOn(api.outlines, "create").mockResolvedValue(makeOutline("outline-1", "story-2") as any);
-    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([] as any);
-    vi.spyOn(api.manuscripts, "create").mockResolvedValue(makeManuscript("manuscript-1", "outline-1") as any);
+    ] as never);
+    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([{ id: "character-1", name: "主角" }] as never);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([] as never);
+    vi.spyOn(api.outlines, "create").mockResolvedValue(makeOutline("outline-1", "story-2") as never);
+    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([] as never);
+    vi.spyOn(api.manuscripts, "create").mockResolvedValue(makeManuscript("manuscript-1", "outline-1") as never);
 
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
@@ -108,12 +108,12 @@ describe("useManuscriptSelectionData", () => {
     vi.spyOn(api.stories, "list").mockResolvedValue([
       makeStory("story-1", "故事一"),
       makeStory("story-2", "故事二"),
-    ] as any);
-    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as any);
+    ] as never);
+    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as never);
     vi.spyOn(api.outlines, "listByStory").mockImplementation(async (storyId) =>
-      storyId === "story-1" ? [makeOutline("outline-1", "story-1")] as any : [] as any,
+      storyId === "story-1" ? [makeOutline("outline-1", "story-1")] as never : [] as never,
     );
-    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
+    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as never);
     const onSelectionChange = vi.fn();
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
@@ -143,10 +143,10 @@ describe("useManuscriptSelectionData", () => {
   });
 
   it("supports shift-range scene selection across the current outline order", async () => {
-    vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story-1", "故事一")] as any);
-    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as any);
-    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as any);
-    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
+    vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story-1", "故事一")] as never);
+    vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as never);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as never);
+    vi.spyOn(api.manuscripts, "listByOutline").mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as never);
 
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
@@ -182,12 +182,12 @@ describe("useManuscriptSelectionData", () => {
   });
 
   it("reuses cached selection queries when the same workbench selection remounts", async () => {
-    const storiesSpy = vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story-1", "故事一")] as any);
-    const charactersSpy = vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as any);
-    const outlinesSpy = vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as any);
+    const storiesSpy = vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story-1", "故事一")] as never);
+    const charactersSpy = vi.spyOn(api.stories, "listCharacters").mockResolvedValue([] as never);
+    const outlinesSpy = vi.spyOn(api.outlines, "listByStory").mockResolvedValue([makeOutline("outline-1", "story-1")] as never);
     const manuscriptsSpy = vi
       .spyOn(api.manuscripts, "listByOutline")
-      .mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as any);
+      .mockResolvedValue([makeManuscript("manuscript-1", "outline-1")] as never);
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
 

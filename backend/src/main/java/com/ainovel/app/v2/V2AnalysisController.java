@@ -32,7 +32,7 @@ public class V2AnalysisController {
     public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerBetaReader(
             @AuthenticationPrincipal UserDetails principal,
             @PathVariable UUID storyId,
-            @RequestBody(required = false) Map<String, Object> payload) {
+            @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
@@ -45,7 +45,7 @@ public class V2AnalysisController {
     public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerContinuityCheck(
             @AuthenticationPrincipal UserDetails principal,
             @PathVariable UUID storyId,
-            @RequestBody(required = false) Map<String, Object> payload) {
+            @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
         return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
@@ -110,10 +110,10 @@ public class V2AnalysisController {
     public V2AnalysisDtos.ContinuityIssueResponse updateContinuityIssue(@AuthenticationPrincipal UserDetails principal,
                                                                         @PathVariable UUID storyId,
                                                                         @PathVariable UUID issueId,
-                                                                        @RequestBody Map<String, Object> payload) {
+                                                                        @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.updateContinuityIssue(storyId, issueId, payload);
+        return persistenceService.updateContinuityIssue(storyId, issueId, payload.asMap());
     }
 
 }

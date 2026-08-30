@@ -49,8 +49,11 @@ public class AiController {
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "400", description = "请求参数错误")
     })
-    public ResponseEntity<AiChatResponse> chat(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody AiChatRequest request) {
-        return ResponseEntity.ok(aiService.chat(currentUserResolver.require(principal), request));
+    public ResponseEntity<AiChatResponse> chat(@AuthenticationPrincipal UserDetails principal,
+                                               @RequestHeader("Idempotency-Key") String idempotencyKey,
+                                               @Valid @RequestBody AiChatRequest request) {
+        return ResponseEntity.ok(aiService.chatWithIdempotency(
+                currentUserResolver.require(principal), request, idempotencyKey));
     }
 
     @PostMapping("/refine")
@@ -64,7 +67,9 @@ public class AiController {
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "400", description = "请求参数错误")
     })
-    public ResponseEntity<AiRefineResponse> refine(@AuthenticationPrincipal UserDetails principal, @Valid @RequestBody AiRefineRequest request) {
-        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request));
+    public ResponseEntity<AiRefineResponse> refine(@AuthenticationPrincipal UserDetails principal,
+                                                   @RequestHeader("Idempotency-Key") String idempotencyKey,
+                                                   @Valid @RequestBody AiRefineRequest request) {
+        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request, idempotencyKey));
     }
 }

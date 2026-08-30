@@ -57,10 +57,10 @@ public class V2ContextController {
     @PostMapping("/stories/{storyId}/lorebook")
     public Map<String, Object> createLorebook(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID storyId,
-                                              @RequestBody Map<String, Object> payload) {
+                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.createLorebook(user, story, payload);
+        return persistenceService.createLorebook(user, story, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -69,10 +69,10 @@ public class V2ContextController {
     public Map<String, Object> updateLorebook(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID storyId,
                                               @PathVariable UUID entryId,
-                                              @RequestBody Map<String, Object> payload) {
+                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.updateLorebook(storyId, entryId, payload);
+        return persistenceService.updateLorebook(storyId, entryId, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -92,7 +92,7 @@ public class V2ContextController {
     @PostMapping("/stories/{storyId}/lorebook/import")
     public Map<String, Object> importLorebook(@AuthenticationPrincipal UserDetails principal,
                                               @PathVariable UUID storyId,
-                                              @RequestBody Map<String, Object> payload) {
+                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
         List<Object> entries = list(payload.get("entries"));
@@ -215,7 +215,7 @@ public class V2ContextController {
     @PostMapping("/stories/{storyId}/graph/relationships")
     public Map<String, Object> createRelationship(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID storyId,
-                                                  @RequestBody Map<String, Object> payload) {
+                                                  @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
 
@@ -263,14 +263,14 @@ public class V2ContextController {
     @PostMapping("/stories/{storyId}/extract-entities")
     public Map<String, Object> extractEntities(@AuthenticationPrincipal UserDetails principal,
                                                @PathVariable UUID storyId,
-                                               @RequestBody Map<String, Object> payload) {
+                                               @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         Story story = accessGuard.requireOwnedStory(storyId, user);
         String text = str(payload.get("text"), "").trim();
         if (text.isEmpty()) {
             throw new BusinessException("text 不能为空");
         }
-        return persistenceService.createExtraction(story, payload);
+        return persistenceService.createExtraction(story, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -289,10 +289,10 @@ public class V2ContextController {
     public Map<String, Object> reviewExtraction(@AuthenticationPrincipal UserDetails principal,
                                                 @PathVariable UUID storyId,
                                                 @PathVariable UUID id,
-                                                @RequestBody Map<String, Object> payload) {
+                                                @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
         accessGuard.requireOwnedStory(storyId, user);
-        return persistenceService.reviewExtraction(storyId, id, payload);
+        return persistenceService.reviewExtraction(storyId, id, payload.asMap());
     }
 
     @Operation(summary = "v2 API endpoint")

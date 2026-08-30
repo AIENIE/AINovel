@@ -33,7 +33,12 @@ write_fixture() {
       'SPRING_JPA_HIBERNATE_DDL_AUTO=none' \
       'EXTERNAL_AI_HMAC_CALLER=fixture-caller' \
       'EXTERNAL_AI_HMAC_SECRET=fixture-hmac-secret' \
-      'EXTERNAL_USER_INTERNAL_GRPC_TOKEN=fixture-user-token' \
+      'EXTERNAL_USER_SERVICE_JWT_CALLER_ID=ainovel' \
+      'EXTERNAL_USER_SERVICE_JWT_ISSUER=ainovel' \
+      'EXTERNAL_USER_SERVICE_JWT_SECRET=fixture-user-service-jwt-secret-32-bytes' \
+      'EXTERNAL_USER_SERVICE_JWT_AUDIENCE=aienie-userservice-grpc' \
+      'EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS=300' \
+      'EXTERNAL_USER_SERVICE_JWT_SCOPES=user.auth.session.read' \
       'EXTERNAL_PAY_SERVICE_JWT=fixture.pay.jwt'
   } > "$target"
   chmod 600 "$target"
@@ -63,6 +68,29 @@ chmod 600 "$complete_file"
 ainovel_read_env_file "$complete_file"
 ainovel_require_deployment_env_sources
 [[ "${AINOVEL_ENV_FILE_VALUES[ADMIN_PASSWORD_HASH]}" == '$2b$12$literal-dollar-placeholder' ]]
+
+write_fixture "$policy_file"
+printf '%s\n' 'EXTERNAL_USER_INTERNAL_GRPC_TOKEN=legacy-static-token' >> "$policy_file"
+ainovel_read_env_file "$policy_file"
+if ainovel_require_deployment_env_sources 2>/dev/null; then
+  echo "legacy UserService static token passed deployment preflight" >&2
+  exit 1
+fi
+
+for invalid_user_jwt in \
+  'EXTERNAL_USER_SERVICE_JWT_AUDIENCE=wrong-audience' \
+  'EXTERNAL_USER_SERVICE_JWT_SCOPES=user.auth.session.read,user.directory.read' \
+  'EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS=901' \
+  'EXTERNAL_USER_SERVICE_JWT_SECRET=short'
+do
+  write_fixture "$policy_file"
+  printf '%s\n' "$invalid_user_jwt" >> "$policy_file"
+  ainovel_read_env_file "$policy_file"
+  if ainovel_require_deployment_env_sources 2>/dev/null; then
+    echo "invalid UserService caller JWT policy passed deployment preflight" >&2
+    exit 1
+  fi
+done
 
 while read -r invalid_env invalid_mode; do
   write_fixture "$policy_file"

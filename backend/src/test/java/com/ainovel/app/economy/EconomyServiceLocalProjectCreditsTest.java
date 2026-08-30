@@ -21,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +63,10 @@ class EconomyServiceLocalProjectCreditsTest {
         ReflectionTestUtils.setField(economyService, "ledgerRepository", ledgerRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeRepository", redeemCodeRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeUsageRepository", usageRepository);
+        TransactionTemplate transactions = org.mockito.Mockito.mock(TransactionTemplate.class);
+        org.mockito.Mockito.lenient().when(transactions.execute(any())).thenAnswer(invocation ->
+                ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
+        ReflectionTestUtils.setField(economyService, "transactions", transactions);
     }
 
     @Test

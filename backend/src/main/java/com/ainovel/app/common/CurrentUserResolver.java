@@ -4,6 +4,7 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import com.ainovel.app.security.AuthenticatedUserPrincipal;
 
 @Component
 public class CurrentUserResolver {
@@ -16,6 +17,9 @@ public class CurrentUserResolver {
     public User require(UserDetails details) {
         if (details == null) {
             throw new BusinessException("未登录");
+        }
+        if (details instanceof AuthenticatedUserPrincipal principal) {
+            return principal.user();
         }
         return userRepository.findByUsername(details.getUsername())
                 .orElseThrow(() -> new BusinessException("用户不存在"));

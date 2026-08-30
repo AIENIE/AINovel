@@ -43,7 +43,7 @@ const WorldPrompts = () => {
     try {
       await api.prompts.updateWorld(prompts);
       toast({ title: t("worldPrompts.saved") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
@@ -56,7 +56,7 @@ const WorldPrompts = () => {
       const defaults = await api.prompts.resetWorld();
       setPrompts(defaults);
       toast({ title: t("worldPrompts.resetDone") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("worldPrompts.resetFailed"), description: localizedErrorMessage(error, "worldPrompts.resetFailed") });
     } finally {
       setIsResetting(false);

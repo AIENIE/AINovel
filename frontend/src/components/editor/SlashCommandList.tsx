@@ -7,7 +7,7 @@ export interface SlashCommandItem {
   title: string;
   description: string;
   icon: React.ReactNode;
-  command: (editor: any) => void;
+  command: (editor: unknown) => void;
 }
 
 interface SlashCommandListProps {

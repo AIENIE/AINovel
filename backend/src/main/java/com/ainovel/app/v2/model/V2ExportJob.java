@@ -45,6 +45,13 @@ public class V2ExportJob {
     @Lob
     private String errorMessage;
     private Instant expiresAt;
+    @Lob @Column(name = "snapshot_json", columnDefinition = "longtext") private String snapshotJson;
+    @Column(length = 64) private String checksum;
+    private Instant startedAt;
+    private Instant completedAt;
+    @Column(length = 100) private String leaseOwner;
+    private Instant leaseExpiresAt;
+    private int attemptCount;
     @CreationTimestamp
     private Instant createdAt;
 
@@ -77,5 +84,19 @@ public class V2ExportJob {
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public String getSnapshotJson() { return snapshotJson; }
+    public void setSnapshotJson(String value) { this.snapshotJson = value; }
+    public String getChecksum() { return checksum; }
+    public void setChecksum(String value) { this.checksum = value; }
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant value) { this.startedAt = value; }
+    public Instant getCompletedAt() { return completedAt; }
+    public void setCompletedAt(Instant value) { this.completedAt = value; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public void setLeaseOwner(String value) { this.leaseOwner = value; }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt = value; }
+    public int getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(int value) { this.attemptCount = value; }
     public Instant getCreatedAt() { return createdAt; }
 }

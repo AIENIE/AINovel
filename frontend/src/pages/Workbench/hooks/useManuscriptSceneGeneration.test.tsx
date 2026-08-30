@@ -24,7 +24,7 @@ describe("useManuscriptSceneGeneration", () => {
       onProgress(completed);
       return completed;
     });
-    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as any);
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as never);
     const loadSlopQuality = vi.fn().mockResolvedValue({ status: "ACCEPTED", maxSeverity: "LOW" });
     const loadPlotQuality = vi.fn().mockResolvedValue({ run: null, trend: null });
     const applyServerSection = vi.fn();
@@ -97,7 +97,7 @@ describe("useManuscriptSceneGeneration", () => {
       onProgress(completed);
       return completed;
     });
-    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as any);
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue(saved as never);
 
     const { result } = renderHook(() =>
       useManuscriptSceneGeneration({
@@ -131,7 +131,7 @@ describe("useManuscriptSceneGeneration", () => {
     vi.spyOn(api.manuscripts, "get").mockResolvedValue({
       id: "manuscript-2",
       sections: { "scene-1": "<p><br></p>" },
-    } as any);
+    } as never);
     const applyServerSection = vi.fn();
     const toast = vi.fn();
     const { result } = renderHook(() => useManuscriptSceneGeneration({
@@ -159,5 +159,5 @@ function completedOperation(id: string) {
     id, operationType: "AINOVEL_LONG_TASK", status: "SUCCEEDED",
     totalSteps: 5, completedSteps: 5, remainingSteps: 0,
     currentStepOutputTokens: 3200, outputTokensEstimated: false, attemptCount: 1,
-  } as any;
+  } as never;
 }

@@ -16,6 +16,8 @@ import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import com.ainovel.app.world.repo.WorldRepository;
+import com.ainovel.app.security.MaintenanceModeCache;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +41,8 @@ public class AdminConsoleService {
     private final StoryRepository storyRepository;
     private final WorldRepository worldRepository;
     private final ApiRequestMetrics apiRequestMetrics;
+    @Autowired
+    private MaintenanceModeCache maintenanceModeCache;
 
     public AdminConsoleService(
             UserRepository userRepository,
@@ -107,6 +111,9 @@ public class AdminConsoleService {
             settings.setMaintenanceMode(maintenanceMode);
         }
         GlobalSettings saved = globalSettingsRepository.save(settings);
+        if (maintenanceModeCache != null) {
+            maintenanceModeCache.invalidate();
+        }
         return new AdminSystemConfigResponse(saved.isMaintenanceMode());
     }
 

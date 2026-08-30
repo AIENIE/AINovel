@@ -13,4 +13,7 @@ public interface V2ExportJobRepository extends JpaRepository<V2ExportJob, UUID> 
     Optional<V2ExportJob> findByManuscriptIdAndId(UUID manuscriptId, UUID id);
     List<V2ExportJob> findByUserId(UUID userId);
     List<V2ExportJob> findByExpiresAtBeforeAndStatusNot(Instant now, String status);
+    List<V2ExportJob> findTop100ByStatusOrderByCreatedAtAsc(String status);
+    List<V2ExportJob> findByStatus(String status);
+    long countByUserIdAndStatusIn(UUID userId, java.util.Collection<String> statuses);
 }

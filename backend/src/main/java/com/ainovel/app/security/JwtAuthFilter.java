@@ -15,7 +15,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -27,18 +26,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
     private final SsoUserProvisioningService provisioningService;
     private final ObjectProvider<UserSessionValidator> userSessionValidatorProvider;
 
     public JwtAuthFilter(
             JwtService jwtService,
-            UserDetailsService userDetailsService,
+            org.springframework.security.core.userdetails.UserDetailsService userDetailsService,
             SsoUserProvisioningService provisioningService,
             ObjectProvider<UserSessionValidator> userSessionValidatorProvider
     ) {
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
         this.provisioningService = provisioningService;
         this.userSessionValidatorProvider = userSessionValidatorProvider;
     }
@@ -76,8 +73,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            provisioningService.ensureExistsBestEffort(username, role, uid);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            com.ainovel.app.user.User localUser = provisioningService.ensureExistsBestEffort(username, role, uid);
+            if (localUser == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            UserDetails userDetails = new AuthenticatedUserPrincipal(localUser);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     userDetails,
                     null,

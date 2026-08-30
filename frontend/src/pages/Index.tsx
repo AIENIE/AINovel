@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Coins, LayoutDashboard, LogIn, Sparkles, BookOpen, Globe, UserPlus, Zap } from "lucide-react";
 import { buildSsoUrl, issueSsoState } from "@/lib/sso";

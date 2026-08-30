@@ -8,16 +8,7 @@ import WorldPrompts from "./tabs/WorldPrompts";
 import StyleProfiles from "./tabs/StyleProfiles";
 import ModelPreferences from "./tabs/ModelPreferences";
 import WorkspaceExperience from "./tabs/WorkspaceExperience";
-
-const VALID_TABS = new Set(["workspace", "world", "style", "models", "experience"]);
-
-export const normalizeSettingsTabParam = (raw: string | null) => {
-  const value = String(raw || "").trim().toLowerCase();
-  if (!value) return "workspace";
-  if (value === "model") return "models";
-  if (VALID_TABS.has(value)) return value;
-  return "workspace";
-};
+import { normalizeSettingsTabParam } from "./settings-tabs";
 
 const Settings = () => {
   const { t } = useTranslation();

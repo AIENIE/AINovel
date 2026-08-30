@@ -20,6 +20,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import com.ainovel.app.common.ApiStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -49,6 +52,8 @@ public class ManuscriptService {
     private SceneGenerationAttributionService sceneGenerationAttributionService;
     @Autowired
     private ApplicationEventPublisher eventPublisher;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
@@ -83,55 +88,52 @@ public class ManuscriptService {
         manuscriptRepository.delete(manuscript);
     }
 
-    @Transactional
     public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId) {
         return generateForScene(manuscriptId, sceneId, GenerationMode.FAST);
     }
 
-    @Transactional
     public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId, GenerationMode mode) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
-        User owner = ownerOf(manuscript);
-        accessGuard.assertOwner(owner);
-        sceneGenerationSnapshotStore.ensureGenerationBaseline(manuscript, owner);
-        Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
+        GenerationSnapshot snapshot = Objects.requireNonNull(transactionTemplate.execute(status -> {
+            Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
+                    .orElseThrow(() -> new BusinessException("稿件不存在"));
+            User owner = ownerOf(manuscript);
+            accessGuard.assertOwner(owner);
+            sceneGenerationSnapshotStore.ensureGenerationBaseline(manuscript, owner);
+            Manuscript current = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
+            return new GenerationSnapshot(current, ownerOf(current), current.getVersion(),
+                    readSectionMap(current.getSectionsJson()));
+        }));
         SceneGenerationService.GenerationResult generation = sceneGenerationService.generateSceneSection(
-                manuscript,
+                snapshot.manuscript(),
                 sceneId,
-                sections,
+                snapshot.sections(),
                 mode
         );
-        String generatedHtml = generation.html();
-        sections.put(sceneId.toString(), generatedHtml);
-        manuscript.setSectionsJson(writeJson(sections));
-        manuscriptRepository.save(manuscript);
-        Map<String, Object> manifest = buildGenerationManifest(sceneId, mode, generation.metadata());
-        UUID generationVersionId = sceneGenerationSnapshotStore.createGenerationSnapshot(
-                manuscript,
-                owner,
-                sceneId,
-                manifest
-        );
-        SceneGenerationRunDto generatedRun = sceneGenerationAttributionService.recordGeneration(
-                manuscript,
-                sceneId,
-                generationVersionId,
-                mode,
-                manifest,
-                generatedHtml
-        );
-        return toDto(manuscript, new SceneGenerationRunSummaryDto(
-                generatedRun.id(),
-                generatedRun.generationVersionId(),
-                generatedRun.status(),
-                generatedRun.createdAt()
-        ));
+        return Objects.requireNonNull(transactionTemplate.execute(status -> {
+            Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
+                    .orElseThrow(() -> new BusinessException("稿件不存在"));
+            accessGuard.assertOwner(ownerOf(manuscript));
+            requireVersion(manuscript, snapshot.version());
+            Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
+            String generatedHtml = generation.html();
+            sections.put(sceneId.toString(), generatedHtml);
+            manuscript.setSectionsJson(writeJson(sections));
+            manuscriptRepository.saveAndFlush(manuscript);
+            Map<String, Object> manifest = buildGenerationManifest(sceneId, mode, generation.metadata());
+            UUID generationVersionId = sceneGenerationSnapshotStore.createGenerationSnapshot(
+                    manuscript, ownerOf(manuscript), sceneId, manifest);
+            SceneGenerationRunDto generatedRun = sceneGenerationAttributionService.recordGeneration(
+                    manuscript, sceneId, generationVersionId, mode, manifest, generatedHtml);
+            return toDto(manuscript, new SceneGenerationRunSummaryDto(
+                    generatedRun.id(), generatedRun.generationVersionId(), generatedRun.status(), generatedRun.createdAt()));
+        }));
     }
 
     @Transactional
     public ManuscriptDto updateSection(UUID manuscriptId, UUID sceneId, SectionUpdateRequest request) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
+        requireVersion(manuscript, request.expectedVersion());
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         String content = request.content() == null ? "" : request.content();
         String previousContent = sections.getOrDefault(sceneId.toString(), "");
@@ -166,13 +168,12 @@ public class ManuscriptService {
         return sceneGenerationAttributionService.patchFeedback(manuscriptId, sceneId, runId, request);
     }
 
-    @Transactional
     public ManuscriptDto generateForScene(UUID sceneId) {
-        Manuscript manuscript = manuscriptRepository.findAll().stream()
+        UUID manuscriptId = transactionTemplate.execute(status -> manuscriptRepository.findAll().stream()
                 .filter(m -> isCurrentUserOwner(ownerOf(m)))
                 .findFirst()
-                .orElseThrow(() -> new BusinessException("请先创建稿件"));
-        return generateForScene(manuscript.getId(), sceneId, GenerationMode.FAST);
+                .orElseThrow(() -> new BusinessException("请先创建稿件")).getId());
+        return generateForScene(manuscriptId, sceneId, GenerationMode.FAST);
     }
 
     @Transactional
@@ -234,9 +235,19 @@ public class ManuscriptService {
                 manuscript.getWorldId(),
                 readSectionMap(manuscript.getSectionsJson()),
                 lastGenerationRun,
+                manuscript.getVersion(),
                 manuscript.getUpdatedAt()
         );
     }
+
+    private void requireVersion(Manuscript manuscript, Long expectedVersion) {
+        if (expectedVersion == null || manuscript.getVersion() != expectedVersion) {
+            throw new ApiStatusException(HttpStatus.CONFLICT, "MANUSCRIPT_VERSION_CONFLICT");
+        }
+    }
+
+    private record GenerationSnapshot(Manuscript manuscript, User owner, long version,
+                                      Map<String, String> sections) { }
 
     private Map<String, Object> buildGenerationManifest(
             UUID sceneId,

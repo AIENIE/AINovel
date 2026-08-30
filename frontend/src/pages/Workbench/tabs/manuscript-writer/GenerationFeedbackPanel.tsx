@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api-client";
 import type { GenerationRunSummary } from "@/types";
 import { formatDateTime } from "./shared";
+import { localizedErrorMessage } from "@/lib/error-messages";
 
 const FEEDBACK_TAGS = [
   "PLOT_CAUSALITY",
@@ -75,15 +76,15 @@ export function GenerationFeedbackPanel({
     try {
       const runs = await api.manuscripts.listGenerationRuns(manuscriptId, sceneId, 1);
       if (requestSequence.current === requestId) applyRun(runs[0] || null);
-    } catch (loadError: any) {
+    } catch (loadError: unknown) {
       if (requestSequence.current === requestId) {
         applyRun(null);
-        setError(loadError?.message || t("generationFeedback.loadFailed"));
+        setError(localizedErrorMessage(loadError, "generationFeedback.loadFailed"));
       }
     } finally {
       if (requestSequence.current === requestId) setIsLoading(false);
     }
-  }, [active, applyRun, manuscriptId, sceneId, t]);
+  }, [active, applyRun, manuscriptId, sceneId]);
 
   useEffect(() => {
     void loadLatestRun();
@@ -121,8 +122,8 @@ export function GenerationFeedbackPanel({
         preferenceConfirmed,
       });
       applyRun(updated);
-    } catch (saveError: any) {
-      setError(saveError?.message || t("generationFeedback.saveFailed"));
+    } catch (saveError: unknown) {
+      setError(localizedErrorMessage(saveError, "generationFeedback.saveFailed"));
     } finally {
       setIsSaving(false);
     }

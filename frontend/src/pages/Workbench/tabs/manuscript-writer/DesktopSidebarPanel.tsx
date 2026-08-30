@@ -1,8 +1,9 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import type { ContextPreview } from "@/types";
+import type { ContextPreview, PlotQualityRun, PlotQualityTrend, SlopQualityRun } from "@/types";
 import { ContextSidebarPanel } from "./ContextSidebarPanel";
 import { ExportSidebarPanel } from "./ExportSidebarPanel";
 import { GoalsSidebarPanel } from "./GoalsSidebarPanel";
@@ -17,35 +18,35 @@ type DesktopSidebarPanelProps = {
   aiDiffSummary: string;
   abandonBranch: (branchId: string) => Promise<void> | void;
   applyPlotRevision: () => Promise<void> | void;
-  autoSaveConfig: any;
-  branches: any[];
+  autoSaveConfig: NetworkObject | null;
+  branches: NetworkObject[];
   chapterRange: string;
   checkoutBranch: (branchId: string) => Promise<void> | void;
-  contextData: any;
+  contextData: NetworkObject | null;
   contextPreview: ContextPreview | null;
-  copySlopRewriteTask: (task: any, index: number) => Promise<void> | void;
+  copySlopRewriteTask: (task: NetworkObject, index: number) => Promise<void> | void;
   createBranch: () => Promise<void> | void;
   createExportJob: () => Promise<void> | void;
   createGoal: () => Promise<void> | void;
   createManualVersion: () => Promise<void> | void;
   createTemplate: () => Promise<void> | void;
   currentBranchId: string;
-  dailyHeatmap: any[];
+  dailyHeatmap: NetworkObject[];
   deleteGoal: (goalId: string) => Promise<void> | void;
   deleteTemplate: (templateId: string) => Promise<void> | void;
-  downloadExport: (job: any) => Promise<void> | void;
-  diffResult: any;
+  downloadExport: (job: NetworkObject) => Promise<void> | void;
+  diffResult: NetworkObject | null;
   diffViewMode: "split" | "unified";
   exportAuthorName: string;
   exportFormat: string;
   exportDownloadingJobId: string;
-  exportJobs: any[];
+  exportJobs: NetworkObject[];
   exportTemplateId: string;
-  exportTemplates: any[];
+  exportTemplates: NetworkObject[];
   generatePlotRevisionCandidate: () => Promise<void> | void;
   goalTargetValue: number;
   goalType: string;
-  goals: any[];
+  goals: NetworkObject[];
   hasMoreVersions: boolean;
   includeTableOfContents: boolean;
   includeTitlePage: boolean;
@@ -58,13 +59,13 @@ type DesktopSidebarPanelProps = {
   loadStats: () => Promise<unknown> | void;
   loadVersions: () => Promise<unknown> | void;
   mergeBranchId: string;
-  mergeConflicts: any[];
+  mergeConflicts: NetworkObject[];
   mergeSelectedBranch: (resolutions?: Record<string, "target" | "source">) => Promise<void> | void;
   mergeStrategy: "REPLACE_ALL" | "SCENE_SELECT";
   newBranchName: string;
   onChangeSidebarTab: (tab: SidebarTab) => void;
   plotDimensionEntries: Array<[string, number]>;
-  plotTrend: any;
+  plotTrend: PlotQualityTrend | null;
   plotTrendChartData: Array<{ label: string; riskScore: number }>;
   rollbackVersion: (versionId: string) => Promise<void> | void;
   runPlotDiagnosis: () => Promise<void> | void;
@@ -74,11 +75,11 @@ type DesktopSidebarPanelProps = {
   sceneResolutions: Record<string, "target" | "source">;
   selectedDiffVersions: string[];
   selectedManuscriptId: string;
-  selectedPlotRun: any;
-  selectedQualityRun: any;
+  selectedPlotRun: PlotQualityRun | null;
+  selectedQualityRun: SlopQualityRun | null;
   selectedSceneId: string;
   selectedSceneTitle: string;
-  setAutoSaveConfig: (config: any) => void;
+  setAutoSaveConfig: (config: NetworkObject | null) => void;
   setChapterRange: (value: string) => void;
   setDiffViewMode: (mode: "split" | "unified") => void;
   setExportAuthorName: (value: string) => void;
@@ -105,10 +106,10 @@ type DesktopSidebarPanelProps = {
   txtEncoding: string;
   updateGoal: (goalId: string, patch: Record<string, unknown>) => Promise<void> | void;
   updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
-  updateTemplate: (template: any) => Promise<void> | void;
+  updateTemplate: (template: NetworkObject) => Promise<void> | void;
   versionPageSize: number;
-  visibleVersions: any[];
-  workspaceStats: any;
+  visibleVersions: NetworkObject[];
+  workspaceStats: NetworkObject | null;
 };
 
 export function DesktopSidebarPanel({
@@ -223,7 +224,7 @@ export function DesktopSidebarPanel({
           <TabsTrigger className="shrink-0" value="goals">goals</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData} className="h-full border-none" /></TabsContent>
+        <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData ?? undefined} className="h-full border-none" /></TabsContent>
         <ContextSidebarPanel contextPreview={contextPreview} onRefresh={loadContextPreview} />
         <GenerationFeedbackPanel
           active={showRightPanel && sidebarTab === "feedback"}

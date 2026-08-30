@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { DEFAULT_SHORTCUTS, ShortcutAction, ShortcutMap, isEditableTarget, matchesShortcut } from "@/lib/shortcuts";
@@ -21,7 +22,7 @@ export function useManuscriptShortcuts({
     try {
       const list = await api.v2.workspace.listShortcuts();
       const merged: ShortcutMap = { ...DEFAULT_SHORTCUTS };
-      list.forEach((item: any) => {
+      list.forEach((item: NetworkObject) => {
         const action = String(item.action || "") as ShortcutAction;
         const shortcut = String(item.shortcut || "");
         if (action && shortcut && action in merged) {

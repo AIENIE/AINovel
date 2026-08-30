@@ -26,10 +26,10 @@ describe("useWritingSession", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    const endSession = vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as never);
+    const endSession = vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as never);
 
     const { result, unmount } = renderHook(() =>
       useWritingSession({
@@ -67,10 +67,10 @@ describe("useWritingSession", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as never);
+    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as never);
 
     const { result } = renderHook(() =>
       useWritingSession({
@@ -102,10 +102,10 @@ describe("useWritingSession", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    const heartbeatSession = vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as never);
+    const heartbeatSession = vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as never);
 
     const { result } = renderHook(() =>
       useWritingSession({
@@ -142,10 +142,10 @@ describe("useWritingSession", () => {
       startedAt: "2026-07-06T00:00:00Z",
       wordsWritten: 0,
       wordsDeleted: 0,
-    } as any);
-    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as any);
-    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as any);
-    const createVersion = vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as any);
+    } as never);
+    vi.spyOn(api.v2.workspace, "heartbeatSession").mockResolvedValue({} as never);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as never);
+    const createVersion = vi.spyOn(api.v2.version, "createVersion").mockResolvedValue({} as never);
 
     renderHook(() =>
       useWritingSession({

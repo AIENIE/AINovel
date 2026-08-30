@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api-client";
+import { api, type NetworkObject } from "@/lib/api-client";
 import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ const formatMoney = (value: number) => {
   return value.toFixed(6);
 };
 
-const toNumber = (value: any) => {
+const toNumber = (value: NetworkObject) => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
@@ -34,10 +34,10 @@ const toNumber = (value: any) => {
 const ModelPreferences = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
-  const [models, setModels] = useState<any[]>([]);
-  const [prefs, setPrefs] = useState<any[]>([]);
-  const [usageSummary, setUsageSummary] = useState<any>(null);
-  const [usageDetails, setUsageDetails] = useState<any[]>([]);
+  const [models, setModels] = useState<NetworkObject[]>([]);
+  const [prefs, setPrefs] = useState<NetworkObject[]>([]);
+  const [usageSummary, setUsageSummary] = useState<NetworkObject | null>(null);
+  const [usageDetails, setUsageDetails] = useState<NetworkObject[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
 
   const [taskType, setTaskType] = useState("draft_generation");
@@ -48,7 +48,7 @@ const ModelPreferences = () => {
   const [comparePrompt, setComparePrompt] = useState(t("models.comparePromptDefault"));
   const [compareModelAId, setCompareModelAId] = useState("");
   const [compareModelBId, setCompareModelBId] = useState("");
-  const [compareResult, setCompareResult] = useState<any>(null);
+  const [compareResult, setCompareResult] = useState<NetworkObject | null>(null);
   const [adoptedCandidate, setAdoptedCandidate] = useState<{ slot: string; text: string; modelKey: string } | null>(null);
 
   const [estimatedInputTokens, setEstimatedInputTokens] = useState(800);
@@ -75,7 +75,7 @@ const ModelPreferences = () => {
   };
 
   useEffect(() => {
-    loadData().catch((error: any) => toast({ variant: "destructive", title: t("models.loadFailed"), description: localizedErrorMessage(error, "models.loadFailed") }));
+    loadData().catch((error: NetworkObject) => toast({ variant: "destructive", title: t("models.loadFailed"), description: localizedErrorMessage(error, "models.loadFailed") }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -100,7 +100,7 @@ const ModelPreferences = () => {
   const usageByModel = useMemo(() => {
     const summary = new Map<string, { key: string; label: string; calls: number; input: number; output: number; cost: number }>();
     for (const item of usageDetails) {
-      const modelId = String(item.modelId || "unknown");
+      const modelId = String(item.modelId || "NetworkObject");
       const model = models.find((entry) => String(entry.id) === modelId);
       const current = summary.get(modelId) || {
         key: modelId,
@@ -122,7 +122,7 @@ const ModelPreferences = () => {
   const usageByTask = useMemo(() => {
     const summary = new Map<string, { key: string; calls: number; input: number; output: number; cost: number }>();
     for (const item of usageDetails) {
-      const task = String(item.taskType || "unknown");
+      const task = String(item.taskType || "NetworkObject");
       const current = summary.get(task) || { key: task, calls: 0, input: 0, output: 0, cost: 0 };
       current.calls += 1;
       current.input += toNumber(item.inputTokens);
@@ -136,7 +136,7 @@ const ModelPreferences = () => {
   const usageByDate = useMemo(() => {
     const summary = new Map<string, { date: string; calls: number; tokens: number; cost: number }>();
     for (const item of usageDetails) {
-      const date = String(item.createdAt || "").slice(0, 10) || "unknown";
+      const date = String(item.createdAt || "").slice(0, 10) || "NetworkObject";
       const current = summary.get(date) || { date, calls: 0, tokens: 0, cost: 0 };
       current.calls += 1;
       current.tokens += toNumber(item.inputTokens) + toNumber(item.outputTokens);
@@ -153,7 +153,7 @@ const ModelPreferences = () => {
       await api.v2.models.setPreference(taskType, modelId || null);
       await loadData();
       toast({ title: t("models.updated") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
     }
   };
@@ -163,7 +163,7 @@ const ModelPreferences = () => {
       await api.v2.models.resetPreference(taskType);
       await loadData();
       toast({ title: t("models.resetDefault") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("models.resetFailed"), description: localizedErrorMessage(error, "models.resetFailed") });
     }
   };
@@ -184,12 +184,12 @@ const ModelPreferences = () => {
       setAdoptedCandidate(null);
       await loadData();
       toast({ title: t("models.compareDone") });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ variant: "destructive", title: t("models.compareFailed"), description: localizedErrorMessage(error, "models.compareFailed") });
     }
   };
 
-  const pickCandidate = (candidate: any) => {
+  const pickCandidate = (candidate: NetworkObject) => {
     const slot = String(candidate?.slot || "");
     const text = String(candidate?.text || "");
     const modelKey = String(candidate?.modelKey || candidate?.modelId || "-");
@@ -431,7 +431,7 @@ const ModelPreferences = () => {
 
           {!!compareResult?.candidates?.length && (
             <div className="grid gap-3 md:grid-cols-2">
-              {compareResult.candidates.map((item: any) => (
+              {compareResult.candidates.map((item: NetworkObject) => (
                 <div
                   key={item.slot}
                   className={`rounded border p-3 space-y-2 ${adoptedCandidate?.slot === String(item.slot) ? "border-primary bg-primary/5" : ""}`}

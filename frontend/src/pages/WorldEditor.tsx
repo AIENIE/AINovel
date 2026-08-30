@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { localizedErrorMessage } from "@/lib/error-messages";
 import WorldMetadataForm from "@/pages/WorldBuilder/components/WorldMetadataForm";
 import WorldModuleEditor from "@/pages/WorldBuilder/components/WorldModuleEditor";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/auth-state";
 
 const WorldEditor = () => {
   const [params] = useSearchParams();
@@ -44,7 +44,7 @@ const WorldEditor = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleUpdateMetadata = (field: keyof WorldDetail, value: any) => {
+  const handleUpdateMetadata = (field: keyof WorldDetail, value: unknown) => {
     if (!worldDetail) return;
     setWorldDetail({ ...worldDetail, [field]: value });
   };
@@ -73,7 +73,7 @@ const WorldEditor = () => {
     try {
       await api.worlds.update(worldDetail.id, worldDetail);
       toast({ title: t("worlds.saved") });
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(e, "errors.saveFailed") });
     } finally {
       setIsSaving(false);
@@ -86,7 +86,7 @@ const WorldEditor = () => {
       await runTrackedAiOperation(api.worlds.startGenerateModule(worldDetail.id, moduleKey));
       await load();
       toast({ title: t("worlds.moduleGenerated", { module: moduleKey }) });
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(e, "errors.generateFailed") });
     }
   };
@@ -97,7 +97,7 @@ const WorldEditor = () => {
       const res = await api.worlds.refineField(worldDetail.id, moduleKey, fieldKey, text, "");
       await refreshProfile();
       return res?.result || res?.content || res?.resultText || null;
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({ variant: "destructive", title: t("worlds.refineFailed"), description: localizedErrorMessage(e, "worlds.refineFailed") });
       return null;
     }
@@ -149,7 +149,7 @@ const WorldEditor = () => {
                 await runTrackedAiOperation(api.worlds.startPublish(worldDetail.id));
                 await load();
                 toast({ title: t("worlds.publishDone"), description: t("worlds.publishDoneDesc") });
-              } catch (e: any) {
+              } catch (e: unknown) {
                 toast({ variant: "destructive", title: t("worlds.publishCheckFailed"), description: localizedErrorMessage(e, "worlds.publishCheckFailed") });
               }
             }}

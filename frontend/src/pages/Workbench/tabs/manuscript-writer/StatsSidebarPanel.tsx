@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useTranslation } from "react-i18next";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -6,9 +7,9 @@ import { TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type StatsSidebarPanelProps = {
-  dailyHeatmap: any[];
+  dailyHeatmap: NetworkObject[];
   onRefresh: () => Promise<unknown> | void;
-  workspaceStats: any;
+  workspaceStats: NetworkObject | null;
 };
 
 export function StatsSidebarPanel({ dailyHeatmap, onRefresh, workspaceStats }: StatsSidebarPanelProps) {
@@ -63,7 +64,7 @@ export function StatsSidebarPanel({ dailyHeatmap, onRefresh, workspaceStats }: S
           <div className="rounded border p-2">
             <div className="text-xs text-muted-foreground mb-2">{t("statsPanel.heatmap30")}</div>
             <div className="grid grid-cols-10 gap-1">
-              {dailyHeatmap.map((item: any) => {
+              {dailyHeatmap.map((item: NetworkObject) => {
                 const words = Number(item.netWords || 0);
                 const level = words <= 0 ? 0 : words < 500 ? 1 : words < 1200 ? 2 : words < 2500 ? 3 : 4;
                 const cls = ["bg-muted", "bg-emerald-100", "bg-emerald-200", "bg-emerald-400", "bg-emerald-600"][level];

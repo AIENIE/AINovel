@@ -56,7 +56,7 @@ describe("api client", () => {
   });
 
   it("accepts empty 204 responses for every v1 delete endpoint", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await api.stories.deleteCharacter("character-1");

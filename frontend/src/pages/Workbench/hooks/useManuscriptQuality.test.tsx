@@ -10,9 +10,9 @@ describe("useManuscriptQuality", () => {
   });
 
   it("loads the latest slop and plot runs for the selected scene", async () => {
-    vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([{ id: "quality-1" }] as any);
-    vi.spyOn(api.v2.plotQuality, "listRuns").mockResolvedValue([{ id: "plot-1" }] as any);
-    vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: { CAUSALITY: 2 } } as any);
+    vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([{ id: "quality-1" }] as never);
+    vi.spyOn(api.v2.plotQuality, "listRuns").mockResolvedValue([{ id: "plot-1" }] as never);
+    vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: { CAUSALITY: 2 } } as never);
 
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
@@ -40,18 +40,18 @@ describe("useManuscriptQuality", () => {
   });
 
   it("persists dirty content before running plot diagnosis", async () => {
-    vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([] as any);
+    vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([] as never);
     vi.spyOn(api.v2.plotQuality, "listRuns")
-      .mockResolvedValueOnce([] as any)
-      .mockResolvedValueOnce([{ id: "plot-run-2", overallRiskScore: 18 }] as any);
-    vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: {} } as any);
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([{ id: "plot-run-2", overallRiskScore: 18 }] as never);
+    vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: {} } as never);
     vi.spyOn(api.v2.plotQuality, "startAnalyzeScene").mockResolvedValue({ operationId: "operation-2" });
     vi.spyOn(api.aiOperations, "wait").mockImplementation(async (_id, onProgress) => {
       const completed = {
         id: "operation-2", operationType: "AINOVEL_LONG_TASK", status: "SUCCEEDED",
         totalSteps: 2, completedSteps: 2, remainingSteps: 0,
         currentStepOutputTokens: 128, outputTokensEstimated: false, attemptCount: 1,
-      } as any;
+      } as never;
       onProgress(completed);
       return completed;
     });
@@ -88,9 +88,9 @@ describe("useManuscriptQuality", () => {
   });
 
   it("reuses cached quality queries when the same scene remounts", async () => {
-    const qualityRunsSpy = vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([{ id: "quality-1" }] as any);
-    const plotRunsSpy = vi.spyOn(api.v2.plotQuality, "listRuns").mockResolvedValue([{ id: "plot-1" }] as any);
-    const trendSpy = vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: {} } as any);
+    const qualityRunsSpy = vi.spyOn(api.v2.quality, "listRuns").mockResolvedValue([{ id: "quality-1" }] as never);
+    const plotRunsSpy = vi.spyOn(api.v2.plotQuality, "listRuns").mockResolvedValue([{ id: "plot-1" }] as never);
+    const trendSpy = vi.spyOn(api.v2.plotQuality, "getTrend").mockResolvedValue({ points: [], dimensionCounts: {} } as never);
     const queryClient = createTestQueryClient();
     const wrapper = createQueryClientWrapper(queryClient);
     const options = {

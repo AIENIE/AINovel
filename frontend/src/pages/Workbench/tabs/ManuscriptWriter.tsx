@@ -483,7 +483,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
 
         <ResizablePanel minSize={35}>
           <DesktopEditorPanel
-            activeGoal={activeGoal}
+            activeGoal={activeGoal ?? null}
             content={content}
             currentWordCount={currentWordCount}
             dirtyScenes={dirtyScenes}
@@ -593,7 +593,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
                 selectedPlotRun={selectedPlotRun}
                 selectedQualityRun={selectedQualityRun}
                 selectedSceneId={activeSceneId}
-                selectedSceneTitle={sceneMap[activeSceneId]?.scene?.title || ""}
+                selectedSceneTitle={(sceneMap[activeSceneId]?.scene as { title?: string } | undefined)?.title || ""}
                 setAutoSaveConfig={setAutoSaveConfig}
                 setChapterRange={setChapterRange}
                 setDiffViewMode={setDiffViewMode}
@@ -631,7 +631,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
       )}
 
       <WorkbenchOverlays
-        characters={characters}
+        characters={characters.map((item) => ({ id: String(item.id), name: item.name == null ? undefined : String(item.name) }))}
         commandQuery={commandQuery}
         focusMode={focusMode}
         isCommandOpen={isCommandOpen}

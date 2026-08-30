@@ -17,3 +17,8 @@
   - `modelId` 同样仅为兼容字段，实际调用固定使用 `deepseek-v4-flash`。
 
 创建故事、生成正文、世界模块和质量诊断等长任务使用独立的异步进度接口，见 [`ai-operations.md`](ai-operations.md)。
+# v1.0 审计整改补充（2026-08-17）
+
+- `POST /v1/ai/chat`、`POST /v1/ai/refine` 以及通用 AI operation 提交必须携带 `Idempotency-Key`（1–128 字符）。同一键只允许对应同一请求内容，并复用已完成结算。
+- AI 准入统一校验消息角色、数量、单条/总字符数和 context 体积；用户速率、用户在途数或全局在途数超限返回 `429`，Redis 准入设施不可用返回 `503`。
+- 调用前预留项目积分；成功后按 ai-service 权威 usage 结算，调用失败释放预留。客户端重试必须复用原键。

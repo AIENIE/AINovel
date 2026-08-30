@@ -44,9 +44,16 @@ import {
   AiOperationProgress,
 } from "@/types";
 import { requestAdminOperationCode } from "@/lib/admin-operation-proof";
+import { z } from "zod";
 
 const API_BASE = "/api";
 const TERMINAL_AI_OPERATION_STATES = new Set(["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"]);
+const networkObjectSchema = z.record(z.string(), z.any());
+export type NetworkObject = z.infer<typeof networkObjectSchema>;
+
+function parseNetworkObject(value: unknown): NetworkObject {
+  return networkObjectSchema.parse(value);
+}
 
 const USER_TOKEN_KEY = "token";
 const getToken = () => localStorage.getItem(USER_TOKEN_KEY);
@@ -151,6 +158,11 @@ async function fetchWithAdminOperationProof(path: string, init: RequestInit, hea
 async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
+  const method = (init.method || "GET").toUpperCase();
+  if (method === "POST" && (path.startsWith("/v1/ai/") || path.includes("/operations"))
+      && !headers.has("Idempotency-Key")) {
+    headers.set("Idempotency-Key", globalThis.crypto.randomUUID());
+  }
 
   const token = tokenOverride ?? getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -283,7 +295,7 @@ async function safeErrorMessage(resp: Response): Promise<string> {
   try {
     const ct = resp.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
-      const data: any = await resp.json();
+      const data = parseNetworkObject(await resp.json());
       return data?.message || data?.error || data?.msg || "";
     }
     return await resp.text();
@@ -302,7 +314,7 @@ function queryString(params: Record<string, unknown>): string {
   return text ? `?${text}` : "";
 }
 
-function normalizeModel(model: any, index: number): ModelConfig {
+function normalizeModel(model: NetworkObject, index: number): ModelConfig {
   const fallbackId = `model-${index + 1}`;
   const preferredKey = model?.modelKey ?? model?.name ?? model?.id ?? fallbackId;
   const id = String(preferredKey);
@@ -320,7 +332,7 @@ function normalizeModel(model: any, index: number): ModelConfig {
   };
 }
 
-function toUser(profile: any): User {
+function toUser(profile: NetworkObject): User {
   const projectCredits = Number(profile.projectCredits ?? profile.credits ?? 0);
   const publicCredits = Number(profile.publicCredits ?? 0);
   const totalCredits = Number(profile.totalCredits ?? (projectCredits + publicCredits));
@@ -338,7 +350,7 @@ function toUser(profile: any): User {
   };
 }
 
-function toStory(dto: any): Story {
+function toStory(dto: NetworkObject): Story {
   return {
     id: dto.id,
     title: dto.title,
@@ -351,20 +363,20 @@ function toStory(dto: any): Story {
   };
 }
 
-function normalizeList(value: any): string[] {
+function normalizeList(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => String(item ?? "").trim()).filter(Boolean)
     : [];
 }
 
-export function toPlotPlanning(dto: any): PlotPlanning | undefined {
+export function toPlotPlanning(dto: NetworkObject): PlotPlanning | undefined {
   if (!dto || typeof dto !== "object") return undefined;
   const twistOptions = Array.isArray(dto.twistOptions)
     ? dto.twistOptions
-        .map((item: any, index: number) => ({
+        .map((item: NetworkObject, index: number) => ({
           id: String(item?.id ?? `twist-${index + 1}`),
           label: String(item?.label ?? (index === 0 ? "灵感版" : "结构版")),
-          track: String(item?.track ?? (index === 0 ? "instinct" : "structure")) === "structure" ? "structure" : "instinct",
+          track: (String(item?.track ?? (index === 0 ? "instinct" : "structure")) === "structure" ? "structure" : "instinct") as "structure" | "instinct",
           hook: String(item?.hook ?? item?.summary ?? ""),
           hiddenTruth: String(item?.hiddenTruth ?? dto?.hiddenTruth ?? ""),
           setup: normalizeList(item?.setup ?? item?.setupPoints),
@@ -374,12 +386,12 @@ export function toPlotPlanning(dto: any): PlotPlanning | undefined {
           payoff: String(item?.payoff ?? ""),
           risk: String(item?.risk ?? item?.earlyRevealRisk ?? ""),
         }))
-        .filter((item: any) => item.hook || item.hiddenTruth || item.setup.length || item.misdirection.length)
+        .filter((item: NetworkObject) => item.hook || item.hiddenTruth || item.setup.length || item.misdirection.length)
     : [];
   const rawForeshadows = Array.isArray(dto.foreshadowPlans) ? dto.foreshadowPlans : dto.foreshadowSeeds;
   const foreshadowPlans = Array.isArray(rawForeshadows)
     ? rawForeshadows
-        .map((item: any, index: number) => ({
+        .map((item: NetworkObject, index: number) => ({
           id: String(item?.id ?? item?.entryKey ?? `foreshadow-${index + 1}`),
           clue: String(item?.clue ?? item?.setup ?? ""),
           disguise: String(item?.disguise ?? item?.coverLayer ?? item?.misdirectionLayer ?? ""),
@@ -390,12 +402,12 @@ export function toPlotPlanning(dto: any): PlotPlanning | undefined {
     : [];
   const beats = Array.isArray(dto.beats)
     ? dto.beats
-        .map((item: any, index: number) => ({
+        .map((item: NetworkObject, index: number) => ({
           id: String(item?.id ?? `beat-${index + 1}`),
           label: String(item?.label ?? `Beat ${index + 1}`),
           summary: String(item?.summary ?? ""),
         }))
-        .filter((item: any) => item.summary)
+        .filter((item: NetworkObject) => item.summary)
     : [];
   const planning: PlotPlanning = {
     corePromise: String(dto.corePromise ?? ""),
@@ -432,7 +444,10 @@ export function toPlotPlanning(dto: any): PlotPlanning | undefined {
     : undefined;
 }
 
-export function normalizeConceptionResult(dto: any) {
+export function normalizeConceptionResult(dto: NetworkObject): NetworkObject & {
+  plotPlanning: PlotPlanning | undefined;
+  outlineSeed?: NetworkObject;
+} {
   const result = dto && typeof dto === "object" ? dto : {};
   const generated = result.generated && typeof result.generated === "object" ? result.generated : undefined;
   const plotPlanning =
@@ -456,14 +471,14 @@ export function normalizeConceptionResult(dto: any) {
   };
 }
 
-function toOutline(dto: any): Outline {
+function toOutline(dto: NetworkObject): Outline {
   const planning = toPlotPlanning(dto?.planning);
   return {
     id: dto.id,
     storyId: dto.storyId,
     title: dto.title || "新大纲",
     worldId: dto.worldId || undefined,
-    chapters: (dto.chapters || []).map((c: any) => ({
+    chapters: (dto.chapters || []).map((c: NetworkObject) => ({
       id: c.id,
       title: c.title || "",
       summary: c.summary || "",
@@ -477,7 +492,7 @@ function toOutline(dto: any): Outline {
             tensionShift: c.planning.tensionShift || c.planning.purpose || "",
           }
         : undefined,
-      scenes: (c.scenes || []).map((s: any) => ({
+      scenes: (c.scenes || []).map((s: NetworkObject) => ({
         id: s.id,
         title: s.title || "",
         summary: s.summary || "",
@@ -515,7 +530,7 @@ function toSceneType(value: unknown): ScenePlanning["sceneType"] {
     : undefined;
 }
 
-function toWorld(dto: any): World {
+function toWorld(dto: NetworkObject): World {
   return {
     id: dto.id,
     name: dto.name,
@@ -526,7 +541,7 @@ function toWorld(dto: any): World {
   };
 }
 
-function toWorldDetail(dto: any): WorldDetail {
+function toWorldDetail(dto: NetworkObject): WorldDetail {
   const modulesMap: Record<string, Record<string, string>> = dto.modules || {};
   return {
     id: dto.id,
@@ -542,7 +557,7 @@ function toWorldDetail(dto: any): WorldDetail {
   };
 }
 
-function toMaterial(dto: any): Material {
+function toMaterial(dto: NetworkObject): Material {
   return {
     id: dto.id,
     title: dto.title,
@@ -555,7 +570,7 @@ function toMaterial(dto: any): Material {
   };
 }
 
-function toMaterialSearchResult(dto: any): MaterialSearchResult {
+function toMaterialSearchResult(dto: NetworkObject): MaterialSearchResult {
   return {
     materialId: String(dto.materialId ?? dto.id ?? ""),
     chunkId: String(dto.chunkId ?? dto.materialId ?? dto.id ?? ""),
@@ -564,11 +579,11 @@ function toMaterialSearchResult(dto: any): MaterialSearchResult {
     score: Number(dto.score ?? 0),
     chunkSeq: dto.chunkSeq == null ? undefined : Number(dto.chunkSeq),
     source: String(dto.source ?? "keyword"),
-    matchReasons: Array.isArray(dto.matchReasons) ? dto.matchReasons.map((item: any) => String(item)) : [],
+    matchReasons: Array.isArray(dto.matchReasons) ? dto.matchReasons.map((item: NetworkObject) => String(item)) : [],
   };
 }
 
-function toManuscript(dto: any): Manuscript {
+function toManuscript(dto: NetworkObject): Manuscript {
   return {
     id: dto.id,
     outlineId: dto.outlineId,
@@ -583,11 +598,12 @@ function toManuscript(dto: any): Manuscript {
           createdAt: String(dto.lastGenerationRun.createdAt),
         }
       : null,
+    version: Number(dto.version ?? 0),
     updatedAt: dto.updatedAt || new Date().toISOString(),
   };
 }
 
-function toSlopQualityRun(dto: any): SlopQualityRun {
+function toSlopQualityRun(dto: NetworkObject): SlopQualityRun {
   return {
     id: String(dto.id),
     storyId: String(dto.storyId),
@@ -609,7 +625,7 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
     rewriteTasks: parseJsonList(dto.rewriteTasksJson ?? dto.rewriteTasks),
     createdAt: dto.createdAt || undefined,
     issues: Array.isArray(dto.issues)
-      ? dto.issues.map((issue: any) => ({
+      ? dto.issues.map((issue: NetworkObject) => ({
           id: String(issue.id),
           dimension: String(issue.dimension || ""),
           severity: String(issue.severity || "LOW"),
@@ -631,7 +647,7 @@ function toSlopQualityRun(dto: any): SlopQualityRun {
   };
 }
 
-function toSlopDriftRun(dto: any): SlopDriftRun {
+function toSlopDriftRun(dto: NetworkObject): SlopDriftRun {
   return {
     id: String(dto.id),
     storyId: String(dto.storyId),
@@ -645,7 +661,7 @@ function toSlopDriftRun(dto: any): SlopDriftRun {
     windowCount: Number(dto.windowCount || 0),
     sourceTextHash: dto.sourceTextHash || undefined,
     windowSummaries: parseJsonList(dto.windowSummariesJson ?? dto.windowSummaries),
-    metricCurves: parseJsonObject(dto.metricCurvesJson ?? dto.metricCurves),
+    metricCurves: parseJsonObject(dto.metricCurvesJson ?? dto.metricCurves) as SlopDriftRun["metricCurves"],
     driftPoints: parseJsonList(dto.driftPointsJson ?? dto.driftPoints),
     evidenceItems: parseJsonList(dto.evidenceItemsJson ?? dto.evidenceItems),
     alternativeExplanations: parseStringArray(dto.alternativeExplanationsJson ?? dto.alternativeExplanations),
@@ -654,7 +670,7 @@ function toSlopDriftRun(dto: any): SlopDriftRun {
   };
 }
 
-function parseJsonValue(value: any): unknown {
+function parseJsonValue(value: unknown): unknown {
   if (typeof value !== "string") return value;
   if (!value.trim()) return undefined;
   try {
@@ -664,21 +680,21 @@ function parseJsonValue(value: any): unknown {
   }
 }
 
-function parseJsonObject(value: any): Record<string, unknown> {
+function parseJsonObject(value: unknown): Record<string, unknown> {
   const parsed = parseJsonValue(value);
   return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 }
 
-function parseJsonList(value: any): any[] {
+function parseJsonList<T = NetworkObject>(value: unknown): T[] {
   const parsed = parseJsonValue(value);
-  return Array.isArray(parsed) ? parsed : [];
+  return Array.isArray(parsed) ? parsed as T[] : [];
 }
 
-function parseStringArray(value: any): string[] {
+function parseStringArray(value: unknown): string[] {
   return parseJsonList(value).map((item) => String(item));
 }
 
-function parseJsonArray(value: any): string[] {
+function parseJsonArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => String(item));
   if (typeof value !== "string" || !value.trim()) return [];
   try {
@@ -689,7 +705,7 @@ function parseJsonArray(value: any): string[] {
   }
 }
 
-function toPlotQualityRun(dto: any): PlotQualityRun {
+function toPlotQualityRun(dto: NetworkObject): PlotQualityRun {
   return {
     id: String(dto.id),
     storyId: String(dto.storyId),
@@ -710,7 +726,7 @@ function toPlotQualityRun(dto: any): PlotQualityRun {
     revisionAppliedAt: dto.revisionAppliedAt || undefined,
     createdAt: dto.createdAt || undefined,
     issues: Array.isArray(dto.issues)
-      ? dto.issues.map((issue: any) => ({
+      ? dto.issues.map((issue: NetworkObject) => ({
           id: String(issue.id),
           dimension: String(issue.dimension || ""),
           severity: String(issue.severity || "LOW"),
@@ -723,7 +739,7 @@ function toPlotQualityRun(dto: any): PlotQualityRun {
   };
 }
 
-function toPlotQualityTrend(dto: any): PlotQualityTrend {
+function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
   return {
     manuscriptId: String(dto.manuscriptId || ""),
     averageRisk: Number(dto.averageRisk || 0),
@@ -732,7 +748,7 @@ function toPlotQualityTrend(dto: any): PlotQualityTrend {
       Object.entries(dto.dimensionCounts || {}).map(([key, value]) => [key, Number(value || 0)])
     ),
     points: Array.isArray(dto.points)
-      ? dto.points.map((point: any) => ({
+      ? dto.points.map((point: NetworkObject) => ({
           runId: String(point.runId || ""),
           sceneId: String(point.sceneId || ""),
           chapterTitle: point.chapterTitle || undefined,
@@ -778,7 +794,7 @@ export const api = {
 
   user: {
     getProfile: async () => {
-      const profile = await requestJson<any>("/v1/user/profile", { method: "GET" });
+      const profile = await requestJson<NetworkObject>("/v1/user/profile", { method: "GET" });
       return toUser(profile);
     },
     redeem: async (code: string) => {
@@ -821,23 +837,23 @@ export const api = {
   },
 
   ai: {
-    chat: async (messages: any[], modelId: string, context: any) => {
+    chat: async (messages: Array<{ role: string; content: string }>, modelId: string, context: NetworkObject) => {
       const payload = {
         modelId,
         context,
         messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
       };
-      return await requestJson<any>("/v1/ai/chat", { method: "POST", body: JSON.stringify(payload) });
+      return await requestJson<NetworkObject>("/v1/ai/chat", { method: "POST", body: JSON.stringify(payload) });
     },
     refine: async (text: string, instruction: string, modelId: string) => {
-      return await requestJson<any>("/v1/ai/refine", {
+      return await requestJson<NetworkObject>("/v1/ai/refine", {
         method: "POST",
         body: JSON.stringify({ text, instruction, modelId }),
       });
     },
     getModels: async (): Promise<ModelConfig[]> => {
       try {
-        const models = await requestJson<any[]>("/v1/ai/models", { method: "GET" });
+        const models = await requestJson<NetworkObject[]>("/v1/ai/models", { method: "GET" });
         return (models || []).map((model, index) => normalizeModel(model, index));
       } catch {
         return [];
@@ -852,7 +868,7 @@ export const api = {
     getUsers: async (search?: string): Promise<User[]> => {
       const keyword = search?.trim();
       const path = keyword ? `/v1/admin/users?search=${encodeURIComponent(keyword)}` : "/v1/admin/users";
-      const users = await requestJson<any[]>(path, { method: "GET" }, adminCookieAuth());
+      const users = await requestJson<NetworkObject[]>(path, { method: "GET" }, adminCookieAuth());
       return users.map((u) => ({
         id: String(u.id),
         username: u.username,
@@ -868,13 +884,13 @@ export const api = {
       }));
     },
     getSystemConfig: async () => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/system-config", { method: "GET" }, adminCookieAuth());
     },
-    updateSystemConfig: async (payload: any) => {
-      return await requestJson<any>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth());
+    updateSystemConfig: async (payload: NetworkObject) => {
+      return await requestJson<NetworkObject>("/v1/admin/system-config", { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     listRedeemCodes: async () => {
-      return await requestJson<any[]>("/v1/admin/redeem-codes", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>("/v1/admin/redeem-codes", { method: "GET" }, adminCookieAuth());
     },
     createRedeemCode: async (payload: {
       code: string;
@@ -886,44 +902,44 @@ export const api = {
       stackable?: boolean;
       description?: string;
     }) => {
-      return await requestJson<any>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/redeem-codes", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     grantProjectCredits: async (payload: { userId: string; amount: number; reason?: string }) => {
-      return await requestJson<any>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/credits/grant", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth());
     },
     listConversionOrders: async (page = 0, size = 50) => {
-      return await requestJson<any[]>(`/v1/admin/credits/conversions?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>(`/v1/admin/credits/conversions?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
     },
     listCreditLedger: async (page = 0, size = 50) => {
-      return await requestJson<any[]>(`/v1/admin/credits/ledger?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>(`/v1/admin/credits/ledger?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
     },
     getAssetSummary: async () => {
-      return await requestJson<any>("/v1/admin/assets/summary", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/assets/summary", { method: "GET" }, adminCookieAuth());
     },
     listPendingMaterials: async (): Promise<Material[]> => {
-      const data = await requestJson<any[]>("/v1/admin/materials/pending", { method: "GET" }, adminCookieAuth());
+      const data = await requestJson<NetworkObject[]>("/v1/admin/materials/pending", { method: "GET" }, adminCookieAuth());
       return data.map(toMaterial);
     },
-    approveMaterial: async (id: string, payload: any = {}) => {
-      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
+    approveMaterial: async (id: string, payload: NetworkObject = {}) => {
+      return toMaterial(await requestJson<NetworkObject>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
-    rejectMaterial: async (id: string, payload: any = {}) => {
-      return toMaterial(await requestJson<any>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
+    rejectMaterial: async (id: string, payload: NetworkObject = {}) => {
+      return toMaterial(await requestJson<NetworkObject>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     findMaterialDuplicates: async () => {
-      return await requestJson<any[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, adminCookieAuth());
     },
-    mergeMaterials: async (payload: any) => {
-      return toMaterial(await requestJson<any>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
+    mergeMaterials: async (payload: NetworkObject) => {
+      return toMaterial(await requestJson<NetworkObject>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     listMaterialCitations: async (id: string) => {
-      return await requestJson<any[]>(`/v1/admin/materials/${id}/citations`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>(`/v1/admin/materials/${id}/citations`, { method: "GET" }, adminCookieAuth());
     },
     listAssets: async (kind: "stories" | "worlds" | "manuscripts") => {
-      return await requestJson<any[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, adminCookieAuth());
     },
     listQualityRuns: async () => {
-      return await requestJson<any[]>("/v1/admin/quality/runs", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>("/v1/admin/quality/runs", { method: "GET" }, adminCookieAuth());
     },
     listG2Evaluations: async (): Promise<G2EvaluationExperiment[]> => {
       return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, adminCookieAuth());
@@ -941,22 +957,22 @@ export const api = {
       }, adminCookieAuth());
     },
     getOpsSummary: async () => {
-      return await requestJson<any>("/v1/admin/ops/summary", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/ops/summary", { method: "GET" }, adminCookieAuth());
     },
     listDependencies: async () => {
-      return await requestJson<any[]>("/v1/admin/ops/dependencies", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>("/v1/admin/ops/dependencies", { method: "GET" }, adminCookieAuth());
     },
     listOpsEvents: async (params: { severity?: string; category?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
-      return await requestJson<any>(`/v1/admin/ops/events${queryString(params)}`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>(`/v1/admin/ops/events${queryString(params)}`, { method: "GET" }, adminCookieAuth());
     },
     listAuditRecords: async (params: { action?: string; actor?: string; targetType?: string; from?: string; to?: string; page?: number; size?: number } = {}) => {
-      return await requestJson<any>(`/v1/admin/ops/audit${queryString(params)}`, { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>(`/v1/admin/ops/audit${queryString(params)}`, { method: "GET" }, adminCookieAuth());
     },
     listOpsAlerts: async () => {
-      return await requestJson<any[]>("/v1/admin/ops/alerts", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject[]>("/v1/admin/ops/alerts", { method: "GET" }, adminCookieAuth());
     },
     getOpsDiagnostics: async () => {
-      return await requestJson<any>("/v1/admin/ops/diagnostics", { method: "GET" }, adminCookieAuth());
+      return await requestJson<NetworkObject>("/v1/admin/ops/diagnostics", { method: "GET" }, adminCookieAuth());
     },
   },
 
@@ -1070,15 +1086,15 @@ export const api = {
 
   stories: {
     list: async (): Promise<Story[]> => {
-      const data = await requestJson<any[]>("/v1/story-cards", { method: "GET" });
+      const data = await requestJson<NetworkObject[]>("/v1/story-cards", { method: "GET" });
       return data.map(toStory);
     },
-    create: async (data: any) => {
-      const dto = await requestJson<any>("/v1/stories", { method: "POST", body: JSON.stringify(data) });
+    create: async (data: unknown) => {
+      const dto = await requestJson<NetworkObject>("/v1/stories", { method: "POST", body: JSON.stringify(data) });
       return toStory(dto);
     },
-    conception: async (data: any) => {
-      const dto = await requestJson<any>("/v1/conception", { method: "POST", body: JSON.stringify(data) });
+    conception: async (data: unknown) => {
+      const dto = await requestJson<NetworkObject>("/v1/conception", { method: "POST", body: JSON.stringify(data) });
       const normalized = normalizeConceptionResult(dto);
       const plotPlanning = normalized.plotPlanning;
       const outlineSeed = normalized.outlineSeed
@@ -1106,27 +1122,27 @@ export const api = {
           : undefined,
       };
     },
-    startConception: async (data: any): Promise<AiOperationAccepted> =>
+    startConception: async (data: unknown): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>("/v1/conception/operations", { method: "POST", body: JSON.stringify(data) }),
     get: async (id: string) => {
-      const dto = await requestJson<any>(`/v1/story-cards/${id}`, { method: "GET" });
+      const dto = await requestJson<NetworkObject>(`/v1/story-cards/${id}`, { method: "GET" });
       return toStory(dto);
     },
     listCharacters: async (storyId: string) => {
-      return await requestJson<any[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
+      return await requestJson<NetworkObject[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
     },
     addCharacter: async (storyId: string, payload: { name: string; synopsis?: string; details?: string; relationships?: string }) => {
-      return await requestJson<any>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
+      return await requestJson<NetworkObject>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
     },
-    updateCharacter: async (id: string, payload: any) => {
-      return await requestJson<any>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    updateCharacter: async (id: string, payload: NetworkObject) => {
+      return await requestJson<NetworkObject>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
     deleteCharacter: async (id: string) => {
       await requestVoid(`/v1/character-cards/${id}`, { method: "DELETE" });
       return true;
     },
-    update: async (id: string, data: any) => {
-      const dto = await requestJson<any>(`/v1/story-cards/${id}`, { method: "PUT", body: JSON.stringify(data) });
+    update: async (id: string, data: unknown) => {
+      const dto = await requestJson<NetworkObject>(`/v1/story-cards/${id}`, { method: "PUT", body: JSON.stringify(data) });
       return toStory(dto);
     },
     delete: async (id: string) => {
@@ -1137,29 +1153,29 @@ export const api = {
 
   outlines: {
     listByStory: async (storyId: string): Promise<Outline[]> => {
-      const data = await requestJson<any[]>(`/v1/story-cards/${storyId}/outlines`, { method: "GET" });
+      const data = await requestJson<NetworkObject[]>(`/v1/story-cards/${storyId}/outlines`, { method: "GET" });
       return data.map(toOutline);
     },
-    create: async (storyId: string, data: { title?: string; worldId?: string; planning?: any } = {}) => {
-      const dto = await requestJson<any>(`/v1/story-cards/${storyId}/outlines`, { method: "POST", body: JSON.stringify(data) });
+    create: async (storyId: string, data: { title?: string; worldId?: string; planning?: unknown } = {}) => {
+      const dto = await requestJson<NetworkObject>(`/v1/story-cards/${storyId}/outlines`, { method: "POST", body: JSON.stringify(data) });
       return toOutline(dto);
     },
     get: async (outlineId: string) => {
-      const dto = await requestJson<any>(`/v1/outlines/${outlineId}`, { method: "GET" });
+      const dto = await requestJson<NetworkObject>(`/v1/outlines/${outlineId}`, { method: "GET" });
       return toOutline(dto);
     },
     save: async (outlineId: string, outline: Outline & { worldId?: string }) => {
       const payload = {
         title: outline.title,
-        worldId: (outline as any).worldId,
+        worldId: outline.worldId,
         planning: outline.planning,
-        chapters: (outline.chapters || []).map((c: any, ci: number) => ({
+        chapters: (outline.chapters || []).map((c: NetworkObject, ci: number) => ({
           id: c.id,
           title: c.title,
           summary: c.summary,
           order: c.order ?? ci + 1,
           planning: c.planning,
-          scenes: (c.scenes || []).map((s: any, si: number) => ({
+          scenes: (c.scenes || []).map((s: NetworkObject, si: number) => ({
             id: s.id,
             title: s.title,
             summary: s.summary,
@@ -1169,28 +1185,28 @@ export const api = {
           })),
         })),
       };
-      const dto = await requestJson<any>(`/v1/outlines/${outlineId}`, { method: "PUT", body: JSON.stringify(payload) });
+      const dto = await requestJson<NetworkObject>(`/v1/outlines/${outlineId}`, { method: "PUT", body: JSON.stringify(payload) });
       return toOutline(dto);
     },
     delete: async (outlineId: string) => {
       await requestVoid(`/v1/outlines/${outlineId}`, { method: "DELETE" });
       return true;
     },
-    startGenerateChapter: async (outlineId: string, payload: any): Promise<AiOperationAccepted> =>
+    startGenerateChapter: async (outlineId: string, payload: NetworkObject): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/outlines/${outlineId}/chapters/operations`, { method: "POST", body: JSON.stringify(payload) }),
   },
 
   manuscripts: {
     listByOutline: async (outlineId: string): Promise<Manuscript[]> => {
-      const list = await requestJson<any[]>(`/v1/outlines/${outlineId}/manuscripts`, { method: "GET" });
+      const list = await requestJson<NetworkObject[]>(`/v1/outlines/${outlineId}/manuscripts`, { method: "GET" });
       return list.map(toManuscript);
     },
     create: async (outlineId: string, payload: { title: string; worldId?: string }): Promise<Manuscript> => {
-      const dto = await requestJson<any>(`/v1/outlines/${outlineId}/manuscripts`, { method: "POST", body: JSON.stringify(payload) });
+      const dto = await requestJson<NetworkObject>(`/v1/outlines/${outlineId}/manuscripts`, { method: "POST", body: JSON.stringify(payload) });
       return toManuscript(dto);
     },
     get: async (id: string): Promise<Manuscript> => {
-      const dto = await requestJson<any>(`/v1/manuscripts/${id}`, { method: "GET" });
+      const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${id}`, { method: "GET" });
       return toManuscript(dto);
     },
     delete: async (id: string) => {
@@ -1198,7 +1214,7 @@ export const api = {
       return true;
     },
     generateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<Manuscript> => {
-      const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
+      const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
       return toManuscript(dto);
     },
     startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
@@ -1218,30 +1234,33 @@ export const api = {
         `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs/${runId}/feedback`,
         { method: "PATCH", body: JSON.stringify(payload) },
       ),
-    saveSection: async (manuscriptId: string, sceneId: string, content: string): Promise<Manuscript> => {
-      const dto = await requestJson<any>(`/v1/manuscripts/${manuscriptId}/sections/${sceneId}`, { method: "PUT", body: JSON.stringify({ content }) });
+    saveSection: async (manuscriptId: string, sceneId: string, content: string, expectedVersion: number): Promise<Manuscript> => {
+      const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${manuscriptId}/sections/${sceneId}`, {
+        method: "PUT",
+        body: JSON.stringify({ content, expectedVersion }),
+      });
       return toManuscript(dto);
     },
   },
 
   worlds: {
     list: async (): Promise<World[]> => {
-      const data = await requestJson<any[]>("/v1/worlds", { method: "GET" });
+      const data = await requestJson<NetworkObject[]>("/v1/worlds", { method: "GET" });
       return data.map(toWorld);
     },
     getDefinitions: async (): Promise<WorldModuleDefinition[]> => {
       return await requestJson<WorldModuleDefinition[]>("/v1/world-building/definitions", { method: "GET" });
     },
     getDetail: async (id: string): Promise<WorldDetail> => {
-      const dto = await requestJson<any>(`/v1/worlds/${id}`, { method: "GET" });
+      const dto = await requestJson<NetworkObject>(`/v1/worlds/${id}`, { method: "GET" });
       return toWorldDetail(dto);
     },
-    create: async (data: any): Promise<World> => {
-      const dto = await requestJson<any>("/v1/worlds", { method: "POST", body: JSON.stringify(data) });
+    create: async (data: unknown): Promise<World> => {
+      const dto = await requestJson<NetworkObject>("/v1/worlds", { method: "POST", body: JSON.stringify(data) });
       return toWorldDetail(dto);
     },
     update: async (id: string, detail: WorldDetail) => {
-      await requestJson<any>(`/v1/worlds/${id}`, {
+      await requestJson<NetworkObject>(`/v1/worlds/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           name: detail.name,
@@ -1253,7 +1272,7 @@ export const api = {
       });
       const modules: Record<string, Record<string, string>> = {};
       (detail.modules || []).forEach((m) => (modules[m.key] = m.fields || {}));
-      await requestJson<any>(`/v1/worlds/${id}/modules`, { method: "PUT", body: JSON.stringify({ modules }) });
+      await requestJson<NetworkObject>(`/v1/worlds/${id}/modules`, { method: "PUT", body: JSON.stringify({ modules }) });
       return true;
     },
     delete: async (id: string) => {
@@ -1261,43 +1280,43 @@ export const api = {
       return true;
     },
     refineField: async (worldId: string, moduleKey: string, fieldKey: string, text: string, instruction?: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/modules/${moduleKey}/fields/${fieldKey}/refine`, {
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/modules/${moduleKey}/fields/${fieldKey}/refine`, {
         method: "POST",
         body: JSON.stringify({ text, instruction: instruction || "" }),
       });
     },
     publishPreview: async (worldId: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/publish/preview`, { method: "GET" });
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish/preview`, { method: "GET" });
     },
     publish: async (worldId: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: "{}" });
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: "{}" });
     },
     startPublish: async (worldId: string): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/publish/operations`, { method: "POST", body: "{}" }),
     generationStatus: async (worldId: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
     },
     generateModule: async (worldId: string, moduleKey: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/generation/${moduleKey}`, { method: "POST", body: "{}" });
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}`, { method: "POST", body: "{}" });
     },
     startGenerateModule: async (worldId: string, moduleKey: string): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/generation/${moduleKey}/operations`, { method: "POST", body: "{}" }),
     retryModule: async (worldId: string, moduleKey: string) => {
-      return await requestJson<any>(`/v1/worlds/${worldId}/generation/${moduleKey}/retry`, { method: "POST", body: "{}" });
+      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}/retry`, { method: "POST", body: "{}" });
     },
   },
 
   materials: {
     list: async (): Promise<Material[]> => {
-      const data = await requestJson<any[]>("/v1/materials", { method: "GET" });
+      const data = await requestJson<NetworkObject[]>("/v1/materials", { method: "GET" });
       return data.map(toMaterial);
     },
-    create: async (payload: { title: string; type: any; content: string; tags?: string[] }) => {
-      const dto = await requestJson<any>("/v1/materials", { method: "POST", body: JSON.stringify(payload) });
+    create: async (payload: { title: string; type: unknown; content: string; tags?: string[] }) => {
+      const dto = await requestJson<NetworkObject>("/v1/materials", { method: "POST", body: JSON.stringify(payload) });
       return toMaterial(dto);
     },
-    update: async (id: string, payload: { title?: string; type?: any; summary?: string; content?: string; tags?: string[]; status?: string }) => {
-      const dto = await requestJson<any>(`/v1/materials/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    update: async (id: string, payload: { title?: string; type?: unknown; summary?: string; content?: string; tags?: string[]; status?: string }) => {
+      const dto = await requestJson<NetworkObject>(`/v1/materials/${id}`, { method: "PUT", body: JSON.stringify(payload) });
       return toMaterial(dto);
     },
     delete: async (id: string) => {
@@ -1313,16 +1332,16 @@ export const api = {
       return await requestJson<FileImportJob>(`/v1/materials/upload/${jobId}`, { method: "GET" });
     },
     getPending: async (): Promise<Material[]> => {
-      const data = await requestJson<any[]>("/v1/materials/review/pending", { method: "GET" });
+      const data = await requestJson<NetworkObject[]>("/v1/materials/review/pending", { method: "GET" });
       return data.map(toMaterial);
     },
     review: async (id: string, action: "approve" | "reject") => {
       const path = action === "approve" ? "approve" : "reject";
-      await requestJson<any>(`/v1/materials/${id}/review/${path}`, { method: "POST", body: JSON.stringify({}) });
+      await requestJson<NetworkObject>(`/v1/materials/${id}/review/${path}`, { method: "POST", body: JSON.stringify({}) });
       return true;
     },
     search: async (query: string): Promise<MaterialSearchResult[]> => {
-      const results = await requestJson<any[]>("/v1/materials/search", { method: "POST", body: JSON.stringify({ query, limit: 10 }) });
+      const results = await requestJson<NetworkObject[]>("/v1/materials/search", { method: "POST", body: JSON.stringify({ query, limit: 10 }) });
       return results.map(toMaterialSearchResult).filter((item) => item.materialId && item.chunkId);
     },
     findDuplicates: async (): Promise<MaterialDuplicateCandidate[]> => {
@@ -1362,30 +1381,30 @@ export const api = {
 
   v2: {
     context: {
-      listLorebook: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/lorebook`, { method: "GET" }),
-      createLorebook: async (storyId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/lorebook`, { method: "POST", body: JSON.stringify(payload) }),
-      updateLorebook: async (storyId: string, entryId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/lorebook/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }),
+      listLorebook: async (storyId: string) => requestJson<NetworkObject[]>(`/v2/stories/${storyId}/lorebook`, { method: "GET" }),
+      createLorebook: async (storyId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/lorebook`, { method: "POST", body: JSON.stringify(payload) }),
+      updateLorebook: async (storyId: string, entryId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/lorebook/${entryId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteLorebook: async (storyId: string, entryId: string) => {
         await requestVoid(`/v2/stories/${storyId}/lorebook/${entryId}`, { method: "DELETE" });
       },
-      importLorebook: async (storyId: string, entries: any[]) =>
-        requestJson<any>(`/v2/stories/${storyId}/lorebook/import`, { method: "POST", body: JSON.stringify({ entries }) }),
-      getGraph: async (storyId: string) => requestJson<any>(`/v2/stories/${storyId}/graph`, { method: "GET" }),
+      importLorebook: async (storyId: string, entries: unknown[]) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/lorebook/import`, { method: "POST", body: JSON.stringify({ entries }) }),
+      getGraph: async (storyId: string) => requestJson<NetworkObject>(`/v2/stories/${storyId}/graph`, { method: "GET" }),
       queryGraph: async (storyId: string, keyword: string) =>
-        requestJson<any>(`/v2/stories/${storyId}/graph/query?keyword=${encodeURIComponent(keyword)}`, { method: "GET" }),
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/graph/query?keyword=${encodeURIComponent(keyword)}`, { method: "GET" }),
       createRelationship: async (storyId: string, payload: { source: string; target: string; relationType: string }) =>
-        requestJson<any>(`/v2/stories/${storyId}/graph/relationships`, { method: "POST", body: JSON.stringify(payload) }),
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/graph/relationships`, { method: "POST", body: JSON.stringify(payload) }),
       deleteRelationship: async (storyId: string, relationshipId: string) => {
         await requestVoid(`/v2/stories/${storyId}/graph/relationships/${relationshipId}`, { method: "DELETE" });
       },
-      syncGraph: async (storyId: string) => requestJson<any>(`/v2/stories/${storyId}/graph/sync`, { method: "POST", body: "{}" }),
-      extractEntities: async (storyId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/extract-entities`, { method: "POST", body: JSON.stringify(payload) }),
-      listExtractions: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/extractions`, { method: "GET" }),
+      syncGraph: async (storyId: string) => requestJson<NetworkObject>(`/v2/stories/${storyId}/graph/sync`, { method: "POST", body: "{}" }),
+      extractEntities: async (storyId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/extract-entities`, { method: "POST", body: JSON.stringify(payload) }),
+      listExtractions: async (storyId: string) => requestJson<NetworkObject[]>(`/v2/stories/${storyId}/extractions`, { method: "GET" }),
       reviewExtraction: async (storyId: string, id: string, reviewAction: string) =>
-        requestJson<any>(`/v2/stories/${storyId}/extractions/${id}/review`, {
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/extractions/${id}/review`, {
           method: "PUT",
           body: JSON.stringify({ reviewAction }),
         }),
@@ -1406,27 +1425,27 @@ export const api = {
     },
 
     style: {
-      listProfiles: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/style-profiles`, { method: "GET" }),
-      createProfile: async (storyId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/style-profiles`, { method: "POST", body: JSON.stringify(payload) }),
-      updateProfile: async (storyId: string, profileId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/style-profiles/${profileId}`, { method: "PUT", body: JSON.stringify(payload) }),
+      listProfiles: async (storyId: string) => requestJson<Record<string, unknown>[]>(`/v2/stories/${storyId}/style-profiles`, { method: "GET" }),
+      createProfile: async (storyId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/style-profiles`, { method: "POST", body: JSON.stringify(payload) }),
+      updateProfile: async (storyId: string, profileId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/style-profiles/${profileId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteProfile: async (storyId: string, profileId: string) => {
         await requestVoid(`/v2/stories/${storyId}/style-profiles/${profileId}`, { method: "DELETE" });
       },
       activateProfile: async (storyId: string, profileId: string) =>
-        requestJson<any>(`/v2/stories/${storyId}/style-profiles/${profileId}/activate`, { method: "POST", body: "{}" }),
-      analyze: async (payload: any) => requestJson<any>("/v2/style-analysis", { method: "POST", body: JSON.stringify(payload) }),
-      listVoices: async (storyId: string) => requestJson<any[]>(`/v2/stories/${storyId}/character-voices`, { method: "GET" }),
-      createVoice: async (storyId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/character-voices`, { method: "POST", body: JSON.stringify(payload) }),
-      updateVoice: async (storyId: string, voiceId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/character-voices/${voiceId}`, { method: "PUT", body: JSON.stringify(payload) }),
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/style-profiles/${profileId}/activate`, { method: "POST", body: "{}" }),
+      analyze: async (payload: NetworkObject) => requestJson<NetworkObject>("/v2/style-analysis", { method: "POST", body: JSON.stringify(payload) }),
+      listVoices: async (storyId: string) => requestJson<NetworkObject[]>(`/v2/stories/${storyId}/character-voices`, { method: "GET" }),
+      createVoice: async (storyId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/character-voices`, { method: "POST", body: JSON.stringify(payload) }),
+      updateVoice: async (storyId: string, voiceId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/character-voices/${voiceId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteVoice: async (storyId: string, voiceId: string) => {
         await requestVoid(`/v2/stories/${storyId}/character-voices/${voiceId}`, { method: "DELETE" });
       },
-      generateVoice: async (storyId: string, voiceId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/stories/${storyId}/character-voices/${voiceId}/generate`, { method: "POST", body: JSON.stringify(payload) }),
+      generateVoice: async (storyId: string, voiceId: string, payload: NetworkObject = {}) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/character-voices/${voiceId}/generate`, { method: "POST", body: JSON.stringify(payload) }),
     },
 
     analysis: {
@@ -1454,11 +1473,11 @@ export const api = {
     quality: {
       listRuns: async (manuscriptId: string, sceneId?: string): Promise<SlopQualityRun[]> => {
         const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
-        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/quality-runs${query}`, { method: "GET" });
+        const list = await requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/quality-runs${query}`, { method: "GET" });
         return list.map(toSlopQualityRun);
       },
       analyzeScene: async (manuscriptId: string, sceneId: string): Promise<SlopQualityRun> => {
-        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/quality-runs`, {
+        const run = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/quality-runs`, {
           method: "POST",
           body: "{}",
         });
@@ -1470,11 +1489,11 @@ export const api = {
 
     slopDrift: {
       listRuns: async (manuscriptId: string): Promise<SlopDriftRun[]> => {
-        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, { method: "GET" });
+        const list = await requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, { method: "GET" });
         return list.map(toSlopDriftRun);
       },
       analyze: async (manuscriptId: string): Promise<SlopDriftRun> => {
-        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, {
+        const run = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/slop-drift-runs`, {
           method: "POST",
           body: "{}",
         });
@@ -1487,11 +1506,11 @@ export const api = {
     plotQuality: {
       listRuns: async (manuscriptId: string, sceneId?: string): Promise<PlotQualityRun[]> => {
         const query = sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : "";
-        const list = await requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs${query}`, { method: "GET" });
+        const list = await requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs${query}`, { method: "GET" });
         return list.map(toPlotQualityRun);
       },
       analyzeScene: async (manuscriptId: string, sceneId: string): Promise<PlotQualityRun> => {
-        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/plot-quality-runs`, {
+        const run = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/plot-quality-runs`, {
           method: "POST",
           body: "{}",
         });
@@ -1500,11 +1519,11 @@ export const api = {
       startAnalyzeScene: async (manuscriptId: string, sceneId: string): Promise<AiOperationAccepted> =>
         requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/scenes/${sceneId}/plot-quality-runs/operations`, { method: "POST", body: "{}" }),
       getTrend: async (manuscriptId: string): Promise<PlotQualityTrend> => {
-        const trend = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-trends`, { method: "GET" });
+        const trend = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/plot-quality-trends`, { method: "GET" });
         return toPlotQualityTrend(trend);
       },
       generateRevisionCandidate: async (manuscriptId: string, runId: string): Promise<PlotQualityRun> => {
-        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/revision-candidate`, {
+        const run = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/revision-candidate`, {
           method: "POST",
           body: "{}",
         });
@@ -1513,7 +1532,7 @@ export const api = {
       startGenerateRevisionCandidate: async (manuscriptId: string, runId: string): Promise<AiOperationAccepted> =>
         requestJson<AiOperationAccepted>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/revision-candidate/operations`, { method: "POST", body: "{}" }),
       applyRevision: async (manuscriptId: string, runId: string): Promise<PlotQualityRun> => {
-        const run = await requestJson<any>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/apply-revision`, {
+        const run = await requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/plot-quality-runs/${runId}/apply-revision`, {
           method: "POST",
           body: "{}",
         });
@@ -1522,48 +1541,48 @@ export const api = {
     },
 
     version: {
-      listVersions: async (manuscriptId: string) => requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "GET" }),
-      createVersion: async (manuscriptId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "POST", body: JSON.stringify(payload) }),
+      listVersions: async (manuscriptId: string) => requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "GET" }),
+      createVersion: async (manuscriptId: string, payload: NetworkObject = {}) =>
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "POST", body: JSON.stringify(payload) }),
       getVersion: async (manuscriptId: string, versionId: string) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}`, { method: "GET" }),
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}`, { method: "GET" }),
       getDiff: async (manuscriptId: string, fromVersionId: string, toVersionId: string) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions/diff?fromVersionId=${fromVersionId}&toVersionId=${toVersionId}`, { method: "GET" }),
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/diff?fromVersionId=${fromVersionId}&toVersionId=${toVersionId}`, { method: "GET" }),
       rollback: async (manuscriptId: string, versionId: string) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}/rollback`, { method: "POST", body: "{}" }),
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}/rollback`, { method: "POST", body: "{}" }),
       listBranches: async (manuscriptId: string) =>
-        requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "GET" }),
-      createBranch: async (manuscriptId: string, payload: any) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "POST", body: JSON.stringify(payload) }),
-      updateBranch: async (manuscriptId: string, branchId: string, payload: any) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}`, { method: "PUT", body: JSON.stringify(payload) }),
+        requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "GET" }),
+      createBranch: async (manuscriptId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "POST", body: JSON.stringify(payload) }),
+      updateBranch: async (manuscriptId: string, branchId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}`, { method: "PUT", body: JSON.stringify(payload) }),
       checkoutBranch: async (manuscriptId: string, branchId: string) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/checkout`, { method: "POST", body: "{}" }),
-      mergeBranch: async (manuscriptId: string, branchId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/merge`, {
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/checkout`, { method: "POST", body: "{}" }),
+      mergeBranch: async (manuscriptId: string, branchId: string, payload: NetworkObject = {}) =>
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/merge`, {
           method: "POST",
           body: JSON.stringify(payload),
         }),
       abandonBranch: async (manuscriptId: string, branchId: string) => {
         await requestVoid(`/v2/manuscripts/${manuscriptId}/branches/${branchId}`, { method: "DELETE" });
       },
-      getAutoSave: async () => requestJson<any>("/v2/users/me/auto-save-config", { method: "GET" }),
-      updateAutoSave: async (payload: any) =>
-        requestJson<any>("/v2/users/me/auto-save-config", { method: "PUT", body: JSON.stringify(payload) }),
+      getAutoSave: async () => requestJson<NetworkObject>("/v2/users/me/auto-save-config", { method: "GET" }),
+      updateAutoSave: async (payload: NetworkObject) =>
+        requestJson<NetworkObject>("/v2/users/me/auto-save-config", { method: "PUT", body: JSON.stringify(payload) }),
     },
 
     export: {
-      createJob: async (manuscriptId: string, payload: any) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/export`, { method: "POST", body: JSON.stringify(payload) }),
+      createJob: async (manuscriptId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/export`, { method: "POST", body: JSON.stringify(payload) }),
       listJobs: async (manuscriptId: string) =>
-        requestJson<any[]>(`/v2/manuscripts/${manuscriptId}/export/jobs`, { method: "GET" }),
+        requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/export/jobs`, { method: "GET" }),
       getJob: async (manuscriptId: string, jobId: string) =>
-        requestJson<any>(`/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}`, { method: "GET" }),
-      listTemplates: async () => requestJson<any[]>("/v2/export-templates", { method: "GET" }),
-      createTemplate: async (payload: any) =>
-        requestJson<any>("/v2/export-templates", { method: "POST", body: JSON.stringify(payload) }),
-      updateTemplate: async (templateId: string, payload: any) =>
-        requestJson<any>(`/v2/export-templates/${templateId}`, { method: "PUT", body: JSON.stringify(payload) }),
+        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}`, { method: "GET" }),
+      listTemplates: async () => requestJson<NetworkObject[]>("/v2/export-templates", { method: "GET" }),
+      createTemplate: async (payload: NetworkObject) =>
+        requestJson<NetworkObject>("/v2/export-templates", { method: "POST", body: JSON.stringify(payload) }),
+      updateTemplate: async (templateId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/export-templates/${templateId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteTemplate: async (templateId: string) => {
         await requestVoid(`/v2/export-templates/${templateId}`, { method: "DELETE" });
       },
@@ -1572,53 +1591,53 @@ export const api = {
     },
 
     models: {
-      list: async () => requestJson<any[]>("/v2/models", { method: "GET" }),
-      listRouting: async () => requestJson<any[]>("/v2/admin/model-routing", { method: "GET" }, adminCookieAuth()),
-      updateRouting: async (taskType: string, payload: any) =>
-        requestJson<any>(`/v2/admin/model-routing/${taskType}`, { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth()),
-      listPreferences: async () => requestJson<any[]>("/v2/users/me/model-preferences", { method: "GET" }),
+      list: async () => requestJson<NetworkObject[]>("/v2/models", { method: "GET" }),
+      listRouting: async () => requestJson<NetworkObject[]>("/v2/admin/model-routing", { method: "GET" }, adminCookieAuth()),
+      updateRouting: async (taskType: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/admin/model-routing/${taskType}`, { method: "PUT", body: JSON.stringify(payload) }, adminCookieAuth()),
+      listPreferences: async () => requestJson<NetworkObject[]>("/v2/users/me/model-preferences", { method: "GET" }),
       setPreference: async (taskType: string, preferredModelId: string | null) =>
-        requestJson<any>(`/v2/users/me/model-preferences/${taskType}`, {
+        requestJson<NetworkObject>(`/v2/users/me/model-preferences/${taskType}`, {
           method: "PUT",
           body: JSON.stringify({ preferredModelId }),
         }),
       resetPreference: async (taskType: string) => {
         await requestVoid(`/v2/users/me/model-preferences/${taskType}`, { method: "DELETE" });
       },
-      usageSummary: async () => requestJson<any>("/v2/users/me/model-usage", { method: "GET" }),
-      usageDetails: async () => requestJson<any[]>("/v2/users/me/model-usage/details", { method: "GET" }),
-      compare: async (storyId: string, payload: any) =>
-        requestJson<any>(`/v2/stories/${storyId}/compare-models`, { method: "POST", body: JSON.stringify(payload) }),
+      usageSummary: async () => requestJson<NetworkObject>("/v2/users/me/model-usage", { method: "GET" }),
+      usageDetails: async () => requestJson<NetworkObject[]>("/v2/users/me/model-usage/details", { method: "GET" }),
+      compare: async (storyId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/stories/${storyId}/compare-models`, { method: "POST", body: JSON.stringify(payload) }),
     },
 
     workspace: {
-      listLayouts: async () => requestJson<any[]>("/v2/users/me/workspace-layouts", { method: "GET" }),
-      createLayout: async (payload: any) =>
-        requestJson<any>("/v2/users/me/workspace-layouts", { method: "POST", body: JSON.stringify(payload) }),
-      updateLayout: async (layoutId: string, payload: any) =>
-        requestJson<any>(`/v2/users/me/workspace-layouts/${layoutId}`, { method: "PUT", body: JSON.stringify(payload) }),
+      listLayouts: async () => requestJson<NetworkObject[]>("/v2/users/me/workspace-layouts", { method: "GET" }),
+      createLayout: async (payload: NetworkObject) =>
+        requestJson<NetworkObject>("/v2/users/me/workspace-layouts", { method: "POST", body: JSON.stringify(payload) }),
+      updateLayout: async (layoutId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/users/me/workspace-layouts/${layoutId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteLayout: async (layoutId: string) => {
         await requestVoid(`/v2/users/me/workspace-layouts/${layoutId}`, { method: "DELETE" });
       },
       activateLayout: async (layoutId: string) =>
-        requestJson<any>(`/v2/users/me/workspace-layouts/${layoutId}/activate`, { method: "POST", body: "{}" }),
-      startSession: async (payload: any) => requestJson<any>("/v2/writing-sessions/start", { method: "POST", body: JSON.stringify(payload) }),
-      heartbeatSession: async (sessionId: string, payload: any) =>
-        requestJson<any>(`/v2/writing-sessions/${sessionId}/heartbeat`, { method: "PUT", body: JSON.stringify(payload) }),
-      endSession: async (sessionId: string, payload: any = {}) =>
-        requestJson<any>(`/v2/writing-sessions/${sessionId}/end`, { method: "POST", body: JSON.stringify(payload) }),
-      getStats: async () => requestJson<any>("/v2/writing-sessions/stats", { method: "GET" }),
-      listGoals: async () => requestJson<any[]>("/v2/users/me/writing-goals", { method: "GET" }),
-      createGoal: async (payload: any) =>
-        requestJson<any>("/v2/users/me/writing-goals", { method: "POST", body: JSON.stringify(payload) }),
-      updateGoal: async (goalId: string, payload: any) =>
-        requestJson<any>(`/v2/users/me/writing-goals/${goalId}`, { method: "PUT", body: JSON.stringify(payload) }),
+        requestJson<NetworkObject>(`/v2/users/me/workspace-layouts/${layoutId}/activate`, { method: "POST", body: "{}" }),
+      startSession: async (payload: NetworkObject) => requestJson<NetworkObject>("/v2/writing-sessions/start", { method: "POST", body: JSON.stringify(payload) }),
+      heartbeatSession: async (sessionId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/writing-sessions/${sessionId}/heartbeat`, { method: "PUT", body: JSON.stringify(payload) }),
+      endSession: async (sessionId: string, payload: NetworkObject = {}) =>
+        requestJson<NetworkObject>(`/v2/writing-sessions/${sessionId}/end`, { method: "POST", body: JSON.stringify(payload) }),
+      getStats: async () => requestJson<NetworkObject>("/v2/writing-sessions/stats", { method: "GET" }),
+      listGoals: async () => requestJson<NetworkObject[]>("/v2/users/me/writing-goals", { method: "GET" }),
+      createGoal: async (payload: NetworkObject) =>
+        requestJson<NetworkObject>("/v2/users/me/writing-goals", { method: "POST", body: JSON.stringify(payload) }),
+      updateGoal: async (goalId: string, payload: NetworkObject) =>
+        requestJson<NetworkObject>(`/v2/users/me/writing-goals/${goalId}`, { method: "PUT", body: JSON.stringify(payload) }),
       deleteGoal: async (goalId: string) => {
         await requestVoid(`/v2/users/me/writing-goals/${goalId}`, { method: "DELETE" });
       },
-      listShortcuts: async () => requestJson<any[]>("/v2/users/me/shortcuts", { method: "GET" }),
+      listShortcuts: async () => requestJson<NetworkObject[]>("/v2/users/me/shortcuts", { method: "GET" }),
       updateShortcuts: async (shortcuts: Array<{ action: string; shortcut: string }>) =>
-        requestJson<any[]>("/v2/users/me/shortcuts", { method: "PUT", body: JSON.stringify({ shortcuts }) }),
+        requestJson<NetworkObject[]>("/v2/users/me/shortcuts", { method: "PUT", body: JSON.stringify({ shortcuts }) }),
     },
   },
 };

@@ -1,3 +1,4 @@
+import type { NetworkObject } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { Material } from "@/types";
@@ -26,7 +27,7 @@ const MaterialsGovernance = () => {
   const [search, setSearch] = useState("");
   const [reviewingId, setReviewingId] = useState("");
   const [actionId, setActionId] = useState("");
-  const [citationResult, setCitationResult] = useState<{ title: string; items: any[] } | null>(null);
+  const [citationResult, setCitationResult] = useState<{ title: string; items: NetworkObject[] } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -37,7 +38,7 @@ const MaterialsGovernance = () => {
         api.admin.findMaterialDuplicates(),
       ]);
       setPending(materials);
-      setDuplicates(duplicateItems || []);
+      setDuplicates((duplicateItems || []) as unknown as MaterialDuplicateCandidate[]);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "素材治理数据加载失败"));
     } finally {

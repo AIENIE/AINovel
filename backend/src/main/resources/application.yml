@@ -6,6 +6,11 @@ spring:
     url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:localbase.testhut.top}:${MYSQL_PORT:23306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${DB_USERNAME:${MYSQL_USER:ainovel}}
     password: ${DB_PASSWORD:${MYSQL_PASSWORD:ainovelpwd}}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:4}
+      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
+      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:30000}
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
@@ -24,7 +29,11 @@ spring:
     redis:
       host: ${REDIS_HOST:localbase.testhut.top}
       port: ${REDIS_PORT:26379}
+      username: ${REDIS_USERNAME:}
       password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+      timeout: ${REDIS_TIMEOUT:3s}
   cache:
     type: redis
     redis:
@@ -38,7 +47,7 @@ spring:
     time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
 
 server:
-  port: ${PORT:${BACKEND_PORT:11041}}
+  port: ${PORT:11041}
 
 logging:
   file:
@@ -67,7 +76,7 @@ management:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,db
+          include: readinessState,db,userService
   endpoints:
     web:
       exposure:
@@ -101,9 +110,20 @@ app:
     model: ${AI_MODEL:deepseek-v4-flash}
     base-url: ${AI_BASE_URL:}
     api-key: ${AI_API_KEY:}
+    admission:
+      max-messages: ${AI_MAX_MESSAGES:64}
+      max-message-chars: ${AI_MAX_MESSAGE_CHARS:20000}
+      max-total-chars: ${AI_MAX_TOTAL_CHARS:100000}
+      max-requests-per-minute: ${AI_REQUESTS_PER_MINUTE:20}
+      max-user-in-flight: ${AI_MAX_USER_IN_FLIGHT:2}
+      max-global-in-flight: ${AI_MAX_GLOBAL_IN_FLIGHT:32}
+      reservation-credits: ${AI_RESERVATION_CREDITS:2}
   external:
     project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
     timeout-ms: ${EXTERNAL_TIMEOUT_MS:120000}
+    ai-timeout-ms: ${EXTERNAL_AI_TIMEOUT_MS:60000}
+    billing-timeout-ms: ${EXTERNAL_BILLING_TIMEOUT_MS:5000}
+    session-timeout-ms: ${EXTERNAL_SESSION_TIMEOUT_MS:3000}
     grpc:
       tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:true}
       plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:false}
@@ -114,13 +134,22 @@ app:
         hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}
         hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}
       user:
-        internal-grpc-token: ${EXTERNAL_USER_INTERNAL_GRPC_TOKEN:}
+        caller-id: ${EXTERNAL_USER_SERVICE_JWT_CALLER_ID:ainovel}
+        issuer: ${EXTERNAL_USER_SERVICE_JWT_ISSUER:ainovel}
+        secret: ${EXTERNAL_USER_SERVICE_JWT_SECRET:}
+        audience: ${EXTERNAL_USER_SERVICE_JWT_AUDIENCE:aienie-userservice-grpc}
+        ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}
+        scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}
       pay:
-        service-jwt: ${EXTERNAL_PAY_SERVICE_JWT:}
-        jwt-issuer: ${EXTERNAL_PAY_JWT_ISSUER:aienie-services}
-        jwt-audience: ${EXTERNAL_PAY_JWT_AUDIENCE:aienie-payservice-grpc}
-        required-role: ${EXTERNAL_PAY_JWT_ROLE:SERVICE}
-        required-scopes: ${EXTERNAL_PAY_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read}
+        caller-id: ${EXTERNAL_PAY_SERVICE_JWT_CALLER_ID:ainovel}
+        issuer: ${EXTERNAL_PAY_SERVICE_JWT_ISSUER:ainovel}
+        service-name: ${EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME:ainovel}
+        secret: ${EXTERNAL_PAY_SERVICE_JWT_SECRET:}
+        audience: ${EXTERNAL_PAY_SERVICE_JWT_AUDIENCE:aienie-payservice-grpc}
+        role: ${EXTERNAL_PAY_SERVICE_JWT_ROLE:SERVICE}
+        ttl-seconds: ${EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS:300}
+        scopes: ${EXTERNAL_PAY_SERVICE_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read}
+        legacy-static-token: ${EXTERNAL_PAY_SERVICE_JWT:}
     userservice-http:
       address: ${USER_HTTP_ADDR:https://userservice.seekerhut.com}
     aiservice-grpc:
@@ -139,6 +168,9 @@ qdrant:
   host: ${QDRANT_HOST:http://localbase.testhut.top}
   http-port: ${QDRANT_PORT:26333}
   enabled: ${QDRANT_ENABLED:true}
+  api-key: ${QDRANT_API_KEY:}
+  connect-timeout-ms: ${QDRANT_CONNECT_TIMEOUT_MS:2000}
+  request-timeout-ms: ${QDRANT_REQUEST_TIMEOUT_MS:5000}
 
 springdoc:
   api-docs:

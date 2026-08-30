@@ -13,7 +13,7 @@
 
 | 服务 | AINovel 使用方式 | 鉴权 |
 | --- | --- | --- |
-| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `x-internal-token` |
+| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `authorization: Bearer <JWT>` 携带 AINovel 独立密钥签发的短期 caller JWT；旧 `x-internal-token` 禁用 |
 | ai-service | 模型列表、对话、嵌入和写作生成 | HMAC metadata |
 | pay-service | 通用积分余额与通用转专属扣减 | Bearer service JWT |
 
@@ -24,11 +24,19 @@
 1. AINovel 按本地 JWT 密钥、配置的 issuer 和 audience 验证令牌；任一校验失败即拒绝，不解析未验签 payload，也不调用远端校验作为 fallback。
 2. 本地签名令牌还必须包含有效的 `sub + uid + sid`。
 3. 启用会话校验时，`UserSessionValidator` 才使用已验签的 `uid + sid` 调用 `UserAuthService.ValidateSession`；上游无效或不可达时拒绝建立本地登录态。
+4. 每次远程校验都从 `UserServiceJwtProvider` 获取最长 900 秒、`aud=aienie-userservice-grpc` 且仅含 `user.auth.session.read` 的 HS256 JWT；JWT 必须带 `iss/sub/iat/nbf/exp/jti/scopes`，并在到期前轮换。禁止恢复共享静态 token 或复用其他产品的 caller secret。
 
 ## 部署约束
 
 - `build.sh` 只执行 Docker Compose 构建与部署。
 - `env.txt` 必须是 `0600` 普通文件；`build.sh` 校验同一文件后通过 Compose `--env-file` 插值，并只读挂载进后端容器加载完整运行时配置。
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
+- user-service caller JWT 使用 `EXTERNAL_USER_SERVICE_JWT_{CALLER_ID,ISSUER,SECRET,AUDIENCE,TTL_SECONDS,SCOPES}`；其中 secret 只进入受保护配置，audience 和 scope 必须保持规范值。
 - gRPC TLS/plaintext 由 `EXTERNAL_GRPC_TLS_ENABLED` 和 `EXTERNAL_GRPC_PLAINTEXT_ENABLED` 控制。
 - 数据库结构只通过 Flyway 演进，不使用 Hibernate 自动 DDL 管理运行库。
+# v1.0 审计整改补充（2026-08-17）
+
+- SSO 本地身份由不可变 `(issuer, remote_uid)` 唯一映射；username 仅作为同 UID 的可变展示字段，冲突登录会失败并记录安全事件。
+- ai-service、pay-service、user-service 使用独立 deadline；远程调用不得占用本地数据库事务。
+- 公共积分转换使用稳定 `remoteRequestId` 的可恢复 Saga，瞬态失败保留 `PENDING` 并退避重放，确定性拒绝才进入 `FAILED`。
+- `test`/`production` 强制 MySQL `VERIFY_IDENTITY`、Redis TLS+ACL、Qdrant HTTPS+API key；`local` 明文仅允许带显式启动告警运行。
