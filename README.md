@@ -31,7 +31,7 @@ Windows 本地开发与静态验证使用 PowerShell 7，不调用 WSL 或 Docke
 
 ```powershell
 .\scripts\windows\Build-Local.ps1
-.\scripts\windows\Start-Local.ps1 -EnvironmentFile <private-env-file>
+.\scripts\windows\Start-Local.ps1
 .\scripts\windows\Get-LocalStatus.ps1
 .\scripts\windows\Stop-Local.ps1
 ```
