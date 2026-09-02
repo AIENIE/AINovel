@@ -88,5 +88,5 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 # v1.0 审计整改补充（2026-08-17）
 
 - 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
-- 后端 healthcheck 使用 readiness；前端须等待后端 healthy。`build.sh` 最多等待 120 秒，任一服务未就绪会输出日志并返回非零。
+- 后端 healthcheck 使用 readiness；前端容器通过 `depends_on: condition: service_healthy` 等待后端就绪，compose healthcheck 的 `start_period` 提供启动宽限，任一服务未就绪不会进入健康状态。
 - 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
