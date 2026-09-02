@@ -15,11 +15,12 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
-!/backend/.vscode/
-!/backend/.vscode/launch.json
 *.iml
 *.ipr
 *.iws
+.classpath
+.project
+.settings/
 /.run/
 
 # Local env / secrets
@@ -63,7 +64,6 @@ SMTPandAPI.txt
 !/deploy/**/data/.gitkeep
 /logs/
 *.sock
-/backend/.settings
 /tmp
 /artifacts
 .omx/
@@ -76,3 +76,6 @@ ai_artifacts/generated-tests/
 
 # Codex codebase intelligence local state
 .codegraph/
+
+# ZCode local session state
+.zcode/
