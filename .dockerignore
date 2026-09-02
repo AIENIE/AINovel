@@ -1,0 +1,12 @@
+# Local state and indexes must never enter release image builds.
+.git
+.codegraph
+.codegraph-win
+.codex
+.zcode
+frontend/node_modules
+frontend/dist
+backend/target
+
+# Private runtime configuration stays outside images.
+env.txt
