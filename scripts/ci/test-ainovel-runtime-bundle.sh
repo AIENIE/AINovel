@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+repo_root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 jenkins_scripts="${1:-/opt/jenkins-scripts}"
 builder="$jenkins_scripts/build_component_bundle.sh"
 legacy="$jenkins_scripts/build_legacy_project_bundle.sh"

@@ -28,7 +28,7 @@ if len(sys.argv) != 4:
 contract_path = pathlib.Path(sys.argv[1])
 compose_path = pathlib.Path(sys.argv[2])
 component_id = sys.argv[3]
-repository_root = pathlib.Path(__file__).resolve().parent.parent
+repository_root = pathlib.Path(__file__).resolve().parent.parent.parent
 for path in (contract_path, compose_path):
     if not path.is_file() or path.is_symlink():
         fail(f"input is missing or unsafe: {path}")

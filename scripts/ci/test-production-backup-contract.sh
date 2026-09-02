@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+repo_root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 work_dir="$(mktemp -d)"
 trap 'chmod -R u+w -- "$work_dir" 2>/dev/null || true; rm -rf -- "$work_dir"' EXIT
 mkdir -p "$work_dir/bundle/backend" "$work_dir/bundle/frontend/dist"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+repo_root="$(cd "$(dirname "$0")/../.." && pwd -P)"
 
 assert_host_loopback_compose() {
   local compose_file="$1"

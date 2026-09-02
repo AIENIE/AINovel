@@ -13,8 +13,8 @@ import unittest
 from unittest import mock
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXECUTOR = ROOT / "ci" / "production-migration-executor"
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+EXECUTOR = ROOT / "scripts" / "ci" / "production-migration-executor"
 
 
 def load_executor():
