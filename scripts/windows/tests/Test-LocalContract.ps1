@@ -33,7 +33,7 @@ foreach ($required in @(
         'Remove-AienieProcessInjectionEnvironment',
         'Complete-AienieManagedProcessRecord',
         '''backend\pom.xml''',
-        '''--prefix'', (Join-Path $repoRoot ''frontend'')',
+        'Directory = Join-Path $repoRoot ''frontend''',
         '[''EXTERNAL_GRPC_TRUST_CERT_COLLECTION''] = ''''',
         '--maxWorkers=2'
 )) {
