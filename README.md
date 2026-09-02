@@ -42,7 +42,7 @@ Windows 本地开发与静态验证使用 PowerShell 7，不调用 WSL 或 Docke
 
 ## 发版中心部署（Linux Docker）
 
-Linux 服务器发布只通过发版中心执行仓库入口 `ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试并按 `AIENIE_RELEASE_ENVIRONMENT` 组装 staging/production 运行时包，契约见 [`ci/README.md`](ci/README.md)。
+Linux 服务器发布只通过发版中心执行仓库入口 `scripts/ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试并按 `AIENIE_RELEASE_ENVIRONMENT` 组装 staging/production 运行时包，契约见 [`scripts/ci/README.md`](scripts/ci/README.md)。
 
 运行时配置由 config-center 提供：发版中心把对应环境的 `env.txt` 以 `0600` 普通文件只读挂载进后端容器，仓库与发布产物不携带任何运行时配置、密钥或证书。MySQL、Redis、Qdrant、三服务、域名、证书和反向代理必须由目标环境提前提供。
 
@@ -59,8 +59,8 @@ cd frontend && corepack pnpm@11.22.0 install --frozen-lockfile && corepack pnpm@
 - `backend/`：Spring Boot 后端、proto 与 Flyway 迁移。
 - `doc/`：架构、API、运维、路线图、提案和研究文档。
 - `user-doc/`：创作者与管理员使用手册。
-- `ci/`：发版中心两阶段构建入口与 staging/production 运行时契约。
+- `scripts/ci/`：发版中心两阶段构建入口与 staging/production 运行时契约。
 - `scripts/windows/`：Windows 原生按需 Build/Start/Status/Stop/Test 入口，与发版中心部署互相独立。
-- `docker/`：发版运行时包使用的 staging/production 环境加载器。
+- `scripts/docker/`：发版运行时包使用的 staging/production 环境加载器。
 
 研发文档见 [`doc/README.md`](doc/README.md)，用户手册见 [`user-doc/README.md`](user-doc/README.md)，后续工作见 [`doc/roadmap.md`](doc/roadmap.md)。

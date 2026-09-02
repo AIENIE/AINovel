@@ -7,8 +7,8 @@ trap 'chmod -R u+w -- "$work_dir" 2>/dev/null || true; rm -rf -- "$work_dir"' EX
 mkdir -p "$work_dir/bundle/backend" "$work_dir/bundle/frontend/dist"
 printf 'compiled-backend-placeholder\n' >"$work_dir/bundle/backend/app.jar"
 printf '<!doctype html>\n' >"$work_dir/bundle/frontend/dist/index.html"
-bash "$repo_root/ci/assemble-ainovel-production-runtime.sh" "$repo_root" "$work_dir/bundle"
-cmp -s "$repo_root/ci/images/ainovel-nginx.conf" "$work_dir/bundle/frontend/nginx.conf"
+bash "$repo_root/scripts/ci/assemble-ainovel-production-runtime.sh" "$repo_root" "$work_dir/bundle"
+cmp -s "$repo_root/scripts/ci/images/ainovel-nginx.conf" "$work_dir/bundle/frontend/nginx.conf"
 grep -Eq '^[[:space:]]*listen[[:space:]]+10010;' "$work_dir/bundle/frontend/nginx.conf"
 grep -Fq 'location = /healthz' "$work_dir/bundle/frontend/nginx.conf"
 python3 - "$work_dir/bundle/release/production-runtime-contract.json" <<'PY'
@@ -54,7 +54,7 @@ p=pathlib.Path(sys.argv[1]);v=json.loads(p.read_text(encoding='utf-8'))
 v['protected_config_overlay_contract']['allowed_files'][0]['target_path']='docker-compose.yml'
 p.write_text(json.dumps(v),encoding='utf-8')
 PY
-if python3 "$repo_root/ci/verify-production-runtime-contract.py" \
+if python3 "$repo_root/scripts/ci/verify-production-runtime-contract.py" \
   "$work_dir/overlay-tamper.json" "$work_dir/bundle/docker-compose.yml" ai-novel \
   "$work_dir/bundle/backend/start-production-backend.sh" \
   "$work_dir/bundle/backend/production-migration-entrypoint.sh" \

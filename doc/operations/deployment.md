@@ -29,7 +29,7 @@
 
 ## 发版中心部署
 
-Linux 服务器发布唯一入口是发版中心执行的 `ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试，并按 `AIENIE_RELEASE_ENVIRONMENT`（`staging`/`production`）组装运行时包。两阶段契约、生产运行时契约与 Flyway ledger 说明见 [`../../ci/README.md`](../../ci/README.md)。
+Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试，并按 `AIENIE_RELEASE_ENVIRONMENT`（`staging`/`production`）组装运行时包。两阶段契约、生产运行时契约与 Flyway ledger 说明见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。
 
 运行时配置、密钥和证书都不是构建输入：生产包只允许 config-center 提供的 `env.txt` 以 `0600` 只读挂载进后端容器，`backend/`、`frontend/`、`release/` 前缀的文件覆盖一律拒绝。仓库不再提供本地 Compose 部署脚本；本地开发使用 Windows 原生入口（见 [`windows-native.md`](windows-native.md)）。
 

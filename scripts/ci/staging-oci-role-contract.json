@@ -4,6 +4,6 @@
   "oci_repository": "ghcr.io/aienie/ai-novel",
   "roles": [
     {"role": "backend", "compose_service": "backend", "environment_variable": "AINOVEL_BACKEND_IMAGE", "oci_repository": "ghcr.io/aienie/ai-novel", "build": {"source": "pinned-source-tree", "context": "backend", "dockerfile": "backend/Dockerfile", "target": null, "build_args": {}}},
-    {"role": "frontend", "compose_service": "frontend", "environment_variable": "AINOVEL_FRONTEND_IMAGE", "oci_repository": "ghcr.io/aienie/ai-novel", "build": {"source": "pinned-source-tree", "context": ".", "dockerfile": "ci/images/ainovel-frontend.Dockerfile", "target": null, "build_args": {}}}
+    {"role": "frontend", "compose_service": "frontend", "environment_variable": "AINOVEL_FRONTEND_IMAGE", "oci_repository": "ghcr.io/aienie/ai-novel", "build": {"source": "pinned-source-tree", "context": ".", "dockerfile": "scripts/ci/images/ainovel-frontend.Dockerfile", "target": null, "build_args": {}}}
   ]
 }

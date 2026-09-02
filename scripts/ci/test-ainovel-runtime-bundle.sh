@@ -36,7 +36,7 @@ WORKSPACE="$repo_root" \
 COMPONENT_BUNDLE_BUILDER="$builder" \
   bash "$legacy" AINovel "$probe/legacy"
 bash "$flattener" AINovel "$probe/legacy" "$probe/output"
-bash "$repo_root/ci/assemble-ainovel-runtime.sh" "$repo_root" "$probe/output"
+bash "$repo_root/scripts/ci/assemble-ainovel-runtime.sh" "$repo_root" "$probe/output"
 
 test -x "$probe/output/backend/start-backend.sh"
 test -x "$probe/output/docker/staging-load-env-file.sh"

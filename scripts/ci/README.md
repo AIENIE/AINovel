@@ -1,6 +1,6 @@
 # Aienie 两阶段发布构建契约
 
-发布平台以仓库内 `ci/build-release.sh` 作为唯一入口。入口只接受一个位置参数，且必须与
+发布平台以仓库内 `scripts/ci/build-release.sh` 作为唯一入口。入口只接受一个位置参数，且必须与
 `AIENIE_CI_OUTPUT_DIR` 指向同一目录。
 
 ## Resolve
@@ -14,7 +14,7 @@ AIENIE_CI_TARGET_ARCHITECTURE=linux/arm64 \
 AIENIE_CI_CACHE_DIR=<empty-cache-dir> \
 AIENIE_CI_OUTPUT_DIR=<empty-resolve-output-dir> \
 AIENIE_DEPENDENCY_MANIFEST=<resolve-output-dir>/repository-dependency-manifest.json \
-ci/build-release.sh <resolve-output-dir>
+scripts/ci/build-release.sh <resolve-output-dir>
 ```
 
 该阶段只解析并缓存依赖，生成 schema 为
@@ -33,7 +33,7 @@ AIENIE_CI_TARGET_ARCHITECTURE=linux/arm64 \
 AIENIE_CI_CACHE_DIR=<read-only-resolved-cache-dir> \
 AIENIE_CI_OUTPUT_DIR=<payload-dir-containing-only-manifest> \
 AIENIE_DEPENDENCY_MANIFEST=<payload-dir>/repository-dependency-manifest.json \
-ci/build-release.sh <payload-dir>
+scripts/ci/build-release.sh <payload-dir>
 ```
 
 平台必须先移除缓存整树和清单的全部写位；payload 目录初始只能含固定名称、只读的仓库清单。

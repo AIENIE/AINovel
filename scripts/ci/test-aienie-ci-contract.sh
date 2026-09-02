@@ -54,7 +54,7 @@ export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-m
 export AIENIE_CI_PHASE=resolve
 unset AIENIE_CI_NETWORK_MODE || true
 
-bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR"
+bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR"
 "$fake_bin/python3" - "$AIENIE_DEPENDENCY_MANIFEST" <<'PY'
 import json,sys
 value=json.load(open(sys.argv[1],encoding='utf-8'))
@@ -70,7 +70,7 @@ write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.23.1; else exit
 export AIENIE_CI_CACHE_DIR="$work_dir/wrong-node-cache"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/wrong-node-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-node.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-node.log" 2>&1; then
   echo 'Resolve unexpectedly accepted a non-authoritative Node.js version.' >&2
   exit 1
 fi
@@ -81,7 +81,7 @@ write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.21.0; else exit 
 export AIENIE_CI_CACHE_DIR="$work_dir/wrong-pnpm-cache"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/wrong-pnpm-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-pnpm.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/wrong-pnpm.log" 2>&1; then
   echo 'Resolve unexpectedly accepted a non-authoritative pnpm version.' >&2
   exit 1
 fi
@@ -112,14 +112,14 @@ export PROJECT_BUNDLE_HELPER="$fake_bin/bundle-helper"
 export PROJECT_FLATTEN_HELPER="$fake_bin/flatten-helper"
 export APP_BACKEND_PORT=65530 APP_FRONTEND_PORT=65531
 export APP_RUNTIME_ROOT=/ambient-poison APP_CERT_HOST=/ambient-poison.crt
-if ! bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/positive-build.log" 2>&1; then
+if ! bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/positive-build.log" 2>&1; then
   cat "$work_dir/positive-build.log" >&2
   echo 'Positive offline Build failed.' >&2
   exit 1
 fi
 [[ -f "$AIENIE_CI_OUTPUT_DIR/release/staging-oci-role-contract.json" ]]
-cmp -s "$repo_root/ci/ainovel-runtime-compose.yml" "$AIENIE_CI_OUTPUT_DIR/docker-compose.yml"
-python3 "$repo_root/ci/verify-staging-oci-role-contract.py" \
+cmp -s "$repo_root/scripts/ci/ainovel-runtime-compose.yml" "$AIENIE_CI_OUTPUT_DIR/docker-compose.yml"
+python3 "$repo_root/scripts/ci/verify-staging-oci-role-contract.py" \
   "$AIENIE_CI_OUTPUT_DIR/release/staging-oci-role-contract.json" \
   "$AIENIE_CI_OUTPUT_DIR/docker-compose.yml" ai-novel
 "$fake_bin/python3" - "$AIENIE_CI_OUTPUT_DIR/docker-compose.yml" "$work_dir/short-protected-bind.yml" <<'PY'
@@ -130,7 +130,7 @@ poisoned,count=pattern.subn(lambda match: f'{match.group(1)}- ./env.txt:/app/env
 assert count == 1
 pathlib.Path(sys.argv[2]).write_text(poisoned,encoding='utf-8')
 PY
-if python3 "$repo_root/ci/verify-staging-oci-role-contract.py" \
+if python3 "$repo_root/scripts/ci/verify-staging-oci-role-contract.py" \
   "$AIENIE_CI_OUTPUT_DIR/release/staging-oci-role-contract.json" \
   "$work_dir/short-protected-bind.yml" ai-novel >/dev/null 2>&1; then
   echo 'AINovel staging contract accepted an auto-created protected file bind.' >&2
@@ -187,7 +187,7 @@ export AIENIE_CI_OUTPUT_DIR="$work_dir/cache-tamper-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
 export PROJECT_BUNDLE_HELPER="$fake_bin/cache-tamper-helper"
 export PROTECTED_CACHE_UNDER_TEST="$AIENIE_CI_CACHE_DIR"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/cache-tamper.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/cache-tamper.log" 2>&1; then
   echo 'Build unexpectedly accepted mutation of the protected input cache.' >&2
   exit 1
 fi
@@ -205,7 +205,7 @@ export AIENIE_CI_OUTPUT_DIR="$work_dir/manifest-tamper-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
 export PROJECT_BUNDLE_HELPER="$fake_bin/bundle-helper"
 export PROJECT_FLATTEN_HELPER="$fake_bin/manifest-tamper-flatten"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/manifest-replacement.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/manifest-replacement.log" 2>&1; then
   echo 'Build unexpectedly accepted replacement of the protected dependency manifest.' >&2
   exit 1
 fi
@@ -224,7 +224,7 @@ PY
 chmod a-w -- "$work_dir/tampered-output/repository-dependency-manifest.json"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/tampered-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/tampered-build.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/tampered-build.log" 2>&1; then
   echo 'Build unexpectedly accepted a tampered dependency manifest.' >&2
   exit 1
 fi
@@ -236,7 +236,7 @@ chmod a-w -- "$work_dir/writable-cache-output/repository-dependency-manifest.jso
 chmod u+w -- "$AIENIE_CI_CACHE_DIR/.aienie-cache-contract"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/writable-cache-output"
 export AIENIE_DEPENDENCY_MANIFEST="$AIENIE_CI_OUTPUT_DIR/repository-dependency-manifest.json"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/writable-cache.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/writable-cache.log" 2>&1; then
   echo 'Build unexpectedly accepted a writable dependency cache.' >&2
   exit 1
 fi
@@ -248,11 +248,11 @@ unset AIENIE_CI_NETWORK_MODE || true
 export AIENIE_CI_CACHE_DIR="$work_dir/rejected-cache"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/rejected-output"
 export AIENIE_DEPENDENCY_MANIFEST="$work_dir/arbitrary-manifest.json"
-if bash "$repo_root/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/arbitrary-manifest.log" 2>&1; then
+if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work_dir/arbitrary-manifest.log" 2>&1; then
   echo 'Resolve unexpectedly accepted an arbitrary dependency manifest path.' >&2
   exit 1
 fi
 grep -q 'must be the platform output file' "$work_dir/arbitrary-manifest.log"
 [[ ! -e "$AIENIE_DEPENDENCY_MANIFEST" ]] || { echo 'Rejected manifest path was written.' >&2; exit 1; }
-bash "$repo_root/ci/test-production-backup-contract.sh"
+bash "$repo_root/scripts/ci/test-production-backup-contract.sh"
 printf 'Aienie repository CI contract test passed.\n'

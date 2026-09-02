@@ -8,7 +8,7 @@
 - `backend/`：Spring Boot 后端、Flyway 迁移和三服务客户端。
 - `doc/`：研发、接口、运维、规划和研究文档。
 - `user-doc/`：创作者与管理员使用手册。
-- `ci/`：发版中心两阶段构建入口与 staging/production 运行时契约。
+- `scripts/ci/`：发版中心两阶段构建入口与 staging/production 运行时契约。
 - `scripts/windows/`：Windows 原生按需运维与 L1/L2 静态验证入口；不调用 WSL 或容器工具。
 
 ## 产品入口
