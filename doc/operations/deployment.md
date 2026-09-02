@@ -2,13 +2,13 @@
 
 ## 配置
 
-仓库不再跟踪 `env.txt`。复制 `env.example` 到本地 `env.txt` 并设置为仅属主可读写的 `0600` 普通文件；`build.sh` 的部署门禁与后端容器只读取这一份文件，不允许由宿主 OS 环境变量补齐缺失键。不要提交实际值。重点分组：
+`env.txt` 不入库。Linux 发布的运行时 `env.txt` 由 config-center 维护（项目 → 环境 → env.txt），发版中心在部署时以 `0600` 普通文件只读挂载进后端容器；仓库、构建输入与发布产物都不携带实际值，也不允许由宿主 OS 环境变量补齐缺失键。`env.example` 保留为必需键清单参考，供 config-center 录入和本地调试对照。重点分组：
 
 - 基础设施：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
 - 三服务地址：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`、`JWT_SECRET`、`JWT_ISSUER`、`JWT_AUDIENCE`；业务令牌必须先通过本地签名、issuer 和 audience 校验，不允许以远程会话校验作为未验签令牌的 fallback
 - 管理员策略：`env.txt` 中的精确 `ENV`、`AUTH_MODE`；只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`
-- 模板值：复制 `env.example` 后必须替换全部 `replace-*` 占位值；部署脚本和后端 Spring 启动前门禁都会按键名拒绝遗留占位值，不会输出配置内容
+- 模板值：config-center 侧与本地调试文件不得遗留 `replace-*` 占位值；部署加载链与后端 Spring 启动前门禁都会按键名拒绝遗留占位值，不会输出配置内容
 - 管理员密码：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（BCrypt cost 至少 10；不接受明文密码配置）
 - 管理员 TOTP 密钥环：`ADMIN_TOTP_ENCRYPTION_KEYS`、`ADMIN_TOTP_ACTIVE_KEY_VERSION`
 - 管理员来源与会话：`ADMIN_TRUSTED_ORIGINS`、`ADMIN_SESSION_COOKIE_SECURE`、`ADMIN_SESSION_MINUTES`、`ADMIN_SESSION_IDLE_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES`；非本地环境必须启用 Secure Cookie，本地隔离 HTTP 验收可显式设为 `false`
@@ -27,13 +27,11 @@
 
 密码模式不解析或要求 TOTP keyring。测试和生产启动时若缺少 TOTP keyring、可信来源或其他必需配置会直接失败；生产处理认证请求时若共享 Redis 限流存储不可用则失败关闭。不要把密码、摘要、密钥、验证码、恢复码、challenge、session 或 proof 写入文档、日志或提交信息；从曾经跟踪过的 `env.txt` 取出的所有实际凭据应在部署前完成轮换。
 
-## 一键部署
+## 发版中心部署
 
-```bash
-printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
-```
+Linux 服务器发布唯一入口是发版中心执行的 `ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试，并按 `AIENIE_RELEASE_ENVIRONMENT`（`staging`/`production`）组装运行时包。两阶段契约、生产运行时契约与 Flyway ledger 说明见 [`../../ci/README.md`](../../ci/README.md)。
 
-脚本先校验 `env.txt` 是 `0600` 的普通文件，再使用同一文件完成 Compose 插值并只读挂载给后端容器加载。共享的 `ainovel-backend` / `ainovel-frontend` 已被其他工作树占用时，只有 `master` 可以自动接管；其他分支必须显式设置 `AINOVEL_ALLOW_SHARED_DEPLOY=1`。
+运行时配置、密钥和证书都不是构建输入：生产包只允许 config-center 提供的 `env.txt` 以 `0600` 只读挂载进后端容器，`backend/`、`frontend/`、`release/` 前缀的文件覆盖一律拒绝。仓库不再提供本地 Compose 部署脚本；本地开发使用 Windows 原生入口（见 [`windows-native.md`](windows-native.md)）。
 
 访问入口：
 
@@ -49,7 +47,7 @@ printf '%s\n' "$SUDO_PASSWORD" | sudo -S ./build.sh
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
 - 当前最新版本为 V13。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因，不保存原始提示词。
-- 不要手工向 `backend/sql/schema.sql` 追加 DDL。
+- 数据库结构只通过 Flyway 迁移演进，不存在 schema.sql 一类的旁路 DDL 入口。
 
 V1 → V13 与 V12 → V13 的隔离 MySQL 验证使用 `external-mysql-verification` profile，并只创建符合 `ainovel_verify_<uuid>` 命名的临时库。执行账号必须具有 `CREATE DATABASE` 和 `DROP DATABASE` 权限；普通业务账号缺少该权限时应记录为环境阻塞，不得提升权限或改动共享业务库：
 
@@ -72,7 +70,7 @@ mvn -q -f backend/pom.xml -Pexternal-mysql-verification `
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
 - SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、caller JWT 的 id/issuer/audience/scope 配对和 user-service `ValidateSession` 可达性；不得以恢复旧共享静态 token 排障。
-- 管理员登录失败：先确认 `env.txt` 中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
+- 管理员登录失败：先确认运行时 `env.txt`（config-center 或本地调试文件）中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
 - 通用积分转换失败：检查 pay-service gRPC 地址、项目标识和 service JWT。
 - `curl` 出现代理相关 TLS 异常：对本地域名使用 `--noproxy '*'`。
 

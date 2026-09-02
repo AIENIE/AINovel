@@ -6,7 +6,6 @@
 - pnpm 11.22.0（通过 Corepack 调用）
 - JDK 25
 - Maven 3.9+
-- Docker 与 Docker Compose
 
 ## 本地检查
 
@@ -25,7 +24,7 @@ corepack pnpm@11.22.0 run test
 corepack pnpm@11.22.0 run build
 ```
 
-以 `backend/` 作为 VSCode 工作区时，可选择 `Backend: Spring Boot (env.txt)` 进行宿主机调试；先从 `env.example` 创建本地 `env.txt`。该文件包含运行秘密并被 Git 忽略。
+标准本地运行入口是 [`windows-native.md`](windows-native.md) 的 `scripts/windows/` 契约，其私有环境文件位于仓库外。如需宿主机 IDE 调试，可从 `env.example` 复制出本地、Git 忽略的 `env.txt` 作为键清单对照；该文件包含运行秘密，不得提交。
 
 ## 修改约束
 

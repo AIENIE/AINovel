@@ -4,10 +4,10 @@
 
 ## 配置来源
 
-- 标准部署只从仓库外、本地 Git 忽略的 `0600` 普通文件 `env.txt` 加载实际运行地址与凭据；宿主同名环境变量不能补齐或覆盖该文件契约。
+- Linux 部署只从 config-center 提供的 `0600` 普通文件 `env.txt` 加载实际运行地址与凭据，由发版中心只读挂载进后端容器；宿主同名环境变量不能补齐或覆盖该文件契约。
 - 本地测试网站使用 `localainovel.testhut.top`。
 - 本地三服务地址由同一份 `env.txt` 显式配置，不使用旧 `testaiservice`、`testpayservice` 或 `testuserservice` 域名作为隐式 fallback。
-- MySQL、Redis、Qdrant 等共享基础设施地址由环境提供，`build.sh` 不创建这些依赖。
+- MySQL、Redis、Qdrant 等共享基础设施地址由环境提供，发版包不创建这些依赖。
 
 ## 三服务边界
 
@@ -28,8 +28,8 @@
 
 ## 部署约束
 
-- `build.sh` 只执行 Docker Compose 构建与部署。
-- `env.txt` 必须是 `0600` 普通文件；`build.sh` 校验同一文件后通过 Compose `--env-file` 插值，并只读挂载进后端容器加载完整运行时配置。
+- Linux 服务器发布唯一入口是发版中心执行的 `ci/build-release.sh`；仓库不再提供本地 Compose 部署脚本。
+- `env.txt` 由 config-center 提供、发版中心以 `0600` 普通文件只读挂载进后端容器加载完整运行时配置。
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
 - user-service caller JWT 使用 `EXTERNAL_USER_SERVICE_JWT_{CALLER_ID,ISSUER,SECRET,AUDIENCE,TTL_SECONDS,SCOPES}`；其中 secret 只进入受保护配置，audience 和 scope 必须保持规范值。
 - gRPC TLS/plaintext 由 `EXTERNAL_GRPC_TLS_ENABLED` 和 `EXTERNAL_GRPC_PLAINTEXT_ENABLED` 控制。

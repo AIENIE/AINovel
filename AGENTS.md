@@ -9,9 +9,7 @@
 - 前端对外端口: 11040
 - 后端对外端口: 11041
 
-在 linux 环境下，执行 sudo 的密码请从 `SUDO_PASSWORD` 环境变量获取。
-
-- 部署脚本: 本项目仅保留 `build.sh`；脚本只执行 Docker Compose 构建与部署，并要求本地 Git 忽略的 `env.txt` 是 `0600` 普通文件；脚本以同一文件完成 Compose `--env-file` 插值并只读挂载进后端容器，宿主同名环境变量不能补齐或覆盖该文件契约。
+- 部署入口: Linux 服务器发布只通过发版中心执行 `ci/build-release.sh`（两阶段构建与运行时契约见 `ci/README.md`）；运行时 `env.txt` 由 config-center 管理、经发版中心以 `0600` 普通文件只读挂载进后端容器，仓库、构建输入与发布产物都不携带运行时配置。本地开发在 Windows 直跑 `scripts/windows/` 入口，不使用 Docker。
 
 ## 后续分期事项 / Pending Phases
 
