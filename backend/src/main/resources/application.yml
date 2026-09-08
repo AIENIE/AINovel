@@ -80,7 +80,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
+  metrics:
+    enable:
+      all: false
+      application.started.time: true
+      application.ready.time: true
+      process.start.time: true
+      process.uptime: true
+      http.server.requests: true
+    tags:
+      component: ai-novel
+      service: backend
+      environment: ${DEPLOYMENT_ENVIRONMENT:local}
+      release_id: ${RELEASE_ID:unknown}
+      release_version: ${RELEASE_VERSION:unknown}
 
 app:
   time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
