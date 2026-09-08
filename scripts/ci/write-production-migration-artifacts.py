@@ -24,7 +24,7 @@ def main(argv: list[str]) -> int:
     paths.extend(path.relative_to(root).as_posix() for path in sorted(
         (root / "release/migrations/sql").glob("V*__*.sql"), key=lambda value: value.name
     ))
-    if len(paths) != 18:
+    if len(paths) != 19:
         raise SystemExit("AINovel migration artifact closure is incomplete")
     artifacts = []
     for relative in paths:

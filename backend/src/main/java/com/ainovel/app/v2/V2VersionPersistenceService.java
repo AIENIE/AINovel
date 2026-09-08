@@ -364,6 +364,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 str(manuscript.getSectionsJson(), "{}"),
                 Map.of("sourceBranchId", branchId, "strategy", strategy)
         ));
+        eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscript.getId(), null));
         return Map.of("manuscriptId", manuscript.getId(), "sourceBranchId", branchId, "targetBranchId", mainBranchId, "mergeVersionId", mergeVersion.getId(), "status", "merged");
     }
 
@@ -455,6 +456,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     private void cleanupAutoSnapshots(UUID manuscriptId, UUID branchId, int maxAutoVersions) {
         List<V2ManuscriptVersion> autos = versionRepository.findByManuscriptIdAndBranchId(manuscriptId, branchId).stream()
                 .filter(version -> "auto".equalsIgnoreCase(str(version.getSnapshotType(), "")))
+                .filter(version -> !version.isNarrativeProtected())
                 .sorted(Comparator.comparing(version -> safeInstant(version.getCreatedAt())))
                 .toList();
         int overflow = autos.size() - maxAutoVersions;

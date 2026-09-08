@@ -1,4 +1,5 @@
 import type { NetworkObject } from "@/lib/api-client";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,9 +13,10 @@ import { PlotSidebarPanel } from "./PlotSidebarPanel";
 import { StatsSidebarPanel } from "./StatsSidebarPanel";
 import { VersionSidebarPanel } from "./VersionSidebarPanel";
 
-type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot";
+type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot" | "narrative";
 
 type DesktopSidebarPanelProps = {
+  narrativePanel?: ReactNode;
   aiDiffSummary: string;
   abandonBranch: (branchId: string) => Promise<void> | void;
   applyPlotRevision: () => Promise<void> | void;
@@ -121,6 +123,7 @@ export function DesktopSidebarPanel({
   chapterRange,
   checkoutBranch,
   contextData,
+  narrativePanel,
   contextPreview,
   copySlopRewriteTask,
   createBranch,
@@ -216,6 +219,7 @@ export function DesktopSidebarPanel({
         <TabsList className="mx-2 mt-2 flex h-auto justify-start overflow-x-auto">
           <TabsTrigger className="shrink-0" value="copilot">copilot</TabsTrigger>
           <TabsTrigger className="shrink-0" value="context">context</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="narrative">{t("narrative.tab")}</TabsTrigger>
           <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
           <TabsTrigger className="shrink-0" value="plot">plot</TabsTrigger>
           <TabsTrigger className="shrink-0" value="version">version</TabsTrigger>
@@ -226,6 +230,7 @@ export function DesktopSidebarPanel({
 
         <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0"><CopilotSidebar context={contextData ?? undefined} className="h-full border-none" /></TabsContent>
         <ContextSidebarPanel contextPreview={contextPreview} onRefresh={loadContextPreview} />
+        {narrativePanel}
         <GenerationFeedbackPanel
           active={showRightPanel && sidebarTab === "feedback"}
           latestRunId={latestGenerationRunId}

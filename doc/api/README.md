@@ -15,6 +15,7 @@
 
 ## v2 增强接口
 
+- [`v2-narrative.md`](v2-narrative.md)：正文确认、带证据抽取、作者审阅与分支状态账本。
 - [`v2-context.md`](v2-context.md)：Lorebook、图谱、实体和上下文预览。
 - [`v2-style.md`](v2-style.md)：风格画像与角色声音。
 - [`v2-analysis.md`](v2-analysis.md)、[`v2-quality.md`](v2-quality.md)：分析、文本质量、drift 和剧情质量。

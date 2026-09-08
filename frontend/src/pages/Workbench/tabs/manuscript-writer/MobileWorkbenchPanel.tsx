@@ -1,5 +1,5 @@
 import type { NetworkObject } from "@/lib/api-client";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Loader2, Save, Sparkles } from "lucide-react";
 import CopilotSidebar from "@/components/ai/CopilotSidebar";
@@ -24,10 +24,11 @@ import {
   slopModuleLabel,
 } from "./shared";
 
-type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot";
+type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot" | "narrative";
 type MobilePane = "outline" | "editor" | "sidebar";
 
 type MobileWorkbenchPanelProps = {
+  narrativePanel?: ReactNode;
   content: string;
   contextData: NetworkObject | null;
   contextPreview?: ContextPreview | null;
@@ -69,6 +70,7 @@ type MobileWorkbenchPanelProps = {
 export function MobileWorkbenchPanel({
   content,
   contextData,
+  narrativePanel,
   contextPreview = null,
   exportJobs,
   exportDownloadingJobId,
@@ -160,6 +162,7 @@ export function MobileWorkbenchPanel({
           <TabsList className="flex h-auto justify-start overflow-x-auto">
             <TabsTrigger className="shrink-0" value="copilot">AI</TabsTrigger>
             <TabsTrigger className="shrink-0" value="context">{t("mobilePanel.context")}</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="narrative">{t("narrative.tab")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="plot">{t("mobilePanel.plot")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="version">{t("mobilePanel.version")}</TabsTrigger>
@@ -169,6 +172,7 @@ export function MobileWorkbenchPanel({
             <CopilotSidebar context={contextData ?? undefined} className="h-full border-none" />
           </TabsContent>
           <ContextSidebarPanel contextPreview={contextPreview} onRefresh={() => onLoadContextPreview?.()} />
+          {narrativePanel}
           <GenerationFeedbackPanel
             active={mobilePane === "sidebar" && sidebarTab === "feedback"}
             latestRunId={latestGenerationRunId}

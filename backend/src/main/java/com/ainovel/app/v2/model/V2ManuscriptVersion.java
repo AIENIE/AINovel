@@ -28,6 +28,8 @@ public class V2ManuscriptVersion {
     private String snapshotType;
     @Column(nullable = false, length = 64)
     private String contentHash;
+    @Column(nullable = false)
+    private boolean narrativeProtected;
     @Lob
     private String sectionsJson;
     @Lob
@@ -54,6 +56,8 @@ public class V2ManuscriptVersion {
     public void setSnapshotType(String snapshotType) { this.snapshotType = snapshotType; }
     public String getContentHash() { return contentHash; }
     public void setContentHash(String contentHash) { this.contentHash = contentHash; }
+    public boolean isNarrativeProtected() { return narrativeProtected; }
+    public void setNarrativeProtected(boolean value) { narrativeProtected = value; }
     public String getSectionsJson() { return sectionsJson; }
     public void setSectionsJson(String sectionsJson) { this.sectionsJson = sectionsJson; }
     public String getMetadataJson() { return metadataJson; }

@@ -29,34 +29,48 @@ class ExternalMySqlMigrationVerificationTest {
                     + "&connectTimeout=10000&socketTimeout=60000";
 
     @Test
-    void migratesFreshExternalDatabaseFromV1ThroughV13() throws Exception {
+    void migratesFreshExternalDatabaseFromV1ThroughV15() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
             var result = flyway(config, databaseUrl).migrate();
 
-            assertEquals(13, result.migrationsExecuted);
+            assertEquals(15, result.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
+            assertNarrativeSchema(config, databaseUrl);
         });
     }
 
     @Test
-    void upgradesExternalDatabaseFromV12ToV13() throws Exception {
+    void upgradesExternalDatabaseFromV14ToV15() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
-            var v12Result = Flyway.configure()
+            var v14Result = Flyway.configure()
                     .dataSource(databaseUrl, config.username, config.password)
                     .locations("classpath:db/migration")
-                    .target("12")
+                    .target("14")
                     .load()
                     .migrate();
-            assertEquals(12, v12Result.migrationsExecuted);
+            assertEquals(14, v14Result.migrationsExecuted);
 
-            var v13Result = flyway(config, databaseUrl).migrate();
-            assertEquals(1, v13Result.migrationsExecuted);
+            var v15Result = flyway(config, databaseUrl).migrate();
+            assertEquals(1, v15Result.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
+            assertNarrativeSchema(config, databaseUrl);
         });
+    }
+
+    private static void assertNarrativeSchema(ExternalMySqlConfig config, String url) throws Exception {
+        try (var connection = DriverManager.getConnection(url, config.username, config.password);
+             var statement = connection.createStatement()) {
+            try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('narrative_ledgers','narrative_approvals','narrative_extractions','narrative_records','narrative_commits')")) {
+                result.next(); assertEquals(5, result.getInt(1));
+            }
+            try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='manuscript_versions' AND column_name='narrative_protected'")) {
+                result.next(); assertEquals(1, result.getInt(1));
+            }
+        }
     }
 
     private static Flyway flyway(ExternalMySqlConfig config, String databaseUrl) {

@@ -21,7 +21,7 @@ ARTIFACT_MANIFEST = "release/production-migration-artifacts.json"
 CONTAINER_ENTRYPOINT = "/app/bin/production-migration-entrypoint.sh"
 DIGEST = re.compile(r"sha256:(?!0{64})[0-9a-f]{64}\Z")
 IMAGE_REFERENCE = re.compile(r"ghcr\.io/aienie/ai-novel@sha256:(?!0{64})[0-9a-f]{64}\Z")
-MIGRATION_PATH = re.compile(r"release/migrations/sql/V([1-9]|1[0-4])__[A-Za-z0-9_.-]+\.sql\Z")
+MIGRATION_PATH = re.compile(r"release/migrations/sql/V([1-9]|1[0-5])__[A-Za-z0-9_.-]+\.sql\Z")
 RESTORE_REF = re.compile(
     r"/var/lib/aienie-production/product-executors/restore-points/ai-novel/[0-9a-f]{64}/checkpoint\.sql\Z"
 )
@@ -261,7 +261,7 @@ def validate_migration_artifacts(root: pathlib.Path) -> tuple[str, int]:
             or manifest.get("canonical_component_id") != COMPONENT:
         raise ContractError("migration artifact manifest identity drifted")
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != 18:
+    if not isinstance(artifacts, list) or len(artifacts) != 19:
         raise ContractError("migration artifact closure is incomplete")
     expected_fixed = {
         "backend/app.jar", "backend/production-migration-entrypoint.sh", LEDGER,
@@ -286,7 +286,7 @@ def validate_migration_artifacts(root: pathlib.Path) -> tuple[str, int]:
                 or item.get("sha256") != digest_file(path):
             raise ContractError("migration artifact entry drifted")
         observed_paths.add(relative)
-    if not expected_fixed.issubset(observed_paths) or migration_versions != set(range(1, 15)):
+    if not expected_fixed.issubset(observed_paths) or migration_versions != set(range(1, 16)):
         raise ContractError("Flyway artifact closure is incomplete")
     ledger, ledger_raw = strict_json(root / LEDGER)
     migrations = ledger.get("migrations")
@@ -294,14 +294,14 @@ def validate_migration_artifacts(root: pathlib.Path) -> tuple[str, int]:
         set(ledger) != {"authorization", "canonical_component_id", "latest_version", "location", "migrations", "schema_version"}
         or ledger.get("schema_version") != "aienie-production-flyway-ledger-v2"
         or ledger.get("canonical_component_id") != COMPONENT
-        or ledger.get("latest_version") != "14"
+        or ledger.get("latest_version") != "15"
         or ledger.get("location") != "filesystem:/app/release/migrations/sql"
         or ledger.get("authorization") != {
             "minimum_release_manifest_version": 4,
             "outer_signature_required": True,
             "restore_point_required_before_execute": True,
         }
-        or not isinstance(migrations, list) or len(migrations) != 14
+        or not isinstance(migrations, list) or len(migrations) != 15
     ):
         raise ContractError("AINovel Flyway ledger drifted")
     for version, item in enumerate(migrations, 1):
@@ -408,7 +408,7 @@ def run_container(
             raise ContractError("checkpoint result contract drifted")
         return value
     ledger_sha = digest_file(root / LEDGER)
-    if value.get("current_id") != "V14" or value.get("migration_checksum_sha256") != ledger_sha:
+    if value.get("current_id") != "V15" or value.get("migration_checksum_sha256") != ledger_sha:
         raise ContractError("database migration identity drifted")
     before = value["pending_entry_count_before"]
     after = value["pending_entry_count_after"]

@@ -14,4 +14,10 @@ public record ManuscriptDto(UUID id,
                             @JsonInclude(JsonInclude.Include.NON_NULL)
                             SceneGenerationRunSummaryDto lastGenerationRun,
                             long version,
-                            Instant updatedAt) {}
+                            Instant updatedAt,
+                            UUID currentBranchId) {
+    public ManuscriptDto(UUID id, UUID outlineId, String title, String worldId, Map<String, String> sections,
+                         SceneGenerationRunSummaryDto lastGenerationRun, long version, Instant updatedAt) {
+        this(id, outlineId, title, worldId, sections, lastGenerationRun, version, updatedAt, null);
+    }
+}

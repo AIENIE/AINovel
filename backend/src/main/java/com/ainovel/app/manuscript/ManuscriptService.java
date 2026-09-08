@@ -124,6 +124,7 @@ public class ManuscriptService {
                     manuscript, ownerOf(manuscript), sceneId, manifest);
             SceneGenerationRunDto generatedRun = sceneGenerationAttributionService.recordGeneration(
                     manuscript, sceneId, generationVersionId, mode, manifest, generatedHtml);
+            eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscriptId, null));
             return toDto(manuscript, new SceneGenerationRunSummaryDto(
                     generatedRun.id(), generatedRun.generationVersionId(), generatedRun.status(), generatedRun.createdAt()));
         }));
@@ -189,22 +190,7 @@ public class ManuscriptService {
     public List<CharacterChangeLogDto> analyzeCharacterChanges(UUID manuscriptId, AnalyzeCharacterChangeRequest request) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
         accessGuard.assertOwner(ownerOf(manuscript));
-        List<Map<String, Object>> logs = readLogs(manuscript.getCharacterLogsJson());
-        UUID logId = UUID.randomUUID();
-        UUID characterId = parseUuidOrRandom(
-                request.characterIds() != null && !request.characterIds().isEmpty()
-                        ? request.characterIds().get(0)
-                        : null
-        );
-        Map<String, Object> item = new HashMap<>();
-        item.put("id", logId.toString());
-        item.put("characterId", characterId.toString());
-        item.put("summary", "检测到角色变化：" + (request.sectionContent() == null ? "" : request.sectionContent().substring(0, Math.min(20, request.sectionContent().length()))));
-        item.put("createdAt", Instant.now().toString());
-        logs.add(item);
-        manuscript.setCharacterLogsJson(writeJson(logs));
-        manuscriptRepository.save(manuscript);
-        return mapLogs(logs);
+        throw new ApiStatusException(HttpStatus.NOT_IMPLEMENTED, "ANALYSIS_NOT_IMPLEMENTED");
     }
 
     public List<CharacterChangeLogDto> listCharacterLogs(UUID manuscriptId) {
@@ -236,7 +222,8 @@ public class ManuscriptService {
                 readSectionMap(manuscript.getSectionsJson()),
                 lastGenerationRun,
                 manuscript.getVersion(),
-                manuscript.getUpdatedAt()
+                manuscript.getUpdatedAt(),
+                manuscript.getCurrentBranchId()
         );
     }
 

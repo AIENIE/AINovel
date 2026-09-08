@@ -38,6 +38,8 @@ public class PlotQualityService {
     private final PlotQualityRunRepository runRepository;
     private final SlopQualityGate slopQualityGate;
     private final JsonColumnCodec jsonColumnCodec;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public PlotQualityService(AiService aiService,
                               ObjectMapper objectMapper,
@@ -196,6 +198,7 @@ public class PlotQualityService {
         run.setRevisionAppliedAt(Instant.now());
         run.setSourceTextHash(hashText(textGate.acceptedText()));
         manuscriptRepository.save(manuscript);
+        if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscript.getId(), null));
         return runRepository.save(run);
     }
 

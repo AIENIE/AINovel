@@ -49,7 +49,7 @@
     "mode": "flyway-one-shot",
     "location": "filesystem:/app/release/migrations/sql",
     "ledger": "release/migrations/flyway-ledger.json",
-    "latest_version": "14",
+    "latest_version": "15",
     "baseline_on_migrate": false,
     "validate_on_migrate": true,
     "clean_disabled": true,

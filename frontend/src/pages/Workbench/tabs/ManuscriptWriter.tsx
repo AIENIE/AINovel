@@ -16,6 +16,7 @@ import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
 import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
 import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
+import { NarrativeSidebarPanel } from "./manuscript-writer/NarrativeSidebarPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -368,6 +369,15 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
   };
 
+  const narrativePanel = <NarrativeSidebarPanel
+    key={selectedManuscriptId + ":" + (selectedManuscript?.currentBranchId || "")}
+    active={sidebarTab === "narrative" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")}
+    manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
+    busy={isSaving || isGenerating}
+    structureKey={JSON.stringify(outlineDraft?.chapters.map(chapter => [chapter.id, chapter.scenes.map(scene => scene.id)]))}
+    characters={characters.map(character => ({ id: String(character.id), name: String(character.name) }))} onManuscript={replaceManuscript}
+  />;
+
   return (
     <div className="relative h-[calc(100vh-180px)]">
       {isMobile ? (
@@ -379,6 +389,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           </div>
           <div className="min-h-0 flex-1">
           <MobileWorkbenchPanel
+          narrativePanel={narrativePanel}
           content={content}
           contextData={contextData}
           contextPreview={contextPreview}
@@ -530,6 +541,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
               onResize={(size) => setRightPanelSize(Math.round(size))}
             >
               <DesktopSidebarPanel
+                narrativePanel={narrativePanel}
                 aiDiffSummary={aiDiffSummary}
                 abandonBranch={abandonBranch}
                 applyPlotRevision={applyPlotRevision}

@@ -46,10 +46,10 @@ Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-rele
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前最新版本为 V13。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因，不保存原始提示词。
+- 当前最新版本为 V15。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因；V14 保留既有运行时治理迁移；V15 建立五张叙事证据状态表及快照保护标记，不将旧稿或旧日志自动转换为事实。发布清单、执行器与运行时契约同步接受 V1–V15，旧迁移文件不变。
 - 数据库结构只通过 Flyway 迁移演进，不存在 schema.sql 一类的旁路 DDL 入口。
 
-V1 → V13 与 V12 → V13 的隔离 MySQL 验证使用 `external-mysql-verification` profile，并只创建符合 `ainovel_verify_<uuid>` 命名的临时库。执行账号必须具有 `CREATE DATABASE` 和 `DROP DATABASE` 权限；普通业务账号缺少该权限时应记录为环境阻塞，不得提升权限或改动共享业务库：
+V1 → V15 与 V14 → V15 的隔离 MySQL 验证使用 `external-mysql-verification` profile，并只创建符合 `ainovel_verify_<uuid>` 命名的临时库。执行账号必须具有 `CREATE DATABASE` 和 `DROP DATABASE` 权限；普通业务账号缺少该权限时应记录为环境阻塞，不得提升权限或改动共享业务库：
 
 ```powershell
 $envFile = '<private-env-file>'

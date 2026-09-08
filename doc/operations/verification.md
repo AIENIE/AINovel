@@ -86,6 +86,17 @@ mvn -f backend/pom.xml -Pquality-regression `
 
 该 profile 从显式指定的 Windows 安全配置文件读取既有 AI 网关地址与 HMAC 配置，只写 `backend/target/quality-regression/quality-regression-report.json`，不写 AINovel 产品表。不得将其分数计入 G2 真人票数。
 
+## H1 证据与状态
+
+1. 使用 `scripts/windows/Test-Local.ps1 -Level L2` 运行完整前后端验证。H1 专项覆盖 Unicode 引文、纯格式变化、作者纠错、缺失证据候选、幂等回执、取消、数据库重载、分支隔离、回滚/合并和保护快照；既有 36 个质量 fixture 的结构检查仍在默认套件内，付费模型回归不在本期预算内。
+2. 通过 [隔离 MySQL profile](deployment.md#数据库迁移) 验证 V1 → V15 和 V14 → V15。测试仅创建并删除 `ainovel_verify_<uuid>` 临时库；业务账号无权限时记录阻塞。检查五张 `narrative_*` 表、`manuscript_versions.narrative_protected` 及所属数据删除后的级联结果，不能改写 V1–V14。
+3. 使用 Windows 标准 Build/Start/Status 入口，核对回环端口、就绪状态和 `https://localainovel.testhut.top`；以真实 SSO 登录自有测试账户。
+4. 自有正文覆盖准备偷钥匙、声称桥断、误以为背叛、梦境、反讽和未知时间。确认普通保存不调用 AI，再明确确认正文；首轮真实抽取不超过六次。分别记录真实模型语义错误、作者修正和实际用量，离线模拟不替代真实结果。
+5. 在待审阅中修改类型/持有人/证据，拒绝无效项并补充遗漏；刷新恢复后提交，核对账本修订只增加一次、原候选及审阅保留。点击证据时只高亮不可变版本，中文生僻字和 emoji 后定位准确。
+6. 修改旧稿、生成写回、回滚、合并、删除/重排，核对来源及已消费依赖进入待复核，历史修订仍可读，恢复文字不自动恢复记录。新分支为空账本，同故事不同稿件隔离，合并不导入来源分支状态。
+7. 覆盖桌面与窄屏、简中/繁中/英文，以及控制台、失败请求、页面刷新和任务恢复。跨用户或分支访问、版本冲突、超时/取消和格式错误不得产生部分有效状态；旧角色变化触发器为 501，历史日志标记 `UNVERIFIED_LEGACY`。
+8. 通过产品接口清理自有测试数据，并用标准 Stop/Status 入口恢复按需停止状态。实际阻塞与验收状态只登记到 [路线图](../roadmap.md)。
+
 ## 安全与可观测性
 
 - 执行日志敏感信息扫描，确认 token、cookie、密码、兑换码、提示词、原始响应和本地绝对路径不进入日志。

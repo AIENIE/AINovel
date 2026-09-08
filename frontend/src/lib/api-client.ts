@@ -590,6 +590,7 @@ function toManuscript(dto: NetworkObject): Manuscript {
     title: dto.title,
     worldId: dto.worldId || undefined,
     sections: dto.sections || {},
+    currentBranchId: dto.currentBranchId ?? null,
     lastGenerationRun: dto.lastGenerationRun
       ? {
           id: String(dto.lastGenerationRun.id),
@@ -764,6 +765,20 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 }
 
 export const api = {
+  narrative: {
+    state: (manuscriptId: string, branchId: string, sceneId?: string) =>
+      requestJson<import("@/types/narrative").NarrativeState>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/state${sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : ""}`),
+    approve: (manuscriptId: string, branchId: string, request: { sceneId: string; expectedManuscriptVersion: number; expectedCanonRevision: number }, key: string) =>
+      requestJson<{ approvalId: string; extractionId: string; operationId: string }>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/scene-approvals`,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(request) }),
+    extraction: (manuscriptId: string, branchId: string, id: string) =>
+      requestJson<import("@/types/narrative").NarrativeExtraction>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/extractions/${id}`),
+    review: (manuscriptId: string, branchId: string, id: string, request: import("@/types/narrative").NarrativeReview, key: string) =>
+      requestJson<{ commitId: string; canonRevision: number; recordIds: string[] }>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/extractions/${id}/review`,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(request) }),
+    evidence: (manuscriptId: string, branchId: string, id: string) =>
+      requestJson<import("@/types/narrative").NarrativeSource>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/scene-approvals/${id}/evidence`),
+  },
   aiOperations: {
     get: async (id: string) => requestJson<AiOperationProgress>(`/v1/ai-operations/${id}`),
     active: async (scopeType: string, scopeId: string) => requestJson<AiOperationProgress>(

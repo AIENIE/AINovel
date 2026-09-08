@@ -17,7 +17,7 @@ expected_overlay={
 if v.get('protected_config_overlay_contract')!=expected_overlay: raise SystemExit('protected config overlay contract drifted')
 expected_migration={
   'mode':'flyway-one-shot','location':'filesystem:/app/release/migrations/sql',
-  'ledger':'release/migrations/flyway-ledger.json','latest_version':'14',
+  'ledger':'release/migrations/flyway-ledger.json','latest_version':'15',
   'baseline_on_migrate':False,'validate_on_migrate':True,'clean_disabled':True,
   'execution':'one-shot-before-app','startup_behavior':'flyway-current-validation-only-after-preactivation',
   'executor':{'path':'release/production-migration-executor','cli':'precheck|execute|reconcile <component>',

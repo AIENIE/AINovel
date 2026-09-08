@@ -179,6 +179,7 @@ export interface Manuscript {
   worldId?: string;
   sections: Record<string, string>; // sceneId -> html content
   lastGenerationRun?: LastGenerationRunSummary | null;
+  currentBranchId?: string | null;
   version: number;
   updatedAt: string;
 }

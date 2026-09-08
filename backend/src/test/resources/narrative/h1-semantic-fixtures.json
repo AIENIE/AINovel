@@ -1,0 +1,7 @@
+[
+  {"id":"T01","text":"林青准备去偷钥匙，尚未动手。","quote":"准备去偷钥匙","modelStatement":"林青已经获得钥匙","kind":"INFERENCE","statement":"林青准备偷钥匙，尚无获得证据","uncertainty":"意图不等于完成"},
+  {"id":"T02","text":"林青说：桥断了。叙述没有交代桥的实际情况。","quote":"林青说：桥断了","modelStatement":"桥已经断了","kind":"UTTERANCE","statement":"林青声称桥断了","uncertainty":"仅有发言，未确认客观状态"},
+  {"id":"T17","text":"林青误以为同伴背叛了自己。","quote":"林青误以为同伴背叛","modelStatement":"同伴背叛林青","kind":"BELIEF","statement":"林青误以为同伴背叛","uncertainty":"人物信念与事实不同"},
+  {"id":"DREAM","text":"林青梦见整座城在燃烧，醒来时窗外安静。","quote":"林青梦见整座城在燃烧","modelStatement":"整座城正在燃烧","kind":"BELIEF","statement":"林青梦见城在燃烧","uncertainty":"梦境内容，非现实事件"},
+  {"id":"IRONY","text":"林青看着漏雨的屋顶，冷笑道：真是好天气。","quote":"冷笑道：真是好天气","modelStatement":"天气很好","kind":"UTTERANCE","statement":"林青冷笑着说天气真好","uncertainty":"可能是反讽，发生时间未知"}
+]

@@ -13,8 +13,8 @@
 - `GET /api/v1/manuscripts/{id}/scenes/{sceneId}/generation-runs?limit=10`：按时间倒序返回生成历史；`limit` 默认 10，并在服务端限制为 `1..50`。重新生成会将旧记录标记为 `SUPERSEDED`，版本回滚只更新实际受影响场景的记录。
 - `PATCH /api/v1/manuscripts/{id}/scenes/{sceneId}/generation-runs/{runId}/feedback`：更新 `{tags, note, preferenceConfirmed}`。备注按 Unicode code point 最长 500 字；标签固定为 `PLOT_CAUSALITY`、`CHARACTER_MOTIVATION`、`CONTINUITY_SETTING`、`VOICE_DIALOGUE`、`PACING`、`STYLE_SPECIFICITY`、`AI_CLICHE`、`OTHER`。将 `preferenceConfirmed` 设为 `true` 时必须至少保留一个标签或一条备注。
 - （兼容旧接口）`POST /api/v1/manuscript/scenes/{sceneId}/generate` / `PUT /api/v1/manuscript/sections/{sectionId}`：仍可用，但会默认使用第一份稿件且生成固定为 `fast`（不建议）。
-- `POST /api/v1/manuscripts/{id}/sections/analyze-character-changes`：分析角色变化，Body `{chapterNumber?, sectionNumber?, sectionContent, characterIds?}`，返回 `CharacterChangeLogDto[]`。
-- `GET /api/v1/manuscripts/{id}/character-change-logs`：角色变化日志列表。
+- `POST /api/v1/manuscripts/{id}/sections/analyze-character-changes`：旧拼接式占位触发器已停用，校验所有权后返回 `501 ANALYSIS_NOT_IMPLEMENTED`。使用 [证据与状态](v2-narrative.md)完成真实抽取与作者确认。
+- `GET /api/v1/manuscripts/{id}/character-change-logs`：历史角色变化日志只读列表，每项 `verificationStatus: "UNVERIFIED_LEGACY"`，不作为已确认事实。
 - `GET /api/v1/manuscripts/{id}/character-change-logs/{characterId}`：指定角色的变化日志列表。
 - `POST /api/v1/ai/generate-dialogue`：对话生成，Body `{text, instruction?, contextType?}`，返回文本。
 

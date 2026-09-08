@@ -44,7 +44,7 @@ class ProductionMigrationExecutorTests(unittest.TestCase):
         os.chmod(self.root / "release/production-migration-executor", 0o555)
 
         migrations = []
-        for version in range(1, 15):
+        for version in range(1, 16):
             relative = f"release/migrations/sql/V{version}__fixture_{version}.sql"
             path = self.root / relative
             path.write_text(f"SELECT {version};\n", encoding="utf-8")
@@ -61,7 +61,7 @@ class ProductionMigrationExecutorTests(unittest.TestCase):
                 "restore_point_required_before_execute": True,
             },
             "canonical_component_id": "ai-novel",
-            "latest_version": "14",
+            "latest_version": "15",
             "location": "filesystem:/app/release/migrations/sql",
             "migrations": migrations,
             "schema_version": "aienie-production-flyway-ledger-v2",
@@ -172,7 +172,7 @@ class ProductionMigrationExecutorTests(unittest.TestCase):
         self.assertEqual(self.artifact_sha, observed["AIENIE_MIGRATION_ARTIFACT_SHA256"])
         self.assertEqual(self.image_bindings[0]["reference"], observed["AINOVEL_BACKEND_IMAGE"])
         self.assertTrue(manifest_sha.startswith("sha256:"))
-        self.assertEqual(14, entries)
+        self.assertEqual(15, entries)
 
     def test_platform_or_flyway_tamper_fails_closed(self) -> None:
         outer = self.root / ".aienie-platform/production-release-manifest-v4.json"
@@ -183,7 +183,7 @@ class ProductionMigrationExecutorTests(unittest.TestCase):
         with mock.patch.dict(os.environ, self.environment, clear=False):
             with self.assertRaisesRegex(executor.ContractError, "not canonical|digest drifted"):
                 executor.validate_platform(self.root)
-        sql = self.root / "release/migrations/sql/V14__fixture_14.sql"
+        sql = self.root / "release/migrations/sql/V15__fixture_15.sql"
         os.chmod(sql, 0o644)
         sql.write_bytes(sql.read_bytes() + b"--tampered\n")
         os.chmod(sql, 0o444)
@@ -192,10 +192,10 @@ class ProductionMigrationExecutorTests(unittest.TestCase):
 
     def test_database_receipt_requires_truthful_schema_and_signed_images(self) -> None:
         receipt = {
-            "action": "execute", "applied_entry_count": 14, "canonical_component_id": "ai-novel",
-            "current_id": "V14", "migration_checksum_sha256": executor.digest_bytes(self.ledger_raw),
+            "action": "execute", "applied_entry_count": 15, "canonical_component_id": "ai-novel",
+            "current_id": "V15", "migration_checksum_sha256": executor.digest_bytes(self.ledger_raw),
             "mutation_performed": True, "pending_entry_count_after": 0,
-            "pending_entry_count_before": 14,
+            "pending_entry_count_before": 15,
             "schema_version": "aienie-production-migration-database-result-v1", "status": "current",
         }
         completed = subprocess.CompletedProcess([], 0, stdout=executor.canonical(receipt), stderr=b"")

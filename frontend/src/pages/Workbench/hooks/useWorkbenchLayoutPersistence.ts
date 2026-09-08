@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { t } from "@/i18n";
 
-export type WorkbenchSidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot";
+export type WorkbenchSidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot" | "narrative";
 
 const WORKBENCH_LAYOUT_KEY = "ainovel.workbench.layout.v2";
 

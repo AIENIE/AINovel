@@ -43,7 +43,7 @@ $components = @(
         Directory = Join-Path $repoRoot 'frontend'
         Command = 'corepack.cmd'
         BuildArguments = @($frontendPackageManager, 'install', '--frozen-lockfile')
-        TestArguments = @($frontendPackageManager, 'run', 'test', '--', '--maxWorkers=2')
+        TestArguments = @($frontendPackageManager, 'run', 'test', '--maxWorkers=2')
         StartArguments = @($frontendPackageManager, '--dir', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--', '--host', '127.0.0.1', '--port', '11040', '--strictPort')
         Port = 11040
         HealthPath = '/'
@@ -272,7 +272,7 @@ function Start-NativeComponent {
     $logRoot = Join-Path $stateRoot 'logs'
     New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
     $command = Get-NativeCommand -Name $Spec.Command
-    $process = Start-Process -FilePath $command -ArgumentList $Spec.StartArguments -WorkingDirectory $Spec.Directory -Environment $ChildEnvironment -RedirectStandardOutput (Join-Path $logRoot "$($Spec.Name.ToLowerInvariant()).stdout.log") -RedirectStandardError (Join-Path $logRoot "$($Spec.Name.ToLowerInvariant()).stderr.log") -PassThru
+    $process = Start-Process -FilePath $command -ArgumentList $Spec.StartArguments -WorkingDirectory $Spec.Directory -Environment $ChildEnvironment -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logRoot "$($Spec.Name.ToLowerInvariant()).stdout.log") -RedirectStandardError (Join-Path $logRoot "$($Spec.Name.ToLowerInvariant()).stderr.log") -PassThru
     $launchedStartUtc = try { $process.StartTime.ToUniversalTime() } catch { $null }
     try {
         $record = New-AienieRootProcessRecord -Name $Spec.Name -Process $process -WorkingRoot $Spec.Directory

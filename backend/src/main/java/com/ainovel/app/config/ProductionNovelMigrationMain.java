@@ -41,7 +41,8 @@ public final class ProductionNovelMigrationMain {
     private static final String LEDGER = "/app/release/migrations/flyway-ledger.json";
     private static final String LOCATION = "filesystem:/app/release/migrations/sql";
     private static final String CHECKPOINT = "/run/aienie/migration-restore/checkpoint.sql";
-    private static final String TARGET = "V14";
+    private static final int LATEST_VERSION = 15;
+    private static final String TARGET = "V" + LATEST_VERSION;
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final Pattern NUMERIC_LITERAL = Pattern.compile(
             "[-+]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(?:[eE][-+]?[0-9]+)?");
@@ -154,10 +155,10 @@ public final class ProductionNovelMigrationMain {
                 "migrations", "schema_version"));
         if (!"aienie-production-flyway-ledger-v2".equals(value.path("schema_version").textValue())
                 || !COMPONENT.equals(value.path("canonical_component_id").textValue())
-                || !"14".equals(value.path("latest_version").textValue())
+                || !Integer.toString(LATEST_VERSION).equals(value.path("latest_version").textValue())
                 || !location.equals(value.path("location").textValue())
                 || !value.path("migrations").isArray()
-                || value.path("migrations").size() != 14) {
+                || value.path("migrations").size() != LATEST_VERSION) {
             throw new IllegalStateException("Flyway ledger identity drifted");
         }
         JsonNode authorization = value.path("authorization");
@@ -169,7 +170,7 @@ public final class ProductionNovelMigrationMain {
             throw new IllegalStateException("Flyway ledger authority drifted");
         }
         Path sqlRoot = ledger.getParent().resolve("sql").normalize();
-        for (int index = 0; index < 14; index++) {
+        for (int index = 0; index < LATEST_VERSION; index++) {
             JsonNode migration = value.path("migrations").get(index);
             requireFields(migration, Set.of("path", "sha256", "version"));
             String version = Integer.toString(index + 1);

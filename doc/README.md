@@ -25,6 +25,7 @@
 
 - [`roadmap.md`](roadmap.md)：唯一后续工作账本。
 - [`planning/v3/README.md`](planning/v3/README.md)：G1-G4 v3 提案与设计依据。
+- [`planning/narrative-harness.md`](planning/narrative-harness.md)、[`planning/narrative-h1.md`](planning/narrative-h1.md)：H 系列长期设计与首期证据状态闭环。
 - [`research/ai-writing-quality/README.md`](research/ai-writing-quality/README.md)：AI 写作质量研究与采用状态。
 
 ## 维护规则

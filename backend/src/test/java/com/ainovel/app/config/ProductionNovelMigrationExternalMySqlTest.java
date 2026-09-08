@@ -45,7 +45,7 @@ class ProductionNovelMigrationExternalMySqlTest {
         Files.createDirectories(migrationRoot);
         Path sourceRoot = Path.of("src/main/resources/db/migration");
         List<Map<String, String>> migrations = new ArrayList<>();
-        for (int version = 1; version <= 14; version++) {
+        for (int version = 1; version <= 15; version++) {
             int selectedVersion = version;
             Path source = Files.list(sourceRoot)
                     .filter(path -> path.getFileName().toString().startsWith("V" + selectedVersion + "__"))
@@ -63,7 +63,7 @@ class ProductionNovelMigrationExternalMySqlTest {
                 "outer_signature_required", true,
                 "restore_point_required_before_execute", true));
         ledger.put("canonical_component_id", "ai-novel");
-        ledger.put("latest_version", "14");
+        ledger.put("latest_version", "15");
         ledger.put("location", "filesystem:" + migrationRoot.toAbsolutePath());
         ledger.put("migrations", migrations);
         ledger.put("schema_version", "aienie-production-flyway-ledger-v2");
@@ -79,7 +79,7 @@ class ProductionNovelMigrationExternalMySqlTest {
                     "precheck", url, username, password, ledgerPath,
                     "filesystem:" + migrationRoot.toAbsolutePath(), temporary.resolve("unused.sql")));
             assertEquals("pending", precheck.path("status").textValue());
-            assertEquals(14, precheck.path("pending_entry_count_before").intValue());
+            assertEquals(15, precheck.path("pending_entry_count_before").intValue());
             assertFalse(precheck.path("mutation_performed").booleanValue());
             assertEquals(tablesBefore, scalar(connection, """
                     SELECT COUNT(*) FROM information_schema.tables
@@ -90,7 +90,7 @@ class ProductionNovelMigrationExternalMySqlTest {
                     "execute", url, username, password, ledgerPath,
                     "filesystem:" + migrationRoot.toAbsolutePath(), temporary.resolve("unused.sql")));
             assertEquals("current", execute.path("status").textValue());
-            assertEquals(14, execute.path("applied_entry_count").intValue());
+            assertEquals(15, execute.path("applied_entry_count").intValue());
             assertTrue(execute.path("mutation_performed").booleanValue());
             JsonNode noOp = result(ProductionNovelMigrationMain.runForTest(
                     "execute", url, username, password, ledgerPath,

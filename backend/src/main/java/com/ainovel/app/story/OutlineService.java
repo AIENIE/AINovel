@@ -36,6 +36,8 @@ public class OutlineService {
     private ObjectMapper objectMapper;
     @Autowired
     private JsonColumnCodec jsonColumnCodec;
+    @Autowired
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public List<OutlineDto> listByStory(Story story) {
         accessGuard.assertOwner(story.getUser());
@@ -86,6 +88,7 @@ public class OutlineService {
         content.put("chapters", normalized);
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
+        if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
         return toDto(outline);
     }
 
