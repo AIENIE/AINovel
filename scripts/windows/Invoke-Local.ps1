@@ -358,14 +358,19 @@ switch ($Action) {
             $records = @($state.processes | Where-Object { Test-RecordedProcess -Record $_ })
         }
         $selected = Get-SelectedComponents
+        $pending = @()
         foreach ($spec in $selected) {
-            if (@($records | Where-Object Name -eq $spec.Name).Count -gt 0) {
-                throw "Native $($spec.Name) is already running. Use Get-LocalStatus.ps1 or Stop-Local.ps1."
+            $live = @($records | Where-Object Name -eq $spec.Name)
+            if ($live.Count -gt 0) {
+                $livePid = try { [string]$live[0].RootProcess.ProcessId } catch { 'unknown' }
+                Write-Output "AINovel $($spec.Name) already running (PID $livePid); skipping start."
+            } else {
+                $pending += $spec
             }
         }
         $started = @()
         try {
-            foreach ($spec in $selected) {
+            foreach ($spec in $pending) {
                 $record = Start-NativeComponent -Spec $spec -ChildEnvironment $childEnvironment
                 $started += $record
                 Wait-LocalReadiness -Spec $spec -Process $record.process
@@ -375,8 +380,10 @@ switch ($Action) {
                 $checkpoint = @($records) + @($started | ForEach-Object { ConvertTo-AieniePersistedProcessRecord -Record $_ })
                 Save-ProcessState -Records $checkpoint
             }
-            $persisted = @($records) + @($started | ForEach-Object { ConvertTo-AieniePersistedProcessRecord -Record $_ })
-            Save-ProcessState -Records $persisted
+            if ($started.Count -gt 0) {
+                $persisted = @($records) + @($started | ForEach-Object { ConvertTo-AieniePersistedProcessRecord -Record $_ })
+                Save-ProcessState -Records $persisted
+            }
             & $PSCommandPath -Action Status
         } catch {
             foreach ($record in $started) {

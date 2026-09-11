@@ -12,6 +12,12 @@ or the monitoring state writer.
 | Stop | `.\scripts\windows\Stop-Local.ps1` |
 | L1/L2 checks | `.\scripts\windows\Test-Local.ps1 -Level L1` / `-Level L2` |
 
+After a successful start `Start-Local.ps1` opens
+`https://localainovel.testhut.top/` in the default browser; `-NoBrowser`
+skips that. Re-running the launcher is safe: live components are skipped
+instead of failing. It also works from Windows PowerShell 5.1 by relaunching
+itself under pwsh.
+
 The default private input is
 `%LOCALAPPDATA%\Aienie\secrets\ainovel.env`. It must be a regular,
 non-reparse file, but the local launcher does not change or require a special

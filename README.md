@@ -31,12 +31,12 @@ Windows 本地开发与静态验证使用 PowerShell 7，不调用 WSL 或 Docke
 
 ```powershell
 .\scripts\windows\Build-Local.ps1
-.\scripts\windows\Start-Local.ps1
+.\scripts\windows\Start-Local.ps1      # 后端+前端一次拉起；成功后自动在默认浏览器打开本地域名主页
 .\scripts\windows\Get-LocalStatus.ps1
 .\scripts\windows\Stop-Local.ps1
 ```
 
-私有环境文件保留在仓库外。首次启动前先执行 Build；L1/L2 入口分别为
+私有环境文件保留在仓库外。首次启动前先执行 Build；`Start-Local.ps1` 重复运行安全（已运行的组件自动跳过，`-NoBrowser` 跳过打开浏览器），并可从 Windows PowerShell 5.1 直接运行（自动转投 pwsh）。L1/L2 入口分别为
 `.\scripts\windows\Test-Local.ps1 -Level L1` 和 `-Level L2`。完整边界见
 [`doc/operations/windows-native.md`](doc/operations/windows-native.md)。
 
