@@ -1,0 +1,52 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "AINovel: Attach backend",
+      "request": "attach",
+      "hostName": "127.0.0.1",
+      "port": 51041,
+      "preLaunchTask": "local: debug start"
+    },
+    {
+      "type": "java",
+      "name": "AINovel: Attach backend (compound)",
+      "request": "attach",
+      "hostName": "127.0.0.1",
+      "port": 51041,
+      "presentation": {
+        "hidden": true
+      }
+    },
+    {
+      "type": "pwa-msedge",
+      "name": "AINovel: Open local frontend",
+      "request": "launch",
+      "url": "https://localainovel.testhut.top/",
+      "webRoot": "${workspaceFolder}/frontend",
+      "preLaunchTask": "local: start"
+    },
+    {
+      "type": "pwa-msedge",
+      "name": "AINovel: Open local frontend (compound)",
+      "request": "launch",
+      "url": "https://localainovel.testhut.top/",
+      "webRoot": "${workspaceFolder}/frontend",
+      "presentation": {
+        "hidden": true
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "AINovel: Debug full stack",
+      "configurations": [
+        "AINovel: Attach backend (compound)",
+        "AINovel: Open local frontend (compound)"
+      ],
+      "preLaunchTask": "local: debug start",
+      "stopAll": true
+    }
+  ]
+}

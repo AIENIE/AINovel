@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [ValidatePattern('^(\d+(,\d+)*)?$')][string]$PreserveProcessIds = '',
     [Parameter(Mandatory)]
     [ValidateSet('Build', 'Start', 'Stop', 'Status', 'Test')]
     [string]$Action,
@@ -11,10 +12,12 @@ param(
     [ValidateSet('L1', 'L2')]
     [string]$TestLevel = 'L2',
     [switch]$AsJson
+    ,[switch]$EnableBackendDebug
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'LocalCommand.ps1')
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 Import-Module (Join-Path $PSScriptRoot 'LocalRuntime.psm1') -Force
@@ -362,6 +365,8 @@ switch ($Action) {
         foreach ($spec in $selected) {
             $live = @($records | Where-Object Name -eq $spec.Name)
             if ($live.Count -gt 0) {
+                if (-not (Test-LocalHttpEndpoint -Port $spec.Port -Path $spec.HealthPath -HealthKind $spec.HealthKind)) { throw "Existing $($spec.Name) is unhealthy." }
+                if ($EnableBackendDebug -and $spec.Name -eq 'Backend') { Assert-LocalDebugListener $spec.Port 51041 }
                 $livePid = try { [string]$live[0].RootProcess.ProcessId } catch { 'unknown' }
                 Write-Output "AINovel $($spec.Name) already running (PID $livePid); skipping start."
             } else {
@@ -370,7 +375,11 @@ switch ($Action) {
         }
         $started = @()
         try {
-            foreach ($spec in $pending) {
+        foreach ($spec in $pending) {
+                if ($EnableBackendDebug -and $spec.Name -eq 'Backend') {
+                    if (Test-LocalTcpPort 51041) { throw 'Debug port 51041 is already listening. Stop its owner explicitly before starting.' }
+                    $spec.StartArguments = @($spec.StartArguments) + @('-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:51041')
+                }
                 $record = Start-NativeComponent -Spec $spec -ChildEnvironment $childEnvironment
                 $started += $record
                 Wait-LocalReadiness -Spec $spec -Process $record.process
@@ -384,6 +393,7 @@ switch ($Action) {
                 $persisted = @($records) + @($started | ForEach-Object { ConvertTo-AieniePersistedProcessRecord -Record $_ })
                 Save-ProcessState -Records $persisted
             }
+            if ($Component -in @('All','Frontend')) { Assert-LocalEndpoint 'https://localainovel.testhut.top/' }
             & $PSCommandPath -Action Status
         } catch {
             foreach ($record in $started) {
@@ -411,6 +421,7 @@ switch ($Action) {
         }
         $remaining = @()
         foreach ($record in @($state.processes)) {
+            if ([string]$record.RootProcess.ProcessId -in ($PreserveProcessIds -split ',')) { $remaining += $record; continue }
             if ($Component -ne 'All' -and $record.Name -ne $Component) {
                 $remaining += $record
                 continue

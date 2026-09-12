@@ -1,0 +1,6 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.autobuild.enabled": false,
+  "java.debug.settings.forceBuildBeforeLaunch": false,
+  "java.test.codeLens.enabled": true
+}

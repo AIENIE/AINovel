@@ -1,5 +1,8 @@
 # Windows local direct runtime
 
+
+日常入口为仓库根 `start.ps1`（PowerShell 7）；支持 Start / Build / Test / Status / Stop。默认启动执行必要构建，测试使用 `-Action Test -Level L2`。VS Code 请打开仓库根目录。实际验收与已知阻塞见 [本地开发验收](local-development-verification.md)。下文保留底层脚本与环境配置说明。
+
 Use PowerShell 7 from the repository checkout. These five entrypoints run
 AINovel directly on Windows and never call Config Center, the release plane,
 or the monitoring state writer.

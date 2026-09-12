@@ -64,3 +64,11 @@ cd frontend && corepack pnpm@11.22.0 install --frozen-lockfile && corepack pnpm@
 - `scripts/docker/`：发版运行时包使用的 staging/production 环境加载器。
 
 研发文档见 [`doc/README.md`](doc/README.md)，用户手册见 [`user-doc/README.md`](user-doc/README.md)，后续工作见 [`doc/roadmap.md`](doc/roadmap.md)。
+
+## 本地 L2 验证记录（2026-09-12）
+
+Windows 根入口为 `start.ps1`，参数为 `-Action Start|Build|Test|Status|Stop`、`-Level L1|L2|L3`、`-Component All|Backend|Frontend`，默认 `Start/L2/All`。本地端口为前端 `11040`、后端 `11041`，主页为 `https://localainovel.testhut.top/`。
+
+实际 L2 结果：退出码 `0`；后端 `336` 项通过、`12` 项条件跳过，前端 lint、类型检查、构建通过，Vitest `34` 文件/`136` 项通过。跳过项涉及外部 MySQL/Testcontainers 与另行授权的付费质量回归。VS Code 从包含 `start.ps1` 的仓库根目录打开，使用根任务启动调试；本轮前后端断点均已命中。完整启动的健康检查、HTTPS 与基础 API 已通过。
+
+AISocialGame 的真人验收仍在进行中，已实现功能不等同于整体验收通过。

@@ -3,6 +3,7 @@ param(
     [string]$EnvironmentFile = (Join-Path $(if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { $env:TEMP }) 'Aienie\secrets\ainovel.env'),
     [ValidateSet('All', 'Backend', 'Frontend')][string]$Component = 'All',
     [ValidateRange(30, 900)][int]$StartupTimeoutSeconds = 180,
+    [switch]$EnableBackendDebug,
     # -NoBrowser skips opening the project homepage after a successful start.
     [switch]$NoBrowser
 )
@@ -35,7 +36,7 @@ if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt
     exit $LASTEXITCODE
 }
 
-& (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Start -Component $Component -EnvironmentFile $EnvironmentFile -StartupTimeoutSeconds $StartupTimeoutSeconds
+& (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Start -Component $Component -EnvironmentFile $EnvironmentFile -StartupTimeoutSeconds $StartupTimeoutSeconds -EnableBackendDebug:$EnableBackendDebug
 
 if (-not $NoBrowser -and $Component -eq 'All') {
     $homepage = 'https://localainovel.testhut.top/'

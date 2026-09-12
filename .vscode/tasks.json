@@ -1,0 +1,130 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "local: build",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Build"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "isDefault": true,
+        "kind": "build"
+      }
+    },
+    {
+      "label": "local: test",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Test",
+        "-Level",
+        "L2"
+      ],
+      "problemMatcher": [],
+      "group": {
+        "isDefault": true,
+        "kind": "test"
+      }
+    },
+    {
+      "label": "local: start",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Start",
+        "-NoBrowser"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "local: status",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Status"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "local: stop",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Stop"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "local: debug start",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Start",
+        "-NoBrowser",
+        "-EnableBackendDebug"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "local: backend test",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Test",
+        "-Component",
+        "Backend",
+        "-Level",
+        "L2"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "local: frontend test",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/start.ps1",
+        "-Action",
+        "Test",
+        "-Component",
+        "Frontend",
+        "-Level",
+        "L2"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
