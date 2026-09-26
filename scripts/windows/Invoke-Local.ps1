@@ -74,6 +74,30 @@ function Get-SelectedComponents {
     return @($components | Where-Object Name -eq $Component)
 }
 
+function Assert-FrontendToolchainVersions {
+    param([string]$NodeVersion, [string]$PnpmVersion)
+    if ($NodeVersion.Trim() -cne 'v22.23.2') {
+        throw "AINovel requires Node.js exactly 22.23.2; found $NodeVersion. Select the pinned Node executable in PATH."
+    }
+    if ($PnpmVersion.Trim() -cne '11.22.0') {
+        throw "AINovel requires pnpm exactly 11.22.0; found $PnpmVersion."
+    }
+}
+
+function Assert-FrontendToolchain {
+    $nodeCommand = Get-NativeCommand -Name 'node.exe'
+    $nodeVersion = (& $nodeCommand --version | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the Node.js version.' }
+    # Reject Node drift before Corepack can resolve packages or mutate dependencies.
+    if ($nodeVersion -cne 'v22.23.2') {
+        Assert-FrontendToolchainVersions -NodeVersion $nodeVersion -PnpmVersion ''
+    }
+    $corepackCommand = Get-NativeCommand -Name 'corepack.cmd'
+    $pnpmVersion = (& $corepackCommand $frontendPackageManager --version | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the pinned pnpm version.' }
+    Assert-FrontendToolchainVersions -NodeVersion $nodeVersion -PnpmVersion $pnpmVersion
+}
+
 function Get-NativeCommand {
     param([Parameter(Mandatory)][string]$Name)
 
@@ -322,6 +346,10 @@ function Stop-NativeRecord {
 }
 
 Assert-NativePowerShell
+
+if ($Action -in @('Build', 'Test', 'Start') -and $Component -in @('All', 'Frontend')) {
+    Assert-FrontendToolchain
+}
 
 switch ($Action) {
     'Build' {

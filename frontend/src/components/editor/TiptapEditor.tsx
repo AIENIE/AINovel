@@ -1,7 +1,7 @@
-import { useEditor, EditorContent, BubbleMenu } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import BubbleMenuExtension from "@tiptap/extension-bubble-menu";
 import { useTranslation } from "react-i18next";
 import EditorToolbar from "./EditorToolbar";
 import { cn } from "@/lib/utils";
@@ -62,9 +62,6 @@ const TiptapEditor = ({
       }),
       SlashCommand.configure({
         suggestion: suggestionOptions,
-      }),
-      BubbleMenuExtension.configure({
-        pluginKey: 'bubbleMenu',
       }),
     ],
     content,
@@ -133,7 +130,7 @@ const TiptapEditor = ({
     const current = editor.getHTML();
     if (current === next) return;
     applyingExternalContentRef.current = true;
-    editor.commands.setContent(next, false);
+    editor.commands.setContent(next, { emitUpdate: false });
     applyingExternalContentRef.current = false;
   }, [content, editor]);
 
@@ -240,7 +237,7 @@ const TiptapEditor = ({
       {editor && (
         <BubbleMenu 
           editor={editor} 
-          tippyOptions={{ duration: 100 }}
+          options={{ placement: "top", offset: 8 }}
           className="flex items-center gap-1 p-1 rounded-lg border bg-popover shadow-md animate-in fade-in zoom-in-95"
         >
           <Button

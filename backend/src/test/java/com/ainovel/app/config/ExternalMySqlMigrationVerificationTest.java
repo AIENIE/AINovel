@@ -29,12 +29,14 @@ class ExternalMySqlMigrationVerificationTest {
                     + "&connectTimeout=10000&socketTimeout=60000";
 
     @Test
-    void migratesFreshExternalDatabaseFromV1ThroughV18() throws Exception {
+    void migratesFreshExternalDatabaseThroughLatest() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
-            var result = flyway(config, databaseUrl).migrate();
+            var migration = flyway(config, databaseUrl);
+            int pending = migration.info().pending().length;
+            var result = migration.migrate();
 
-            assertEquals(18, result.migrationsExecuted);
+            assertEquals(pending, result.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
@@ -43,7 +45,7 @@ class ExternalMySqlMigrationVerificationTest {
     }
 
     @Test
-    void upgradesExternalDatabaseFromV14ToV18() throws Exception {
+    void upgradesExternalDatabaseFromV14ThroughLatest() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
             var v14Result = Flyway.configure()
@@ -54,12 +56,41 @@ class ExternalMySqlMigrationVerificationTest {
                     .migrate();
             assertEquals(14, v14Result.migrationsExecuted);
 
-            var latestResult = flyway(config, databaseUrl).migrate();
-            assertEquals(4, latestResult.migrationsExecuted);
+            var migration = flyway(config, databaseUrl);
+            int pending = migration.info().pending().length;
+            var latestResult = migration.migrate();
+            assertEquals(pending, latestResult.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
             assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
+        });
+    }
+
+    @Test
+    void upgradesV18ToLatestWithoutChangingArchivedManuscriptBody() throws Exception {
+        ExternalMySqlConfig config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (name, url) -> {
+            Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("18").load().migrate();
+            UUID manuscriptId = UUID.randomUUID();
+            UUID sceneId = UUID.randomUUID();
+            String body = "{\"" + sceneId + "\":\"<p>迁移前正文😀</p>\"}";
+            try (Connection c = DriverManager.getConnection(url, config.username, config.password);
+                 var insert = c.prepareStatement("insert into manuscripts(id,sections_json,version) values(?,?,0)")) {
+                java.nio.ByteBuffer id = java.nio.ByteBuffer.allocate(16).putLong(manuscriptId.getMostSignificantBits()).putLong(manuscriptId.getLeastSignificantBits());
+                insert.setBytes(1,id.array()); insert.setString(2,body); insert.executeUpdate();
+            }
+            var migration = flyway(config, url);
+            int pending = migration.info().pending().length;
+            assertEquals(pending,migration.migrate().migrationsExecuted);
+            try (Connection c = DriverManager.getConnection(url, config.username, config.password);
+                 var query = c.prepareStatement("select sections_json,content_storage_version from manuscripts where id=?")) {
+                java.nio.ByteBuffer id = java.nio.ByteBuffer.allocate(16).putLong(manuscriptId.getMostSignificantBits()).putLong(manuscriptId.getLeastSignificantBits());
+                query.setBytes(1,id.array());
+                try (var row=query.executeQuery()) { org.junit.jupiter.api.Assertions.assertTrue(row.next()); assertEquals(body,row.getString(1)); assertEquals(1,row.getInt(2)); }
+            }
+            assertEquals(0,flyway(config,url).migrate().migrationsExecuted);
         });
     }
 
@@ -80,7 +111,9 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 q.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            assertEquals(3, flyway(config, url).migrate().migrationsExecuted);
+            var migration = flyway(config, url);
+            int pending = migration.info().pending().length;
+            assertEquals(pending, migration.migrate().migrationsExecuted);
             assertEquals(0, flyway(config, url).migrate().migrationsExecuted);
             try (var c = DriverManager.getConnection(url, config.username, config.password); var q = c.createStatement()) {
                 String[] legacyTypes = {"ADMIN_GRANT", "AI_DEBIT", "CHECKIN", "CONVERT_IN", "REDEEM_CODE"};
@@ -113,7 +146,9 @@ class ExternalMySqlMigrationVerificationTest {
                 q.execute("INSERT INTO narrative_records(id,extraction_id,assertion_json,dependency_ids_json,created_revision,created_at) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('03',16)),'{\"kind\":\"UTTERANCE\",\"statement\":\"旧证据𠮷😀\"}','[]',7,NOW())");
                 q.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            assertEquals(1,flyway(config,url).migrate().migrationsExecuted);
+            var migration = flyway(config, url);
+            int pending = migration.info().pending().length;
+            assertEquals(pending, migration.migrate().migrationsExecuted);
             assertNarrativeSchema(config,url);
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
                 try(var r=q.executeQuery("SELECT assertion_json,dependency_ids_json,created_revision FROM narrative_records")) {

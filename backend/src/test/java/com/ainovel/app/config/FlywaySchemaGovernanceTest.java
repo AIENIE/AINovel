@@ -38,9 +38,7 @@ class FlywaySchemaGovernanceTest {
                     .locations("classpath:db/migration")
                     .load();
 
-            var result = flyway.migrate();
-
-            assertEquals(18, result.migrationsExecuted);
+            migrateToLatestAndAssertComplete(flyway);
             assertTableExists(mysql, databaseName, "narrative_records");
             assertColumnExists(mysql, databaseName, "manuscript_versions", "narrative_protected");
             assertTableExists(mysql, databaseName, "stories");
@@ -84,10 +82,8 @@ class FlywaySchemaGovernanceTest {
                     .load();
 
             var baselineResult = flyway.baseline();
-            var migrateResult = flyway.migrate();
-
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(16, migrateResult.migrationsExecuted);
+            migrateToLatestAndAssertComplete(flyway);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -114,9 +110,7 @@ class FlywaySchemaGovernanceTest {
                     .load();
 
             flyway.baseline();
-            var migrateResult = flyway.migrate();
-
-            assertEquals(16, migrateResult.migrationsExecuted);
+            migrateToLatestAndAssertComplete(flyway);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -148,9 +142,7 @@ class FlywaySchemaGovernanceTest {
                     .load();
 
             flyway.baseline();
-            var migrateResult = flyway.migrate();
-
-            assertEquals(16, migrateResult.migrationsExecuted);
+            migrateToLatestAndAssertComplete(flyway);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {
@@ -209,8 +201,8 @@ class FlywaySchemaGovernanceTest {
             }
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
-                    .locations("classpath:db/migration").load().migrate();
-            assertEquals(5, result.migrationsExecuted);
+                    .locations("classpath:db/migration").target("9").load().migrate();
+            assertEquals(1, result.migrationsExecuted);
 
             try (Connection connection = DriverManager.getConnection(databaseUrl, mysql.getUsername(), mysql.getPassword());
                  Statement statement = connection.createStatement()) {
@@ -244,8 +236,8 @@ class FlywaySchemaGovernanceTest {
             }
 
             var result = Flyway.configure().dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
-                    .locations("classpath:db/migration").load().migrate();
-            assertEquals(2, result.migrationsExecuted);
+                    .locations("classpath:db/migration").target("12").load().migrate();
+            assertEquals(1, result.migrationsExecuted);
             assertColumnNullable(mysql, databaseName, "g2_evaluation_experiments", "created_by");
             assertColumnExists(mysql, databaseName, "g2_evaluation_experiments", "created_by_admin_subject");
 
@@ -301,6 +293,7 @@ class FlywaySchemaGovernanceTest {
             var result = Flyway.configure()
                     .dataSource(databaseUrl, mysql.getUsername(), mysql.getPassword())
                     .locations("classpath:db/migration")
+                    .target("13")
                     .load()
                     .migrate();
 
@@ -310,6 +303,20 @@ class FlywaySchemaGovernanceTest {
         }
     }
 
+    /** Latest-schema cases follow the discovered migration set; historical transition cases pin target explicitly. */
+    private static void migrateToLatestAndAssertComplete(Flyway flyway) {
+        var expected = java.util.Arrays.stream(flyway.info().pending())
+                .map(info -> info.getVersion().toString()).toList();
+        assertFalse(expected.isEmpty(), "Expected unapplied migration resources");
+        var result = flyway.migrate();
+        assertEquals(expected.size(), result.migrationsExecuted);
+        assertEquals(0, flyway.info().pending().length, "Latest schema still has pending migrations");
+        var applied = java.util.Arrays.stream(flyway.info().applied())
+                .filter(info -> info.getVersion() != null)
+                .map(info -> info.getVersion().toString()).toList();
+        assertTrue(applied.containsAll(expected), "Not all planned versions were recorded as applied");
+        flyway.validate();
+    }
     private static void insertStoryTreeWithQualityIssues(Statement statement) throws Exception {
         statement.execute("INSERT INTO users (id,banned,credits,email,password_hash,username) VALUES (UNHEX('01010101010101010101010101010101'),0,0,'cascade@test','x','cascade-user')");
         statement.execute("INSERT INTO stories (id,user_id,title) VALUES (UNHEX('02020202020202020202020202020202'),UNHEX('01010101010101010101010101010101'),'cascade')");

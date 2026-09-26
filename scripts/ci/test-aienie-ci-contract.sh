@@ -14,6 +14,14 @@ assert_host_loopback_compose() {
 
 work_dir="$(mktemp -d)"
 trap 'chmod -R u+w -- "$work_dir" 2>/dev/null || true; rm -rf -- "$work_dir"' EXIT
+# Isolate synthetic packaging from the developer checkout and real target files.
+source_repo="$repo_root"
+repo_root="$work_dir/repo"
+mkdir -p "$repo_root/backend/src/main/resources/db" "$repo_root/frontend"
+cp -a "$source_repo/scripts" "$repo_root/scripts"
+cp "$source_repo/backend/pom.xml" "$source_repo/backend/"*.sh "$repo_root/backend/"
+cp -a "$source_repo/backend/src/main/resources/db/migration" "$repo_root/backend/src/main/resources/db/"
+cp "$source_repo/frontend/package.json" "$source_repo/frontend/pnpm-lock.yaml" "$source_repo/frontend/pnpm-workspace.yaml" "$repo_root/frontend/"
 fake_bin="$work_dir/bin"
 mkdir -p "$fake_bin"
 
@@ -34,15 +42,19 @@ write_fake() {
   chmod +x "$fake_bin/$name"
 }
 
-write_fake python3 "exec \"$real_python\" \"\$@\""
+export CI_CONTRACT_REAL_PYTHON="$real_python"
+export CI_CONTRACT_FIXTURES="$repo_root/scripts/ci/ci-contract-fixtures.py"
+printf '%s\n' 'print("com.google.protobuf:protoc:1:exe:linux-x86_64")' 'print("io.grpc:protoc-gen-grpc-java:1:exe:linux-x86_64")' >"$fake_bin/protobuf-resolver"
+export AIENIE_CI_PROTOBUF_TOOL_RESOLVER="$fake_bin/protobuf-resolver"
+write_fake python3 'if [[ "${1:-}" == */dependency-security.py ]]; then exec "$CI_CONTRACT_REAL_PYTHON" "$CI_CONTRACT_FIXTURES" scanner "$@"; else exec "$CI_CONTRACT_REAL_PYTHON" "$@"; fi'
 write_fake uname 'case "${1:-}" in -s) echo Linux;; -m) echo x86_64;; *) echo Linux;; esac'
 write_fake java 'echo "openjdk version 25-test" >&2'
-write_fake mvn 'if [[ " $* " == *" --version "* ]]; then echo "Apache Maven 3.9.99-test"; else mkdir -p "$AIENIE_CI_CACHE_DIR/maven"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/maven/$AIENIE_CI_PHASE.bin"; fi'
+write_fake mvn 'exec "$CI_CONTRACT_REAL_PYTHON" "$CI_CONTRACT_FIXTURES" mvn "$@"'
 write_fake node 'if [[ "${1:-}" == "--version" ]]; then echo v22.23.2; else exit 0; fi'
 write_fake npm 'if [[ "${1:-}" == "--version" ]]; then echo 10.99.0-test; else mkdir -p "$AIENIE_CI_CACHE_DIR/npm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/npm/$AIENIE_CI_PHASE.bin"; fi'
-write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.22.0; else mkdir -p "$AIENIE_CI_CACHE_DIR/pnpm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/pnpm/$AIENIE_CI_PHASE.bin"; fi'
+write_fake pnpm 'exec "$CI_CONTRACT_REAL_PYTHON" "$CI_CONTRACT_FIXTURES" pnpm "$@"'
 write_fake trivy 'exit 0'
-write_fake bundle-helper 'mkdir -p "$2/components/backend" "$2/components/frontend/dist"; printf jar >"$2/components/backend/app.jar"; printf html >"$2/components/frontend/dist/index.html"'
+write_fake bundle-helper 'mkdir -p "$2/components/backend" "$2/components/frontend/dist"; cp "$WORKSPACE/backend/target/fixture.jar" "$2/components/backend/app.jar"; printf html >"$2/components/frontend/dist/index.html"'
 write_fake flatten-helper 'rm -rf -- "$3"; mkdir -p "$3/backend" "$3/frontend/dist"; cp -- "$2/components/backend/app.jar" "$3/backend/app.jar"; cp -- "$2/components/frontend/dist/index.html" "$3/frontend/dist/index.html"; printf nginx >"$3/frontend/nginx.conf"; printf "%s\n" "command: java \${JAVA_OPTS:-} -jar /app/app.jar" >"$3/docker-compose.yml"; printf payload >"$3/payload.bin"'
 
 export PATH="$fake_bin:$PATH"
@@ -86,7 +98,7 @@ if bash "$repo_root/scripts/ci/build-release.sh" "$AIENIE_CI_OUTPUT_DIR" >"$work
   exit 1
 fi
 grep -q 'pnpm must be exactly 11.22.0' "$work_dir/wrong-pnpm.log"
-write_fake pnpm 'if [[ "${1:-}" == "--version" ]]; then echo 11.22.0; else mkdir -p "$AIENIE_CI_CACHE_DIR/pnpm"; printf "%s" "$AIENIE_CI_PHASE" >"$AIENIE_CI_CACHE_DIR/pnpm/$AIENIE_CI_PHASE.bin"; fi'
+write_fake pnpm 'exec "$CI_CONTRACT_REAL_PYTHON" "$CI_CONTRACT_FIXTURES" pnpm "$@"'
 
 export AIENIE_CI_CACHE_DIR="$work_dir/cache"
 export AIENIE_CI_OUTPUT_DIR="$work_dir/resolve-output"
@@ -179,7 +191,7 @@ PY
   exit 1
 }
 
-write_fake cache-tamper-helper 'mkdir -p "$2/components/backend" "$2/components/frontend/dist"; printf jar >"$2/components/backend/app.jar"; printf html >"$2/components/frontend/dist/index.html"; chmod u+w -- "$PROTECTED_CACHE_UNDER_TEST/.aienie-cache-contract"; printf tampered >>"$PROTECTED_CACHE_UNDER_TEST/.aienie-cache-contract"'
+write_fake cache-tamper-helper 'mkdir -p "$2/components/backend" "$2/components/frontend/dist"; cp "$WORKSPACE/backend/target/fixture.jar" "$2/components/backend/app.jar"; printf html >"$2/components/frontend/dist/index.html"; chmod u+w -- "$PROTECTED_CACHE_UNDER_TEST/.aienie-cache-contract"; printf tampered >>"$PROTECTED_CACHE_UNDER_TEST/.aienie-cache-contract"'
 mkdir -p "$work_dir/cache-tamper-output"
 cp -- "$resolved_manifest" "$work_dir/cache-tamper-output/repository-dependency-manifest.json"
 chmod a-w -- "$work_dir/cache-tamper-output/repository-dependency-manifest.json"
