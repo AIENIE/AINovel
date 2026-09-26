@@ -18,6 +18,8 @@ import java.util.*;
 
 @Service
 public class V2ExportPersistenceService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private final V2ExportTemplateRepository templateRepository;
     private final V2ExportJobRepository jobRepository;
     private final V2Json v2Json;
@@ -109,7 +111,7 @@ public class V2ExportPersistenceService {
                 "title", str(manuscript.getTitle(), "AINovel"),
                 "author", str(user.getUsername(), ""),
                 "outline", manuscript.getOutline().getContentJson() == null ? "{}" : manuscript.getOutline().getContentJson(),
-                "sections", manuscript.getSectionsJson() == null ? "{}" : manuscript.getSectionsJson()
+                "sections", contents.snapshot(manuscript)
         )));
         job.setExpiresAt(Instant.now().plus(24, ChronoUnit.HOURS));
         return jobMap(jobRepository.saveAndFlush(job), contentType);

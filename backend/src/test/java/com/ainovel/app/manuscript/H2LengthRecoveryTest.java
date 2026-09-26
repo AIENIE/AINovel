@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.*;
 class H2LengthRecoveryTest {
     @Test void retainsBothDraftsAndNeverMakesAThirdCall() throws Exception {
         var json=new ObjectMapper();var service=new SceneGenerationService();
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         var ai=mock(AiService.class);var builder=mock(SceneGenerationPromptBuilder.class);
         var compiler=mock(SceneDraftContextCompiler.class);var archive=mock(NarrativeGenerationCandidateStore.class);
         ReflectionTestUtils.setField(service,"aiService",ai);ReflectionTestUtils.setField(service,"sceneGenerationPromptBuilder",builder);

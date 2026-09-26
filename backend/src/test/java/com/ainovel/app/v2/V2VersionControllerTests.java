@@ -90,11 +90,11 @@ class V2VersionControllerTests {
     @Test
     void updateBranchShouldCheckOwnershipAndDelegate() {
         UUID branchId = UUID.randomUUID();
-        Map<String, Object> payload = Map.of("name", "rewrite");
+        V2BranchRequests.UpdateBranch payload = new V2BranchRequests.UpdateBranch("rewrite", null, null);
         Map<String, Object> branch = Map.of("id", branchId, "name", "rewrite");
         when(versionService.updateBranch(manuscriptId, branchId, payload)).thenReturn(branch);
 
-        Map<String, Object> result = controller.updateBranch(principal, manuscriptId, branchId, V2RequestPayload.of(payload));
+        Map<String, Object> result = controller.updateBranch(principal, manuscriptId, branchId, payload);
 
         assertEquals("rewrite", result.get("name"));
         verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
@@ -102,17 +102,17 @@ class V2VersionControllerTests {
     }
 
     @Test
-    void mergeBranchShouldDelegateEmptyPayloadWhenBodyMissing() {
+    void mergeBranchShouldDelegateDefaultStrategyForEmptyObject() {
         UUID branchId = UUID.randomUUID();
         UUID mergeVersionId = UUID.randomUUID();
         Map<String, Object> merged = Map.of("mergeVersionId", mergeVersionId, "status", "merged");
-        when(versionService.mergeBranch(manuscript, user, branchId, Map.of())).thenReturn(merged);
+        when(versionService.mergeBranch(manuscript, user, branchId, V2BranchRequests.MergeBranch.defaults())).thenReturn(merged);
 
-        Map<String, Object> result = controller.mergeBranch(principal, manuscriptId, branchId, null);
+        Map<String, Object> result = controller.mergeBranch(principal, manuscriptId, branchId, V2BranchRequests.MergeBranch.defaults());
 
         assertEquals("merged", result.get("status"));
         verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
-        verify(versionService).mergeBranch(manuscript, user, branchId, Map.of());
+        verify(versionService).mergeBranch(manuscript, user, branchId, V2BranchRequests.MergeBranch.defaults());
     }
 
     @Test
