@@ -19,6 +19,8 @@ public class MaterialUploadJob {
     private int progress;
     private String message;
     private UUID resultMaterialId;
+    @Column(updatable = false)
+    private UUID ownerUserId;
 
     @CreationTimestamp
     private Instant createdAt;
@@ -39,6 +41,8 @@ public class MaterialUploadJob {
     public void setMessage(String message) { this.message = message; }
     public UUID getResultMaterialId() { return resultMaterialId; }
     public void setResultMaterialId(UUID resultMaterialId) { this.resultMaterialId = resultMaterialId; }
+    public UUID getOwnerUserId() { return ownerUserId; }
+    public void setOwnerUserId(UUID ownerUserId) { this.ownerUserId = ownerUserId; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

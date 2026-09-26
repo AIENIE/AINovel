@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class MaterialService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private final MaterialRepository materialRepository;
     private final MaterialUploadJobRepository uploadJobRepository;
@@ -32,6 +34,7 @@ public class MaterialService {
     private final ManuscriptRepository manuscriptRepository;
     private final ObjectMapper objectMapper;
     private final JsonColumnCodec jsonColumnCodec;
+    private final MaterialFingerprintService fingerprints;
 
     @Autowired
     public MaterialService(
@@ -41,7 +44,8 @@ public class MaterialService {
             MaterialRetrievalService materialRetrievalService,
             ManuscriptRepository manuscriptRepository,
             ObjectMapper objectMapper,
-            JsonColumnCodec jsonColumnCodec
+            JsonColumnCodec jsonColumnCodec,
+            MaterialFingerprintService fingerprints
     ) {
         this.materialRepository = materialRepository;
         this.uploadJobRepository = uploadJobRepository;
@@ -50,8 +54,10 @@ public class MaterialService {
         this.manuscriptRepository = manuscriptRepository;
         this.objectMapper = objectMapper;
         this.jsonColumnCodec = jsonColumnCodec;
+        this.fingerprints = fingerprints;
     }
 
+    @Transactional
     public MaterialDto create(User user, MaterialCreateRequest request) {
         Material material = new Material();
         material.setUser(user);
@@ -61,51 +67,68 @@ public class MaterialService {
         material.setContent(request.content());
         material.setTagsJson(writeJson(request.tags()));
         material.setStatus("approved");
-        materialRepository.save(material);
+        material.setSource("MANUAL");
+        materialRepository.saveAndFlush(material);
+        fingerprints.update(material);
         materialRetrievalService.indexMaterial(user, material);
         return toDto(material);
     }
 
     public List<MaterialDto> list(User user) {
-        accessGuard.assertCurrentUserEquals(user.getUsername());
+        assertOwner(user);
         return materialRepository.findByUser(user).stream().map(this::toDto).toList();
     }
 
     public MaterialDto get(UUID id) {
         Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
-        accessGuard.assertOwner(material.getUser());
+        assertOwner(material.getUser());
         return toDto(material);
     }
 
     @Transactional
     public MaterialDto update(UUID id, MaterialUpdateRequest request) {
-        Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
-        accessGuard.assertOwner(material.getUser());
+        if (request == null) throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "MATERIAL_UPDATE_REQUIRED");
+        Material material = materialRepository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("素材不存在"));
+        assertOwner(material.getUser());
+        boolean changed = request.content() != null && !Objects.equals(request.content(), material.getContent())
+                || request.title() != null && !Objects.equals(request.title(), material.getTitle())
+                || request.summary() != null && !Objects.equals(request.summary(), material.getSummary())
+                || request.tags() != null && !Objects.equals(writeJson(request.tags()), material.getTagsJson())
+                || request.type() != null && !Objects.equals(request.type(), material.getType())
+                || request.entitiesJson() != null && !Objects.equals(request.entitiesJson(), material.getEntitiesJson());
+        if (changed) {
+            material.setContentVersion(material.getContentVersion() + 1);
+            if (!"MANUAL".equals(material.getSource()) && !"rejected".equals(material.getStatus())) material.setStatus("pending");
+        }
         if (request.title() != null) material.setTitle(request.title());
         if (request.type() != null) material.setType(request.type());
         if (request.summary() != null) material.setSummary(request.summary());
         if (request.content() != null) material.setContent(request.content());
         if (request.tags() != null) material.setTagsJson(writeJson(request.tags()));
-        if (request.status() != null) material.setStatus(request.status());
+
         if (request.entitiesJson() != null) material.setEntitiesJson(request.entitiesJson());
-        materialRepository.save(material);
+        materialRepository.saveAndFlush(material);
+        fingerprints.update(material);
         materialRetrievalService.indexMaterial(material.getUser(), material);
         return toDto(material);
     }
 
     @Transactional
     public void delete(UUID id) {
-        Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
-        accessGuard.assertOwner(material.getUser());
+        Material material = materialRepository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("素材不存在"));
+        assertOwner(material.getUser());
         materialRepository.delete(material);
         materialRetrievalService.deleteIndexAfterCommit(id);
     }
 
+    @Transactional
     public FileImportJobDto createUploadJob(User user, String fileName, String content) {
         MaterialUploadJob job = new MaterialUploadJob();
         job.setFileName(fileName);
-        job.setStatus("processing");
-        job.setProgress(0);
+        assertOwner(user);
+        job.setOwnerUserId(user.getId());
+        job.setStatus("completed");
+        job.setProgress(100);
         uploadJobRepository.save(job);
         // 立即创建一个待审素材
         Material material = new Material();
@@ -116,51 +139,47 @@ public class MaterialService {
         material.setSummary(content.substring(0, Math.min(120, content.length())));
         material.setTagsJson(writeJson(List.of("上传")));
         material.setStatus("pending");
-        materialRepository.save(material);
+        material.setSource("UPLOAD");
+        materialRepository.saveAndFlush(material);
+        fingerprints.update(material);
         job.setResultMaterialId(material.getId());
         uploadJobRepository.save(job);
         return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage());
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public FileImportJobDto getUploadStatus(UUID jobId) {
-        MaterialUploadJob job = uploadJobRepository.findById(jobId).orElseThrow(() -> new BusinessException("上传任务不存在"));
-        if (job.getResultMaterialId() != null) {
-            Material material = materialRepository.findById(job.getResultMaterialId()).orElse(null);
-            if (material != null) {
-                accessGuard.assertOwner(material.getUser());
-            }
-        }
-        if (job.getProgress() < 100) {
-            job.setProgress(100);
-            job.setStatus("completed");
-            uploadJobRepository.save(job);
-        }
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails details))
+            throw new org.springframework.security.access.AccessDeniedException("上传任务归属不可验证");
+        User current = accessGuard.currentUser(details);
+        MaterialUploadJob job = uploadJobRepository.findByIdAndOwnerUserId(jobId, current.getId())
+                .orElseThrow(() -> new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "UPLOAD_JOB_NOT_FOUND"));
         return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage());
     }
 
+    @Transactional(readOnly = true)
     public List<MaterialDto> pending() {
-        if (accessGuard.isCurrentUserAdmin()) {
-            return materialRepository.findAll().stream().filter(m -> "pending".equalsIgnoreCase(m.getStatus())).map(this::toDto).toList();
-        }
-        String username = accessGuard.currentUsername();
-        return materialRepository.findAll().stream()
-                .filter(m -> m.getUser() != null && username.equals(m.getUser().getUsername()))
-                .filter(m -> "pending".equalsIgnoreCase(m.getStatus()))
-                .map(this::toDto)
-                .toList();
+        return materialRepository.findByUserUsernameAndStatusIgnoreCase(accessGuard.currentUsername(), "pending")
+                .stream().map(this::toDto).toList();
     }
 
-    @Transactional
     public MaterialDto review(UUID id, String action, MaterialReviewRequest request) {
-        accessGuard.assertAdmin();
-        Material material = materialRepository.findById(id).orElseThrow(() -> new BusinessException("素材不存在"));
+        throw new org.springframework.security.access.AccessDeniedException("请通过本地管理员治理接口审核素材");
+    }
+
+    MaterialDto reviewInternal(UUID id, String action, MaterialReviewRequest request) {
+        if (request == null) throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "MATERIAL_REVIEW_REQUIRED");
+        Material material = materialRepository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("素材不存在"));
+        if (!Set.of("approve", "reject").contains(action)) throw new BusinessException("审核动作无效");
         if (request.title() != null) material.setTitle(request.title());
         if (request.summary() != null) material.setSummary(request.summary());
         if (request.tags() != null) material.setTagsJson(writeJson(request.tags()));
         if (request.type() != null) material.setType(request.type());
-        material.setStatus("approve".equalsIgnoreCase(action) ? "approved" : "rejected");
-        materialRepository.save(material);
+        material.setContentVersion(material.getContentVersion() + 1);
+        material.setStatus("approve".equals(action) ? "approved" : "rejected");
+        materialRepository.saveAndFlush(material);
+        fingerprints.update(material);
         materialRetrievalService.indexMaterial(material.getUser(), material);
         return toDto(material);
     }
@@ -182,46 +201,24 @@ public class MaterialService {
     }
 
     public List<Map<String, Object>> findDuplicates() {
-        accessGuard.assertAdmin();
-        List<Material> materials = materialRepository.findAll().stream()
-                .filter(material -> !"rejected".equalsIgnoreCase(material.getStatus()))
-                .toList();
-        List<Map<String, Object>> candidates = new ArrayList<>();
-        for (int i = 0; i < materials.size(); i++) {
-            for (int j = i + 1; j < materials.size(); j++) {
-                Material left = materials.get(i);
-                Material right = materials.get(j);
-                DuplicateScore score = duplicateScore(left, right);
-                if (score.score() >= 0.5) {
-                    Map<String, Object> candidate = new LinkedHashMap<>();
-                    candidate.put("sourceMaterialId", left.getId());
-                    candidate.put("targetMaterialId", right.getId());
-                    candidate.put("sourceTitle", safe(left.getTitle()));
-                    candidate.put("targetTitle", safe(right.getTitle()));
-                    candidate.put("score", score.score());
-                    candidate.put("reasons", score.reasons());
-                    candidates.add(candidate);
-                }
-            }
-        }
-        candidates.sort((a, b) -> Double.compare(((Number) b.get("score")).doubleValue(), ((Number) a.get("score")).doubleValue()));
-        return candidates;
+        throw new org.springframework.security.access.AccessDeniedException("请通过本地管理员后台启动查重任务");
     }
 
     @Transactional
     public MaterialDto merge(MaterialMergeRequest request) {
+        return mergeInternal(request, false);
+    }
+
+    MaterialDto mergeInternal(MaterialMergeRequest request, boolean governance) {
         if (request == null || request.sourceMaterialId() == null || request.targetMaterialId() == null) {
             throw new BusinessException("源素材和目标素材不能为空");
         }
         if (request.sourceMaterialId().equals(request.targetMaterialId())) {
             throw new BusinessException("不能将素材合并到自身");
         }
-        Material source = materialRepository.findById(request.sourceMaterialId()).orElseThrow();
-        Material target = materialRepository.findById(request.targetMaterialId()).orElseThrow();
-        if (!accessGuard.isCurrentUserAdmin()) {
-            accessGuard.assertOwner(source.getUser());
-            accessGuard.assertOwner(target.getUser());
-        }
+        Material source = materialRepository.findByIdForUpdate(request.sourceMaterialId()).orElseThrow();
+        Material target = materialRepository.findByIdForUpdate(request.targetMaterialId()).orElseThrow();
+        if (!governance) { assertOwner(source.getUser()); assertOwner(target.getUser()); }
         if (Boolean.TRUE.equals(request.mergeTags())) {
             Set<String> tags = new LinkedHashSet<>();
             tags.addAll(readTags(target.getTagsJson()));
@@ -239,23 +236,33 @@ public class MaterialService {
             target.setContent(targetContent + "\n\n" + sourceContent);
         }
         source.setStatus("rejected");
-        materialRepository.save(source);
-        materialRepository.save(target);
+        source.setContentVersion(source.getContentVersion() + 1);
+        target.setContentVersion(target.getContentVersion() + 1);
+        if (!"MANUAL".equals(target.getSource()) && !"rejected".equals(target.getStatus())) target.setStatus("pending");
+        materialRepository.saveAndFlush(source);
+        materialRepository.saveAndFlush(target);
+        fingerprints.update(source);
+        fingerprints.update(target);
+        materialRetrievalService.indexMaterial(source.getUser(), source);
+        materialRetrievalService.indexMaterial(target.getUser(), target);
         return toDto(target);
     }
 
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> citations(UUID materialId) {
+        return citationsInternal(materialId, false);
+    }
+
+    List<Map<String, Object>> citationsInternal(UUID materialId, boolean governance) {
         Material material = materialRepository.findById(materialId).orElseThrow(() -> new BusinessException("素材不存在"));
-        if (!accessGuard.isCurrentUserAdmin()) {
-            accessGuard.assertOwner(material.getUser());
-        }
+        if (!governance) assertOwner(material.getUser());
         List<String> signals = citationSignals(material);
         if (signals.isEmpty()) {
             return List.of();
         }
         List<Map<String, Object>> citations = new ArrayList<>();
         for (Manuscript manuscript : manuscriptRepository.findByStoryUser(material.getUser())) {
-            Map<String, String> sections = readStringMap(manuscript.getSectionsJson());
+            Map<String, String> sections = contents.readAll(manuscript);
             Map<String, SceneInfo> scenes = sceneInfoById(manuscript);
             for (Map.Entry<String, String> entry : sections.entrySet()) {
                 String plain = stripHtml(entry.getValue());
@@ -279,28 +286,6 @@ public class MaterialService {
             }
         }
         return citations;
-    }
-
-    private DuplicateScore duplicateScore(Material left, Material right) {
-        double score = 0.0;
-        List<String> reasons = new ArrayList<>();
-        double title = jaccard(tokens(left.getTitle()), tokens(right.getTitle()));
-        if (title >= 0.3) {
-            score += 0.35;
-            reasons.add("title");
-        }
-        double tags = jaccard(new LinkedHashSet<>(readTags(left.getTagsJson())), new LinkedHashSet<>(readTags(right.getTagsJson())));
-        if (tags >= 0.3) {
-            score += 0.3;
-            reasons.add("tags");
-        }
-        double text = jaccard(tokens(safe(left.getSummary()) + " " + safe(left.getContent())),
-                tokens(safe(right.getSummary()) + " " + safe(right.getContent())));
-        if (text >= 0.2) {
-            score += 0.25;
-            reasons.add("content");
-        }
-        return new DuplicateScore(Math.min(1.0, score), reasons);
     }
 
     private List<String> citationSignals(Material material) {
@@ -448,8 +433,13 @@ public class MaterialService {
         return out;
     }
 
-    private MaterialDto toDto(Material material) {
+    MaterialDto toDto(Material material) {
         return new MaterialDto(material.getId(), material.getTitle(), material.getType(), material.getSummary(), material.getContent(), readTags(material.getTagsJson()), material.getStatus(), material.getCreatedAt());
+    }
+
+    private void assertOwner(User owner) {
+        if (owner == null || !Objects.equals(accessGuard.currentUsername(), owner.getUsername()))
+            throw new org.springframework.security.access.AccessDeniedException("无权访问其他用户素材");
     }
 
     private List<String> readTags(String json) {
@@ -457,7 +447,7 @@ public class MaterialService {
     }
 
     private String writeJson(Object obj) {
-        return jsonColumnCodec.write(obj, "[]");
+        return jsonColumnCodec.writeRequired(obj == null ? List.of() : obj);
     }
 
 }

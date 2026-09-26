@@ -46,30 +46,21 @@ class MaterialServiceClosureTest {
                 mock(MaterialRetrievalService.class),
                 manuscriptRepository,
                 new ObjectMapper(),
-                new JsonColumnCodec(new ObjectMapper())
+                new JsonColumnCodec(new ObjectMapper()),
+                mock(MaterialFingerprintService.class)
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
 
         user = new User();
         user.setId(UUID.randomUUID());
         user.setUsername("material_owner");
+        when(accessGuard.currentUsername()).thenReturn("material_owner");
     }
 
     @Test
-    void findDuplicatesShouldReturnScoredCandidatePairs() {
+    void ordinaryServiceNeverProvidesAdministratorBypass() {
         when(accessGuard.isCurrentUserAdmin()).thenReturn(true);
-        Material source = material("m1", "陆家码头旧报", "码头旧案 雨夜停船", "[\"码头\",\"雨夜\"]");
-        Material target = material("m2", "陆家码头档案", "雨夜码头停船记录", "[\"码头\",\"档案\"]");
-        Material unrelated = material("m3", "王都礼仪", "贵族宴会礼仪", "[\"礼仪\"]");
-        when(materialRepository.findAll()).thenReturn(List.of(source, target, unrelated));
-
-        List<Map<String, Object>> duplicates = service.findDuplicates();
-
-        assertEquals(1, duplicates.size());
-        Map<String, Object> duplicate = duplicates.getFirst();
-        assertEquals(source.getId(), duplicate.get("sourceMaterialId"));
-        assertEquals(target.getId(), duplicate.get("targetMaterialId"));
-        assertTrue(((Number) duplicate.get("score")).doubleValue() > 0.5);
-        assertFalse(((List<?>) duplicate.get("reasons")).isEmpty());
+        org.junit.jupiter.api.Assertions.assertThrows(org.springframework.security.access.AccessDeniedException.class, service::findDuplicates);
     }
 
     @Test
@@ -110,15 +101,15 @@ class MaterialServiceClosureTest {
         Material source = material("merge-source", "旧报副本", "来源正文", "[\"旧报\"]");
         Material target = material("merge-target", "旧报主记录", "目标正文", "[\"档案\"]");
         when(accessGuard.isCurrentUserAdmin()).thenReturn(true);
-        when(materialRepository.findById(source.getId())).thenReturn(Optional.of(source));
-        when(materialRepository.findById(target.getId())).thenReturn(Optional.of(target));
+        when(materialRepository.findByIdForUpdate(source.getId())).thenReturn(Optional.of(source));
+        when(materialRepository.findByIdForUpdate(target.getId())).thenReturn(Optional.of(target));
 
         service.merge(new MaterialMergeRequest(source.getId(), target.getId(), true, true, "重复治理"));
 
         assertEquals("rejected", source.getStatus());
         assertEquals("目标正文\n\n来源正文", target.getContent());
-        verify(materialRepository).save(source);
-        verify(materialRepository).save(target);
+        verify(materialRepository).saveAndFlush(source);
+        verify(materialRepository).saveAndFlush(target);
     }
 
     @Test
@@ -126,8 +117,8 @@ class MaterialServiceClosureTest {
         Material source = material("blank-source", "空副本", "", "[]");
         Material target = material("filled-target", "主记录", "保留正文", "[]");
         when(accessGuard.isCurrentUserAdmin()).thenReturn(true);
-        when(materialRepository.findById(source.getId())).thenReturn(Optional.of(source));
-        when(materialRepository.findById(target.getId())).thenReturn(Optional.of(target));
+        when(materialRepository.findByIdForUpdate(source.getId())).thenReturn(Optional.of(source));
+        when(materialRepository.findByIdForUpdate(target.getId())).thenReturn(Optional.of(target));
 
         service.merge(new MaterialMergeRequest(source.getId(), target.getId(), false, false, "空内容治理"));
 
@@ -138,11 +129,11 @@ class MaterialServiceClosureTest {
     @Test
     void deleteShouldAuthorizeAndRemoveOwnedMaterial() {
         Material material = material("delete", "待清理素材", "测试内容", "[]");
-        when(materialRepository.findById(material.getId())).thenReturn(Optional.of(material));
+        when(materialRepository.findByIdForUpdate(material.getId())).thenReturn(Optional.of(material));
 
         service.delete(material.getId());
 
-        verify(accessGuard).assertOwner(user);
+        verify(accessGuard).currentUsername();
         verify(materialRepository).delete(material);
     }
 

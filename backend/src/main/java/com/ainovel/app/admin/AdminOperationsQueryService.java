@@ -1,28 +1,21 @@
 package com.ainovel.app.admin;
 
-import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.quality.model.PlotQualityRun;
-import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
-import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
-import com.ainovel.app.world.model.World;
 import com.ainovel.app.world.repo.WorldRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class AdminOperationsQueryService {
+    private final AdminOperationsReadRepository readRepository;
     private final MaterialRepository materialRepository;
     private final StoryRepository storyRepository;
     private final WorldRepository worldRepository;
@@ -36,8 +29,10 @@ public class AdminOperationsQueryService {
             WorldRepository worldRepository,
             ManuscriptRepository manuscriptRepository,
             SlopQualityRunRepository slopQualityRunRepository,
-            PlotQualityRunRepository plotQualityRunRepository
+            PlotQualityRunRepository plotQualityRunRepository,
+            AdminOperationsReadRepository readRepository
     ) {
+        this.readRepository = readRepository;
         this.materialRepository = materialRepository;
         this.storyRepository = storyRepository;
         this.worldRepository = worldRepository;
@@ -59,109 +54,30 @@ public class AdminOperationsQueryService {
         return result;
     }
 
+    public record PageResult<T>(List<T> items, int page, int size, long totalElements, long totalPages) { }
+
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> stories() {
-        return storyRepository.findAll().stream()
-                .sorted(Comparator.comparing(Story::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(200)
-                .map(story -> asset("story", story.getId(), story.getTitle(), story.getStatus(),
-                        story.getUser() == null ? "" : story.getUser().getUsername(), story.getUpdatedAt()))
-                .toList();
+    public PageResult<AdminOperationsReadRepository.AssetRow> assets(String kind, int page, int size, String search) {
+        validate(page, size, search);
+        return page(readRepository.assets(kind, page * size, size, search), page, size);
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> worlds() {
-        return worldRepository.findAll().stream()
-                .sorted(Comparator.comparing(World::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(200)
-                .map(world -> asset("world", world.getId(), world.getName(), world.getStatus(),
-                        world.getUser() == null ? "" : world.getUser().getUsername(), world.getUpdatedAt()))
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> manuscripts() {
-        return manuscriptRepository.findAll().stream()
-                .sorted(Comparator.comparing(Manuscript::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .limit(200)
-                .map(manuscript -> {
-                    Story story = manuscript.getOutline() == null ? null : manuscript.getOutline().getStory();
-                    return asset("manuscript", manuscript.getId(), manuscript.getTitle(), "active",
-                            story == null || story.getUser() == null ? "" : story.getUser().getUsername(),
-                            manuscript.getUpdatedAt());
-                })
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<Map<String, Object>> qualityRuns() {
-        List<Map<String, Object>> slopRuns = slopQualityRunRepository.findTop100ByOrderByCreatedAtDesc().stream()
-                .map(this::quality)
-                .toList();
-        List<Map<String, Object>> plotRuns = plotQualityRunRepository.findTop100ByOrderByCreatedAtDesc().stream()
-                .map(this::quality)
-                .toList();
-        return java.util.stream.Stream.concat(slopRuns.stream(), plotRuns.stream())
-                .sorted((left, right) -> compareCreatedAt(right.get("createdAt"), left.get("createdAt")))
-                .limit(200)
-                .toList();
-    }
-
-    private Map<String, Object> asset(String type, UUID id, String title, String status, String owner, Instant updatedAt) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("type", type);
-        item.put("id", id);
-        item.put("title", title == null || title.isBlank() ? "(未命名)" : title);
-        item.put("status", status == null || status.isBlank() ? "unknown" : status);
-        item.put("owner", owner);
-        item.put("updatedAt", updatedAt);
-        return item;
-    }
-
-    private Map<String, Object> quality(SlopQualityRun run) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("kind", "slop");
-        item.put("id", run.getId());
-        item.put("storyId", run.getStoryId());
-        item.put("manuscriptId", run.getManuscriptId());
-        item.put("sceneId", run.getSceneId());
-        item.put("status", run.getStatus() == null ? "" : run.getStatus().name());
-        item.put("maxSeverity", run.getMaxSeverity() == null ? "" : run.getMaxSeverity().name());
-        item.put("overallRiskScore", run.getOverallRiskScore());
-        item.put("resolved", run.isRevised());
-        item.put("summary", run.getSummary());
-        item.put("createdAt", run.getCreatedAt());
-        return item;
-    }
-
-    private Map<String, Object> quality(PlotQualityRun run) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("kind", "plot");
-        item.put("id", run.getId());
-        item.put("storyId", run.getStoryId());
-        item.put("manuscriptId", run.getManuscriptId());
-        item.put("sceneId", run.getSceneId());
-        item.put("chapterTitle", run.getChapterTitle());
-        item.put("sceneTitle", run.getSceneTitle());
-        item.put("status", run.getStatus() == null ? "" : run.getStatus().name());
-        item.put("maxSeverity", run.getMaxSeverity() == null ? "" : run.getMaxSeverity().name());
-        item.put("overallRiskScore", run.getOverallRiskScore());
-        item.put("resolved", run.isRevisionApplied());
-        item.put("summary", run.getSummary());
-        item.put("createdAt", run.getCreatedAt());
-        return item;
-    }
-
-    private int compareCreatedAt(Object left, Object right) {
-        if (left instanceof Instant l && right instanceof Instant r) {
-            return l.compareTo(r);
+    public PageResult<AdminOperationsReadRepository.QualityRow> qualityRuns(int page, int size, String search, String filter) {
+        validate(page, size, search);
+        if (!List.of("all", "open", "high").contains(filter)) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid quality filter");
         }
-        if (left instanceof Instant) {
-            return 1;
+        return page(readRepository.quality(page * size, size, search, filter), page, size);
+    }
+
+    private static void validate(int page, int size, String search) {
+        if (page < 0 || size < 1 || size > 100 || (long) page * size > Integer.MAX_VALUE || search == null || search.length() > 200) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid page, size or search (size: 1-100, search: at most 200 characters)");
         }
-        if (right instanceof Instant) {
-            return -1;
-        }
-        return 0;
+    }
+
+    private static <T> PageResult<T> page(AdminOperationsReadRepository.Result<T> result, int page, int size) {
+        return new PageResult<>(result.items(), page, size, result.total(), (result.total() + size - 1) / size);
     }
 }

@@ -7,5 +7,9 @@ public record MaterialUpdateRequest(String title,
                                     String summary,
                                     String content,
                                     List<String> tags,
-                                    String status,
-                                    String entitiesJson) {}
+                                    String entitiesJson) {
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    public void rejectUnknown(String name, Object value) {
+        throw new IllegalArgumentException("Unsupported material update field");
+    }
+}
