@@ -1,0 +1,406 @@
+[
+  {
+    "pair": "G1-1",
+    "reviewedAt": "2026-09-26T06:18:26.555100+00:00",
+    "reviewer": "agent; not G2 human; before model review",
+    "winner": "uncertain",
+    "reason": "B少了悬置物件与冗长缓冲，但核心调查被更明显的新证据替换，不能把紧凑判成整体收益。",
+    "outputs": [
+      {
+        "id": "G1-A1",
+        "arm": "A",
+        "hard": "fail",
+        "failureClasses": [
+          "new_critical_fact",
+          "knowledge_or_certainty"
+        ],
+        "claims": [
+          {
+            "quote": "零三七六，后面五个八。",
+            "verdict": "failure",
+            "source": "context只提供停用时间及登记时间；具体可追查编号被补造。"
+          },
+          {
+            "quote": "但“四月十七”四个字能认",
+            "verdict": "failure",
+            "source": "未给日期及戳印，新增物证。"
+          },
+          {
+            "quote": "没有重影，没有涂改",
+            "verdict": "failure",
+            "source": "新增鉴别结论，排除伪造方向；纸张真实也未经给定。"
+          },
+          {
+            "quote": "去年三月就停了",
+            "verdict": "supported",
+            "source": "context停用时间。"
+          },
+          {
+            "quote": "昨天，下午四点三十七",
+            "verdict": "supported",
+            "source": "context登记时间。"
+          },
+          {
+            "quote": "去年三月停的是新号段录入，老号段里剩下的空号",
+            "verdict": "failure",
+            "source": "新增停用机制；关键因果解释。"
+          },
+          {
+            "quote": "只代表这个号被放行过一次",
+            "verdict": "failure",
+            "source": "从记录推成实际放行确定事实，context明确不可混同。"
+          },
+          {
+            "quote": "老号段要打到市局档案馆",
+            "verdict": "failure",
+            "source": "新增管辖流程，与一周至一月等待、暂缓内部符号共同构成未给制度。"
+          },
+          {
+            "quote": "原件归档",
+            "verdict": "uncertain",
+            "source": "保留原联可以是档案员保留，不能仅因未交许棠就认定丢失原件；隔玻璃再看是未给限制。"
+          },
+          {
+            "quote": "内袋里另一样东西硌着指尖",
+            "verdict": "uncertain",
+            "source": "悬置物件暗示线索，无来源；未命名，未单独计硬失败。"
+          },
+          {
+            "quote": "核对停用号段挂号联登记记录",
+            "verdict": "supported",
+            "source": "申请原始登记表目标得到推进，身份未揭。"
+          },
+          {
+            "quote": "老花镜推上去，看纸时又拉下来",
+            "verdict": "ordinary",
+            "source": "普通即时动作；姓名年龄作为附带设定未用于证明关键身份，未单独计失败。"
+          }
+        ],
+        "dimensions": {
+          "voice": "许棠寡言、追问可读；无原作者声音基准。",
+          "intent": "核查行动基本保持，却加入确定性解释。",
+          "goal": "申请和留存完成，超出结束位置继续到楼下。",
+          "naturalness": "流程对白尚具体，但内袋物件与忘问句人为制造悬念。",
+          "rhythm": "擦镜、静坐、平板车、灯闪反复缓冲，推进偏慢。"
+        },
+        "hanCount": 810,
+        "outputSha256": "8c0484483fc308cc197ec05e8df1b3476d70bac5bc6ce4d097ccabc770045589",
+        "fullTextRead": true
+      },
+      {
+        "id": "G1-B1",
+        "arm": "B",
+        "hard": "fail",
+        "failureClasses": [
+          "new_critical_fact",
+          "knowledge_or_certainty"
+        ],
+        "claims": [
+          {
+            "quote": "去年三月十七日停用",
+            "verdict": "failure",
+            "source": "context只到月份，擅增可核对日期。"
+          },
+          {
+            "quote": "寄件人一栏空白，收件人写着许棠的名字和住址",
+            "verdict": "failure",
+            "source": "新增重要收件身份及记录字段。"
+          },
+          {
+            "quote": "编号一栏印着另一个仍在使用的号段",
+            "verdict": "failure",
+            "source": "新增关键号码冲突，改变调查目标。"
+          },
+          {
+            "quote": "旧联子去年三月就回收了",
+            "verdict": "failure",
+            "source": "新回收制度被当已知事实。"
+          },
+          {
+            "quote": "没有预印底纹",
+            "verdict": "failure",
+            "source": "连同不同纸质及笔迹批次核验，新鉴别证据。"
+          },
+          {
+            "quote": "这张联子是今天早上在门缝里发现的",
+            "verdict": "failure",
+            "source": "新增获知来源及昨日下午不在家等往事。"
+          },
+          {
+            "quote": "登记时间对得上，地址对得上",
+            "verdict": "failure",
+            "source": "地址及与另一条系统记录比对均无来源；原仅有两项信息。"
+          },
+          {
+            "quote": "三个工作日",
+            "verdict": "uncertain",
+            "source": "审批等待属于流程补充，可能影响后续时间线；不必靠此项才判失败。"
+          },
+          {
+            "quote": "原始表调出来之前，这张联不会动",
+            "verdict": "supported",
+            "source": "原联保留、申请原表及未获结果符合终点。"
+          },
+          {
+            "quote": "登记时间是昨天下午四点三十七",
+            "verdict": "supported",
+            "source": "原任务时间。"
+          },
+          {
+            "quote": "号段停用了，登记时间对不上",
+            "verdict": "uncertain",
+            "source": "可指停用月份与登记时间的矛盾，前文却说时间对得上；含混，不算明确改写已给时间。"
+          },
+          {
+            "quote": "暂存单折好，放进衣兜",
+            "verdict": "ordinary",
+            "source": "普通处理纸张动作。"
+          }
+        ],
+        "dimensions": {
+          "voice": "许棠仍直接发问，声音无显著退化。",
+          "intent": "核查保持，但新增物证替换问题内容。",
+          "goal": "留原联和申请达成，寄件人仍未知。",
+          "naturalness": "比A紧凑，疑点具体但大多是擅加；时间对得上/对不上易混。",
+          "rhythm": "动作与对白衔接更顺，尾部连续折纸封袋稍重。"
+        },
+        "hanCount": 637,
+        "outputSha256": "9c631909a11a7dee2dedc5064de3373ac0c636cac32ba68809238c4933ddf112",
+        "fullTextRead": true
+      }
+    ]
+  },
+  {
+    "pair": "G3-1",
+    "reviewedAt": "2026-09-26T06:21:01.635977+00:00",
+    "reviewer": "agent; not G2 human; before model review",
+    "winner": "B",
+    "reason": "B保留由沈芸提出门卫室的主动回避，没有A中母亲送菜这一新关系事件；表达仍拖长，收益主要在人物行动与意图更准确。",
+    "outputs": [
+      {
+        "id": "G3-A1",
+        "arm": "A",
+        "hard": "fail",
+        "failureClasses": [
+          "new_critical_fact",
+          "event_or_endpoint"
+        ],
+        "claims": [
+          {
+            "quote": "父亲说那放门卫室也行。她说好。",
+            "verdict": "failure",
+            "source": "任务由沈芸提出门卫室，输出改成父亲主动提出，削弱回避的行动主体。"
+          },
+          {
+            "quote": "你妈腌了萝卜，回头给你带一罐",
+            "verdict": "failure",
+            "source": "新增母亲及送菜的未来关系事件，随后用它组织沈芸心理；不是单纯环境物件。"
+          },
+          {
+            "quote": "父亲坐两站地铁，走五分钟路",
+            "verdict": "uncertain",
+            "source": "未给通勤路线；普通生活补足与强调回避成本边界不明，单独不计硬失败。"
+          },
+          {
+            "quote": "周日下午她确实没有出门的计划",
+            "verdict": "supported",
+            "source": "沈芸知道周日在家，与对父亲说不在家相符。"
+          },
+          {
+            "quote": "工具箱里总有些用不上的零碎",
+            "verdict": "ordinary",
+            "source": "概括普通物件记忆，未改变重要关系史；不按所有回忆一律判错。"
+          },
+          {
+            "quote": "盒子虚掩着搁在桌上",
+            "verdict": "supported",
+            "source": "终点工具盒仍桌上；工具仍只有扳手两垫圈，父亲未获知回避。"
+          },
+          {
+            "quote": "咔嗒一声，左边还翘着那条缝",
+            "verdict": "uncertain",
+            "source": "结尾声称彻底扣紧却仍翘缝，内部物理表现不稳，非冻结事实改动。"
+          },
+          {
+            "quote": "日期还是上个月的",
+            "verdict": "ordinary",
+            "source": "超市小票与绿萝等普通细节，不作为关键证据。"
+          }
+        ],
+        "dimensions": {
+          "voice": "短答可呈现克制；新送菜暗线使情绪解释变多。",
+          "intent": "关键门卫室提议换主体，回避由主动安排变成顺从。",
+          "goal": "盒留桌、未解释保持，安排发起者不符。",
+          "naturalness": "细节密但大量整理后复位，萝卜新剧情决定末段心理。",
+          "rhythm": "连续开合、转动、挪桌/书架、再开合，重复显著。"
+        },
+        "hanCount": 845,
+        "outputSha256": "7092281bae1325b2c51a197296aaa9659e9868f810a542a9a62d586717650032",
+        "fullTextRead": true
+      },
+      {
+        "id": "G3-B1",
+        "arm": "B",
+        "hard": "uncertain",
+        "failureClasses": [],
+        "claims": [
+          {
+            "quote": "周日我不在家",
+            "verdict": "supported",
+            "source": "已知为回避说法，并非客观周日不在家。"
+          },
+          {
+            "quote": "我放门卫室。你直接去拿就行",
+            "verdict": "supported",
+            "source": "沈芸主动提出，父亲未知道真实安排。"
+          },
+          {
+            "quote": "一把活动扳手",
+            "verdict": "supported",
+            "source": "与两垫圈构成唯一盒内内容；胶布附在柄上不算新增盒内工具。"
+          },
+          {
+            "quote": "没有螺丝刀，没有生料带",
+            "verdict": "ordinary",
+            "source": "排除式清点虽机械，但不改变盒内事实。"
+          },
+          {
+            "quote": "上周刚推掉那个展览",
+            "verdict": "uncertain",
+            "source": "新增轻量过去安排，未被用来解释回避原因；非童年创伤/病情，不按关键往事确定失败，但缺来源。"
+          },
+          {
+            "quote": "父亲从城西过来要换两趟公交",
+            "verdict": "uncertain",
+            "source": "新路线加重回避成本，与A的通勤路线同标准弃判，不计失败。"
+          },
+          {
+            "quote": "她就得编一个去处",
+            "verdict": "supported",
+            "source": "内心假设延伸已给回避意图，未声称父亲已知。"
+          },
+          {
+            "quote": "工具盒立在桌上",
+            "verdict": "supported",
+            "source": "结束仍桌上，未送出；末段睡前也没有移动。"
+          },
+          {
+            "quote": "把那道翘边的胶布缠一下",
+            "verdict": "ordinary",
+            "source": "当下小修整意向，不执行归还或新增重要关系事件。"
+          },
+          {
+            "quote": "天气转凉了",
+            "verdict": "ordinary",
+            "source": "日常寒暄、保暖叮嘱和门卫代称老张不用于关键身份认定。"
+          }
+        ],
+        "dimensions": {
+          "voice": "克制回避与修整工具的关心并存，意图较连贯。",
+          "intent": "按任务主动回避，未解释原因。",
+          "goal": "电话安排及工具盒仍桌上完成。",
+          "naturalness": "比A少了新送菜事件；没点错、指印两条等细节用意弱。",
+          "rhythm": "继续写到睡前，反复摆扳手、按搭扣，仍有明显延宕。"
+        },
+        "hanCount": 739,
+        "outputSha256": "db7d5e2319c010d696b0eec07881477b57c00a1957ea9d342e92b6726487681f",
+        "fullTextRead": true
+      }
+    ]
+  },
+  {
+    "pair": "G5-1",
+    "reviewedAt": "2026-09-26T06:22:54.734234+00:00",
+    "reviewer": "agent; not G2 human; before model review",
+    "winner": "missing",
+    "reason": "A已停组，无配对胜负；B新增账本、病史及诱敲事件，达到第二例同类失败停止条件。",
+    "outputs": [
+      {
+        "id": "G5-B1",
+        "arm": "B",
+        "hard": "fail",
+        "failureClasses": [
+          "new_critical_fact",
+          "knowledge_or_certainty"
+        ],
+        "claims": [
+          {
+            "quote": "她敲过一次了",
+            "verdict": "supported",
+            "source": "冻结context已有一次。"
+          },
+          {
+            "quote": "第三次，钟就哑了，永远哑了",
+            "verdict": "supported",
+            "source": "第三次永久失声规则保留，未治愈裂纹钟。"
+          },
+          {
+            "quote": "岑家药铺",
+            "verdict": "failure",
+            "source": "新增门店/家族归属，虽出自来人提问，仍是新增关键关系暗示，非获证客观事实。"
+          },
+          {
+            "quote": "她记得师傅出门前的账本，没有这一笔",
+            "verdict": "failure",
+            "source": "新增查过账本的往事及否定证据，改变判断送药者的知识依据。"
+          },
+          {
+            "quote": "师傅咳了半月，这事街坊知道",
+            "verdict": "failure",
+            "source": "新增病史和公众知情，被用来解释陌生人信息来源。"
+          },
+          {
+            "quote": "安神的方子，师傅从不开给外人",
+            "verdict": "failure",
+            "source": "新增专属方子/对外规则，成为真假推理线索。"
+          },
+          {
+            "quote": "第一次敲，是确认钟还活着",
+            "verdict": "failure",
+            "source": "已有一次不支持这次的用途，新增关键行动原因。"
+          },
+          {
+            "quote": "值夜人会从后巷来",
+            "verdict": "uncertain",
+            "source": "求查验已有来源，但路线及必然会来未给；不与最后未知脚步直接等同。"
+          },
+          {
+            "quote": "敲三下，他就知道药到了",
+            "verdict": "failure",
+            "source": "来人声称的指令不是客观规则，但新造诱导第三次的事件，强化对方可疑性。"
+          },
+          {
+            "quote": "敲了第二下",
+            "verdict": "supported",
+            "source": "符合只用第二次的选择；原任务结束于决定，实际敲响略向后推进，未单独判硬失败。"
+          },
+          {
+            "quote": "正往这边来",
+            "verdict": "uncertain",
+            "source": "新增未识别脚步；没有写死是值夜人，不判回应者身份揭晓。"
+          },
+          {
+            "quote": "青布门闩",
+            "verdict": "uncertain",
+            "source": "物理搭配不自然，但不是已给关键设定矛盾。"
+          },
+          {
+            "quote": "手里拎着一只青布包",
+            "verdict": "ordinary",
+            "source": "可观察普通物件；像药匣仍为推測，不单独判新药品事实。"
+          }
+        ],
+        "dimensions": {
+          "voice": "岑露谨慎明确，无第三次冒险；没有独立声音基准。",
+          "intent": "求查验的意图保留，却增加未授权判断依据。",
+          "goal": "第二次选择达成，未揭真假；脚步延长终点。",
+          "naturalness": "动作清楚但咳嗽/安神信息、诱敲三次形成过度设计；青布门闩突兀。",
+          "rhythm": "较紧凑，重复三次/第三次、末尾影子晃动制造悬念。"
+        },
+        "hanCount": 551,
+        "outputSha256": "12c182f4c3a52b653b20b1fe167cf79b5a031c942da508ebdc5a4d7aa0400567",
+        "fullTextRead": true
+      }
+    ]
+  }
+]

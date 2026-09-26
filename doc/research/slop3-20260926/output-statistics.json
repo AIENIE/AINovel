@@ -1,0 +1,77 @@
+[
+  {
+    "id": "G1-A1",
+    "hanCount": 810,
+    "paragraphs": 34,
+    "sentenceHanMedian": 11.5,
+    "shortSentenceCount": 25,
+    "sentenceCount": 60,
+    "formCounts": {
+      "没有": 2,
+      "不是": 0,
+      "像": 1,
+      "仿佛": 0
+    },
+    "textSha256": "8c0484483fc308cc197ec05e8df1b3476d70bac5bc6ce4d097ccabc770045589"
+  },
+  {
+    "id": "G1-B1",
+    "hanCount": 637,
+    "paragraphs": 22,
+    "sentenceHanMedian": 12.0,
+    "shortSentenceCount": 18,
+    "sentenceCount": 44,
+    "formCounts": {
+      "没有": 1,
+      "不是": 0,
+      "像": 0,
+      "仿佛": 0
+    },
+    "textSha256": "9c631909a11a7dee2dedc5064de3373ac0c636cac32ba68809238c4933ddf112"
+  },
+  {
+    "id": "G3-B1",
+    "hanCount": 739,
+    "paragraphs": 16,
+    "sentenceHanMedian": 14,
+    "shortSentenceCount": 16,
+    "sentenceCount": 45,
+    "formCounts": {
+      "没有": 6,
+      "不是": 0,
+      "像": 1,
+      "仿佛": 0
+    },
+    "textSha256": "db7d5e2319c010d696b0eec07881477b57c00a1957ea9d342e92b6726487681f"
+  },
+  {
+    "id": "G3-A1",
+    "hanCount": 845,
+    "paragraphs": 7,
+    "sentenceHanMedian": 21.0,
+    "shortSentenceCount": 9,
+    "sentenceCount": 38,
+    "formCounts": {
+      "没有": 2,
+      "不是": 0,
+      "像": 1,
+      "仿佛": 0
+    },
+    "textSha256": "7092281bae1325b2c51a197296aaa9659e9868f810a542a9a62d586717650032"
+  },
+  {
+    "id": "G5-B1",
+    "hanCount": 551,
+    "paragraphs": 19,
+    "sentenceHanMedian": 11.0,
+    "shortSentenceCount": 19,
+    "sentenceCount": 42,
+    "formCounts": {
+      "没有": 1,
+      "不是": 0,
+      "像": 2,
+      "仿佛": 0
+    },
+    "textSha256": "12c182f4c3a52b653b20b1fe167cf79b5a031c942da508ebdc5a4d7aa0400567"
+  }
+]

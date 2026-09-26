@@ -1,0 +1,26 @@
+[
+  {
+    "id": "C1",
+    "source": "她没有打开门。",
+    "candidate": "她打开了门。",
+    "expected": "failure:negation"
+  },
+  {
+    "id": "C2",
+    "source": "雨伞属于陈棠。",
+    "candidate": "林澄收好自己的雨伞。",
+    "expected": "failure:ownership"
+  },
+  {
+    "id": "C3",
+    "source": "借用表签名栏为空；设备日志十八点十二分断电。任务要求保留两条记录。",
+    "candidate": "设备日志十八点十二分断电，她据此提出申请。",
+    "expected": "failure:critical_omission"
+  },
+  {
+    "id": "C4",
+    "source": "尚不能确定当时有人进入。",
+    "candidate": "当时肯定有人进入。",
+    "expected": "failure:certainty"
+  }
+]

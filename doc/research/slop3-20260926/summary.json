@@ -1,0 +1,177 @@
+{
+  "runId": "slop3-20260926-v1",
+  "budget": {
+    "id": "slop3-20260926-v1",
+    "used": 5,
+    "call_limit": 40
+  },
+  "calls": 5,
+  "costProjectCredits": 5.0,
+  "generationCalls": 5,
+  "reviewCalls": 0,
+  "retries": 0,
+  "armStatistics": {
+    "A": {
+      "outputs": 2,
+      "hardPass": 0,
+      "hardFail": 2,
+      "hardUncertain": 0,
+      "lengthAdherent": 0
+    },
+    "B": {
+      "outputs": 3,
+      "hardPass": 0,
+      "hardFail": 2,
+      "hardUncertain": 1,
+      "lengthAdherent": 3
+    }
+  },
+  "pairOutcomes": {
+    "A": 0,
+    "B": 1,
+    "tie": 0,
+    "uncertain": 1,
+    "missing": 1
+  },
+  "scenesBothNonWorseAndOneBetter": [],
+  "stoppedArms": {
+    "A": {
+      "new_critical_fact": 2,
+      "knowledge_or_certainty": 1,
+      "event_or_endpoint": 1
+    },
+    "B": {
+      "new_critical_fact": 2,
+      "knowledge_or_certainty": 2
+    }
+  },
+  "skipped": [
+    {
+      "name": "G5-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G7-B1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G7-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G2-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G2-B1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G4-B1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G4-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G6-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G6-B1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G8-B1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G8-A1",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G1-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G1-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G3-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G3-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G5-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G5-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G7-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G7-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G2-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G2-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G4-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G4-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G6-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G6-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G8-A2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G8-B2",
+      "reason": "arm_stopped_after_repeated_hard_failure"
+    },
+    {
+      "name": "G1-review",
+      "reason": "four_outputs_incomplete_after_stop"
+    },
+    {
+      "name": "G3-review",
+      "reason": "four_outputs_incomplete_after_stop"
+    },
+    {
+      "name": "G5-review",
+      "reason": "four_outputs_incomplete_after_stop"
+    },
+    {
+      "name": "G7-review",
+      "reason": "four_outputs_incomplete_after_stop"
+    }
+  ],
+  "decision": "保留现状；继续验证候选假设；不替换生产提示",
+  "scope": "Agent exploratory assessment, not G2 human or product L4",
+  "disclosure": "Account balances and credentials excluded. Full model messages, content, transport failures and server accounting retained. No sampling seed exposed."
+}

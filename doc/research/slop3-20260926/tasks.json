@@ -1,0 +1,162 @@
+[
+  {
+    "id": "G1",
+    "genre": "悬疑",
+    "title": "停用号段",
+    "sceneOrder": 1,
+    "context": "许棠与档案员核对一张挂号联。号码在系统中显示去年三月起停用；登记时间是昨天下午四点三十七。许棠只知道这两项记录，尚不知道寄信者。场景结束时两人决定保留原联、申请调出原始登记表，不能直接找到寄信者。\n硬边界：停用不等于确定从未投递；不能变成已经识破寄信人。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "围绕停用号段与登记时间核查，推进到保留原联并申请原始登记表。",
+      "让疑点通过记录对照和必要问答呈现；保持寄信者与实际投递情况未知。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "核查而非揭谜",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "9c8b2239514d35738b115a0390ec4e05539363721161b627c5acb7579605898e"
+  },
+  {
+    "id": "G2",
+    "genre": "悬疑",
+    "title": "门后的回应",
+    "sceneOrder": 2,
+    "context": "梁朔和叶宁在旧泵房门外。门内只回应三短两长的敲击，无法辨认回应者；水在门槛下渗出。两人没有钥匙。叶宁坚持先通知值班员，梁朔急于开门，最后同意先打电话但仍留在门边。\n硬边界：回应身份未知；不突然有钥匙、不自动开门、不确认里面是谁。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "呈现梁朔急于开门与叶宁先通知值班员的分歧，推进到先打电话但仍留门边。",
+      "让门内敲击、渗水与两人的即时动作承载紧迫感，保留回应者身份未知。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "在紧迫中先寻求值班员",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "30362787d2d4c285932178ee1371aad772b57e63328b9e7ee957ee88d6ce6cff"
+  },
+  {
+    "id": "G3",
+    "genre": "日常人物关系",
+    "title": "没有寄出的地址",
+    "sceneOrder": 3,
+    "context": "沈芸收拾准备归还给父亲的工具盒。盒内只有扳手和两枚垫圈。父亲在电话中说周日来取，她回答周日不在家，提出放门卫室。她知道自己周日其实在家，但不向父亲解释。结束时工具盒仍在她桌上。\n硬边界：父亲不知道她在回避；不寄出、不新增童年创伤或病情。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "围绕归还工具盒的电话安排，呈现沈芸回避见面而不向父亲解释。",
+      "用话语选择和收拾工具盒的动作表达回避；允许关系停留原处，不追加往事。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "回避见面但完成归还安排",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "690fcfcf16fe7d7dac3931ed98e1740dda1131092827bb2aba81abacae27b4dd"
+  },
+  {
+    "id": "G4",
+    "genre": "日常人物关系",
+    "title": "两份早餐",
+    "sceneOrder": 4,
+    "context": "周简与室友许禾昨晚为厨房清洁争执，原因仅是油锅未洗。今天周简想带早饭，打下道歉又删掉，改问对方吃什么。许禾只回复咸豆花。结束时周简把清洗锅的时间提前，二人尚未直接和好。\n硬边界：不可升级成恋爱或亲属关系；豆花不是豆浆；不得宣告和好。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "呈现删去道歉、改问早餐及提前洗锅的行动，保持两人尚未直接和好。",
+      "通过生活事务和简短回复承载试探，不把咸豆花的回复解释为明确原谅。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "以事务试探但不直接道歉和好",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "514d9190fa2a4a619f45b5bfd29de706aa268dba54a6f32fcb00622e15719c7b"
+  },
+  {
+    "id": "G5",
+    "genre": "幻想",
+    "title": "第三次敲钟",
+    "sceneOrder": 5,
+    "context": "学徒岑露守着一只裂纹铜钟。规则是日落后只能敲两次，第三次会让钟永久失声。师傅不在场。门外的人自称送药，但岑露没有见过他，也不知他说的是真是假。她已敲过一次，最后决定只敲第二次求值夜人查验。\n硬边界：不敲第三次；身份真假不揭示；不新增魔法能力或治愈钟。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "让岑露在已有敲钟规则下决定只用第二次求值夜人查验。",
+      "通过眼前铜钟与门外来人的应对呈现选择；保留送药说法真假未知。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "不冒第三次敲钟风险地求查验",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "db38934adad83441b5cbacee69c6b9310fa349a56c0385b55d50b95493254225"
+  },
+  {
+    "id": "G6",
+    "genre": "幻想",
+    "title": "换灯油",
+    "sceneOrder": 6,
+    "context": "渡口掌灯人季遥与陌生商贩交易。她只有三枚铜币，灯油标价四枚；岸上只剩一盏还能燃一刻钟的灯。商贩愿意用一枚铜币加她一夜的值守换一小瓶灯油。她接受交易，但灯油还在对方手上，场景结束于她要求先看瓶口封蜡。\n硬边界：一枚铜币加一夜值守，不改价；尚未交油；不能凭封蜡知道油的真伪。",
+    "source": "historical_agent_constructed_regression",
+    "sourcePath": "doc/research/slop2-20260926/generation-tasks.json",
+    "sceneGoals": [
+      "按一枚铜币加一夜值守接受交易，推进到要求先看封蜡而尚未交油。",
+      "通过议价与查验要求表达谨慎；不凭外观断定灯油真假。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "接受明确条件但先看封蜡",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "2fa268e3035c70f38fe8131218952afe19053d5cdcedbb573315e443468bb46e"
+  },
+  {
+    "id": "G7",
+    "genre": "悬疑",
+    "title": "断电前的借用表",
+    "sceneOrder": 7,
+    "context": "顾遥和管理员核对会议室记录。借用表写着周二十八点十分快速登记了一次借用，但签名栏空白；设备日志只记录十八点十二分断电。顾遥未进入会议室，二人都不知道借用人是谁，也不知道当时是否有人实际进入。顾遥希望保留两条记录的差别，管理员愿意申请纸质原始登记页。场景结束于两人提出申请，尚未拿到原页。\n硬边界：借用登记不等于实际进入；时间先后不证明人为断电；不补签名、监控或新目击证人。",
+    "source": "new_agent_constructed",
+    "sourcePath": "agent offline, this study",
+    "sceneGoals": [
+      "对照借用表和断电记录，推进到申请原始登记页，保留是否有人进入房间未知。",
+      "将两条时间记录分开陈述，允许提出疑点而不把时间相近写成已证实的因果。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "核对两记录而不先下结论",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "55fa8a32b3616c840d3fded4c32e088faea2c6b810ebce66a0a3810c86f3e341"
+  },
+  {
+    "id": "G8",
+    "genre": "日常人物关系",
+    "title": "伞放在鞋架旁",
+    "sceneOrder": 8,
+    "context": "林澄把向朋友陈棠借来的深蓝雨伞送回公寓门口。陈棠发消息说自己尚未到家，允许把伞放在门外鞋架右侧。林澄昨天没有参加两人的晚饭约定，陈棠还不知道原因；林澄这次只想还伞，暂时不解释。她按要求放好伞，回复“放好了”。结束时两人尚未见面，陈棠没有回复这条消息。\n硬边界：不补缺席原因或既往争执；不把未回复断定成生气或原谅；伞归陈棠，不改颜色及放置位置。",
+    "source": "new_agent_constructed",
+    "sourcePath": "agent offline, this study",
+    "sceneGoals": [
+      "围绕归还雨伞确认放置位置，呈现林澄暂不解释缺席的选择。",
+      "让简短消息与放伞动作承载分寸，允许关系暂时不变，不追加冲突或和解。"
+    ],
+    "goalSource": "agent_offline_restatement_of_frozen_task",
+    "intent": "只还伞、暂不解释缺席",
+    "minHan": 550,
+    "maxHan": 750,
+    "ordinaryDetails": "允许不改变事实与因果的环境光声、手势、即时感官、普通办公或生活物件；不允许新增关键往事、身份、物件证据、世界规则、确定性结论或完成尚未完成的事件。",
+    "endpointAndUnknowns": "以上 context 的结束位置、未知事项和硬边界为逐字来源；不隐含额外作者秘密。",
+    "contextSha256": "6741302cb88e7434d6c8b0ccac40d3391b281ee37c1e2a23ecca1b269719970e"
+  }
+]
