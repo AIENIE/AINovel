@@ -28,9 +28,10 @@ public class SsoEntryService {
         String baseUrl = resolveUserServiceBaseUrl();
         return UriComponentsBuilder.fromHttpUrl(baseUrl)
                 .path(path)
-                .queryParam("redirect", callbackUrl)
-                .queryParam("state", state)
-                .build()
+                .queryParam("redirect", "{redirect}")
+                .queryParam("state", "{state}")
+                .encode()
+                .buildAndExpand(callbackUrl, state)
                 .toUri();
     }
 

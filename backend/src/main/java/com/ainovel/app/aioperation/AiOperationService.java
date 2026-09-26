@@ -180,15 +180,29 @@ public class AiOperationService {
 
     private void recoverExpiredLeases() {
         Instant now = Instant.now();
-        transactions.executeWithoutResult(status -> repository.findByStatusIn(
-                List.of(AiOperationStatus.RUNNING, AiOperationStatus.STREAMING)).stream()
+        repository.findByStatusIn(List.of(AiOperationStatus.RUNNING, AiOperationStatus.STREAMING)).stream()
                 .filter(run -> run.getLeaseExpiresAt() != null && run.getLeaseExpiresAt().isBefore(now))
-                .forEach(run -> {
+                .map(AiOperationRun::getId).toList().forEach(id -> {
+            // A live local worker is not abandoned. Cross-process recovery still waits for lease expiry.
+            if (tasks.containsKey(id)) return;
+            transactions.executeWithoutResult(status -> repository.findByIdForUpdate(id).ifPresent(run -> {
+                    if ((run.getStatus() != AiOperationStatus.RUNNING && run.getStatus() != AiOperationStatus.STREAMING)
+                            || run.getLeaseExpiresAt() == null || !run.getLeaseExpiresAt().isBefore(now)) return;
+                    AiOperationHandler handler = handlers.get(run.getOperationType());
+                    if (handler != null) {
+                        try {
+                            handler.recoverExpiredLease(new AiOperationExecution(id, run.getUser(), run.getPayloadJson(),
+                                    objectMapper, (label, completed, total) -> {}));
+                        } catch (Exception ex) {
+                            throw new IllegalStateException("AI operation recovery failed", ex);
+                        }
+                    }
                     run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.QUEUED);
                     run.setLeaseOwner(null);
                     run.setLeaseExpiresAt(null);
                     if (run.isStreamStarted()) run.setActiveScopeKey(null);
                 }));
+        });
     }
 
     private void dispatch(UUID id) {
@@ -322,7 +336,8 @@ public class AiOperationService {
         update(id, run -> {
             if (run.getStatus() == AiOperationStatus.CANCELLED) return;
             run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.FAILED);
-            run.setErrorMessage(truncate(failure.getMessage()));
+            run.setErrorMessage("生成在" + run.getCompletedSteps() + "/" + run.getTotalSteps()
+                    + "步中断，请查看任务状态后重试；任务编号：" + id);
             run.setCompletedAt(Instant.now());
             releaseLeaseAndScope(run);
         });

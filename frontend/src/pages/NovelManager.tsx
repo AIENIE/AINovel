@@ -10,13 +10,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api-client";
+import { countWords, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { Story } from "@/types";
 import { showError, showSuccess } from "@/utils/toast";
 
 type StoryCardStats = Record<string, { wordCount: number; progress: number }>;
 
 function estimateTextLength(html: string) {
-  return (html || "").replace(/<[^>]*>/g, "").trim().length;
+  return countWords(stripHtml(html || ""));
 }
 
 const NovelManager = () => {
@@ -40,17 +41,20 @@ const NovelManager = () => {
           list.map(async (story) => {
             try {
               const outlines = await api.outlines.listByStory(story.id);
-              const outline = outlines[0];
-              if (!outline) {
-                next[story.id] = { wordCount: 0, progress: 0 };
-                return;
+              const groups = await Promise.all(outlines.map(async (outline) => ({
+                outline, manuscripts: await api.manuscripts.listByOutline(outline.id),
+              })));
+              let wordCount = 0;
+              let totalScenes = 0;
+              let filledScenes = 0;
+              for (const { outline, manuscripts } of groups) {
+                for (const manuscript of manuscripts) {
+                  totalScenes += (outline.chapters || []).reduce((sum, chapter) => sum + chapter.scenes.length, 0);
+                  filledScenes += Object.values(manuscript.sections || {}).filter((html) => estimateTextLength(html) > 0).length;
+                  wordCount += Object.values(manuscript.sections || {}).reduce((sum, html) => sum + estimateTextLength(html), 0);
+                }
               }
-              const manuscripts = await api.manuscripts.listByOutline(outline.id);
-              const manuscript = manuscripts[0];
-              const totalScenes = (outline.chapters || []).reduce((acc, c) => acc + (c.scenes || []).length, 0);
-              const filledScenes = manuscript ? Object.values(manuscript.sections || {}).filter((v) => estimateTextLength(v) > 0).length : 0;
-              const progress = totalScenes > 0 ? Math.min(100, Math.round((filledScenes / totalScenes) * 100)) : 0;
-              const wordCount = manuscript ? Object.values(manuscript.sections || {}).reduce((acc, v) => acc + estimateTextLength(v), 0) : 0;
+              const progress = totalScenes ? Math.min(100, Math.round(filledScenes / totalScenes * 100)) : 0;
               next[story.id] = { wordCount, progress };
             } catch {
               next[story.id] = { wordCount: 0, progress: 0 };

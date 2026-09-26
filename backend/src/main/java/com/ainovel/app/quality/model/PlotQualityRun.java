@@ -18,6 +18,12 @@ import java.util.UUID;
         @Index(name = "idx_plot_run_scene", columnList = "scene_id")
 })
 public class PlotQualityRun {
+    @Lob private String isolationStampJson;
+    @Lob private String isolationContext;
+    public String getIsolationStampJson(){return isolationStampJson;}
+    public void setIsolationStampJson(String v){isolationStampJson=v;}
+    public String getIsolationContext(){return isolationContext;}
+    public void setIsolationContext(String v){isolationContext=v;}
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

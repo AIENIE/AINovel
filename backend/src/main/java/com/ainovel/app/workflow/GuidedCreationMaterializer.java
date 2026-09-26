@@ -1,6 +1,7 @@
 package com.ainovel.app.workflow;
 
 import com.ainovel.app.common.BusinessException;
+import org.springframework.security.access.AccessDeniedException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Outline;
@@ -123,7 +124,7 @@ public class GuidedCreationMaterializer {
         CreationWorkflowRun run = runRepository.findByIdForUpdate(runId)
                 .orElseThrow(() -> new BusinessException("向导草稿不存在"));
         if (actorId != null && !actorId.equals(run.getUser().getId())) {
-            throw new BusinessException("无权访问该向导草稿");
+            throw new AccessDeniedException("无权访问该向导草稿");
         }
         return run;
     }
@@ -181,6 +182,8 @@ public class GuidedCreationMaterializer {
             CharacterCard card = new CharacterCard();
             card.setStory(story);
             card.setName(requiredText(character, "name", 255));
+            card.setRole(text(character, "role", 255));
+            card.setArchetype(text(character, "archetype", 255));
             card.setSynopsis(text(character, "synopsis", 12000));
             card.setDetails(text(character, "details", 12000));
             card.setRelationships(text(character, "relationships", 12000));
@@ -212,6 +215,10 @@ public class GuidedCreationMaterializer {
             for (Object sceneItem : scenes) {
                 if (!(sceneItem instanceof Map<?, ?> sceneRaw)) throw new BusinessException("场景格式无效");
                 Map<String, Object> scene = new LinkedHashMap<>((Map<String, Object>) sceneRaw);
+                Object scenePlanning = scene.get("planning");
+                if (scenePlanning instanceof Map<?, ?> rawPlanning) {
+                    com.ainovel.app.story.model.SceneLengthRange.from((Map<String, Object>) rawPlanning);
+                }
                 scene.put("id", UUID.randomUUID().toString());
                 scene.put("order", sceneOrder++);
                 scene.putIfAbsent("content", "");

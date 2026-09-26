@@ -29,6 +29,33 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PlotQualityServiceTest {
+    @Test void isolatedDiagnosisAndRepairUseFrozenInputAndRejectChangedConfiguration() throws Exception {
+        var ai=mock(AiService.class);var manuscripts=mock(ManuscriptRepository.class);var cards=mock(CharacterCardRepository.class);
+        var runs=mock(PlotQualityRunRepository.class);var gate=mock(SlopQualityGate.class);var mapper=new ObjectMapper();
+        var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,gate,new JsonColumnCodec(mapper));
+        var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"isolation",context);
+        UUID scene=UUID.randomUUID();var m=manuscriptWithSceneContext(scene,UUID.randomUUID(),"SECRET_PREVIOUS","当前正文");
+        var owner=user();m.getOutline().getStory().setUser(owner);m.setCurrentBranchId(UUID.randomUUID());
+        m.getOutline().getStory().setSynopsis("SECRET_SYNOPSIS");m.getOutline().getStory().setTitle("SECRET_TITLE");
+        var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(m.getId(),m.getCurrentBranchId(),0,0,1,1,"hash");
+        var preview=new com.ainovel.app.narrative.NarrativeContextDtos.Preview(com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,scene,stamp,"hash",3500,10,"ONLY_APPROVED",List.of(),List.of());
+        when(context.enabled(m)).thenReturn(true);
+        when(context.preview(owner,m.getId(),m.getCurrentBranchId(),scene,com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500)).thenReturn(preview);
+        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","{\"risk_score\":10}",null,0));
+        when(runs.save(any())).thenAnswer(i->{PlotQualityRun r=i.getArgument(0);if(r.getId()==null)r.setId(UUID.randomUUID());return r;});
+        var run=service.analyzeScene(owner,m,scene);
+        when(runs.findById(run.getId())).thenReturn(Optional.of(run));
+        service.generateRevisionCandidate(owner,m,run.getId());
+        var requests=ArgumentCaptor.forClass(AiChatRequest.class);org.mockito.Mockito.verify(ai,org.mockito.Mockito.times(2)).chat(any(),requests.capture());
+        for(var request:requests.getAllValues()) {
+            String prompt=mapper.writeValueAsString(request.messages());assertTrue(prompt.contains("ONLY_APPROVED"));assertFalse(prompt.contains("SECRET_"));
+        }
+        org.mockito.Mockito.verifyNoInteractions(cards);
+        org.mockito.Mockito.doThrow(new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"H2_CONTEXT_CHANGED")).when(context).requireStamp(owner,stamp);
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->service.applyRevision(owner,m,run.getId()));
+        org.mockito.Mockito.verifyNoInteractions(manuscripts,gate);
+    }
 
     @Test
     void analyzeSceneShouldBuildContextAndParsePlotIssues() {

@@ -1,6 +1,7 @@
 package com.ainovel.app.workflow;
 
 import com.ainovel.app.common.BusinessException;
+import org.springframework.security.access.AccessDeniedException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.workflow.model.AsyncJob;
 import com.ainovel.app.workflow.model.AsyncJobStatus;
@@ -317,6 +318,8 @@ public class GuidedCreationJobService {
         }
         AsyncJob job = jobRepository.findByIdForUpdate(run.getActiveJobId())
                 .orElseThrow(() -> new BusinessException("后台任务不存在"));
+        if (job.getStatus() == AsyncJobStatus.QUEUED || job.getStatus() == AsyncJobStatus.RUNNING
+                || job.getStatus() == AsyncJobStatus.CALLING_AI) return job;
         if (job.getStatus() != AsyncJobStatus.FAILED
                 && job.getStatus() != AsyncJobStatus.RECOVERY_REQUIRED) {
             throw new BusinessException("当前任务不需要重试");
@@ -374,7 +377,7 @@ public class GuidedCreationJobService {
     private CreationWorkflowRun requireOwnedRunForUpdate(UUID runId, UUID actorId) {
         CreationWorkflowRun run = requireRunForUpdate(runId);
         if (actorId == null || !actorId.equals(run.getUser().getId())) {
-            throw new BusinessException("无权访问该向导草稿");
+            throw new AccessDeniedException("无权访问该向导草稿");
         }
         return run;
     }
@@ -421,8 +424,8 @@ public class GuidedCreationJobService {
     }
 
     private String failureMessage(RuntimeException failure) {
-        String raw = failure.getMessage();
-        String message = raw == null || raw.isBlank() ? "生成失败，请重试" : raw.trim();
+        String message = failure instanceof BusinessException ? failure.getMessage() : "生成失败，请重试；如持续失败，请提供草稿和任务编号";
+        if (message == null || message.isBlank()) message = "生成失败，请重试";
         return message.length() <= ERROR_LIMIT ? message : message.substring(0, ERROR_LIMIT);
     }
 

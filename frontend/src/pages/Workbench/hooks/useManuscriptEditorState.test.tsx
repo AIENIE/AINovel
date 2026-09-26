@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import { useManuscriptEditorState } from "./useManuscriptEditorState";
 
@@ -21,9 +21,48 @@ const flushAsync = async () => {
 };
 
 describe("useManuscriptEditorState", () => {
+  it("never renders the previous scene's body when switching scenes", () => {
+    const manuscript = makeManuscript({ "scene-1": "<p>第一场</p>", "scene-2": "<p>第二场</p>" });
+    const renders: { scene: string; html: string }[] = [];
+    const { rerender } = renderHook(({ scene }) => {
+      const state = useManuscriptEditorState({ replaceManuscript: vi.fn(), selectedManuscript: manuscript,
+        selectedManuscriptId: manuscript.id, selectedSceneId: scene, selectedStoryId: "", toast: vi.fn() });
+      renders.push({ scene, html: state.content });
+      return state;
+    }, { initialProps: { scene: "scene-1" } });
+    rerender({ scene: "scene-2" });
+    expect(renders.filter(item => item.scene === "scene-2").every(item => item.html === "<p>第二场</p>")).toBe(true);
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("preserves text typed while a save is in flight", async () => {
+    let finish!: (value: Manuscript) => void;
+    vi.spyOn(api.manuscripts, "saveSection").mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const manuscript = makeManuscript({ "scene-1": "old" });
+    const { result } = renderHook(() => useManuscriptEditorState({ replaceManuscript: vi.fn(), selectedManuscript: manuscript, selectedManuscriptId: manuscript.id, selectedSceneId: "scene-1", selectedStoryId: "s", toast: vi.fn() }));
+    expect(result.current.lastSavedAt).not.toBe("");
+    act(() => result.current.updateSceneDraft("scene-1", "first"));
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.persistSection("scene-1", "first"); });
+    await flushAsync();
+    act(() => result.current.updateSceneDraft("scene-1", "newer"));
+    await act(async () => { finish({ ...manuscript, version: 1, sections: { "scene-1": "first" } }); await saving; });
+    expect(result.current.sceneDrafts["scene-1"]).toBe("newer");
+    expect(result.current.dirtyScenes["scene-1"]).toBe(true);
+  });
+  it("retains a conflicting draft and stops automatic conflict retries", async () => {
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockRejectedValue(new ApiError(409, "conflict"));
+    const manuscript = makeManuscript({ "scene-1": "old" });
+    const { result } = renderHook(() => useManuscriptEditorState({ replaceManuscript: vi.fn(), selectedManuscript: manuscript, selectedManuscriptId: manuscript.id, selectedSceneId: "scene-1", selectedStoryId: "s", toast: vi.fn() }));
+    act(() => result.current.updateSceneDraft("scene-1", "my text"));
+    await act(async () => { await result.current.persistSection("scene-1", "my text"); });
+    await act(async () => { await result.current.persistSection("scene-1", "my text", true); });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.sceneDrafts["scene-1"]).toBe("my text");
+    expect(result.current.dirtyScenes["scene-1"]).toBe(true);
   });
 
   it("resets dirty state and scene drafts when a fresh manuscript is applied", async () => {

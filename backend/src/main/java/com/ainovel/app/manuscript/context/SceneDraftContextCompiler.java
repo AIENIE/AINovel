@@ -41,7 +41,9 @@ import java.util.regex.Pattern;
 
 @Service
 public class SceneDraftContextCompiler {
-    public static final String COMPILER_VERSION = "scene-draft-v2";
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.narrative.NarrativeContextService isolation;
+    public static final String COMPILER_VERSION = "scene-draft-v3";
     public static final int DEFAULT_TOKEN_BUDGET = 3500;
     public static final int MAX_TOKEN_BUDGET = 3500;
     public static final int MAX_HISTORICAL_ANCHORS = 2;
@@ -75,26 +77,39 @@ public class SceneDraftContextCompiler {
         this.contextPersistenceService = contextPersistenceService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CompiledSceneDraftContext compile(Manuscript manuscript,
                                              UUID sceneId,
                                              Map<String, String> existingSections) {
         return compile(manuscript, sceneId, existingSections, DEFAULT_TOKEN_BUDGET);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CompiledSceneDraftContext compile(Manuscript manuscript,
                                              UUID sceneId,
                                              int requestedTokenBudget) {
         return compile(manuscript, sceneId, readSections(manuscript), requestedTokenBudget);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CompiledSceneDraftContext compile(Manuscript manuscript,
                                              UUID sceneId,
                                              Map<String, String> existingSections,
                                              int requestedTokenBudget) {
         RequiredContext required = requireContext(manuscript, sceneId);
+        if (isolation != null && isolation.enabled(manuscript)) {
+            var p=isolation.preview(required.story().getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
+                    com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,requestedTokenBudget);
+            if (p.included().stream().noneMatch(f -> "PLAN".equals(f.category())))
+                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"H2_SCENE_PLAN_REQUIRED");
+            var manifest=new SceneDraftContextManifest(com.ainovel.app.narrative.NarrativeContextService.VERSION,p.contextHash(),"SHA-256",
+                    p.tokenBudget(),p.tokenUsed(),required.story().getId(),required.outline().getId(),manuscript.getId(),sceneId,null,
+                    required.position().chapter().order(),required.position().scene().order(),"",
+                    p.included().stream().map(f->new SceneDraftContextManifest.Source(f.id(),f.category(),f.id(),f.category(),f.reason(),1000,
+                            estimateTokens(f.content()),f.truncated(),sha256(f.content()))).toList(),
+                    p.excluded().stream().map(f->f.id()+": "+f.reason()).toList(),p.stamp());
+            return new CompiledSceneDraftContext(p.content(),manifest,p.content(),List.of(),List.of(),List.of(),p.content());
+        }
         int tokenBudget = normalizeBudget(requestedTokenBudget);
         Map<String, String> sections = existingSections == null ? Map.of() : existingSections;
         List<String> warnings = new ArrayList<>();
@@ -113,6 +128,7 @@ public class SceneDraftContextCompiler {
         List<Candidate> candidates = new ArrayList<>();
 
         addPlanningCandidates(candidates, required);
+        addCharacterCandidates(candidates, required.story(), baseQueryText);
         UUID boundWorldId = addWorldCandidate(candidates, required, warnings);
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
@@ -169,7 +185,11 @@ public class SceneDraftContextCompiler {
                 recentContext,
                 includedLorebook,
                 includedRelations,
-                activeCharacters
+                activeCharacters,
+                rendered.fragmentsBySlot().entrySet().stream()
+                        .filter(entry -> entry.getKey().startsWith("character."))
+                        .map(Map.Entry::getValue)
+                        .reduce((left, right) -> left + "\n" + right).orElse("暂无相关角色卡。")
         );
     }
 
@@ -553,6 +573,7 @@ public class SceneDraftContextCompiler {
             case "recent_scene" -> 400;
             case "style_profile" -> 500;
             case "style_scene_override" -> 510;
+            case "character_card" -> 700;
             case "character_voice" -> 520;
             case "history_anchor" -> 600;
             default -> 900;
@@ -567,6 +588,7 @@ public class SceneDraftContextCompiler {
             case "world" -> "稿件、大纲或故事绑定的世界观";
             case "style_profile" -> "当前故事已激活的风格画像";
             case "style_scene_override" -> "当前 sceneType 命中的风格覆盖";
+            case "character_card" -> "当前场景规划中明确相关的人物资料";
             case "character_voice" -> "当前场景标题、摘要或规划中明确相关的角色声音";
             case "recent_scene" -> "目标场景之前最近的跨章正文尾部";
             case "lorebook" -> "按当前场景规划、角色、伏笔或关键词命中的 Lorebook";
@@ -586,9 +608,9 @@ public class SceneDraftContextCompiler {
         );
     }
 
-    private Set<String> queryTerms(String query) {
+    public static Set<String> queryTerms(String query) {
         LinkedHashSet<String> terms = new LinkedHashSet<>();
-        Matcher matcher = WORD_PATTERN.matcher(firstNonBlank(query, "").toLowerCase(Locale.ROOT));
+        Matcher matcher = WORD_PATTERN.matcher((query == null ? "" : query).toLowerCase(Locale.ROOT));
         while (matcher.find() && terms.size() < 120) {
             String word = matcher.group();
             if (word.codePoints().allMatch(cp -> Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN)) {
@@ -606,6 +628,19 @@ public class SceneDraftContextCompiler {
             }
         }
         return terms;
+    }
+
+    private void addCharacterCandidates(List<Candidate> candidates, Story story, String query) {
+        characterCardRepository.findByStory(story).stream()
+                .filter(card -> card.getName() != null && !card.getName().isBlank()
+                        && containsIgnoreCase(query, card.getName()))
+                .sorted(Comparator.comparing(CharacterCard::getName).thenComparing(card -> id(card.getId())))
+                .limit(5).forEach(card -> candidates.add(new Candidate(
+                        "character." + id(card.getId()), "character_card", id(card.getId()),
+                        "人物资料 · " + card.getName(), 710, 160,
+                        "姓名=" + card.getName() + "\n定位=" + text(card.getRole())
+                                + "\n原型=" + text(card.getArchetype()) + "\n简介=" + text(card.getSynopsis())
+                                + "\n详情=" + text(card.getDetails()) + "\n关系=" + text(card.getRelationships()))));
     }
 
     private String relevantCharacterNames(Story story, String baseQueryText) {
@@ -633,7 +668,7 @@ public class SceneDraftContextCompiler {
         return terms;
     }
 
-    private int historyRelevance(String content, Set<String> terms) {
+    public static int historyRelevance(String content, Set<String> terms) {
         if (content.isBlank()) {
             return 0;
         }
@@ -748,6 +783,7 @@ public class SceneDraftContextCompiler {
             }
         }
         for (SceneDraftContextManifest.Source source : sources) {
+            if ("character_card".equals(source.sourceType())) names.add(source.label().replaceFirst("^人物资料 · ", ""));
             if ("character_voice".equals(source.sourceType())) {
                 names.add(source.label().replaceFirst("^角色声音 · ", ""));
             }
@@ -803,7 +839,7 @@ public class SceneDraftContextCompiler {
         return value;
     }
 
-    static int estimateTokens(String value) {
+    public static int estimateTokens(String value) {
         if (value == null || value.isBlank()) {
             return 0;
         }

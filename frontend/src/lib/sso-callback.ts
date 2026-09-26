@@ -1,3 +1,4 @@
+import { normalizeNextPath } from "./sso";
 import { t } from "@/i18n";
 
 export type SsoSessionResponse = {
@@ -18,18 +19,13 @@ export type SsoCallbackRunArgs = {
   isCancelled?: () => boolean;
 };
 
-const encodeQueryValue = (value: string) => encodeURIComponent(value).replace(/%2F/g, "/");
-
 export const buildSsoCallbackRedirectUrl = (origin: string, pathname: string, search: string) => {
-  const params = new URLSearchParams(search);
-  params.delete("code");
-  params.delete("state");
-
-  const query = Array.from(params.entries())
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeQueryValue(value)}`)
-    .join("&");
-
-  return query ? `${origin}${pathname}?${query}` : `${origin}${pathname}`;
+  // Keep the original encoded redirect byte-for-byte: the SSO code is bound to it.
+  const query = search.replace(/^\?/, "").split("&").filter((part) => {
+    const key = decodeURIComponent(part.split("=", 1)[0]);
+    return part && key !== "code" && key !== "state";
+  }).join("&");
+  return `${origin}${pathname}${query ? `?${query}` : ""}`;
 };
 
 export const createSsoCallbackProcessor = (deps: SsoCallbackProcessorDeps) => {
@@ -62,6 +58,6 @@ export const createSsoCallbackProcessor = (deps: SsoCallbackProcessorDeps) => {
     }
 
     if (isCancelled?.()) return;
-    deps.onSuccess(params.get("next") || "/dashboard");
+    deps.onSuccess(normalizeNextPath(params.get("next") || undefined));
   };
 };

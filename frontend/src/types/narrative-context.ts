@@ -1,0 +1,12 @@
+import type { NarrativeEvidence, KnowledgeView } from './narrative';
+export type ContextPolicy = { perspective: 'FIRST_PERSON' | 'LIMITED_THIRD' | 'OMNISCIENT'; allowInner: boolean; viewpointByScene: Record<string,string> };
+export type KnowledgeGrant = { id: string; recordId: string; characterId: string; approvalId: string; evidence: NarrativeEvidence[]; fromSceneId: string; uncertainty: string; stale: boolean; view?: KnowledgeView | null };
+export type ContextEntry = { id: string; kind: 'BACKGROUND' | 'PLAN' | 'READER_HYPOTHESIS'; text: string; fromSceneId: string; characterIds: string[]; narratorVisible: boolean; dependencyRecordIds: string[]; stale: boolean };
+export type ContextDocument = { policy: ContextPolicy; grants: KnowledgeGrant[]; entries: ContextEntry[]; positionHashes?: Record<string,string> };
+export type ContextState = { enabled: boolean; settingsRevision: number; revision: number; manuscriptVersion: number; canonRevision: number; document: ContextDocument | null };
+export type ContextUpdate = { enabled: boolean; document: ContextDocument; expectedManuscriptVersion: number; expectedCanonRevision: number; expectedRevision: number; expectedSettingsRevision: number };
+export type ContextView = 'CHARACTER' | 'READER' | 'SCENE';
+export type ContextStamp = { manuscriptId: string; branchId: string; manuscriptVersion: number; canonRevision: number; contextRevision: number; settingsRevision: number; orderHash: string };
+export type ContextFragment = { id: string; category: string; content: string; reason: string; truncated: boolean };
+export type ContextPreview = { promptVersion?: string; view: ContextView; characterId: string | null; sceneId: string; stamp: ContextStamp; contextHash: string; tokenBudget: number; tokenUsed: number; content: string; included: ContextFragment[]; excluded: ContextFragment[] };
+export type RetainedCandidate = { id: string; sceneId: string; content: string; status: string; createdAt: string; stampJson?: string };

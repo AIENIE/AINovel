@@ -108,7 +108,7 @@ class GuidedCreationGenerationServiceTest {
                         "instruction", ""));
 
         assertEquals(6, ((List<?>) result.stepData().get("chapters")).size());
-        assertEquals("g1.quick-book.outline-expansion.v2", result.stepData().get("promptVersion"));
+        assertEquals("g1.quick-book.outline-expansion.v3", result.stepData().get("promptVersion"));
         assertEquals(4L, result.chargedCredits());
     }
 

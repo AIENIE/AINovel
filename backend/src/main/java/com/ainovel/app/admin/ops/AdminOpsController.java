@@ -31,7 +31,7 @@ public class AdminOpsController {
     private final OpsRecordSearchService recordSearchService;
     private final SettingsService settingsService;
 
-    @Value("${app.records.dir:${APP_RECORD_DIR:/app/records}}")
+    @Value("${app.records.dir:${APP_RECORD_DIR:./var/records}}")
     private String recordDir;
 
     @Value("${filebeat.index-prefix:${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}}")

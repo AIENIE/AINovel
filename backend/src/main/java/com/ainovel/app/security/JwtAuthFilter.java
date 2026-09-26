@@ -68,14 +68,36 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
 
             UserSessionValidator validator = userSessionValidatorProvider.getIfAvailable();
-            if (validator != null && !validator.validate(uid, sid)) {
-                filterChain.doFilter(request, response);
-                return;
+            if (validator != null) {
+                UserSessionValidator.ValidationResult result;
+                try { result = validator.validate(uid, sid); }
+                catch (RuntimeException ex) {
+                    log.warn("Signed user token validation failed errorType={}", ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+                    result = UserSessionValidator.ValidationResult.UNAVAILABLE;
+                }
+                if (result != UserSessionValidator.ValidationResult.VALID) {
+                    boolean unavailable = result == UserSessionValidator.ValidationResult.UNAVAILABLE;
+                    response.setStatus(unavailable ? 503 : 401);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write(unavailable
+                            ? "{\"message\":\"SESSION_VALIDATION_UNAVAILABLE\"}"
+                            : "{\"message\":\"SESSION_INVALID\"}");
+                    return;
+                }
             }
 
-            com.ainovel.app.user.User localUser = provisioningService.ensureExistsBestEffort(username, role, uid);
+            com.ainovel.app.user.User localUser;
+            try {
+                localUser = provisioningService.ensureExistsBestEffort(username, role, uid);
+            } catch (RuntimeException ex) {
+                log.warn("Local user provisioning failed errorType={}", ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+                response.setStatus(503);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"message\":\"USER_PROVISIONING_UNAVAILABLE\"}");
+                return;
+            }
             if (localUser == null) {
-                filterChain.doFilter(request, response);
+                response.setStatus(503);
                 return;
             }
             UserDetails userDetails = new AuthenticatedUserPrincipal(localUser);

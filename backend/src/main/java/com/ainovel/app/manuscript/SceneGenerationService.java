@@ -36,8 +36,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class SceneGenerationService {
-    private static final int MIN_SECTION_HAN = 2800;
-    private static final int MAX_SECTION_HAN = 3200;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final int MAX_GENERATION_ATTEMPTS = 3;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     public static final String SCENE_DRAFT_SYSTEM_RULES_VERSION = "AINOVEL_SCENE_DRAFT_RULES_V1";
@@ -56,6 +56,10 @@ public class SceneGenerationService {
     private SceneDraftContextCompiler sceneDraftContextCompiler;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private com.ainovel.app.narrative.NarrativeGenerationCandidateStore candidateStore;
+    @Autowired(required=false)
+    private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
 
     public record EvaluationPair(String fastText, String craftedText) {
     }
@@ -85,9 +89,9 @@ public class SceneGenerationService {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
-        List<CharacterCard> characters = characterCardRepository.findByStory(story);
-        String characterContext = buildCharacterContext(characters);
         CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, existingSections);
+        String characterContext = compiledContext == null
+                ? buildCharacterContext(characterCardRepository.findByStory(story)) : compiledContext.characterContext();
         String previousContext = compiledContext == null
                 ? buildPreviousContext(sceneContext, existingSections)
                 : compiledContext.recentSceneContext();
@@ -96,7 +100,8 @@ public class SceneGenerationService {
         String previousDraft = null;
         int previousCount = 0;
 
-        for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+        int maxAttempts=compiledContext!=null && compiledContext.isolated()?2:MAX_GENERATION_ATTEMPTS;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             var prompt = sceneGenerationPromptBuilder.build(
                     owner,
                     story,
@@ -106,8 +111,8 @@ public class SceneGenerationService {
                     previousDraft,
                     previousCount,
                     attempt,
-                    MIN_SECTION_HAN,
-                    MAX_SECTION_HAN,
+                    sceneContext.lengthRange().minHan(),
+                    sceneContext.lengthRange().maxHan(),
                     mode,
                     compiledContext
             );
@@ -118,14 +123,12 @@ public class SceneGenerationService {
             )).content();
             String normalized = normalizeGeneratedText(raw);
             int hanCount = countHanCharacters(normalized);
-            if (hanCount > MAX_SECTION_HAN) {
-                normalized = trimToHanLimit(normalized, MAX_SECTION_HAN);
-                hanCount = countHanCharacters(normalized);
-            }
-            if (hanCount >= MIN_SECTION_HAN && hanCount <= MAX_SECTION_HAN) {
+            if (hanCount >= sceneContext.lengthRange().minHan() && hanCount <= sceneContext.lengthRange().maxHan()) {
                 SlopQualityResult qualityResult = slopQualityGate.evaluateAndRepair(
                         owner,
-                        scenePlotQualitySupport.buildQualityRequest(
+                        compiledContext != null && compiledContext.isolated()
+                        ? scenePlotQualitySupport.buildIsolatedQualityRequest(manuscript,sceneContext,compiledContext.content(),normalized)
+                        : scenePlotQualitySupport.buildQualityRequest(
                                 manuscript,
                                 story,
                                 sceneContext,
@@ -134,7 +137,18 @@ public class SceneGenerationService {
                                 normalized
                         )
                 );
-                scenePlotQualitySupport.recordPlotQuality(
+                int acceptedCount = countHanCharacters(qualityResult.acceptedText());
+                if (acceptedCount < sceneContext.lengthRange().minHan() || acceptedCount > sceneContext.lengthRange().maxHan()) {
+                    retainLengthRejected(compiledContext,sceneId,qualityResult.acceptedText(),prompt.messages(),attempt);
+                    previousDraft = qualityResult.acceptedText();
+                    previousCount = acceptedCount;
+                    continue;
+                }
+                if (validationBudget != null && validationBudget.localQualityOnly()) {
+                    // The bounded local acceptance run reserves its calls for extraction and drafting.
+                } else if (compiledContext != null && compiledContext.isolated()) {
+                    scenePlotQualitySupport.recordIsolatedPlotQuality(owner,manuscript,sceneContext,compiledContext,qualityResult.acceptedText());
+                } else scenePlotQualitySupport.recordPlotQuality(
                         owner,
                         manuscript,
                         story,
@@ -147,8 +161,8 @@ public class SceneGenerationService {
                 return new GenerationResult(
                         toEditorHtml(qualityResult.acceptedText()),
                         new GenerationMetadata(
-                                AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
-                                SceneDraftContextCompiler.COMPILER_VERSION,
+                                modelPolicy.modelKey(),
+                                compiledContext == null ? SceneDraftContextCompiler.COMPILER_VERSION : compiledContext.compilerVersion(),
                                 promptHash(prompt.messages()),
                                 attempt,
                                 compiledContext == null ? null : compiledContext.manifest()
@@ -157,11 +171,18 @@ public class SceneGenerationService {
             }
             previousDraft = normalized;
             previousCount = hanCount;
+            retainLengthRejected(compiledContext,sceneId,normalized,prompt.messages(),attempt);
         }
 
+        if (compiledContext!=null && compiledContext.isolated()) throw new com.ainovel.app.common.ApiStatusException(
+                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"H2_LENGTH_LIMIT_REACHED");
         throw new RuntimeException("场景正文生成失败：重试 " + MAX_GENERATION_ATTEMPTS
-                + " 次后仍未达到 " + MIN_SECTION_HAN + "-" + MAX_SECTION_HAN
+                + " 次后仍未达到 " + sceneContext.lengthRange().minHan() + "-" + sceneContext.lengthRange().maxHan()
                 + " 汉字（当前 " + previousCount + "）。请稍后重试。");
+    }
+
+    private void retainLengthRejected(CompiledSceneDraftContext context,UUID sceneId,String text,List<AiChatRequest.Message> messages,int attempt) {
+        if (context!=null && context.isolated()) candidateStore.retainLengthRejected(context.manifest().isolationStamp(),sceneId,toEditorHtml(text),new GenerationMetadata(modelPolicy.modelKey(),context.compilerVersion(),promptHash(messages),attempt,context.manifest()));
     }
 
     /**
@@ -197,42 +218,48 @@ public class SceneGenerationService {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
-        String characterContext = buildCharacterContext(characterCardRepository.findByStory(story));
+        String characterContext = compiledContext == null
+                ? buildCharacterContext(characterCardRepository.findByStory(story)) : compiledContext.characterContext();
         String previousContext = compiledContext == null
                 ? buildPreviousContext(sceneContext, existingSections)
                 : compiledContext.recentSceneContext();
         String previousDraft = null;
         int previousCount = 0;
 
-        for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
+        int maxAttempts=compiledContext!=null && compiledContext.isolated()?2:MAX_GENERATION_ATTEMPTS;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             var prompt = sceneGenerationPromptBuilder.build(
                     owner, story, sceneContext, characterContext, previousContext,
-                    previousDraft, previousCount, attempt, MIN_SECTION_HAN, MAX_SECTION_HAN, mode, compiledContext
+                    previousDraft, previousCount, attempt, sceneContext.lengthRange().minHan(), sceneContext.lengthRange().maxHan(), mode, compiledContext
             );
             String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null),
                     usageContext.forOperation("draft-" + attempt)).content();
             String normalized = normalizeGeneratedText(raw);
             int hanCount = countHanCharacters(normalized);
-            if (hanCount > MAX_SECTION_HAN) {
-                normalized = trimToHanLimit(normalized, MAX_SECTION_HAN);
-                hanCount = countHanCharacters(normalized);
-            }
-            if (hanCount >= MIN_SECTION_HAN && hanCount <= MAX_SECTION_HAN) {
+            if (hanCount >= sceneContext.lengthRange().minHan() && hanCount <= sceneContext.lengthRange().maxHan()) {
                 SlopQualityResult qualityResult = slopQualityGate.evaluateAndRepair(
                         owner,
-                        scenePlotQualitySupport.buildQualityRequest(
+                        compiledContext != null && compiledContext.isolated()
+                        ? scenePlotQualitySupport.buildIsolatedQualityRequest(manuscript,sceneContext,compiledContext.content(),normalized)
+                        : scenePlotQualitySupport.buildQualityRequest(
                                 manuscript, story, sceneContext, previousContext, characterContext, normalized,
                                 "g2_evaluation"
                         ),
                         usageContext.forOperation("quality")
                 );
+                int acceptedCount = countHanCharacters(qualityResult.acceptedText());
+                if (acceptedCount < sceneContext.lengthRange().minHan() || acceptedCount > sceneContext.lengthRange().maxHan()) {
+                    previousDraft = qualityResult.acceptedText();
+                    previousCount = acceptedCount;
+                    continue;
+                }
                 return qualityResult.acceptedText();
             }
             previousDraft = normalized;
             previousCount = hanCount;
         }
         throw new RuntimeException("盲测候选生成失败：重试 " + MAX_GENERATION_ATTEMPTS
-                + " 次后仍未达到 " + MIN_SECTION_HAN + "-" + MAX_SECTION_HAN + " 汉字");
+                + " 次后仍未达到 " + sceneContext.lengthRange().minHan() + "-" + sceneContext.lengthRange().maxHan() + " 汉字");
     }
 
     private Map<String, String> existingSections(Manuscript manuscript) {
@@ -331,7 +358,8 @@ public class SceneGenerationService {
                             safeText(scene.summary(), ""),
                             scene.order() == null ? i + 1 : scene.order(),
                             previousSceneIds,
-                            siblingTitles
+                            siblingTitles,
+                            com.ainovel.app.story.model.SceneLengthRange.from(scene.planning())
                     );
                 }
             }
@@ -419,22 +447,6 @@ public class SceneGenerationService {
             i += Character.charCount(cp);
         }
         return count;
-    }
-
-    private String trimToHanLimit(String text, int maxHan) {
-        if (text == null || text.isBlank()) return "";
-        StringBuilder out = new StringBuilder();
-        int hanCount = 0;
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            if (Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN) {
-                if (hanCount >= maxHan) break;
-                hanCount++;
-            }
-            out.appendCodePoint(cp);
-            i += Character.charCount(cp);
-        }
-        return out.toString().trim();
     }
 
     private String toEditorHtml(String text) {

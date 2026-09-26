@@ -84,8 +84,8 @@ class UserSessionValidatorInfrastructureTests {
             validator = new UserSessionValidator(
                     resolver, validationProperties, externalProperties, channelFactory, tokenProvider);
 
-            assertTrue(validator.validate(41L, "session-one"));
-            assertTrue(validator.validate(42L, "session-two"));
+            assertEquals(UserSessionValidator.ValidationResult.VALID, validator.validate(41L, "session-one"));
+            assertEquals(UserSessionValidator.ValidationResult.VALID, validator.validate(42L, "session-two"));
             assertEquals(List.of("Bearer caller.jwt.one", "Bearer caller.jwt.two"), observedTokens);
             assertEquals(List.of(false, false), observedLegacyTokens);
         } finally {
@@ -154,7 +154,7 @@ class UserSessionValidatorInfrastructureTests {
             ListAppender<ILoggingEvent> appender = new ListAppender<>();
             appender.start();
             logger.addAppender(appender);
-            boolean valid;
+            UserSessionValidator.ValidationResult valid;
             try {
                 valid = validator.validate(42L, "session-secret");
             } finally {
@@ -162,7 +162,7 @@ class UserSessionValidatorInfrastructureTests {
                 appender.stop();
             }
 
-            assertFalse(valid);
+            assertEquals(UserSessionValidator.ValidationResult.UNAVAILABLE, valid);
             ILoggingEvent terminalEvent = appender.list.stream()
                     .filter(event -> event.getFormattedMessage().startsWith("Userservice session validation failed stage="))
                     .findFirst()

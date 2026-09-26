@@ -97,6 +97,8 @@ public class StoryService {
         card.setSynopsis(request.synopsis());
         card.setDetails(request.details());
         card.setRelationships(request.relationships());
+        card.setRole(request.role());
+        card.setArchetype(request.archetype());
         characterCardRepository.save(card);
         return toCharacterDto(card);
     }
@@ -106,9 +108,11 @@ public class StoryService {
         CharacterCard card = characterCardRepository.findByIdWithStoryUser(id).orElseThrow(() -> new BusinessException("角色不存在"));
         accessGuard.assertOwner(card.getStory().getUser());
         if (request.name() != null) card.setName(request.name());
-        card.setSynopsis(request.synopsis());
-        card.setDetails(request.details());
-        card.setRelationships(request.relationships());
+        if (request.has("synopsis")) card.setSynopsis(request.synopsis());
+        if (request.has("details")) card.setDetails(request.details());
+        if (request.has("relationships")) card.setRelationships(request.relationships());
+        if (request.has("role")) card.setRole(request.role());
+        if (request.has("archetype")) card.setArchetype(request.archetype());
         characterCardRepository.save(card);
         return toCharacterDto(card);
     }
@@ -162,6 +166,6 @@ public class StoryService {
     }
 
     private CharacterDto toCharacterDto(CharacterCard card) {
-        return new CharacterDto(card.getId(), card.getName(), card.getSynopsis(), card.getDetails(), card.getRelationships(), card.getUpdatedAt());
+        return new CharacterDto(card.getId(), card.getName(), card.getSynopsis(), card.getDetails(), card.getRelationships(), card.getRole(), card.getArchetype(), card.getUpdatedAt());
     }
 }

@@ -77,7 +77,7 @@ public class AiConservativeRevisionService implements ConservativeRevisionServic
                 safe(request.sceneTitle()),
                 safe(request.sceneSummary()),
                 truncate(request.characterContext(), 1000),
-                truncate(request.previousContext(), 1000),
+                request.isolated() ? request.previousContext() : truncate(request.previousContext(), 1000),
                 issueText,
                 truncate(request.candidateText(), 6000)
         );

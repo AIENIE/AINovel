@@ -1,9 +1,11 @@
 export type NarrativeKind = "FACT" | "UTTERANCE" | "BELIEF" | "RUMOR" | "INFERENCE";
 export type NarrativeEvidence = { blockId: string; quote: string; start?: number; end?: number };
+export type KnowledgeView = { content: string; kind: NarrativeKind; certainty: 'OBSERVED' | 'REPORTED' | 'BELIEVED' | 'INFERRED' | 'UNKNOWN'; eventActor?: string | null; acquisitionBasis?: string | null };
 export type NarrativeAssertion = {
   subject: string; characterId: string | null; statement: string; kind: NarrativeKind;
   holderCharacterId: string | null; worldTime: string | null; uncertainty: string;
   evidence: NarrativeEvidence[]; supersedesId: string | null;
+  knowledge?: Array<{ characterId: string; evidence: NarrativeEvidence[]; uncertainty: string; view?: KnowledgeView | null }>;
 };
 export type NarrativeCandidate = { id: string; assertion: NarrativeAssertion | null; validationError: string | null };
 export type NarrativePosition = { chapterId: string; chapterTitle: string; chapterOrder: number; sceneId: string; sceneTitle: string; sceneOrder: number; index: number; orderHash: string };

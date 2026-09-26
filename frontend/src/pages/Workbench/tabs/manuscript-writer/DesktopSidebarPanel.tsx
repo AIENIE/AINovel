@@ -30,7 +30,7 @@ type DesktopSidebarPanelProps = {
   createBranch: () => Promise<void> | void;
   createExportJob: () => Promise<void> | void;
   createGoal: () => Promise<void> | void;
-  createManualVersion: () => Promise<void> | void;
+  createManualVersion: (label: string) => Promise<void> | void;
   createTemplate: () => Promise<void> | void;
   currentBranchId: string;
   dailyHeatmap: NetworkObject[];

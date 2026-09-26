@@ -36,6 +36,7 @@ env.txt
 
 # Java build outputs
 /backend/target/
+/backend/var/
 **/target/
 *.class
 *.jar

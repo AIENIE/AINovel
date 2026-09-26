@@ -29,6 +29,7 @@ public class ProjectCreditLedger {
     private User user;
 
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     @Column(nullable = false, length = 32)
     private CreditLedgerType entryType;
 
@@ -133,4 +134,3 @@ public class ProjectCreditLedger {
         this.createdAt = createdAt;
     }
 }
-

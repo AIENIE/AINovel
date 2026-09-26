@@ -19,7 +19,8 @@ import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -39,8 +40,9 @@ import static org.mockito.Mockito.when;
 
 class SceneGenerationServiceMetadataTest {
 
-    @Test
-    void shouldReturnSuccessfulAttemptPromptHashAndExactCompiledManifest() throws Exception {
+    @ParameterizedTest
+    @CsvSource({"FAST,2800,3200,2900", "FAST,600,900,750", "CRAFTED,600,900,750"})
+    void shouldUseSceneLengthAndReturnSuccessfulAttemptMetadata(GenerationMode mode, int min, int max, int length) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         AiService aiService = mock(AiService.class);
@@ -83,7 +85,7 @@ class SceneGenerationServiceMetadataTest {
                                 "title", "雨夜门外",
                                 "summary", "发现铜扣",
                                 "order", 1,
-                                "planning", Map.of("sceneType", "action")
+                                "planning", min == 2800 ? Map.of("sceneType", "action") : Map.of("sceneType", "action", "minHan", min, "maxHan", max)
                         ))
                 ))
         )));
@@ -130,16 +132,16 @@ class SceneGenerationServiceMetadataTest {
         );
         when(promptBuilder.build(
                 eq(owner), eq(story), any(SceneGenerationContext.class), any(), any(), any(),
-                anyInt(), anyInt(), anyInt(), anyInt(),
-                eq(GenerationMode.FAST), eq(compiled)
+                anyInt(), anyInt(), eq(min), eq(max),
+                eq(mode), eq(compiled)
         )).thenReturn(
                 new AssembledPrompt(failedMessages, 128000),
                 new AssembledPrompt(successfulMessages, 128000)
         );
 
-        String acceptedText = "汉".repeat(2900);
+        String acceptedText = "汉".repeat(length);
         when(aiService.chat(eq(owner), any(AiChatRequest.class))).thenReturn(
-                new AiChatResponse("assistant", "太短", null, 0),
+                new AiChatResponse("assistant", mode == GenerationMode.CRAFTED ? "汉".repeat(max + 1) : "太短", null, 0),
                 new AiChatResponse("assistant", acceptedText, null, 0)
         );
         SlopQualityRequest qualityRequest = new SlopQualityRequest(
@@ -155,7 +157,7 @@ class SceneGenerationServiceMetadataTest {
         ));
 
         SceneGenerationService.GenerationResult result = service.generateSceneSection(
-                manuscript, sceneId, Map.of(), GenerationMode.FAST
+                manuscript, sceneId, Map.of(), mode
         );
 
         assertEquals(2, result.metadata().attemptCount());

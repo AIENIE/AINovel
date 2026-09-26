@@ -26,6 +26,7 @@ public class PromptAssemblyService {
         int budget = normalizeBudget(input == null ? 0 : input.tokenBudget());
         String system = stableSceneDraftSystem();
         String user = dynamicSceneDraftUser(input);
+        validateIsolatedBudget(input, system, user, budget);
         return new AssembledPrompt(
                 List.of(
                         new AiChatRequest.Message("system", system),
@@ -50,6 +51,7 @@ public class PromptAssemblyService {
         int budget = normalizeBudget(input == null ? 0 : input.tokenBudget());
         String system = stableSceneDraftSystem() + craftedConstraintBlock(negativePatterns, sceneIndex);
         String user = dynamicSceneDraftUser(input);
+        validateIsolatedBudget(input, system, user, budget);
         return new AssembledPrompt(
                 List.of(
                         new AiChatRequest.Message("system", system),
@@ -74,6 +76,15 @@ public class PromptAssemblyService {
                 7) 不改变当前场景目标，不提前泄露未要求揭示的信息。
                 8) 若提供 scene-draft-v2 场景上下文，必须同时遵守其中的整体、章节和场景规划；历史片段只用于承接，不得覆盖当前规划。
                 """;
+    }
+
+    private void validateIsolatedBudget(SceneGenerationPromptInput input, String system, String user, int budget) {
+        if (input==null || input.contextCompilerVersion()==null || !input.contextCompilerVersion().startsWith("scene-isolation-")) return;
+        // UTF-8 byte count is a conservative upper bound; never silently trim a frozen context or retry ending.
+        long upperBound=(long)system.getBytes(java.nio.charset.StandardCharsets.UTF_8).length
+                +user.getBytes(java.nio.charset.StandardCharsets.UTF_8).length+Math.max(2048L,(long)input.maxHan()*3);
+        if (upperBound>budget) throw new com.ainovel.app.common.ApiStatusException(
+                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"H2_PROMPT_BUDGET_EXCEEDED");
     }
 
     private String dynamicSceneDraftUser(SceneGenerationPromptInput input) {

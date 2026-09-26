@@ -30,6 +30,22 @@ import static org.mockito.Mockito.when;
 class SceneGenerationAttributionServiceTest {
 
     @Test
+    void isolatedGenerationKeepsEveryVersionAndItsActualCompilerVersion() {
+        var repository = mock(SceneGenerationRunRepository.class);
+        var service = new SceneGenerationAttributionService(repository, mock(V2ManuscriptVersionRepository.class), new ObjectMapper());
+        var manuscript = manuscriptWithOwner(UUID.randomUUID());
+        when(repository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+        var stamp = Map.<String,Object>of("branchId", UUID.randomUUID().toString(), "manuscriptVersion", 8,
+                "canonRevision", 2, "contextRevision", 4, "settingsRevision", 1, "orderHash", "a".repeat(64));
+        var manifest = new java.util.HashMap<String,Object>(stamp);
+        manifest.put("promptHash", "b".repeat(64)); manifest.put("contextHash", "c".repeat(64));
+        var result = service.recordGeneration(manuscript, UUID.randomUUID(), UUID.randomUUID(), GenerationMode.FAST, manifest, "正文");
+        assertEquals(com.ainovel.app.narrative.NarrativeContextService.VERSION, result.promptVersion());
+        assertEquals(result.promptVersion(), result.contextManifest().get("promptVersion"));
+        stamp.forEach((key,value) -> assertEquals(value.toString(), result.contextManifest().get(key).toString()));
+    }
+
+    @Test
     void generationPersistsCanonicalMetadataAndSupersedesPreviousLiveRun() {
         SceneGenerationRunRepository runRepository = mock(SceneGenerationRunRepository.class);
         SceneGenerationAttributionService service = new SceneGenerationAttributionService(

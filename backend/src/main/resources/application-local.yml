@@ -1,0 +1,12 @@
+# Canonical local AI gateway model 12 was renamed on 2026-09-12.
+app:
+  ai:
+    validation:
+      run-id: ${AI_VALIDATION_RUN_ID:}
+      maximum-calls: ${AI_VALIDATION_MAXIMUM_CALLS:6}
+      local-quality-only: ${AI_VALIDATION_LOCAL_QUALITY_ONLY:false}
+    text-model-key: deepseek-flash
+    text-model-display-name: DeepSeek Flash
+  external:
+    # Allow the gateway's 120s first-token/failover budget and bounded streaming completion.
+    ai-timeout-ms: ${EXTERNAL_AI_TIMEOUT_MS:180000}

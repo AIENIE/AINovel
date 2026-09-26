@@ -4,6 +4,17 @@ import { registerAdminOperationCodePrompt } from "@/lib/admin-operation-proof";
 import type { GenerationRunSummary } from "@/types";
 
 describe("api client", () => {
+  it.each([null, "old-session"])("ignores a delayed 401 for %s after a new login", async (oldToken) => {
+    if (oldToken) localStorage.setItem("token", oldToken);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+    const request = api.user.getProfile().catch(error => error);
+    localStorage.setItem("token", "new-session");
+    finish(new Response(JSON.stringify({ message: "SESSION_INVALID" }), { status: 401 }));
+    expect(await request).toBeInstanceOf(ApiError);
+    expect(localStorage.getItem("token")).toBe("new-session");
+    expect(globalThis.location.assign).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     const store: Record<string, string> = {};
     vi.stubGlobal("localStorage", {
@@ -46,6 +57,30 @@ describe("api client", () => {
       hash: "",
       assign: vi.fn(),
     });
+  });
+
+  it.each([403, 503])("preserves user credentials and location on %s", async (status) => {
+    localStorage.setItem("token", "t");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ message: "unavailable" }), { status })));
+    await expect(api.user.getProfile()).rejects.toBeInstanceOf(ApiError);
+    expect(localStorage.getItem("token")).toBe("t");
+    expect(globalThis.location.assign).not.toHaveBeenCalled();
+  });
+
+  it("preserves scene length bounds through outline load and save", async () => {
+    const dto = { id: "outline-1", title: "短篇", chapters: [{ id: "chapter-1", title: "第一章", scenes: [{ id: "scene-1", title: "来信", planning: { minHan: 600, maxHan: 900 } }] }] };
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        expect(JSON.parse(String(init.body)).chapters[0].scenes[0].planning).toMatchObject({ minHan: 600, maxHan: 900 });
+        return new Response(JSON.stringify(dto));
+      }
+      return new Response(JSON.stringify([dto]));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [outline] = await api.outlines.listByStory("story-1");
+    expect(outline.chapters[0].scenes[0].planning).toMatchObject({ minHan: 600, maxHan: 900 });
+    const saved = await api.outlines.save(outline.id, outline);
+    expect(saved.chapters[0].scenes[0].planning).toMatchObject({ minHan: 600, maxHan: 900 });
   });
 
   it("reads profile from token in localStorage", async () => {
@@ -871,7 +906,7 @@ describe("api client", () => {
     const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
       const headers = init?.headers as Headers;
       expect(headers.get("Authorization")).toBe("Bearer download-token");
-      return new Response(new Blob(["novel content"], { type: "text/plain" }), {
+      return new Response("novel content", {
         status: 200,
         headers: { "Content-Disposition": "attachment; filename*=UTF-8''%E5%B0%8F%E8%AF%B4.txt" },
       });

@@ -65,12 +65,21 @@ public class SsoTokenExchangeService {
                 .build();
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 500 || response.statusCode() == 429) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "USER_SERVICE_UNAVAILABLE");
+            }
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_SSO_CODE");
+                if (response.statusCode() == 400 || response.statusCode() == 401) {
+                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_SSO_CODE");
+                }
+                if (response.statusCode() == 403) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "SSO_EXCHANGE_FORBIDDEN");
+                }
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "USER_SERVICE_UNAVAILABLE");
             }
             SsoTokenExchangeResponse payload = objectMapper.readValue(response.body(), SsoTokenExchangeResponse.class);
             if (!StringUtils.hasText(payload.accessToken()) || payload.userId() == null || !StringUtils.hasText(payload.sessionId())) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "INVALID_SSO_TOKEN_RESPONSE");
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "INVALID_SSO_TOKEN_RESPONSE");
             }
             if (jwtService == null || !StringUtils.hasText(payload.username())) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "LOCAL_SSO_SIGNER_UNAVAILABLE");
@@ -94,10 +103,10 @@ public class SsoTokenExchangeService {
                     lifetime.toSeconds()
             );
         } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_FAILED");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "USER_SERVICE_TOKEN_EXCHANGE_FAILED");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "USER_SERVICE_TOKEN_EXCHANGE_INTERRUPTED");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "USER_SERVICE_TOKEN_EXCHANGE_INTERRUPTED");
         }
     }
 

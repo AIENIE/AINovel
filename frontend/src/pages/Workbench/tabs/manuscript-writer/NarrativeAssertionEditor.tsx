@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { KnowledgeViewEditor } from "./KnowledgeViewEditor";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +22,8 @@ export function NarrativeAssertionEditor({ value: supplied, onChange, characters
     ...supplied, subject: supplied.subject || "", statement: supplied.statement || "",
     kind: supplied.kind || "INFERENCE", evidence,
   };
-  const update = (patch: Partial<NarrativeAssertion>) => onChange({ ...value, ...patch });
+  const update = (patch: Partial<NarrativeAssertion>) => onChange({ ...value, ...patch,
+    ...(patch.kind && patch.kind !== value.kind ? { knowledge: value.knowledge?.map(k => ({ ...k, view: null })) } : {}) });
   const characterOptions = <><option value="">{t("narrative.unbound")}</option>{characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</>;
   return <fieldset disabled={disabled} className="space-y-2 min-w-0">
     <label htmlFor={id + "-subject"} className="block text-xs">{t("narrative.subject")}</label>
@@ -61,6 +63,24 @@ export function NarrativeAssertionEditor({ value: supplied, onChange, characters
       {value.evidence.length > 1 && <Button type="button" size="sm" variant="ghost" onClick={() => update({ evidence: value.evidence.filter((_, i) => i !== index) })}>{t("narrative.removeEvidence")}</Button>}
     </div>)}
     <Button type="button" size="sm" variant="outline" disabled={disabled || value.evidence.length >= 10} onClick={() => update({ evidence: [...value.evidence, { blockId: "", quote: "" }] })}>{t("narrative.addEvidence")}</Button>
+    <div className="rounded border p-2 space-y-2">
+      <p className="text-xs">知情建议（随本条接受后生效；本场之后可用，发言不代表真实）</p>
+      {(value.knowledge || []).map((knowledge, index) => <div key={index} className="space-y-2 border-t pt-2">
+        <label className="block text-xs">获知人物
+          <select className={selectClass} value={knowledge.characterId} onChange={e => update({ knowledge: value.knowledge?.map((k,i) => i === index ? { ...k, characterId: e.target.value } : k) })}>{characterOptions}</select>
+        </label>
+        {knowledge.evidence.map((proof, proofIndex) => <div key={proofIndex} className="space-y-1">
+          <label className="block text-xs">知情证据段落<select className={selectClass} value={proof.blockId} onChange={e => update({ knowledge: value.knowledge?.map((k,i) => i === index ? { ...k, evidence: k.evidence.map((p,j) => j === proofIndex ? { blockId: e.target.value, quote: '' } : p) } : k) })}>
+            <option value="">选择原文段落</option>{source?.blocks.map(b => <option key={b.id} value={b.id}>{b.id} · {b.text.slice(0,30)}</option>)}
+          </select></label>
+          <label className="block text-xs">知情依据原文<Textarea value={proof.quote} onChange={e => update({ knowledge: value.knowledge?.map((k,i) => i === index ? { ...k, evidence: k.evidence.map((p,j) => j === proofIndex ? { ...p, quote: e.target.value } : p) } : k) })} /></label>
+        </div>)}
+        <label className="block text-xs">作者审阅说明（不进入人物输入）<Input value={knowledge.uncertainty || ''} maxLength={500} onChange={e => update({ knowledge: value.knowledge?.map((k,i) => i === index ? { ...k, uncertainty: e.target.value } : k) })} /></label>
+        <KnowledgeViewEditor value={knowledge.view} kind={value.kind} onChange={view=>update({knowledge:value.knowledge?.map((k,i)=>i===index?{...k,view}:k)})}/>
+        <Button type="button" size="sm" variant="ghost" onClick={() => update({ knowledge: value.knowledge?.filter((_,i) => i !== index) })}>拒绝此知情建议</Button>
+      </div>)}
+      <Button type="button" size="sm" variant="outline" disabled={disabled || (value.knowledge?.length || 0) >= 30} onClick={() => update({ knowledge: [...(value.knowledge || []), { characterId: '', evidence: [{ blockId: '', quote: '' }], uncertainty: '' }] })}>补充知情依据</Button>
+    </div>
     <label className="block space-y-1 text-xs">{t("narrative.replaces")}
       <select className={selectClass} value={value.supersedesId || ""} onChange={e => update({ supersedesId: e.target.value || null })}>
         <option value="">{t("narrative.append")}</option>

@@ -82,7 +82,7 @@ public class V2ExportRenderer {
                 .append("导出时间: ").append(Instant.now()).append(data.lineEnding()).append(data.lineEnding());
         for (int index = 0; index < data.blocks().size(); index++) {
             if (index > 0) text.append(data.lineEnding()).append(data.lineEnding());
-            text.append(data.blocks().get(index));
+            text.append(data.blocks().get(index).replace("\n", data.lineEnding()));
         }
         return text.toString();
     }
@@ -127,7 +127,15 @@ public class V2ExportRenderer {
         String[] parts = range.split("-"); int first = Integer.parseInt(parts[0]); int last = parts.length == 1 ? first : Integer.parseInt(parts[1]);
         return new int[]{Math.max(1, Math.min(first, last)), Math.min(total, Math.max(first, last))};
     }
-    private String normalize(String value) { return value == null ? "" : value.replaceAll("(?i)<br\\s*/?>", "\n").replaceAll("<[^>]+>", "").replace("&nbsp;", " ").replace("&amp;", "&").trim(); }
+    private String normalize(String value) {
+        if (value == null) return "";
+        String plain = value.replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</(?:p|div|h[1-6]|blockquote)\\s*>", "\n\n")
+                .replaceAll("(?i)</li\\s*>", "\n")
+                .replaceAll("<[^>]+>", "");
+        return org.springframework.web.util.HtmlUtils.htmlUnescape(plain).replace('\u00a0', ' ')
+                .replace("\r\n", "\n").replace("\r", "\n").trim();
+    }
     private String xml(String value) { return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;"); }
     private String pdf(String value) { String raw = value == null ? "" : value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)"); return raw.codePoints().map(cp -> cp <= 255 ? cp : '?').collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString(); }
     private void zipText(ZipOutputStream zip, String path, String text) throws Exception { zip.putNextEntry(new ZipEntry(path)); zip.write(text.getBytes(StandardCharsets.UTF_8)); zip.closeEntry(); }

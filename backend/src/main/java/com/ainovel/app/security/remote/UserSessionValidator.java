@@ -58,20 +58,22 @@ public class UserSessionValidator {
         this.userServiceJwtProvider = userServiceJwtProvider;
     }
 
-    public boolean validate(long userId, String sessionId) {
+    public enum ValidationResult { VALID, INVALID, UNAVAILABLE }
+
+    public ValidationResult validate(long userId, String sessionId) {
         if (userId <= 0 || sessionId == null || sessionId.isBlank()) {
-            return false;
+            return ValidationResult.INVALID;
         }
         SessionKey cacheKey = new SessionKey(userId, sessionId);
         Instant cachedUntil = positiveCache.get(cacheKey);
-        if (cachedUntil != null && cachedUntil.isAfter(Instant.now())) return true;
+        if (cachedUntil != null && cachedUntil.isAfter(Instant.now())) return ValidationResult.VALID;
         if (cachedUntil != null) positiveCache.remove(cacheKey);
         String serviceToken;
         try {
             serviceToken = userServiceJwtProvider.currentToken();
         } catch (RuntimeException ex) {
             log.warn("Userservice caller JWT issuance failed errorType={}", ex.getClass().getSimpleName());
-            return false;
+            return ValidationResult.UNAVAILABLE;
         }
 
         Exception terminalFailure = null;
@@ -93,19 +95,24 @@ public class UserSessionValidator {
                         Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
                         "Bearer " + serviceToken
                 );
-                boolean valid = client.stub()
+                var validation = client.stub()
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
                         .withDeadlineAfter(Math.max(500L, externalServiceProperties.getSessionTimeoutMs()), TimeUnit.MILLISECONDS)
                         .validateSession(ValidateSessionRequest.newBuilder()
                                 .setUserId(userId)
                                 .setSessionId(sessionId)
-                        .build())
-                        .getValid();
+                        .build());
                 rpcCompleted = true;
-                if (valid) {
+                if (validation.getValid()) {
                     positiveCache.put(cacheKey, Instant.now().plusSeconds(10));
-                    return true;
+                    return ValidationResult.VALID;
                 }
+                log.warn("Userservice rejected session sessionRef={} userMatched={} accountActive={}",
+                        java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                                .digest(sessionId.getBytes(java.nio.charset.StandardCharsets.UTF_8))).substring(0, 12),
+                        validation.hasUser() && validation.getUser().getUserId() == userId,
+                        validation.hasUser() && validation.getUser().getActive());
+                return ValidationResult.INVALID;
             } catch (Exception e) {
                 terminalFailure = e;
                 failureStage = "RPC";
@@ -115,7 +122,7 @@ public class UserSessionValidator {
             log.warn("Userservice session validation failed stage={} errorType={}",
                     failureStage, terminalFailure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(terminalFailure));
         }
-        return false;
+        return ValidationResult.UNAVAILABLE;
     }
 
     public boolean dependencyAvailable() {

@@ -35,6 +35,8 @@ import java.util.UUID;
 
 @Service
 public class ManuscriptService {
+    @Autowired private com.ainovel.app.narrative.NarrativeContextService narrativeContext;
+    @Autowired private com.ainovel.app.narrative.NarrativeGenerationCandidateStore retainedCandidates;
     private static final String SCENE_DRAFT_PROMPT_VERSION = "scene-draft-v2";
     @Autowired
     private ManuscriptRepository manuscriptRepository;
@@ -109,10 +111,14 @@ public class ManuscriptService {
                 snapshot.sections(),
                 mode
         );
+        var contextManifest=generation.metadata()==null?null:generation.metadata().contextManifest();
+        var stamp=contextManifest==null?null:contextManifest.isolationStamp();
+        UUID retainedId=stamp==null?null:retainedCandidates.retain(stamp,sceneId,generation.html(),generation.metadata());
         return Objects.requireNonNull(transactionTemplate.execute(status -> {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
                     .orElseThrow(() -> new BusinessException("稿件不存在"));
             accessGuard.assertOwner(ownerOf(manuscript));
+            if(stamp!=null) narrativeContext.requireStamp(ownerOf(manuscript),stamp);
             requireVersion(manuscript, snapshot.version());
             Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
             String generatedHtml = generation.html();
@@ -125,6 +131,7 @@ public class ManuscriptService {
             SceneGenerationRunDto generatedRun = sceneGenerationAttributionService.recordGeneration(
                     manuscript, sceneId, generationVersionId, mode, manifest, generatedHtml);
             eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscriptId, null));
+            if(retainedId!=null) retainedCandidates.applied(retainedId);
             return toDto(manuscript, new SceneGenerationRunSummaryDto(
                     generatedRun.id(), generatedRun.generationVersionId(), generatedRun.status(), generatedRun.createdAt()));
         }));
@@ -249,7 +256,7 @@ public class ManuscriptService {
         manifest.put("requestedAt", Instant.now());
         if (generationMetadata != null) {
             manifest.put("modelKey", generationMetadata.modelKey());
-            manifest.put("promptVersion", SCENE_DRAFT_PROMPT_VERSION);
+            manifest.put("promptVersion", generationMetadata.promptVersion());
             manifest.put("promptHash", generationMetadata.promptHash());
             manifest.put("attemptCount", generationMetadata.attemptCount());
             SceneDraftContextManifest context = generationMetadata.contextManifest();
@@ -257,6 +264,12 @@ public class ManuscriptService {
                 manifest.put("contextHash", context.contextHash());
                 manifest.put("tokenBudget", context.tokenBudget());
                 manifest.put("tokenUsed", context.tokenUsed());
+                if (context.isolationStamp()!=null) {
+                    var s=context.isolationStamp();
+                    manifest.put("branchId",s.branchId());manifest.put("manuscriptVersion",s.manuscriptVersion());
+                    manifest.put("canonRevision",s.canonRevision());manifest.put("contextRevision",s.contextRevision());
+                    manifest.put("settingsRevision",s.settingsRevision());manifest.put("orderHash",s.orderHash());
+                }
                 manifest.put("sources", context.sources().stream().map(this::contextSourceMetadata).toList());
             }
         }

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @Import({
+        com.ainovel.app.ai.AiModelPolicy.class,
         JsonColumnCodec.class,
         V2Json.class,
         V2ContextPersistenceService.class,

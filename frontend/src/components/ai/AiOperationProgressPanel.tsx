@@ -44,7 +44,7 @@ export function AiOperationProgressPanel() {
             </span>
             <span>{operation.completedSteps}/{operation.totalSteps}</span>
           </div>
-          {operation.errorMessage ? <p className="text-xs text-destructive">{t("errors.operationFailed")}</p> : null}
+          {operation.errorMessage ? <p className="text-xs text-destructive"><span>{t("errors.operationFailed")}</span> · 阶段：{operation.currentStep || operation.completedSteps}。可使用下方重试；任务编号：{operation.id}</p> : null}
           <div className="flex justify-end gap-2">
             {running ? (
               <Button size="sm" variant="outline" onClick={() => void cancelTrackedAiOperation(operation.id)}>

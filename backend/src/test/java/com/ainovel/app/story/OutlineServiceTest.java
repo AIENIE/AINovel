@@ -68,7 +68,7 @@ class OutlineServiceTest {
                                 "主角发现第一条误导线索",
                                 null,
                                 null,
-                                Map.of("focus", "线索")
+                                Map.of("focus", "线索", "minHan", 600, "maxHan", 900)
                         ))
                 ))
         ));
@@ -86,6 +86,8 @@ class OutlineServiceTest {
         assertNotNull(scene.id());
         assertEquals(1, scene.order());
         assertEquals("线索", scene.planning().get("focus"));
+        assertEquals(600, scene.planning().get("minHan"));
+        assertEquals(900, scene.planning().get("maxHan"));
         assertTrue(outline.getContentJson().contains("第一章"));
         verify(accessGuard).assertOwner(owner);
         verify(outlineRepository).save(outline);

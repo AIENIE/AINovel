@@ -10,6 +10,8 @@ import java.util.UUID;
 
 @Service
 public class SlopQualityGate {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
     private final LocalSlopHeuristics heuristics;
     private final SlopJudgeClient judgeClient;
     private final ConservativeRevisionService revisionService;
@@ -41,7 +43,9 @@ public class SlopQualityGate {
         SlopQualitySignals signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
         String summary = "本地规则低风险，直接接受。";
 
-        if (heuristicResult.requiresAiReview()) {
+        boolean localOnly = validationBudget != null && validationBudget.localQualityOnly();
+        if (localOnly) summary = "仅检查本地文本规则；人物知情、剧情和设定仍需作者核对。未调用付费诊断或修订。";
+        if (heuristicResult.requiresAiReview() && !localOnly) {
             SlopJudgeResult judgeResult = safeJudge(user, request, heuristicResult,
                     usageContext == null ? null : usageContext.forOperation("quality-judge"));
             riskScore = Math.max(riskScore, judgeResult.riskScore());

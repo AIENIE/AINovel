@@ -35,7 +35,8 @@ export default defineConfig(() => ({
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/test/setup.ts"],
-    pool: "threads",
+    // Native Windows / Node 22 can stall during thread-pool bootstrap.
+    pool: process.platform === "win32" ? "forks" : "threads",
     maxWorkers: 1,
     minWorkers: 1,
   },

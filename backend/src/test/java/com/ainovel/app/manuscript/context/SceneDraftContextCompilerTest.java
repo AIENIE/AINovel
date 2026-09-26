@@ -33,6 +33,28 @@ import static org.mockito.Mockito.when;
 
 class SceneDraftContextCompilerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
+    @Test void strictCompilerNeverRetrievesUnclassifiedSourcesAndNeverFallsBack() throws Exception {
+        var world=mock(WorldRepository.class);var cards=mock(CharacterCardRepository.class);
+        var style=mock(StyleProfileRepository.class);var voices=mock(CharacterVoiceRepository.class);var lore=mock(V2ContextPersistenceService.class);
+        var compiler=new SceneDraftContextCompiler(objectMapper,world,cards,style,voices,lore);
+        var isolation=mock(com.ainovel.app.narrative.NarrativeContextService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(compiler,"isolation",isolation);
+        var owner=new User();owner.setId(UUID.randomUUID());var story=new Story();story.setId(UUID.randomUUID());story.setUser(owner);story.setSynopsis("SECRET_SYNOPSIS");
+        var outline=new Outline();outline.setId(UUID.randomUUID());outline.setStory(story);
+        UUID scene=UUID.randomUUID();outline.setContentJson(objectMapper.writeValueAsString(Map.of("chapters",List.of(Map.of("id",UUID.randomUUID(),"title","SECRET_CHAPTER","summary","SECRET_SUMMARY","scenes",List.of(Map.of("id",scene,"title","SECRET_SCENE","planning",Map.of("secret","SECRET_PLAN"))))))));
+        var manuscript=new Manuscript();manuscript.setId(UUID.randomUUID());manuscript.setCurrentBranchId(UUID.randomUUID());manuscript.setOutline(outline);
+        var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(manuscript.getId(),manuscript.getCurrentBranchId(),0,0,1,1,"hash");
+        var fragment=new com.ainovel.app.narrative.NarrativeContextDtos.Fragment("plan","PLAN","作者批准本场计划","已确认",false);
+        var p=new com.ainovel.app.narrative.NarrativeContextDtos.Preview(com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,scene,stamp,"hash",3500,10,"受控内容",List.of(fragment),List.of());
+        when(isolation.enabled(manuscript)).thenReturn(true);
+        when(isolation.preview(owner,manuscript.getId(),manuscript.getCurrentBranchId(),scene,com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500)).thenReturn(p);
+        var result=compiler.compile(manuscript,scene,Map.of("previous","SECRET_RAW_TEXT"));
+        assertEquals("受控内容",result.content());assertTrue(result.isolated());
+        org.mockito.Mockito.verifyNoInteractions(world,cards,style,voices,lore);
+        when(isolation.preview(owner,manuscript.getId(),manuscript.getCurrentBranchId(),scene,com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500)).thenThrow(new IllegalStateException("compile failed"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,()->compiler.compile(manuscript,scene,Map.of()));
+        org.mockito.Mockito.verifyNoInteractions(world,cards,style,voices,lore);
+    }
 
     @Test
     void shouldCompilePlanningWorldStyleMemoryAndStableManifestWithinBudget() throws Exception {
@@ -87,6 +109,8 @@ class SceneDraftContextCompilerTest {
         card.setId(UUID.randomUUID());
         card.setStory(story);
         card.setName("林烬");
+        card.setRole("调查主角");
+        card.setArchetype("怀疑者");
         CharacterCard unrelatedCard = new CharacterCard();
         unrelatedCard.setId(UUID.randomUUID());
         unrelatedCard.setStory(story);
@@ -196,6 +220,11 @@ class SceneDraftContextCompilerTest {
         assertTrue(first.content().contains("冷峻短句"));
         assertTrue(first.content().contains("场景类型覆盖 · dialogue"));
         assertTrue(first.content().contains("角色声音 · 林烬"));
+        assertTrue(first.content().contains("定位=调查主角"));
+        assertTrue(first.content().contains("原型=怀疑者"));
+        assertTrue(first.characterContext().contains("原型=怀疑者"));
+        assertFalse(first.characterContext().contains("许槐"));
+        assertFalse(first.content().contains("人物资料 · 许槐"));
         assertFalse(first.content().contains("角色声音 · 许槐"));
         assertTrue(first.content().contains("潮汐铜扣"));
         assertTrue(first.content().contains("holds_clue"));

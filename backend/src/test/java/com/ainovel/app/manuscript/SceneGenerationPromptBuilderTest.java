@@ -18,6 +18,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -26,6 +29,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SceneGenerationPromptBuilderTest {
+    @Test void isolatedFastCraftedAndLengthRetryNeverReadLegacyPromptSources() {
+        var builder=new SceneGenerationPromptBuilder();
+        var materials=mock(MaterialRetrievalService.class);
+        var sampling=mock(SlopPatternSamplingService.class);
+        ReflectionTestUtils.setField(builder,"promptAssemblyService",new PromptAssemblyService());
+        ReflectionTestUtils.setField(builder,"materialRetrievalService",materials);
+        ReflectionTestUtils.setField(builder,"slopPatternSamplingService",sampling);
+        when(sampling.sample(any())).thenReturn(List.of());
+        var story=new Story();story.setTitle("HIDDEN_TITLE");story.setSynopsis("HIDDEN_SYNOPSIS");story.setGenre("HIDDEN_GENRE");story.setTone("HIDDEN_TONE");
+        UUID mid=UUID.randomUUID(),bid=UUID.randomUUID(),sid=UUID.randomUUID();
+        var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(mid,bid,1,2,3,4,"order");
+        var manifest=new SceneDraftContextManifest("scene-isolation-h2-v1","hash","SHA-256",3500,50,UUID.randomUUID(),UUID.randomUUID(),mid,sid,null,1,1,"",List.of(),List.of(),stamp);
+        var compiled=new CompiledSceneDraftContext("[PLAN] 作者批准本场等待来信，尚未发生",manifest,"safe",List.of(),List.of(),List.of(),"safe");
+        var scene=new SceneGenerationContext(sid,"HIDDEN_CHAPTER","HIDDEN_SUMMARY",1,"HIDDEN_SCENE","HIDDEN_SCENE_SUMMARY",1,List.of(),List.of());
+        for(var mode:GenerationMode.values()) for(int attempt=1;attempt<=2;attempt++) {
+            String draft="完整初稿"+"中段".repeat(850)+"最后交还铜钥匙，门始终未开。";
+            var prompt=builder.build(new User(),story,scene,"HIDDEN_CHARACTER","HIDDEN_PREVIOUS",draft,10,attempt,600,900,mode,compiled);
+            String sent=prompt.messages().toString();
+            assertTrue(sent.contains("作者批准本场等待来信"));
+            assertFalse(sent.contains("HIDDEN_"));
+            if(attempt==2)assertTrue(sent.contains(draft),"篇幅修正必须携带完整上一稿及结尾");
+        }
+        verifyNoInteractions(materials);
+    }
 
     @Test
     void craftedModeUsesSampledConstraintsInsteadOfFastAssembly() {
@@ -102,6 +129,7 @@ class SceneGenerationPromptBuilderTest {
         assertSame(expected, actual);
         ArgumentCaptor<SceneGenerationPromptInput> inputCaptor = ArgumentCaptor.forClass(SceneGenerationPromptInput.class);
         verify(promptAssemblyService).assembleSceneDraft(inputCaptor.capture());
+        assertEquals("使用下方 SCENE_DRAFT_CONTEXT 中已采用的人物资料。", inputCaptor.getValue().characterContext());
         assertEquals(compiled.content(), inputCaptor.getValue().compiledContext());
         assertEquals(compiled.compilerVersion(), inputCaptor.getValue().contextCompilerVersion());
         assertEquals(compiled.contextHash(), inputCaptor.getValue().contextHash());

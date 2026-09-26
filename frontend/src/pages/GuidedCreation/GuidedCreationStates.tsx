@@ -42,7 +42,9 @@ export function FailureState({ workflow, busy, onRetry }: { workflow: CreationWo
     <div className="mx-auto flex min-h-[520px] max-w-xl flex-col items-center justify-center text-center">
       <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-700"><AlertCircle className="h-5 w-5" /></div>
       <h2 className="text-xl font-semibold">{insufficient ? t("guided.insufficientCredits") : t("guided.stepIncomplete")}</h2>
-      <p className="mt-3 max-w-md text-sm leading-6 text-zinc-600">{workflow.errorMessage || t("guided.generateFailedRetry")}</p>
+      <p className="mt-3 max-w-md text-sm leading-6 text-zinc-600">{insufficient ? t("guided.insufficientCredits") : t("guided.generateFailedRetry")}</p>
+      <p className="mt-2 text-sm text-zinc-600">失败阶段：{({ PREMISE: "故事方向", WORLD: "世界设定", CHARACTERS: "人物阵容", OUTLINE: "章节大纲", COMPLETED: "完成" })[workflow.currentStep]}。输入已保留，可重试当前步骤。</p>
+      <p className="mt-2 break-all text-xs text-zinc-500">任务编号：{workflow.activeJob?.id || workflow.id}</p>
       <div className="mt-7 flex gap-3">
         {insufficient ? <Button variant="outline" asChild><Link to="/profile"><Coins className="mr-2 h-4 w-4" /> {t("guided.redeemCredits")}</Link></Button> : null}
         <Button className="bg-zinc-950 text-white hover:bg-zinc-800" disabled={busy} onClick={onRetry}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}{t("common.retry")}</Button>

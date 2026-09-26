@@ -11,6 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PromptAssemblyServiceTest {
+    @Test void isolatedOversizedDraftStopsInsteadOfTruncatingInEitherMode() {
+        var input=new SceneGenerationPromptInput("","","","","","",1,"","",1,"","",List.of(),List.of(),600,900,
+                "完整上一稿"+"字".repeat(130000)+"原结尾",128000,"冻结上下文","scene-isolation-h2-v2","hash");
+        var service=new PromptAssemblyService();
+        org.junit.jupiter.api.Assertions.assertThrows(com.ainovel.app.common.ApiStatusException.class,()->service.assembleSceneDraft(input));
+        org.junit.jupiter.api.Assertions.assertThrows(com.ainovel.app.common.ApiStatusException.class,()->service.assembleWithCreativeConstraints(input,List.of(),1));
+    }
 
     @Test
     void shouldKeepStableRulesBeforeDynamicSceneData() {

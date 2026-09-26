@@ -11,8 +11,15 @@ public record CompiledSceneDraftContext(
         String recentSceneContext,
         List<Map<String, Object>> lorebookEntries,
         List<String> graphRelations,
-        List<String> activeCharacters
+        List<String> activeCharacters,
+        String characterContext
 ) {
+    public CompiledSceneDraftContext(String content, SceneDraftContextManifest manifest, String recentSceneContext,
+                                     List<Map<String, Object>> lorebookEntries, List<String> graphRelations,
+                                     List<String> activeCharacters) {
+        this(content, manifest, recentSceneContext, lorebookEntries, graphRelations, activeCharacters, "暂无相关角色卡。");
+    }
+
     public CompiledSceneDraftContext {
         content = content == null ? "" : content;
         recentSceneContext = recentSceneContext == null ? "" : recentSceneContext;
@@ -28,6 +35,8 @@ public record CompiledSceneDraftContext(
     public String compilerVersion() {
         return manifest == null ? "" : manifest.compilerVersion();
     }
+
+    public boolean isolated() { return manifest != null && manifest.isolationStamp() != null; }
 
     public String contextHash() {
         return manifest == null ? "" : manifest.contextHash();

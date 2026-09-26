@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { localizedErrorMessage } from "@/lib/error-messages";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TabsContent } from "@/components/ui/tabs";
@@ -18,7 +20,7 @@ type VersionSidebarPanelProps = {
   autoSaveConfig: NetworkObject | null;
   branches: NetworkObject[];
   createBranch: () => Promise<void> | void;
-  createManualVersion: () => Promise<void> | void;
+  createManualVersion: (label: string) => Promise<void> | void;
   checkoutBranch: (branchId: string) => Promise<void> | void;
   currentBranchId: string;
   diffResult: NetworkObject | null;
@@ -89,6 +91,10 @@ export function VersionSidebarPanel({
 }: VersionSidebarPanelProps) {
   const [editingBranchId, setEditingBranchId] = useState("");
   const [editingBranchName, setEditingBranchName] = useState("");
+  const [checkpointOpen, setCheckpointOpen] = useState(false);
+  const [checkpointLabel, setCheckpointLabel] = useState("");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
+  const [checkpointError, setCheckpointError] = useState("");
   const { t } = useTranslation();
   return (
     <TabsContent value="version" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
@@ -97,7 +103,7 @@ export function VersionSidebarPanel({
           <Button size="sm" variant="outline" onClick={() => void loadVersions()}>
             {t("common.refresh")}
           </Button>
-          <Button size="sm" onClick={() => void createManualVersion()} disabled={!selectedManuscriptId}>
+          <Button size="sm" onClick={() => { setCheckpointLabel(`manual-${Date.now()}`); setCheckpointError(""); setCheckpointOpen(true); }} disabled={!selectedManuscriptId}>
             <Flag className="h-3.5 w-3.5 mr-1" />
             {t("versionPanel.checkpoint")}
           </Button>
@@ -189,6 +195,31 @@ export function VersionSidebarPanel({
           )}
         </div>
       </div>
+      <Dialog open={checkpointOpen} onOpenChange={(open) => { if (!checkpointBusy) setCheckpointOpen(open); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("versionPanel.checkpoint")}</DialogTitle>
+            <DialogDescription>{t("sidebarData.checkpointLabel")}</DialogDescription>
+          </DialogHeader>
+          <Input aria-label={t("sidebarData.checkpointLabel")} value={checkpointLabel} disabled={checkpointBusy} onChange={(event) => setCheckpointLabel(event.target.value)} />
+          {checkpointError && <p role="alert" className="text-sm text-destructive">{checkpointError}</p>}
+          <DialogFooter>
+            <Button variant="outline" disabled={checkpointBusy} onClick={() => setCheckpointOpen(false)}>{t("common.cancel")}</Button>
+            <Button disabled={checkpointBusy || !checkpointLabel.trim()} onClick={async () => {
+              setCheckpointBusy(true);
+              setCheckpointError("");
+              try {
+                await createManualVersion(checkpointLabel.trim());
+                setCheckpointOpen(false);
+              } catch (error) {
+                setCheckpointError(localizedErrorMessage(error));
+              } finally {
+                setCheckpointBusy(false);
+              }
+            }}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2">
         {visibleVersions.map((version, index) => (
           <div key={String(version.id)} className="flex gap-2 text-xs">

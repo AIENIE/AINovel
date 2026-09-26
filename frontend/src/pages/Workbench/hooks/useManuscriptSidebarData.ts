@@ -17,6 +17,7 @@ type UseManuscriptSidebarDataOptions = {
   applyFetchedManuscript: (manuscript: Manuscript) => void;
   isSidebarOpen: boolean;
   selectedManuscriptId: string;
+  selectedBranchId?: string | null;
   selectedSceneId: string;
   selectedSceneIds: string[];
   selectedStoryId: string;
@@ -69,6 +70,7 @@ export function useManuscriptSidebarData({
   applyFetchedManuscript,
   isSidebarOpen,
   selectedManuscriptId,
+  selectedBranchId,
   selectedSceneId,
   selectedSceneIds,
   selectedStoryId,
@@ -76,7 +78,7 @@ export function useManuscriptSidebarData({
   toast,
 }: UseManuscriptSidebarDataOptions) {
   const queryClient = useQueryClient();
-  const [currentBranchId, setCurrentBranchId] = useState("");
+  const currentBranchId = selectedBranchId || "";
   const [newBranchName, setNewBranchName] = useState("");
   const [mergeBranchId, setMergeBranchId] = useState("");
   const [mergeStrategy, setMergeStrategy] = useState<"REPLACE_ALL" | "SCENE_SELECT">("REPLACE_ALL");
@@ -403,9 +405,9 @@ export function useManuscriptSidebarData({
     }
   }, [loadGoals, toast]);
 
-  const createManualVersion = useCallback(async () => {
+  const createManualVersion = useCallback(async (name: string) => {
     if (!selectedManuscriptId) return;
-    const label = window.prompt(t("sidebarData.checkpointLabel"), `manual-${Date.now()}`)?.trim();
+    const label = name.trim();
     if (!label) return;
     await api.v2.version.createVersion(selectedManuscriptId, { snapshotType: "manual", label });
     await loadVersions();
@@ -449,8 +451,7 @@ export function useManuscriptSidebarData({
   const checkoutBranch = useCallback(async (branchId: string) => {
     if (!selectedManuscriptId) return;
     try {
-      const result = await api.v2.version.checkoutBranch(selectedManuscriptId, branchId);
-      setCurrentBranchId(String(result.currentBranchId || branchId));
+      await api.v2.version.checkoutBranch(selectedManuscriptId, branchId);
       const manuscript = await api.manuscripts.get(selectedManuscriptId);
       applyFetchedManuscript(manuscript);
       await loadVersions();
@@ -580,8 +581,6 @@ export function useManuscriptSidebarData({
     const { autoSaveConfig: nextConfig, branches: nextBranches } = versionDataQuery.data;
     setVersionVisibleCount(VERSION_PAGE_SIZE);
     setAutoSaveConfig(nextConfig);
-    const activeBranch = nextBranches.find((branch) => String(branch.status) === "active" && branch.isMain);
-    setCurrentBranchId(activeBranch ? String(activeBranch.id) : "");
     setMergeBranchId((prev) => {
       if (prev && nextBranches.some((branch) => String(branch.id) === prev)) return prev;
       const candidate = nextBranches.find((branch) => !branch.isMain && branch.status === "active");

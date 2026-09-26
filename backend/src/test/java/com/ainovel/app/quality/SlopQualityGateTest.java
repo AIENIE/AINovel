@@ -10,6 +10,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SlopQualityGateTest {
+    @Test void localAcceptanceKeepsHeuristicsButMakesNoPaidJudgeOrRepairCalls() {
+        var judge=org.mockito.Mockito.mock(SlopJudgeClient.class);
+        var repair=org.mockito.Mockito.mock(ConservativeRevisionService.class);
+        var recorder=new InMemorySlopQualityRecorder();
+        var gate=new SlopQualityGate(new LocalSlopHeuristics(),judge,repair,recorder);
+        var budget=org.mockito.Mockito.mock(com.ainovel.app.ai.AiValidationCallBudget.class);
+        org.mockito.Mockito.when(budget.localQualityOnly()).thenReturn(true);
+        org.springframework.test.util.ReflectionTestUtils.setField(gate,"validationBudget",budget);
+        String text="她的嘴角微微上扬，空气仿佛凝固，时间像是停了下来。".repeat(10);
+        var request=new SlopQualityRequest(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"作品","类型","语气","章","场","","受控上下文","","",text);
+        var result=gate.evaluateAndRepair(UserForTest.create(),request);
+        assertEquals(text,result.acceptedText());assertEquals(1,recorder.recorded().size());
+        org.mockito.Mockito.verifyNoInteractions(judge,repair);
+    }
 
     @Test
     void shouldRunOneConservativeRevisionWhenJudgeConfirmsHighRisk() {

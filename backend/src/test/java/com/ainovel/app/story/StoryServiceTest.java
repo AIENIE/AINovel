@@ -32,6 +32,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class StoryServiceTest {
+    @Test
+    void partialCharacterEditPreservesOmittedDetailsAndClearsExplicitNull() throws Exception {
+        var cards = mock(CharacterCardRepository.class);
+        var service = service(mock(StoryRepository.class), cards, mock(ResourceAccessGuard.class), mock(AiService.class));
+        var card = character(story(user("author")), "林舟");
+        card.setDetails("不可丢失的详情"); card.setRelationships("姐姐");
+        when(cards.findByIdWithStoryUser(card.getId())).thenReturn(Optional.of(card));
+        var request = new ObjectMapper().readValue("{\"role\":\"主角\",\"archetype\":\"调查者\",\"relationships\":null}", CharacterRequest.class);
+        var result = service.updateCharacter(card.getId(), request);
+        assertEquals("主角", result.role()); assertEquals("调查者", result.archetype());
+        assertEquals("不可丢失的详情", result.details());
+        org.junit.jupiter.api.Assertions.assertNull(result.relationships());
+    }
+
 
     @Test
     void createStoryShouldPersistDraftWithRequestFields() {

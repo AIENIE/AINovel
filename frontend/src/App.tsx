@@ -34,26 +34,32 @@ import GuidedCreationPage from "./pages/GuidedCreation/GuidedCreationPage";
 
 const queryClient = new QueryClient();
 
-type GuardStatus = "loading" | "authorized" | "unauthorized";
+type GuardStatus = "loading" | "authorized" | "unauthorized" | "unavailable";
 type GuardLocation = ReturnType<typeof useLocation>;
 
 const buildGuardRedirect = (loginPath: string, location: GuardLocation) => {
-  const next = encodeURIComponent(`${location.pathname}${location.search}`);
+  const next = encodeURIComponent(`${location.pathname}${location.search}${location.hash}`);
   return `${loginPath}?next=${next}`;
 };
 
 const useProtectedRouteStatus = (_location: GuardLocation): GuardStatus => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, authUnavailable } = useAuth();
   if (isLoading) return "loading";
+  if (!isAuthenticated && authUnavailable) return "unavailable";
   return isAuthenticated ? "authorized" : "unauthorized";
 };
 
 const ProtectedRoute = () => {
   const location = useLocation();
   const status = useProtectedRouteStatus(location);
+  const { retryAuth, authError } = useAuth();
 
   if (status === "loading") {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  if (status === "unavailable") {
+    return <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-4"><p>{authError || "暂时无法校验登录，请稍后重试。"}</p><button onClick={() => void retryAuth?.()}>重试</button></div>;
   }
 
   if (status === "authorized") {

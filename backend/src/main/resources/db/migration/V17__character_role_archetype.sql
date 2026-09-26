@@ -1,0 +1,3 @@
+ALTER TABLE character_cards
+    ADD COLUMN role VARCHAR(255) NULL,
+    ADD COLUMN archetype VARCHAR(255) NULL;

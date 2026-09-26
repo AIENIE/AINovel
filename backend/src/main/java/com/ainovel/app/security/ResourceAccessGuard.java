@@ -82,7 +82,7 @@ public class ResourceAccessGuard {
     public Story requireOwnedStory(UUID storyId, User user) {
         Story story = storyRepository.findById(storyId).orElseThrow(() -> new BusinessException("故事不存在"));
         if (story.getUser() == null || !story.getUser().getId().equals(user.getId())) {
-            throw new BusinessException("无权访问该故事");
+            throw new AccessDeniedException("无权访问该故事");
         }
         return story;
     }
@@ -94,14 +94,14 @@ public class ResourceAccessGuard {
                 || manuscript.getOutline().getStory() == null
                 || manuscript.getOutline().getStory().getUser() == null
                 || !manuscript.getOutline().getStory().getUser().getId().equals(user.getId())) {
-            throw new BusinessException("无权访问该稿件");
+            throw new AccessDeniedException("无权访问该稿件");
         }
         return manuscript;
     }
 
     public void requireAdmin(User user) {
         if (!user.hasRole("ROLE_ADMIN") && !user.hasRole("ADMIN")) {
-            throw new BusinessException("无管理员权限");
+            throw new AccessDeniedException("无管理员权限");
         }
     }
 }

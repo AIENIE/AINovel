@@ -214,6 +214,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     applyFetchedManuscript,
     isSidebarOpen,
     selectedManuscriptId,
+    selectedBranchId: selectedManuscript?.currentBranchId,
     selectedSceneId: activeSceneId,
     selectedSceneIds,
     selectedStoryId,
@@ -374,6 +375,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     active={sidebarTab === "narrative" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")}
     manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
     busy={isSaving || isGenerating}
+    scenes={outlineDraft?.chapters.flatMap(chapter => chapter.scenes.map(scene => ({ id: scene.id, title: `${chapter.title} · ${scene.title}` }))) || []}
     structureKey={JSON.stringify(outlineDraft?.chapters.map(chapter => [chapter.id, chapter.scenes.map(scene => scene.id)]))}
     characters={characters.map(character => ({ id: String(character.id), name: String(character.name) }))} onManuscript={replaceManuscript}
   />;

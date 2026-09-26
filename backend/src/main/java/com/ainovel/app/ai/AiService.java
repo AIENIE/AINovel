@@ -16,6 +16,9 @@ import java.time.Instant;
 
 @Service
 public class AiService {
+    @Autowired(required=false) private AiValidationCallBudget validationBudget;
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiModelPolicy modelPolicy = new AiModelPolicy();
 
     private final AiGatewayGrpcClient aiGatewayGrpcClient;
     private final EconomyService economyService;
@@ -46,7 +49,7 @@ public class AiService {
 
     public List<AiModelDto> listModels(User user) {
         resolveGatewayUserId(user);
-        return List.of(AiModelPolicy.requiredTextModel());
+        return List.of(modelPolicy.configuredTextModel());
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
@@ -103,18 +106,30 @@ public class AiService {
     }
 
     private AiGatewayGrpcClient.ChatResult invokeGateway(Long remoteUid, AiChatRequest request, String requestId) {
+        UUID validationId=validationBudget==null?null:validationBudget.claim(request,requestId,modelPolicy.modelKey());
+        try {
+            var result=invokeGatewayTransport(remoteUid,request,requestId);
+            if(validationBudget!=null)validationBudget.complete(validationId,result,true);
+            return result;
+        } catch(RuntimeException failure) {
+            if(validationBudget!=null)validationBudget.complete(validationId,java.util.Map.of("errorType",failure.getClass().getSimpleName()),false);
+            throw failure;
+        }
+    }
+
+    private AiGatewayGrpcClient.ChatResult invokeGatewayTransport(Long remoteUid, AiChatRequest request, String requestId) {
         var progressListener = AiProgressContext.current();
         if (progressListener != null && !supportsRequiredModelStreaming(remoteUid)) {
             throw new BusinessException("当前 AI 模型不支持真实流式输出，请检查 ai-service 模型配置");
         }
         if (progressListener == null) {
             return requestId == null
-                    ? aiGatewayGrpcClient.chatCompletions(remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, request.messages())
-                    : aiGatewayGrpcClient.chatCompletions(requestId, remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, request.messages());
+                    ? aiGatewayGrpcClient.chatCompletions(remoteUid, modelPolicy.modelKey(), request.messages())
+                    : aiGatewayGrpcClient.chatCompletions(requestId, remoteUid, modelPolicy.modelKey(), request.messages());
         }
         return requestId == null
-                ? aiGatewayGrpcClient.chatCompletionsStream(remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, request.messages(), progressListener)
-                : aiGatewayGrpcClient.chatCompletionsStream(requestId, remoteUid, AiModelPolicy.REQUIRED_TEXT_MODEL_KEY,
+                ? aiGatewayGrpcClient.chatCompletionsStream(remoteUid, modelPolicy.modelKey(), request.messages(), progressListener)
+                : aiGatewayGrpcClient.chatCompletionsStream(requestId, remoteUid, modelPolicy.modelKey(),
                     request.messages(), progressListener);
     }
 
@@ -194,9 +209,9 @@ public class AiService {
         }
         streamingCapabilityAvailable = aiGatewayGrpcClient.listModels(remoteUid).stream()
                 .anyMatch(model -> model.supportsStreaming()
-                        && (AiModelPolicy.REQUIRED_TEXT_MODEL_KEY.equalsIgnoreCase(model.id())
-                        || AiModelPolicy.REQUIRED_TEXT_MODEL_KEY.equalsIgnoreCase(model.name())
-                        || AiModelPolicy.REQUIRED_TEXT_MODEL_DISPLAY_NAME.equalsIgnoreCase(model.displayName())));
+                        && (modelPolicy.modelKey().equalsIgnoreCase(model.id())
+                        || modelPolicy.modelKey().equalsIgnoreCase(model.name())
+                        || modelPolicy.displayName().equalsIgnoreCase(model.displayName())));
         streamingCapabilityCheckedAt = now;
         return streamingCapabilityAvailable;
     }

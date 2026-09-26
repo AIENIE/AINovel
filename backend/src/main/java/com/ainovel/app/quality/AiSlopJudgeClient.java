@@ -131,7 +131,7 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 safe(request.sceneSummary()),
                 truncate(request.characterContext(), 1000),
                 truncate(request.styleContext(), 1000),
-                truncate(request.previousContext(), 1000),
+                request.isolated() ? request.previousContext() : truncate(request.previousContext(), 1000),
                 heuristicResult.overallRiskScore(),
                 heuristicResult.maxSeverity(),
                 truncate(request.candidateText(), 5000)

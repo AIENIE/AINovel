@@ -71,7 +71,7 @@ class AdminEncodedPathSecurityTest {
     void encodedV2AdminPathRejectsOrdinarySsoRoleAdmin() throws Exception {
         Claims claims = signedUserClaims();
         when(jwtService.parseClaims("signed-sso-admin")).thenReturn(claims);
-        when(userSessionValidator.validate(18L, "session-001")).thenReturn(true);
+        when(userSessionValidator.validate(18L, "session-001")).thenReturn(UserSessionValidator.ValidationResult.VALID);
         when(provisioningService.ensureExistsBestEffort("sso-admin", "ADMIN", 18L))
                 .thenReturn(localUser("sso-admin", "ADMIN"));
 
@@ -109,7 +109,7 @@ class AdminEncodedPathSecurityTest {
     void ordinaryApiKeepsBearerIdentityWhenAdminCookieIsAlsoPresent() throws Exception {
         Claims claims = signedUserClaims("ordinary-user", 19L, "session-ordinary", "USER");
         when(jwtService.parseClaims("signed-ordinary-user")).thenReturn(claims);
-        when(userSessionValidator.validate(19L, "session-ordinary")).thenReturn(true);
+        when(userSessionValidator.validate(19L, "session-ordinary")).thenReturn(UserSessionValidator.ValidationResult.VALID);
         when(provisioningService.ensureExistsBestEffort("ordinary-user", "USER", 19L))
                 .thenReturn(localUser("ordinary-user", "USER"));
         when(resourceAccessGuard.currentUser(any(UserDetails.class))).thenReturn(new User());

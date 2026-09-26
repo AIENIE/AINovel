@@ -12,9 +12,9 @@ const resolveBackendBase = () => {
   return window.location.origin;
 };
 
-const normalizeNextPath = (nextPath?: string) => {
+export const normalizeNextPath = (nextPath?: string) => {
   if (!nextPath) return DEFAULT_NEXT_PATH;
-  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) return DEFAULT_NEXT_PATH;
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//") || nextPath.includes("\\") || [...nextPath].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return DEFAULT_NEXT_PATH;
   return nextPath;
 };
 

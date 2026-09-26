@@ -35,6 +35,8 @@ import java.util.UUID;
 
 @Service
 public class SceneGenerationAttributionService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final Logger log = LoggerFactory.getLogger(SceneGenerationAttributionService.class);
     private static final String PROMPT_VERSION = "scene-draft-v2";
     private static final Set<String> ALLOWED_FEEDBACK_TAGS = Set.of(
@@ -90,8 +92,8 @@ public class SceneGenerationAttributionService {
         run.setStatus(SceneGenerationRunStatus.GENERATED);
         run.setAttributionStatus(SceneAttributionStatus.READY);
         run.setMode(mode == null ? GenerationMode.FAST.name() : mode.name());
-        run.setModelKey(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY);
-        run.setPromptVersion(PROMPT_VERSION);
+        run.setModelKey(modelPolicy.modelKey());
+        run.setPromptVersion(promptVersion(sanitizedManifest));
         run.setAttemptCount(positiveInt(sanitizedManifest.get("attemptCount"), 1));
         run.setContextHash(requiredSha256(sanitizedManifest.get("contextHash"), "生成上下文哈希"));
         run.setPromptHash(requiredSha256(sanitizedManifest.get("promptHash"), "生成提示词哈希"));
@@ -359,12 +361,20 @@ public class SceneGenerationAttributionService {
 
     private Map<String, Object> contextManifest(Map<String, Object> manifest) {
         Map<String, Object> context = new LinkedHashMap<>();
-        context.put("promptVersion", PROMPT_VERSION);
+        context.put("promptVersion", promptVersion(manifest));
+        for (String key : List.of("branchId", "manuscriptVersion", "canonRevision", "contextRevision", "settingsRevision", "orderHash")) {
+            if (manifest.containsKey(key)) context.put(key, manifest.get(key));
+        }
         context.put("tokenBudget", nonNegativeInt(manifest.get("tokenBudget")));
         context.put("tokenUsed", nonNegativeInt(manifest.get("tokenUsed")));
         Object sources = manifest.get("sources");
         context.put("sources", sources instanceof List<?> list ? List.copyOf(list) : List.of());
         return Map.copyOf(context);
+    }
+
+    private String promptVersion(Map<String, Object> manifest) {
+        return manifest.containsKey("branchId")
+                ? com.ainovel.app.narrative.NarrativeContextService.VERSION : PROMPT_VERSION;
     }
 
     private SceneGenerationRun latestLiveRun(UUID manuscriptId, UUID sceneId) {

@@ -170,6 +170,23 @@ class EconomyServiceTests {
     }
 
     @Test
+    void failedReservationReleasesCreditsOnlyOnce() {
+        User user = user();
+        ProjectCreditAccount account = account(user, 8L);
+        AiCreditReservation reservation = new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setReservedAmount(2L);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user, "failed")).thenReturn(Optional.of(reservation));
+        economyService.releaseAiReservation(user, "failed");
+        economyService.releaseAiReservation(user, "failed");
+        assertEquals(10L, account.getBalance());
+        assertEquals(AiCreditReservation.Status.RELEASED, reservation.getStatus());
+        verify(ledgerRepository, org.mockito.Mockito.times(1)).save(any(ProjectCreditLedger.class));
+    }
+
+    @Test
     void convert_shouldDeductPublicCreditsInPayServiceThenCreditLocalProjectAccount() {
         User user = user();
         ProjectCreditAccount account = account(user, 100L);

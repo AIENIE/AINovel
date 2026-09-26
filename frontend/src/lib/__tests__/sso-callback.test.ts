@@ -2,6 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { buildSsoCallbackRedirectUrl, createSsoCallbackProcessor } from "@/lib/sso-callback";
 
 describe("sso callback processor", () => {
+  it("preserves the exact redirect and nested query/Chinese/fragment through exchange", async () => {
+    const next = "/workbench?storyId=a&outlineId=b&title=明日来信#scene-2";
+    const encoded = encodeURIComponent(next);
+    const search = `?next=${encoded}&code=c&state=s`;
+    const redirect = `https://localainovel.testhut.top/sso/callback?next=${encoded}`;
+    expect(buildSsoCallbackRedirectUrl("https://localainovel.testhut.top", "/sso/callback", search)).toBe(redirect);
+    const onSuccess = vi.fn();
+    await createSsoCallbackProcessor({ validateState: () => true, exchangeSsoCode: async () => ({ accessToken: "t" }), acceptToken: async () => {}, onSuccess, onFailure: vi.fn() })({ search, redirect });
+    expect(onSuccess).toHaveBeenCalledWith(next);
+  });
+  it.each(["//evil.test", "/\\evil.test", "https://evil.test"])("rejects offsite next %s", async (next) => {
+    const onSuccess = vi.fn();
+    await createSsoCallbackProcessor({ validateState: () => true, exchangeSsoCode: async () => ({ accessToken: "t" }), acceptToken: async () => {}, onSuccess, onFailure: vi.fn() })({ search: `?code=c&state=s&next=${encodeURIComponent(next)}`, redirect: "https://localainovel.testhut.top/sso/callback" });
+    expect(onSuccess).toHaveBeenCalledWith("/dashboard");
+  });
   it("rebuilds the token-exchange redirect without re-encoding the next path slash", () => {
     const redirect = buildSsoCallbackRedirectUrl(
       "https://ainovel.localhut.com",

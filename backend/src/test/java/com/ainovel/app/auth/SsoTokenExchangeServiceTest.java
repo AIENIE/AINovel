@@ -23,6 +23,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SsoTokenExchangeServiceTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"400,401", "401,401", "403,403", "404,503", "503,503", "429,503"})
+    void classifiesUpstreamStatusWithoutConsumingCodeAgain(int upstream, int expected) throws Exception {
+        HttpClient client = mock(HttpClient.class);
+        @SuppressWarnings("unchecked") HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(upstream);
+        when(client.send(any(HttpRequest.class), anyStringBodyHandler())).thenReturn(response);
+        var ex = assertThrows(ResponseStatusException.class, () -> service(client, mock(JwtService.class)).exchange("code", "https://localainovel.testhut.top/sso/callback"));
+        assertEquals(expected, ex.getStatusCode().value());
+        verify(client, times(1)).send(any(HttpRequest.class), anyStringBodyHandler());
+    }
+
 
     @Test
     void certificateFailureFailsClosedWithoutRetryOrCredentialDisclosure() throws Exception {

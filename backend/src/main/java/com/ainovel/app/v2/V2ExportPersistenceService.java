@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.common.BusinessException;
+import org.springframework.security.access.AccessDeniedException;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -53,7 +54,7 @@ public class V2ExportPersistenceService {
     public Map<String, Object> updateTemplate(User user, UUID id, Map<String, Object> payload) {
         V2ExportTemplate template = requireTemplate(id);
         if (template.getUser() == null || !Objects.equals(template.getUser().getId(), user.getId())) {
-            throw new BusinessException("无权修改该模板");
+            throw new AccessDeniedException("无权修改该模板");
         }
         if (payload.containsKey("name")) template.setName(str(payload.get("name"), template.getName()));
         if (payload.containsKey("description")) template.setDescription(str(payload.get("description"), ""));
@@ -67,7 +68,7 @@ public class V2ExportPersistenceService {
     public void deleteTemplate(User user, UUID id) {
         V2ExportTemplate template = requireTemplate(id);
         if (template.getUser() == null || !Objects.equals(template.getUser().getId(), user.getId())) {
-            throw new BusinessException("无权删除该模板");
+            throw new AccessDeniedException("无权删除该模板");
         }
         templateRepository.delete(template);
     }

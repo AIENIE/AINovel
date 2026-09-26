@@ -8,17 +8,23 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class NarrativeInvalidationListener {
+    @org.springframework.beans.factory.annotation.Autowired
+    private NarrativeContextService context;
     private final NarrativeService narrative;
     private final ManuscriptRepository manuscripts;
     private final OutlineRepository outlines;
     public NarrativeInvalidationListener(NarrativeService narrative, ManuscriptRepository manuscripts, OutlineRepository outlines) {
         this.narrative = narrative; this.manuscripts = manuscripts; this.outlines = outlines;
     }
-    @EventListener public void edited(SceneContentEditedEvent event) { narrative.reconcileManuscript(event.manuscriptId()); }
-    @EventListener public void rollback(ManuscriptRollbackEvent event) { narrative.reconcileManuscript(event.manuscriptId()); }
+    private void reconcile(java.util.UUID id) {
+        narrative.reconcileManuscript(id);
+        if (context != null) context.reconcileManuscript(id);
+    }
+    @EventListener public void edited(SceneContentEditedEvent event) { reconcile(event.manuscriptId()); }
+    @EventListener public void rollback(ManuscriptRollbackEvent event) { reconcile(event.manuscriptId()); }
     @EventListener public void changed(NarrativeSourceChanged event) {
-        if (event.manuscriptId() != null) narrative.reconcileManuscript(event.manuscriptId());
+        if (event.manuscriptId() != null) reconcile(event.manuscriptId());
         if (event.outlineId() != null) outlines.findById(event.outlineId()).ifPresent(outline ->
-                manuscripts.findByOutline(outline).forEach(m -> narrative.reconcileManuscript(m.getId())));
+                manuscripts.findByOutline(outline).forEach(m -> reconcile(m.getId())));
     }
 }

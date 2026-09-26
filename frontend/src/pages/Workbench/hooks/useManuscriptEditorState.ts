@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "@/lib/api-client";
+import { api, isApiError } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
 import { countWords, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { useWritingSession } from "./useWritingSession";
@@ -31,13 +31,25 @@ export function useManuscriptEditorState({
   selectedStoryId,
   toast,
 }: UseManuscriptEditorStateOptions) {
-  const [content, setContent] = useState("");
   const [dirtyScenes, setDirtyScenes] = useState<Record<string, boolean>>({});
   const [sceneDrafts, setSceneDrafts] = useState<Record<string, string>>({});
+  // Resolve the selected scene in this render, before a newly mounted editor can emit updates.
+  const content = selectedSceneId
+    ? sceneDrafts[selectedSceneId] ?? selectedManuscript?.sections?.[selectedSceneId] ?? ""
+    : "";
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const saveTimer = useRef<Record<string, number>>({});
   const hydratedSceneKeyRef = useRef("");
+  const manuscriptRef = useRef(selectedManuscript);
+  const draftsRef = useRef(sceneDrafts);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const conflictRef = useRef(false);
+  if (selectedManuscript?.id !== manuscriptRef.current?.id ||
+      (selectedManuscript && selectedManuscript.version >= (manuscriptRef.current?.version ?? -1))) {
+    manuscriptRef.current = selectedManuscript;
+  }
+  draftsRef.current = sceneDrafts;
 
   const sceneKey = useCallback(
     (manuscriptId: string, sceneId: string) => `${manuscriptId}:${sceneId}`,
@@ -58,6 +70,8 @@ export function useManuscriptEditorState({
 
   const applyFetchedManuscript = useCallback(
     (manuscript: Manuscript) => {
+      manuscriptRef.current = manuscript;
+      conflictRef.current = false;
       replaceManuscript(manuscript);
       setSceneDrafts(manuscript.sections || {});
       setDirtyScenes({});
@@ -84,7 +98,6 @@ export function useManuscriptEditorState({
     });
     if (selectedSceneId === sceneId) {
       hydratedSceneKeyRef.current = sceneKey(manuscript.id, sceneId);
-      setContent(html);
     }
     primeSceneHtml(sceneId, html);
   }, [primeSceneHtml, replaceManuscript, sceneKey, selectedSceneId]);
@@ -92,14 +105,14 @@ export function useManuscriptEditorState({
   useEffect(() => {
     if (!selectedManuscript || !selectedSceneId) {
       hydratedSceneKeyRef.current = "";
-      setContent("");
       return;
     }
+    setLastSavedAt(dirtyScenes[selectedSceneId] ? "" : (selectedManuscript.updatedAt
+      ? new Date(selectedManuscript.updatedAt).toLocaleTimeString() : ""));
     const html = sceneDrafts[selectedSceneId] ?? selectedManuscript.sections?.[selectedSceneId] ?? "";
     hydratedSceneKeyRef.current = sceneKey(selectedManuscript.id, selectedSceneId);
-    setContent(html);
     primeSceneHtml(selectedSceneId, html);
-  }, [primeSceneHtml, sceneDrafts, sceneKey, selectedManuscript, selectedSceneId]);
+  }, [dirtyScenes, primeSceneHtml, sceneDrafts, sceneKey, selectedManuscript, selectedSceneId]);
 
   useEffect(() => {
     const timers = saveTimer.current;
@@ -114,31 +127,46 @@ export function useManuscriptEditorState({
         window.clearTimeout(saveTimer.current[sceneId]);
         delete saveTimer.current[sceneId];
       }
-      setIsSaving(true);
-      try {
-        if (!selectedManuscript) throw new Error(t("editorState.noServerSection"));
-        const saved = await api.manuscripts.saveSection(
-          selectedManuscriptId,
-          sceneId,
-          html,
-          selectedManuscript.version,
-        );
-        replaceManuscript(saved);
-        setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] || html }));
-        setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
-        setLastSavedAt(new Date().toLocaleTimeString());
-        if (!silent) toast({ title: t("editorState.saved") });
-      } catch (e: unknown) {
-        toast({
-          variant: "destructive",
-          title: silent ? t("editorState.autoSaveFailed") : t("editorState.saveFailed"),
-          description: localizedErrorMessage(e),
-        });
-      } finally {
-        setIsSaving(false);
-      }
+      const save = async () => {
+        if (conflictRef.current && silent) return;
+        setIsSaving(true);
+        try {
+          if (manuscriptRef.current?.id !== selectedManuscriptId) return;
+          if (!manuscriptRef.current) throw new Error(t("editorState.noServerSection"));
+          const saved = await api.manuscripts.saveSection(
+            selectedManuscriptId,
+            sceneId,
+            html,
+            manuscriptRef.current.version,
+          );
+          if (manuscriptRef.current?.id !== selectedManuscriptId) return;
+          manuscriptRef.current = saved;
+          replaceManuscript(saved);
+          const unchanged = draftsRef.current[sceneId] === undefined || draftsRef.current[sceneId] === html;
+          if (unchanged) {
+            setSceneDrafts((prev) => ({ ...prev, [sceneId]: saved.sections?.[sceneId] ?? html }));
+            setDirtyScenes((prev) => ({ ...prev, [sceneId]: false }));
+          }
+          conflictRef.current = false;
+          setLastSavedAt(new Date().toLocaleTimeString());
+          if (!silent) toast({ title: t("editorState.saved") });
+        } catch (e: unknown) {
+          if (isApiError(e) && e.status === 409) conflictRef.current = true;
+          toast({
+            variant: "destructive",
+            title: silent ? t("editorState.autoSaveFailed") : t("editorState.saveFailed"),
+            description: isApiError(e) && e.status === 409
+              ? "服务端正文已变化，本地内容已保留。请复制当前内容后重新载入并比较，再决定如何保存。"
+              : localizedErrorMessage(e),
+          });
+        } finally {
+          setIsSaving(false);
+        }
+      };
+      saveQueue.current = saveQueue.current.then(save, save);
+      await saveQueue.current;
     },
-    [replaceManuscript, selectedManuscript, selectedManuscriptId, toast],
+    [replaceManuscript, selectedManuscriptId, toast],
   );
 
   const scheduleSave = useCallback(
@@ -159,6 +187,7 @@ export function useManuscriptEditorState({
   }, [content, persistSection, selectedSceneId]);
 
   const updateSceneDraft = useCallback((sceneId: string, html: string) => {
+    draftsRef.current = { ...draftsRef.current, [sceneId]: html };
     setSceneDrafts((prev) => ({ ...prev, [sceneId]: html }));
     setDirtyScenes((prev) => ({ ...prev, [sceneId]: true }));
   }, []);
@@ -172,7 +201,6 @@ export function useManuscriptEditorState({
   const handleEditorChange = useCallback(
     (html: string) => {
       if (hydratedSceneKeyRef.current !== sceneKey(selectedManuscriptId, selectedSceneId)) return;
-      setContent(html);
       if (!selectedSceneId) return;
       recordSceneHtml(selectedSceneId, html);
       updateSceneDraft(selectedSceneId, html);
@@ -197,7 +225,6 @@ export function useManuscriptEditorState({
     sceneDrafts,
     sessionDurationSeconds,
     sessionNetWords,
-    setContent,
     updateSceneDraft,
   };
 }

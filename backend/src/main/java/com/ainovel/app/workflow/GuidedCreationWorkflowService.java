@@ -1,6 +1,7 @@
 package com.ainovel.app.workflow;
 
 import com.ainovel.app.common.BusinessException;
+import org.springframework.security.access.AccessDeniedException;
 import com.ainovel.app.user.User;
 import com.ainovel.app.workflow.dto.CreationWorkflowDtos;
 import com.ainovel.app.workflow.model.AsyncJob;
@@ -22,6 +23,8 @@ import java.util.UUID;
 
 @Service
 public class GuidedCreationWorkflowService {
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
     private static final Logger log = LoggerFactory.getLogger(GuidedCreationWorkflowService.class);
     private static final String TEMPLATE_KEY = "quick-book-v1";
 
@@ -47,7 +50,7 @@ public class GuidedCreationWorkflowService {
     public CreationWorkflowDtos.WorkflowResponse create(User user,
                                                         CreationWorkflowDtos.CreateRunRequest request) {
         CreationWorkflowRun run = new CreationWorkflowRun();
-        run.setUser(user);
+        run.setUser(entityManager.getReference(User.class, user.getId()));
         run.setTemplateKey(TEMPLATE_KEY);
         run.setCurrentStep(GuidedCreationStep.PREMISE);
         run.setSeedIdea(request.seedIdea().trim());
@@ -63,7 +66,8 @@ public class GuidedCreationWorkflowService {
         }
         log.info("Guided creation workflow created runId={} userId={} autoRun={}",
                 run.getId(), user.getId(), run.isAutoRun());
-        return responseFor(runRepository.findWithUserById(run.getId()).orElse(run));
+        runRepository.flush();
+        return responseFor(run);
     }
 
     @Transactional(readOnly = true)
@@ -246,7 +250,7 @@ public class GuidedCreationWorkflowService {
         CreationWorkflowRun run = runRepository.findWithUserById(runId)
                 .orElseThrow(() -> new BusinessException("向导草稿不存在"));
         if (!userId.equals(run.getUser().getId())) {
-            throw new BusinessException("无权访问该向导草稿");
+            throw new AccessDeniedException("无权访问该向导草稿");
         }
         return run;
     }
@@ -255,7 +259,7 @@ public class GuidedCreationWorkflowService {
         CreationWorkflowRun run = runRepository.findByIdForUpdate(runId)
                 .orElseThrow(() -> new BusinessException("向导草稿不存在"));
         if (!userId.equals(run.getUser().getId())) {
-            throw new BusinessException("无权访问该向导草稿");
+            throw new AccessDeniedException("无权访问该向导草稿");
         }
         return run;
     }

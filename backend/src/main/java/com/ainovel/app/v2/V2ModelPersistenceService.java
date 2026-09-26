@@ -23,6 +23,8 @@ import java.util.*;
 
 @Service
 public class V2ModelPersistenceService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private AiModelPolicy modelPolicy = new AiModelPolicy();
     private final V2ModelRegistryRepository modelRepository;
     private final V2TaskModelRoutingRepository routingRepository;
     private final V2UserModelPreferenceRepository preferenceRepository;
@@ -144,10 +146,10 @@ public class V2ModelPersistenceService {
 
     @Transactional
     public void ensureSeeded() {
-        V2ModelRegistry model = modelRepository.findByModelKey(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY).orElseGet(() -> {
+        V2ModelRegistry model = modelRepository.findByModelKey(modelPolicy.modelKey()).orElseGet(() -> {
             V2ModelRegistry created = new V2ModelRegistry();
-            created.setModelKey(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY);
-            created.setDisplayName(AiModelPolicy.REQUIRED_TEXT_MODEL_DISPLAY_NAME);
+            created.setModelKey(modelPolicy.modelKey());
+            created.setDisplayName(modelPolicy.displayName());
             created.setProvider("deepseek");
             created.setCapabilitiesJson(v2Json.write(List.of("chat", "draft_generation", "analysis", "style")));
             created.setMaxContextTokens(64000);

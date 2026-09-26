@@ -21,7 +21,7 @@ public class GuidedCreationPromptFactory {
             case STEP_CANDIDATES -> "g1.quick-book.outline-directions.v2";
             case OUTLINE_DEVELOP -> "g1.quick-book.outline-development.v1";
             case OUTLINE_REWRITE -> "g1.quick-book.outline-rewrite.v1";
-            case OUTLINE_EXPAND -> "g1.quick-book.outline-expansion.v2";
+            case OUTLINE_EXPAND -> "g1.quick-book.outline-expansion.v3";
         };
     }
 
@@ -97,7 +97,8 @@ public class GuidedCreationPromptFactory {
                     将当前根方向和最新发展稿展开为一套完整、可直接编辑的章节/场景大纲。
                     输出结构：{"title":"","planning":{"corePromise":"","centralQuestion":"","stakes":""},"chapters":[{"title":"","summary":"","planning":{"purpose":"","tensionShift":""},"scenes":[{"title":"","summary":"","planning":{"sceneType":"action|dialogue|introspection|description|flashback","goal":"","conflict":"","infoRelease":""}}]}]}。
                     每个场景的 planning.sceneType 必须且只能从 action、dialogue、introspection、description、flashback 中选择一个。
-                    必须包含 %d 章，每章 2-4 个场景。只输出这一套完整大纲，不要输出候选数组。
+                    用户指定篇幅时，每个场景 planning 必须增加整数 minHan 和 maxHan（场景汉字数下限和上限）；如只指定章节篇幅，按场景数分摊。未指定篇幅时省略这两个字段。
+                    必须包含 %d 章，每章 2-4 个场景；用户指定了场景数量时遵循该数量。只输出这一套完整大纲，不要输出候选数组。
                     """.formatted(run.getTargetChapterCount());
             case STEP_CANDIDATES -> throw new IllegalArgumentException("初始候选应使用步骤提示词");
         };

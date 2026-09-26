@@ -12,6 +12,18 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ScenePlotQualitySupport {
+    public SlopQualityRequest buildIsolatedQualityRequest(Manuscript manuscript, SceneGenerationContext scene,
+                                                         String context, String candidate) {
+        return new SlopQualityRequest(manuscript.getOutline().getStory().getId(),manuscript.getId(),scene.sceneId(),
+                "当前作品","未指定","沉浸、连贯","当前章节","当前场景","",context,"","",candidate,"h2_generation_gate");
+    }
+
+    public void recordIsolatedPlotQuality(User owner, Manuscript manuscript, SceneGenerationContext scene, com.ainovel.app.manuscript.context.CompiledSceneDraftContext context, String text) {
+        try {
+            plotQualityService.analyze(owner,new PlotQualityRequest(manuscript.getOutline().getStory().getId(),manuscript.getId(),scene.sceneId(),
+                    "当前作品","未指定","沉浸、连贯","当前章节",scene.chapterOrder(),"当前场景",scene.sceneOrder(),"","",context.content(),"",text,context.manifest().isolationStamp(),context.content()));
+        } catch (RuntimeException ignored) { }
+    }
     @Autowired
     private PlotQualityService plotQualityService;
     @Autowired

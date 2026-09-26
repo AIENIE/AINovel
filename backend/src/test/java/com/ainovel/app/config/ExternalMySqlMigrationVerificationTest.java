@@ -29,20 +29,21 @@ class ExternalMySqlMigrationVerificationTest {
                     + "&connectTimeout=10000&socketTimeout=60000";
 
     @Test
-    void migratesFreshExternalDatabaseFromV1ThroughV15() throws Exception {
+    void migratesFreshExternalDatabaseFromV1ThroughV18() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
             var result = flyway(config, databaseUrl).migrate();
 
-            assertEquals(15, result.migrationsExecuted);
+            assertEquals(18, result.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
+            assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
         });
     }
 
     @Test
-    void upgradesExternalDatabaseFromV14ToV15() throws Exception {
+    void upgradesExternalDatabaseFromV14ToV18() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
             var v14Result = Flyway.configure()
@@ -53,19 +54,91 @@ class ExternalMySqlMigrationVerificationTest {
                     .migrate();
             assertEquals(14, v14Result.migrationsExecuted);
 
-            var v15Result = flyway(config, databaseUrl).migrate();
-            assertEquals(1, v15Result.migrationsExecuted);
+            var latestResult = flyway(config, databaseUrl).migrate();
+            assertEquals(4, latestResult.migrationsExecuted);
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
+            assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
+        });
+    }
+
+    @Test
+    void upgradesLegacyLedgerWithoutLosingRowsOrAmounts() throws Exception {
+        ExternalMySqlConfig config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (name, url) -> {
+            Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("15").load().migrate();
+            try (var c = DriverManager.getConnection(url, config.username, config.password); var q = c.createStatement()) {
+                q.execute("ALTER TABLE project_credit_ledger MODIFY entry_type ENUM('ADMIN_GRANT','AI_DEBIT','CHECKIN','CONVERT_IN','REDEEM_CODE') NOT NULL");
+                q.execute("SET FOREIGN_KEY_CHECKS=0");
+                String[] legacyTypes = {"ADMIN_GRANT", "AI_DEBIT", "CHECKIN", "CONVERT_IN", "REDEEM_CODE"};
+                for (int index = 0; index < legacyTypes.length; index++) {
+                    q.execute("INSERT INTO project_credit_ledger (id,user_id,delta,balance_after,entry_type,created_at) VALUES (UNHEX(LPAD('"
+                            + (index + 1) + "',32,'0')),UNHEX(REPEAT('02',16))," + (index == 1 ? -17 : 123 + index)
+                            + "," + (456 + index) + ",'" + legacyTypes[index] + "',NOW())");
+                }
+                q.execute("SET FOREIGN_KEY_CHECKS=1");
+            }
+            assertEquals(3, flyway(config, url).migrate().migrationsExecuted);
+            assertEquals(0, flyway(config, url).migrate().migrationsExecuted);
+            try (var c = DriverManager.getConnection(url, config.username, config.password); var q = c.createStatement()) {
+                String[] legacyTypes = {"ADMIN_GRANT", "AI_DEBIT", "CHECKIN", "CONVERT_IN", "REDEEM_CODE"};
+                try (var r = q.executeQuery("SELECT entry_type,delta,balance_after FROM project_credit_ledger ORDER BY id")) {
+                    for (int index = 0; index < legacyTypes.length; index++) {
+                        org.junit.jupiter.api.Assertions.assertTrue(r.next());
+                        assertEquals(legacyTypes[index], r.getString(1));
+                        assertEquals(index == 1 ? -17 : 123 + index, r.getInt(2));
+                        assertEquals(456 + index, r.getInt(3));
+                    }
+                    org.junit.jupiter.api.Assertions.assertFalse(r.next());
+                }
+                for (var type : com.ainovel.app.economy.model.CreditLedgerType.values()) {
+                    q.executeUpdate("UPDATE project_credit_ledger SET entry_type='" + type.name() + "'");
+                }
+                try (var r = q.executeQuery("SELECT COLUMN_TYPE FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='project_credit_ledger' AND column_name='entry_type'")) {
+                    r.next(); assertEquals("varchar(32)", r.getString(1));
+                }
+            }
+        });
+    }
+
+    @Test void upgradesV17PreservingHistoricalNarrativeAndKeepingOldWorksDisabled() throws Exception {
+        var config=ExternalMySqlConfig.load();
+        withIsolatedDatabase(config,(name,url)->{
+            Flyway.configure().dataSource(url,config.username,config.password).locations("classpath:db/migration").target("17").load().migrate();
+            try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
+                q.execute("INSERT INTO stories(id,title) VALUES(UNHEX(REPEAT('01',16)),'旧作品𠮷😀')");
+                q.execute("SET FOREIGN_KEY_CHECKS=0");
+                q.execute("INSERT INTO narrative_records(id,extraction_id,assertion_json,dependency_ids_json,created_revision,created_at) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('03',16)),'{\"kind\":\"UTTERANCE\",\"statement\":\"旧证据𠮷😀\"}','[]',7,NOW())");
+                q.execute("SET FOREIGN_KEY_CHECKS=1");
+            }
+            assertEquals(1,flyway(config,url).migrate().migrationsExecuted);
+            assertNarrativeSchema(config,url);
+            try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
+                try(var r=q.executeQuery("SELECT assertion_json,dependency_ids_json,created_revision FROM narrative_records")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(r.next()); assertEquals("{\"kind\":\"UTTERANCE\",\"statement\":\"旧证据𠮷😀\"}",r.getString(1));
+                    assertEquals("[]",r.getString(2));assertEquals(7,r.getInt(3));org.junit.jupiter.api.Assertions.assertFalse(r.next());
+                }
+                try(var r=q.executeQuery("SELECT COUNT(*) FROM narrative_context_settings")) {r.next();assertEquals(0,r.getInt(1));}
+                q.execute("INSERT INTO narrative_context_settings(story_id) VALUES(UNHEX(REPEAT('01',16)))");
+                try(var r=q.executeQuery("SELECT enabled,revision FROM narrative_context_settings")){r.next();assertEquals(false,r.getBoolean(1));assertEquals(0,r.getLong(2));}
+            }
+            assertEquals(0,flyway(config,url).migrate().migrationsExecuted);
         });
     }
 
     private static void assertNarrativeSchema(ExternalMySqlConfig config, String url) throws Exception {
         try (var connection = DriverManager.getConnection(url, config.username, config.password);
              var statement = connection.createStatement()) {
+            try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('narrative_context_settings','narrative_context_revisions','narrative_generation_candidates','ai_validation_budgets','ai_validation_calls')")) {
+                result.next(); assertEquals(5, result.getInt(1));
+            }
             try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('narrative_ledgers','narrative_approvals','narrative_extractions','narrative_records','narrative_commits')")) {
                 result.next(); assertEquals(5, result.getInt(1));
+            }
+            try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='character_cards' AND column_name IN ('role','archetype') AND is_nullable='YES'")) {
+                result.next(); assertEquals(2, result.getInt(1));
             }
             try (var result = statement.executeQuery("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='manuscript_versions' AND column_name='narrative_protected'")) {
                 result.next(); assertEquals(1, result.getInt(1));
@@ -177,11 +250,19 @@ class ExternalMySqlMigrationVerificationTest {
 
         private static Map<String, String> parseEnvFile(Path envFile) throws Exception {
             Map<String, String> values = new LinkedHashMap<>();
+            boolean acceptSection = true;
+            boolean clientSection = false;
             for (String line : Files.readAllLines(envFile, StandardCharsets.UTF_8)) {
                 String trimmed = line.trim();
                 if (trimmed.isEmpty() || trimmed.startsWith("#")) {
                     continue;
                 }
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    clientSection = "[client]".equals(trimmed);
+                    acceptSection = clientSection;
+                    continue;
+                }
+                if (!acceptSection) continue;
                 if (trimmed.startsWith("export ")) {
                     trimmed = trimmed.substring("export ".length()).trim();
                 }
@@ -191,6 +272,15 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 String key = trimmed.substring(0, separator).trim();
                 String value = unquote(trimmed.substring(separator + 1).trim());
+                if (clientSection) {
+                    key = switch (key) {
+                        case "host" -> "MYSQL_HOST";
+                        case "port" -> "MYSQL_PORT";
+                        case "user" -> "MYSQL_USER";
+                        case "password" -> "MYSQL_PASSWORD";
+                        default -> key;
+                    };
+                }
                 values.put(key, value);
             }
             return values;

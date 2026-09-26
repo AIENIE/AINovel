@@ -27,6 +27,13 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void permissionFailureReturns403WithoutInternalDetails() {
+        var response = handler.handleAccessDenied(new org.springframework.security.access.AccessDeniedException("private resource"));
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals("FORBIDDEN", response.getBody().message());
+    }
+
+    @Test
     void businessExceptionShouldReturnBadRequestWithOriginalMessage() {
         ResponseEntity<ApiError> response = handler.handleBusiness(new BusinessException("用户不存在"));
 

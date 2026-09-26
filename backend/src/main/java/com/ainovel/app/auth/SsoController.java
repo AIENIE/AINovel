@@ -95,7 +95,7 @@ public class SsoController {
             return DEFAULT_NEXT_PATH;
         }
         String candidate = next.trim();
-        if (!candidate.startsWith("/") || candidate.startsWith("//")) {
+        if (!candidate.startsWith("/") || candidate.startsWith("//") || candidate.contains("\\") || candidate.chars().anyMatch(Character::isISOControl)) {
             return DEFAULT_NEXT_PATH;
         }
         return candidate;
@@ -105,8 +105,9 @@ public class SsoController {
         String origin = resolveCallbackOrigin(request);
         return UriComponentsBuilder.fromHttpUrl(origin)
                 .path("/sso/callback")
-                .queryParam("next", next)
-                .build()
+                .queryParam("next", "{next}")
+                .encode()
+                .buildAndExpand(next)
                 .toUriString();
     }
 

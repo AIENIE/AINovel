@@ -42,7 +42,7 @@ class SsoControllerTest {
         verify(entryService).buildLoginRedirectUri(callbackCaptor.capture(), eq("state-1"));
         String callback = callbackCaptor.getValue();
         assertTrue(callback.startsWith("https://ainovel.aienie.com/sso/callback"));
-        String next = UriComponentsBuilder.fromUriString(callback).build().getQueryParams().getFirst("next");
+        String next = java.net.URLDecoder.decode(UriComponentsBuilder.fromUriString(callback).build().getQueryParams().getFirst("next"), java.nio.charset.StandardCharsets.UTF_8);
         assertEquals("/workbench", next);
     }
 

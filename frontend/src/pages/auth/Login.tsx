@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
-import { buildSsoUrl, issueSsoState } from "@/lib/sso";
+import { buildSsoUrl, issueSsoState, normalizeNextPath } from "@/lib/sso";
 
 const Login = () => {
   const location = useLocation();
@@ -13,7 +13,7 @@ const Login = () => {
   const next = useMemo(() => {
     const qs = new URLSearchParams(location.search);
     const raw = qs.get("next") || "/dashboard";
-    return raw.startsWith("/") ? raw : "/dashboard";
+    return normalizeNextPath(raw);
   }, [location.search]);
 
   const redirectToSso = useCallback((mode: "login" | "register") => {

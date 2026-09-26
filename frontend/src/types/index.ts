@@ -85,6 +85,8 @@ export interface ChapterPlanning {
 }
 
 export interface ScenePlanning {
+  minHan?: number;
+  maxHan?: number;
   sceneType?: 'action' | 'dialogue' | 'introspection' | 'description' | 'flashback';
   goal?: string;
   conflict?: string;
@@ -96,6 +98,17 @@ export interface ScenePlanning {
   revealTrigger?: string;
   payoffPlan?: string;
   memeUsage?: string;
+}
+
+export interface CharacterCard {
+  id: string;
+  name: string;
+  synopsis?: string | null;
+  details?: string | null;
+  relationships?: string | null;
+  role?: string | null;
+  archetype?: string | null;
+  updatedAt?: string;
 }
 
 export interface Character {
@@ -241,6 +254,7 @@ export interface GenerationRunFeedbackUpdateRequest {
 }
 
 export interface ContextPreview {
+  compiledContext?: string;
   promptVersion: string;
   contextHash: string;
   tokenBudget: number;

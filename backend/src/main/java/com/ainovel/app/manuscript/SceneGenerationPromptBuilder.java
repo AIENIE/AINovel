@@ -70,6 +70,7 @@ public class SceneGenerationPromptBuilder {
                                  GenerationMode mode,
                                  CompiledSceneDraftContext compiledContext) {
         String retryInstruction = "";
+        boolean isolated=compiledContext != null && compiledContext.isolated();
         if (attempt > 1) {
             String direction = previousCount < minSectionHan ? "扩写" : "压缩";
             retryInstruction = """
@@ -77,23 +78,23 @@ public class SceneGenerationPromptBuilder {
                     这是第 %d 次重试。上一版字数为 %d 汉字，请在保持剧情一致的前提下进行%s，并严格输出 %d-%d 汉字。
                     上一版草稿（可重写，不要直接复制）：
                     %s
-                    """.formatted(attempt, previousCount, direction, minSectionHan, maxSectionHan, truncate(previousDraft, 1200));
+                    """.formatted(attempt, previousCount, direction, minSectionHan, maxSectionHan, isolated ? previousDraft : truncate(previousDraft, 1200));
         }
         SceneGenerationPromptInput input = new SceneGenerationPromptInput(
-                safeText(story == null ? null : story.getTitle(), "未命名故事"),
-                safeText(story == null ? null : story.getGenre(), "未指定"),
-                safeText(story == null ? null : story.getTone(), "沉浸、连贯"),
-                safeText(story == null ? null : story.getSynopsis(), ""),
-                scene.chapterTitle(),
-                scene.chapterSummary(),
+                isolated ? "当前作品" : safeText(story == null ? null : story.getTitle(), "未命名故事"),
+                isolated ? "未指定" : safeText(story == null ? null : story.getGenre(), "未指定"),
+                isolated ? "沉浸、连贯" : safeText(story == null ? null : story.getTone(), "沉浸、连贯"),
+                isolated ? "" : safeText(story == null ? null : story.getSynopsis(), ""),
+                isolated ? "当前章节" : scene.chapterTitle(),
+                isolated ? "" : scene.chapterSummary(),
                 scene.chapterOrder(),
-                scene.sceneTitle(),
-                scene.sceneSummary(),
+                isolated ? "当前场景" : scene.sceneTitle(),
+                isolated ? "" : scene.sceneSummary(),
                 scene.sceneOrder(),
-                characterContext,
-                previousContext,
-                materialReferences(owner, story, scene),
-                recentAvoidExpressions(previousContext),
+                compiledContext == null ? characterContext : "使用下方 SCENE_DRAFT_CONTEXT 中已采用的人物资料。",
+                isolated ? "前文与知情边界仅见下方受控上下文。" : previousContext,
+                isolated ? List.of() : materialReferences(owner, story, scene),
+                recentAvoidExpressions(isolated ? compiledContext.content() : previousContext),
                 minSectionHan,
                 maxSectionHan,
                 retryInstruction,

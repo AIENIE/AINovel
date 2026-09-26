@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Tabs } from "@/components/ui/tabs";
 import ManuscriptWriter from "../ManuscriptWriter";
 import { ContextSidebarPanel } from "./ContextSidebarPanel";
@@ -57,7 +57,8 @@ describe("manuscript writer sidebar panels", () => {
     expect(screen.getByText("当前场景还没有剧情诊断记录。")).toBeTruthy();
   });
 
-  it("renders version sidebar controls", () => {
+  it("retains the checkpoint label on failure and closes only after a successful retry", async () => {
+    const createManualVersion = vi.fn().mockRejectedValueOnce(new Error("failed")).mockResolvedValueOnce(undefined);
     render(
       <Tabs value="version" onValueChange={() => undefined}>
         <VersionSidebarPanel
@@ -66,7 +67,7 @@ describe("manuscript writer sidebar panels", () => {
           branches={[]}
           abandonBranch={vi.fn()}
           createBranch={vi.fn()}
-          createManualVersion={vi.fn()}
+          createManualVersion={createManualVersion}
           checkoutBranch={vi.fn()}
           currentBranchId=""
           diffResult={null}
@@ -102,6 +103,17 @@ describe("manuscript writer sidebar panels", () => {
 
     expect(screen.getByText("分支管理")).toBeTruthy();
     expect(screen.getByText("自动快照")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "检查点" }));
+    const input = screen.getByRole("dialog").querySelector("input")!;
+    fireEvent.change(input, { target: { value: "   " } });
+    expect((screen.getByRole("button", { name: /^保存$/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "  验收快照  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(input.value).toBe("  验收快照  ");
+    fireEvent.click(screen.getByRole("button", { name: /^保存$/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(createManualVersion).toHaveBeenNthCalledWith(2, "验收快照");
   });
 
   it("renders context and export sidebar controls", () => {
@@ -111,6 +123,7 @@ describe("manuscript writer sidebar panels", () => {
           contextPreview={{
             promptVersion: "scene-generation-v3",
             contextHash: "ctx-hash",
+            compiledContext: "人物资料 · 林砚：定位=主角；原型=谨慎的调查者",
             tokenUsed: 120,
             tokenBudget: 1200,
             sources: [{
@@ -135,6 +148,7 @@ describe("manuscript writer sidebar panels", () => {
     );
 
     expect(screen.getByText("刷新上下文")).toBeTruthy();
+    expect(screen.getByText("人物资料 · 林砚：定位=主角；原型=谨慎的调查者")).toBeTruthy();
     expect(screen.getByText(/scene-generation-v3/)).toBeTruthy();
     expect(screen.getByText(/ctx-hash/)).toBeTruthy();
     expect(screen.getByText("保证动作衔接")).toBeTruthy();

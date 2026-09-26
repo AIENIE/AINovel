@@ -54,8 +54,8 @@ public class UserSummaryQueryService {
             if (html == null) {
                 continue;
             }
-            String plain = html.replaceAll("<[^>]*>", "");
-            total += plain.trim().length();
+            String plain = org.springframework.web.util.HtmlUtils.htmlUnescape(html.replaceAll("<[^>]*>", ""));
+            total += plain.replaceAll("[\\s\\u00A0]+", "").length();
         }
         return total;
     }

@@ -245,7 +245,7 @@ const AppLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 md:pl-64 pt-16 md:pt-0 min-h-screen transition-all duration-300">
+      <main className="flex-1 min-w-0 md:pl-64 pt-16 md:pt-0 min-h-screen transition-all duration-300">
         <div className="h-full min-w-0 p-4 sm:p-6 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Outlet />
         </div>

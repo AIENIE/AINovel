@@ -47,6 +47,12 @@ export function ContextSidebarPanel({ contextPreview, onRefresh }: ContextSideba
           {!(contextPreview?.sources || []).length && <div className="text-muted-foreground">{t("common.none")}</div>}
         </div>
         <div className="rounded border p-2">
+          {!!contextPreview?.compiledContext && (
+            <details className="mb-2">
+              <summary className="cursor-pointer font-medium">{t("contextPanel.compiledContent")}</summary>
+              <div className="mt-2 whitespace-pre-wrap break-words">{contextPreview.compiledContext}</div>
+            </details>
+          )}
           <div className="font-medium mb-1">System Prompt</div>
           {(contextPreview?.systemPromptEntries || []).map((entry: NetworkObject) => (
             <div key={entry.id} className="mb-1 last:mb-0">

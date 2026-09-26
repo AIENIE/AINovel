@@ -10,7 +10,7 @@ describe("useManuscriptSidebarData", () => {
     vi.unstubAllGlobals();
   });
 
-  it("loads versions and seeds active branch state when the version tab opens", async () => {
+  it("keeps the manuscript's selected branch when loading and refreshing versions", async () => {
     vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([] as never);
     vi.spyOn(api.v2.version, "listVersions").mockResolvedValue([{ id: "version-2" }, { id: "version-1" }] as never);
     vi.spyOn(api.v2.version, "getAutoSave").mockResolvedValue({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 } as never);
@@ -27,6 +27,7 @@ describe("useManuscriptSidebarData", () => {
           applyFetchedManuscript: vi.fn(),
           isSidebarOpen: true,
           selectedManuscriptId: "manuscript-1",
+          selectedBranchId: "branch-feature",
           selectedSceneId: "scene-1",
           selectedSceneIds: [],
           selectedStoryId: "story-1",
@@ -42,7 +43,9 @@ describe("useManuscriptSidebarData", () => {
 
     expect(api.v2.version.listVersions).toHaveBeenCalledWith("manuscript-1");
     expect(result.current.autoSaveConfig).toEqual({ autoSaveIntervalSeconds: 300, maxAutoVersions: 100 });
-    expect(result.current.currentBranchId).toBe("branch-main");
+    expect(result.current.currentBranchId).toBe("branch-feature");
+    await act(async () => { await result.current.loadVersions(); });
+    expect(result.current.currentBranchId).toBe("branch-feature");
     expect(result.current.mergeBranchId).toBe("branch-feature");
     expect(result.current.visibleVersions).toEqual([{ id: "version-2" }, { id: "version-1" }]);
     expect(result.current.hasMoreVersions).toBe(false);

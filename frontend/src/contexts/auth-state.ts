@@ -6,6 +6,9 @@ export type AuthContextValue = {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
+  authUnavailable?: boolean;
+  authError?: string;
+  retryAuth?: () => Promise<void>;
   acceptToken: (token: string) => Promise<void>;
   logout: () => void;
   refreshProfile: () => Promise<void>;

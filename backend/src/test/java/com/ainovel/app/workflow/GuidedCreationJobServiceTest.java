@@ -37,7 +37,7 @@ class GuidedCreationJobServiceTest {
         when(fixtures.runRepository.findByIdForUpdate(fixtures.run.getId()))
                 .thenReturn(Optional.of(fixtures.run));
 
-        BusinessException error = assertThrows(BusinessException.class, () -> fixtures.service.enqueue(
+        var error = assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> fixtures.service.enqueue(
                 fixtures.run.getId(), UUID.randomUUID(), GuidedCreationStep.PREMISE, null));
 
         assertTrue(error.getMessage().contains("无权访问"));
@@ -131,6 +131,21 @@ class GuidedCreationJobServiceTest {
 
         assertTrue(error.getMessage().contains("必须填写反馈"));
         verify(fixtures.jobRepository, never()).save(any());
+    }
+
+    @Test
+    void repeatedRetryReusesJobAndDispatchesOnlyOnce() {
+        Fixtures f = new Fixtures();
+        AsyncJob failed = f.job(AsyncJobStatus.FAILED);
+        f.run.setActiveJobId(failed.getId());
+        f.run.setStatus(CreationWorkflowStatus.FAILED);
+        when(f.runRepository.findByIdForUpdate(f.run.getId())).thenReturn(Optional.of(f.run));
+        when(f.jobRepository.findByIdForUpdate(failed.getId())).thenReturn(Optional.of(failed));
+        assertEquals(failed, f.service.retry(f.run.getId(), f.user.getId()));
+        assertEquals(failed, f.service.retry(f.run.getId(), f.user.getId()));
+        assertEquals(AsyncJobStatus.QUEUED, failed.getStatus());
+        verify(f.publisher, org.mockito.Mockito.times(1)).publishEvent(new GuidedCreationJobQueuedEvent(failed.getId()));
+        verify(f.jobRepository, org.mockito.Mockito.times(1)).save(failed);
     }
 
     private static class Fixtures {

@@ -19,6 +19,8 @@ public class CharacterCard {
     private Story story;
 
     private String name;
+    private String role;
+    private String archetype;
     @Lob
     private String synopsis;
     @Lob
@@ -40,6 +42,10 @@ public class CharacterCard {
     public void setStory(Story story) { this.story = story; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+    public String getArchetype() { return archetype; }
+    public void setArchetype(String archetype) { this.archetype = archetype; }
     public String getSynopsis() { return synopsis; }
     public void setSynopsis(String synopsis) { this.synopsis = synopsis; }
     public String getDetails() { return details; }

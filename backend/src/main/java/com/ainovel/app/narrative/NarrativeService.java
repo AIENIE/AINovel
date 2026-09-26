@@ -24,6 +24,8 @@ import static com.ainovel.app.narrative.NarrativeText.*;
 
 @Service
 public class NarrativeService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private NarrativeContextSettingsRepository contextSettings;
     public static final String PROMPT_VERSION = "narrative-state-p11-v1";
     private final ManuscriptRepository manuscripts;
     private final V2ManuscriptBranchRepository branches;
@@ -85,7 +87,9 @@ public class NarrativeService {
         approvals.saveAndFlush(approval);
         NarrativeExtraction extraction = new NarrativeExtraction();
         extraction.setApproval(approval); extraction.setBaseCanonRevision(scope.ledger().getRevision());
-        extraction.setPromptVersion(PROMPT_VERSION); extraction.setCreatedAt(Instant.now());
+        boolean knowledgeEnabled = contextSettings != null && contextSettings.findById(scope.manuscript().getOutline().getStory().getId())
+                .map(NarrativeContextSettings::isEnabled).orElse(false);
+        extraction.setPromptVersion(knowledgeEnabled ? "narrative-state-p11-v4" : PROMPT_VERSION); extraction.setCreatedAt(Instant.now());
         List<InputRecord> prior = branchRecords(branchId).stream()
                 .filter(r -> active(r, scope.ledger().getRevision()))
                 .filter(r -> position(r.getExtraction().getApproval()).index() < position.index())
@@ -94,7 +98,7 @@ public class NarrativeService {
         var entities = characters.findByStory(scope.manuscript().getOutline().getStory()).stream()
                 .map(c -> Map.of("id", c.getId(), "name", Objects.toString(c.getName(), ""))).toList();
         extraction.setInputJson(write(new ExtractionInput(null, approval.getId(), scope.manuscript().getOutline().getStory().getId(),
-                blocks, prior, entities)));
+                blocks, prior, entities, knowledgeEnabled,extraction.getPromptVersion())));
         extractions.saveAndFlush(extraction);
         return new Approved(approval.getId(), extraction.getId(), null);
     }
@@ -114,7 +118,7 @@ public class NarrativeService {
         reconcile(scope);
         if (stale(scope, extraction)) throw conflict("NARRATIVE_SOURCE_STALE");
         ExtractionInput input = read(extraction.getInputJson(), ExtractionInput.class);
-        return new ExtractionInput(extraction.getId(), input.approvalId(), input.storyId(), input.blocks(), input.previousRecords(), input.entities());
+        return new ExtractionInput(extraction.getId(), input.approvalId(), input.storyId(), input.blocks(), input.previousRecords(), input.entities(), input.knowledgeEnabled(),extraction.getPromptVersion());
     }
 
     @Transactional
@@ -156,7 +160,7 @@ public class NarrativeService {
                 assertion = json.treeToValue(item, Assertion.class);
                 // Clear model-suggested replacements even on candidates whose evidence needs repair.
                 if (assertion != null) assertion = new Assertion(assertion.subject(), assertion.characterId(), assertion.statement(),
-                        assertion.kind(), assertion.holderCharacterId(), assertion.worldTime(), assertion.uncertainty(), assertion.evidence(), null);
+                        assertion.kind(), assertion.holderCharacterId(), assertion.worldTime(), assertion.uncertainty(), assertion.evidence(), null, assertion.knowledge());
                 assertion = validate(assertion, extraction.getApproval(), ids);
             } catch (Exception ex) {
                 error = ex instanceof ApiStatusException ? ex.getMessage() : "NARRATIVE_INVALID_ASSERTION";
@@ -367,8 +371,21 @@ public class NarrativeService {
                 || (value.holderCharacterId() != null && !ids.contains(value.holderCharacterId()))) throw invalid("NARRATIVE_UNKNOWN_CHARACTER");
         if (value.kind() == Kind.BELIEF && value.holderCharacterId() == null) throw invalid("NARRATIVE_BELIEF_HOLDER_REQUIRED");
         List<Evidence> evidence = value.evidence().stream().map(e -> resolve(blockList(approval), e)).toList();
+        List<Knowledge> knowledge = value.knowledge().stream().map(k -> {
+            if (!ids.contains(k.characterId())) throw invalid("NARRATIVE_UNKNOWN_CHARACTER");
+            if (k.view()!=null && k.view().kind()!=value.kind()) throw invalid("H2_KNOWLEDGE_KIND_MISMATCH");
+            return new Knowledge(k.characterId(), k.evidence().stream().map(e -> resolve(blockList(approval), e)).toList(), k.uncertainty(),k.view());
+        }).toList();
         return new Assertion(value.subject(), value.characterId(), value.statement(), value.kind(), value.holderCharacterId(),
-                value.worldTime(), value.uncertainty(), evidence, value.supersedesId());
+                value.worldTime(), value.uncertainty(), evidence, value.supersedesId(), knowledge);
+    }
+
+    @Transactional
+    public boolean approvalCurrent(User user, UUID manuscriptId, UUID branchId, UUID approvalId) {
+        Scope scope = scope(user, manuscriptId, branchId);
+        NarrativeApproval approval = approvals.findById(approvalId).orElseThrow(NarrativeService::missing);
+        if (!approval.getLedger().getBranchId().equals(branchId)) throw missing();
+        return sourceMatches(scope, approval);
     }
     private Set<UUID> characterIds(Scope scope) {
         Set<UUID> ids = new HashSet<>();

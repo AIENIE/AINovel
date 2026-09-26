@@ -30,6 +30,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class JwtAuthFilterTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"UNAVAILABLE,503", "INVALID,401"})
+    void sessionFailureRejectsWithoutAuthenticatingOrContinuing(UserSessionValidator.ValidationResult result, int status) throws Exception {
+        JwtService jwt = mock(JwtService.class);
+        var validator = mock(UserSessionValidator.class);
+        var provisioning = mock(SsoUserProvisioningService.class);
+        var signedClaims = claims("user", 42, "sid", "USER", false);
+        when(jwt.parseClaims("signed")).thenReturn(signedClaims);
+        when(validator.validate(42, "sid")).thenReturn(result);
+        var filter = new JwtAuthFilter(jwt, mock(UserDetailsService.class), provisioning, provider(validator));
+        var response = new MockHttpServletResponse();
+        var chain = new MockFilterChain();
+        filter.doFilter(bearer("signed"), response, chain);
+        assertEquals(status, response.getStatus()); assertNull(chain.getRequest());
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        org.mockito.Mockito.verifyNoInteractions(provisioning);
+    }
+
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
@@ -49,7 +67,7 @@ class JwtAuthFilterTest {
         localUser.setRoles(java.util.Set.of("USER"));
         when(provisioning.ensureExistsBestEffort("goodboy95", "USER", 18L)).thenReturn(localUser);
         UserSessionValidator validator = mock(UserSessionValidator.class);
-        when(validator.validate(18L, "sid-001")).thenReturn(true);
+        when(validator.validate(18L, "sid-001")).thenReturn(UserSessionValidator.ValidationResult.VALID);
         ObjectProvider<UserSessionValidator> provider = provider(validator);
         JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider);
 
@@ -68,7 +86,7 @@ class JwtAuthFilterTest {
         UserDetailsService users = mock(UserDetailsService.class);
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
         UserSessionValidator validator = mock(UserSessionValidator.class);
-        when(validator.validate(anyLong(), anyString())).thenReturn(true);
+        when(validator.validate(anyLong(), anyString())).thenReturn(UserSessionValidator.ValidationResult.VALID);
         JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(validator));
 
         MockHttpServletResponse response = new MockHttpServletResponse();

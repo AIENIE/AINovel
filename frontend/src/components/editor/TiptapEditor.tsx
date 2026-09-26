@@ -123,7 +123,8 @@ const TiptapEditor = ({
 
   useEffect(() => {
     if (!editor) return;
-    editor.setEditable(editable);
+    // Changing editor permissions is hydration, not a user edit.
+    editor.setEditable(editable, false);
   }, [editor, editable]);
 
   useEffect(() => {

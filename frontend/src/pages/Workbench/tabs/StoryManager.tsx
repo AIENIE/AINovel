@@ -1,4 +1,4 @@
-import type { NetworkObject } from "@/lib/api-client";
+import type { CharacterCard } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Edit, Palette, Plus, Trash2 } from "lucide-react";
@@ -31,7 +31,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
-  const [characters, setCharacters] = useState<NetworkObject[]>([]);
+  const [characters, setCharacters] = useState<CharacterCard[]>([]);
   const [storyDialogOpen, setStoryDialogOpen] = useState(false);
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false);
   const [storyDraft, setStoryDraft] = useState<Partial<Story>>({});
@@ -82,9 +82,9 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
     finally { setIsSaving(false); }
   };
 
-  const openCharacterEditor = (character?: NetworkObject) => {
+  const openCharacterEditor = (character?: CharacterCard) => {
     setCharacterDraft(character ? {
-      id: character.id, name: character.name || "", synopsis: character.synopsis || character.summary || "",
+      id: character.id, name: character.name || "", synopsis: character.synopsis || "",
       role: character.role || "", archetype: character.archetype || "",
     } : emptyCharacter());
     setCharacterDialogOpen(true);
@@ -104,7 +104,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
     finally { setIsSaving(false); }
   };
 
-  const deleteCharacter = async (character: NetworkObject) => {
+  const deleteCharacter = async (character: CharacterCard) => {
     if (!selectedStory || !confirm(t("storyManager.deleteCharacterConfirm", { name: character.name }))) return;
     try { await api.stories.deleteCharacter(character.id); await loadCharacters(selectedStory.id); toast({ title: t("storyManager.characterDeleted") }); }
     catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
@@ -139,7 +139,7 @@ const StoryManager = ({ initialStoryId, onStoryChange }: StoryManagerProps) => {
         </div>
         <div className="grid gap-4 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">{t("storyManager.genre")}</p><p className="mt-1 text-sm font-medium">{selectedStory.genre || t("storyManager.unset")}</p></div><div><p className="text-xs text-muted-foreground">{t("storyManager.tone")}</p><p className="mt-1 text-sm font-medium">{selectedStory.tone || t("storyManager.unset")}</p></div><div><p className="text-xs text-muted-foreground">{t("storyManager.relatedWorld")}</p><p className="mt-1 text-sm font-medium">{selectedWorld?.name || t("storyManager.notLinked")}</p></div></div>
         <Card><CardHeader className="flex-row items-center justify-between"><div><CardTitle className="text-lg">{t("storyManager.characterCards")}</CardTitle><CardDescription>{t("storyManager.characterCardsDesc")}</CardDescription></div><Button size="sm" onClick={() => openCharacterEditor()}><Plus className="mr-2 h-4 w-4" />{t("storyManager.addCharacter")}</Button></CardHeader><CardContent className="divide-y">
-          {characters.map((character) => <div key={character.id} className="flex items-start justify-between gap-3 py-4 first:pt-0"><div className="min-w-0"><div className="font-medium">{character.name}</div><div className="mt-1 text-xs text-muted-foreground">{[character.role, character.archetype].filter(Boolean).join(" · ") || t("storyManager.roleUnset")}</div><p className="mt-2 text-sm text-muted-foreground">{character.synopsis || character.summary || t("storyManager.noSummary")}</p></div><div className="flex shrink-0 gap-1"><Button size="icon" variant="ghost" onClick={() => openCharacterEditor(character)}><Edit className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => void deleteCharacter(character)}><Trash2 className="h-4 w-4" /></Button></div></div>)}
+          {characters.map((character) => <div key={character.id} className="flex items-start justify-between gap-3 py-4 first:pt-0"><div className="min-w-0"><div className="font-medium">{character.name}</div><div className="mt-1 text-xs text-muted-foreground">{[character.role, character.archetype].filter(Boolean).join(" · ") || t("storyManager.roleUnset")}</div><p className="mt-2 text-sm text-muted-foreground">{character.synopsis || t("storyManager.noSummary")}</p></div><div className="flex shrink-0 gap-1"><Button size="icon" variant="ghost" onClick={() => openCharacterEditor(character)}><Edit className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => void deleteCharacter(character)}><Trash2 className="h-4 w-4" /></Button></div></div>)}
           {!characters.length && <p className="py-8 text-center text-sm text-muted-foreground">{t("storyManager.noCharacters")}</p>}
         </CardContent></Card>
         <Button asChild variant="outline"><Link to={`/settings?tab=style&storyId=${selectedStory.id}`}><Palette className="mr-2 h-4 w-4" />{t("storyManager.manageStyleVoice")}</Link></Button>

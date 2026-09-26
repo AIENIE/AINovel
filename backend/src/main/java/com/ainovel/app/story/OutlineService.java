@@ -415,6 +415,7 @@ public class OutlineService {
 
     private Map<String, Object> normalizeScenePlanning(Map<String, Object> source) {
         Map<String, Object> planning = copyMap(source);
+        com.ainovel.app.story.model.SceneLengthRange.from(planning);
         if (!planning.containsKey("sceneType") || planning.get("sceneType") == null
                 || planning.get("sceneType").toString().isBlank()) {
             planning.remove("sceneType");

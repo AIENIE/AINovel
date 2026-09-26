@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Book, FileText, PenTool, Search, Rocket, BookOpen, Network, ClipboardCheck } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 // Tabs Components
 import StoryConception from "./tabs/StoryConception";
@@ -17,7 +17,15 @@ import AnalysisDashboard from "./tabs/AnalysisDashboard";
 
 const Workbench = () => {
   const { t } = useTranslation();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const setParams = useCallback((value: URLSearchParams | ((current: URLSearchParams) => URLSearchParams), options: { replace?: boolean }) => {
+    const next = typeof value === "function" ? value(params) : value;
+    const search = `?${next.toString()}`;
+    if (search === location.search) return;
+    navigate({ search, hash: location.hash }, options);
+  }, [location.hash, location.search, navigate, params]);
   const storyId = params.get("storyId") || params.get("id") || "";
   const requestedTab = params.get("tab") || "";
   const initialTab = useMemo(() => {

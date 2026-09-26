@@ -61,6 +61,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ManuscriptServiceTest {
+    @Test void h2VersionConflictRetainsCandidateWithoutWritingTheCurrentBody() {
+        var repository=mock(ManuscriptRepository.class);var access=mock(ResourceAccessGuard.class);
+        var s=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),access,
+                mock(SlopQualityGate.class),mock(PlotQualityService.class),mock(PromptAssemblyService.class),mock(MaterialRetrievalService.class),mock(StyleContextProvider.class));
+        var owner=new User();owner.setId(UUID.randomUUID());var story=new Story();story.setUser(owner);
+        var outline=new Outline();outline.setStory(story);var m=new Manuscript();m.setId(UUID.randomUUID());m.setOutline(outline);m.setSectionsJson("{}");m.setCurrentBranchId(UUID.randomUUID());
+        UUID scene=UUID.randomUUID();var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(m.getId(),m.getCurrentBranchId(),0,0,1,1,"hash");
+        var manifest=new com.ainovel.app.manuscript.context.SceneDraftContextManifest("h2","hash","SHA-256",3500,10,null,null,m.getId(),scene,null,1,1,"",List.of(),List.of(),stamp);
+        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any())).thenReturn(
+                new SceneGenerationService.GenerationResult("<p>生成候选</p>",new SceneGenerationService.GenerationMetadata("test","h2","hash",1,manifest)));
+        var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);var archive=mock(com.ainovel.app.narrative.NarrativeGenerationCandidateStore.class);
+        ReflectionTestUtils.setField(s,"sceneGenerationService",generator);ReflectionTestUtils.setField(s,"narrativeContext",context);ReflectionTestUtils.setField(s,"retainedCandidates",archive);
+        when(repository.findWithStoryById(m.getId())).thenReturn(Optional.of(m));
+        org.mockito.Mockito.doThrow(new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"H2_CONTEXT_CHANGED")).when(context).requireStamp(owner,stamp);
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->s.generateForScene(m.getId(),scene));
+        verify(archive).retain(eq(stamp),eq(scene),eq("<p>生成候选</p>"),any());verify(archive,never()).applied(any());verify(repository,never()).saveAndFlush(any());assertEquals("{}",m.getSectionsJson());
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final JsonColumnCodec jsonColumnCodec = new JsonColumnCodec(objectMapper);

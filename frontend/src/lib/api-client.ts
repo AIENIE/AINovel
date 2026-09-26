@@ -1,5 +1,6 @@
 import {
   AdminDashboardStats,
+  CharacterCard,
   CreditConversionRecord,
   CreditLedgerItem,
   ContextPreview,
@@ -60,11 +61,13 @@ const getToken = () => localStorage.getItem(USER_TOKEN_KEY);
 
 export class ApiError extends Error {
   status: number;
+  requestId?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, requestId?: string | null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.requestId = requestId || undefined;
   }
 }
 
@@ -112,9 +115,11 @@ function redirectToLogin(scope: AuthScope) {
   }
 }
 
-function handleUnauthorized(path: string) {
+function handleUnauthorized(path: string, requestToken: string | null) {
   const scope = inferAuthScope(path);
   if (scope === "user") {
+    // A delayed failure from an earlier session must not invalidate a newly accepted SSO token.
+    if (getToken() !== requestToken) return;
     localStorage.removeItem(USER_TOKEN_KEY);
   }
   redirectToLogin(scope);
@@ -170,10 +175,10 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
   const resp = await fetchWithAdminOperationProof(path, init, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    if (resp.status === 401 || resp.status === 403) {
-      handleUnauthorized(path);
+    if (resp.status === 401 || (resp.status === 403 && inferAuthScope(path) === "admin")) {
+      handleUnauthorized(path, token);
     }
-    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
   return (await resp.json()) as T;
 }
@@ -186,10 +191,10 @@ async function requestForm<T>(path: string, form: FormData, tokenOverride?: stri
   const resp = await fetchWithAdminOperationProof(path, { method: "POST", body: form }, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    if (resp.status === 401 || resp.status === 403) {
-      handleUnauthorized(path);
+    if (resp.status === 401 || (resp.status === 403 && inferAuthScope(path) === "admin")) {
+      handleUnauthorized(path, token);
     }
-    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
   return (await resp.json()) as T;
 }
@@ -204,10 +209,10 @@ async function requestVoid(path: string, init: RequestInit = {}, tokenOverride?:
   const resp = await fetchWithAdminOperationProof(path, init, headers);
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    if (resp.status === 401 || resp.status === 403) {
-      handleUnauthorized(path);
+    if (resp.status === 401 || (resp.status === 403 && inferAuthScope(path) === "admin")) {
+      handleUnauthorized(path, token);
     }
-    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
 }
 
@@ -274,8 +279,8 @@ async function requestBlob(path: string, tokenOverride?: string): Promise<{ blob
   const resp = await fetch(`${API_BASE}${path}`, { method: "GET", headers });
   if (!resp.ok) {
     const msg = await safeErrorMessage(resp);
-    if (resp.status === 401 || resp.status === 403) handleUnauthorized(path);
-    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`);
+    if (resp.status === 401 || (resp.status === 403 && inferAuthScope(path) === "admin")) handleUnauthorized(path, token);
+    throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
   const disposition = resp.headers.get("Content-Disposition") || "";
   const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
@@ -499,6 +504,8 @@ function toOutline(dto: NetworkObject): Outline {
         content: s.content || undefined,
         planning: s?.planning
           ? {
+              minHan: s.planning.minHan ?? undefined,
+              maxHan: s.planning.maxHan ?? undefined,
               sceneType: toSceneType(s.planning.sceneType),
               goal: s.planning.goal || s.planning.foreshadowHint || "",
               conflict: s.planning.conflict || s.planning.misdirectionAction || "",
@@ -765,6 +772,15 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 }
 
 export const api = {
+  narrativeContext: {
+    state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
+    update: (mid: string, bid: string, value: import('@/types/narrative-context').ContextUpdate, key: string) =>
+      requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`, { method: 'PUT', headers: { 'Idempotency-Key': key }, body: JSON.stringify(value) }),
+    preview: (mid: string, bid: string, sceneId: string, view: import('@/types/narrative-context').ContextView, characterId?: string) =>
+      requestJson<import('@/types/narrative-context').ContextPreview>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context/preview?${new URLSearchParams({ sceneId, view, ...(characterId ? { characterId } : {}) })}`),
+    history: (mid: string, bid: string) => requestJson<Array<{ revision: number; createdAt: string; document: import('@/types/narrative-context').ContextDocument }>>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context/history`),
+    candidates: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').RetainedCandidate[]>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context/candidates`),
+  },
   narrative: {
     state: (manuscriptId: string, branchId: string, sceneId?: string) =>
       requestJson<import("@/types/narrative").NarrativeState>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/state${sceneId ? `?sceneId=${encodeURIComponent(sceneId)}` : ""}`),
@@ -1144,13 +1160,13 @@ export const api = {
       return toStory(dto);
     },
     listCharacters: async (storyId: string) => {
-      return await requestJson<NetworkObject[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
+      return await requestJson<CharacterCard[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
     },
-    addCharacter: async (storyId: string, payload: { name: string; synopsis?: string; details?: string; relationships?: string }) => {
-      return await requestJson<NetworkObject>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
+    addCharacter: async (storyId: string, payload: Omit<CharacterCard, "id" | "updatedAt">) => {
+      return await requestJson<CharacterCard>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
     },
-    updateCharacter: async (id: string, payload: NetworkObject) => {
-      return await requestJson<NetworkObject>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    updateCharacter: async (id: string, payload: Partial<Omit<CharacterCard, "id" | "updatedAt">>) => {
+      return await requestJson<CharacterCard>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
     deleteCharacter: async (id: string) => {
       await requestVoid(`/v1/character-cards/${id}`, { method: "DELETE" });

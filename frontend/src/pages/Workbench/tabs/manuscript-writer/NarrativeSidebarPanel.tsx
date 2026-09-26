@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabsContent } from "@/components/ui/tabs";
 import { api, isApiError } from "@/lib/api-client";
-import { localizedErrorMessage } from "@/lib/error-messages";
+import { narrativeErrorMessage } from "./narrative-errors";
 import { useAuth } from "@/contexts/auth-state";
 import type { Manuscript } from "@/types";
 import type { NarrativeAssertion, NarrativeEvidence, NarrativeExtraction, NarrativeReview, NarrativeSource, NarrativeState } from "@/types/narrative";
 import { NarrativeAssertionEditor } from "./NarrativeAssertionEditor";
 import { NarrativeEvidenceDialog } from "./NarrativeEvidenceDialog";
+import { NarrativeContextPanel } from "./NarrativeContextPanel";
 
 const running = (status: string) => ["QUEUED", "RUNNING", "STREAMING"].includes(status);
 const blankAssertion = (): NarrativeAssertion => ({
@@ -21,9 +22,10 @@ type Characters = Array<{ id: string; name: string }>;
 type Props = {
   active: boolean; manuscript: Manuscript | null | undefined; sceneId: string; dirty: boolean;
   busy: boolean; structureKey: string; characters: Characters; onManuscript: (manuscript: Manuscript) => void;
+  scenes?: Array<{ id: string; title: string }>;
 };
 
-export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy, structureKey, characters, onManuscript }: Props) {
+export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy, structureKey, characters, onManuscript, scenes=[] }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const client = useQueryClient();
@@ -53,7 +55,10 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
     setSelection(""); setSource(null); setError(""); approvalKey.current = null;
   }, [manuscriptId, branchId, sceneId]);
   const refresh = useCallback(async () => {
-    await client.invalidateQueries({ queryKey: ["narrative", manuscriptId, branchId] });
+    await Promise.all([
+      client.invalidateQueries({ queryKey: ["narrative", manuscriptId, branchId] }),
+      client.invalidateQueries({ queryKey: ["narrative-context", manuscriptId, branchId] }),
+    ]);
   }, [client, manuscriptId, branchId]);
   const batches = state.data?.extractions.filter(e => e.sceneId === sceneId) || [];
   const selected = batches.find(e => e.id === selection) || batches.find(e => !e.reviewed) || batches[0];
@@ -65,7 +70,7 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
     try {
       await api.v2.version.listVersions(manuscriptId);
       onManuscript(await api.manuscripts.get(manuscriptId));
-    } catch (e) { setError(localizedErrorMessage(e)); }
+    } catch (e) { setError(narrativeErrorMessage(e)); }
     finally { setWorking(false); }
   };
   const approve = async () => {
@@ -78,7 +83,7 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
       const result = await api.narrative.approve(manuscriptId, branchId, request, approvalKey.current.key);
       setSelection(result.extractionId); setView("pending"); approvalKey.current = null;
       await refresh();
-    } catch (e) { setError(localizedErrorMessage(e)); await refresh(); }
+    } catch (e) { setError(narrativeErrorMessage(e)); await refresh(); }
     finally { setWorking(false); }
   };
   const openEvidence = async (approvalId: string, evidence: NarrativeEvidence[]) => {
@@ -86,7 +91,7 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
     try {
       const result = await api.narrative.evidence(manuscriptId, branchId, approvalId);
       setSource(result); setHighlight(evidence);
-    } catch (e) { setError(localizedErrorMessage(e)); }
+    } catch (e) { setError(narrativeErrorMessage(e)); }
   };
   const taskAction = async (retry: boolean) => {
     if (!selected?.operationId) return;
@@ -95,11 +100,12 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
       if (retry) await api.aiOperations.retry(selected.operationId);
       else await api.aiOperations.cancel(selected.operationId);
       await refresh();
-    } catch (e) { setError(localizedErrorMessage(e)); }
+    } catch (e) { setError(narrativeErrorMessage(e)); }
     finally { setWorking(false); }
   };
   const visibleRecords = (state.data?.records || []).filter(r => view === "stale" ? r.status === "STALE" : r.status === "CONFIRMED");
   return <TabsContent value="narrative" className="m-0 mt-2 flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+    {manuscript && branchId && <NarrativeContextPanel key={`${user?.id}:${manuscript.id}:${branchId}`} active={active} manuscript={manuscript} sceneId={sceneId} disabled={locked} characters={characters} scenes={scenes} records={state.data?.records || []} />}
     <p className="text-sm text-muted-foreground">{t("narrative.intro")}</p>
     {!manuscriptId || !sceneId ? <p>{t("narrative.selectScene")}</p> : <>
       {!branchId ? <Button disabled={working || dirty || busy} onClick={() => void initialize()}>{t("narrative.initialize")}</Button> : <>
@@ -149,7 +155,7 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
         </>}
       </>}
     </>}
-    {(error || state.error) && <p role="alert" className="text-sm text-destructive break-words">{error || localizedErrorMessage(state.error)}</p>}
+    {(error || state.error) && <p role="alert" className="text-sm text-destructive break-words">{error || narrativeErrorMessage(state.error)}</p>}
     <NarrativeEvidenceDialog source={source} evidence={highlight} onClose={() => setSource(null)} />
   </TabsContent>;
 }
@@ -195,7 +201,7 @@ function NarrativeReviewForm({ extraction, state, manuscript, characters, disabl
       setSubmitted(true); await refresh();
     } catch (e) {
       if (isApiError(e) && e.status >= 400 && e.status < 500) update({ pendingRequest: undefined });
-      setError(localizedErrorMessage(e)); await refresh();
+      setError(narrativeErrorMessage(e)); await refresh();
     }
     finally { setSubmitting(false); }
   };
@@ -217,6 +223,11 @@ function NarrativeReviewForm({ extraction, state, manuscript, characters, disabl
       {candidate.validationError && <p className="text-sm text-destructive">{t("narrative.invalidCandidate")}</p>}
       <p className="text-sm whitespace-pre-wrap break-words">{candidate.assertion?.statement}</p>
       {candidate.assertion && <p className="text-xs">{t("narrative.kind." + candidate.assertion.kind)} · {candidate.assertion.uncertainty || t("narrative.authorCheck")}</p>}
+      {(draft.edited[candidate.id] || candidate.assertion)?.knowledge?.map((k,i)=><div key={i} className="rounded bg-muted/40 p-2 text-xs">
+        <p>知情建议：{characters.find(c=>c.id===k.characterId)?.name || '未指定人物'}（接受本候选时一并确认，可展开修改或移除）</p>
+        <p className="whitespace-pre-wrap">依据：{k.evidence.map(e=>e.quote).join('；')}</p><p>{k.uncertainty}</p>
+        <p className="whitespace-pre-wrap">{k.view?`人物可用：${k.view.content}（${k.view.kind} / ${k.view.certainty}）`:'待补充人物可用表述；不会进入严格人物输入。'}</p>
+      </div>)}
       <Button size="sm" variant="ghost" onClick={() => void openEvidence(extraction.approvalId, candidate.assertion?.evidence || [])}>{t("narrative.evidence")}</Button>
       <label className="block text-xs">{t("narrative.decision")}
         <select className="w-full rounded border bg-background p-2 text-sm" disabled={locked} value={draft.decisions[candidate.id] || ""} onChange={e => update({ decisions: { ...draft.decisions, [candidate.id]: e.target.value as "ACCEPT" | "REJECT" } })}>
@@ -239,6 +250,6 @@ function NarrativeReviewForm({ extraction, state, manuscript, characters, disabl
     <Button size="sm" variant="outline" disabled={locked || draft.additions.length >= 100} onClick={() => update({ additions: [...draft.additions, blankAssertion()] })}>{t("narrative.addRecord")}</Button>
     <p className="text-xs text-muted-foreground">{t("narrative.reviewHint")}</p>
     <Button size="sm" disabled={locked || !allDecided || !source.data} onClick={() => void submit()}>{t("narrative.submit")}</Button>
-    {(error || source.error) && <p role="alert" className="text-sm text-destructive">{error || localizedErrorMessage(source.error)}</p>}
+    {(error || source.error) && <p role="alert" className="text-sm text-destructive">{error || narrativeErrorMessage(source.error)}</p>}
   </div>;
 }

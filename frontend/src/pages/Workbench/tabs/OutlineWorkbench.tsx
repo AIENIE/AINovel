@@ -442,6 +442,15 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
+                <Label htmlFor="scene-min-han">场景最少汉字</Label>
+                <Input id="scene-min-han" type="number" min={1} max={20000} step={1} placeholder="默认 2800" value={scenePlanning.minHan ?? ""} onChange={(event) => setScenePlanning((current) => ({ ...current, minHan: event.target.value === "" ? undefined : Number(event.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="scene-max-han">场景最多汉字</Label>
+                <Input id="scene-max-han" type="number" min={1} max={20000} step={1} placeholder="默认 3200" value={scenePlanning.maxHan ?? ""} onChange={(event) => setScenePlanning((current) => ({ ...current, maxHan: event.target.value === "" ? undefined : Number(event.target.value) }))} />
+              </div>
+              <p className="text-sm text-muted-foreground md:col-span-2">同时留空使用默认篇幅；自定义时请同时填写上下限。按汉字计数，不含标点。</p>
+              <div className="space-y-2">
                 <Label>{t("outline.sceneGoal")}</Label>
                 <Input value={scenePlanning.goal || ""} onChange={(event) => setScenePlanning((current) => ({ ...current, goal: event.target.value }))} placeholder={t("outline.sceneGoalPlaceholder")} />
               </div>

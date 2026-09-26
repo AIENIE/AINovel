@@ -27,6 +27,9 @@ $stateRoot = if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     Join-Path $env:LOCALAPPDATA 'Aienie\native-runs\ainovel'
 }
 $statePath = Join-Path $stateRoot 'processes.json'
+# Windows direct-run data root: logs/records live outside the checkout under
+# the shared aienie-runtime local-services tree, never on a drive root.
+$directRunRoot = 'D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel'
 $frontendPackageManager = 'pnpm@11.22.0'
 $components = @(
     [pscustomobject]@{
@@ -153,6 +156,8 @@ function Get-ChildEnvironment {
     $child['APP_ENV'] = 'local'
     $child['SPRING_PROFILES_ACTIVE'] = 'local'
     $child['AIENIE_RUNTIME_PLANE'] = 'windows-local'
+    $child['APP_LOG_DIR'] = Join-Path $directRunRoot 'logs'
+    $child['APP_RECORD_DIR'] = Join-Path $directRunRoot 'records'
     $child['AUTH_MODE'] = 'password'
     $child['SERVER_ADDRESS'] = '127.0.0.1'
     $child['PORT'] = '11041'
@@ -169,7 +174,7 @@ function Get-ChildEnvironment {
     $child['PAY_GRPC_ADDR'] = 'static://localpayservice.testhut.top:12021'
     $child['USER_HTTP_ADDR'] = 'https://localuserservice.testhut.top'
     $child['SSO_CALLBACK_ORIGIN'] = 'https://localainovel.testhut.top'
-    $child['VITE_SSO_ENTRY_BASE_URL'] = 'https://localuserservice.testhut.top'
+    $child['VITE_SSO_ENTRY_BASE_URL'] = 'https://localainovel.testhut.top'
     $child['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'] = ''
     $child['EXTERNAL_GRPC_TLS_ENABLED'] = 'true'
     $child['EXTERNAL_GRPC_PLAINTEXT_ENABLED'] = 'false'
@@ -352,6 +357,9 @@ switch ($Action) {
     'Start' {
         $projectEnvironment = Get-NativeEnvironment -Path $EnvironmentFile
         $childEnvironment = Get-ChildEnvironment -ProjectEnvironment $projectEnvironment
+        foreach ($directory in @($childEnvironment['APP_LOG_DIR'], $childEnvironment['APP_RECORD_DIR'])) {
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        }
         $state = Get-ProcessState
         $records = @()
         if ($null -ne $state) {

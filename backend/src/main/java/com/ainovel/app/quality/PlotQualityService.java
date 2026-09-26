@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class PlotQualityService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.narrative.NarrativeContextService isolation;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private final AiService aiService;
     private final ObjectMapper objectMapper;
@@ -94,6 +96,12 @@ public class PlotQualityService {
         Story story = outline.getStory();
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         SceneContext scene = resolveScene(outline, sceneId);
+        if (isolation!=null && isolation.enabled(manuscript)) {
+            var p=isolation.preview(story.getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
+                    com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500);
+            return new PlotQualityRequest(story.getId(),manuscript.getId(),sceneId,"当前作品","未指定","沉浸、连贯","当前章节",scene.chapterOrder(),
+                    "当前场景",scene.sceneOrder(),"","",p.content(),"",stripHtml(sections.get(sceneId.toString())),p.stamp(),p.content());
+        }
         return new PlotQualityRequest(
                 story.getId(),
                 manuscript.getId(),
@@ -151,12 +159,14 @@ public class PlotQualityService {
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
         PlotQualityRun run = requireRun(runId);
         ensureRunBelongsToManuscript(run, manuscript);
+        requireIsolation(user,manuscript,run);
         String currentText = currentPlainText(manuscript, run.getSceneId());
         if (!Objects.equals(run.getSourceTextHash(), hashText(currentText))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
         }
         String candidate = aiService.chat(user, new AiChatRequest(
-                List.of(new AiChatRequest.Message("user", buildRevisionPrompt(run, currentText))),
+                List.of(new AiChatRequest.Message("user", buildRevisionPrompt(run, currentText)
+                        + (run.getIsolationContext()==null?"":"\n必须遵守的 H2 上下文：\n"+run.getIsolationContext()))),
                 null,
                 null
         )).content();
@@ -168,6 +178,7 @@ public class PlotQualityService {
     public PlotQualityRun applyRevision(User user, Manuscript manuscript, UUID runId) {
         PlotQualityRun run = requireRun(runId);
         ensureRunBelongsToManuscript(run, manuscript);
+        requireIsolation(user,manuscript,run);
         if (run.getRevisionCandidateText() == null || run.getRevisionCandidateText().isBlank()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "尚未生成可采纳的剧情修订候选");
         }
@@ -186,11 +197,13 @@ public class PlotQualityService {
                 safe(run.getChapterTitle(), "未指定章节"),
                 safe(run.getSceneTitle(), "未指定场景"),
                 "",
-                "剧情修订采纳前的文本门禁",
+                run.getIsolationContext()==null?"剧情修订采纳前的文本门禁":run.getIsolationContext(),
                 "",
                 "剧情修订候选采纳前未加载风格画像；仅按候选文本执行保守门禁。",
-                run.getRevisionCandidateText()
+                run.getRevisionCandidateText(),
+                run.getIsolationContext()==null ? "generation_gate" : "h2_revision_gate"
         ));
+        requireIsolation(user,manuscript,run);
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         sections.put(run.getSceneId().toString(), toEditorHtml(textGate.acceptedText()));
         manuscript.setSectionsJson(writeJson(sections));
@@ -223,6 +236,10 @@ public class PlotQualityService {
 
     private PlotQualityRun newBaseRun(PlotQualityRequest request) {
         PlotQualityRun run = new PlotQualityRun();
+        if(request.isolationStamp()!=null) {
+            run.setIsolationStampJson(writeJson(request.isolationStamp()));
+            run.setIsolationContext(request.isolationContext());
+        }
         run.setStoryId(request.storyId());
         run.setManuscriptId(request.manuscriptId());
         run.setSceneId(request.sceneId());
@@ -236,6 +253,16 @@ public class PlotQualityService {
         run.setOverallRiskScore(0);
         run.setRevisionApplied(false);
         return run;
+    }
+
+    private void requireIsolation(User user,Manuscript manuscript,PlotQualityRun run) {
+        if(isolation==null)return;
+        if(run.getIsolationStampJson()==null) {
+            if(isolation.enabled(manuscript))throw new ResponseStatusException(HttpStatus.CONFLICT,"请在当前隔离配置下重新诊断，旧诊断不可用于修订");
+            return;
+        }
+        try { isolation.requireStamp(user,objectMapper.readValue(run.getIsolationStampJson(),com.ainovel.app.narrative.NarrativeContextDtos.Stamp.class)); }
+        catch(com.fasterxml.jackson.core.JsonProcessingException ex){throw new IllegalStateException("H2_STORED_DATA_INVALID",ex);}
     }
 
     private List<PlotQualityIssue> parseIssues(Object value) {
@@ -321,7 +348,7 @@ public class PlotQualityService {
                 truncate(request.sceneSummary(), 900),
                 truncate(request.outlinePlanning(), 1800),
                 truncate(request.characterContext(), 1400),
-                truncate(request.previousContext(), 1200),
+                request.isolationStamp()!=null ? request.isolationContext() : truncate(request.previousContext(), 1200),
                 truncate(request.sceneText(), 7000)
         );
     }

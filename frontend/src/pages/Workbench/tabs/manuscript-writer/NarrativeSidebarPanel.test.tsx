@@ -21,8 +21,8 @@ const extraction: NarrativeExtraction = {
     holderCharacterId: null, worldTime: null, uncertainty: "未知", evidence: [{ blockId: "b1", quote: "声称桥断", start: 2, end: 6 }], supersedesId: null } }],
 };
 const state: NarrativeState = { canonRevision: 0, manuscriptVersion: 4, branchId: "branch", records: [], extractions: [extraction] };
-function mount(dirty = false) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+function mount(dirty = false, client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+  return render(<QueryClientProvider client={client}>
     <Tabs defaultValue="narrative"><NarrativeSidebarPanel active manuscript={manuscript} sceneId="scene" dirty={dirty} busy={false} structureKey="scene" characters={[]} onManuscript={vi.fn()} /></Tabs>
   </QueryClientProvider>);
 }
@@ -33,6 +33,17 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe("narrative author workflow", () => {
+  it("refreshes the context baseline after an author changes the ledger without changing body version", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["narrative-context", "manuscript", "branch", 4], { canonRevision: 0 });
+    vi.mocked(api.narrative.review).mockResolvedValue({ commitId: "commit", canonRevision: 1, recordIds: ["record"] });
+    mount(false, client);
+    await screen.findByText("narrative.submit");
+    fireEvent.click(screen.getByText("narrative.all.ACCEPT"));
+    fireEvent.click(screen.getByText("narrative.submit"));
+    await screen.findByText("narrative.reviewedHint");
+    expect(client.getQueryState(["narrative-context", "manuscript", "branch", 4])?.isInvalidated).toBe(true);
+  });
   it("never starts a paid extraction while the scene is unsaved", async () => {
     mount(true);
     const button = await screen.findByText("narrative.approve");

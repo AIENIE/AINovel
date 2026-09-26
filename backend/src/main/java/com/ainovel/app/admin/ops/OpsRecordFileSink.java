@@ -108,7 +108,7 @@ public class OpsRecordFileSink {
 
     private final ObjectMapper objectMapper;
 
-    @Value("${app.records.dir:${APP_RECORD_DIR:/app/records}}")
+    @Value("${app.records.dir:${APP_RECORD_DIR:./var/records}}")
     private String recordDir;
 
     @Value("${app.records.max-file-size-bytes:${APP_RECORD_MAX_FILE_SIZE_BYTES:10485760}}")

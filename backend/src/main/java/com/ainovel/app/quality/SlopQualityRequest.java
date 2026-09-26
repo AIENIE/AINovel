@@ -18,6 +18,7 @@ public record SlopQualityRequest(
         String candidateText,
         String analysisMode
 ) {
+    public boolean isolated() { return analysisMode != null && analysisMode.startsWith("h2_"); }
     public SlopQualityRequest(
             UUID storyId,
             UUID manuscriptId,

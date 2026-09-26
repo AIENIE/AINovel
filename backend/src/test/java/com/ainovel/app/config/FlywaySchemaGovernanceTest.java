@@ -40,7 +40,7 @@ class FlywaySchemaGovernanceTest {
 
             var result = flyway.migrate();
 
-            assertEquals(15, result.migrationsExecuted);
+            assertEquals(18, result.migrationsExecuted);
             assertTableExists(mysql, databaseName, "narrative_records");
             assertColumnExists(mysql, databaseName, "manuscript_versions", "narrative_protected");
             assertTableExists(mysql, databaseName, "stories");
@@ -87,7 +87,7 @@ class FlywaySchemaGovernanceTest {
             var migrateResult = flyway.migrate();
 
             assertTrue(baselineResult.successfullyBaselined);
-            assertEquals(14, migrateResult.migrationsExecuted);
+            assertEquals(16, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertTableExists(mysql, databaseName, "slop_patterns");
             assertTableExists(mysql, databaseName, "workspace_layouts");
@@ -116,7 +116,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(14, migrateResult.migrationsExecuted);
+            assertEquals(16, migrateResult.migrationsExecuted);
             assertHistoryType(mysql, databaseName, "1", "BASELINE");
             assertV2PersistenceTablesExist(mysql, databaseName);
             assertTableExists(mysql, databaseName, "project_credit_accounts");
@@ -150,7 +150,7 @@ class FlywaySchemaGovernanceTest {
             flyway.baseline();
             var migrateResult = flyway.migrate();
 
-            assertEquals(14, migrateResult.migrationsExecuted);
+            assertEquals(16, migrateResult.migrationsExecuted);
             for (String column : List.of(
                     "char_start", "char_end", "quote", "module", "pattern_id", "issue_type",
                     "evidence_level", "alternative_explanations_json", "repair_hint")) {

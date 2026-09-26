@@ -32,6 +32,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class SlopDiagnosticService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.narrative.NarrativeContextService isolation;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final AiService aiService;
@@ -90,6 +92,12 @@ public class SlopDiagnosticService {
         Story story = outline.getStory();
         Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
         SceneContext scene = resolveScene(outline, sceneId);
+        if(isolation!=null && isolation.enabled(manuscript)) {
+            var p=isolation.preview(story.getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
+                    com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500);
+            return new SlopQualityRequest(story.getId(),manuscript.getId(),sceneId,"当前作品","未指定","沉浸、连贯","当前章节","当前场景","",
+                    p.content(),"","",stripHtml(sections.get(sceneId.toString())),"h2_diagnosis");
+        }
         return new SlopQualityRequest(
                 story.getId(),
                 manuscript.getId(),
@@ -395,7 +403,7 @@ public class SlopDiagnosticService {
                 truncate(request.sceneSummary(), 900),
                 truncate(request.characterContext(), 1400),
                 truncate(request.styleContext(), 1400),
-                truncate(request.previousContext(), 1200),
+                request.isolated() ? request.previousContext() : truncate(request.previousContext(), 1200),
                 truncate(request.candidateText(), 7000)
         );
     }

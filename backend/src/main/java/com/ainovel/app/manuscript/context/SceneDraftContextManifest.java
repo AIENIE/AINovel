@@ -18,8 +18,15 @@ public record SceneDraftContextManifest(
         int sceneOrder,
         String sceneType,
         List<Source> sources,
-        List<String> warnings
+        List<String> warnings,
+        com.ainovel.app.narrative.NarrativeContextDtos.Stamp isolationStamp
 ) {
+    public SceneDraftContextManifest(String compilerVersion,String contextHash,String hashAlgorithm,int tokenBudget,int tokenUsed,
+            UUID storyId,UUID outlineId,UUID manuscriptId,UUID sceneId,UUID boundWorldId,int chapterOrder,int sceneOrder,String sceneType,
+            List<Source> sources,List<String> warnings) {
+        this(compilerVersion,contextHash,hashAlgorithm,tokenBudget,tokenUsed,storyId,outlineId,manuscriptId,sceneId,boundWorldId,
+                chapterOrder,sceneOrder,sceneType,sources,warnings,null);
+    }
     public SceneDraftContextManifest {
         sources = sources == null ? List.of() : List.copyOf(sources);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
