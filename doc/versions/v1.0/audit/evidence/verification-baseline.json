@@ -1,0 +1,997 @@
+{
+  "capturedAt": "2026-09-26T15:22:18.6262034+08:00",
+  "head": "2a1fb98a9e85d9de9feee6e2d820ce7961797a82",
+  "branch": "develop",
+  "platform": "Win32NT",
+  "powershell": "7.6.6",
+  "baselineModifiedFileHashes": [
+    {
+      "path": "doc/operations/verification.md",
+      "sha256": "55B21EA24E333C215450A8093D94999E6FC4944EFDA10D2010BDCB8E7DDBA02A"
+    },
+    {
+      "path": "env.example",
+      "sha256": "4439DA460689752BEB7D4DD3A59751F234B17C5572963B90831BEEC26D5DFCB6"
+    },
+    {
+      "path": "scripts/windows/Invoke-Local.ps1",
+      "sha256": "71BCCF0CA158CFFA0A02E671822C5223246F982138E104D3D9502F199341E213"
+    },
+    {
+      "path": "scripts/windows/tests/Test-LocalContract.ps1",
+      "sha256": "5B1FDA70D825DA166236FE4D89EEBADF73D00B600C47D8FE5EA34B041A3736A0"
+    },
+    {
+      "path": "scripts/windows/local-trust/localcert-root-ca.crt",
+      "sha256": "3D7BC0CEC2B9FDD5D89A2746659BCA55D8D6095DCC8608F077FE1B9AB51AFECF"
+    }
+  ],
+  "backendTestCommand": "./scripts/windows/Test-Local.ps1 -Level L2",
+  "backendTestSuites": [
+    {
+      "name": "com.ainovel.app.admin.AdminConsoleServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:06.8408787+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.AdminControllerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:07.7055970+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.AdminOperationsControllerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:10.5745159+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.AdminOperationsQueryServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:10.7477112+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.ops.DependencyHealthServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:10.8812103+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.ops.OpsRecordFileSinkTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:11.2829135+08:00"
+    },
+    {
+      "name": "com.ainovel.app.admin.ops.OpsRecordSearchServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:11.9152195+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminAccessFiltersTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:11.9337136+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminAuthControllerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:12.8782647+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminAuthCryptoTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:13.7823750+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminAuthPolicyValidatorTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:14.1438444+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminEncodedPathSecurityTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:15.7143285+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminLocalAuthServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:16.0515303+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminOperationProofPersistenceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:16.9785326+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminOperationProofServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:17.6960267+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminRateLimiterTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:17.7124829+08:00"
+    },
+    {
+      "name": "com.ainovel.app.adminauth.AdminSessionServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:19.5415085+08:00"
+    },
+    {
+      "name": "com.ainovel.app.ai.AiAdmissionGuardTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:20.0054610+08:00"
+    },
+    {
+      "name": "com.ainovel.app.ai.AiModelPolicyConfigurationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:20.3918914+08:00"
+    },
+    {
+      "name": "com.ainovel.app.ai.AiServiceTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:20.9861947+08:00"
+    },
+    {
+      "name": "com.ainovel.app.ai.AiValidationBudgetConcurrencyTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:21.5223894+08:00"
+    },
+    {
+      "name": "com.ainovel.app.ai.AiValidationCallBudgetTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:22.3114485+08:00"
+    },
+    {
+      "name": "com.ainovel.app.AiNovelApplicationPreflightTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:22.3454633+08:00"
+    },
+    {
+      "name": "com.ainovel.app.AiNovelApplicationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:23.1170888+08:00"
+    },
+    {
+      "name": "com.ainovel.app.aioperation.AiOperationRecoveryTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:23.1739643+08:00"
+    },
+    {
+      "name": "com.ainovel.app.auth.SsoControllerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:23.1785757+08:00"
+    },
+    {
+      "name": "com.ainovel.app.auth.SsoEntryServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:23.2736670+08:00"
+    },
+    {
+      "name": "com.ainovel.app.auth.SsoTokenExchangeServiceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:23.2884591+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.ControllerLayerArchitectureTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.2003227+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.CurrentUserResolverTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.2078654+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.GlobalExceptionHandlerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.3413825+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.JsonColumnCodecTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.7832171+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.MdcTaskDecoratorTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.8314289+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.RequestIdFilterTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.9204974+08:00"
+    },
+    {
+      "name": "com.ainovel.app.common.SafeLogThrowableTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:24.9970071+08:00"
+    },
+    {
+      "name": "com.ainovel.app.config.ExternalMySqlMigrationVerificationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 4,
+      "reportModifiedAt": "2026-09-26T15:17:25.0488165+08:00"
+    },
+    {
+      "name": "com.ainovel.app.config.FlywaySchemaGovernanceTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 8,
+      "reportModifiedAt": "2026-09-26T15:17:25.1649668+08:00"
+    },
+    {
+      "name": "com.ainovel.app.config.ProductionNovelMigrationExternalMySqlTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "reportModifiedAt": "2026-09-26T15:17:25.3561736+08:00"
+    },
+    {
+      "name": "com.ainovel.app.economy.EconomyServiceLocalProjectCreditsTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.3627949+08:00"
+    },
+    {
+      "name": "com.ainovel.app.economy.EconomyServiceTests",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.4738029+08:00"
+    },
+    {
+      "name": "com.ainovel.app.g2evaluation.AdminG2EvaluationControllerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.6690556+08:00"
+    },
+    {
+      "name": "com.ainovel.app.g2evaluation.AdminG2LocalOperatorPersistenceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.6999905+08:00"
+    },
+    {
+      "name": "com.ainovel.app.g2evaluation.G2EvaluationServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.7629612+08:00"
+    },
+    {
+      "name": "com.ainovel.app.health.StrictHttpHealthProbeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:25.8089729+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.AiHmacAuthInterceptorTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.0124913+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.ExternalSecurityStartupValidatorTests",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.0392848+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.ExternalServiceApplicationYamlTests",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.0435307+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.GrpcChannelFactoryTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.0919087+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.GrpcEndpointManagerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.0959158+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.PayServiceJwtClientInterceptorTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.1331106+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.PayServiceJwtProviderTests",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.2588852+08:00"
+    },
+    {
+      "name": "com.ainovel.app.integration.StagingTrustPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5152480+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.attribution.SceneGenerationAttributionServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5235544+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.attribution.SceneGenerationManifestTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5292252+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.attribution.UnicodeCodePointDiffTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5391486+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.context.SceneDraftContextCompilerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5438446+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.H2LengthRecoveryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.5842903+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.H2RepairPromptTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.6420943+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.ManuscriptControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.6789845+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.SceneGenerationPromptBuilderTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.8025786+08:00"
+    },
+    {
+      "name": "com.ainovel.app.manuscript.SceneGenerationServiceMetadataTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.8538599+08:00"
+    },
+    {
+      "name": "com.ainovel.app.material.MaterialRetrievalServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.8574754+08:00"
+    },
+    {
+      "name": "com.ainovel.app.material.MaterialServiceClosureTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.8733073+08:00"
+    },
+    {
+      "name": "com.ainovel.app.material.MaterialVectorIndexConfigurationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:26.8769349+08:00"
+    },
+    {
+      "name": "com.ainovel.app.metrics.ApiRequestMetricsSnapshotTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.0472804+08:00"
+    },
+    {
+      "name": "com.ainovel.app.narrative.H2FrozenRetryExportTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "reportModifiedAt": "2026-09-26T15:17:27.2137105+08:00"
+    },
+    {
+      "name": "com.ainovel.app.narrative.NarrativeControllerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.3678233+08:00"
+    },
+    {
+      "name": "com.ainovel.app.narrative.NarrativeExtractionHandlerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.4100337+08:00"
+    },
+    {
+      "name": "com.ainovel.app.narrative.NarrativeServiceTest",
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 2,
+      "reportModifiedAt": "2026-09-26T15:17:27.4433812+08:00"
+    },
+    {
+      "name": "com.ainovel.app.narrative.NarrativeTextTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.5176843+08:00"
+    },
+    {
+      "name": "com.ainovel.app.prompt.PromptAssemblyServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.5213241+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.AiSlopJudgeClientTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.5247132+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.JpaSlopQualityRecorderTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.6290778+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.LocalSlopHeuristicsTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.6339093+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.OpenApiAnnotationCoverageTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.6377914+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.PlotQualityControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.6421876+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.PlotQualityServiceTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.8712986+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.regression.NovelQualityRegressionCorpusTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.8822030+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.regression.QualityRegressionOfflineTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "reportModifiedAt": "2026-09-26T15:17:27.8888728+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopCalibrationCorpusTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.8976574+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopDiagnosticServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.9071252+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopDriftControllerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.9179252+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopDriftServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.9233021+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopPatternRegistryTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:27.9288039+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopPatternSamplingServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.1545919+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopQualityControllerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.1584115+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopQualityGateTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.1647060+08:00"
+    },
+    {
+      "name": "com.ainovel.app.quality.SlopQualitySignalsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.1693625+08:00"
+    },
+    {
+      "name": "com.ainovel.app.security.JwtAuthFilterTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2010529+08:00"
+    },
+    {
+      "name": "com.ainovel.app.security.JwtServiceTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2129045+08:00"
+    },
+    {
+      "name": "com.ainovel.app.security.remote.UserServiceJwtProviderTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2176875+08:00"
+    },
+    {
+      "name": "com.ainovel.app.security.remote.UserSessionValidatorInfrastructureTests",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2382929+08:00"
+    },
+    {
+      "name": "com.ainovel.app.security.SecurityConfigCorsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2473055+08:00"
+    },
+    {
+      "name": "com.ainovel.app.settings.SettingsServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.2578087+08:00"
+    },
+    {
+      "name": "com.ainovel.app.story.ManuscriptServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.4133259+08:00"
+    },
+    {
+      "name": "com.ainovel.app.story.OutlineServiceTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.4420841+08:00"
+    },
+    {
+      "name": "com.ainovel.app.story.SceneLengthRangeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.4580370+08:00"
+    },
+    {
+      "name": "com.ainovel.app.story.StoryControllerTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.4826685+08:00"
+    },
+    {
+      "name": "com.ainovel.app.story.StoryServiceTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.4992051+08:00"
+    },
+    {
+      "name": "com.ainovel.app.style.StyleContextProviderTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.5033307+08:00"
+    },
+    {
+      "name": "com.ainovel.app.style.StylePersistenceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.5188412+08:00"
+    },
+    {
+      "name": "com.ainovel.app.style.StyleServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.5642438+08:00"
+    },
+    {
+      "name": "com.ainovel.app.user.SsoUserProvisioningServiceTests",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.7100086+08:00"
+    },
+    {
+      "name": "com.ainovel.app.user.UserControllerTests",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.7170679+08:00"
+    },
+    {
+      "name": "com.ainovel.app.user.UserSummaryQueryServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.7547950+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2AnalysisControllerTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.7598631+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2ContextControllerTests",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:28.9268894+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2ExportControllerTests",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:29.0670208+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2ExportRendererTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:29.1100792+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2ModelControllerTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:29.1991179+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2PersistenceServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.3053169+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2RequestPayloadTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.3589445+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2VersionControllerTests",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.3634156+08:00"
+    },
+    {
+      "name": "com.ainovel.app.v2.V2WorkspaceControllerTests",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.4311485+08:00"
+    },
+    {
+      "name": "com.ainovel.app.workflow.GuidedCreationGenerationServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.4374043+08:00"
+    },
+    {
+      "name": "com.ainovel.app.workflow.GuidedCreationJobServiceTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.4565651+08:00"
+    },
+    {
+      "name": "com.ainovel.app.workflow.GuidedCreationJobWorkerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:31.5066886+08:00"
+    },
+    {
+      "name": "com.ainovel.app.workflow.GuidedCreationPersistenceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:32.4769331+08:00"
+    },
+    {
+      "name": "com.ainovel.app.workflow.GuidedCreationWorkflowServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:32.4890292+08:00"
+    },
+    {
+      "name": "com.ainovel.app.world.WorldPublishFlowTests",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "reportModifiedAt": "2026-09-26T15:17:35.0007872+08:00"
+    }
+  ],
+  "notes": [
+    "This is the current working tree, not a pristine commit.",
+    "No production configuration or real business data was read for evidence.",
+    "Frontend Node 22 verification is recorded separately."
+  ]
+}

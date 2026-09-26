@@ -1,0 +1,110 @@
+PASS https://mock/bytes
+PASS https://mock/string
+Local endpoint mock checks passed (6 cases).
+AINovel root-entry regression checks passed.
+AINovel Windows local launcher contract passed.
+Already up to date
+Done in 725ms using pnpm v11.22.0
+$ eslint .
+$ tsc -b --pretty false
+$ vite build
+vite v6.4.1 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2634 modules transformed.
+rendering chunks...
+computing gzip size...
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+dist/index.html                         0.40 kB │ gzip:   0.27 kB
+dist/assets/index-DbWVNU05.css         93.23 kB │ gzip:  15.30 kB
+dist/assets/AdminEntry-C13WjCVM.js     83.97 kB │ gzip:  24.47 kB
+dist/assets/index-BAdxzyPz.js         144.37 kB │ gzip:  46.66 kB
+dist/assets/textarea-NI_784iv.js      308.01 kB │ gzip:  90.83 kB
+dist/assets/UserEntry-5Dsi0Spr.js   1,700.36 kB │ gzip: 474.56 kB
+✓ built in 37.51s
+$ vitest run "--maxWorkers=2"
+
+ RUN  v4.0.16 D:/project/aienie/aienie-projects/AINovel/frontend
+
+ ✓ src/pages/Workbench/tabs/manuscript-writer/WorkbenchOverlays.test.tsx (1 test) 132ms
+ ✓ src/pages/Workbench/hooks/useManuscriptSceneGeneration.test.tsx (4 tests) 1031ms
+     ✓ treats empty editor html as a failed generation  1012ms
+ ✓ src/pages/Workbench/tabs/OutlineWorkbench.test.tsx (3 tests) 413ms
+ ✓ src/pages/Workbench/hooks/useManuscriptSelectionData.test.tsx (4 tests) 463ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/sidebarPanels.test.tsx (5 tests) 334ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/NarrativeSidebarPanel.test.tsx (6 tests) 341ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/NarrativeContextPanel.test.tsx (3 tests) 267ms
+ ✓ src/pages/Workbench/hooks/useManuscriptSidebarData.test.tsx (5 tests) 254ms
+stderr | src/pages/Admin/AdminLogin.test.tsx > AdminLogin > uses the direct password flow only when bootstrap declares local password mode
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/pages/Admin/AdminLogin.test.tsx (3 tests) 251ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/GenerationFeedbackPanel.test.tsx (1 test) 186ms
+stderr | src/pages/Index.test.tsx > Index 首页头部 390px 响应式 > 移动端积分说明折叠为图标按钮且保持可访问，登录/注册始终可见
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/pages/Index.test.tsx (7 tests) 186ms
+ ✓ src/components/ai/AiOperationProgressPanel.test.tsx (2 tests) 115ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/SceneOutlinePanel.test.tsx (1 test) 175ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/MobileWorkbenchPanel.test.tsx (4 tests) 250ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/DesktopPanels.test.tsx (2 tests) 131ms
+ ✓ src/pages/Workbench/hooks/useManuscriptQuality.test.tsx (3 tests) 172ms
+stderr | src/pages/GuidedCreation/useGuidedCreation.test.tsx > useGuidedCreation > keeps explicit new-draft mode blank instead of restoring a failed run
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+stderr | src/pages/Workbench/Workbench.test.tsx > workbench return location > keeps Chinese query parameters and fragment when synchronizing scene selection
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/pages/Workbench/Workbench.test.tsx (1 test) 113ms
+ ✓ src/pages/GuidedCreation/useGuidedCreation.test.tsx (2 tests) 177ms
+ ✓ src/components/editor/TiptapEditor.test.tsx (1 test) 116ms
+stderr | src/pages/Settings/__tests__/settings-tabs.test.ts > settings tab query normalization > keeps the selected tab synchronized with browser navigation and clicks
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+
+ ✓ src/pages/Settings/__tests__/settings-tabs.test.ts (4 tests) 177ms
+ ✓ src/pages/Workbench/tabs/V2Studio.test.tsx (1 test) 119ms
+ ✓ src/pages/Workbench/hooks/useWorkbenchLayoutPersistence.test.tsx (3 tests) 94ms
+ ✓ src/pages/Workbench/hooks/useManuscriptEditorState.test.tsx (9 tests) 47ms
+ ✓ src/pages/Workbench/hooks/useManuscriptShortcuts.test.tsx (3 tests) 95ms
+stderr | src/contexts/AuthContext.test.tsx > retains token on temporary bootstrap failure and recovers through retry
+[client-error] { source: 'auth.initialize', errorType: 'NonErrorRejection', count: 1 }
+
+stderr | src/contexts/AuthContext.test.tsx > keeps an exchanged token when profile validation is temporarily unavailable
+[client-error] {
+  source: 'auth.session-accept',
+  errorType: 'NonErrorRejection',
+  count: 1
+}
+
+ ✓ src/contexts/AuthContext.test.tsx (3 tests) 90ms
+ ✓ src/pages/Workbench/hooks/useWorkbenchViewport.test.tsx (2 tests) 83ms
+ ✓ src/pages/GuidedCreation/GuidedCreationCandidates.test.tsx (2 tests) 44ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/KnowledgeViewEditor.test.tsx (3 tests) 49ms
+ ✓ src/pages/Workbench/hooks/useManuscriptOutlineActions.test.tsx (2 tests) 15ms
+ ✓ src/pages/Workbench/hooks/useWritingSession.test.tsx (4 tests) 32ms
+ ✓ src/lib/__tests__/api-client.test.ts (33 tests) 27ms
+ ✓ src/pages/Workbench/hooks/useManuscriptWorkspaceShell.test.tsx (2 tests) 26ms
+ ✓ src/i18n/i18n.test.ts (9 tests) 10ms
+ ✓ src/lib/ai-operation-store.test.ts (2 tests) 7ms
+ ✓ src/pages/Workbench/tabs/manuscript-writer/narrative-errors.test.ts (9 tests) 7ms
+ ✓ src/lib/client-error-reporting.test.ts (3 tests) 2ms
+ ✓ src/lib/__tests__/sso-callback.test.ts (7 tests) 4ms
+ ✓ src/pages/Admin/__tests__/admin-list-utils.test.ts (2 tests) 2ms
+ ✓ src/lib/__tests__/shortcuts.test.ts (3 tests) 3ms
+ ✓ src/lib/__tests__/sso.test.ts (5 tests) 4ms
+
+ Test Files  40 passed (40)
+      Tests  169 passed (169)
+   Start at  15:23:09
+   Duration  59.37s (transform 14.11s, setup 12.71s, import 21.78s, tests 6.04s, environment 71.99s)
+

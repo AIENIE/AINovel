@@ -1,0 +1,1940 @@
+{
+  "advisories": {
+    "1113515": {
+      "findings": [
+        {
+          "version": "4.53.3",
+          "paths": [
+            ".>@dyad-sh/react-vite-component-tagger>vite>rollup",
+            ".>@vitejs/plugin-react-swc>vite>rollup",
+            ".>vite>rollup",
+            ".>vitest>@vitest/mocker>vite>rollup",
+            ".>vitest>vite>rollup"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1113515,
+      "title": "Rollup 4 has Arbitrary File Write via Path Traversal",
+      "module_name": "rollup",
+      "vulnerable_versions": ">=4.0.0 <4.59.0",
+      "patched_versions": ">=4.59.0",
+      "severity": "high",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-mw96-cpmx-2vgc",
+      "url": "https://github.com/advisories/GHSA-mw96-cpmx-2vgc"
+    },
+    "1114526": {
+      "findings": [
+        {
+          "version": "3.3.3",
+          "paths": [
+            ".>eslint>file-entry-cache>flat-cache>flatted",
+            ".>eslint-plugin-react-hooks>eslint>file-entry-cache>flat-cache>flatted",
+            ".>eslint-plugin-react-refresh>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>eslint>file-entry-cache>flat-cache>flatted"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1114526,
+      "title": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+      "module_name": "flatted",
+      "vulnerable_versions": "<3.4.0",
+      "patched_versions": ">=3.4.0",
+      "severity": "high",
+      "cwe": "CWE-674",
+      "github_advisory_id": "GHSA-25h7-pfq9-p65f",
+      "url": "https://github.com/advisories/GHSA-25h7-pfq9-p65f"
+    },
+    "1115357": {
+      "findings": [
+        {
+          "version": "3.3.3",
+          "paths": [
+            ".>eslint>file-entry-cache>flat-cache>flatted",
+            ".>eslint-plugin-react-hooks>eslint>file-entry-cache>flat-cache>flatted",
+            ".>eslint-plugin-react-refresh>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>file-entry-cache>flat-cache>flatted",
+            ".>typescript-eslint>eslint>file-entry-cache>flat-cache>flatted"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115357,
+      "title": "Prototype Pollution via parse() in NodeJS flatted",
+      "module_name": "flatted",
+      "vulnerable_versions": "<=3.4.1",
+      "patched_versions": ">=3.4.2",
+      "severity": "high",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-rf6f-7fwh-wjgh",
+      "url": "https://github.com/advisories/GHSA-rf6f-7fwh-wjgh"
+    },
+    "1115540": {
+      "findings": [
+        {
+          "version": "1.1.12",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115540,
+      "title": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": "<1.1.13",
+      "patched_versions": ">=1.1.13",
+      "severity": "moderate",
+      "cwe": "CWE-400",
+      "github_advisory_id": "GHSA-f886-m6hf-6m8v",
+      "url": "https://github.com/advisories/GHSA-f886-m6hf-6m8v"
+    },
+    "1115543": {
+      "findings": [
+        {
+          "version": "5.0.3",
+          "paths": [
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115543,
+      "title": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=4.0.0 <5.0.5",
+      "patched_versions": ">=5.0.5",
+      "severity": "moderate",
+      "cwe": "CWE-400",
+      "github_advisory_id": "GHSA-f886-m6hf-6m8v",
+      "url": "https://github.com/advisories/GHSA-f886-m6hf-6m8v"
+    },
+    "1115549": {
+      "findings": [
+        {
+          "version": "2.3.1",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>chokidar>anymatch>picomatch",
+            ".>tailwindcss-animate>tailwindcss>chokidar>readdirp>picomatch",
+            ".>tailwindcss-animate>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>tailwindcss-animate>tailwindcss>micromatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>chokidar>anymatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>chokidar>readdirp>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>micromatch>picomatch",
+            ".>tailwindcss>chokidar>anymatch>picomatch",
+            ".>tailwindcss>chokidar>readdirp>picomatch",
+            ".>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>tailwindcss>micromatch>picomatch"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115549,
+      "title": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching",
+      "module_name": "picomatch",
+      "vulnerable_versions": "<2.3.2",
+      "patched_versions": ">=2.3.2",
+      "severity": "moderate",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-3v7f-55p6-f55p",
+      "url": "https://github.com/advisories/GHSA-3v7f-55p6-f55p"
+    },
+    "1115551": {
+      "findings": [
+        {
+          "version": "4.0.3",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>tailwindcss-animate>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>fdir>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>tinyglobby>fdir>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>tinyglobby>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>fdir>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>tinyglobby>fdir>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>tinyglobby>picomatch",
+            ".>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>vite>fdir>picomatch",
+            ".>vite>picomatch",
+            ".>vite>tinyglobby>fdir>picomatch",
+            ".>vite>tinyglobby>picomatch",
+            ".>vitest>@vitest/mocker>vite>fdir>picomatch",
+            ".>vitest>@vitest/mocker>vite>picomatch",
+            ".>vitest>@vitest/mocker>vite>tinyglobby>fdir>picomatch",
+            ".>vitest>@vitest/mocker>vite>tinyglobby>picomatch",
+            ".>vitest>picomatch",
+            ".>vitest>tinyglobby>fdir>picomatch",
+            ".>vitest>tinyglobby>picomatch",
+            ".>vitest>vite>fdir>picomatch",
+            ".>vitest>vite>picomatch",
+            ".>vitest>vite>tinyglobby>fdir>picomatch",
+            ".>vitest>vite>tinyglobby>picomatch"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115551,
+      "title": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching",
+      "module_name": "picomatch",
+      "vulnerable_versions": ">=4.0.0 <4.0.4",
+      "patched_versions": ">=4.0.4",
+      "severity": "moderate",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-3v7f-55p6-f55p",
+      "url": "https://github.com/advisories/GHSA-3v7f-55p6-f55p"
+    },
+    "1115552": {
+      "findings": [
+        {
+          "version": "2.3.1",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>chokidar>anymatch>picomatch",
+            ".>tailwindcss-animate>tailwindcss>chokidar>readdirp>picomatch",
+            ".>tailwindcss-animate>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>tailwindcss-animate>tailwindcss>micromatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>chokidar>anymatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>chokidar>readdirp>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>micromatch>picomatch",
+            ".>tailwindcss>chokidar>anymatch>picomatch",
+            ".>tailwindcss>chokidar>readdirp>picomatch",
+            ".>tailwindcss>fast-glob>micromatch>picomatch",
+            ".>tailwindcss>micromatch>picomatch"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115552,
+      "title": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+      "module_name": "picomatch",
+      "vulnerable_versions": "<2.3.2",
+      "patched_versions": ">=2.3.2",
+      "severity": "high",
+      "cwe": "CWE-1333",
+      "github_advisory_id": "GHSA-c2c7-rcm5-vvqj",
+      "url": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj"
+    },
+    "1115554": {
+      "findings": [
+        {
+          "version": "4.0.3",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>tailwindcss-animate>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>fdir>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>tinyglobby>fdir>picomatch",
+            ".>@dyad-sh/react-vite-component-tagger>vite>tinyglobby>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>@tailwindcss/typography>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>fdir>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>tinyglobby>fdir>picomatch",
+            ".>@vitejs/plugin-react-swc>vite>tinyglobby>picomatch",
+            ".>tailwindcss>sucrase>tinyglobby>fdir>picomatch",
+            ".>tailwindcss>sucrase>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>fdir>picomatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>tinyglobby>picomatch",
+            ".>vite>fdir>picomatch",
+            ".>vite>picomatch",
+            ".>vite>tinyglobby>fdir>picomatch",
+            ".>vite>tinyglobby>picomatch",
+            ".>vitest>@vitest/mocker>vite>fdir>picomatch",
+            ".>vitest>@vitest/mocker>vite>picomatch",
+            ".>vitest>@vitest/mocker>vite>tinyglobby>fdir>picomatch",
+            ".>vitest>@vitest/mocker>vite>tinyglobby>picomatch",
+            ".>vitest>picomatch",
+            ".>vitest>tinyglobby>fdir>picomatch",
+            ".>vitest>tinyglobby>picomatch",
+            ".>vitest>vite>fdir>picomatch",
+            ".>vitest>vite>picomatch",
+            ".>vitest>vite>tinyglobby>fdir>picomatch",
+            ".>vitest>vite>tinyglobby>picomatch"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115554,
+      "title": "Picomatch has a ReDoS vulnerability via extglob quantifiers",
+      "module_name": "picomatch",
+      "vulnerable_versions": ">=4.0.0 <4.0.4",
+      "patched_versions": ">=4.0.4",
+      "severity": "high",
+      "cwe": "CWE-1333",
+      "github_advisory_id": "GHSA-c2c7-rcm5-vvqj",
+      "url": "https://github.com/advisories/GHSA-c2c7-rcm5-vvqj"
+    },
+    "1115806": {
+      "findings": [
+        {
+          "version": "4.17.23",
+          "paths": [
+            ".>recharts>lodash"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115806,
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "module_name": "lodash",
+      "vulnerable_versions": ">=4.0.0 <=4.17.23",
+      "patched_versions": ">=4.17.24",
+      "severity": "high",
+      "cwe": "CWE-94",
+      "github_advisory_id": "GHSA-r5fr-rjxr-66jc",
+      "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+    },
+    "1115810": {
+      "findings": [
+        {
+          "version": "4.17.23",
+          "paths": [
+            ".>recharts>lodash"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1115810,
+      "title": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+      "module_name": "lodash",
+      "vulnerable_versions": "<=4.17.23",
+      "patched_versions": ">=4.17.24",
+      "severity": "moderate",
+      "cwe": "CWE-1321",
+      "github_advisory_id": "GHSA-f23m-r3pf-42rh",
+      "url": "https://github.com/advisories/GHSA-f23m-r3pf-42rh"
+    },
+    "1116229": {
+      "findings": [
+        {
+          "version": "6.4.1",
+          "paths": [
+            ".>@dyad-sh/react-vite-component-tagger>vite",
+            ".>@vitejs/plugin-react-swc>vite",
+            ".>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1116229,
+      "title": "Vite Vulnerable to Path Traversal in Optimized Deps `.map` Handling",
+      "module_name": "vite",
+      "vulnerable_versions": "<=6.4.1",
+      "patched_versions": ">=6.4.2",
+      "severity": "moderate",
+      "cwe": "CWE-22, CWE-200",
+      "github_advisory_id": "GHSA-4w7w-66w2-5vf9",
+      "url": "https://github.com/advisories/GHSA-4w7w-66w2-5vf9"
+    },
+    "1116234": {
+      "findings": [
+        {
+          "version": "6.4.1",
+          "paths": [
+            ".>@dyad-sh/react-vite-component-tagger>vite",
+            ".>@vitejs/plugin-react-swc>vite",
+            ".>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1116234,
+      "title": "Vite Vulnerable to Arbitrary File Read via Vite Dev Server WebSocket",
+      "module_name": "vite",
+      "vulnerable_versions": ">=6.0.0 <=6.4.1",
+      "patched_versions": ">=6.4.2",
+      "severity": "high",
+      "cwe": "CWE-200, CWE-306",
+      "github_advisory_id": "GHSA-p9ff-h696-f583",
+      "url": "https://github.com/advisories/GHSA-p9ff-h696-f583"
+    },
+    "1117015": {
+      "findings": [
+        {
+          "version": "8.5.6",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss",
+            ".>@vitejs/plugin-react-swc>vite>postcss",
+            ".>autoprefixer>postcss",
+            ".>postcss",
+            ".>tailwindcss>postcss",
+            ".>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss>postcss-nested>postcss",
+            ".>vite>postcss",
+            ".>vitest>@vitest/mocker>vite>postcss",
+            ".>vitest>vite>postcss"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1117015,
+      "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output",
+      "module_name": "postcss",
+      "vulnerable_versions": "<8.5.10",
+      "patched_versions": ">=8.5.10",
+      "severity": "moderate",
+      "cwe": "CWE-79",
+      "github_advisory_id": "GHSA-qx2v-qp2m-jg93",
+      "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93"
+    },
+    "1120311": {
+      "findings": [
+        {
+          "version": "5.0.3",
+          "paths": [
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1120311,
+      "title": "brace-expansion: Large numeric range defeats documented `max` DoS protection",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=5.0.0 <5.0.6",
+      "patched_versions": ">=5.0.6",
+      "severity": "moderate",
+      "cwe": "CWE-400",
+      "github_advisory_id": "GHSA-jxxr-4gwj-5jf2",
+      "url": "https://github.com/advisories/GHSA-jxxr-4gwj-5jf2"
+    },
+    "1120784": {
+      "findings": [
+        {
+          "version": "6.4.1",
+          "paths": [
+            ".>@dyad-sh/react-vite-component-tagger>vite",
+            ".>@vitejs/plugin-react-swc>vite",
+            ".>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1120784,
+      "title": "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
+      "module_name": "vite",
+      "vulnerable_versions": "<=6.4.2",
+      "patched_versions": ">=6.4.3",
+      "severity": "moderate",
+      "cwe": "CWE-73, CWE-522",
+      "github_advisory_id": "GHSA-v6wh-96g9-6wx3",
+      "url": "https://github.com/advisories/GHSA-v6wh-96g9-6wx3"
+    },
+    "1120820": {
+      "findings": [
+        {
+          "version": "14.1.1",
+          "paths": [
+            ".>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/extension-placeholder>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/extension-placeholder>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/react>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-blockquote>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bold>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bullet-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-document>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-hard-break>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-heading>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-italic>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-list-item>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-ordered-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-paragraph>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-strike>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text-style>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/starter-kit>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/suggestion>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it",
+            ".>@tiptap/suggestion>@tiptap/pm>prosemirror-markdown>markdown-it"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1120820,
+      "title": "markdown-it: Quadratic complexity DoS in smartquotes rule via replaceAt string operations",
+      "module_name": "markdown-it",
+      "vulnerable_versions": "<=14.1.1",
+      "patched_versions": ">=14.1.2",
+      "severity": "moderate",
+      "cwe": "CWE-400, CWE-407",
+      "github_advisory_id": "GHSA-6v5v-wf23-fmfq",
+      "url": "https://github.com/advisories/GHSA-6v5v-wf23-fmfq"
+    },
+    "1121797": {
+      "findings": [
+        {
+          "version": "5.0.0",
+          "paths": [
+            ".>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-placeholder>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-placeholder>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-blockquote>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bold>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bullet-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-document>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-hard-break>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-heading>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-italic>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-list-item>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-ordered-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-paragraph>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-strike>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text-style>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/suggestion>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/suggestion>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1121797,
+      "title": "LinkifyIt#match scan loop has quadratic algorithmic complexity",
+      "module_name": "linkify-it",
+      "vulnerable_versions": "<=5.0.0",
+      "patched_versions": ">=5.0.1",
+      "severity": "high",
+      "cwe": "CWE-1333",
+      "github_advisory_id": "GHSA-22p9-wv53-3rq4",
+      "url": "https://github.com/advisories/GHSA-22p9-wv53-3rq4"
+    },
+    "1121860": {
+      "findings": [
+        {
+          "version": "4.1.1",
+          "paths": [
+            ".>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>js-yaml"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1121860,
+      "title": "JS-YAML: Quadratic-complexity DoS in merge key handling via repeated aliases",
+      "module_name": "js-yaml",
+      "vulnerable_versions": ">=4.0.0 <=4.1.1",
+      "patched_versions": ">=4.1.2",
+      "severity": "moderate",
+      "cwe": "CWE-407",
+      "github_advisory_id": "GHSA-h67p-54hq-rp68",
+      "url": "https://github.com/advisories/GHSA-h67p-54hq-rp68"
+    },
+    "1123525": {
+      "findings": [
+        {
+          "version": "6.4.1",
+          "paths": [
+            ".>@dyad-sh/react-vite-component-tagger>vite",
+            ".>@vitejs/plugin-react-swc>vite",
+            ".>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1123525,
+      "title": "vite: `server.fs.deny` bypass on Windows alternate paths",
+      "module_name": "vite",
+      "vulnerable_versions": "<=6.4.2",
+      "patched_versions": ">=6.4.3",
+      "severity": "high",
+      "cwe": "CWE-22, CWE-200",
+      "github_advisory_id": "GHSA-fx2h-pf6j-xcff",
+      "url": "https://github.com/advisories/GHSA-fx2h-pf6j-xcff"
+    },
+    "1123897": {
+      "findings": [
+        {
+          "version": "1.1.12",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1123897,
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": "<1.1.16",
+      "patched_versions": ">=1.1.16",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-407",
+      "github_advisory_id": "GHSA-3jxr-9vmj-r5cp",
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+    },
+    "1123898": {
+      "findings": [
+        {
+          "version": "5.0.3",
+          "paths": [
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1123898,
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=3.0.0 <5.0.7",
+      "patched_versions": ">=5.0.7",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-407",
+      "github_advisory_id": "GHSA-3jxr-9vmj-r5cp",
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp"
+    },
+    "1123911": {
+      "findings": [
+        {
+          "version": "4.1.1",
+          "paths": [
+            ".>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>js-yaml"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1123911,
+      "title": "js-yaml: YAML merge-key chains can force quadratic CPU consumption",
+      "module_name": "js-yaml",
+      "vulnerable_versions": ">=4.0.0 <4.3.0",
+      "patched_versions": ">=4.3.0",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-407",
+      "github_advisory_id": "GHSA-52cp-r559-cp3m",
+      "url": "https://github.com/advisories/GHSA-52cp-r559-cp3m"
+    },
+    "1124012": {
+      "findings": [
+        {
+          "version": "5.0.0",
+          "paths": [
+            ".>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-placeholder>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/extension-placeholder>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/react>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-blockquote>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bold>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-bullet-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-document>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-hard-break>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-heading>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-italic>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-list-item>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-ordered-list>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-paragraph>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-strike>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/extension-text-style>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/starter-kit>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/suggestion>@tiptap/core>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it",
+            ".>@tiptap/suggestion>@tiptap/pm>prosemirror-markdown>markdown-it>linkify-it"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1124012,
+      "title": "linkify-it: Quadratic-complexity DoS via the `mailto:` validator scan-loop on attacker text",
+      "module_name": "linkify-it",
+      "vulnerable_versions": "<=5.0.1",
+      "patched_versions": ">=5.0.2",
+      "severity": "high",
+      "cwe": "CWE-407",
+      "github_advisory_id": "GHSA-v245-v573-v5vm",
+      "url": "https://github.com/advisories/GHSA-v245-v573-v5vm"
+    },
+    "1124252": {
+      "findings": [
+        {
+          "version": "8.5.6",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss",
+            ".>@vitejs/plugin-react-swc>vite>postcss",
+            ".>autoprefixer>postcss",
+            ".>postcss",
+            ".>tailwindcss>postcss",
+            ".>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss>postcss-nested>postcss",
+            ".>vite>postcss",
+            ".>vitest>@vitest/mocker>vite>postcss",
+            ".>vitest>vite>postcss"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1124252,
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "module_name": "postcss",
+      "vulnerable_versions": "<=8.5.11",
+      "patched_versions": ">=8.5.12",
+      "severity": "high",
+      "cwe": "CWE-22, CWE-200",
+      "github_advisory_id": "GHSA-6g55-p6wh-862q",
+      "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q"
+    },
+    "1124268": {
+      "findings": [
+        {
+          "version": "6.30.3",
+          "paths": [
+            ".>react-router-dom>react-router"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1124268,
+      "title": "React Router: Open redirect via backslash in <Link> and useNavigate (CVE-2025-68470 bypass)",
+      "module_name": "react-router",
+      "vulnerable_versions": ">=6.0.0 <7.18.0",
+      "patched_versions": ">=7.18.0",
+      "severity": "moderate",
+      "cwe": "CWE-601",
+      "github_advisory_id": "GHSA-wrjc-x8rr-h8h6",
+      "url": "https://github.com/advisories/GHSA-wrjc-x8rr-h8h6"
+    },
+    "1124272": {
+      "findings": [
+        {
+          "version": "6.30.3",
+          "paths": [
+            ".>react-router-dom>react-router"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1124272,
+      "title": "React Router: Arbitrary Constructor Injection via deserializeErrors() in React Router SSR Hydration",
+      "module_name": "react-router",
+      "vulnerable_versions": ">=6.4.0 <7.18.0",
+      "patched_versions": ">=7.18.0",
+      "severity": "moderate",
+      "cwe": "CWE-470",
+      "github_advisory_id": "GHSA-337j-9hxr-rhxg",
+      "url": "https://github.com/advisories/GHSA-337j-9hxr-rhxg"
+    },
+    "1130588": {
+      "findings": [
+        {
+          "version": "1.1.12",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130588,
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": "<1.1.17",
+      "patched_versions": ">=1.1.17",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-770",
+      "github_advisory_id": "GHSA-mh99-v99m-4gvg",
+      "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg"
+    },
+    "1130591": {
+      "findings": [
+        {
+          "version": "5.0.3",
+          "paths": [
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130591,
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=4.0.0 <5.0.8",
+      "patched_versions": ">=5.0.8",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-770",
+      "github_advisory_id": "GHSA-mh99-v99m-4gvg",
+      "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg"
+    },
+    "1130709": {
+      "findings": [
+        {
+          "version": "8.5.6",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss",
+            ".>@vitejs/plugin-react-swc>vite>postcss",
+            ".>autoprefixer>postcss",
+            ".>postcss",
+            ".>tailwindcss>postcss",
+            ".>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss>postcss-nested>postcss",
+            ".>vite>postcss",
+            ".>vitest>@vitest/mocker>vite>postcss",
+            ".>vitest>vite>postcss"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130709,
+      "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset",
+      "module_name": "postcss",
+      "vulnerable_versions": "<=8.5.22",
+      "patched_versions": ">=8.5.23",
+      "severity": "moderate",
+      "cwe": "CWE-22, CWE-200",
+      "github_advisory_id": "GHSA-fxqj-rqcc-2cmp",
+      "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp"
+    },
+    "1130715": {
+      "findings": [
+        {
+          "version": "7.28.0",
+          "paths": [
+            ".>jsdom>undici",
+            ".>vitest>jsdom>undici"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130715,
+      "title": "undici vulnerable to downstream response desynchronization via retry interceptor",
+      "module_name": "undici",
+      "vulnerable_versions": ">=7.0.0 <7.29.0",
+      "patched_versions": ">=7.29.0",
+      "severity": "moderate",
+      "cwe": "CWE-444",
+      "github_advisory_id": "GHSA-8xcm-r25x-g524",
+      "url": "https://github.com/advisories/GHSA-8xcm-r25x-g524"
+    },
+    "1130718": {
+      "findings": [
+        {
+          "version": "7.28.0",
+          "paths": [
+            ".>jsdom>undici",
+            ".>vitest>jsdom>undici"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130718,
+      "title": "undici vulnerable to cross-user information disclosure and parse-time crash via degenerate private cache directives",
+      "module_name": "undici",
+      "vulnerable_versions": ">=7.0.0 <7.29.0",
+      "patched_versions": ">=7.29.0",
+      "severity": "high",
+      "cwe": "CWE-200, CWE-248, CWE-525",
+      "github_advisory_id": "GHSA-4cwx-7wf7-3272",
+      "url": "https://github.com/advisories/GHSA-4cwx-7wf7-3272"
+    },
+    "1130726": {
+      "findings": [
+        {
+          "version": "7.28.0",
+          "paths": [
+            ".>jsdom>undici",
+            ".>vitest>jsdom>undici"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130726,
+      "title": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
+      "module_name": "undici",
+      "vulnerable_versions": ">=7.0.0 <7.29.0",
+      "patched_versions": ">=7.29.0",
+      "severity": "moderate",
+      "cwe": "CWE-93",
+      "github_advisory_id": "GHSA-m8rv-5g2x-5cg5",
+      "url": "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5"
+    },
+    "1130729": {
+      "findings": [
+        {
+          "version": "7.28.0",
+          "paths": [
+            ".>jsdom>undici",
+            ".>vitest>jsdom>undici"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130729,
+      "title": "undici vulnerable to cross-user information disclosure via whitespace around equals in Cache-Control directives",
+      "module_name": "undici",
+      "vulnerable_versions": ">=7.0.0 <7.29.0",
+      "patched_versions": ">=7.29.0",
+      "severity": "moderate",
+      "cwe": "CWE-436, CWE-524",
+      "github_advisory_id": "GHSA-jr45-8vmc-qm54",
+      "url": "https://github.com/advisories/GHSA-jr45-8vmc-qm54"
+    },
+    "1130731": {
+      "findings": [
+        {
+          "version": "7.28.0",
+          "paths": [
+            ".>jsdom>undici",
+            ".>vitest>jsdom>undici"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130731,
+      "title": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
+      "module_name": "undici",
+      "vulnerable_versions": ">=7.0.0 <7.29.0",
+      "patched_versions": ">=7.29.0",
+      "severity": "moderate",
+      "cwe": "CWE-74",
+      "github_advisory_id": "GHSA-v3r7-h72x-cjcm",
+      "url": "https://github.com/advisories/GHSA-v3r7-h72x-cjcm"
+    },
+    "1130734": {
+      "findings": [
+        {
+          "version": "5.0.3",
+          "paths": [
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130734,
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": ">=4.0.0 <5.0.9",
+      "patched_versions": ">=5.0.9",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-770",
+      "github_advisory_id": "GHSA-rgw5-rvv9-x895",
+      "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895"
+    },
+    "1130737": {
+      "findings": [
+        {
+          "version": "1.1.12",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-hooks>eslint>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>eslint-plugin-react-refresh>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1130737,
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "module_name": "brace-expansion",
+      "vulnerable_versions": "<1.1.18",
+      "patched_versions": ">=1.1.18",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-770",
+      "github_advisory_id": "GHSA-rgw5-rvv9-x895",
+      "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895"
+    },
+    "1136293": {
+      "findings": [
+        {
+          "version": "1.23.2",
+          "paths": [
+            ".>react-router-dom>@remix-run/router",
+            ".>react-router-dom>react-router>@remix-run/router"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1136293,
+      "title": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation",
+      "module_name": "@remix-run/router",
+      "vulnerable_versions": ">=1.3.0 <1.23.3",
+      "patched_versions": ">=1.23.3",
+      "severity": "moderate",
+      "cwe": "CWE-601",
+      "github_advisory_id": "GHSA-2j2x-hqr9-3h42",
+      "url": "https://github.com/advisories/GHSA-2j2x-hqr9-3h42"
+    },
+    "1136303": {
+      "findings": [
+        {
+          "version": "6.30.3",
+          "paths": [
+            ".>react-router-dom>react-router"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1136303,
+      "title": "React Router's same-origin redirect with path starting // causes open redirect via protocol-relative URL reinterpretation",
+      "module_name": "react-router",
+      "vulnerable_versions": ">=6.7.0 <6.30.4",
+      "patched_versions": ">=6.30.4",
+      "severity": "moderate",
+      "cwe": "CWE-601",
+      "github_advisory_id": "GHSA-2j2x-hqr9-3h42",
+      "url": "https://github.com/advisories/GHSA-2j2x-hqr9-3h42"
+    },
+    "1138115": {
+      "findings": [
+        {
+          "version": "4.1.1",
+          "paths": [
+            ".>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>js-yaml"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138115,
+      "title": "JS-YAML: Quadratic CPU consumption in !!omap resolution (3.x and 4.x) — CVE-2026-59870 fix not backported",
+      "module_name": "js-yaml",
+      "vulnerable_versions": ">=4.0.0 <4.3.1",
+      "patched_versions": ">=4.3.1",
+      "severity": "high",
+      "cwe": "CWE-407",
+      "github_advisory_id": "GHSA-5p4m-2wfm-xmqj",
+      "url": "https://github.com/advisories/GHSA-5p4m-2wfm-xmqj"
+    },
+    "1138811": {
+      "findings": [
+        {
+          "version": "3.3.11",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@vitejs/plugin-react-swc>vite>postcss>nanoid",
+            ".>autoprefixer>postcss>nanoid",
+            ".>postcss>nanoid",
+            ".>tailwindcss>postcss>nanoid",
+            ".>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>vite>postcss>nanoid",
+            ".>vitest>@vitest/mocker>vite>postcss>nanoid",
+            ".>vitest>vite>postcss>nanoid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1138811,
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "module_name": "nanoid",
+      "vulnerable_versions": "<3.3.16",
+      "patched_versions": ">=3.3.16",
+      "severity": "high",
+      "cwe": "CWE-835",
+      "github_advisory_id": "GHSA-28wg-ghj8-5hjv",
+      "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv"
+    },
+    "1139427": {
+      "findings": [
+        {
+          "version": "3.3.11",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@vitejs/plugin-react-swc>vite>postcss>nanoid",
+            ".>autoprefixer>postcss>nanoid",
+            ".>postcss>nanoid",
+            ".>tailwindcss>postcss>nanoid",
+            ".>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>vite>postcss>nanoid",
+            ".>vitest>@vitest/mocker>vite>postcss>nanoid",
+            ".>vitest>vite>postcss>nanoid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1139427,
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "module_name": "nanoid",
+      "vulnerable_versions": "<3.3.18",
+      "patched_versions": ">=3.3.18",
+      "severity": "high",
+      "cwe": "CWE-835",
+      "github_advisory_id": "GHSA-2v37-7h3g-55p8",
+      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8"
+    },
+    "1139510": {
+      "findings": [
+        {
+          "version": "8.5.6",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss",
+            ".>@vitejs/plugin-react-swc>vite>postcss",
+            ".>autoprefixer>postcss",
+            ".>postcss",
+            ".>tailwindcss>postcss",
+            ".>tailwindcss>postcss-import>postcss",
+            ".>tailwindcss>postcss-js>postcss",
+            ".>tailwindcss>postcss-load-config>postcss",
+            ".>tailwindcss>postcss-nested>postcss",
+            ".>vite>postcss",
+            ".>vitest>@vitest/mocker>vite>postcss",
+            ".>vitest>vite>postcss"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1139510,
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "module_name": "postcss",
+      "vulnerable_versions": "<=8.5.17",
+      "patched_versions": ">=8.5.18",
+      "severity": "high",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-r28c-9q8g-f849",
+      "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849"
+    },
+    "1139529": {
+      "findings": [
+        {
+          "version": "4.0.16",
+          "paths": [
+            ".>vitest"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1139529,
+      "title": "When Vitest UI server is listening, arbitrary file can be read and executed",
+      "module_name": "vitest",
+      "vulnerable_versions": ">=4.0.0 <4.1.0",
+      "patched_versions": ">=4.1.0",
+      "severity": "critical",
+      "cwe": "CWE-22, CWE-862",
+      "github_advisory_id": "GHSA-5xrq-8626-4rwp",
+      "url": "https://github.com/advisories/GHSA-5xrq-8626-4rwp"
+    },
+    "1153170": {
+      "findings": [
+        {
+          "version": "6.1.2",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss-selector-parser",
+            ".>tailwindcss-animate>tailwindcss>postcss-selector-parser",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss-selector-parser",
+            ".>@tailwindcss/typography>tailwindcss>postcss-selector-parser",
+            ".>tailwindcss>postcss-nested>postcss-selector-parser",
+            ".>tailwindcss>postcss-selector-parser"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1153170,
+      "title": "postcss-selector-parser allows denial of service through uncontrolled AST recursion",
+      "module_name": "postcss-selector-parser",
+      "vulnerable_versions": ">=6.1.0 <6.1.3",
+      "patched_versions": ">=6.1.3",
+      "severity": "low",
+      "cwe": "CWE-404",
+      "github_advisory_id": "GHSA-w9m9-85wc-3x92",
+      "url": "https://github.com/advisories/GHSA-w9m9-85wc-3x92"
+    },
+    "1153171": {
+      "findings": [
+        {
+          "version": "4.28.0",
+          "paths": [
+            ".>autoprefixer>browserslist"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1153171,
+      "title": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+      "module_name": "browserslist",
+      "vulnerable_versions": "<=4.28.6",
+      "patched_versions": ">=4.28.7",
+      "severity": "high",
+      "cwe": "CWE-770",
+      "github_advisory_id": "GHSA-c83g-rgw3-j3cx",
+      "url": "https://github.com/advisories/GHSA-c83g-rgw3-j3cx"
+    },
+    "1153172": {
+      "findings": [
+        {
+          "version": "4.28.0",
+          "paths": [
+            ".>autoprefixer>browserslist"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1153172,
+      "title": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+      "module_name": "browserslist",
+      "vulnerable_versions": "<=4.28.6",
+      "patched_versions": ">=4.28.7",
+      "severity": "high",
+      "cwe": "CWE-248, CWE-1321",
+      "github_advisory_id": "GHSA-73wf-gq98-2v4g",
+      "url": "https://github.com/advisories/GHSA-73wf-gq98-2v4g"
+    },
+    "1153189": {
+      "findings": [
+        {
+          "version": "3.3.11",
+          "paths": [
+            ".>tailwindcss-animate>tailwindcss>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss-animate>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@dyad-sh/react-vite-component-tagger>vite>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-import>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-js>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>@tailwindcss/typography>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>@vitejs/plugin-react-swc>vite>postcss>nanoid",
+            ".>autoprefixer>postcss>nanoid",
+            ".>postcss>nanoid",
+            ".>tailwindcss>postcss>nanoid",
+            ".>tailwindcss>postcss-import>postcss>nanoid",
+            ".>tailwindcss>postcss-js>postcss>nanoid",
+            ".>tailwindcss>postcss-load-config>postcss>nanoid",
+            ".>tailwindcss>postcss-nested>postcss>nanoid",
+            ".>vite>postcss>nanoid",
+            ".>vitest>@vitest/mocker>vite>postcss>nanoid",
+            ".>vitest>vite>postcss>nanoid"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1153189,
+      "title": "nanoid: Integer Overflow or Wraparound",
+      "module_name": "nanoid",
+      "vulnerable_versions": "<3.3.12",
+      "patched_versions": ">=3.3.12",
+      "severity": "high",
+      "cwe": "CWE-190",
+      "github_advisory_id": "GHSA-xwg4-73v4-xw9w",
+      "url": "https://github.com/advisories/GHSA-xwg4-73v4-xw9w"
+    },
+    "1158499": {
+      "findings": [
+        {
+          "version": "0.16.7",
+          "paths": [
+            ".>eslint>@humanfs/node",
+            ".>eslint-plugin-react-hooks>eslint>@humanfs/node",
+            ".>eslint-plugin-react-refresh>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@humanfs/node",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@humanfs/node",
+            ".>typescript-eslint>eslint>@humanfs/node"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1158499,
+      "title": "humanfs: Recursive copy follows symlinked files and copies data from outside the source tree",
+      "module_name": "@humanfs/node",
+      "vulnerable_versions": "<0.16.8",
+      "patched_versions": ">=0.16.8",
+      "severity": "moderate",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-p498-v437-472g",
+      "url": "https://github.com/advisories/GHSA-p498-v437-472g"
+    },
+    "1158508": {
+      "findings": [
+        {
+          "version": "2.27.1",
+          "paths": [
+            ".>@tiptap/core",
+            ".>@tiptap/extension-bubble-menu>@tiptap/core",
+            ".>@tiptap/extension-placeholder>@tiptap/core",
+            ".>@tiptap/react>@tiptap/core",
+            ".>@tiptap/react>@tiptap/extension-bubble-menu>@tiptap/core",
+            ".>@tiptap/react>@tiptap/extension-floating-menu>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-blockquote>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-bold>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-bullet-list>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-code>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-code-block>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-document>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-dropcursor>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-gapcursor>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-hard-break>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-heading>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-history>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-horizontal-rule>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-italic>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-list-item>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-ordered-list>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-paragraph>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-strike>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-text>@tiptap/core",
+            ".>@tiptap/starter-kit>@tiptap/extension-text-style>@tiptap/core",
+            ".>@tiptap/suggestion>@tiptap/core"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1158508,
+      "title": "Tiptap: mergeAttributes() turns an own __proto__ key into inherited executable DOM attributes",
+      "module_name": "@tiptap/core",
+      "vulnerable_versions": ">=2.0.0-alpha.0 <3.30.4",
+      "patched_versions": ">=3.30.4",
+      "severity": "moderate",
+      "cwe": "CWE-79, CWE-1321",
+      "github_advisory_id": "GHSA-cp6q-959q-f8rh",
+      "url": "https://github.com/advisories/GHSA-cp6q-959q-f8rh"
+    },
+    "1193652": {
+      "findings": [
+        {
+          "version": "6.30.3",
+          "paths": [
+            ".>react-router-dom"
+          ],
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1193652,
+      "title": "React Router: Open redirect leading to XSS",
+      "module_name": "react-router-dom",
+      "vulnerable_versions": ">=6.30.2 <=6.30.5",
+      "patched_versions": ">=6.30.6",
+      "severity": "moderate",
+      "cwe": "CWE-79, CWE-601",
+      "github_advisory_id": "GHSA-jjmj-jmhj-qwj2",
+      "url": "https://github.com/advisories/GHSA-jjmj-jmhj-qwj2"
+    },
+    "1193683": {
+      "findings": [
+        {
+          "version": "4.0.16",
+          "paths": [
+            ".>vitest"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1193683,
+      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+      "module_name": "vitest",
+      "vulnerable_versions": ">=2.1.0 <4.1.11",
+      "patched_versions": ">=4.1.11",
+      "severity": "moderate",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-82fw-gwwq-j7x9",
+      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
+    },
+    "1193684": {
+      "findings": [
+        {
+          "version": "4.0.16",
+          "paths": [
+            ".>vitest>@vitest/mocker"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1193684,
+      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+      "module_name": "@vitest/mocker",
+      "vulnerable_versions": ">=2.1.0 <4.1.11",
+      "patched_versions": ">=4.1.11",
+      "severity": "moderate",
+      "cwe": "CWE-22",
+      "github_advisory_id": "GHSA-82fw-gwwq-j7x9",
+      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9"
+    },
+    "1193686": {
+      "findings": [
+        {
+          "version": "2.10.0",
+          "paths": [
+            ".>autoprefixer>browserslist>baseline-browser-mapping",
+            ".>baseline-browser-mapping"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1193686,
+      "title": "baseline-browser-mapping process termination on invalid input causes denial of service",
+      "module_name": "baseline-browser-mapping",
+      "vulnerable_versions": ">=2.0.0 <2.11.0",
+      "patched_versions": ">=2.11.0",
+      "severity": "moderate",
+      "cwe": "CWE-705",
+      "github_advisory_id": "GHSA-w5vr-8v7q-w6rv",
+      "url": "https://github.com/advisories/GHSA-w5vr-8v7q-w6rv"
+    },
+    "1193727": {
+      "findings": [
+        {
+          "version": "4.1.1",
+          "paths": [
+            ".>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-hooks>eslint>@eslint/eslintrc>js-yaml",
+            ".>eslint-plugin-react-refresh>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/eslintrc>js-yaml",
+            ".>typescript-eslint>eslint>@eslint/eslintrc>js-yaml"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "id": 1193727,
+      "title": "js-yaml: maxTotalMergeKeys does not limit CPU use for empty merge sources",
+      "module_name": "js-yaml",
+      "vulnerable_versions": ">=4.0.0 <4.3.2",
+      "patched_versions": ">=4.3.2",
+      "severity": "high",
+      "cwe": "CWE-400, CWE-407",
+      "github_advisory_id": "GHSA-2883-xcg3-v3hh",
+      "url": "https://github.com/advisories/GHSA-2883-xcg3-v3hh"
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 26,
+      "high": 27,
+      "critical": 1
+    },
+    "dependencies": 265,
+    "devDependencies": 261,
+    "optionalDependencies": 59,
+    "totalDependencies": 527
+  }
+}
