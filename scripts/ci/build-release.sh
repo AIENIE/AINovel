@@ -27,4 +27,8 @@ case "${AIENIE_RELEASE_ENVIRONMENT:-staging}" in
   production) bash "$repo_root/scripts/ci/assemble-ainovel-production-runtime.sh" "$repo_root" "$output_dir" ;;
   *) echo 'AIENIE_RELEASE_ENVIRONMENT must be staging or production' >&2; exit 2 ;;
 esac
+python3 "$repo_root/scripts/ci/dependency-security.py" verify-jar \
+  --root "$repo_root" --module backend --source-commit "$AIENIE_CI_SOURCE_COMMIT" \
+  --report "$AIENIE_CI_INPUT_CACHE_DIR/security/backend.json" \
+  --jar "$output_dir/backend/app.jar" --maven-repo "$AIENIE_CI_CACHE_DIR/maven"
 aienie_ci_finalize_build_inputs

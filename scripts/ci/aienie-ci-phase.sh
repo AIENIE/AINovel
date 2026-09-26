@@ -350,15 +350,51 @@ aienie_ci_resolve_pnpm() {
   done
 }
 
+aienie_ci_module_jar() {
+  local module="$1"
+  local -a jars=()
+  mapfile -t jars < <(find "$AIENIE_CI_REPO_ROOT/$module/target" -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar')
+  (( ${#jars[@]} == 1 )) || aienie_ci_fail "expected one packaged runtime JAR under $module/target"
+  printf '%s\n' "${jars[0]}"
+}
+
+aienie_ci_scan_security() {
+  local module report scanner="$AIENIE_CI_REPO_ROOT/scripts/ci/dependency-security.py"
+  mkdir -p -- "$AIENIE_CI_CACHE_DIR/security"
+  for module in "${AIENIE_CI_MAVEN_MODULES[@]}"; do
+    # Package without running tests or starting the app so the inventory includes
+    # actual shaded/nested runtime libraries, rather than only declared POMs.
+    (cd "$AIENIE_CI_REPO_ROOT/$module" && mvn -B -ntp \
+      -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" -DskipTests package)
+    report="$AIENIE_CI_CACHE_DIR/security/${module//\//_}.json"
+    python3 "$scanner" scan --kind maven --root "$AIENIE_CI_REPO_ROOT" --module "$module" \
+      --source-commit "$AIENIE_CI_SOURCE_COMMIT" --jar "$(aienie_ci_module_jar "$module")" \
+      --maven-repo "$AIENIE_CI_CACHE_DIR/maven" --output "$report"
+  done
+  for module in "${AIENIE_CI_PNPM_MODULES[@]}"; do
+    report="$AIENIE_CI_CACHE_DIR/security/${module//\//_}.json"
+    python3 "$scanner" scan --kind pnpm --root "$AIENIE_CI_REPO_ROOT" --module "$module" \
+      --source-commit "$AIENIE_CI_SOURCE_COMMIT" --output "$report"
+  done
+}
+
+aienie_ci_security_bindings() {
+  python3 "$AIENIE_CI_REPO_ROOT/scripts/ci/dependency-security.py" bindings \
+    --root "$AIENIE_CI_REPO_ROOT" --specs "$1" \
+    --cache "${AIENIE_CI_INPUT_CACHE_DIR:-$AIENIE_CI_CACHE_DIR}" --source-commit "$AIENIE_CI_SOURCE_COMMIT"
+}
+
 aienie_ci_write_manifest() {
   local specs="$1" toolchains="$2" cache_count="$3" cache_sha="$4"
+  local security_bindings
+  security_bindings="$(aienie_ci_security_bindings "$specs")"
   mkdir -p -- "$(dirname "$AIENIE_DEPENDENCY_MANIFEST")"
   python3 - "$AIENIE_CI_REPO_ROOT" "$specs" "$toolchains" "$AIENIE_DEPENDENCY_MANIFEST" \
     "$AIENIE_CI_SOURCE_COMMIT" "$AIENIE_CI_TARGET_ARCHITECTURE" "$cache_count" "$cache_sha" \
-    "${AIENIE_CI_NPM_AUDIT:-false}" <<'PY'
+    "$security_bindings" <<'PY'
 import hashlib, json, pathlib, re, sys
 root, specs_path, tools_path, out_path = map(pathlib.Path, sys.argv[1:5])
-source_commit, target_arch, cache_count, cache_sha, npm_audit = sys.argv[5:10]
+source_commit, target_arch, cache_count, cache_sha, security_bindings = sys.argv[5:10]
 modules=[]; input_paths=set()
 for line in specs_path.read_text(encoding='utf-8').splitlines():
     kind, relative = line.split('\t', 1)
@@ -381,7 +417,7 @@ value={
   'modules':modules,
   'toolchains':toolchains,
   'cache':{'file_count':int(cache_count),'inventory_sha256':cache_sha},
-  'resolve_checks':{'npm_audit':'passed' if npm_audit == 'true' else 'not-applicable'}
+  'resolve_checks':{'dependency_security':json.loads(security_bindings)}
 }
 out_path.write_text(json.dumps(value,sort_keys=True,separators=(',',':'))+'\n',encoding='utf-8')
 PY
@@ -389,9 +425,11 @@ PY
 
 aienie_ci_validate_manifest() {
   local specs="$1" toolchains="$2" cache_count="$3" cache_sha="$4"
+  local security_bindings
+  security_bindings="$(aienie_ci_security_bindings "$specs")"
   [[ -f "$AIENIE_DEPENDENCY_MANIFEST" && ! -L "$AIENIE_DEPENDENCY_MANIFEST" ]] || aienie_ci_fail 'dependency manifest is missing or unsafe'
   python3 - "$AIENIE_CI_REPO_ROOT" "$specs" "$toolchains" "$AIENIE_DEPENDENCY_MANIFEST" \
-    "$AIENIE_CI_SOURCE_COMMIT" "$AIENIE_CI_TARGET_ARCHITECTURE" "$cache_count" "$cache_sha" <<'PY'
+    "$AIENIE_CI_SOURCE_COMMIT" "$AIENIE_CI_TARGET_ARCHITECTURE" "$cache_count" "$cache_sha" "$security_bindings" <<'PY'
 import hashlib,json,pathlib,re,sys
 root,specs_path,tools_path,manifest_path=map(pathlib.Path,sys.argv[1:5])
 source_commit,target_arch,cache_count,cache_sha=sys.argv[5:9]
@@ -413,6 +451,7 @@ if value.get('modules')!=expected_modules: raise SystemExit('dependency manifest
 if value.get('inputs')!=expected_inputs: raise SystemExit('dependency lock input mismatch')
 if value.get('toolchains')!=expected_tools: raise SystemExit('dependency toolchain mismatch')
 if value.get('cache')!={'file_count':int(cache_count),'inventory_sha256':cache_sha}: raise SystemExit('dependency cache inventory mismatch')
+if value.get('resolve_checks')!={'dependency_security':json.loads(sys.argv[9])}: raise SystemExit('dependency security evidence mismatch')
 PY
 }
 
@@ -425,6 +464,10 @@ aienie_ci_build_maven() {
   for module in "${AIENIE_CI_MAVEN_MODULES[@]}"; do
     (cd "$AIENIE_CI_REPO_ROOT/$module" && mvn -B -ntp -o \
       -Dmaven.repo.local="$AIENIE_CI_CACHE_DIR/maven" clean package)
+    python3 "$AIENIE_CI_REPO_ROOT/scripts/ci/dependency-security.py" verify-jar \
+      --root "$AIENIE_CI_REPO_ROOT" --module "$module" --source-commit "$AIENIE_CI_SOURCE_COMMIT" \
+      --report "$AIENIE_CI_INPUT_CACHE_DIR/security/${module//\//_}.json" \
+      --jar "$(aienie_ci_module_jar "$module")" --maven-repo "$AIENIE_CI_CACHE_DIR/maven"
   done
 }
 
@@ -524,6 +567,7 @@ aienie_ci_prepare_phase() {
       aienie_ci_assert_empty_output "$AIENIE_CI_OUTPUT_DIR"
       [[ ! -e "$AIENIE_DEPENDENCY_MANIFEST" ]] || aienie_ci_fail 'resolve dependency manifest output already exists'
       aienie_ci_resolve_maven; aienie_ci_resolve_npm; aienie_ci_resolve_pnpm
+      aienie_ci_scan_security
       printf 'aienie-repository-cache-v1\n%s\n%s\n' "$AIENIE_CI_SOURCE_COMMIT" "$AIENIE_CI_TARGET_ARCHITECTURE" >"$AIENIE_CI_CACHE_DIR/.aienie-cache-contract"
       aienie_ci_assert_no_special_entries "$AIENIE_CI_CACHE_DIR" 'resolved dependency cache'
       read -r cache_count cache_sha < <(aienie_ci_cache_inventory "$AIENIE_CI_CACHE_DIR")

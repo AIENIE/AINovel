@@ -17,6 +17,25 @@ $statusText = [IO.File]::ReadAllText((Join-Path $windowsRoot 'Get-LocalStatus.ps
     [IO.File]::ReadAllText((Join-Path $windowsRoot 'Invoke-Local.ps1'))
 $moduleText = [IO.File]::ReadAllText((Join-Path $windowsRoot 'LocalRuntime.psm1'))
 $runtimeText = $startText + $statusText + $moduleText
+# Exercise the exact launcher policy without executing its main action or loading runtime secrets.
+$launcherAst = [Management.Automation.Language.Parser]::ParseFile(
+    (Join-Path $windowsRoot 'Invoke-Local.ps1'), [ref]$null, [ref]$null)
+$versionPolicy = $launcherAst.Find({ param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'Assert-FrontendToolchainVersions'
+}, $true)
+if ($null -eq $versionPolicy) { throw 'The launcher has no enforced frontend version policy.' }
+. ([scriptblock]::Create($versionPolicy.Extent.Text))
+Assert-FrontendToolchainVersions -NodeVersion 'v22.23.2' -PnpmVersion '11.22.0'
+foreach ($versions in @(@('v24.13.0', '11.22.0'), @('v22.23.2', '11.21.0'), @('', ''))) {
+    $rejected = $false
+    try { Assert-FrontendToolchainVersions -NodeVersion $versions[0] -PnpmVersion $versions[1] }
+    catch { $rejected = $_.Exception.Message -match 'requires' }
+    if (-not $rejected) { throw 'The launcher accepted a mismatched frontend toolchain.' }
+}
+if ($startText -notmatch "(?s)if \(\`$Action -in @\('Build', 'Test', 'Start'\).*?Assert-FrontendToolchain") {
+    throw 'The frontend version policy is not applied before build/test/start.'
+}
 if (($startText + $statusText) -match '(?i)Set-AienieProductOperationalState|AIENIE_PRODUCT_STATE_WRITER|config-center|release\.center|icacls|Get-Acl|Start-Direct\.ps1|Start-Native\.ps1') {
     throw 'AINovel local Start/Status must not depend on release, monitoring, ACL, or privileged launch automation.'
 }

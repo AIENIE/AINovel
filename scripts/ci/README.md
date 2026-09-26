@@ -17,9 +17,29 @@ AIENIE_DEPENDENCY_MANIFEST=<resolve-output-dir>/repository-dependency-manifest.j
 scripts/ci/build-release.sh <resolve-output-dir>
 ```
 
-该阶段只解析并缓存依赖，生成 schema 为
+该阶段解析并缓存依赖，执行安全审计，并生成 schema 为
 `aienie-repository-dependency-manifest-v1` 的清单。清单绑定源码提交、目标架构、模块、工具链、
-依赖输入文件 SHA-256 和缓存清单摘要。缺锁文件、空缓存、错误架构或重复输出均会失败关闭。
+依赖输入文件 SHA-256、安全报告 SHA-256 和缓存清单摘要。缺锁文件、空缓存、错误架构、审计未完成或重复输出均会失败关闭。
+
+所有 PNPM 模块执行真实 `pnpm audit --json`（包含开发依赖）。Maven 模块在 resolve 中以
+`-DskipTests package` 生成待审 JAR，不启动应用或加载运行配置；扫描器将每个 `BOOT-INF/lib`
+依赖的 SHA-256 与 Maven 缓存匹配，提取 Maven 坐标、内嵌元数据和 gRPC shaded Netty 的实际版本，
+通过 OSV HTTPS API 查询这些包坐标。扫描器不上传源码、JAR、业务数据或秘密。
+
+`scripts/ci/dependency-security.py` 只依赖 Python 3 标准库，公网依赖元数据源为
+`https://api.osv.dev/v1/` 和 PNPM 已配置 registry 的 audit API，需在 resolve 网络策略中允许。
+网络失败、响应缺字段、空组件库存、未知/高危/严重风险均失败关闭；中低危仍记录。
+原 `AIENIE_CI_NPM_AUDIT` 开关不能关闭本仓库的必选扫描，也不再能直接生成 `passed`。
+`security-exceptions.json` 默认为空；例外必须精确绑定公告和包版本，具有责任人、理由及到期日，
+到期失败。不得用通配包或永久例外消除风险。
+
+报告保存在缓存 `security/{module}.json`，绑定源码提交、POM/锁文件、PNPM 工作区配置与扫描器/策略哈希。
+离线 build 只验证原始报告和报告哈希，不再访问 OSV/registry；编译后及最终 bundle 再逐项对比实际
+JAR 内库的 SHA-256 与坐标，防止发版辅助脚本换入未经扫描的依赖。
+平台镜像、OS 包及没有 Maven 身份的内嵌本机二进制仍需平台 SCA，不能由本检查宣称全部覆盖。
+
+扫描器本地定向测试：`python scripts/ci/test_dependency_security.py`。覆盖网络/空响应/未知库存失败、
+shaded Netty 识别、报告绑定、到期例外及离线无网络验证。两阶段 Linux 全链验证仍须在规范 CI 节点执行。
 
 ## Build
 
@@ -55,4 +75,4 @@ production bundle 固定携带 `frontend/nginx.conf`，以非特权容器端口 
 ## 本仓库模块
 
 - Maven: `backend`
-- npm: `frontend`
+- PNPM: `frontend`（Node.js `22.23.2`、PNPM `11.22.0`；Windows Build/Test/Start 入口同样强制检查）
