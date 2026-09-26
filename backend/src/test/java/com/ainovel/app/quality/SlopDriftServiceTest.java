@@ -29,6 +29,7 @@ class SlopDriftServiceTest {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
         SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         Manuscript manuscript = manuscriptWithRepeatedSections("雨水砸在铁皮棚上，林烬记住了铜扣的划痕。", 12);
 
         when(aiService.chat(any(), any())).thenReturn(new AiChatResponse("assistant", """
@@ -82,6 +83,7 @@ class SlopDriftServiceTest {
         SlopDriftRun run = service.analyze(user(), manuscript);
 
         assertEquals(SlopDriftStatus.COMPLETED, run.getStatus());
+        assertEquals("quality-plain-v1", run.getTextConversionVersion());
         assertEquals(76, run.getOverallRiskScore());
         assertEquals("high", run.getRiskLabel());
         assertTrue(run.getSafeClaim().contains("不能证明作者使用 AI"));
@@ -97,6 +99,7 @@ class SlopDriftServiceTest {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
         SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         Manuscript manuscript = manuscriptWithRepeatedSections("短稿。", 2);
 
         when(repository.save(any(SlopDriftRun.class))).thenAnswer(invocation -> invocation.getArgument(0));

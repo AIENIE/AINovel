@@ -13,6 +13,9 @@ public class NarrativeExtraction {
     private UUID operationId;
     @Column(nullable=false) private long baseCanonRevision;
     @Column(nullable=false,length=40) private String promptVersion;
+    @Column(name="text_conversion_version",length=64) private String textConversionVersion;
+    public String getTextConversionVersion() { return textConversionVersion; }
+    public void setTextConversionVersion(String value) { textConversionVersion = value; }
     @Column(length=120) private String model;
     @Lob @Column(nullable=false) private String inputJson;
     @Lob String candidatesJson;

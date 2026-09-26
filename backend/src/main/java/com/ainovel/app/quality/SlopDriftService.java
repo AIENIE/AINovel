@@ -23,15 +23,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 public class SlopDriftService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
+    private QualityPersistenceBoundary boundary;
     private static final int MIN_TOTAL_CHARACTERS = 6000;
     private static final int MIN_WINDOWS = 3;
     private static final int MIN_WINDOW_CHARACTERS = 3000;
     private static final int MAX_WINDOW_CHARACTERS = 7000;
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final AiService aiService;
     private final ObjectMapper objectMapper;
@@ -52,12 +54,18 @@ public class SlopDriftService {
         return runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId);
     }
 
-    @Transactional
     public SlopDriftRun analyze(User user, Manuscript manuscript) {
-        DriftInput input = buildInput(manuscript);
+        var snapshot = boundary == null ? null : boundary.snapshot(manuscript, this::buildInput);
+        DriftInput input = snapshot == null ? buildInput(manuscript) : snapshot.data();
+        SlopDriftRun result = evaluate(user, input);
+        return snapshot == null ? runRepository.save(result) : boundary.save(snapshot,
+                current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
+    }
+
+    private SlopDriftRun evaluate(User user, DriftInput input) {
         List<WindowSample> windows = buildWindows(input.fullText());
         if (input.totalCharacters() < MIN_TOTAL_CHARACTERS || windows.size() < MIN_WINDOWS) {
-            return runRepository.save(insufficientRun(input, windows));
+            return insufficientRun(input, windows);
         }
         try {
             Map<String, Object> root = parseJson(aiService.chat(user, new AiChatRequest(
@@ -65,16 +73,17 @@ public class SlopDriftService {
                     null,
                     null
             )).content());
-            return runRepository.save(completedRun(input, windows, root));
+            return completedRun(input, windows, root);
         } catch (RuntimeException ex) {
-            return runRepository.save(degradedRun(input, windows, ex));
+            if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
+            return degradedRun(input, windows, ex);
         }
     }
 
     private DriftInput buildInput(Manuscript manuscript) {
         Outline outline = manuscript.getOutline();
         Story story = outline.getStory();
-        Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
+        Map<String, String> sections = contents.readAll(manuscript);
         List<OrderedScene> scenes = orderedScenes(outline);
         StringBuilder fullText = new StringBuilder();
         int totalCharacters = 0;
@@ -213,6 +222,7 @@ public class SlopDriftService {
 
     private SlopDriftRun baseRun(DriftInput input, List<WindowSample> windows) {
         SlopDriftRun run = new SlopDriftRun();
+        run.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1.version());
         run.setStoryId(input.storyId());
         run.setManuscriptId(input.manuscriptId());
         run.setTotalCharacters(input.totalCharacters());
@@ -363,16 +373,8 @@ public class SlopDriftService {
     }
 
     private String stripHtml(String html) {
-        if (html == null) {
-            return "";
-        }
-        return HTML_TAG_PATTERN.matcher(html)
-                .replaceAll("")
-                .replace("&nbsp;", " ")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&amp;", "&")
-                .trim();
+        return com.ainovel.app.common.text.RichTextProjector.project(html,
+                com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1).text();
     }
 
     private UUID uuid(Object value) {

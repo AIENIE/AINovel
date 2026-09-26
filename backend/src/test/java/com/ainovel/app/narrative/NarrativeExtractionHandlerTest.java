@@ -51,7 +51,7 @@ class NarrativeExtractionHandlerTest {
         verify(service, never()).storeResult(any(), any(), any(), any(), any(), any());
         verify(ai, times(1)).chat(eq(user), any(), any());
     }
-    @Test void expiredLeaseReleasesOnlyItsStableReservationWithoutCallingModel() throws Exception {
+    @Test void expiredLeaseRetainsUncertainReservationWithoutCallingModel() throws Exception {
         var economy = mock(EconomyService.class);
         var ai = mock(AiService.class);
         var handler = new NarrativeExtractionHandler(mock(NarrativeService.class), ai, economy);
@@ -60,7 +60,7 @@ class NarrativeExtractionHandlerTest {
         var execution = new AiOperationExecution(UUID.randomUUID(), user, "{\"extractionId\":\"" + extraction + "\"}",
                 new ObjectMapper(), mock(AiOperationProgressUpdater.class));
         handler.recoverExpiredLease(execution);
-        verify(economy).releaseAiReservation(user, new AiUsageContext("NARRATIVE_EXTRACTION", extraction.toString(), "p11-v1").idempotencyKey());
+        verify(economy).markAiResultUncertain(user, new AiUsageContext("NARRATIVE_EXTRACTION", extraction.toString(), "p11-v1").idempotencyKey());
         verifyNoInteractions(ai);
     }
 }

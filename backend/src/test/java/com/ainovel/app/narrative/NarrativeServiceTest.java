@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 @DataJpaTest(showSql = false)
-@Import({NarrativeService.class, NarrativeContextService.class, NarrativeInvalidationListener.class, ResourceAccessGuard.class, V2VersionPersistenceService.class,
+@Import({com.ainovel.app.manuscript.ManuscriptContentService.class,NarrativeService.class, NarrativeContextService.class, NarrativeInvalidationListener.class, ResourceAccessGuard.class, V2VersionPersistenceService.class,
         JsonColumnCodec.class, NarrativeServiceTest.Beans.class})
 class NarrativeServiceTest {
     @TestConfiguration
@@ -306,7 +306,7 @@ class NarrativeServiceTest {
     @Test void h2NewBranchStartsWithoutKnowledgeOrContract() {
         configure(document(List.of(),List.of()));
         UUID base=(UUID)versions.listVersions(manuscript,user).get(0).get("id");
-        UUID fork=(UUID)versions.createBranch(manuscript,user,Map.of("name","H2 fork","sourceVersionId",base)).get("id");
+        UUID fork=(UUID)versions.createBranch(manuscript,user,new com.ainovel.app.v2.V2BranchRequests.CreateBranch("H2 fork", "", base)).get("id");
         versions.checkoutBranch(manuscript,user,fork); em.flush();
         assertTrue(context.state(user,manuscript.getId(),fork).enabled());
         assertNull(context.state(user,manuscript.getId(),fork).document());
@@ -330,6 +330,7 @@ class NarrativeServiceTest {
         Approved approved = service.approve(user, manuscript.getId(), branch, request, "approval");
         assertEquals(approved, service.approve(user, manuscript.getId(), branch, request, "approval"));
         UUID operation = operation(approved);
+        assertEquals("narrative-evidence-v1", service.input(user, approved.extractionId(), operation).textConversionVersion());
         assertFalse(write(service.input(user, approved.extractionId(), operation)).contains("秘密"));
         store(approved, operation, assertion(Kind.FACT, "同伴背叛", "林青误以为同伴背叛", "b2", null));
         assertTrue(state().records().isEmpty());
@@ -342,6 +343,7 @@ class NarrativeServiceTest {
         assertEquals(Kind.BELIEF, record.assertion().kind());
         assertEquals(character.getId(), record.assertion().holderCharacterId());
         var source = service.evidence(user, manuscript.getId(), branch, approved.approvalId());
+        assertEquals("narrative-evidence-v1", source.textConversionVersion());
         var evidence = record.assertion().evidence().get(0);
         String block = source.blocks().get(1).text();
         assertEquals(evidence.quote(), new String(block.codePoints().skip(evidence.start()).limit(evidence.end() - evidence.start()).toArray(), 0, evidence.end() - evidence.start()));
@@ -509,13 +511,13 @@ class NarrativeServiceTest {
     @Test void checkoutMergeAndRollbackKeepSeparateLedgersAndInvalidateTarget() {
         var mainApproval = complete(scene1, assertion(Kind.UTTERANCE, "林青声称桥断", "桥断了", "b1", null));
         UUID main = branch, baseline = service.evidence(user, manuscript.getId(), branch, mainApproval.approvalId()).versionId();
-        UUID fork = (UUID) versions.createBranch(manuscript, user, Map.of("name", "替代剧情", "sourceVersionId", baseline)).get("id");
+        UUID fork = (UUID) versions.createBranch(manuscript, user, new com.ainovel.app.v2.V2BranchRequests.CreateBranch("替代剧情", "", baseline)).get("id");
         versions.checkoutBranch(manuscript, user, fork); em.flush(); branch = fork;
         assertTrue(state().records().isEmpty());
         manuscript.setSectionsJson(write(Map.of(scene1, "<p>林青发现桥完好。</p>", scene2, "<p>林青仍在等消息。</p>"))); em.flush();
         complete(scene1, assertion(Kind.FACT, "桥完好", "桥完好", "b1", null));
         assertEquals("CONFIRMED", service.state(user, manuscript.getId(), main, null, null, null, null, null).records().get(0).status());
-        versions.mergeBranch(manuscript, user, fork, Map.of()); em.flush(); branch = main;
+        versions.mergeBranch(manuscript, user, fork, com.ainovel.app.v2.V2BranchRequests.MergeBranch.defaults()); em.flush(); branch = main;
         assertEquals(1, state().records().size());
         assertEquals("STALE", state().records().get(0).status());
         assertEquals("CONFIRMED", service.state(user, manuscript.getId(), fork, null, null, null, null, null).records().get(0).status());

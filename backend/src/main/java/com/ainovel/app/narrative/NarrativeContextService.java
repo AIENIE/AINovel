@@ -23,6 +23,8 @@ import static com.ainovel.app.manuscript.context.SceneDraftContextCompiler.histo
 @Service
 public class NarrativeContextService {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
     private NarrativeGenerationCandidateRepository candidates;
     @Transactional
     public List<NarrativeGenerationCandidate> candidates(User user, UUID manuscriptId, UUID branchId) {
@@ -194,7 +196,7 @@ public class NarrativeContextService {
         if (view==View.SCENE) eligible.add(new Fragment("contract","CONTRACT",write(Map.of("perspective",doc.policy().perspective(),
                 "allowInner",doc.policy().allowInner(),"viewpoint",perspective==null?"":names.getOrDefault(perspective,""))),"作者叙事约定",false));
         if (view==View.READER) {
-            var sections=tree(m.getSectionsJson());
+            var sections=tree(contents.snapshot(m));
             for (var p:positions.values()) if (p.index()<cutoff.index()) {
                 String text=String.join("\n",blocks(sections.path(p.sceneId().toString()).asText()).stream().map(NarrativeDtos.Block::text).toList());
                 if (!text.isBlank()) eligible.add(new Fragment(p.sceneId().toString(),"DISCLOSED_TEXT",text,"截止场景之前的已保存正文",false));

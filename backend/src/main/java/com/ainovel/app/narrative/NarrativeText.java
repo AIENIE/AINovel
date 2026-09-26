@@ -18,35 +18,9 @@ public final class NarrativeText {
     private NarrativeText() {}
     public static List<Block> blocks(String html) {
         List<Block> blocks = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        HTMLEditorKit.ParserCallback callback = new HTMLEditorKit.ParserCallback() {
-            private int hidden;
-            private boolean boundary(HTML.Tag tag) {
-                return Set.of("p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "tr", "blockquote").contains(tag.toString());
-            }
-            private void endBlock() {
-                String value = current.toString().replace('\u00a0', ' ').strip();
-                if (!value.isBlank()) blocks.add(new Block("b" + (blocks.size() + 1), value));
-                current.setLength(0);
-            }
-            @Override public void handleStartTag(HTML.Tag tag, MutableAttributeSet attributes, int pos) {
-                if (tag == HTML.Tag.SCRIPT || tag == HTML.Tag.STYLE || tag == HTML.Tag.HEAD) hidden++;
-                if (hidden == 0 && boundary(tag)) endBlock();
-            }
-            @Override public void handleEndTag(HTML.Tag tag, int pos) {
-                if (hidden == 0 && boundary(tag)) endBlock();
-                if (tag == HTML.Tag.SCRIPT || tag == HTML.Tag.STYLE || tag == HTML.Tag.HEAD) hidden = Math.max(0, hidden - 1);
-            }
-            @Override public void handleSimpleTag(HTML.Tag tag, MutableAttributeSet attributes, int pos) {
-                if (hidden == 0 && tag == HTML.Tag.BR) current.append('\n');
-            }
-            @Override public void handleText(char[] data, int pos) { if (hidden == 0) current.append(data); }
-            @Override public void flush() { endBlock(); }
-        };
-        try {
-            new ParserDelegator().parse(new StringReader(html == null ? "" : html), callback, true);
-            callback.flush();
-        } catch (Exception ex) { throw new IllegalArgumentException("NARRATIVE_INVALID_HTML", ex); }
+        for (String value : com.ainovel.app.common.text.RichTextProjector.evidenceBlocks(html)) {
+            blocks.add(new Block("b" + (blocks.size() + 1), value));
+        }
         return List.copyOf(blocks);
     }
 

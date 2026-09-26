@@ -27,6 +27,7 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID record(SlopQualityRecord record) {
         SlopQualityRun run = new SlopQualityRun();
+        run.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1.version());
         run.setStoryId(record.request().storyId());
         run.setManuscriptId(record.request().manuscriptId());
         run.setSceneId(record.request().sceneId());
