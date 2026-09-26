@@ -1,0 +1,559 @@
+[ {
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "不是勇气，而是",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。",
+      "charStart" : 1,
+      "charEnd" : 8,
+      "quote" : "不是勇气，而是",
+      "module" : "surface_template",
+      "patternId" : "NEG_NOT_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"排除法论证\",\"角色口头禅\",\"作者刻意对照\"]",
+      "repairHint" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。"
+    } ],
+    "shadowHits" : [ {
+      "patternId" : "SHADOW_UNIFORM_SENTENCE_LENGTH",
+      "category" : "SHADOW_UNIFORM_LENGTH",
+      "occurrenceCount" : 5,
+      "charStart" : 0,
+      "charEnd" : 10,
+      "evidence" : "这不是勇气，而是坚持"
+    } ]
+  },
+  "id" : "F01",
+  "rawHits" : [ {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 8,
+    "quote" : "不是勇气，而是",
+    "start" : 1
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 19,
+    "quote" : "不是恐惧，而是",
+    "start" : 12
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 30,
+    "quote" : "不是终点，而是",
+    "start" : 23
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 41,
+    "quote" : "不是告别，而是",
+    "start" : 34
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 52,
+    "quote" : "不是选择，而是",
+    "start" : 45
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F02",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F03",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 28,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "LOW",
+      "riskScore" : 28,
+      "evidence" : "不是门坏了，而是",
+      "whyItMatters" : "单次排除式对照是正常修辞，高密度复用会形成先否定再解释的模板腔。",
+      "minimalFix" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。",
+      "charStart" : 0,
+      "charEnd" : 8,
+      "quote" : "不是门坏了，而是",
+      "module" : "surface_template",
+      "patternId" : "NEG_NOT_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"排除法论证\",\"角色口头禅\",\"作者刻意对照\"]",
+      "repairHint" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。"
+    } ],
+    "shadowHits" : [ {
+      "patternId" : "SHADOW_UNIFORM_SENTENCE_LENGTH",
+      "category" : "SHADOW_UNIFORM_LENGTH",
+      "occurrenceCount" : 5,
+      "charStart" : 0,
+      "charEnd" : 13,
+      "evidence" : "不是门坏了，而是钥匙拿错了"
+    } ]
+  },
+  "id" : "F04",
+  "rawHits" : [ {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 8,
+    "quote" : "不是门坏了，而是",
+    "start" : 0
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 21,
+    "quote" : "不是停电，而是",
+    "start" : 14
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 35,
+    "quote" : "不是人走了，而是",
+    "start" : 27
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 49,
+    "quote" : "不是纸丢了，而是",
+    "start" : 41
+  }, {
+    "id" : "NEG_NOT_BUT",
+    "category" : "NEGATIVE_PARALLELISM",
+    "end" : 63,
+    "quote" : "不是锁换了，而是",
+    "start" : 55
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "语气里带着",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "删去情绪标签，让用词、停顿或对方反应承担潜台词。",
+      "charStart" : 7,
+      "charEnd" : 12,
+      "quote" : "语气里带着",
+      "module" : "voice_fit",
+      "patternId" : "DIALOGUE_TONE_LABEL",
+      "issueType" : "dialogue_tail",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"有声书标注\",\"作者偏好声音描写\"]",
+      "repairHint" : "删去情绪标签，让用词、停顿或对方反应承担潜台词。"
+    } ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F05",
+  "rawHits" : [ {
+    "id" : "DIALOGUE_TONE_LABEL",
+    "category" : "DIALOGUE_TAIL",
+    "end" : 12,
+    "quote" : "语气里带着",
+    "start" : 7
+  }, {
+    "id" : "DIALOGUE_TONE_LABEL",
+    "category" : "DIALOGUE_TAIL",
+    "end" : 27,
+    "quote" : "语气里带着",
+    "start" : 22
+  }, {
+    "id" : "DIALOGUE_TONE_LABEL",
+    "category" : "DIALOGUE_TAIL",
+    "end" : 42,
+    "quote" : "语气里带着",
+    "start" : 37
+  }, {
+    "id" : "DIALOGUE_TONE_LABEL",
+    "category" : "DIALOGUE_TAIL",
+    "end" : 57,
+    "quote" : "语气里带着",
+    "start" : 52
+  }, {
+    "id" : "DIALOGUE_TONE_LABEL",
+    "category" : "DIALOGUE_TAIL",
+    "end" : 72,
+    "quote" : "语气里带着",
+    "start" : 67
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F06",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F07",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F08",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "嘴角微微上扬",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "写清角色为何发笑，以及这个表情让现场发生了什么。",
+      "charStart" : 1,
+      "charEnd" : 7,
+      "quote" : "嘴角微微上扬",
+      "module" : "surface_template",
+      "patternId" : "BODY_MOUTH_CURVE",
+      "issueType" : "body_action",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"网文惯用动作\",\"角色表情习惯\"]",
+      "repairHint" : "写清角色为何发笑，以及这个表情让现场发生了什么。"
+    }, {
+      "dimension" : "REPETITION",
+      "severity" : "MEDIUM",
+      "riskScore" : 68,
+      "evidence" : "上扬，眼神变得坚定。",
+      "whyItMatters" : "连续复用相同表达会让场景显得原地打转。",
+      "minimalFix" : "保留一次核心信息，其余改为动作、结果或删减。",
+      "charStart" : 5,
+      "charEnd" : 15,
+      "quote" : "上扬，眼神变得坚定。",
+      "module" : "surface_template",
+      "patternId" : "SURFACE_REPETITION_NGRAM",
+      "issueType" : "repetition",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"作者刻意回环\",\"类型文强调句\",\"人工水字数\"]",
+      "repairHint" : "保留一次核心信息，其余改为动作、结果或删减。"
+    } ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F09",
+  "rawHits" : [ {
+    "id" : "BODY_MOUTH_CURVE",
+    "category" : "BODY_ACTION",
+    "end" : 7,
+    "quote" : "嘴角微微上扬",
+    "start" : 1
+  }, {
+    "id" : "BODY_EYE_ROTATION",
+    "category" : "BODY_ACTION",
+    "end" : 14,
+    "quote" : "眼神变得坚定",
+    "start" : 8
+  }, {
+    "id" : "BODY_MOUTH_CURVE",
+    "category" : "BODY_ACTION",
+    "end" : 22,
+    "quote" : "嘴角微微上扬",
+    "start" : 16
+  }, {
+    "id" : "BODY_EYE_ROTATION",
+    "category" : "BODY_ACTION",
+    "end" : 29,
+    "quote" : "眼神变得坚定",
+    "start" : 23
+  }, {
+    "id" : "BODY_MOUTH_CURVE",
+    "category" : "BODY_ACTION",
+    "end" : 38,
+    "quote" : "嘴角微微上扬",
+    "start" : 32
+  }, {
+    "id" : "BODY_EYE_ROTATION",
+    "category" : "BODY_ACTION",
+    "end" : 45,
+    "quote" : "眼神变得坚定",
+    "start" : 39
+  }, {
+    "id" : "BODY_MOUTH_CURVE",
+    "category" : "BODY_ACTION",
+    "end" : 54,
+    "quote" : "嘴角微微上扬",
+    "start" : 48
+  }, {
+    "id" : "BODY_EYE_ROTATION",
+    "category" : "BODY_ACTION",
+    "end" : 61,
+    "quote" : "眼神变得坚定",
+    "start" : 55
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F10",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F11",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F12",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "空气仿佛凝固",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "保留一个可感知细节，删掉宇宙级放大描述。",
+      "charStart" : 0,
+      "charEnd" : 6,
+      "quote" : "空气仿佛凝固",
+      "module" : "surface_template",
+      "patternId" : "IMG_TIME_WORLD_FREEZE",
+      "issueType" : "imagery",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"奇幻能力设定\",\"主观时间体验\"]",
+      "repairHint" : "保留一个可感知细节，删掉宇宙级放大描述。"
+    } ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F13",
+  "rawHits" : [ {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 6,
+    "quote" : "空气仿佛凝固",
+    "start" : 0
+  }, {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 15,
+    "quote" : "时间像是停了下来",
+    "start" : 7
+  }, {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 22,
+    "quote" : "空气仿佛凝固",
+    "start" : 16
+  }, {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 31,
+    "quote" : "时间像是停了下来",
+    "start" : 23
+  }, {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 38,
+    "quote" : "空气仿佛凝固",
+    "start" : 32
+  }, {
+    "id" : "IMG_TIME_WORLD_FREEZE",
+    "category" : "IMAGERY",
+    "end" : 47,
+    "quote" : "时间像是停了下来",
+    "start" : 39
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F14",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F15",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F16",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 58,
+    "maxSeverity" : "MEDIUM",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "MEDIUM",
+      "riskScore" : 58,
+      "evidence" : "命运的齿轮",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "写清谁做了什么，使后续选择范围发生变化。",
+      "charStart" : 0,
+      "charEnd" : 5,
+      "quote" : "命运的齿轮",
+      "module" : "surface_template",
+      "patternId" : "ABSTRACT_FATE_GEAR",
+      "issueType" : "abstract_emotion",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"宿命题材\",\"预言叙事\"]",
+      "repairHint" : "写清谁做了什么，使后续选择范围发生变化。"
+    } ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F17",
+  "rawHits" : [ {
+    "id" : "ABSTRACT_FATE_GEAR",
+    "category" : "ABSTRACT_EMOTION",
+    "end" : 5,
+    "quote" : "命运的齿轮",
+    "start" : 0
+  }, {
+    "id" : "ABSTRACT_FATE_GEAR",
+    "category" : "ABSTRACT_EMOTION",
+    "end" : 31,
+    "quote" : "命运的齿轮",
+    "start" : 26
+  }, {
+    "id" : "ABSTRACT_FATE_GEAR",
+    "category" : "ABSTRACT_EMOTION",
+    "end" : 57,
+    "quote" : "命运的齿轮",
+    "start" : 52
+  } ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F18",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F19",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F20",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F21",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F22",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F23",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "F24",
+  "rawHits" : [ ]
+} ]

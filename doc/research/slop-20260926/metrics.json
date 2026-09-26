@@ -1,0 +1,29 @@
+{
+  "all": {
+    "tp": 5,
+    "fp": 0,
+    "tn": 12,
+    "fn": 7,
+    "precision": 1.0,
+    "recall": 0.4166666666666667,
+    "accuracy": 0.7083333333333334
+  },
+  "development": {
+    "tp": 5,
+    "fp": 0,
+    "tn": 6,
+    "fn": 5,
+    "precision": 1.0,
+    "recall": 0.5,
+    "accuracy": 0.6875
+  },
+  "holdout": {
+    "tp": 0,
+    "fp": 0,
+    "tn": 6,
+    "fn": 2,
+    "precision": null,
+    "recall": 0.0,
+    "accuracy": 0.75
+  }
+}

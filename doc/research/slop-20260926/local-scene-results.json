@@ -1,0 +1,61 @@
+[ {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S1",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S2",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S3",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S4",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S5",
+  "rawHits" : [ ]
+}, {
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S6",
+  "rawHits" : [ ]
+} ]

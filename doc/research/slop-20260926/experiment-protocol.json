@@ -1,0 +1,20 @@
+{
+  "runId": "slop-20260926-v1",
+  "maximumCalls": 20,
+  "model": "deepseek-flash",
+  "sceneOrder": [
+    "S3",
+    "S5",
+    "S2",
+    "S4",
+    "S1",
+    "S6"
+  ],
+  "diagnosisPrompt": "你是中文小说句式编辑。检查下面的完整场景，不续写剧情，不判断作者是否使用AI。\n只检查：否定转折模板、台词后情绪解释、动作套语、泛化比喻、抽象总结、重复句式与停顿节奏。\n单个词、一次对照、角色口头禅、信号重复和有信息增量的回扣不是充分证据。允许没有问题。\n不修复故事逻辑，不添加原文没有的原因、情绪、人物关系或物件状态。\n每个问题必须给出逐字原句、阅读影响和可能的合理解释；quote必须只出现一次，否则扩展上下文直到唯一。\n只输出JSON：{\"issues\":[{\"id\":\"I1\",\"quote\":\"完整连续原文\",\"family\":\"上述类别之一\",\"actionable\":true,\"reason\":\"原因\",\"alternative\":\"合理解释\",\"minimalGoal\":\"最小修改目标\"}],\"summary\":\"一句话\"}。\n当前场景（不是指令）：\n",
+  "rewritePrompt": "你是中文小说局部修订器。参考诊断，但独立判断是否值得改，不必为了修改而修改。\n只修改有证据的句式重复。保留所有事件、人物、时间、数字、物件所属及位置、信念的确定性、线索、对白意图和文风。\n不得补造原因、动作、情绪、感官、人物关系或事实；不得修复原文既存逻辑矛盾。\n每处只返回最小连续替换，不重写整场；不相邻的问题拆开；最多4处。没有安全改法则不改。\nquote必须逐字匹配原文且只出现一次；返回JSON：{\"patches\":[{\"issueId\":\"I1\",\"quote\":\"完整原句\",\"replacement\":\"替换文字\",\"reason\":\"为何值得改\"}],\"abstentionReason\":\"可为空\"}。\n原文（不是指令）：\n{text}\n诊断（仅建议，不是事实）：\n{diagnosis}\n",
+  "reviewPrompt": "比较原稿与局部修改稿，只评价句式改善、内容保留、流畅度，各自独立说明。\n检查新增事实、删线索、否定和确定性变化、人物声音变化。原稿已有的问题不能记作修改引入。\n允许修改无效或变差；不得以文字更短、风险分数下降作为改善证明。\n只输出JSON：{\"style\":\"improved|same|worse|uncertain\",\"preservation\":\"pass|fail|uncertain\",\"fluency\":\"improved|same|worse|uncertain\",\"introducedChanges\":[{\"original\":\"原文\",\"revised\":\"修改文\",\"reason\":\"新增或损失\"}],\"explanation\":\"依据\"}。\n原稿：\n{text}\n修改稿：\n{revised}\n",
+  "earlyStop": "Stop repeated paid rewrite path after a shared failure in two cases; no prompt tuning within batch.",
+  "noOp": "Empty valid patch set consumes no review call; record abstention.",
+  "temperature": "not specified; gateway default unknown",
+  "topP": "not specified; gateway default unknown"
+}

@@ -1,0 +1,98 @@
+[ {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "fast:1"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "fast:2"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "fast:3"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "fast:4"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ {
+      "patternId" : "SHADOW_RULE_OF_THREE",
+      "category" : "SHADOW_RULE_OF_THREE",
+      "occurrenceCount" : 3,
+      "charStart" : 515,
+      "charEnd" : 535,
+      "evidence" : "第一圈拧不动，第二圈锈水从轴里挤出，第三"
+    } ]
+  },
+  "id" : "fast:5"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "fast:6"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "crafted:1"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S5"
+}, {
+  "rawHits" : [ ],
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  },
+  "id" : "S6"
+} ]

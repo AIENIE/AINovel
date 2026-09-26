@@ -1,0 +1,10 @@
+{
+  "baselineCommit": "ad3264611a5d04390f50f539738839f508a313c8",
+  "samplesSha256": "c1706a5f8fe2fef19e8f9375631711a3ea9851e38ab41d9cf109329be7263e0d",
+  "scenesSha256": "a85da5fa895a56809b329c2db1b8fdc83705d7ab2289321905deee587d48dc59",
+  "labels": "agent judgments, not human gold labels",
+  "frozenBeforeEvaluation": true,
+  "paidRunId": "slop-20260926-v1",
+  "maximumCalls": 20,
+  "model": "deepseek-flash"
+}
