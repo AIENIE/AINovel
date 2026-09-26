@@ -29,6 +29,8 @@ import java.util.*;
 
 @Service
 public class V2VersionPersistenceService implements SceneGenerationSnapshotStore {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private final V2ManuscriptBranchRepository branchRepository;
     private final V2ManuscriptVersionRepository versionRepository;
     private final V2VersionDiffRepository diffRepository;
@@ -84,7 +86,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         }
 
         V2ManuscriptVersion latest = latestVersion(manuscript.getId(), branchId);
-        String currentHash = sha256(str(manuscript.getSectionsJson(), "{}"));
+        String currentHash = sha256(requireSectionsJson(contents.snapshot(manuscript)));
         if (latest != null && Objects.equals(latest.getContentHash(), currentHash)) {
             Map<String, Object> dedup = versionMap(latest);
             dedup.put("deduplicated", true);
@@ -97,7 +99,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 requireBranch(manuscript.getId(), branchId),
                 payload == null ? null : payload.get("label"),
                 snapshotType,
-                str(manuscript.getSectionsJson(), "{}"),
+                requireSectionsJson(contents.snapshot(manuscript)),
                 payload == null ? null : payload.get("metadata")
         );
         version = versionRepository.saveAndFlush(version);
@@ -133,7 +135,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 branch,
                 "场景生成 " + sceneId,
                 "generation",
-                str(manuscript.getSectionsJson(), "{}"),
+                requireSectionsJson(contents.snapshot(manuscript)),
                 metadata
         ));
         return version.getId();
@@ -150,8 +152,8 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         ensureMainBranchAndInitialVersion(manuscript, user);
         V2ManuscriptVersion target = requireVersion(manuscript.getId(), versionId);
         Set<UUID> changedSceneIds = changedSceneIds(
-                str(manuscript.getSectionsJson(), "{}"),
-                str(target.getSectionsJson(), "{}")
+                requireSectionsJson(contents.snapshot(manuscript)),
+                requireSectionsJson(target.getSectionsJson())
         );
         UUID currentBranchId = manuscript.getCurrentBranchId() == null ? mainBranchId(manuscript.getId()) : manuscript.getCurrentBranchId();
         V2ManuscriptBranch branch = requireBranch(manuscript.getId(), currentBranchId);
@@ -162,11 +164,11 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 branch,
                 "回滚前自动备份",
                 "manual",
-                str(manuscript.getSectionsJson(), "{}"),
+                requireSectionsJson(contents.snapshot(manuscript)),
                 Map.of("rollbackTargetVersionId", versionId)
         ));
 
-        manuscript.setSectionsJson(str(target.getSectionsJson(), "{}"));
+        contents.replaceSnapshot(manuscript, requireSectionsJson(target.getSectionsJson()));
         manuscriptRepository.save(manuscript);
         eventPublisher.publishEvent(new ManuscriptRollbackEvent(manuscript.getId(), versionId, changedSceneIds));
 
@@ -176,7 +178,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 branch,
                 "回滚至 v" + target.getVersionNumber(),
                 "manual",
-                str(manuscript.getSectionsJson(), "{}"),
+                requireSectionsJson(contents.snapshot(manuscript)),
                 Map.of("sourceVersionId", versionId)
         ));
 
@@ -194,12 +196,13 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     @Transactional
     public Map<String, Object> diff(Manuscript manuscript, User user, UUID fromVersionId, UUID toVersionId) {
         ensureMainBranchAndInitialVersion(manuscript, user);
+        // Cache keys are global version IDs; verify both belong to the authorized manuscript first.
+        V2ManuscriptVersion from = requireVersion(manuscript.getId(), fromVersionId);
+        V2ManuscriptVersion to = requireVersion(manuscript.getId(), toVersionId);
         Optional<V2VersionDiff> cached = diffRepository.findByFromVersionIdAndToVersionId(fromVersionId, toVersionId);
         if (cached.isPresent()) {
             return v2Json.map(cached.get().getDiffJson());
         }
-        V2ManuscriptVersion from = requireVersion(manuscript.getId(), fromVersionId);
-        V2ManuscriptVersion to = requireVersion(manuscript.getId(), toVersionId);
         Map<String, Object> result = buildDiff(from, to);
 
         V2VersionDiff diff = new V2VersionDiff();
@@ -231,7 +234,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         manuscript.setCurrentBranchId(branchId);
         V2ManuscriptVersion latest = latestVersion(manuscript.getId(), branchId);
         if (latest != null) {
-            manuscript.setSectionsJson(str(latest.getSectionsJson(), manuscript.getSectionsJson()));
+            contents.replaceSnapshot(manuscript, requireSectionsJson(latest.getSectionsJson()));
         }
         manuscriptRepository.save(manuscript);
         return Map.of(
@@ -243,23 +246,23 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     }
 
     @Transactional
-    public Map<String, Object> createBranch(Manuscript manuscript, User user, Map<String, Object> payload) {
+    public Map<String, Object> createBranch(Manuscript manuscript, User user, V2BranchRequests.CreateBranch payload) {
         ensureMainBranchAndInitialVersion(manuscript, user);
-        String name = str(payload.get("name"), "branch-" + UUID.randomUUID().toString().substring(0, 8));
+        String name = payload.name();
         boolean duplicate = branchRepository.findByManuscriptId(manuscript.getId()).stream()
                 .anyMatch(existing -> name.equals(existing.getName()) && !"abandoned".equals(existing.getStatus()));
         if (duplicate) {
             throw new BusinessException("分支名称重复");
         }
-        UUID sourceVersionId = payload.get("sourceVersionId") == null
+        UUID sourceVersionId = payload.sourceVersionId() == null
                 ? latestVersionId(manuscript.getId())
-                : UUID.fromString(payload.get("sourceVersionId").toString());
+                : payload.sourceVersionId();
         V2ManuscriptVersion sourceVersion = requireVersion(manuscript.getId(), sourceVersionId);
 
         V2ManuscriptBranch branch = new V2ManuscriptBranch();
         branch.setManuscript(manuscript);
         branch.setName(name);
-        branch.setDescription(str(payload.get("description"), ""));
+        branch.setDescription(payload.description());
         branch.setSourceVersionId(sourceVersionId);
         branch.setStatus("active");
         branch.setMain(false);
@@ -271,7 +274,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 branch,
                 "从 v" + sourceVersion.getVersionNumber() + " 分支",
                 "branch_point",
-                str(sourceVersion.getSectionsJson(), "{}"),
+                requireSectionsJson(sourceVersion.getSectionsJson()),
                 Map.of("sourceVersionId", sourceVersionId)
         );
         versionRepository.saveAndFlush(seedVersion);
@@ -279,25 +282,28 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     }
 
     @Transactional
-    public Map<String, Object> updateBranch(UUID manuscriptId, UUID branchId, Map<String, Object> payload) {
+    public Map<String, Object> updateBranch(UUID manuscriptId, UUID branchId, V2BranchRequests.UpdateBranch payload) {
+        manuscriptRepository.findByIdForUpdate(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         V2ManuscriptBranch branch = requireBranch(manuscriptId, branchId);
-        if (branch.isMain() && payload.containsKey("status") && "abandoned".equals(payload.get("status"))) {
-            throw new BusinessException("主分支不能废弃");
+        if (payload.status() != null && !payload.status().wireValue().equals(branch.getStatus())) {
+            if (payload.status() != V2BranchRequests.BranchStatus.ABANDONED || !"active".equals(branch.getStatus()) || branch.isMain()) {
+                throw new BusinessException("INVALID_BRANCH_STATE_TRANSITION");
+            }
+            branch.setStatus("abandoned");
         }
-        if (payload.containsKey("name")) {
-            branch.setName(payload.get("name").toString());
+        if (payload.name() != null) {
+            boolean duplicate = branchRepository.findByManuscriptId(manuscriptId).stream()
+                    .anyMatch(other -> !other.getId().equals(branchId) && payload.name().equals(other.getName())
+                            && !"abandoned".equals(other.getStatus()));
+            if (duplicate) throw new BusinessException("分支名称重复");
+            branch.setName(payload.name());
         }
-        if (payload.containsKey("description")) {
-            branch.setDescription(str(payload.get("description"), ""));
-        }
-        if (payload.containsKey("status")) {
-            branch.setStatus(payload.get("status").toString());
-        }
+        if (payload.description() != null) branch.setDescription(payload.description());
         return branchMap(branchRepository.saveAndFlush(branch));
     }
 
     @Transactional
-    public Map<String, Object> mergeBranch(Manuscript manuscript, User user, UUID branchId, Map<String, Object> payload) {
+    public Map<String, Object> mergeBranch(Manuscript manuscript, User user, UUID branchId, V2BranchRequests.MergeBranch payload) {
         ensureMainBranchAndInitialVersion(manuscript, user);
         V2ManuscriptBranch sourceBranch = requireBranch(manuscript.getId(), branchId);
         if (sourceBranch.isMain()) {
@@ -312,13 +318,17 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         if (sourceVersion == null) {
             throw new BusinessException("分支没有可合并版本");
         }
-        String strategy = str(payload == null ? null : payload.get("strategy"), "REPLACE_ALL");
-        Map<String, String> sourceSections = parseSections(str(sourceVersion.getSectionsJson(), "{}"));
-        Map<String, String> targetSections = parseSections(targetVersion == null ? "{}" : str(targetVersion.getSectionsJson(), "{}"));
+        V2BranchRequests.MergeStrategy strategy = payload.strategy();
+        Map<String, String> sourceSections = parseSections(sourceVersion.getSectionsJson());
+        // The active main manuscript may contain edits since its last checkpoint.
+        String mainSectionsJson = mainBranchId.equals(manuscript.getCurrentBranchId())
+                ? contents.snapshot(manuscript) : targetVersion == null ? "{}" : targetVersion.getSectionsJson();
+        Map<String, String> targetSections = parseSections(mainSectionsJson);
+        parseSections(contents.snapshot(manuscript));
         Map<String, String> mergedSections = new LinkedHashMap<>(targetSections);
         List<Map<String, Object>> conflicts = new ArrayList<>();
-        if ("SCENE_SELECT".equalsIgnoreCase(strategy)) {
-            Map<String, Object> resolutions = payload == null ? Map.of() : map(payload.get("sceneResolutions"));
+        if (strategy == V2BranchRequests.MergeStrategy.SCENE_SELECT) {
+            Map<String, V2BranchRequests.Resolution> resolutions = payload.sceneResolutions();
             Set<String> allSceneIds = new LinkedHashSet<>();
             allSceneIds.addAll(targetSections.keySet());
             allSceneIds.addAll(sourceSections.keySet());
@@ -328,8 +338,8 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 if (Objects.equals(fromTarget, fromSource)) {
                     continue;
                 }
-                String choose = str(resolutions.get(sceneId), "");
-                if (choose.isBlank()) {
+                V2BranchRequests.Resolution choose = resolutions.get(sceneId);
+                if (choose == null) {
                     conflicts.add(Map.of(
                             "sceneId", sceneId,
                             "targetLength", fromTarget.length(),
@@ -340,7 +350,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                     ));
                     continue;
                 }
-                mergedSections.put(sceneId, "target".equalsIgnoreCase(choose) ? fromTarget : fromSource);
+                mergedSections.put(sceneId, choose == V2BranchRequests.Resolution.TARGET ? fromTarget : fromSource);
             }
         } else {
             mergedSections.clear();
@@ -349,8 +359,18 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         if (!conflicts.isEmpty()) {
             return Map.of("manuscriptId", manuscript.getId(), "sourceBranchId", branchId, "targetBranchId", mainBranchId, "status", "conflict", "conflicts", conflicts);
         }
+        // Preserve both the current working branch and the main target in this same transaction.
+        UUID workingBranchId = manuscript.getCurrentBranchId();
+        V2ManuscriptVersion backup = versionRepository.saveAndFlush(buildVersion(manuscript, user,
+                requireBranch(manuscript.getId(), workingBranchId), "合并前自动备份", "manual",
+                contents.snapshot(manuscript), Map.of("mergeSourceBranchId", branchId, "preMergeBackup", true)));
+        if (!mainBranchId.equals(workingBranchId)) {
+            versionRepository.saveAndFlush(buildVersion(manuscript, user,
+                    requireBranch(manuscript.getId(), mainBranchId), "主线合并前自动备份", "manual",
+                    mainSectionsJson, Map.of("mergeSourceBranchId", branchId, "preMergeBackup", true)));
+        }
         manuscript.setCurrentBranchId(mainBranchId);
-        manuscript.setSectionsJson(writeSections(mergedSections));
+        contents.replaceAll(manuscript, mergedSections);
         manuscriptRepository.save(manuscript);
         sourceBranch.setStatus("merged");
         branchRepository.save(sourceBranch);
@@ -359,13 +379,13 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                 manuscript,
                 user,
                 requireBranch(manuscript.getId(), mainBranchId),
-                payload == null ? "merge:" + sourceBranch.getName() : payload.get("label"),
+                payload.label() == null ? "merge:" + sourceBranch.getName() : payload.label(),
                 "merge",
-                str(manuscript.getSectionsJson(), "{}"),
-                Map.of("sourceBranchId", branchId, "strategy", strategy)
+                requireSectionsJson(contents.snapshot(manuscript)),
+                Map.of("sourceBranchId", branchId, "strategy", strategy.name())
         ));
         eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscript.getId(), null));
-        return Map.of("manuscriptId", manuscript.getId(), "sourceBranchId", branchId, "targetBranchId", mainBranchId, "mergeVersionId", mergeVersion.getId(), "status", "merged");
+        return Map.of("manuscriptId", manuscript.getId(), "sourceBranchId", branchId, "targetBranchId", mainBranchId, "mergeVersionId", mergeVersion.getId(), "backupVersionId", backup.getId(), "status", "merged");
     }
 
     @Transactional
@@ -402,6 +422,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     @Transactional
     public void ensureMainBranchAndInitialVersion(Manuscript manuscript, User user) {
         Manuscript lockedManuscript = manuscriptRepository.findByIdForUpdate(manuscript.getId()).orElse(manuscript);
+        requireSectionsJson(contents.snapshot(lockedManuscript));
         List<V2ManuscriptBranch> branches = branchRepository.findByManuscriptId(lockedManuscript.getId());
         V2ManuscriptBranch main = branches.stream()
                 .filter(V2ManuscriptBranch::isMain)
@@ -427,14 +448,16 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
             manuscriptRepository.save(lockedManuscript);
         }
         if (versionRepository.findByManuscriptIdOrderByCreatedAtDesc(lockedManuscript.getId()).isEmpty()) {
-            versionRepository.saveAndFlush(buildVersion(lockedManuscript, user, main, "initial", "auto", str(lockedManuscript.getSectionsJson(), "{}"), Map.of("bootstrap", true)));
+            versionRepository.saveAndFlush(buildVersion(lockedManuscript, user, main, "initial", "auto", requireSectionsJson(contents.snapshot(lockedManuscript)), Map.of("bootstrap", true)));
         }
         manuscript.setCurrentBranchId(lockedManuscript.getCurrentBranchId());
-        manuscript.setSectionsJson(lockedManuscript.getSectionsJson());
+        // Working-copy content remains in its canonical store; never copy the archived LOB.
+        manuscript.setContentStorageVersion(lockedManuscript.getContentStorageVersion());
     }
 
     private V2ManuscriptVersion buildVersion(Manuscript manuscript, User user, V2ManuscriptBranch branch, Object label,
                                              String snapshotType, String sectionsJson, Object metadata) {
+        requireSectionsJson(sectionsJson);
         int versionNumber = nextVersionNumber(manuscript.getId(), branch.getId());
         V2ManuscriptVersion version = new V2ManuscriptVersion();
         version.setManuscript(manuscript);
@@ -521,8 +544,8 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     }
 
     private Map<String, Object> buildDiff(V2ManuscriptVersion from, V2ManuscriptVersion to) {
-        Map<String, String> fromSections = parseSections(str(from.getSectionsJson(), "{}"));
-        Map<String, String> toSections = parseSections(str(to.getSectionsJson(), "{}"));
+        Map<String, String> fromSections = parseSections(requireSectionsJson(from.getSectionsJson()));
+        Map<String, String> toSections = parseSections(requireSectionsJson(to.getSectionsJson()));
         Set<String> allSceneIds = new LinkedHashSet<>();
         allSceneIds.addAll(fromSections.keySet());
         allSceneIds.addAll(toSections.keySet());
@@ -563,7 +586,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         out.put("label", version.getLabel());
         out.put("snapshotType", version.getSnapshotType());
         out.put("contentHash", version.getContentHash());
-        out.put("sectionsJson", version.getSectionsJson());
+        out.put("sectionsJson", requireSectionsJson(version.getSectionsJson()));
         out.put("metadata", v2Json.map(version.getMetadataJson()));
         out.put("parentVersionId", version.getParentVersion() == null ? null : version.getParentVersion().getId());
         out.put("createdBy", version.getCreatedBy().getId());
@@ -596,12 +619,17 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         return out;
     }
 
+    private String requireSectionsJson(String json) {
+        parseSections(json);
+        return json;
+    }
+
     private Map<String, String> parseSections(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, new LinkedHashMap<>());
+        return jsonColumnCodec.readSections(json);
     }
 
     private String writeSections(Map<String, String> sections) {
-        return jsonColumnCodec.write(sections, "{}");
+        return jsonColumnCodec.writeRequired(sections);
     }
 
     private Set<UUID> changedSceneIds(String beforeJson, String afterJson) {
@@ -672,7 +700,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
             }
             return builder.toString();
         } catch (Exception ex) {
-            return UUID.randomUUID().toString().replace("-", "");
+            throw new IllegalStateException("SHA_256_UNAVAILABLE");
         }
     }
 }

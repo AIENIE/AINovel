@@ -305,3 +305,79 @@ describe("useManuscriptEditorState", () => {
     expect(result.current.dirtyScenes["scene-1"]).toBe(false);
   });
 });
+
+// Audit PERF-01: these exercise identity switches, not just scene switches.
+describe("manuscript and branch draft isolation", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+  const a = { ...makeManuscript({ shared: "A" }), id: "a", version: 2 };
+  const b = { ...makeManuscript({ shared: "B" }), id: "b", version: 7 };
+  function mount(initial = a) {
+    const replace = vi.fn();
+    const hook = renderHook(({ manuscript }) => useManuscriptEditorState({ selectedManuscript: manuscript,
+      selectedManuscriptId: manuscript.id, selectedSceneId: "shared", selectedStoryId: "",
+      replaceManuscript: replace, toast: vi.fn() }), { initialProps: { manuscript: initial } });
+    return { ...hook, replace };
+  }
+  it("keeps separate drafts on first render, manual save and switch back", async () => {
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue({ ...b, version: 8 });
+    const { result, rerender } = mount();
+    act(() => result.current.updateSceneDraft("shared", "A edited"));
+    rerender({ manuscript: b });
+    expect(result.current.content).toBe("B");
+    await act(() => result.current.handleManualSave());
+    expect(save).toHaveBeenCalledWith("b", "shared", "B", 7);
+    rerender({ manuscript: a });
+    expect(result.current.content).toBe("A edited");
+    expect(result.current.dirtyScenes.shared).toBe(true);
+  });
+  it("binds an outstanding autosave to its original manuscript", async () => {
+    vi.useFakeTimers();
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue({ ...a, version: 3, sections: { shared: "A edited" } });
+    const { result, rerender, replace } = mount();
+    act(() => { result.current.updateSceneDraft("shared", "A edited"); result.current.scheduleSave("shared", "A edited"); });
+    rerender({ manuscript: b });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1300); });
+    expect(save).toHaveBeenCalledWith("a", "shared", "A edited", 2);
+    expect(result.current.content).toBe("B");
+    expect(replace).not.toHaveBeenCalled();
+  });
+  it("does not apply a late save response to the newly selected manuscript", async () => {
+    let resolve!: (value: Manuscript) => void;
+    vi.spyOn(api.manuscripts, "saveSection").mockReturnValue(new Promise(done => { resolve = done; }));
+    const { result, rerender, replace } = mount();
+    act(() => result.current.updateSceneDraft("shared", "A edited"));
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.handleManualSave(); });
+    await flushAsync();
+    rerender({ manuscript: b });
+    await act(async () => { resolve({ ...a, version: 3, sections: { shared: "A edited" } }); await pending; });
+    expect(result.current.content).toBe("B");
+    expect(replace).not.toHaveBeenCalled();
+    rerender({ manuscript: a });
+    expect(result.current.content).toBe("A edited");
+    expect(result.current.dirtyScenes.shared).toBe(false);
+  });
+  it("isolates same-manuscript branches and includes the expected branch in saves", async () => {
+    const first = { ...a, currentBranchId: "branch-a" };
+    const second = { ...a, currentBranchId: "branch-b", version: 3, sections: { shared: "branch B" } };
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue({ ...second, version: 4 });
+    const { result, rerender } = mount(first);
+    act(() => result.current.updateSceneDraft("shared", "branch A edited"));
+    rerender({ manuscript: second });
+    expect(result.current.content).toBe("branch B");
+    await act(() => result.current.handleManualSave());
+    expect(save).toHaveBeenCalledWith("a", "shared", "branch B", 3, "branch-b");
+    rerender({ manuscript: first });
+    expect(result.current.content).toBe("branch A edited");
+  });
+  it("a version conflict only pauses the affected manuscript", async () => {
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockRejectedValueOnce(new ApiError(409, "conflict"))
+      .mockResolvedValueOnce({ ...b, version: 8, sections: { shared: "B edited" } });
+    const { result, rerender } = mount();
+    await act(() => result.current.persistSection("shared", "A edited"));
+    rerender({ manuscript: b });
+    await act(() => result.current.persistSection("shared", "B edited", true));
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(result.current.content).toBe("B edited");
+  });
+});

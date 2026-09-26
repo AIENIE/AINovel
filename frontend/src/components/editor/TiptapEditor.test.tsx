@@ -5,9 +5,7 @@ import TiptapEditor from "./TiptapEditor";
 vi.mock("@/contexts/auth-state", () => ({ useAuth: () => ({ user: null, refreshProfile: vi.fn() }) }));
 vi.mock("@/components/ai/AiRefineDialog", () => ({ default: () => null }));
 // Tooltip positioning is outside this editor/state integration test (JSDOM has no layout).
-vi.mock("@tiptap/react", async (original) => ({
-  ...await original<typeof import("@tiptap/react")>(), BubbleMenu: () => null,
-}));
+vi.mock("@tiptap/react/menus", () => ({ BubbleMenu: () => null }));
 
 describe("TiptapEditor hydration", () => {
   it("does not emit a saveable edit when mounting, switching text, or changing permissions", async () => {

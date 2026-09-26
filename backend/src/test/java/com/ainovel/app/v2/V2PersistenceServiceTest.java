@@ -21,7 +21,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
-@Import({
+@Import({com.ainovel.app.manuscript.ManuscriptContentService.class,
         com.ainovel.app.ai.AiModelPolicy.class,
         JsonColumnCodec.class,
         V2Json.class,
@@ -144,10 +144,8 @@ class V2PersistenceServiceTest {
         versionService.ensureMainBranchAndInitialVersion(fixture.manuscript, user);
         fixture.manuscript.setSectionsJson("{\"scene-1\":\"checkpoint\"}");
         Map<String, Object> checkpoint = versionService.createVersion(fixture.manuscript, user, Map.of("label", "checkpoint"));
-        Map<String, Object> branch = versionService.createBranch(fixture.manuscript, user, Map.of(
-                "name", "alt",
-                "sourceVersionId", checkpoint.get("id")
-        ));
+        Map<String, Object> branch = versionService.createBranch(fixture.manuscript, user,
+                new V2BranchRequests.CreateBranch("alt", "", (UUID) checkpoint.get("id")));
         versionService.updateAutoSave(user, Map.of("autoSaveIntervalSeconds", 60, "maxAutoVersions", 12));
 
         entityManager.flush();
