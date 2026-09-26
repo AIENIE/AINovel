@@ -384,9 +384,15 @@ switch ($Action) {
         $started = @()
         try {
         foreach ($spec in $pending) {
-                if ($EnableBackendDebug -and $spec.Name -eq 'Backend') {
-                    if (Test-LocalTcpPort 51041) { throw 'Debug port 51041 is already listening. Stop its owner explicitly before starting.' }
-                    $spec.StartArguments = @($spec.StartArguments) + @('-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:51041')
+                if ($spec.Name -eq 'Backend') {
+                    # The SSO HttpClient uses JSSE (separate from gRPC's explicit
+                    # CA bundle). Honor Windows' trusted roots for local HTTPS.
+                    $backendJvmArguments = @('-Djavax.net.ssl.trustStoreType=Windows-ROOT')
+                    if ($EnableBackendDebug) {
+                        if (Test-LocalTcpPort 51041) { throw 'Debug port 51041 is already listening. Stop its owner explicitly before starting.' }
+                        $backendJvmArguments += '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:51041'
+                    }
+                    $spec.StartArguments = @($spec.StartArguments) + @('-Dspring-boot.run.jvmArguments=' + ($backendJvmArguments -join ' '))
                 }
                 $record = Start-NativeComponent -Spec $spec -ChildEnvironment $childEnvironment
                 $started += $record
