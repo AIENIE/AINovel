@@ -1,0 +1,8 @@
+{
+  "codeSha256": "0f32e5925b03bb50184f132dcba9b8d9e3a3e38bafb0b4b32937546de5a59045",
+  "productionMutation": false,
+  "trained": false,
+  "tunedOnHoldout": false,
+  "definition": "candidate flag, not editorial truth; no flag = abstain/no issue",
+  "limitations": "handwritten regex normalization, not a dependency parser or semantic model; family-specific phrases remain; correlated synthetic pairs"
+}

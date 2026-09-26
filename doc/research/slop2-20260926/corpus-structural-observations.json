@@ -1,0 +1,49 @@
+[
+  {
+    "id": "fast:1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 140,
+        "count": 3,
+        "evidence": [
+          "不是",
+          "不是",
+          "不是"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "fast:2",
+    "signals": []
+  },
+  {
+    "id": "fast:3",
+    "signals": []
+  },
+  {
+    "id": "fast:4",
+    "signals": []
+  },
+  {
+    "id": "fast:5",
+    "signals": []
+  },
+  {
+    "id": "fast:6",
+    "signals": []
+  },
+  {
+    "id": "crafted:1",
+    "signals": []
+  },
+  {
+    "id": "S5",
+    "signals": []
+  },
+  {
+    "id": "S6",
+    "signals": []
+  }
+]

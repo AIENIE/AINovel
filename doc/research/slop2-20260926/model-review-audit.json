@@ -1,0 +1,66 @@
+[
+  {
+    "id": "E1",
+    "expectedChangedUnits": 2,
+    "coveredChangedUnits": 2,
+    "calibrationExpected": "fail",
+    "calibrationObserved": "fail",
+    "calibrationCorrect": true,
+    "hardDisagreement": false,
+    "note": "模型把抓住缝/那个的替换评为声音稍弱，代理先读认为声音不变。保留分歧，不将主观声音意见当硬事实误报；两处diff均核到。"
+  },
+  {
+    "id": "E2",
+    "expectedChangedUnits": 4,
+    "coveredChangedUnits": 4,
+    "calibrationExpected": "fail",
+    "calibrationObserved": "fail",
+    "calibrationCorrect": true,
+    "hardDisagreement": false,
+    "note": "复核通过两候选且覆盖4项修改，识别票归属改变。HTTP解析失败后从已完成预算账本恢复原输出，无重试，无重复付费。E3两命令在STARTED保护时失败于派发前，未进入预算。",
+    "calibrationLabelCaveat": "C2的她缺少指代，可能仍指姐姐；属于含新增位置/动作的模糊归属样本，不能作为无歧义归属识别成功。敏感性统计应剔除。"
+  },
+  {
+    "id": "E3",
+    "expectedChangedUnits": 2,
+    "coveredChangedUnits": 2,
+    "calibrationExpected": "voice_loss",
+    "calibrationObserved": "voice_loss",
+    "calibrationCorrect": true,
+    "hardDisagreement": false,
+    "note": "两处diff覆盖且硬约束通过。模型认为一样→一个是改善，代理先读认为非明显错误、收益不确定，保留评价分歧。C3识别极硬与却的声音/反差损失。"
+  },
+  {
+    "id": "E4",
+    "expectedChangedUnits": 3,
+    "coveredChangedUnits": 3,
+    "calibrationExpected": "soft_change",
+    "calibrationObserved": "voice_loss",
+    "calibrationCorrect": false,
+    "hardDisagreement": false,
+    "note": "三补丁覆盖，最小臂声音变薄与代理一致；段落臂模型评略改善而代理认为收益不足。C4把光标删并判voice_loss，未判硬失败；这是软维度标签分歧，不应混为硬约束误报。模型仍容易给停顿赋予未确定功能。"
+  },
+  {
+    "id": "E5",
+    "expectedChangedUnits": 1,
+    "coveredChangedUnits": 1,
+    "calibrationExpected": "fail",
+    "calibrationObserved": "fail",
+    "calibrationCorrect": true,
+    "hardDisagreement": true,
+    "schemaIssue": "five-axis enum values contain appended explanations instead of exact enum tokens",
+    "note": "模型看到了不拉→不找，但自行认定为错字并判pass；代理按冻结政策不允许代修否定含混而判fail。这是保留政策漏拦，不是漏看diff，作者真意未知。冻结四题全通过也不能覆盖题目外改动。C5尾段线索删除正确识别。"
+  },
+  {
+    "id": "E6",
+    "expectedChangedUnits": 6,
+    "coveredChangedUnits": 6,
+    "atomicDiffCoverage": "partial",
+    "unmentionedChange": "paragraph first patch also changes 压到 to 压在; model A1 checks later clause only",
+    "calibrationExpected": "fail",
+    "calibrationObserved": "fail",
+    "calibrationCorrect": true,
+    "hardDisagreement": false,
+    "note": "六补丁均有条目，但不是每个字符变化都明确说明。模型把受控抽象总结的复沓当成应保护声音，并将两个候选声音/节奏判worse；与代理先读的小收益判断分歧。E3认可重新叠消歧，E6又将同类改动当声音变平，展示评价受整体框架影响。C6识别也许删除。"
+  }
+]

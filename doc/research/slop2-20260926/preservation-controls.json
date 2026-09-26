@@ -1,0 +1,44 @@
+[
+  {
+    "id": "C1",
+    "original": "她不知道钥匙在谁手上。",
+    "candidate": "她知道钥匙在谁手上。",
+    "expected": "fail",
+    "reason": "否定/知情改变"
+  },
+  {
+    "id": "C2",
+    "original": "票由姐姐保管。",
+    "candidate": "她把票塞回自己的口袋。",
+    "expected": "fail",
+    "reason": "物件归属改变"
+  },
+  {
+    "id": "C3",
+    "original": "他答得极硬，手指却停了半拍。",
+    "candidate": "他答，手指停了半拍。",
+    "expected": "voice_loss",
+    "reason": "人物声音弱化，单独评价"
+  },
+  {
+    "id": "C4",
+    "original": "她删掉消息。光标一闪一闪。她重新打字。",
+    "candidate": "她删掉消息，重新打字。",
+    "expected": "soft_change",
+    "reason": "允许的节奏删并，不自动判硬失败"
+  },
+  {
+    "id": "C5",
+    "original": "她锁门离开。\n柜子里还有一封未寄的信。",
+    "candidate": "她锁门离开。",
+    "expected": "fail",
+    "reason": "遗漏线索/尾段"
+  },
+  {
+    "id": "C6",
+    "original": "他也许看见了门后的人。",
+    "candidate": "他看见了门后的人。",
+    "expected": "fail",
+    "reason": "确定性改变"
+  }
+]

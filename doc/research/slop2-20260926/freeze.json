@@ -1,0 +1,15 @@
+{
+  "runId": "slop2-20260926-v1",
+  "maximumCalls": 40,
+  "plannedCalls": 36,
+  "retryReserve": 4,
+  "baselineCommit": "3678b7a772d9916ac26bd74129098cb01c90d17f",
+  "model": "deepseek-flash",
+  "source": "new synthetic pairs plus six real excerpts and six controlled perturbations; agent labels only",
+  "files": {
+    "editing-tasks.json": "c1c79978a5415d14234b330526d9ebdbda91734c161b2dadd30f483cdbb6c4ba",
+    "generation-tasks.json": "0b8a9d3825c12749522cef0596e3391c53c351819660b78c20b7aac1bab87211",
+    "preservation-controls.json": "31937f4648f1cb5baefe3ff418d95ee1cfc462af3398710cd9da69ae3aa5ce15",
+    "samples.json": "f06fb1ccd30ff4623cc8b662ac282cc38ecd06be322031fa042458e1828ceab3"
+  }
+}

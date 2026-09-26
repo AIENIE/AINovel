@@ -1,0 +1,21 @@
+{
+  "runId": "slop2-20260926-v1",
+  "calls": 28,
+  "limit": 40,
+  "projectCredits": 28.0,
+  "transportFailures": 1,
+  "samples": 72,
+  "provenance": {
+    "real_output_excerpt": 6,
+    "controlled_perturbation": 6,
+    "agent_constructed": 60
+  },
+  "checks": [
+    "frozen inputs/prompts unchanged",
+    "source groups split disjoint",
+    "balanced labels",
+    "every response reconciled to persistent budget and credit reservation",
+    "UTF-16 patch reconstruction and source hashes"
+  ],
+  "limitation": "Agent labels; no independent human blind evaluation."
+}

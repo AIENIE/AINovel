@@ -1,0 +1,640 @@
+[
+  {
+    "id": "negative_parallel-1-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-1-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 1,
+        "count": 5,
+        "evidence": [
+          "不是",
+          "不是",
+          "不是",
+          "不是",
+          "不是"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "negative_parallel-2-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-2-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "不是",
+          "不是",
+          "不是"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "negative_parallel-3-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-3-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "并非",
+          "并非",
+          "并非"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "negative_parallel-4-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-4-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 1,
+        "count": 3,
+        "evidence": [
+          "不是",
+          "不是",
+          "不是"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "negative_parallel-5-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-5-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "与其说",
+          "与其说",
+          "与其说"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "negative_parallel-6-0",
+    "signals": []
+  },
+  {
+    "id": "negative_parallel-6-1",
+    "signals": [
+      {
+        "kind": "negative_chain",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "没有什么",
+          "没有什么",
+          "没有什么"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-1-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-1-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 38,
+        "count": 3,
+        "evidence": [
+          "语气里带着",
+          "语气里带着",
+          "语气里带着"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-2-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-2-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 8,
+        "count": 3,
+        "evidence": [
+          "声音中充满",
+          "声音中充满",
+          "声音中充满"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-3-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-3-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 8,
+        "count": 3,
+        "evidence": [
+          "这句话透露",
+          "这句话透露",
+          "这句话透露"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-4-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-4-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 10,
+        "count": 3,
+        "evidence": [
+          "话音透着",
+          "话音透着",
+          "话音透着"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-5-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-5-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 8,
+        "count": 3,
+        "evidence": [
+          "字字都是",
+          "字字都是",
+          "字字都是"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dialogue_tail-6-0",
+    "signals": []
+  },
+  {
+    "id": "dialogue_tail-6-1",
+    "signals": [
+      {
+        "kind": "emotion_tail",
+        "start": 10,
+        "count": 3,
+        "evidence": [
+          "显然",
+          "显然",
+          "显然"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-1-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-1-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 4,
+        "evidence": [
+          "<人>把<物>拿起又放下"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-2-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-2-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "<人>嘴角微微上扬",
+          "眼神变得坚定"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-3-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-3-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "<人>垂下眼"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-4-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-4-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "<人>手指微微颤抖",
+          "眼神闪过一丝复杂"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-5-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-5-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "<人>捏了捏衣角又松开"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "body_action-6-0",
+    "signals": []
+  },
+  {
+    "id": "body_action-6-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 4,
+        "evidence": [
+          "<人>端起<物>又搁下"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-1-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-1-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 24,
+        "count": 4,
+        "evidence": [
+          "像刀子",
+          "像刀子",
+          "像刀子",
+          "像刀子"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-2-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-2-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "空气仿佛凝固",
+          "空气仿佛凝固",
+          "空气仿佛凝固"
+        ]
+      },
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "空气仿佛凝固",
+          "时间像是停了下来"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-3-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-3-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 2,
+        "count": 4,
+        "evidence": [
+          "是一片海",
+          "是一片海",
+          "是一片海",
+          "是一片海"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-4-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-4-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 4,
+        "count": 4,
+        "evidence": [
+          "仿佛星辰",
+          "仿佛星辰",
+          "仿佛星辰",
+          "仿佛星辰"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-5-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-5-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 2,
+        "count": 3,
+        "evidence": [
+          "宛若利刃",
+          "宛若利刃",
+          "宛若利刃"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "imagery-6-0",
+    "signals": []
+  },
+  {
+    "id": "imagery-6-1",
+    "signals": [
+      {
+        "kind": "generic_imagery",
+        "start": 2,
+        "count": 3,
+        "evidence": [
+          "如同灯塔",
+          "如同灯塔",
+          "如同灯塔"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abstract_summary-1-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-1-1",
+    "signals": [
+      {
+        "kind": "abstract_ending",
+        "start": 22,
+        "count": 3,
+        "evidence": [
+          "所有的等待都有了",
+          "所有的离别都有了",
+          "所有的沉默都有了"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abstract_summary-2-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-2-1",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-3-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-3-1",
+    "signals": [
+      {
+        "kind": "abstract_ending",
+        "start": 6,
+        "count": 3,
+        "evidence": [
+          "这是成长的意义",
+          "这是生命的真谛",
+          "这是命运的安排"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abstract_summary-4-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-4-1",
+    "signals": [
+      {
+        "kind": "abstract_ending",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "从此他踏上新的人生旅程",
+          "从此她开启新的命运篇章",
+          "从此老人迎来新的灵魂蜕变"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abstract_summary-5-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-5-1",
+    "signals": [
+      {
+        "kind": "abstract_ending",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "这意味着",
+          "这意味着",
+          "这意味着"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "abstract_summary-6-0",
+    "signals": []
+  },
+  {
+    "id": "abstract_summary-6-1",
+    "signals": [
+      {
+        "kind": "abstract_ending",
+        "start": 0,
+        "count": 3,
+        "evidence": [
+          "每一次关门都是新的开始",
+          "每一次起身都是灵魂的成长",
+          "每一次转头都是命运的馈赠"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rhythm_repetition-1-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-1-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 5,
+        "evidence": [
+          "<人>把<物>放回去"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rhythm_repetition-2-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-2-1",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-3-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-3-1",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-4-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-4-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 4,
+        "evidence": [
+          "<人>沉默了一瞬"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rhythm_repetition-5-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-5-1",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-6-0",
+    "signals": []
+  },
+  {
+    "id": "rhythm_repetition-6-1",
+    "signals": [
+      {
+        "kind": "repeated_skeleton",
+        "start": 0,
+        "count": 5,
+        "evidence": [
+          "<人>忽然明白了"
+        ]
+      }
+    ]
+  }
+]

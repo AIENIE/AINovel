@@ -1,0 +1,325 @@
+[
+  {
+    "id": "G1",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "base": {
+        "hard": "fail",
+        "failureClass": "unsupported_decisive_evidence",
+        "mechanical": "uncertain",
+        "voice": "same",
+        "fluency": "worse",
+        "diversity": "uncertain",
+        "reason": "新增登记时间手动改不了这一关键证据、寄信人名字就在联上；结尾重复核对编号且远超目标长度。场景未揭姓名，但强行加入可确定性证据改变悬疑条件。"
+      },
+      "positive": {
+        "hard": "pass",
+        "mechanical": "uncertain",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "保留停用不等于未投递、冻结时间和调表目标；结冰、落笔、落灰三处泛化意象。十之八九打印错误为人物推测而非叙述确证，记录为无依据倾向但不判硬失败。"
+      },
+      "profile": {
+        "hard": "fail",
+        "failureClass": "unsupported_decisive_evidence",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "新增不是原件、条码后三位不匹配、没有流水、旧号手写可收件等关键事实；把纸张细节当谜题证据，超出只有两项记录的边界。"
+      }
+    }
+  },
+  {
+    "id": "G2",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "base": {
+        "hard": "fail",
+        "failureClass": "unsupported_decisive_evidence",
+        "mechanical": "uncertain",
+        "voice": "uncertain",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "新增配电间跳闸、七层楼梯、事故报告与半月回避的共同经历，为关系和开门决策提供输入外因果事实。身份仍未知、未开门合格，但新增关键经历不合格。"
+      },
+      "positive": {
+        "hard": "fail",
+        "failureClass": "changed_frozen_signal",
+        "mechanical": "uncertain",
+        "voice": "uncertain",
+        "fluency": "worse",
+        "diversity": "uncertain",
+        "reason": "末段新增一短回应，违反门内只回应三短两长；叙述断言水压不会敲特定节奏，削弱未知机制。身份未揭示；同意电话并守门保留。篇幅和动作尾注偏多。"
+      },
+      "profile": {
+        "hard": "fail",
+        "failureClass": "unsupported_decisive_evidence",
+        "mechanical": "same",
+        "voice": "uncertain",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "新增管沟连主楼、水反上来须通知等决定风险判断的设施事实；老周身份为附带新设定。未开门、未确证回应者合格，但具体描写越界。"
+      }
+    }
+  },
+  {
+    "id": "STOP-base-G2",
+    "stopArm": "base",
+    "reason": "G1/G2连续新增决定推理或人物行动的关键事实，停止G3-G6该臂。"
+  },
+  {
+    "id": "STOP-profile-G2",
+    "stopArm": "profile",
+    "reason": "G1/G2连续新增决定推理的物证/设施事实，停止G3-G6该臂。"
+  },
+  {
+    "id": "G3",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "positive": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "工具盒只有扳手两垫圈、周日在家却回避、不揭示给父亲、最终仍桌上全部保留。绿漆胶布萝卜干属普通生活细节，未添加创伤病情或关键经历；开头餐桌又挪桌上指代含混，擦洗动作偏长。无其他臂，不能声称相对胜出。"
+      }
+    }
+  },
+  {
+    "id": "G4",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "positive": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "油锅清洁争执、删除道歉、消息只回咸豆花、提前洗锅且未宣告和好保留。香菜偏好和当面水流提醒为普通补充，不升级关系。豆浆卖完却庆幸开口早与豆花交易衔接不佳，结尾滴水停顿惯用；不能证明去禁用清单改善。"
+      }
+    }
+  },
+  {
+    "id": "G5",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "positive": {
+        "hard": "fail",
+        "failureClass": "unsupported_decisive_evidence",
+        "mechanical": "same",
+        "voice": "uncertain",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "没有敲第三次，身份仍未明，但新增对方知道钟规、放药离去、开门取药等关键事件，使原定只决定第二次求查验推进成收药。夜值人是唯一查验方法也属新增设定。裂纹/毛刺为普通细节允许。与G2改变冻结回应的具体失败类不同，记录而不事后合并类目触发停止。"
+      }
+    }
+  },
+  {
+    "id": "G6",
+    "reviewer": "agent_not_human_blind",
+    "arms": {
+      "positive": {
+        "hard": "uncertain",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "uncertain",
+        "reason": "三币/标价四币、一币加一夜、油仍对方手上、不凭蜡判真假均保留。新增膝盖旧伤，是否属于需批准的重要经历存在争议，保留uncertain而不把全部感官细节判失败。结尾超过要求看蜡一步至转瓶但未交付，风险较低。篇幅偏短；无完整三臂比较。"
+      }
+    }
+  },
+  {
+    "id": "E1",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399093.687812,
+    "arms": {
+      "minimal": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "same",
+        "benefit": "no_change_needed",
+        "changes": [],
+        "reason": "空补丁合理，事实和人物口气原样保留；可选反馈不强制执行。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "抓住缝→抓住这个空当：消歧，不改追问目的。",
+          "那个反方向→的反方向：轻微行文整理，独有/反向线索不变。"
+        ],
+        "reason": "两处措辞微调，未真正段落重组；收益小而清楚，五项冻结问题全保留。无事实或声音删除。"
+      }
+    }
+  },
+  {
+    "id": "E2",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399279.6278327,
+    "arms": {
+      "minimal": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "用手推→用手一推：条件动作更连贯。",
+          "修完书架，还有时间→修完书架后还有时间：整理时间条件，迟疑仍在。"
+        ],
+        "reason": "四个冻结问题均保留；保留两次推架的验证作用及今天不去的限定，不拉也在只提请作者确认。收益为局部语法整理，非强slop问题解决。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "用手推→她用手一推：明确主语。",
+          "摸着书脊，想，如果→摸着书脊想：如果：内心句边界清楚。"
+        ],
+        "reason": "只做两处语法微调，尚未真正重组；不删停顿、回照及意象。四项硬约束通过。"
+      }
+    }
+  },
+  {
+    "id": "E3",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399538.7974172,
+    "arms": {
+      "minimal": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "重叠→重新叠，增一逗号：明确再次叠毛巾，不是叠加关系。"
+        ],
+        "reason": "四项事实保留，光标停顿及票角照应不动。消歧清楚，无内容删除。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "uncertain",
+        "diversity": "same",
+        "benefit": "uncertain",
+        "changes": [
+          "一样硬东西→一个硬东西：原量词并非明显错误。"
+        ],
+        "reason": "无事实或意图变化，但替换收益不确定，可能只是偏好；不应作为必改问题。反馈不把票位置原稿既有问题代修。"
+      }
+    }
+  },
+  {
+    "id": "E4",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399647.6211364,
+    "arms": {
+      "minimal": {
+        "hard": "pass",
+        "mechanical": "improved",
+        "voice": "worse",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "tradeoff",
+        "changes": [
+          "删除三个语气尾注；理解可由我明白推知，但坚定和顺从不全能由先等/好唯一恢复。"
+        ],
+        "reason": "五项硬事实和应答顺序保留；人工模板感下降，但情绪强度/服从口气变薄。不能把软损失算硬失败，也不应说完全无损。适合作者选择。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "uncertain",
+        "voice": "same",
+        "fluency": "uncertain",
+        "diversity": "same",
+        "benefit": "uncertain",
+        "changes": [
+          "那个反方向→的反方向，小修。",
+          "把三处语气尾注移到对白前，理解/坚定/顺从保留。"
+        ],
+        "reason": "只换同构解释位置，仍有两处语气里带着；表面变化不等于机械信息冗余消失。硬约束保留，明显表达收益不足。"
+      }
+    }
+  },
+  {
+    "id": "E5",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399818.3908494,
+    "arms": {
+      "minimal": {
+        "hard": "fail",
+        "failureClass": "unapproved_ambiguity_resolution",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "uncertain",
+        "diversity": "same",
+        "benefit": "unsafe",
+        "changes": [
+          "不拉→不找：改了否定的动作对象，原稿可能有错字，但冻结规则不允许擅自修补已有逻辑/否定含混。"
+        ],
+        "reason": "四个问题仍可答是，却没有覆盖这一变化；与E2同源时明确不改该字的行为不一致。三连拿放未处理。按本实验政策判硬失败，并非已证明作者本来想表达拉或找。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "same",
+        "voice": "same",
+        "fluency": "same",
+        "diversity": "same",
+        "benefit": "feedback_only",
+        "changes": [],
+        "reason": "不改避免修补原稿逻辑；反馈识别受控追加木尺拿放与已用作支撑的位置冲突，有实用价值，但对机械重复没有改善。样本扰动混入位置问题，不能视为纯句式对照。"
+      }
+    }
+  },
+  {
+    "id": "E6",
+    "reviewer": "agent_not_human_blind",
+    "reviewedAtEpoch": 1790399964.662812,
+    "arms": {
+      "minimal": {
+        "hard": "pass",
+        "mechanical": "improved",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "三次这一刻合并为一次：正常删并时间提示。",
+          "重叠→重新叠：消歧。",
+          "票就压在下面→票仍压在杯下：位置不变。",
+          "上一条停在两周前→上一条是两周前：减少邻近同词。"
+        ],
+        "reason": "四道事实保留，无关键删除；机械领起减少，仍留无前文支撑的抽象升华，目标问题只部分改善。不能称抽象总结已解决。"
+      },
+      "paragraph": {
+        "hard": "pass",
+        "mechanical": "improved",
+        "voice": "same",
+        "fluency": "improved",
+        "diversity": "same",
+        "benefit": "minor_clear",
+        "changes": [
+          "压到→压在，票就压在下面→仍压着那张票：连贯措辞，物件位置不变。",
+          "三次这一刻合为一次：删重复领起，三组抽象总结均保留。"
+        ],
+        "reason": "两处局部整理有小收益，几乎不重组叙事；抽象结尾仍然泛化。仪式感降低是软节奏变化，无事实/人物意图损失。"
+      }
+    }
+  }
+]

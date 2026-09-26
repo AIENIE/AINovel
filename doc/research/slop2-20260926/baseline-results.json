@@ -1,0 +1,1037 @@
+[ {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 51,
+    "quote" : "不是迟到，而是",
+    "end" : 58,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  }, {
+    "start" : 62,
+    "quote" : "不是沉默，而是",
+    "end" : 69,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  }, {
+    "start" : 73,
+    "quote" : "不是等待，而是",
+    "end" : 80,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  }, {
+    "start" : 84,
+    "quote" : "不是结束，而是",
+    "end" : 91,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  } ],
+  "id" : "negative_parallel-1-1",
+  "result" : {
+    "overallRiskScore" : 58,
+    "maxSeverity" : "MEDIUM",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "MEDIUM",
+      "riskScore" : 58,
+      "evidence" : "不是迟到，而是",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。",
+      "charStart" : 51,
+      "charEnd" : 58,
+      "quote" : "不是迟到，而是",
+      "module" : "surface_template",
+      "patternId" : "NEG_NOT_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"排除法论证\",\"角色口头禅\",\"作者刻意对照\"]",
+      "repairHint" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-2-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 1,
+    "quote" : "不是新印的票，而是",
+    "end" : 10,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  } ],
+  "id" : "negative_parallel-4-0",
+  "result" : {
+    "overallRiskScore" : 34,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "LOW",
+      "riskScore" : 34,
+      "evidence" : "不是新印的票，而是",
+      "whyItMatters" : "单次排除式对照是正常修辞，高密度复用会形成先否定再解释的模板腔。",
+      "minimalFix" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。",
+      "charStart" : 1,
+      "charEnd" : 10,
+      "quote" : "不是新印的票，而是",
+      "module" : "surface_template",
+      "patternId" : "NEG_NOT_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"排除法论证\",\"角色口头禅\",\"作者刻意对照\"]",
+      "repairHint" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 1,
+    "quote" : "不是在看雨，而是",
+    "end" : 9,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  }, {
+    "start" : 15,
+    "quote" : "不是在擦桌，而是",
+    "end" : 23,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  }, {
+    "start" : 30,
+    "quote" : "不是在锁门，而是",
+    "end" : 38,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NOT_BUT"
+  } ],
+  "id" : "negative_parallel-4-1",
+  "result" : {
+    "overallRiskScore" : 58,
+    "maxSeverity" : "MEDIUM",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "MEDIUM",
+      "riskScore" : 58,
+      "evidence" : "不是在看雨，而是",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。",
+      "charStart" : 1,
+      "charEnd" : 9,
+      "quote" : "不是在看雨，而是",
+      "module" : "surface_template",
+      "patternId" : "NEG_NOT_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"排除法论证\",\"角色口头禅\",\"作者刻意对照\"]",
+      "repairHint" : "删掉不承载信息的否定前半句，直接写动作、判断或后果。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "negative_parallel-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 0,
+    "quote" : "没有什么离别，只有新的开始；没有什么眼泪，只有成长的洗礼；没有什么挫折，只有",
+    "end" : 38,
+    "category" : "NEGATIVE_PARALLELISM",
+    "id" : "NEG_NEITHER_BUT"
+  } ],
+  "id" : "negative_parallel-6-1",
+  "result" : {
+    "overallRiskScore" : 34,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "LOW",
+      "riskScore" : 34,
+      "evidence" : "没有什么离别，只有新的开始；没有什么眼泪，只有成长的洗礼；没有什么挫折，只有",
+      "whyItMatters" : "连续排除候选再揭示答案，会让叙述呈现机械解释顺序。",
+      "minimalFix" : "若否定项不影响读者判断，直接写最后成立的事实。",
+      "charStart" : 0,
+      "charEnd" : 38,
+      "quote" : "没有什么离别，只有新的开始；没有什么眼泪，只有成长的洗礼；没有什么挫折，只有",
+      "module" : "surface_template",
+      "patternId" : "NEG_NEITHER_BUT",
+      "issueType" : "negative_parallelism",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"悬念揭示\",\"逻辑论证\"]",
+      "repairHint" : "若否定项不影响读者判断，直接写最后成立的事实。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 38,
+    "quote" : "语气里带着",
+    "end" : 43,
+    "category" : "DIALOGUE_TAIL",
+    "id" : "DIALOGUE_TONE_LABEL"
+  }, {
+    "start" : 53,
+    "quote" : "语气里带着",
+    "end" : 58,
+    "category" : "DIALOGUE_TAIL",
+    "id" : "DIALOGUE_TONE_LABEL"
+  }, {
+    "start" : 68,
+    "quote" : "语气里带着",
+    "end" : 73,
+    "category" : "DIALOGUE_TAIL",
+    "id" : "DIALOGUE_TONE_LABEL"
+  } ],
+  "id" : "dialogue_tail-1-1",
+  "result" : {
+    "overallRiskScore" : 58,
+    "maxSeverity" : "MEDIUM",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "MEDIUM",
+      "riskScore" : 58,
+      "evidence" : "语气里带着",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "删去情绪标签，让用词、停顿或对方反应承担潜台词。",
+      "charStart" : 38,
+      "charEnd" : 43,
+      "quote" : "语气里带着",
+      "module" : "voice_fit",
+      "patternId" : "DIALOGUE_TONE_LABEL",
+      "issueType" : "dialogue_tail",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"有声书标注\",\"作者偏好声音描写\"]",
+      "repairHint" : "删去情绪标签，让用词、停顿或对方反应承担潜台词。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-2-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-4-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-4-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "dialogue_tail-6-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-1-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 1,
+    "quote" : "嘴角微微上扬",
+    "end" : 7,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_MOUTH_CURVE"
+  }, {
+    "start" : 8,
+    "quote" : "眼神变得坚定",
+    "end" : 14,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_EYE_ROTATION"
+  }, {
+    "start" : 16,
+    "quote" : "嘴角微微上扬",
+    "end" : 22,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_MOUTH_CURVE"
+  }, {
+    "start" : 23,
+    "quote" : "眼神变得坚定",
+    "end" : 29,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_EYE_ROTATION"
+  }, {
+    "start" : 32,
+    "quote" : "嘴角微微上扬",
+    "end" : 38,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_MOUTH_CURVE"
+  }, {
+    "start" : 39,
+    "quote" : "眼神变得坚定",
+    "end" : 45,
+    "category" : "BODY_ACTION",
+    "id" : "BODY_EYE_ROTATION"
+  } ],
+  "id" : "body_action-2-1",
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "嘴角微微上扬",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "写清角色为何发笑，以及这个表情让现场发生了什么。",
+      "charStart" : 1,
+      "charEnd" : 7,
+      "quote" : "嘴角微微上扬",
+      "module" : "surface_template",
+      "patternId" : "BODY_MOUTH_CURVE",
+      "issueType" : "body_action",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"网文惯用动作\",\"角色表情习惯\"]",
+      "repairHint" : "写清角色为何发笑，以及这个表情让现场发生了什么。"
+    }, {
+      "dimension" : "REPETITION",
+      "severity" : "MEDIUM",
+      "riskScore" : 68,
+      "evidence" : "上扬，眼神变得坚定。",
+      "whyItMatters" : "连续复用相同表达会让场景显得原地打转。",
+      "minimalFix" : "保留一次核心信息，其余改为动作、结果或删减。",
+      "charStart" : 5,
+      "charEnd" : 15,
+      "quote" : "上扬，眼神变得坚定。",
+      "module" : "surface_template",
+      "patternId" : "SURFACE_REPETITION_NGRAM",
+      "issueType" : "repetition",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"作者刻意回环\",\"类型文强调句\",\"人工水字数\"]",
+      "repairHint" : "保留一次核心信息，其余改为动作、结果或删减。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-4-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-4-1",
+  "result" : {
+    "overallRiskScore" : 68,
+    "maxSeverity" : "MEDIUM",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "REPETITION",
+      "severity" : "MEDIUM",
+      "riskScore" : 68,
+      "evidence" : "颤抖，眼神闪过一丝复",
+      "whyItMatters" : "连续复用相同表达会让场景显得原地打转。",
+      "minimalFix" : "保留一次核心信息，其余改为动作、结果或删减。",
+      "charStart" : 5,
+      "charEnd" : 15,
+      "quote" : "颤抖，眼神闪过一丝复",
+      "module" : "surface_template",
+      "patternId" : "SURFACE_REPETITION_NGRAM",
+      "issueType" : "repetition",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"作者刻意回环\",\"类型文强调句\",\"人工水字数\"]",
+      "repairHint" : "保留一次核心信息，其余改为动作、结果或删减。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "body_action-6-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-1-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 0,
+    "quote" : "空气仿佛凝固",
+    "end" : 6,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  }, {
+    "start" : 7,
+    "quote" : "时间像是停了下来",
+    "end" : 15,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  }, {
+    "start" : 16,
+    "quote" : "空气仿佛凝固",
+    "end" : 22,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  }, {
+    "start" : 23,
+    "quote" : "时间像是停了下来",
+    "end" : 31,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  }, {
+    "start" : 32,
+    "quote" : "空气仿佛凝固",
+    "end" : 38,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  }, {
+    "start" : 39,
+    "quote" : "时间像是停了下来",
+    "end" : 47,
+    "category" : "IMAGERY",
+    "id" : "IMG_TIME_WORLD_FREEZE"
+  } ],
+  "id" : "imagery-2-1",
+  "result" : {
+    "overallRiskScore" : 72,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "HIGH",
+      "riskScore" : 72,
+      "evidence" : "空气仿佛凝固",
+      "whyItMatters" : "500 字窗口内同类表达或多类模板信号集中出现，容易让场景由套话推动。",
+      "minimalFix" : "保留一个可感知细节，删掉宇宙级放大描述。",
+      "charStart" : 0,
+      "charEnd" : 6,
+      "quote" : "空气仿佛凝固",
+      "module" : "surface_template",
+      "patternId" : "IMG_TIME_WORLD_FREEZE",
+      "issueType" : "imagery",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"奇幻能力设定\",\"主观时间体验\"]",
+      "repairHint" : "保留一个可感知细节，删掉宇宙级放大描述。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-4-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-4-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "imagery-6-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-1-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ {
+    "start" : 0,
+    "quote" : "命运的齿轮",
+    "end" : 5,
+    "category" : "ABSTRACT_EMOTION",
+    "id" : "ABSTRACT_FATE_GEAR"
+  }, {
+    "start" : 26,
+    "quote" : "命运的齿轮",
+    "end" : 31,
+    "category" : "ABSTRACT_EMOTION",
+    "id" : "ABSTRACT_FATE_GEAR"
+  } ],
+  "id" : "abstract_summary-2-1",
+  "result" : {
+    "overallRiskScore" : 34,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ {
+      "dimension" : "GENERICITY",
+      "severity" : "LOW",
+      "riskScore" : 34,
+      "evidence" : "命运的齿轮",
+      "whyItMatters" : "命运旁白用抽象宿命感替代可验证的因果链。",
+      "minimalFix" : "写清谁做了什么，使后续选择范围发生变化。",
+      "charStart" : 0,
+      "charEnd" : 5,
+      "quote" : "命运的齿轮",
+      "module" : "surface_template",
+      "patternId" : "ABSTRACT_FATE_GEAR",
+      "issueType" : "abstract_emotion",
+      "evidenceLevel" : "E1",
+      "alternativeExplanationsJson" : "[\"宿命题材\",\"预言叙事\"]",
+      "repairHint" : "写清谁做了什么，使后续选择范围发生变化。"
+    } ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-4-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-4-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "abstract_summary-6-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-1-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-1-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-2-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-2-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-3-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-3-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-4-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-4-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-5-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-5-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-6-0",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "rhythm_repetition-6-1",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+} ]

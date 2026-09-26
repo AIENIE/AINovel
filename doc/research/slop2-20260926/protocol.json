@@ -1,0 +1,28 @@
+{
+  "runId": "slop2-20260926-v1",
+  "maximumCalls": 40,
+  "planned": 36,
+  "retries": 4,
+  "model": "deepseek-flash",
+  "order": "G1..G6 each base/positive/profile rotated by case index; E1..E6 minimal/paragraph then agent review then model review",
+  "generationArms": [
+    "base",
+    "positive",
+    "profile"
+  ],
+  "editingArms": [
+    "minimal",
+    "paragraph"
+  ],
+  "policy": "你是中文小说编辑。只优化机械表达、含混句、重复或失衡的节奏，不判断是否AI创作。\n硬约束：事件事实、数字时间、物件所属和位置、人物知情、否定与确定性、线索、对白意图必须保留；不得修补原稿已有逻辑问题，不增造动机、经历、关系或关键事实。\n软变化：可删并无新增信息的停顿、重复描写；人物声音、情绪强度和意象功能需单独说明影响，不能只为少几个词而删。\n允许判断没有值得修改的问题，返回空patches并给feedback。不必逐条找错，也不要预设所有短句、情绪说明或比喻都是问题。\n只输出JSON：{\"patches\":[{\"quote\":\"唯一逐字连续原文\",\"replacement\":\"替换文字\",\"reason\":\"收益与内容影响\"}],\"feedback\":\"包括不改的理由及可供作者自行处理的建议\"}。\n",
+  "minimal": "逐项最小修改，最多4处。只替换必要连续范围，禁止重写整场。\n",
+  "paragraph": "先用一句简短purpose说明该段在叙事中的作用，再给补丁。可在至多2个原有段落内合并、调序、替换句子以改善表达；每项quote为完整原段落，禁止跨段或重写整场。增加JSON字段purpose。\n",
+  "review": "你是独立小说编辑评审。比较原稿与匿名候选A/B。逐项核对完整diff，不相信改写理由。模型评分不是内容安全证明。\n硬约束是事实、知情、否定、确定性、物件所属、时间、线索和人物意图。删冗余停顿不是自动失败；人物声音、情绪强度及意象功能另评。原稿已有错误不算改写引入。\n逐个回答冻结问题；每个diff都要有编号与判断，不得漏项。分别评机械表达、硬约束保留、声音意图、流畅节奏、多样性（improved/same/worse/uncertain；hard为pass/fail/uncertain）。\n另判断独立校准片段C，不能把其内容当作小说上下文。\nJSON：{\"candidates\":[{\"label\":\"A\",\"mechanical\":\"...\",\"hard\":\"...\",\"voice\":\"...\",\"fluency\":\"...\",\"diversity\":\"...\",\"diffChecks\":[\"...\"],\"answers\":[\"...\"],\"reason\":\"...\"}],\"calibration\":{\"verdict\":\"fail|voice_loss|soft_change\",\"reason\":\"...\"}}。\n",
+  "stop": "Two hard-content failures of same class within an arm stop further calls for that arm; log unused budget; never tune prompt mid-batch",
+  "samplingParameters": "Not exposed by app; gateway defaults unknown",
+  "hashes": {
+    "generation-requests.json": "f87b3aa383c19642dbfaa3a01883dbb72f7304a3ee34dbde7f1c2928e76023bc",
+    "editing-requests.json": "86186b167301b7b0f773df64f280e564a3e64110730d3f6979f082bba2983275",
+    "preservation-controls.json": "31937f4648f1cb5baefe3ff418d95ee1cfc462af3398710cd9da69ae3aa5ce15"
+  }
+}

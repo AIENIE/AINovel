@@ -1,0 +1,246 @@
+{
+  "shipping_trigger": {
+    "all": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 36,
+      "fn": 30,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
+      "accuracy": 0.5833333333333334,
+      "abstentionRate": 0.9166666666666666
+    },
+    "split:development": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 24,
+      "fn": 18,
+      "precision": 1.0,
+      "recall": 0.25,
+      "accuracy": 0.625,
+      "abstentionRate": 0.875
+    },
+    "split:holdout": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 12,
+      "fn": 12,
+      "precision": null,
+      "recall": 0.0,
+      "accuracy": 0.5,
+      "abstentionRate": 1.0
+    },
+    "family:abstract_summary": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 6,
+      "fn": 6,
+      "precision": null,
+      "recall": 0.0,
+      "accuracy": 0.5,
+      "abstentionRate": 1.0
+    },
+    "family:body_action": {
+      "tp": 2,
+      "fp": 0,
+      "tn": 6,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "accuracy": 0.6666666666666666,
+      "abstentionRate": 0.8333333333333334
+    },
+    "family:dialogue_tail": {
+      "tp": 1,
+      "fp": 0,
+      "tn": 6,
+      "fn": 5,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
+      "accuracy": 0.5833333333333334,
+      "abstentionRate": 0.9166666666666666
+    },
+    "family:imagery": {
+      "tp": 1,
+      "fp": 0,
+      "tn": 6,
+      "fn": 5,
+      "precision": 1.0,
+      "recall": 0.16666666666666666,
+      "accuracy": 0.5833333333333334,
+      "abstentionRate": 0.9166666666666666
+    },
+    "family:negative_parallel": {
+      "tp": 2,
+      "fp": 0,
+      "tn": 6,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "accuracy": 0.6666666666666666,
+      "abstentionRate": 0.8333333333333334
+    },
+    "family:rhythm_repetition": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 6,
+      "fn": 6,
+      "precision": null,
+      "recall": 0.0,
+      "accuracy": 0.5,
+      "abstentionRate": 1.0
+    },
+    "provenance:agent_constructed": {
+      "tp": 4,
+      "fp": 0,
+      "tn": 30,
+      "fn": 26,
+      "precision": 1.0,
+      "recall": 0.13333333333333333,
+      "accuracy": 0.5666666666666667,
+      "abstentionRate": 0.9333333333333333
+    },
+    "provenance:controlled_perturbation": {
+      "tp": 2,
+      "fp": 0,
+      "tn": 0,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.3333333333333333,
+      "accuracy": 0.3333333333333333,
+      "abstentionRate": 0.6666666666666666
+    },
+    "provenance:real_output_excerpt": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": null,
+      "recall": null,
+      "accuracy": 1.0,
+      "abstentionRate": 1.0
+    }
+  },
+  "structural_candidate": {
+    "all": {
+      "tp": 32,
+      "fp": 0,
+      "tn": 36,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.8888888888888888,
+      "accuracy": 0.9444444444444444,
+      "abstentionRate": 0.5555555555555556
+    },
+    "split:development": {
+      "tp": 21,
+      "fp": 0,
+      "tn": 24,
+      "fn": 3,
+      "precision": 1.0,
+      "recall": 0.875,
+      "accuracy": 0.9375,
+      "abstentionRate": 0.5625
+    },
+    "split:holdout": {
+      "tp": 11,
+      "fp": 0,
+      "tn": 12,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.9166666666666666,
+      "accuracy": 0.9583333333333334,
+      "abstentionRate": 0.5416666666666666
+    },
+    "family:abstract_summary": {
+      "tp": 5,
+      "fp": 0,
+      "tn": 6,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.8333333333333334,
+      "accuracy": 0.9166666666666666,
+      "abstentionRate": 0.5833333333333334
+    },
+    "family:body_action": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "abstentionRate": 0.5
+    },
+    "family:dialogue_tail": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "abstentionRate": 0.5
+    },
+    "family:imagery": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "abstentionRate": 0.5
+    },
+    "family:negative_parallel": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "abstentionRate": 0.5
+    },
+    "family:rhythm_repetition": {
+      "tp": 3,
+      "fp": 0,
+      "tn": 6,
+      "fn": 3,
+      "precision": 1.0,
+      "recall": 0.5,
+      "accuracy": 0.75,
+      "abstentionRate": 0.75
+    },
+    "provenance:agent_constructed": {
+      "tp": 26,
+      "fp": 0,
+      "tn": 30,
+      "fn": 4,
+      "precision": 1.0,
+      "recall": 0.8666666666666667,
+      "accuracy": 0.9333333333333333,
+      "abstentionRate": 0.5666666666666667
+    },
+    "provenance:controlled_perturbation": {
+      "tp": 6,
+      "fp": 0,
+      "tn": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "accuracy": 1.0,
+      "abstentionRate": 0.0
+    },
+    "provenance:real_output_excerpt": {
+      "tp": 0,
+      "fp": 0,
+      "tn": 6,
+      "fn": 0,
+      "precision": null,
+      "recall": null,
+      "accuracy": 1.0,
+      "abstentionRate": 1.0
+    }
+  }
+}
