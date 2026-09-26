@@ -56,6 +56,10 @@ public class SlopDriftRun {
 
     @Column(name = "source_text_hash", length = 64)
     private String sourceTextHash;
+    @Column(name = "text_conversion_version", length = 64)
+    private String textConversionVersion;
+    public String getTextConversionVersion() { return textConversionVersion; }
+    public void setTextConversionVersion(String value) { textConversionVersion = value; }
 
     @Column(name = "window_summaries_json", columnDefinition = "longtext")
     private String windowSummariesJson;

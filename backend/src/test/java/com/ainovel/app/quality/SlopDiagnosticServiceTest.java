@@ -43,6 +43,7 @@ class SlopDiagnosticServiceTest {
                 repository,
                 new JsonColumnCodec(new ObjectMapper())
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID previousSceneId = UUID.randomUUID();
@@ -124,6 +125,7 @@ class SlopDiagnosticServiceTest {
         assertTrue(prompt.contains("Active style profile: 冷峻悬疑画像"));
         assertTrue(prompt.contains("Character voice: 林烬 speechPattern=短句、反问、重视证据"));
         assertEquals("manual_scene", run.getAnalysisMode());
+        assertEquals("quality-plain-v1", run.getTextConversionVersion());
         assertEquals("high", run.getRiskLabel());
         assertEquals("E2", run.getEvidenceLevel());
         assertTrue(run.getSafeClaim().contains("不能证明作者使用 AI"));

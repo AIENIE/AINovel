@@ -28,13 +28,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 public class SlopDiagnosticService {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
+    private QualityPersistenceBoundary boundary;
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.narrative.NarrativeContextService isolation;
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
 
     private final AiService aiService;
     private final ObjectMapper objectMapper;
@@ -67,13 +69,20 @@ public class SlopDiagnosticService {
         return runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId);
     }
 
-    @Transactional
     public SlopQualityRun analyzeScene(User user, Manuscript manuscript, UUID sceneId) {
-        return analyze(user, buildRequest(manuscript, sceneId));
+        if (boundary == null) return analyze(user, buildRequest(manuscript, sceneId));
+        var snapshot = boundary.snapshot(manuscript, current -> buildRequest(current, sceneId));
+        SlopQualityRun result = evaluate(user, snapshot.data());
+        return boundary.save(snapshot, current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
-    @Transactional
     public SlopQualityRun analyze(User user, SlopQualityRequest request) {
+        SlopQualityRun result = evaluate(user, request);
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(
+                () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
+    }
+
+    private SlopQualityRun evaluate(User user, SlopQualityRequest request) {
         SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         try {
             Map<String, Object> root = parseJson(aiService.chat(user, new AiChatRequest(
@@ -81,16 +90,17 @@ public class SlopDiagnosticService {
                     null,
                     null
             )).content());
-            return runRepository.save(toRun(request, root, heuristicResult, false));
+            return toRun(request, root, heuristicResult, false);
         } catch (RuntimeException ex) {
-            return runRepository.save(fallbackRun(request, heuristicResult, ex));
+            if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
+            return fallbackRun(request, heuristicResult, ex);
         }
     }
 
     private SlopQualityRequest buildRequest(Manuscript manuscript, UUID sceneId) {
         Outline outline = manuscript.getOutline();
         Story story = outline.getStory();
-        Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
+        Map<String, String> sections = contents.readAll(manuscript);
         SceneContext scene = resolveScene(outline, sceneId);
         if(isolation!=null && isolation.enabled(manuscript)) {
             var p=isolation.preview(story.getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
@@ -255,6 +265,7 @@ public class SlopDiagnosticService {
 
     private SlopQualityRun baseRun(SlopQualityRequest request) {
         SlopQualityRun run = new SlopQualityRun();
+        run.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1.version());
         run.setStoryId(request.storyId());
         run.setManuscriptId(request.manuscriptId());
         run.setSceneId(request.sceneId());
@@ -598,16 +609,8 @@ public class SlopDiagnosticService {
     }
 
     private String stripHtml(String html) {
-        if (html == null) {
-            return "";
-        }
-        return HTML_TAG_PATTERN.matcher(html)
-                .replaceAll("")
-                .replace("&nbsp;", " ")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&amp;", "&")
-                .trim();
+        return com.ainovel.app.common.text.RichTextProjector.project(html,
+                com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1).text();
     }
 
     private String stripWrapper(String raw) {

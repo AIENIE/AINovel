@@ -18,6 +18,9 @@ public class NarrativeApproval {
     @Column(nullable=false,length=128) private String idempotencyKey;
     @Column(nullable=false,length=64) private String requestHash;
     @Column(nullable=false,length=64) private String textHash;
+    @Column(name="text_conversion_version",length=64) private String textConversionVersion;
+    public String getTextConversionVersion() { return textConversionVersion; }
+    public void setTextConversionVersion(String value) { textConversionVersion = value; }
     @Lob @Column(nullable=false) private String blocksJson;
     @Lob @Column(nullable=false) private String positionJson;
     @Column(nullable=false) private Instant confirmedAt;

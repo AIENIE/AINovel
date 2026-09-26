@@ -33,6 +33,7 @@ class PlotQualityServiceTest {
         var ai=mock(AiService.class);var manuscripts=mock(ManuscriptRepository.class);var cards=mock(CharacterCardRepository.class);
         var runs=mock(PlotQualityRunRepository.class);var gate=mock(SlopQualityGate.class);var mapper=new ObjectMapper();
         var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,gate,new JsonColumnCodec(mapper));
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(service,"isolation",context);
         UUID scene=UUID.randomUUID();var m=manuscriptWithSceneContext(scene,UUID.randomUUID(),"SECRET_PREVIOUS","当前正文");
@@ -73,6 +74,7 @@ class PlotQualityServiceTest {
                 slopQualityGate,
                 new JsonColumnCodec(new ObjectMapper())
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         User user = user();
         UUID sceneId = UUID.randomUUID();
         UUID previousSceneId = UUID.randomUUID();
@@ -112,6 +114,7 @@ class PlotQualityServiceTest {
         PlotQualityRun run = service.analyzeScene(user, manuscript, sceneId);
 
         assertEquals(PlotQualityStatus.ACCEPTED_WITH_ISSUES, run.getStatus());
+        assertEquals("quality-plain-v1", run.getTextConversionVersion());
         assertEquals(76, run.getOverallRiskScore());
         assertEquals(PlotQualitySeverity.HIGH, run.getMaxSeverity());
         assertEquals(1, run.getIssues().size());
@@ -138,6 +141,7 @@ class PlotQualityServiceTest {
                 mock(SlopQualityGate.class),
                 new JsonColumnCodec(new ObjectMapper())
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneA = UUID.randomUUID();
         UUID sceneB = UUID.randomUUID();
@@ -170,6 +174,7 @@ class PlotQualityServiceTest {
                 mock(SlopQualityGate.class),
                 new JsonColumnCodec(new ObjectMapper())
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID runId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();
         run.setId(runId);
@@ -201,6 +206,7 @@ class PlotQualityServiceTest {
                 slopQualityGate,
                 new JsonColumnCodec(new ObjectMapper())
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID runId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();

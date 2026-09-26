@@ -63,10 +63,16 @@ public final class NarrativeDtos {
     public record StateView(long canonRevision, long manuscriptVersion, UUID branchId,
                             List<RecordView> records, List<ExtractionView> extractions) {}
     public record EvidenceView(UUID approvalId, UUID versionId, UUID sceneId, Position disclosedAt,
-                               List<Block> blocks, String textHash, Instant confirmedAt) {}
+                               List<Block> blocks, String textHash, Instant confirmedAt, String textConversionVersion) {}
     public record InputRecord(UUID id, Assertion assertion) {}
     public record ExtractionInput(UUID extractionId, UUID approvalId, UUID storyId,
-                                  List<Block> blocks, List<InputRecord> previousRecords, Object entities, boolean knowledgeEnabled, String promptVersion) {
+                                  List<Block> blocks, List<InputRecord> previousRecords, Object entities, boolean knowledgeEnabled,
+                                  String promptVersion, String textConversionVersion) {
+        public ExtractionInput(UUID extractionId, UUID approvalId, UUID storyId, List<Block> blocks,
+                               List<InputRecord> previousRecords, Object entities, boolean knowledgeEnabled, String promptVersion) {
+            this(extractionId, approvalId, storyId, blocks, previousRecords, entities, knowledgeEnabled, promptVersion,
+                    com.ainovel.app.common.text.RichTextProjector.Policy.EVIDENCE_V1.version());
+        }
         public ExtractionInput(UUID extractionId, UUID approvalId, UUID storyId, List<Block> blocks,
                                List<InputRecord> previousRecords, Object entities, boolean knowledgeEnabled) {
             this(extractionId,approvalId,storyId,blocks,previousRecords,entities,knowledgeEnabled,

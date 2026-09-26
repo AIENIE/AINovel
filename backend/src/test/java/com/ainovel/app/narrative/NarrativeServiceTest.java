@@ -330,6 +330,7 @@ class NarrativeServiceTest {
         Approved approved = service.approve(user, manuscript.getId(), branch, request, "approval");
         assertEquals(approved, service.approve(user, manuscript.getId(), branch, request, "approval"));
         UUID operation = operation(approved);
+        assertEquals("narrative-evidence-v1", service.input(user, approved.extractionId(), operation).textConversionVersion());
         assertFalse(write(service.input(user, approved.extractionId(), operation)).contains("秘密"));
         store(approved, operation, assertion(Kind.FACT, "同伴背叛", "林青误以为同伴背叛", "b2", null));
         assertTrue(state().records().isEmpty());
@@ -342,6 +343,7 @@ class NarrativeServiceTest {
         assertEquals(Kind.BELIEF, record.assertion().kind());
         assertEquals(character.getId(), record.assertion().holderCharacterId());
         var source = service.evidence(user, manuscript.getId(), branch, approved.approvalId());
+        assertEquals("narrative-evidence-v1", source.textConversionVersion());
         var evidence = record.assertion().evidence().get(0);
         String block = source.blocks().get(1).text();
         assertEquals(evidence.quote(), new String(block.codePoints().skip(evidence.start()).limit(evidence.end() - evidence.start()).toArray(), 0, evidence.end() - evidence.start()));

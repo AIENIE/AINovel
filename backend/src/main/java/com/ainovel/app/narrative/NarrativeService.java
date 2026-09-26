@@ -24,6 +24,8 @@ import static com.ainovel.app.narrative.NarrativeText.*;
 
 @Service
 public class NarrativeService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private NarrativeContextSettingsRepository contextSettings;
     public static final String PROMPT_VERSION = "narrative-state-p11-v1";
@@ -72,7 +74,7 @@ public class NarrativeService {
         checkVersions(scope, request.expectedManuscriptVersion(), request.expectedCanonRevision());
         Position position = positions(tree(scope.manuscript().getOutline().getContentJson())).get(request.sceneId());
         if (position == null) throw invalid("NARRATIVE_SCENE_MISSING");
-        List<Block> blocks = blocks(section(scope.manuscript().getSectionsJson(), request.sceneId()));
+        List<Block> blocks = blocks(contents.readScene(scope.manuscript(), request.sceneId()));
         if (blocks.isEmpty()) throw invalid("NARRATIVE_EMPTY_SCENE");
         UUID versionId = (UUID) versionService.createVersion(scope.manuscript(), user,
                 Map.of("snapshotType", "narrative", "label", "narrative:" + request.sceneId())).get("id");
@@ -83,9 +85,11 @@ public class NarrativeService {
         approval.setLedger(scope.ledger()); approval.setVersion(version); approval.setSceneId(request.sceneId());
         approval.setConfirmedBy(user.getId()); approval.setIdempotencyKey(key); approval.setRequestHash(requestHash);
         approval.setTextHash(textHash(blocks)); approval.setBlocksJson(write(blocks));
+        approval.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.EVIDENCE_V1.version());
         approval.setPositionJson(write(position)); approval.setConfirmedAt(Instant.now());
         approvals.saveAndFlush(approval);
         NarrativeExtraction extraction = new NarrativeExtraction();
+        extraction.setTextConversionVersion(approval.getTextConversionVersion());
         extraction.setApproval(approval); extraction.setBaseCanonRevision(scope.ledger().getRevision());
         boolean knowledgeEnabled = contextSettings != null && contextSettings.findById(scope.manuscript().getOutline().getStory().getId())
                 .map(NarrativeContextSettings::isEnabled).orElse(false);
@@ -98,7 +102,7 @@ public class NarrativeService {
         var entities = characters.findByStory(scope.manuscript().getOutline().getStory()).stream()
                 .map(c -> Map.of("id", c.getId(), "name", Objects.toString(c.getName(), ""))).toList();
         extraction.setInputJson(write(new ExtractionInput(null, approval.getId(), scope.manuscript().getOutline().getStory().getId(),
-                blocks, prior, entities, knowledgeEnabled,extraction.getPromptVersion())));
+                blocks, prior, entities, knowledgeEnabled,extraction.getPromptVersion(), extraction.getTextConversionVersion())));
         extractions.saveAndFlush(extraction);
         return new Approved(approval.getId(), extraction.getId(), null);
     }
@@ -118,7 +122,10 @@ public class NarrativeService {
         reconcile(scope);
         if (stale(scope, extraction)) throw conflict("NARRATIVE_SOURCE_STALE");
         ExtractionInput input = read(extraction.getInputJson(), ExtractionInput.class);
-        return new ExtractionInput(extraction.getId(), input.approvalId(), input.storyId(), input.blocks(), input.previousRecords(), input.entities(), input.knowledgeEnabled(),extraction.getPromptVersion());
+        String version = extraction.getTextConversionVersion() == null
+                ? com.ainovel.app.common.text.RichTextProjector.Policy.EVIDENCE_V1.version() : extraction.getTextConversionVersion();
+        return new ExtractionInput(extraction.getId(), input.approvalId(), input.storyId(), input.blocks(),
+                input.previousRecords(), input.entities(), input.knowledgeEnabled(), extraction.getPromptVersion(), version);
     }
 
     @Transactional
@@ -204,7 +211,10 @@ public class NarrativeService {
         if (!approval.getLedger().getBranchId().equals(branchId)
                 || !approval.getLedger().getBranch().getManuscript().getId().equals(manuscriptId)) throw missing();
         return new EvidenceView(approval.getId(), approval.getVersion().getId(), approval.getSceneId(), position(approval),
-                blockList(approval), approval.getTextHash(), approval.getConfirmedAt());
+                blockList(approval), approval.getTextHash(), approval.getConfirmedAt(),
+                approval.getTextConversionVersion() == null
+                        ? com.ainovel.app.common.text.RichTextProjector.Policy.EVIDENCE_V1.version()
+                        : approval.getTextConversionVersion());
     }
 
     @Transactional
@@ -357,7 +367,7 @@ public class NarrativeService {
     private boolean sourceMatches(Scope scope, NarrativeApproval approval) {
         Position current = positions(tree(scope.manuscript().getOutline().getContentJson())).get(approval.getSceneId());
         if (current == null || !current.orderHash().equals(position(approval).orderHash())) return false;
-        String source = scope.manuscript().getSectionsJson();
+        String source = contents.snapshot(scope.manuscript());
         if (!scope.branch().getId().equals(scope.manuscript().getCurrentBranchId())) {
             source = versions.findByManuscriptIdOrderByCreatedAtDesc(scope.manuscript().getId()).stream()
                     .filter(v -> v.getBranch().getId().equals(scope.branch().getId())).findFirst()
