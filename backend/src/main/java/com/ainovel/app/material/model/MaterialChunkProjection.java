@@ -16,6 +16,9 @@ public class MaterialChunkProjection {
     @Lob @Column(nullable = false, columnDefinition = "text") private String text;
     @Lob @Column(columnDefinition = "text") private String tags;
     private int chunkSeq;
+    private long contentVersion;
+    public long getContentVersion() { return contentVersion; }
+    public void setContentVersion(long value) { contentVersion = value; }
     @UpdateTimestamp private Instant updatedAt;
     public String getChunkId(){return chunkId;} public void setChunkId(String v){chunkId=v;}
     public Material getMaterial(){return material;} public void setMaterial(Material v){material=v;}

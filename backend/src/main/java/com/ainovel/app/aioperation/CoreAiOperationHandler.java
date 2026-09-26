@@ -69,11 +69,11 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 var preview = worlds.preview(payload.primaryId());
                 int total = Math.max(2, preview.modulesToGenerate().size() + 2);
                 execution.progress().step("准备世界观发布", 0, total);
-                worlds.publish(payload.primaryId());
+                AiOperationExecutionContext.apply(() -> worlds.publish(payload.primaryId()));
                 int completed = 1;
                 for (String module : preview.modulesToGenerate()) {
                     execution.progress().step("生成世界模块：" + module, completed, total);
-                    worlds.generateModule(payload.primaryId(), module);
+                    worlds.generateModule(payload.primaryId(), module, completed == preview.modulesToGenerate().size());
                     completed++;
                 }
                 execution.progress().step("完成世界观发布", total - 1, total);

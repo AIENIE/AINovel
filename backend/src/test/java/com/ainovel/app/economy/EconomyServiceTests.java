@@ -16,6 +16,7 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -167,6 +168,28 @@ class EconomyServiceTests {
         assertEquals(true, replay.replay());
         assertEquals("result", replay.content());
         assertEquals(9L, account.getBalance());
+    }
+
+    @Test
+    void durableAiResultSettlesDuringReplayAndUnknownResultNeverRefundsOrRestarts() {
+        User user = user(); ProjectCreditAccount account = account(user,8L);
+        AiCreditReservation reservation = new AiCreditReservation();
+        reservation.setUser(user); reservation.setRequestHash("hash"); reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setReservedAmount(2); reservation.setReferenceType("AI_USAGE"); reservation.setReferenceId("recover");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"recover")).thenReturn(Optional.of(reservation));
+        economyService.recordAiResult(user,"recover","durable",10,20,0);
+        assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
+        var replay = economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash");
+        assertTrue(replay.replay()); assertEquals("durable",replay.content()); assertEquals(9,account.getBalance());
+        assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
+        reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        economyService.markAiResultUncertain(user,"recover");
+        economyService.releaseAiReservation(user,"recover");
+        assertEquals(AiCreditReservation.Status.RECONCILIATION_REQUIRED,reservation.getStatus()); assertEquals(9,account.getBalance());
+        assertThrows(com.ainovel.app.ai.AiResultUncertainException.class,
+                () -> economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash"));
     }
 
     @Test

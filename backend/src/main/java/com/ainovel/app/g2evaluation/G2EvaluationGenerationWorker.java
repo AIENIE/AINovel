@@ -27,8 +27,8 @@ public class G2EvaluationGenerationWorker {
     private final SceneGenerationService sceneGenerationService;
     private final EconomyService economyService;
     private final TransactionTemplate transactions;
-    private final String leaseOwner = UUID.randomUUID().toString();
     private static final java.time.Duration LEASE_DURATION = java.time.Duration.ofMinutes(15);
+    private final java.util.Map<UUID, String> activeExecutions = new java.util.concurrent.ConcurrentHashMap<>();
 
     public G2EvaluationGenerationWorker(G2EvaluationSampleRepository sampleRepository,
                                         ManuscriptRepository manuscriptRepository,
@@ -43,8 +43,9 @@ public class G2EvaluationGenerationWorker {
     }
 
     public void generate(UUID sampleId) {
+        String leaseOwner = UUID.randomUUID().toString();
         Claim claim = transactions.execute(status -> {
-            G2EvaluationSample sample = sampleRepository.findById(sampleId).orElse(null);
+            G2EvaluationSample sample = sampleRepository.findByIdForUpdate(sampleId).orElse(null);
             if (sample == null || sample.getStatus() != G2EvaluationSampleStatus.PENDING) return null;
             sample.setStatus(G2EvaluationSampleStatus.RUNNING);
             sample.setLeaseOwner(leaseOwner);
@@ -55,6 +56,7 @@ public class G2EvaluationGenerationWorker {
                     sample.getFastText(), sample.getCraftedText());
         });
         if (claim == null) return;
+        activeExecutions.put(sampleId, leaseOwner);
         try {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(claim.manuscriptId())
                     .orElseThrow(() -> new BusinessException("盲测稿件不存在"));
@@ -66,26 +68,29 @@ public class G2EvaluationGenerationWorker {
             if (claim.fastText() == null || claim.fastText().isBlank()) {
                 String fast = sceneGenerationService.generateEvaluationCandidate(
                         manuscript, claim.sceneId(), sampleId, com.ainovel.app.manuscript.GenerationMode.FAST);
-                persistCandidate(sampleId, true, fast);
+                persistCandidate(sampleId, leaseOwner, true, fast);
             }
             if (claim.craftedText() == null || claim.craftedText().isBlank()) {
                 String crafted = sceneGenerationService.generateEvaluationCandidate(
                         manuscript, claim.sceneId(), sampleId, com.ainovel.app.manuscript.GenerationMode.CRAFTED);
-                persistCandidate(sampleId, false, crafted);
+                persistCandidate(sampleId, leaseOwner, false, crafted);
             }
-            transactions.executeWithoutResult(status -> sampleRepository.findById(sampleId).ifPresent(sample -> {
-                if (!leaseOwner.equals(sample.getLeaseOwner())) return;
+            transactions.executeWithoutResult(status -> sampleRepository.findByIdForUpdate(sampleId).ifPresent(sample -> {
+                if (!liveExecution(sample, leaseOwner)) return;
                 sample.setStatus(G2EvaluationSampleStatus.READY);
                 clearLease(sample);
             }));
             log.info("G2 evaluation sample generated sampleId={}", sampleId);
         } catch (RuntimeException ex) {
-            transactions.executeWithoutResult(status -> sampleRepository.findById(sampleId).ifPresent(sample -> {
-                if (!leaseOwner.equals(sample.getLeaseOwner())) return;
+            boolean failed = Boolean.TRUE.equals(transactions.execute(status -> {
+                G2EvaluationSample sample = sampleRepository.findByIdForUpdate(sampleId).orElse(null);
+                if (sample == null || !liveExecution(sample, leaseOwner)) return false;
                 sample.setStatus(G2EvaluationSampleStatus.FAILED);
                 sample.setFailureMessage(truncate(ex.getMessage(), 500));
                 clearLease(sample);
+                return true;
             }));
+            if (!failed) return;
             long refunded = economyService.refundFailedEvaluation(claim.author(), sampleId);
             if (refunded > 0) {
                 transactions.executeWithoutResult(status -> sampleRepository.findById(sampleId)
@@ -93,25 +98,38 @@ public class G2EvaluationGenerationWorker {
             }
             log.warn("G2 evaluation sample failed sampleId={} refunded={} errorType={}",
                     sampleId, refunded, ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+        } finally {
+            activeExecutions.remove(sampleId, leaseOwner);
         }
     }
 
-    @Transactional
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 30000)
+    public void renewLeases() {
+        activeExecutions.forEach((id, token) -> transactions.executeWithoutResult(status ->
+                sampleRepository.findByIdForUpdate(id).filter(sample -> liveExecution(sample, token))
+                        .ifPresent(sample -> sample.setLeaseExpiresAt(Instant.now().plus(LEASE_DURATION)))));
+    }
+
+    private boolean liveExecution(G2EvaluationSample sample, String token) {
+        return token.equals(sample.getLeaseOwner()) && sample.getStatus() == G2EvaluationSampleStatus.RUNNING
+                && sample.getLeaseExpiresAt() != null && sample.getLeaseExpiresAt().isAfter(Instant.now());
+    }
+
     public void recoverExpiredLeases() {
         Instant now = Instant.now();
         sampleRepository.findByStatus(G2EvaluationSampleStatus.RUNNING).stream()
-                .filter(sample -> sample.getLeaseExpiresAt() != null && sample.getLeaseExpiresAt().isBefore(now))
-                .forEach(sample -> {
+                .map(G2EvaluationSample::getId).forEach(id -> transactions.executeWithoutResult(status -> sampleRepository.findByIdForUpdate(id).ifPresent(sample -> {
+                    if (sample.getStatus() != G2EvaluationSampleStatus.RUNNING || sample.getLeaseExpiresAt() == null || !sample.getLeaseExpiresAt().isBefore(now)) return;
                     sample.setStatus(G2EvaluationSampleStatus.PENDING);
                     clearLease(sample);
-                });
+                })));
     }
 
-    private void persistCandidate(UUID sampleId, boolean fast, String text) {
+    private void persistCandidate(UUID sampleId, String leaseOwner, boolean fast, String text) {
         transactions.executeWithoutResult(status -> {
-            G2EvaluationSample sample = sampleRepository.findById(sampleId)
+            G2EvaluationSample sample = sampleRepository.findByIdForUpdate(sampleId)
                     .orElseThrow(() -> new BusinessException("盲测样本不存在"));
-            if (!leaseOwner.equals(sample.getLeaseOwner()) || sample.getStatus() != G2EvaluationSampleStatus.RUNNING) {
+            if (!liveExecution(sample, leaseOwner)) {
                 throw new IllegalStateException("G2 sample lease lost");
             }
             if (fast) sample.setFastText(text); else sample.setCraftedText(text);

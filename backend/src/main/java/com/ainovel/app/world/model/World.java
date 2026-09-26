@@ -23,6 +23,8 @@ public class World {
     private String tagline;
     private String status; // draft/generating/active/archived
     private String version;
+    @Version private long revision;
+    public long getRevision() { return revision; }
     @Lob
     private String themesJson;
     @Lob

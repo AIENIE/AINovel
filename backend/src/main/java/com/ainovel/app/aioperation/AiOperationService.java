@@ -46,8 +46,8 @@ public class AiOperationService {
     private final Map<String, AiOperationHandler> handlers = new HashMap<>();
     private final Map<UUID, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
     private final Map<UUID, Future<?>> tasks = new ConcurrentHashMap<>();
-    private final String leaseOwner = UUID.randomUUID().toString();
     private static final java.time.Duration LEASE_DURATION = java.time.Duration.ofMinutes(15);
+    private final Map<UUID, String> executionTokens = new ConcurrentHashMap<>();
 
     public AiOperationService(AiOperationRepository repository,
                               ObjectMapper objectMapper,
@@ -133,7 +133,9 @@ public class AiOperationService {
     }
 
     public AiOperationDtos.Accepted retry(User user, UUID id) {
-        AiOperationRun run = requireOwned(id, user);
+        transactions.executeWithoutResult(status -> {
+        AiOperationRun run = repository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("AI 操作不存在"));
+        if (!run.getUser().getId().equals(user.getId())) throw new BusinessException("AI 操作不存在");
         if (run.getStatus() != AiOperationStatus.FAILED && run.getStatus() != AiOperationStatus.RECOVERY_REQUIRED) {
             throw new BusinessException("当前 AI 操作不需要重试");
         }
@@ -148,21 +150,31 @@ public class AiOperationService {
         run.setResultJson(null);
         run.setCompletedAt(null);
         run.setActiveScopeKey(scopeKey(run));
+        run.setLeaseOwner(null);
+        run.setLeaseExpiresAt(null);
         repository.save(run);
+        });
         cancelTask(id);
         dispatch(id);
         return new AiOperationDtos.Accepted(id);
     }
 
-    public void cancel(User user, UUID id) {
-        AiOperationRun run = requireOwned(id, user);
-        if (run.getStatus() == AiOperationStatus.SUCCEEDED || run.getStatus() == AiOperationStatus.FAILED) return;
+    public AiOperationDtos.Progress cancel(User user, UUID id) {
+        AiOperationDtos.Progress result = transactions.execute(status -> {
+        AiOperationRun run = repository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("AI 操作不存在"));
+        if (!run.getUser().getId().equals(user.getId())) throw new BusinessException("AI 操作不存在");
+        if (isTerminal(run.getStatus())) return snapshot(run);
         run.setStatus(AiOperationStatus.CANCELLED);
         run.setCompletedAt(Instant.now());
         releaseLeaseAndScope(run);
         repository.save(run);
-        publish(id);
-        cancelTask(id);
+        return snapshot(run);
+        });
+        if (result != null && result.status() == AiOperationStatus.CANCELLED) {
+            publish(id);
+            cancelTask(id);
+        }
+        return result;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -183,8 +195,7 @@ public class AiOperationService {
         repository.findByStatusIn(List.of(AiOperationStatus.RUNNING, AiOperationStatus.STREAMING)).stream()
                 .filter(run -> run.getLeaseExpiresAt() != null && run.getLeaseExpiresAt().isBefore(now))
                 .map(AiOperationRun::getId).toList().forEach(id -> {
-            // A live local worker is not abandoned. Cross-process recovery still waits for lease expiry.
-            if (tasks.containsKey(id)) return;
+            java.util.concurrent.atomic.AtomicBoolean recovered = new java.util.concurrent.atomic.AtomicBoolean();
             transactions.executeWithoutResult(status -> repository.findByIdForUpdate(id).ifPresent(run -> {
                     if ((run.getStatus() != AiOperationStatus.RUNNING && run.getStatus() != AiOperationStatus.STREAMING)
                             || run.getLeaseExpiresAt() == null || !run.getLeaseExpiresAt().isBefore(now)) return;
@@ -197,12 +208,20 @@ public class AiOperationService {
                             throw new IllegalStateException("AI operation recovery failed", ex);
                         }
                     }
-                    run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.QUEUED);
+                    // Lack of a first stream event does not prove that no inference was sent.
+                    run.setStatus(AiOperationStatus.RECOVERY_REQUIRED);
                     run.setLeaseOwner(null);
                     run.setLeaseExpiresAt(null);
-                    if (run.isStreamStarted()) run.setActiveScopeKey(null);
+                    recovered.set(true);
                 }));
+            if (recovered.get()) cancelTask(id);
         });
+    }
+
+    @Scheduled(fixedDelayString = "${app.ai-operation.heartbeat-delay-ms:30000}")
+    public void renewLeases() {
+        executionTokens.forEach((id, token) -> update(id, token,
+                run -> run.setLeaseExpiresAt(Instant.now().plus(LEASE_DURATION))));
     }
 
     private void dispatch(UUID id) {
@@ -232,11 +251,12 @@ public class AiOperationService {
     }
 
     private void execute(UUID id) {
+        String token = UUID.randomUUID().toString();
         Claim claim = transactions.execute(status -> {
-            AiOperationRun run = repository.findById(id).orElse(null);
+            AiOperationRun run = repository.findByIdForUpdate(id).orElse(null);
             if (run == null || run.getStatus() != AiOperationStatus.QUEUED) return null;
             run.setStatus(AiOperationStatus.RUNNING);
-            run.setLeaseOwner(leaseOwner);
+            run.setLeaseOwner(token);
             run.setLeaseExpiresAt(Instant.now().plus(LEASE_DURATION));
             run.setAttemptCount(run.getAttemptCount() + 1);
             run.setErrorMessage(null);
@@ -245,10 +265,12 @@ public class AiOperationService {
             return new Claim(run.getId(), run.getUser(), run.getOperationType(), run.getPayloadJson());
         });
         if (claim == null) return;
+        executionTokens.put(id, token);
         publish(id);
         AiOperationHandler handler = handlers.get(claim.type());
         if (handler == null) {
-            fail(id, new IllegalStateException("AI operation handler is unavailable"));
+            fail(id, token, new IllegalStateException("AI operation handler is unavailable"));
+            executionTokens.remove(id, token);
             return;
         }
         AtomicLong lastUpdate = new AtomicLong();
@@ -256,7 +278,7 @@ public class AiOperationService {
         AiGatewayGrpcClient.StreamProgressListener listener = new AiGatewayGrpcClient.StreamProgressListener() {
             @Override public void onStarted(String requestId, String modelKey) {
                 currentStepTokenBase.set(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
-                update(id, run -> {
+                update(id, token, run -> {
                     run.setStatus(AiOperationStatus.STREAMING);
                     run.setStreamStarted(true);
                     run.setRequestId(requestId);
@@ -268,7 +290,7 @@ public class AiOperationService {
                 long previous = lastUpdate.get();
                 if (now - previous < 250_000_000L && outputTokens > 0) return;
                 if (lastUpdate.compareAndSet(previous, now)) {
-                    update(id, run -> {
+                    update(id, token, run -> {
                         run.setOutputTokens(currentStepTokenBase.get() + outputTokens);
                         run.setOutputTokensEstimated(estimated);
                     });
@@ -277,14 +299,24 @@ public class AiOperationService {
             @Override public void onCompleted(long completionTokens, long promptTokens, long cacheTokens) {
                 long completedTotal = currentStepTokenBase.get() + completionTokens;
                 currentStepTokenBase.set(completedTotal);
-                update(id, run -> {
+                update(id, token, run -> {
                     run.setOutputTokens(completedTotal);
                     run.setOutputTokensEstimated(false);
                     run.setStatus(AiOperationStatus.RUNNING);
                 });
             }
         };
-        try {
+        try (var ignored = AiOperationExecutionContext.install(id, new AiOperationExecutionContext.Fence() {
+            @Override public <T> T apply(java.util.function.Supplier<T> mutation, java.util.function.Function<T, Object> resultView) {
+                return transactions.execute(status -> {
+                    AiOperationRun run = repository.findByIdForUpdate(id).orElseThrow();
+                    requireExecution(run, token);
+                    T result = mutation.get();
+                    if (resultView != null) succeed(run, resultView.apply(result));
+                    return result;
+                });
+            }
+        })) {
             var authorities = Optional.ofNullable(claim.user().getRoles()).orElseGet(Set::of).stream()
                     .map(SimpleGrantedAuthority::new).toList();
             var context = SecurityContextHolder.createEmptyContext();
@@ -296,7 +328,7 @@ public class AiOperationService {
                 result = AiProgressContext.withListener(listener, () -> {
                     try {
                         return handler.execute(new AiOperationExecution(id, claim.user(), claim.payloadJson(), objectMapper,
-                                (label, completed, total) -> update(id, run -> {
+                                (label, completed, total) -> update(id, token, run -> {
                                     run.setCurrentStep(label);
                                     run.setCompletedSteps(Math.max(0, completed));
                                     run.setTotalSteps(Math.max(1, total));
@@ -312,19 +344,14 @@ public class AiOperationService {
             } finally {
                 SecurityContextHolder.clearContext();
             }
-            update(id, run -> {
-                if (run.getStatus() == AiOperationStatus.CANCELLED) return;
-                    run.setStatus(AiOperationStatus.SUCCEEDED);
-                run.setCompletedSteps(run.getTotalSteps());
-                run.setResultJson(write(result));
-                run.setCompletedAt(Instant.now());
-                    run.setCurrentStep("已完成");
-                    releaseLeaseAndScope(run);
-            });
+            update(id, token, run -> succeed(run, result));
+            publish(id);
             log.info("AI operation completed operationId={} type={} attempt={}", id, claim.type(),
                     getAttemptCount(id));
-        } catch (RuntimeException ex) {
-            fail(id, ex);
+        } catch (Exception ex) {
+            fail(id, token, ex instanceof RuntimeException runtime ? runtime : new RuntimeException(ex));
+        } finally {
+            executionTokens.remove(id, token);
         }
     }
 
@@ -332,22 +359,54 @@ public class AiOperationService {
         return repository.findById(id).map(AiOperationRun::getAttemptCount).orElse(0);
     }
 
-    private void fail(UUID id, RuntimeException failure) {
-        update(id, run -> {
+    private void fail(UUID id, String token, RuntimeException failure) {
+        update(id, token, run -> {
             if (run.getStatus() == AiOperationStatus.CANCELLED) return;
-            run.setStatus(run.isStreamStarted() ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.FAILED);
+            run.setStatus(run.isStreamStarted() || uncertain(failure)
+                    ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.FAILED);
             run.setErrorMessage("生成在" + run.getCompletedSteps() + "/" + run.getTotalSteps()
                     + "步中断，请查看任务状态后重试；任务编号：" + id);
             run.setCompletedAt(Instant.now());
-            releaseLeaseAndScope(run);
+            run.setLeaseOwner(null); run.setLeaseExpiresAt(null);
+            if (run.getStatus() != AiOperationStatus.RECOVERY_REQUIRED) run.setActiveScopeKey(null);
         });
         log.warn("AI operation failed operationId={} errorType={}",
                 id, failure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(failure));
     }
 
-    private void update(UUID id, Consumer<AiOperationRun> mutation) {
-        transactions.executeWithoutResult(status -> repository.findById(id).ifPresent(mutation));
+    private boolean uncertain(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof com.ainovel.app.ai.AiResultUncertainException) return true;
+            if (cause == cause.getCause()) break;
+        }
+        return false;
+    }
+
+    private void update(UUID id, String token, Consumer<AiOperationRun> mutation) {
+        transactions.executeWithoutResult(status -> repository.findByIdForUpdate(id).ifPresent(run -> {
+            if (!liveExecution(run, token)) return;
+            mutation.accept(run);
+        }));
         publish(id);
+    }
+
+    private boolean liveExecution(AiOperationRun run, String token) {
+        return token.equals(run.getLeaseOwner()) && !isTerminal(run.getStatus())
+                && run.getLeaseExpiresAt() != null && run.getLeaseExpiresAt().isAfter(Instant.now());
+    }
+
+    private void requireExecution(AiOperationRun run, String token) {
+        if (!liveExecution(run, token) || Thread.currentThread().isInterrupted())
+            throw new BusinessException("AI_OPERATION_EXECUTION_LOST");
+    }
+
+    private void succeed(AiOperationRun run, Object result) {
+        run.setStatus(AiOperationStatus.SUCCEEDED);
+        run.setCompletedSteps(run.getTotalSteps());
+        run.setResultJson(write(result));
+        run.setCompletedAt(Instant.now());
+        run.setCurrentStep("已完成");
+        releaseLeaseAndScope(run);
     }
 
     private void publish(UUID id) {

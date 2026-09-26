@@ -7,5 +7,7 @@ public interface MaterialVectorIndex {
 
     void deleteMaterial(java.util.UUID materialId);
 
+    default void deleteChunks(List<String> chunkIds) { }
+
     List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId);
 }

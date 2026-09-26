@@ -6,6 +6,8 @@ import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
@@ -33,7 +35,9 @@ public class V2ExportController {
         this.accessGuard = accessGuard; this.jobs = jobs; this.persistence = persistence; this.objectMapper = objectMapper;
     }
 
-    @Operation(summary = "创建异步导出任务")
+    @Operation(summary = "创建异步导出任务", description = "格式为 txt、docx、epub 或 pdf；任务按当前稿件快照生成。非法配置返回 400。")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "返回排队中的导出任务"),
+            @ApiResponse(responseCode = "400", description = "格式或导出配置无效")})
     @PostMapping("/manuscripts/{manuscriptId}/export")
     public V2ExportDtos.JobResponse createExportJob(@AuthenticationPrincipal UserDetails principal,
                                                      @PathVariable UUID manuscriptId,
@@ -60,7 +64,10 @@ public class V2ExportController {
     }
 
     @GetMapping("/manuscripts/{manuscriptId}/export/jobs/{jobId}/download")
-    @Operation(summary = "流式下载已完成的导出产物")
+    @Operation(summary = "下载已完成的导出产物", description = "从有界临时文件传输；全局或单用户并发预算超限返回 429。")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "返回带 Digest 的下载文件"),
+            @ApiResponse(responseCode = "404", description = "导出任务或文件不存在"),
+            @ApiResponse(responseCode = "429", description = "下载并发或临时文件预算已满")})
     public ResponseEntity<StreamingResponseBody> download(@AuthenticationPrincipal UserDetails principal,
                                                            @PathVariable UUID manuscriptId, @PathVariable UUID jobId) {
         User user = accessGuard.currentUser(principal); accessGuard.requireOwnedManuscript(manuscriptId, user);
