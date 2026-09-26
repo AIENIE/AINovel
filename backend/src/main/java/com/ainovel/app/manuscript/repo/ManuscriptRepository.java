@@ -14,6 +14,9 @@ import java.util.UUID;
 import jakarta.persistence.LockModeType;
 
 public interface ManuscriptRepository extends JpaRepository<Manuscript, UUID> {
+    @Query("select new com.ainovel.app.manuscript.dto.ManuscriptSummaryDto(m.id,m.outline.id,m.title,m.worldId,m.currentBranchId,m.version,m.updatedAt) from Manuscript m where m.outline.id=:outlineId order by m.updatedAt desc,m.id")
+    List<com.ainovel.app.manuscript.dto.ManuscriptSummaryDto> findSummariesByOutlineId(@Param("outlineId") UUID outlineId);
+
     List<Manuscript> findByOutline(Outline outline);
 
     @Query("select m from Manuscript m join fetch m.outline o join fetch o.story s join fetch s.user where m.id = :id")

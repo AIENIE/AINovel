@@ -37,6 +37,8 @@ import java.util.regex.Pattern;
 @Service
 public class SceneGenerationService {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
     private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final int MAX_GENERATION_ATTEMPTS = 3;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
@@ -263,14 +265,7 @@ public class SceneGenerationService {
     }
 
     private Map<String, String> existingSections(Manuscript manuscript) {
-        if (manuscript == null || manuscript.getSectionsJson() == null || manuscript.getSectionsJson().isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(manuscript.getSectionsJson(), new TypeReference<Map<String, String>>() {});
-        } catch (Exception ex) {
-            throw new BusinessException("稿件正文数据异常，无法创建盲测样本");
-        }
+        return manuscript == null ? Map.of() : contents.readAll(manuscript);
     }
 
     private CompiledSceneDraftContext compileContext(Manuscript manuscript,
@@ -477,17 +472,8 @@ public class SceneGenerationService {
     }
 
     private String stripHtml(String text) {
-        if (text == null || text.isBlank()) return "";
-        return HTML_TAG_PATTERN.matcher(text)
-                .replaceAll(" ")
-                .replace("&nbsp;", " ")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&amp;", "&")
-                .replace("&quot;", "\"")
-                .replace("&#39;", "'")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return com.ainovel.app.common.text.RichTextProjector.project(text,
+                com.ainovel.app.common.text.RichTextProjector.Policy.CONTEXT_V2).text();
     }
 
     private String truncate(String text, int maxLength) {

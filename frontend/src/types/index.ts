@@ -186,6 +186,7 @@ export interface Outline {
 }
 
 export interface Manuscript {
+  partial?: boolean;
   id: string;
   outlineId: string;
   title: string;

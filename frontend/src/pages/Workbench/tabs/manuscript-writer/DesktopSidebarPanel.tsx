@@ -1,3 +1,4 @@
+import type { BranchUpdate } from "@/lib/api-contracts";
 import type { NetworkObject } from "@/lib/api-client";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -106,8 +107,8 @@ type DesktopSidebarPanelProps = {
   templateName: string;
   toggleVersionSelection: (versionId: string) => void;
   txtEncoding: string;
-  updateGoal: (goalId: string, patch: Record<string, unknown>) => Promise<void> | void;
-  updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
+  updateGoal: (goalId: string, patch: BranchUpdate) => Promise<void> | void;
+  updateBranch: (branchId: string, patch: BranchUpdate) => Promise<void> | void;
   updateTemplate: (template: NetworkObject) => Promise<void> | void;
   versionPageSize: number;
   visibleVersions: NetworkObject[];

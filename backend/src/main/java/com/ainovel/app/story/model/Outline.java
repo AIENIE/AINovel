@@ -19,6 +19,8 @@ public class Outline {
     private Story story;
 
     private String title;
+    @Version private long revision;
+    public long getRevision() { return revision; }
     private String worldId;
 
     @Lob

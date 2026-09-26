@@ -15,6 +15,7 @@ import java.util.Map;
 
 @Service
 public class UserSummaryQueryService {
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private final StoryRepository storyRepository;
     private final WorldRepository worldRepository;
     private final ManuscriptRepository manuscriptRepository;
@@ -42,20 +43,7 @@ public class UserSummaryQueryService {
     private long estimateTotalWords(User user) {
         long total = 0;
         for (Manuscript manuscript : manuscriptRepository.findByStoryUser(user)) {
-            total += estimateWordsFromSections(manuscript.getSectionsJson());
-        }
-        return total;
-    }
-
-    private long estimateWordsFromSections(String sectionsJson) {
-        Map<String, String> sections = jsonColumnCodec.read(sectionsJson, new TypeReference<>() {}, Map.of());
-        long total = 0;
-        for (String html : sections.values()) {
-            if (html == null) {
-                continue;
-            }
-            String plain = org.springframework.web.util.HtmlUtils.htmlUnescape(html.replaceAll("<[^>]*>", ""));
-            total += plain.replaceAll("[\\s\\u00A0]+", "").length();
+            total += contents.wordCount(manuscript);
         }
         return total;
     }

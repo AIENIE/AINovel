@@ -835,7 +835,7 @@ describe("api client", () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       if (String(url).endsWith("/api/v1/manuscripts/m1/scenes/s1/generate?mode=crafted")) {
         return new Response(
-          JSON.stringify({ id: "m1", outlineId: "o1", title: "正文稿", sections: {}, updatedAt: "2026-07-14T00:00:00Z" }),
+          JSON.stringify({ id: "m1", outlineId: "o1", title: "正文稿", sections: {}, version: 0, updatedAt: "2026-07-14T00:00:00Z" }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
@@ -929,6 +929,7 @@ describe("api client", () => {
       outlineId: "outline-1",
       title: "正文",
       sections: {},
+      version: 0,
       lastGenerationRun: {
         id: "run-9",
         generationVersionId: "version-9",

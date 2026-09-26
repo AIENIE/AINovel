@@ -1,3 +1,6 @@
+import { createVersionApi } from "./api/domains/versions";
+import { createExportApi } from "./api/domains/exports";
+import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
   CharacterCard,
@@ -47,8 +50,20 @@ import {
 import { requestAdminOperationCode } from "@/lib/admin-operation-proof";
 import { z } from "zod";
 
+const pendingMaterialSchema = z.object({
+  id: z.string().uuid(), title: z.string(), type: z.string(), summary: z.string().nullable(),
+  createdAt: z.string().nullable(),
+});
+const pendingMaterialPageSchema = z.object({
+  items: z.array(pendingMaterialSchema), page: z.number().int().nonnegative(), size: z.number().int().min(1).max(100),
+  totalElements: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative(),
+});
+export type PendingMaterial = z.infer<typeof pendingMaterialSchema>;
+export type PendingMaterialPage = z.infer<typeof pendingMaterialPageSchema>;
+
 const API_BASE = "/api";
 const TERMINAL_AI_OPERATION_STATES = new Set(["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"]);
+// Legacy adapters still use this broad shape; critical write/recovery endpoints use api-contracts schemas.
 const networkObjectSchema = z.record(z.string(), z.any());
 export type NetworkObject = z.infer<typeof networkObjectSchema>;
 
@@ -240,7 +255,7 @@ async function streamAiOperation(
       const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:"))
         .map((line) => line.slice(5).trim()).join("\n");
       if (data) {
-        const progress = JSON.parse(data) as AiOperationProgress;
+        const progress = aiOperationProgressSchema.parse(JSON.parse(data));
         onProgress(progress);
         if (TERMINAL_AI_OPERATION_STATES.has(progress.status)) {
           await reader.cancel();
@@ -264,7 +279,7 @@ async function waitForAiOperation(
     if (signal?.aborted) throw error;
   }
   while (!signal?.aborted) {
-    const progress = await requestJson<AiOperationProgress>(`/v1/ai-operations/${operationId}`);
+    const progress = aiOperationProgressSchema.parse(await requestJson<unknown>(`/v1/ai-operations/${operationId}`));
     onProgress(progress);
     if (TERMINAL_AI_OPERATION_STATES.has(progress.status)) return progress;
     await new Promise((resolve) => window.setTimeout(resolve, 1500));
@@ -590,25 +605,10 @@ function toMaterialSearchResult(dto: NetworkObject): MaterialSearchResult {
   };
 }
 
-function toManuscript(dto: NetworkObject): Manuscript {
-  return {
-    id: dto.id,
-    outlineId: dto.outlineId,
-    title: dto.title,
-    worldId: dto.worldId || undefined,
-    sections: dto.sections || {},
-    currentBranchId: dto.currentBranchId ?? null,
-    lastGenerationRun: dto.lastGenerationRun
-      ? {
-          id: String(dto.lastGenerationRun.id),
-          generationVersionId: String(dto.lastGenerationRun.generationVersionId),
-          status: String(dto.lastGenerationRun.status),
-          createdAt: String(dto.lastGenerationRun.createdAt),
-        }
-      : null,
-    version: Number(dto.version ?? 0),
-    updatedAt: dto.updatedAt || new Date().toISOString(),
-  };
+function toManuscript(value: unknown): Manuscript {
+  const dto = manuscriptSchema.parse(value);
+  return { ...dto, worldId: dto.worldId ?? undefined, currentBranchId: dto.currentBranchId ?? null,
+    lastGenerationRun: dto.lastGenerationRun ?? null };
 }
 
 function toSlopQualityRun(dto: NetworkObject): SlopQualityRun {
@@ -796,13 +796,13 @@ export const api = {
       requestJson<import("@/types/narrative").NarrativeSource>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/narrative/scene-approvals/${id}/evidence`),
   },
   aiOperations: {
-    get: async (id: string) => requestJson<AiOperationProgress>(`/v1/ai-operations/${id}`),
+    get: async (id: string) => aiOperationProgressSchema.parse(await requestJson<unknown>(`/v1/ai-operations/${id}`)),
     active: async (scopeType: string, scopeId: string) => requestJson<AiOperationProgress>(
       `/v1/ai-operations/active?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(scopeId)}`,
     ),
     wait: waitForAiOperation,
-    retry: async (id: string) => requestJson<AiOperationAccepted>(`/v1/ai-operations/${id}/retry`, { method: "POST", body: "{}" }),
-    cancel: async (id: string) => requestVoid(`/v1/ai-operations/${id}/cancel`, { method: "POST", body: "{}" }),
+    retry: async (id: string) => aiOperationAcceptedSchema.parse(await requestJson<unknown>(`/v1/ai-operations/${id}/retry`, { method: "POST", body: "{}" })),
+    cancel: async (id: string) => aiOperationProgressSchema.parse(await requestJson<unknown>(`/v1/ai-operations/${id}/cancel`, { method: "POST", body: "{}" })),
   },
   adminAuth: {
     bootstrap: async (): Promise<{ env: string; authMode: "password" | "totp"; state: "PASSWORD_REQUIRED" | "ENROLLMENT_REQUIRED" | "TOTP_REQUIRED"; challengeTtlSeconds: number; maxChallengeAttempts: number }> => requestJson("/v1/admin-auth/bootstrap", { method: "GET" }, ""),
@@ -947,9 +947,9 @@ export const api = {
     getAssetSummary: async () => {
       return await requestJson<NetworkObject>("/v1/admin/assets/summary", { method: "GET" }, adminCookieAuth());
     },
-    listPendingMaterials: async (): Promise<Material[]> => {
-      const data = await requestJson<NetworkObject[]>("/v1/admin/materials/pending", { method: "GET" }, adminCookieAuth());
-      return data.map(toMaterial);
+    listPendingMaterials: async (page = 0, size = 20): Promise<PendingMaterialPage> => {
+      const data = await requestJson<unknown>(`/v1/admin/materials/pending?page=${page}&size=${size}`, { method: "GET" }, adminCookieAuth());
+      return pendingMaterialPageSchema.parse(data);
     },
     approveMaterial: async (id: string, payload: NetworkObject = {}) => {
       return toMaterial(await requestJson<NetworkObject>(`/v1/admin/materials/${id}/approve`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
@@ -957,20 +957,25 @@ export const api = {
     rejectMaterial: async (id: string, payload: NetworkObject = {}) => {
       return toMaterial(await requestJson<NetworkObject>(`/v1/admin/materials/${id}/reject`, { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
-    findMaterialDuplicates: async () => {
-      return await requestJson<NetworkObject[]>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, adminCookieAuth());
+    findMaterialDuplicates: async (): Promise<DuplicateJob> => {
+      return await requestJson<DuplicateJob>("/v1/admin/materials/duplicates", { method: "POST", body: "{}" }, adminCookieAuth());
     },
+    getMaterialDuplicateJob: async (id: string) => requestJson<DuplicateJob>(`/v1/admin/materials/duplicates/${id}`, { method: "GET" }, adminCookieAuth()),
+    cancelMaterialDuplicates: async (id: string) => requestJson<DuplicateJob>(`/v1/admin/materials/duplicates/${id}/cancel`, { method: "POST", body: "{}" }, adminCookieAuth()),
+    getMaterialDuplicateResults: async (id: string, page = 0) => requestJson<DuplicateResultPage>(`/v1/admin/materials/duplicates/${id}/results?page=${page}&size=20`, { method: "GET" }, adminCookieAuth()),
     mergeMaterials: async (payload: NetworkObject) => {
       return toMaterial(await requestJson<NetworkObject>("/v1/admin/materials/merge", { method: "POST", body: JSON.stringify(payload) }, adminCookieAuth()));
     },
     listMaterialCitations: async (id: string) => {
       return await requestJson<NetworkObject[]>(`/v1/admin/materials/${id}/citations`, { method: "GET" }, adminCookieAuth());
     },
-    listAssets: async (kind: "stories" | "worlds" | "manuscripts") => {
-      return await requestJson<NetworkObject[]>(`/v1/admin/assets/${kind}`, { method: "GET" }, adminCookieAuth());
+    listAssets: async (kind: "stories" | "worlds" | "manuscripts", page = 0, search = "") => {
+      const query = new URLSearchParams({ page: String(page), size: "20", search });
+      return await requestJson<{ items: NetworkObject[]; page: number; size: number; totalElements: number; totalPages: number }>(`/v1/admin/assets/${kind}?${query}`, { method: "GET" }, adminCookieAuth());
     },
-    listQualityRuns: async () => {
-      return await requestJson<NetworkObject[]>("/v1/admin/quality/runs", { method: "GET" }, adminCookieAuth());
+    listQualityRuns: async (page = 0, search = "", filter: "all" | "open" | "high" = "all") => {
+      const query = new URLSearchParams({ page: String(page), size: "20", search, filter });
+      return await requestJson<{ items: NetworkObject[]; page: number; size: number; totalElements: number; totalPages: number }>(`/v1/admin/quality/runs?${query}`, { method: "GET" }, adminCookieAuth());
     },
     listG2Evaluations: async (): Promise<G2EvaluationExperiment[]> => {
       return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, adminCookieAuth());
@@ -1228,6 +1233,15 @@ export const api = {
   },
 
   manuscripts: {
+    listSummaries: async (outlineId: string): Promise<Manuscript[]> => {
+      const data: unknown = await requestJson<unknown>(`/v1/outlines/${outlineId}/manuscript-summaries`, { method: "GET" });
+      return manuscriptSummarySchema.array().parse(data).map(dto => ({ ...dto, worldId: dto.worldId ?? undefined, sections: {}, partial: true }));
+    },
+    getScene: async (manuscriptId: string, sceneId: string) => {
+      const dto = sceneContentSchema.parse(await requestJson<unknown>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/content`, { method: "GET" }));
+      if (dto.manuscriptId !== manuscriptId || dto.sceneId !== sceneId) throw new Error("场景响应身份不匹配");
+      return dto;
+    },
     listByOutline: async (outlineId: string): Promise<Manuscript[]> => {
       const list = await requestJson<NetworkObject[]>(`/v1/outlines/${outlineId}/manuscripts`, { method: "GET" });
       return list.map(toManuscript);
@@ -1265,12 +1279,13 @@ export const api = {
         `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs/${runId}/feedback`,
         { method: "PATCH", body: JSON.stringify(payload) },
       ),
-    saveSection: async (manuscriptId: string, sceneId: string, content: string, expectedVersion: number): Promise<Manuscript> => {
-      const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${manuscriptId}/sections/${sceneId}`, {
-        method: "PUT",
-        body: JSON.stringify({ content, expectedVersion }),
-      });
-      return toManuscript(dto);
+    saveSection: async (manuscriptId: string, sceneId: string, content: string, expectedVersion: number, expectedBranchId?: string): Promise<ManuscriptSectionUpdate> => {
+      const dto = sceneContentSchema.parse(await requestJson<unknown>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/content`, {
+        method: "PUT", body: JSON.stringify({ content, expectedVersion, expectedBranchId }),
+      }));
+      if (dto.manuscriptId !== manuscriptId || dto.sceneId !== sceneId || (expectedBranchId && dto.branchId !== expectedBranchId))
+        throw new Error("保存响应身份不匹配，草稿已保留");
+      return { id: dto.manuscriptId, currentBranchId: dto.branchId, version: dto.version, updatedAt: dto.updatedAt, sections: { [sceneId]: dto.content } };
     },
   },
 
@@ -1571,55 +1586,8 @@ export const api = {
       },
     },
 
-    version: {
-      listVersions: async (manuscriptId: string) => requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "GET" }),
-      createVersion: async (manuscriptId: string, payload: NetworkObject = {}) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions`, { method: "POST", body: JSON.stringify(payload) }),
-      getVersion: async (manuscriptId: string, versionId: string) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}`, { method: "GET" }),
-      getDiff: async (manuscriptId: string, fromVersionId: string, toVersionId: string) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/diff?fromVersionId=${fromVersionId}&toVersionId=${toVersionId}`, { method: "GET" }),
-      rollback: async (manuscriptId: string, versionId: string) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/versions/${versionId}/rollback`, { method: "POST", body: "{}" }),
-      listBranches: async (manuscriptId: string) =>
-        requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "GET" }),
-      createBranch: async (manuscriptId: string, payload: NetworkObject) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches`, { method: "POST", body: JSON.stringify(payload) }),
-      updateBranch: async (manuscriptId: string, branchId: string, payload: NetworkObject) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}`, { method: "PUT", body: JSON.stringify(payload) }),
-      checkoutBranch: async (manuscriptId: string, branchId: string) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/checkout`, { method: "POST", body: "{}" }),
-      mergeBranch: async (manuscriptId: string, branchId: string, payload: NetworkObject = {}) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/branches/${branchId}/merge`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        }),
-      abandonBranch: async (manuscriptId: string, branchId: string) => {
-        await requestVoid(`/v2/manuscripts/${manuscriptId}/branches/${branchId}`, { method: "DELETE" });
-      },
-      getAutoSave: async () => requestJson<NetworkObject>("/v2/users/me/auto-save-config", { method: "GET" }),
-      updateAutoSave: async (payload: NetworkObject) =>
-        requestJson<NetworkObject>("/v2/users/me/auto-save-config", { method: "PUT", body: JSON.stringify(payload) }),
-    },
-
-    export: {
-      createJob: async (manuscriptId: string, payload: NetworkObject) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/export`, { method: "POST", body: JSON.stringify(payload) }),
-      listJobs: async (manuscriptId: string) =>
-        requestJson<NetworkObject[]>(`/v2/manuscripts/${manuscriptId}/export/jobs`, { method: "GET" }),
-      getJob: async (manuscriptId: string, jobId: string) =>
-        requestJson<NetworkObject>(`/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}`, { method: "GET" }),
-      listTemplates: async () => requestJson<NetworkObject[]>("/v2/export-templates", { method: "GET" }),
-      createTemplate: async (payload: NetworkObject) =>
-        requestJson<NetworkObject>("/v2/export-templates", { method: "POST", body: JSON.stringify(payload) }),
-      updateTemplate: async (templateId: string, payload: NetworkObject) =>
-        requestJson<NetworkObject>(`/v2/export-templates/${templateId}`, { method: "PUT", body: JSON.stringify(payload) }),
-      deleteTemplate: async (templateId: string) => {
-        await requestVoid(`/v2/export-templates/${templateId}`, { method: "DELETE" });
-      },
-      download: async (manuscriptId: string, jobId: string) =>
-        requestBlob(`/v2/manuscripts/${manuscriptId}/export/jobs/${jobId}/download`),
-    },
+    version: createVersionApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
+    export: createExportApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
 
     models: {
       list: async () => requestJson<NetworkObject[]>("/v2/models", { method: "GET" }),
@@ -1672,3 +1640,7 @@ export const api = {
     },
   },
 };
+
+export interface DuplicateJob { id: string; status: "queued" | "running" | "completed" | "cancelled" | "failed"; comparisons: number; incomplete: boolean; reason: string | null; }
+export interface DuplicateCandidate { sourceMaterialId: string; targetMaterialId: string; sourceTitle: string; targetTitle: string; sourceVersion: number; targetVersion: number; score: number; reasons: string[]; }
+export interface DuplicateResultPage { items: DuplicateCandidate[]; page: number; size: number; total: number; incomplete: boolean; }

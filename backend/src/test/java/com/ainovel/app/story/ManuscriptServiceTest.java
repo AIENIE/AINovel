@@ -242,6 +242,7 @@ class ManuscriptServiceTest {
         ReflectionTestUtils.setField(service, "outlineRepository", outlineRepository);
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
         ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         ReflectionTestUtils.setField(service, "sceneGenerationService", sceneGenerationService(
                 characterCardRepository,
                 aiService,
@@ -312,6 +313,7 @@ class ManuscriptServiceTest {
             StyleContextProvider styleContextProvider
     ) {
         SceneGenerationService service = new SceneGenerationService();
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         SceneGenerationPromptBuilder promptBuilder = new SceneGenerationPromptBuilder();
         ScenePlotQualitySupport plotQualitySupport = new ScenePlotQualitySupport();
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);

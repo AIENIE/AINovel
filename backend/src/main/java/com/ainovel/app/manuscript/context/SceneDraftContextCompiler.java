@@ -42,6 +42,8 @@ import java.util.regex.Pattern;
 @Service
 public class SceneDraftContextCompiler {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.narrative.NarrativeContextService isolation;
     public static final String COMPILER_VERSION = "scene-draft-v3";
     public static final int DEFAULT_TOKEN_BUDGET = 3500;
@@ -707,15 +709,7 @@ public class SceneDraftContextCompiler {
     }
 
     private Map<String, String> readSections(Manuscript manuscript) {
-        if (manuscript == null || manuscript.getSectionsJson() == null || manuscript.getSectionsJson().isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(manuscript.getSectionsJson(), new TypeReference<>() {
-            });
-        } catch (Exception ex) {
-            throw new BusinessException("稿件正文数据异常，无法编译场景上下文", ex);
-        }
+        return manuscript == null ? Map.of() : contents.readAll(manuscript);
     }
 
     private void addJsonCandidate(List<Candidate> candidates,
@@ -874,19 +868,8 @@ public class SceneDraftContextCompiler {
     }
 
     private String plainSection(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        return HTML_TAG_PATTERN.matcher(value)
-                .replaceAll(" ")
-                .replace("&nbsp;", " ")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&amp;", "&")
-                .replace("&quot;", "\"")
-                .replace("&#39;", "'")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return com.ainovel.app.common.text.RichTextProjector.project(value,
+                com.ainovel.app.common.text.RichTextProjector.Policy.CONTEXT_V2).text();
     }
 
     private String tail(String value, int maxChars) {
