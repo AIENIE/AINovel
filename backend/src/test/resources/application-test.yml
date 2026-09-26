@@ -17,6 +17,9 @@ spring:
       host: 127.0.0.1
 
 app:
+  material:
+    duplicates:
+      dispatch-enabled: false
   admin-auth:
     username: admin
     password-hash: $2a$10$dEnQNJUtxcEVsri32i2KmuRrrOBNtvoyn8j1HBUHpRRBjB14bNUgq

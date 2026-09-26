@@ -46,6 +46,7 @@ class UserSummaryQueryServiceTest {
                 manuscriptRepository,
                 jsonColumnCodec
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
 
         UserSummaryResponse result = service.summary(user);
 

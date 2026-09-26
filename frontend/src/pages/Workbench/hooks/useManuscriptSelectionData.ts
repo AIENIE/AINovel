@@ -56,7 +56,7 @@ async function fetchOutlines(storyId: string) {
 }
 
 async function fetchManuscripts(outlineId: string) {
-  return await api.manuscripts.listByOutline(outlineId);
+  return await api.manuscripts.listSummaries(outlineId);
 }
 
 export function useManuscriptSelectionData({
@@ -126,10 +126,23 @@ export function useManuscriptSelectionData({
     () => outlines.find((outline) => outline.id === selectedOutlineId) || null,
     [outlines, selectedOutlineId],
   );
-  const selectedManuscript = useMemo(
-    () => manuscripts.find((manuscript) => manuscript.id === selectedManuscriptId) || null,
-    [manuscripts, selectedManuscriptId],
-  );
+  const selectedSummary = manuscripts.find(item => item.id === selectedManuscriptId) ?? null;
+  const sceneQuery = useQuery({
+    queryKey: ["workbench", "scene-content", selectedManuscriptId, selectedSummary?.currentBranchId, selectedSceneId, selectedSummary?.version],
+    queryFn: () => api.manuscripts.getScene(selectedManuscriptId, selectedSceneId),
+    enabled: Boolean(selectedSummary?.partial && selectedSceneId), retry: false, refetchOnWindowFocus: false,
+  });
+  const selectedManuscript = useMemo(() => {
+    if (!selectedSummary) return null;
+    if (!selectedSummary.partial || !selectedSceneId || selectedSummary.sections[selectedSceneId] !== undefined) return selectedSummary;
+    const scene = sceneQuery.data;
+    if (!scene || scene.manuscriptId !== selectedSummary.id || scene.sceneId !== selectedSceneId) return selectedSummary;
+    return { ...selectedSummary, currentBranchId: scene.branchId, version: scene.version, updatedAt: scene.updatedAt,
+      sections: { ...selectedSummary.sections, [scene.sceneId]: scene.content } };
+  }, [selectedSummary, selectedSceneId, sceneQuery.data]);
+  useEffect(() => {
+    if (sceneQuery.error) toast({ variant: "destructive", title: "场景正文加载失败", description: sceneQuery.error.message });
+  }, [sceneQuery.error, toast]);
   const sceneRows = useMemo(() => {
     const rows: SceneRow[] = [];
     (outlineDraft?.chapters || []).forEach((chapter, chapterIndex) => {
@@ -152,12 +165,12 @@ export function useManuscriptSelectionData({
 
   const replaceManuscript = useCallback(
     (manuscript: Manuscript) => {
-      if (!selectedOutlineId) return;
-      queryClient.setQueryData<Manuscript[] | undefined>(manuscriptsQueryKey(selectedOutlineId), (prev) =>
+      if (!manuscript.outlineId) return;
+      queryClient.setQueryData<Manuscript[] | undefined>(manuscriptsQueryKey(manuscript.outlineId), (prev) =>
         Array.isArray(prev) ? prev.map((item) => (item.id === manuscript.id ? manuscript : item)) : prev,
       );
     },
-    [queryClient, selectedOutlineId],
+    [queryClient],
   );
   const replaceOutline = useCallback(
     (outline: Outline) => {

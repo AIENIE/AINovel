@@ -35,6 +35,8 @@ import java.util.UUID;
 
 @Service
 public class ManuscriptService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @Autowired private com.ainovel.app.narrative.NarrativeContextService narrativeContext;
     @Autowired private com.ainovel.app.narrative.NarrativeGenerationCandidateStore retainedCandidates;
     private static final String SCENE_DRAFT_PROMPT_VERSION = "scene-draft-v2";
@@ -57,6 +59,7 @@ public class ManuscriptService {
     @Autowired
     private TransactionTemplate transactionTemplate;
 
+    @Transactional(readOnly = true)
     public List<ManuscriptDto> listByOutline(UUID outlineId) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
@@ -71,12 +74,13 @@ public class ManuscriptService {
         manuscript.setOutline(outline);
         manuscript.setTitle(request.title());
         manuscript.setWorldId(request.worldId());
-        manuscript.setSectionsJson(writeJson(new HashMap<String, String>()));
+        contents.initialize(manuscript);
         manuscript.setCharacterLogsJson(writeJson(new ArrayList<>()));
         manuscriptRepository.save(manuscript);
         return toDto(manuscript);
     }
 
+    @Transactional(readOnly = true)
     public ManuscriptDto get(UUID id) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(id).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
@@ -103,7 +107,7 @@ public class ManuscriptService {
             sceneGenerationSnapshotStore.ensureGenerationBaseline(manuscript, owner);
             Manuscript current = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
             return new GenerationSnapshot(current, ownerOf(current), current.getVersion(),
-                    readSectionMap(current.getSectionsJson()));
+                    contents.readAll(current));
         }));
         SceneGenerationService.GenerationResult generation = sceneGenerationService.generateSceneSection(
                 snapshot.manuscript(),
@@ -114,16 +118,14 @@ public class ManuscriptService {
         var contextManifest=generation.metadata()==null?null:generation.metadata().contextManifest();
         var stamp=contextManifest==null?null:contextManifest.isolationStamp();
         UUID retainedId=stamp==null?null:retainedCandidates.retain(stamp,sceneId,generation.html(),generation.metadata());
-        return Objects.requireNonNull(transactionTemplate.execute(status -> {
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> Objects.requireNonNull(transactionTemplate.execute(status -> {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
                     .orElseThrow(() -> new BusinessException("稿件不存在"));
             accessGuard.assertOwner(ownerOf(manuscript));
             if(stamp!=null) narrativeContext.requireStamp(ownerOf(manuscript),stamp);
             requireVersion(manuscript, snapshot.version());
-            Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
             String generatedHtml = generation.html();
-            sections.put(sceneId.toString(), generatedHtml);
-            manuscript.setSectionsJson(writeJson(sections));
+            contents.writeScene(manuscript, sceneId, generatedHtml);
             manuscriptRepository.saveAndFlush(manuscript);
             Map<String, Object> manifest = buildGenerationManifest(sceneId, mode, generation.metadata());
             UUID generationVersionId = sceneGenerationSnapshotStore.createGenerationSnapshot(
@@ -134,26 +136,51 @@ public class ManuscriptService {
             if(retainedId!=null) retainedCandidates.applied(retainedId);
             return toDto(manuscript, new SceneGenerationRunSummaryDto(
                     generatedRun.id(), generatedRun.generationVersionId(), generatedRun.status(), generatedRun.createdAt()));
-        }));
+        })));
     }
 
     @Transactional
     public ManuscriptDto updateSection(UUID manuscriptId, UUID sceneId, SectionUpdateRequest request) {
+        return toDto(saveScene(manuscriptId, sceneId, request));
+    }
+
+    @Transactional
+    public SceneContentDto updateScene(UUID manuscriptId, UUID sceneId, SectionUpdateRequest request) {
+        return sceneDto(saveScene(manuscriptId, sceneId, request), sceneId);
+    }
+
+    @Transactional(readOnly = true)
+    public SceneContentDto getScene(UUID manuscriptId, UUID sceneId) {
+        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
+        accessGuard.assertOwner(ownerOf(manuscript));
+        return sceneDto(manuscript, sceneId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManuscriptSummaryDto> summaries(UUID outlineId) {
+        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
+        accessGuard.assertOwner(outline.getStory().getUser());
+        return manuscriptRepository.findSummariesByOutlineId(outlineId);
+    }
+
+    private SceneContentDto sceneDto(Manuscript manuscript, UUID sceneId) {
+        return new SceneContentDto(manuscript.getId(), manuscript.getCurrentBranchId(), sceneId,
+                contents.readScene(manuscript, sceneId), manuscript.getVersion(), manuscript.getUpdatedAt());
+    }
+
+    private Manuscript saveScene(UUID manuscriptId, UUID sceneId, SectionUpdateRequest request) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow(() -> new BusinessException("稿件不存在"));
         accessGuard.assertOwner(ownerOf(manuscript));
         requireVersion(manuscript, request.expectedVersion());
-        Map<String, String> sections = readSectionMap(manuscript.getSectionsJson());
-        String content = request.content() == null ? "" : request.content();
-        String previousContent = sections.getOrDefault(sceneId.toString(), "");
-        if (Objects.equals(previousContent, content)) {
-            return toDto(manuscript);
-        }
-        sections.put(sceneId.toString(), content);
-        manuscript.setSectionsJson(writeJson(sections));
+        if (request.expectedBranchId() != null && !request.expectedBranchId().equals(manuscript.getCurrentBranchId()))
+            throw new ApiStatusException(HttpStatus.CONFLICT, "MANUSCRIPT_BRANCH_CHANGED");
+        if (request.content() == null) throw new ApiStatusException(HttpStatus.BAD_REQUEST, "SCENE_CONTENT_REQUIRED");
+        String previous = contents.readScene(manuscript, sceneId);
+        if (Objects.equals(previous, request.content())) return manuscript;
+        contents.writeScene(manuscript, sceneId, request.content());
         manuscriptRepository.saveAndFlush(manuscript);
-        eventPublisher.publishEvent(new SceneContentEditedEvent(manuscriptId, sceneId, content));
-        Manuscript persisted = manuscriptRepository.findWithStoryById(manuscript.getId()).orElse(manuscript);
-        return toDto(persisted);
+        eventPublisher.publishEvent(new SceneContentEditedEvent(manuscriptId, sceneId, request.content()));
+        return manuscript;
     }
 
     public List<SceneGenerationRunDto> listSceneGenerationRuns(UUID manuscriptId, UUID sceneId, int limit) {
@@ -226,7 +253,7 @@ public class ManuscriptService {
                 manuscript.getOutline().getId(),
                 manuscript.getTitle(),
                 manuscript.getWorldId(),
-                readSectionMap(manuscript.getSectionsJson()),
+                contents.readAll(manuscript),
                 lastGenerationRun,
                 manuscript.getVersion(),
                 manuscript.getUpdatedAt(),
@@ -288,7 +315,7 @@ public class ManuscriptService {
     }
 
     private Map<String, String> readSectionMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
+        return jsonColumnCodec.readSections(json);
     }
 
     private List<Map<String, Object>> readLogs(String json) {
@@ -312,7 +339,7 @@ public class ManuscriptService {
     }
 
     private String writeJson(Object obj) {
-        return jsonColumnCodec.write(obj, "{}");
+        return jsonColumnCodec.writeRequired(obj);
     }
 
     private User ownerOf(Manuscript manuscript) {

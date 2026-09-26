@@ -36,6 +36,8 @@ import java.util.UUID;
 @Service
 public class SceneGenerationAttributionService {
     @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired
     private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final Logger log = LoggerFactory.getLogger(SceneGenerationAttributionService.class);
     private static final String PROMPT_VERSION = "scene-draft-v2";
@@ -128,8 +130,7 @@ public class SceneGenerationAttributionService {
         int limit = Math.max(1, Math.min(50, requestedLimit));
         SceneGenerationRun liveRun = latestLiveRun(manuscriptId, sceneId);
         if (liveRun != null) {
-            String currentContent = readSections(liveRun.getManuscript().getSectionsJson())
-                    .getOrDefault(sceneId.toString(), "");
+            String currentContent = contents.readScene(liveRun.getManuscript(), sceneId);
             String currentHash = sha256(currentContent);
             if (!currentHash.equals(liveRun.getCurrentContentHash())) {
                 markPending(liveRun, currentContent, Instant.now());

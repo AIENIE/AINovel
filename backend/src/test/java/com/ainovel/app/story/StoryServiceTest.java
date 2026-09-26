@@ -239,6 +239,9 @@ class StoryServiceTest {
             AiService aiService
     ) {
         StoryService service = new StoryService();
+        var transactions = mock(org.springframework.transaction.support.TransactionTemplate.class);
+        when(transactions.execute(any())).thenAnswer(i -> ((org.springframework.transaction.support.TransactionCallback<?>) i.getArgument(0)).doInTransaction(mock(org.springframework.transaction.TransactionStatus.class)));
+        ReflectionTestUtils.setField(service, "transactions", transactions);
         ReflectionTestUtils.setField(service, "storyRepository", storyRepository);
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);

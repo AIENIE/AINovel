@@ -1,3 +1,4 @@
+import { exportFormatSchema, type BranchUpdate, type MergeConflict, type VersionDiff, type AutoSaveConfig } from "@/lib/api-contracts";
 import type { NetworkObject } from "@/lib/api-client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -82,14 +83,14 @@ export function useManuscriptSidebarData({
   const [newBranchName, setNewBranchName] = useState("");
   const [mergeBranchId, setMergeBranchId] = useState("");
   const [mergeStrategy, setMergeStrategy] = useState<"REPLACE_ALL" | "SCENE_SELECT">("REPLACE_ALL");
-  const [mergeConflicts, setMergeConflicts] = useState<NetworkObject[]>([]);
+  const [mergeConflicts, setMergeConflicts] = useState<MergeConflict[]>([]);
   const [sceneResolutions, setSceneResolutions] = useState<Record<string, "target" | "source">>({});
   const [selectedDiffVersions, setSelectedDiffVersions] = useState<string[]>([]);
-  const [diffResult, setDiffResult] = useState<NetworkObject | null>(null);
+  const [diffResult, setDiffResult] = useState<VersionDiff | null>(null);
   const [diffViewMode, setDiffViewMode] = useState<"split" | "unified">("split");
   const [versionVisibleCount, setVersionVisibleCount] = useState(VERSION_PAGE_SIZE);
   const [aiDiffSummary, setAiDiffSummary] = useState("");
-  const [autoSaveConfig, setAutoSaveConfig] = useState<NetworkObject | null>(null);
+  const [autoSaveConfig, setAutoSaveConfig] = useState<AutoSaveConfig | null>(null);
   const [exportFormat, setExportFormat] = useState("txt");
   const [exportTemplateId, setExportTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -314,7 +315,7 @@ export function useManuscriptSidebarData({
     }
     try {
       await api.v2.export.createJob(selectedManuscriptId, {
-        format: exportFormat,
+        format: exportFormatSchema.parse(exportFormat),
         templateId: exportTemplateId || undefined,
         chapterRange: normalizedChapterRange || undefined,
         config: {
@@ -461,7 +462,7 @@ export function useManuscriptSidebarData({
     }
   }, [applyFetchedManuscript, loadVersions, selectedManuscriptId, toast]);
 
-  const updateBranch = useCallback(async (branchId: string, payload: Record<string, NetworkObject>) => {
+  const updateBranch = useCallback(async (branchId: string, payload: BranchUpdate) => {
     if (!selectedManuscriptId) return;
     try {
       await api.v2.version.updateBranch(selectedManuscriptId, branchId, payload);
@@ -499,7 +500,7 @@ export function useManuscriptSidebarData({
         strategy: mergeStrategy,
         sceneResolutions: resolutions || sceneResolutions,
       });
-      if (String(result.status) === "conflict") {
+      if (result.status === "conflict") {
         setMergeConflicts(result.conflicts || []);
         toast({ variant: "destructive", title: t("sidebarData.mergeConflictHint") });
         return;
@@ -522,7 +523,7 @@ export function useManuscriptSidebarData({
       await api.v2.export.createTemplate({
         name,
         description: templateDescription,
-        format: exportFormat,
+        format: exportFormatSchema.parse(exportFormat),
         config: {
           includeTitlePage,
           includeTableOfContents,
@@ -556,7 +557,7 @@ export function useManuscriptSidebarData({
       await api.v2.export.updateTemplate(String(template.id), {
         name: template.name,
         description: template.description || "",
-        format: template.format || exportFormat,
+        format: exportFormatSchema.parse(template.format || exportFormat),
         config: template.config || {},
       });
       await loadExport();

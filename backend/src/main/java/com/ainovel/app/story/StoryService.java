@@ -24,6 +24,8 @@ import java.util.HashMap;
 
 @Service
 public class StoryService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactions;
     @Autowired
     private StoryRepository storyRepository;
     @Autowired
@@ -138,10 +140,10 @@ public class StoryService {
         return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null)).result();
     }
 
-    @Transactional
     public Map<String, Object> conception(User user, StoryCreateRequest request) {
-        StoryDto story = createStory(user, request);
         StoryConceptionService.ConceptionDraft draft = storyConceptionService.draftConception(user, request);
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> transactions.execute(status -> {
+        StoryDto story = createStory(user, request);
         StoryDto updatedStory = story;
         if (!draft.generated().isEmpty()) {
             updatedStory = updateStory(story.id(), draft.storyUpdate());
@@ -159,6 +161,7 @@ public class StoryService {
         result.put("outlineSeed", draft.outlineSeed());
         result.put("generated", draft.generated());
         return result;
+        }));
     }
 
     private StoryDto toDto(Story story) {

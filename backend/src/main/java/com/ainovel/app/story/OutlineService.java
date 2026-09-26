@@ -22,6 +22,8 @@ import java.util.*;
 
 @Service
 public class OutlineService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactions;
     @Autowired
     private OutlineRepository outlineRepository;
     @Autowired
@@ -177,7 +179,6 @@ public class OutlineService {
         outlineRepository.delete(outline);
     }
 
-    @Transactional
     public OutlineDto addGeneratedChapter(UUID outlineId, OutlineChapterGenerateRequest request) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
@@ -240,7 +241,12 @@ public class OutlineService {
                         )).toList()
                 )).toList()
         );
-        return saveOutline(outlineId, saveRequest);
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> transactions.execute(status -> {
+            Outline current = outlineRepository.findByIdForUpdate(outlineId).orElseThrow();
+            if (current.getRevision() != outline.getRevision())
+                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "OUTLINE_VERSION_CONFLICT");
+            return saveOutline(outlineId, saveRequest);
+        }));
     }
 
     private int normalizeSectionsPerChapter(Integer input) {

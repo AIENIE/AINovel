@@ -273,6 +273,10 @@ class OutlineServiceTest {
             UserRepository userRepository
     ) {
         OutlineService service = new OutlineService();
+        var transactions = mock(org.springframework.transaction.support.TransactionTemplate.class);
+        when(transactions.execute(any())).thenAnswer(i -> ((org.springframework.transaction.support.TransactionCallback<?>) i.getArgument(0)).doInTransaction(mock(org.springframework.transaction.TransactionStatus.class)));
+        when(outlineRepository.findByIdForUpdate(any())).thenAnswer(i -> outlineRepository.findByIdWithStoryUser(i.getArgument(0)));
+        ReflectionTestUtils.setField(service, "transactions", transactions);
         ReflectionTestUtils.setField(service, "outlineRepository", outlineRepository);
         ReflectionTestUtils.setField(service, "storyRepository", storyRepository);
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);

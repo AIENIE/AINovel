@@ -33,6 +33,7 @@ class SceneGenerationAttributionServiceTest {
     void isolatedGenerationKeepsEveryVersionAndItsActualCompilerVersion() {
         var repository = mock(SceneGenerationRunRepository.class);
         var service = new SceneGenerationAttributionService(repository, mock(V2ManuscriptVersionRepository.class), new ObjectMapper());
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         var manuscript = manuscriptWithOwner(UUID.randomUUID());
         when(repository.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
         var stamp = Map.<String,Object>of("branchId", UUID.randomUUID().toString(), "manuscriptVersion", 8,
@@ -53,6 +54,7 @@ class SceneGenerationAttributionServiceTest {
                 mock(V2ManuscriptVersionRepository.class),
                 new ObjectMapper()
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID generationVersionId = UUID.randomUUID();
@@ -120,6 +122,7 @@ class SceneGenerationAttributionServiceTest {
                 versionRepository,
                 new ObjectMapper()
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID versionId = UUID.randomUUID();
@@ -161,6 +164,7 @@ class SceneGenerationAttributionServiceTest {
                 versionRepository,
                 new ObjectMapper()
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID missingVersionId = UUID.randomUUID();
@@ -204,6 +208,7 @@ class SceneGenerationAttributionServiceTest {
                 versionRepository,
                 new ObjectMapper()
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         Manuscript manuscript = new Manuscript();
         manuscript.setId(manuscriptId);
@@ -262,6 +267,7 @@ class SceneGenerationAttributionServiceTest {
                 mock(V2ManuscriptVersionRepository.class),
                 new ObjectMapper()
         );
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID runId = UUID.randomUUID();

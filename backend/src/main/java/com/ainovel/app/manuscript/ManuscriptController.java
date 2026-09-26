@@ -3,6 +3,8 @@ package com.ainovel.app.manuscript;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.manuscript.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,6 +26,23 @@ public class ManuscriptController {
     @GetMapping("/outlines/{outlineId}/manuscripts")
     @Operation(summary = "获取稿件列表", description = "按大纲 ID 查询全部稿件。")
     public List<ManuscriptDto> list(@PathVariable UUID outlineId) { return manuscriptService.listByOutline(outlineId); }
+
+    @GetMapping("/outlines/{outlineId}/manuscript-summaries")
+    @Operation(summary = "稿件摘要列表", description = "工作台列表只返回身份和版本，不读取正文 LOB。")
+    public List<ManuscriptSummaryDto> summaries(@PathVariable UUID outlineId) { return manuscriptService.summaries(outlineId); }
+
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/content")
+    @Operation(summary = "读取单场景正文", description = "返回稿件、分支、场景、正文与乐观版本。不存在的场景正文为空字符串。")
+    public SceneContentDto sceneContent(@PathVariable UUID id, @PathVariable UUID sceneId) { return manuscriptService.getScene(id, sceneId); }
+
+    @PutMapping("/manuscripts/{id}/scenes/{sceneId}/content")
+    @Operation(summary = "紧凑保存单场景正文", description = "仅更新目标场景和稿件版本。expectedVersion 必填；expectedBranchId 可选。正文或请求无效返回 400，版本或分支变化返回 409，失败不改变已有正文。")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "返回稿件、分支、场景身份、正文和新版本"),
+            @ApiResponse(responseCode = "400", description = "正文或请求字段无效"),
+            @ApiResponse(responseCode = "409", description = "乐观版本或分支已变化")})
+    public SceneContentDto saveSceneContent(@PathVariable UUID id, @PathVariable UUID sceneId, @Valid @RequestBody SectionUpdateRequest request) {
+        return manuscriptService.updateScene(id, sceneId, request);
+    }
 
     @PostMapping("/outlines/{outlineId}/manuscripts")
     @Operation(summary = "创建稿件", description = "在指定大纲下创建稿件。")

@@ -1,3 +1,4 @@
+import type { BranchUpdate } from "@/lib/api-contracts";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
@@ -49,7 +50,7 @@ type VersionSidebarPanelProps = {
   toggleVersionSelection: (versionId: string) => void;
   versionPageSize: number;
   visibleVersions: NetworkObject[];
-  updateBranch: (branchId: string, patch: Record<string, unknown>) => Promise<void> | void;
+  updateBranch: (branchId: string, patch: BranchUpdate) => Promise<void> | void;
 };
 
 export function VersionSidebarPanel({

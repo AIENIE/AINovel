@@ -11,6 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface OutlineRepository extends JpaRepository<Outline, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from Outline o where o.id=:id")
+    Optional<Outline> findByIdForUpdate(@Param("id") UUID id);
     List<Outline> findByStory(Story story);
 
     @Query("select o from Outline o join fetch o.story s join fetch s.user where o.id = :id")

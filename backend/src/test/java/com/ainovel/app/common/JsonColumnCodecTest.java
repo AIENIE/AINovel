@@ -17,6 +17,28 @@ import static org.mockito.Mockito.when;
 class JsonColumnCodecTest {
 
     @Test
+    void criticalSectionsRejectCorruptionNullAndCoercedValues() {
+        JsonColumnCodec codec = new JsonColumnCodec(new ObjectMapper());
+        for (String invalid : new String[]{null, "", "null", "{bad}", "[]", "{} {}", "{\"scene\":null}", "{\"scene\":42}"}) {
+            ApiStatusException error = org.junit.jupiter.api.Assertions.assertThrows(ApiStatusException.class, () -> codec.readSections(invalid));
+            assertEquals("STORED_DATA_INVALID", error.getMessage());
+            org.junit.jupiter.api.Assertions.assertNull(error.getCause());
+        }
+        assertEquals(Map.of("scene", "正文"), codec.readSections("{\"scene\":\"正文\"}"));
+        assertEquals(Map.of(), codec.readSections("{}"));
+    }
+
+    @Test
+    void criticalWritesFailWithoutParserDetailsOrEmptyFallback() throws Exception {
+        ObjectMapper mapper = mock(ObjectMapper.class);
+        when(mapper.writeValueAsString(any())).thenThrow(new RuntimeException("private manuscript text"));
+        ApiStatusException error = org.junit.jupiter.api.Assertions.assertThrows(ApiStatusException.class,
+                () -> new JsonColumnCodec(mapper).writeRequired(Map.of("scene", "text")));
+        assertEquals("STORED_DATA_SERIALIZATION_FAILED", error.getMessage());
+        org.junit.jupiter.api.Assertions.assertNull(error.getCause());
+    }
+
+    @Test
     void readShouldReturnFallbackForBlankOrInvalidJson() throws Exception {
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         JsonColumnCodec codec = new JsonColumnCodec(objectMapper);

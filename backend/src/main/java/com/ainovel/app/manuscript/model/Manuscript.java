@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "manuscripts")
+@org.hibernate.annotations.DynamicUpdate
 public class Manuscript {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -23,10 +24,14 @@ public class Manuscript {
     private String worldId;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     private String sectionsJson; // sceneId -> content
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     private String characterLogsJson; // optional
+
+    private int contentStorageVersion = 1;
 
     private UUID currentBranchId;
 
@@ -50,6 +55,8 @@ public class Manuscript {
     public void setWorldId(String worldId) { this.worldId = worldId; }
     public String getSectionsJson() { return sectionsJson; }
     public void setSectionsJson(String sectionsJson) { this.sectionsJson = sectionsJson; }
+    public int getContentStorageVersion() { return contentStorageVersion; }
+    public void setContentStorageVersion(int value) { this.contentStorageVersion = value; }
     public String getCharacterLogsJson() { return characterLogsJson; }
     public void setCharacterLogsJson(String characterLogsJson) { this.characterLogsJson = characterLogsJson; }
     public UUID getCurrentBranchId() { return currentBranchId; }

@@ -52,6 +52,7 @@ class SceneGenerationServiceMetadataTest {
         SceneDraftContextCompiler contextCompiler = mock(SceneDraftContextCompiler.class);
 
         SceneGenerationService service = new SceneGenerationService();
+        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);
         ReflectionTestUtils.setField(service, "aiService", aiService);
         ReflectionTestUtils.setField(service, "slopQualityGate", qualityGate);
