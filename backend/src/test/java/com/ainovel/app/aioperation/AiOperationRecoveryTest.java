@@ -41,7 +41,7 @@ class AiOperationRecoveryTest {
         var run = run(true);
         service.recover();
         assertEquals(AiOperationStatus.RECOVERY_REQUIRED, run.getStatus());
-        assertNull(run.getLeaseOwner()); assertNull(run.getLeaseExpiresAt()); assertNull(run.getActiveScopeKey());
+        assertNull(run.getLeaseOwner()); assertNull(run.getLeaseExpiresAt()); assertEquals("active", run.getActiveScopeKey());
         service.recover();
         verify(handler, times(1)).recoverExpiredLease(argThat(e -> e.operationId().equals(run.getId())));
         verify(handler, never()).execute(any());

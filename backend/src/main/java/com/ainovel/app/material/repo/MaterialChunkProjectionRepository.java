@@ -7,9 +7,10 @@ import java.util.*;
 
 public interface MaterialChunkProjectionRepository extends JpaRepository<MaterialChunkProjection,String> {
     void deleteByMaterialId(UUID materialId);
+    List<MaterialChunkProjection> findByMaterialId(UUID materialId);
     @Query(value="""
-      SELECT * FROM material_chunks c
-      WHERE c.status='approved' AND (c.owner_user_id IS NULL OR c.owner_user_id=:ownerId)
+      SELECT c.* FROM material_chunks c JOIN materials m ON m.id=c.material_id
+      WHERE c.content_version=m.content_version AND m.status='approved' AND c.status='approved' AND (c.owner_user_id IS NULL OR c.owner_user_id=:ownerId)
         AND (:query='' OR LOWER(c.title) LIKE LOWER(CONCAT('%',:query,'%'))
              OR LOWER(c.tags) LIKE LOWER(CONCAT('%',:query,'%'))
              OR LOWER(c.text) LIKE LOWER(CONCAT('%',:query,'%')))

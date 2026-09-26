@@ -14,6 +14,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface G2EvaluationSampleRepository extends JpaRepository<G2EvaluationSample, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select sample from G2EvaluationSample sample where sample.id=:id")
+    Optional<G2EvaluationSample> findByIdForUpdate(@Param("id") UUID id);
     boolean existsByExperimentAndAuthorAndManuscriptIdAndSceneId(
             G2EvaluationExperiment experiment, User author, UUID manuscriptId, UUID sceneId);
     long countByExperimentAndStatus(G2EvaluationExperiment experiment, G2EvaluationSampleStatus status);

@@ -210,7 +210,7 @@ public class EconomyService {
         return accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public AiReservationStart reserveAiUsage(User user, long maximumCost, String referenceType,
                                              String referenceId, String idempotencyKey, String requestHash) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
@@ -228,9 +228,19 @@ public class EconomyService {
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
                         reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount());
             }
-            if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
-                throw new BusinessException("相同 AI 请求正在处理中");
+            if (reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) {
+                AiChargeResult charge = settleAiUsage(user, idempotencyKey, reservation.getResultContent(),
+                        reservation.getPromptTokens(), reservation.getCompletionTokens(), reservation.getCacheTokens());
+                return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged());
             }
+            if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
+                if (reservation.getLeaseExpiresAt() == null || reservation.getLeaseExpiresAt().isAfter(Instant.now()))
+                    throw new BusinessException("相同 AI 请求正在处理中");
+                throw new com.ainovel.app.ai.AiResultUncertainException();
+            }
+            if (reservation.getStatus() == AiCreditReservation.Status.RECONCILIATION_REQUIRED)
+                throw new com.ainovel.app.ai.AiResultUncertainException();
         }
 
         ProjectCreditAccount account = accountForUpdate(user);
@@ -254,6 +264,7 @@ public class EconomyService {
         reservation.setAttemptCount(reservation.getAttemptCount() + 1);
         reservation.setSettledAmount(0);
         reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setLeaseExpiresAt(Instant.now().plusSeconds(600));
         reservation.setResultContent(null);
         aiReservationRepository.save(reservation);
         writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
@@ -262,7 +273,35 @@ public class EconomyService {
         return AiReservationStart.reserved();
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void markAiResultUncertain(User user, String idempotencyKey) {
+        User locked = lockUser(user);
+        aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).ifPresent(reservation -> {
+            if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
+                reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);
+                reservation.setLeaseExpiresAt(null);
+                aiReservationRepository.save(reservation);
+            }
+        });
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user, String idempotencyKey, String content,
+                               long inputTokens, long outputTokens, long cacheTokens) {
+        User locked = lockUser(user);
+        AiCreditReservation reservation = aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).orElseThrow();
+        if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED || reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) return;
+        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED) throw new IllegalStateException("AI reservation lost");
+        reservation.setResultContent(content);
+        reservation.setPromptTokens(inputTokens);
+        reservation.setCompletionTokens(outputTokens);
+        reservation.setCacheTokens(cacheTokens);
+        reservation.setStatus(AiCreditReservation.Status.RESULT_READY);
+        reservation.setLeaseExpiresAt(null);
+        aiReservationRepository.save(reservation);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public AiChargeResult settleAiUsage(User user, String idempotencyKey, String content,
                                        long inputTokens, long outputTokens, long cacheTokens) {
         user = lockUser(user);
@@ -272,7 +311,7 @@ public class EconomyService {
         if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
             return new AiChargeResult(reservation.getSettledAmount(), projectBalance(user));
         }
-        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED) {
+        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED && reservation.getStatus() != AiCreditReservation.Status.RESULT_READY) {
             throw new IllegalStateException("AI reservation is not active");
         }
 
@@ -298,11 +337,12 @@ public class EconomyService {
         reservation.setCompletionTokens(outputTokens);
         reservation.setCacheTokens(cacheTokens);
         reservation.setStatus(AiCreditReservation.Status.COMPLETED);
+        reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
         return new AiChargeResult(actualCost, account.getBalance());
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void releaseAiReservation(User user, String idempotencyKey) {
         user = lockUser(user);
         AiCreditReservation reservation = aiReservationRepository
@@ -316,6 +356,7 @@ public class EconomyService {
         accountRepository.save(account);
         syncUserCreditSnapshot(user, nextBalance);
         reservation.setStatus(AiCreditReservation.Status.RELEASED);
+        reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
         writeLedger(user, CreditLedgerType.AI_RESERVATION_RELEASE, reservation.getReservedAmount(), nextBalance,
                 reservation.getReferenceType(), reservation.getReferenceId(), "AI 调用失败，释放预留额度",

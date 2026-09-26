@@ -91,6 +91,12 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
     }
 
     @Override
+    public void deleteChunks(List<String> chunkIds) {
+        if (chunkIds.isEmpty()) return;
+        send("POST", "/collections/" + collection + "/points/delete?wait=true", Map.of("points", chunkIds));
+    }
+
+    @Override
     public List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId) {
         if (vector == null || vector.length == 0) {
             return List.of();

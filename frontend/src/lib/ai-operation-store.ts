@@ -95,8 +95,10 @@ export async function runTrackedAiOperation(start: Promise<AiOperationAccepted>)
 
 export async function cancelTrackedAiOperation(operationId: string): Promise<void> {
   if (!operationId) return;
+  const outcome = await api.aiOperations.cancel(operationId);
+  emit(outcome);
+  if (outcome.status !== "CANCELLED") return;
   if (activeWatch?.operationId === operationId) activeWatch.cancelRequested = true;
-  await api.aiOperations.cancel(operationId).catch(() => undefined);
   if (activeWatch?.operationId === operationId) {
     activeWatch.controller.abort();
   } else {

@@ -220,10 +220,19 @@ public class WorldService {
         return new WorldGenerationStatus(modules);
     }
 
-    @Transactional
     public WorldDetailDto generateModule(UUID id, String moduleKey) {
-        World world = worldRepository.findById(id).orElseThrow();
-        accessGuard.assertOwner(world.getUser());
+        return generateModule(id, moduleKey, true);
+    }
+
+    public WorldDetailDto generateModule(UUID id, String moduleKey, boolean completeOperation) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        World snapshot = Objects.requireNonNull(tx.execute(status -> {
+            World current = worldRepository.findById(id).orElseThrow();
+            accessGuard.assertOwner(current.getUser());
+            current.getUser().getUsername();
+            return current;
+        }));
+        World world = snapshot;
         Map<String, String> progress = readProgress(world.getModuleProgressJson());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         Optional<WorldDefinitionDto> moduleDef = definitions().stream().filter(d -> d.key().equals(moduleKey)).findFirst();
@@ -242,29 +251,29 @@ public class WorldService {
             progress.put(moduleKey, "COMPLETED");
         } catch (RuntimeException ex) {
             String error = cleanError(ex.getMessage());
-            recordModuleFailure(id, moduleKey, error);
+            com.ainovel.app.aioperation.AiOperationExecutionContext.apply(() -> {
+                recordModuleFailure(id, snapshot.getRevision(), moduleKey, error); return null;
+            });
             throw new RuntimeException("生成世界模块失败：" + error, ex);
         }
-        world.setModulesJson(writeJson(modules));
-        world.setModuleProgressJson(writeJson(progress));
-
-        boolean allDone = true;
-        for (WorldDefinitionDto def : definitions()) {
-            String st = statusOnly(progress.get(def.key()));
-            if (!"COMPLETED".equalsIgnoreCase(st)) {
-                allDone = false;
-                break;
+        java.util.function.Supplier<WorldDetailDto> apply = () -> tx.execute(status -> {
+            World current = worldRepository.findByIdForUpdate(id).orElseThrow();
+            accessGuard.assertOwner(current.getUser());
+            if (current.getRevision() != snapshot.getRevision())
+                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "WORLD_VERSION_CONFLICT");
+            current.setModulesJson(writeJson(modules));
+            current.setModuleProgressJson(writeJson(progress));
+            boolean allDone = definitions().stream().allMatch(def -> "COMPLETED".equalsIgnoreCase(statusOnly(progress.get(def.key()))));
+            if (allDone && !"active".equalsIgnoreCase(current.getStatus())) {
+                current.setStatus("active"); current.setVersion(bumpPatch(current.getVersion()));
             }
-        }
-        if (allDone && !"active".equalsIgnoreCase(world.getStatus())) {
-            world.setStatus("active");
-            world.setVersion(bumpPatch(world.getVersion()));
-        }
-        worldRepository.save(world);
-        return toDetail(world);
+            worldRepository.save(current);
+            return toDetail(current);
+        });
+        return completeOperation ? com.ainovel.app.aioperation.AiOperationExecutionContext.complete(apply)
+                : com.ainovel.app.aioperation.AiOperationExecutionContext.apply(apply);
     }
 
-    @Transactional
     public WorldDetailDto retryModule(UUID id, String moduleKey) {
         return generateModule(id, moduleKey);
     }
@@ -284,11 +293,11 @@ public class WorldService {
         return result;
     }
 
-    private void recordModuleFailure(UUID id, String moduleKey, String error) {
+    private void recordModuleFailure(UUID id, long revision, String moduleKey, String error) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         transactionTemplate.executeWithoutResult(status -> {
-            World failedWorld = worldRepository.findById(id).orElseThrow();
+            World failedWorld = worldRepository.findByIdForUpdate(id).orElseThrow();
+            if (failedWorld.getRevision() != revision) return;
             Map<String, String> failedProgress = readProgress(failedWorld.getModuleProgressJson());
             failedProgress.put(moduleKey, "FAILED|" + error);
             failedWorld.setModuleProgressJson(writeJson(failedProgress));

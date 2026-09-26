@@ -18,7 +18,7 @@ describe("ai operation tracking", () => {
     vi.useFakeTimers();
     const pending = deferred<AiOperationProgress>();
     vi.spyOn(api.aiOperations, "wait").mockReturnValue(pending.promise);
-    const cancel = vi.spyOn(api.aiOperations, "cancel").mockResolvedValue(undefined);
+    const cancel = vi.spyOn(api.aiOperations, "cancel").mockResolvedValue(cancelledOperation("operation-long"));
 
     const operation = runTrackedAiOperation(Promise.resolve({ operationId: "operation-long" }));
     await vi.advanceTimersByTimeAsync(10 * 60_000);
@@ -37,7 +37,7 @@ describe("ai operation tracking", () => {
         signal?.addEventListener("abort", () => reject(new DOMException("Operation aborted", "AbortError")));
       });
     });
-    const cancel = vi.spyOn(api.aiOperations, "cancel").mockResolvedValue(undefined);
+    const cancel = vi.spyOn(api.aiOperations, "cancel").mockResolvedValue(cancelledOperation("operation-cancelled"));
     vi.spyOn(api.aiOperations, "get").mockResolvedValue(cancelledOperation("operation-cancelled"));
 
     const operation = runTrackedAiOperation(Promise.resolve({ operationId: "operation-cancelled" }));
@@ -46,6 +46,18 @@ describe("ai operation tracking", () => {
 
     await expect(operation).rejects.toBeInstanceOf(AiOperationCancelledError);
     expect(cancel).toHaveBeenCalledWith("operation-cancelled");
+  });
+
+  it("does not report cancellation when the result committed first", async () => {
+    const started = deferred<void>();
+    const remote = deferred<AiOperationProgress>();
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(() => { started.resolve(undefined); return remote.promise; });
+    vi.spyOn(api.aiOperations, "cancel").mockResolvedValue(completedOperation("operation-finished"));
+    const operation = runTrackedAiOperation(Promise.resolve({ operationId: "operation-finished" }));
+    await started.promise;
+    await cancelTrackedAiOperation("operation-finished");
+    remote.resolve(completedOperation("operation-finished"));
+    await expect(operation).resolves.toMatchObject({ status: "SUCCEEDED" });
   });
 });
 

@@ -37,10 +37,13 @@ public class AiCreditReservation {
     private long completionTokens;
     private long cacheTokens;
     private int attemptCount;
+    private Instant leaseExpiresAt;
     @CreationTimestamp private Instant createdAt;
     @UpdateTimestamp private Instant updatedAt;
 
-    public enum Status { RESERVED, COMPLETED, RELEASED }
+    public enum Status { RESERVED, RESULT_READY, RECONCILIATION_REQUIRED, COMPLETED, RELEASED }
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { leaseExpiresAt = value; }
     public UUID getId() { return id; }
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

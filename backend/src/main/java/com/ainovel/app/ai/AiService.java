@@ -57,7 +57,8 @@ public class AiService {
     }
 
     public AiChatResponse chat(User user, AiChatRequest request, AiUsageContext usageContext) {
-        String key = usageContext == null ? UUID.randomUUID().toString() : usageContext.idempotencyKey();
+        String key = usageContext == null ? com.ainovel.app.aioperation.AiOperationExecutionContext.callKey(
+                admissionGuard == null ? "legacy" : admissionGuard.requestHash(request)) : usageContext.idempotencyKey();
         return executeChat(user, request, usageContext, key);
     }
 
@@ -85,13 +86,21 @@ public class AiService {
             }
             try {
                 AiGatewayGrpcClient.ChatResult result = invokeGateway(remoteUid, request, idempotencyKey);
+                economyService.recordAiResult(user, idempotencyKey, result.content(),
+                        result.promptTokens(), result.completionTokens(), result.cacheTokens());
                 EconomyService.AiChargeResult charge = economyService.settleAiUsage(user, idempotencyKey,
                         result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens());
                 return response(user, result.content(), result.promptTokens(), result.completionTokens(),
                         result.cacheTokens(), charge.charged());
             } catch (RuntimeException ex) {
-                economyService.releaseAiReservation(user, idempotencyKey);
-                throw ex;
+                // A transport failure is not proof of non-execution under the legacy gateway contract.
+                // Never refund/re-infer an uncertain request; RESULT_READY remains locally recoverable.
+                try {
+                    economyService.markAiResultUncertain(user, idempotencyKey);
+                } catch (RuntimeException persistenceFailure) {
+                    ex.addSuppressed(persistenceFailure);
+                }
+                throw new AiResultUncertainException(ex);
             }
         }
     }
