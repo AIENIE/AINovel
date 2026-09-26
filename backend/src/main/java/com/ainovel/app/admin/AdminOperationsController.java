@@ -1,7 +1,9 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
-import com.ainovel.app.material.MaterialService;
+import com.ainovel.app.material.MaterialAdminService;
+import com.ainovel.app.material.MaterialAdminReadRepository;
+import com.ainovel.app.material.MaterialDuplicateService;
 import com.ainovel.app.material.dto.MaterialDto;
 import com.ainovel.app.material.dto.MaterialMergeRequest;
 import com.ainovel.app.material.dto.MaterialReviewRequest;
@@ -21,12 +23,12 @@ import java.util.UUID;
 @Tag(name = "Admin Operations", description = "AINovel 业务运营后台接口")
 @SecurityRequirement(name = "adminSessionCookie")
 public class AdminOperationsController {
-    private final MaterialService materialService;
+    private final MaterialAdminService materialService;
     private final AdminOperationsQueryService adminOperationsQueryService;
     private final OpsRecordFileSink recordFileSink;
 
     public AdminOperationsController(
-            MaterialService materialService,
+            MaterialAdminService materialService,
             AdminOperationsQueryService adminOperationsQueryService,
             OpsRecordFileSink recordFileSink
     ) {
@@ -37,15 +39,15 @@ public class AdminOperationsController {
 
     @GetMapping("/materials/pending")
     @Operation(summary = "待审素材列表")
-    public List<MaterialDto> pendingMaterials() {
-        return materialService.pending();
+    public MaterialAdminReadRepository.Page pendingMaterials(@RequestParam(defaultValue = "0") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        return materialService.pending(page, size);
     }
 
     @PostMapping("/materials/{id}/approve")
     @Operation(summary = "通过素材审核")
     public MaterialDto approveMaterial(@PathVariable UUID id, @RequestBody MaterialReviewRequest request) {
         MaterialDto result = materialService.review(id, "approve", request);
-        audit("material.approve", "material", String.valueOf(id));
         return result;
     }
 
@@ -53,21 +55,31 @@ public class AdminOperationsController {
     @Operation(summary = "驳回素材审核")
     public MaterialDto rejectMaterial(@PathVariable UUID id, @RequestBody MaterialReviewRequest request) {
         MaterialDto result = materialService.review(id, "reject", request);
-        audit("material.reject", "material", String.valueOf(id));
         return result;
     }
 
     @PostMapping("/materials/duplicates")
     @Operation(summary = "素材重复检测")
-    public List<Map<String, Object>> duplicateMaterials() {
+    public MaterialDuplicateService.Job duplicateMaterials() {
         return materialService.findDuplicates();
     }
+
+    @GetMapping("/materials/duplicates/{id}")
+    public MaterialDuplicateService.Job duplicateStatus(@PathVariable UUID id) { return materialService.duplicateStatus(id); }
+
+    @GetMapping("/materials/duplicates/{id}/results")
+    public MaterialDuplicateService.ResultPage duplicateResults(@PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return materialService.duplicateResults(id, page, size);
+    }
+
+    @PostMapping("/materials/duplicates/{id}/cancel")
+    public MaterialDuplicateService.Job cancelDuplicates(@PathVariable UUID id) { return materialService.cancelDuplicates(id); }
 
     @PostMapping("/materials/merge")
     @Operation(summary = "合并素材")
     public MaterialDto mergeMaterial(@RequestBody MaterialMergeRequest request) {
         MaterialDto result = materialService.merge(request);
-        audit("material.merge", "material", result.id() == null ? "merged" : String.valueOf(result.id()));
         return result;
     }
 
@@ -85,26 +97,34 @@ public class AdminOperationsController {
 
     @GetMapping("/assets/stories")
     @Operation(summary = "故事资产只读列表")
-    public List<Map<String, Object>> stories() {
-        return adminOperationsQueryService.stories();
+    public AdminOperationsQueryService.PageResult<AdminOperationsReadRepository.AssetRow> stories(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search) {
+        return adminOperationsQueryService.assets("stories", page, size, search);
     }
 
     @GetMapping("/assets/worlds")
     @Operation(summary = "世界观资产只读列表")
-    public List<Map<String, Object>> worlds() {
-        return adminOperationsQueryService.worlds();
+    public AdminOperationsQueryService.PageResult<AdminOperationsReadRepository.AssetRow> worlds(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search) {
+        return adminOperationsQueryService.assets("worlds", page, size, search);
     }
 
     @GetMapping("/assets/manuscripts")
     @Operation(summary = "稿件资产只读列表")
-    public List<Map<String, Object>> manuscripts() {
-        return adminOperationsQueryService.manuscripts();
+    public AdminOperationsQueryService.PageResult<AdminOperationsReadRepository.AssetRow> manuscripts(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search) {
+        return adminOperationsQueryService.assets("manuscripts", page, size, search);
     }
 
     @GetMapping("/quality/runs")
     @Operation(summary = "质量巡检运行记录")
-    public List<Map<String, Object>> qualityRuns() {
-        return adminOperationsQueryService.qualityRuns();
+    public AdminOperationsQueryService.PageResult<AdminOperationsReadRepository.QualityRow> qualityRuns(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "all") String filter) {
+        return adminOperationsQueryService.qualityRuns(page, size, search, filter);
     }
 
     private void audit(String action, String targetType, String targetId) {

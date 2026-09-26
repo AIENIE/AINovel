@@ -27,6 +27,10 @@ public class Material {
     @Lob
     private String tagsJson;
     private String status; // pending/approved/rejected
+    private String source = "LEGACY";
+    private long contentVersion = 1;
+    @Version
+    private long rowVersion;
     @Lob
     private String entitiesJson;
 
@@ -53,6 +57,10 @@ public class Material {
     public void setTagsJson(String tagsJson) { this.tagsJson = tagsJson; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public long getContentVersion() { return contentVersion; }
+    public void setContentVersion(long contentVersion) { this.contentVersion = contentVersion; }
     public String getEntitiesJson() { return entitiesJson; }
     public void setEntitiesJson(String entitiesJson) { this.entitiesJson = entitiesJson; }
     public Instant getCreatedAt() { return createdAt; }

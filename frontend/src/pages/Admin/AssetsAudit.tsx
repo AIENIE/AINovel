@@ -3,7 +3,7 @@ import { api } from "@/lib/api-client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPager, AdminPanel, AdminSearchToolbar } from "./components/AdminChrome";
-import { getErrorMessage, matchesAdminSearch, pageCountFor, paginateItems } from "./admin-list-utils";
+import { getErrorMessage } from "./admin-list-utils";
 
 const tabs = [
   { key: "stories", label: "故事" },
@@ -21,44 +21,36 @@ type AdminAssetItem = {
 };
 
 const AssetsAudit = () => {
-  const [items, setItems] = useState<Record<string, AdminAssetItem[]>>({});
+  const [items, setItems] = useState<AdminAssetItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["key"]>("stories");
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  useEffect(() => {
+    let cancelled = false;
     setIsLoading(true);
     setError("");
-    try {
-      const [stories, worlds, manuscripts] = await Promise.all(tabs.map((tab) => api.admin.listAssets(tab.key)));
-      setItems({
-        stories: stories as unknown as AdminAssetItem[],
-        worlds: worlds as unknown as AdminAssetItem[],
-        manuscripts: manuscripts as unknown as AdminAssetItem[],
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "创作资产加载失败"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    void api.admin.listAssets(activeTab, page, search).then((result) => {
+      if (cancelled) return;
+      setItems(result.items as unknown as AdminAssetItem[]);
+      setTotal(result.totalElements);
+      setPageCount(Math.max(1, result.totalPages));
+    }).catch((err: unknown) => {
+      if (!cancelled) setError(getErrorMessage(err, "创作资产加载失败"));
+    }).finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, page, search, retry]);
 
-  useEffect(() => {
-    void load();
-  }, []);
-
-  useEffect(() => {
-    setPage(0);
-  }, [activeTab, search]);
-
-  const renderList = (kind: string) => {
-    const list = (items[kind] || []).filter((item) => matchesAdminSearch(item, search));
-    const pageCount = pageCountFor(list.length, 8);
-    const visible = paginateItems(list, page, 8);
+  const renderList = () => {
+    const list = items;
+    const visible = items;
     if (isLoading) return <AdminLoadingState rows={5} />;
-    if (list.length === 0) return <AdminEmptyState title={(items[kind] || []).length === 0 ? "暂无资产数据" : "没有匹配的资产"} />;
+    if (list.length === 0) return <AdminEmptyState title={search ? "没有匹配的资产" : "暂无资产数据"} />;
     return (
       <div className="space-y-3">
         {visible.map((item) => (
@@ -73,7 +65,7 @@ const AssetsAudit = () => {
             </div>
           </div>
         ))}
-        <AdminPager page={Math.min(page, pageCount - 1)} pageCount={pageCount} total={list.length} onPageChange={setPage} />
+        <AdminPager page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
       </div>
     );
   };
@@ -82,11 +74,11 @@ const AssetsAudit = () => {
     <div className="space-y-6">
       <AdminPageHeader title="创作资产" description="只读审计故事、世界观与稿件，不直接修改用户创作内容。" />
 
-      <AdminPanel title="资产列表" description="本页只展示最近资产，用于运营审计和问题定位。">
+      <AdminPanel title="资产列表" description="按更新时间分页查看资产，用于运营审计和问题定位。">
         <div className="space-y-4">
-          <AdminSearchToolbar value={search} onChange={setSearch} placeholder="搜索标题、用户、状态或 ID" />
-          {error ? <AdminErrorState message={error} onRetry={() => void load()} /> : null}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
+          <AdminSearchToolbar value={search} onChange={(value) => { setSearch(value); setPage(0); }} placeholder="搜索标题、用户、状态或 ID" />
+          {error ? <AdminErrorState message={error} onRetry={() => setRetry((value) => value + 1)} /> : null}
+          <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value as typeof activeTab); setPage(0); }}>
             <TabsList className="bg-zinc-950 border border-zinc-800">
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.key} value={tab.key}>{tab.label}</TabsTrigger>
@@ -94,7 +86,7 @@ const AssetsAudit = () => {
             </TabsList>
             {tabs.map((tab) => (
               <TabsContent key={tab.key} value={tab.key} className="mt-4">
-                {renderList(tab.key)}
+                {renderList()}
               </TabsContent>
             ))}
           </Tabs>

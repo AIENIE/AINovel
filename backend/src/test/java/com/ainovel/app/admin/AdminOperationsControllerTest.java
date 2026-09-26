@@ -1,48 +1,45 @@
 package com.ainovel.app.admin;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
-import com.ainovel.app.material.MaterialService;
+import com.ainovel.app.material.MaterialAdminService;
+import com.ainovel.app.material.MaterialAdminReadRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.lang.reflect.Method;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AdminOperationsControllerTest {
+    @Test
+    void defaultsTo20AndForwardsPaginationSearchAndFilter() throws Exception {
+        AdminOperationsQueryService service = mock(AdminOperationsQueryService.class);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class), service, mock(OpsRecordFileSink.class))).build();
+        when(service.assets("stories", 0, 20, "")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 0, 20, 0, 0));
+        mvc.perform(get("/v1/admin/assets/stories")).andExpect(status().isOk()).andExpect(jsonPath("$.size").value(20)).andExpect(jsonPath("$.items").isArray());
+        verify(service).assets("stories", 0, 20, "");
+        when(service.assets("worlds", 2, 10, "A & B")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 2, 10, 30, 3));
+        mvc.perform(get("/v1/admin/assets/worlds").param("page", "2").param("size", "10").param("search", "A & B")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(30));
+        verify(service).assets("worlds", 2, 10, "A & B");
+        when(service.assets("manuscripts", 0, 20, "")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 0, 20, 0, 0));
+        mvc.perform(get("/v1/admin/assets/manuscripts")).andExpect(status().isOk());
+        verify(service).assets("manuscripts", 0, 20, "");
+        when(service.qualityRuns(1, 20, "scene", "high")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 1, 20, 22, 2));
+        mvc.perform(get("/v1/admin/quality/runs").param("page", "1").param("search", "scene").param("filter", "high")).andExpect(status().isOk()).andExpect(jsonPath("$.totalPages").value(2));
+        verify(service).qualityRuns(1, 20, "scene", "high");
+        mvc.perform(get("/v1/admin/assets/stories").param("page", "invalid")).andExpect(status().isBadRequest());
+    }
 
     @Test
-    void readOnlyQueriesShouldDelegateToQueryServiceWithoutControllerTransactions() throws Exception {
-        MaterialService materialService = mock(MaterialService.class);
-        AdminOperationsQueryService queryService = mock(AdminOperationsQueryService.class);
-        OpsRecordFileSink recordFileSink = mock(OpsRecordFileSink.class);
-        AdminOperationsController controller = new AdminOperationsController(materialService, queryService, recordFileSink);
-
-        Map<String, Object> summary = Map.of("stories", 3L);
-        List<Map<String, Object>> stories = List.of(Map.of("id", "story-1"));
-        List<Map<String, Object>> worlds = List.of(Map.of("id", "world-1"));
-        List<Map<String, Object>> manuscripts = List.of(Map.of("id", "manuscript-1"));
-        List<Map<String, Object>> qualityRuns = List.of(Map.of("id", "run-1"));
-        when(queryService.assetSummary()).thenReturn(summary);
-        when(queryService.stories()).thenReturn(stories);
-        when(queryService.worlds()).thenReturn(worlds);
-        when(queryService.manuscripts()).thenReturn(manuscripts);
-        when(queryService.qualityRuns()).thenReturn(qualityRuns);
-
-        assertSame(summary, controller.assetSummary());
-        assertSame(stories, controller.stories());
-        assertSame(worlds, controller.worlds());
-        assertSame(manuscripts, controller.manuscripts());
-        assertSame(qualityRuns, controller.qualityRuns());
-
-        for (String methodName : List.of("assetSummary", "stories", "worlds", "manuscripts", "qualityRuns")) {
-            Method method = AdminOperationsController.class.getMethod(methodName);
-            assertNull(method.getAnnotation(Transactional.class), methodName + " should not declare transactional boundary on controller");
-        }
+    void pendingMaterialsUsePaginatedProjection() throws Exception {
+        MaterialAdminService materials = mock(MaterialAdminService.class);
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(materials,
+                mock(AdminOperationsQueryService.class), mock(OpsRecordFileSink.class))).build();
+        when(materials.pending(2, 20)).thenReturn(new MaterialAdminReadRepository.Page(List.of(), 2, 20, 45, 3));
+        mvc.perform(get("/v1/admin/materials/pending").param("page", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(45))
+                .andExpect(jsonPath("$.size").value(20));
+        verify(materials).pending(2, 20);
     }
 }

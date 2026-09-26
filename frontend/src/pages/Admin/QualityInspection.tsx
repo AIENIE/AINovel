@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPager, AdminPanel, AdminSearchToolbar } from "./components/AdminChrome";
-import { getErrorMessage, matchesAdminSearch, pageCountFor, paginateItems } from "./admin-list-utils";
+import { getErrorMessage } from "./admin-list-utils";
 
 const severityClass = (severity: string) => {
   if (severity === "BLOCKING" || severity === "HIGH") return "border-rose-900 text-rose-400";
@@ -28,41 +28,29 @@ type QualityRun = {
 
 const QualityInspection = () => {
   const [runs, setRuns] = useState<QualityRun[]>([]);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "open" | "high">("all");
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = async () => {
+  useEffect(() => {
+    let cancelled = false;
     setIsLoading(true);
     setError("");
-    try {
-      setRuns(await api.admin.listQualityRuns() as unknown as QualityRun[]);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "质量巡检记录加载失败"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
-
-  useEffect(() => {
-    setPage(0);
-  }, [search, filter]);
-
-  const filteredRuns = runs
-    .filter((run) => matchesAdminSearch(run, search))
-    .filter((run) => {
-      if (filter === "open") return !run.resolved;
-      if (filter === "high") return Number(run.overallRiskScore ?? 0) >= 70 || ["BLOCKING", "HIGH"].includes(run.maxSeverity ?? "");
-      return true;
-    });
-  const pageCount = pageCountFor(filteredRuns.length, 10);
-  const visibleRuns = paginateItems(filteredRuns, page, 10);
+    void api.admin.listQualityRuns(page, search, filter).then((result) => {
+      if (cancelled) return;
+      setRuns(result.items as unknown as QualityRun[]);
+      setTotal(result.totalElements);
+      setPageCount(Math.max(1, result.totalPages));
+    }).catch((err: unknown) => {
+      if (!cancelled) setError(getErrorMessage(err, "质量巡检记录加载失败"));
+    }).finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [page, search, filter, retry]);
 
   return (
     <div className="space-y-6">
@@ -74,7 +62,7 @@ const QualityInspection = () => {
         actions={<ShieldAlert className="h-5 w-5 text-rose-400" />}
       >
         <div className="space-y-4">
-          <AdminSearchToolbar value={search} onChange={setSearch} placeholder="搜索章节、场景、摘要或 ID">
+          <AdminSearchToolbar value={search} onChange={(value) => { setSearch(value); setPage(0); }} placeholder="搜索章节、场景、摘要或 ID">
             {[
               { key: "all", label: "全部" },
               { key: "open", label: "待处理" },
@@ -85,19 +73,19 @@ const QualityInspection = () => {
                 size="sm"
                 variant="outline"
                 className={filter === item.key ? "border-rose-800 bg-rose-950/40 text-rose-200" : "border-zinc-800 bg-zinc-950 text-zinc-400"}
-                onClick={() => setFilter(item.key as typeof filter)}
+                onClick={() => { setFilter(item.key as typeof filter); setPage(0); }}
               >
                 {item.label}
               </Button>
             ))}
           </AdminSearchToolbar>
 
-          {error ? <AdminErrorState message={error} onRetry={() => void load()} /> : null}
+          {error ? <AdminErrorState message={error} onRetry={() => setRetry((value) => value + 1)} /> : null}
           {isLoading ? <AdminLoadingState rows={5} /> : null}
-          {!isLoading && !error && filteredRuns.length === 0 ? (
-            <AdminEmptyState title={runs.length === 0 ? "暂无质量记录" : "没有匹配的质量记录"} />
+          {!isLoading && !error && runs.length === 0 ? (
+            <AdminEmptyState title={search || filter !== "all" ? "没有匹配的质量记录" : "暂无质量记录"} />
           ) : (
-            visibleRuns.map((run) => (
+            (!isLoading && !error ? runs : []).map((run) => (
               <div key={`${run.kind}-${run.id}`} className="rounded-md border border-zinc-800 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
@@ -117,8 +105,8 @@ const QualityInspection = () => {
               </div>
             ))
           )}
-          {!isLoading && !error && filteredRuns.length > 0 ? (
-            <AdminPager page={Math.min(page, pageCount - 1)} pageCount={pageCount} total={filteredRuns.length} onPageChange={setPage} />
+          {!isLoading && !error && runs.length > 0 ? (
+            <AdminPager page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
           ) : null}
         </div>
       </AdminPanel>

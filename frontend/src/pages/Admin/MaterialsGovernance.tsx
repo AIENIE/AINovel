@@ -1,7 +1,6 @@
-import type { NetworkObject } from "@/lib/api-client";
-import { useEffect, useState } from "react";
+import type { NetworkObject, DuplicateJob, PendingMaterial } from "@/lib/api-client";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
-import { Material } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,8 +19,14 @@ type MaterialDuplicateCandidate = {
 
 const MaterialsGovernance = () => {
   const { toast } = useToast();
-  const [pending, setPending] = useState<Material[]>([]);
+  const [pending, setPending] = useState<PendingMaterial[]>([]);
+  const [pendingPage, setPendingPage] = useState(0);
+  const [pendingTotal, setPendingTotal] = useState(0);
   const [duplicates, setDuplicates] = useState<MaterialDuplicateCandidate[]>([]);
+  const [duplicateJob, setDuplicateJob] = useState<DuplicateJob | null>(null);
+  const [duplicatePage, setDuplicatePage] = useState(0);
+  const [duplicateTotal, setDuplicateTotal] = useState(0);
+  const [duplicateIncomplete, setDuplicateIncomplete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -29,28 +34,47 @@ const MaterialsGovernance = () => {
   const [actionId, setActionId] = useState("");
   const [citationResult, setCitationResult] = useState<{ title: string; items: NetworkObject[] } | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [materials, duplicateItems] = await Promise.all([
-        api.admin.listPendingMaterials(),
-        api.admin.findMaterialDuplicates(),
-      ]);
-      setPending(materials);
-      setDuplicates((duplicateItems || []) as unknown as MaterialDuplicateCandidate[]);
+      const result = await api.admin.listPendingMaterials(pendingPage);
+      setPending(result.items);
+      setPendingTotal(result.totalElements);
+      setDuplicates([]);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "素材治理数据加载失败"));
     } finally {
       setLoading(false);
     }
-  };
+  }, [pendingPage]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
-  const review = async (material: Material, action: "approve" | "reject") => {
+  const startDuplicates = async () => {
+    try { setDuplicatePage(0); setDuplicates([]); setDuplicateJob(await api.admin.findMaterialDuplicates()); }
+    catch (err: unknown) { setError(getErrorMessage(err, "启动查重失败")); }
+  };
+  const duplicateJobId = duplicateJob?.id;
+  const duplicateJobStatus = duplicateJob?.status;
+  useEffect(() => {
+    if (!duplicateJobId) return;
+    let stopped = false;
+    const refresh = async () => {
+      try {
+        const [job, result] = await Promise.all([api.admin.getMaterialDuplicateJob(duplicateJobId), api.admin.getMaterialDuplicateResults(duplicateJobId, duplicatePage)]);
+        if (stopped) return;
+        setDuplicateJob(job); setDuplicates(result.items); setDuplicateTotal(result.total); setDuplicateIncomplete(result.incomplete);
+      } catch (err: unknown) { if (!stopped) setError(getErrorMessage(err, "查重状态读取失败")); }
+    };
+    void refresh();
+    const timer = ["queued", "running"].includes(duplicateJobStatus ?? "") ? setInterval(() => void refresh(), 2000) : undefined;
+    return () => { stopped = true; if (timer) clearInterval(timer); };
+  }, [duplicateJobId, duplicateJobStatus, duplicatePage]);
+
+  const review = async (material: PendingMaterial, action: "approve" | "reject") => {
     setReviewingId(material.id);
     try {
       if (action === "approve") {
@@ -120,12 +144,7 @@ const MaterialsGovernance = () => {
                       <div className="font-medium truncate">{material.title}</div>
                       <Badge variant="outline" className="border-zinc-700 text-zinc-400">{material.type}</Badge>
                     </div>
-                    <p className="text-sm text-zinc-500 mt-1 line-clamp-2">{material.summary || material.content}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {material.tags.map((tag) => (
-                        <span key={tag} className="text-xs rounded border border-zinc-800 px-2 py-0.5 text-zinc-500">{tag}</span>
-                      ))}
-                    </div>
+                    <p className="text-sm text-zinc-500 mt-1 line-clamp-2">{material.summary || "暂无摘要"}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button
@@ -154,6 +173,19 @@ const MaterialsGovernance = () => {
         </div>
       </AdminPanel>
 
+      <div className="flex items-center gap-3 text-sm text-zinc-500">
+        <span>待审素材 {pendingTotal} 条 · 第 {pendingPage + 1} 页</span>
+        <Button variant="outline" size="sm" disabled={pendingPage === 0} onClick={() => setPendingPage(p => p - 1)}>上一页</Button>
+        <Button variant="outline" size="sm" disabled={(pendingPage + 1) * 20 >= pendingTotal} onClick={() => setPendingPage(p => p + 1)}>下一页</Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => void startDuplicates()} disabled={!!duplicateJob && ["queued", "running"].includes(duplicateJob.status)}>启动查重</Button>
+        {duplicateJob && ["queued", "running"].includes(duplicateJob.status) ? <Button variant="outline" onClick={() => void api.admin.cancelMaterialDuplicates(duplicateJob.id).then(setDuplicateJob).catch(err => setError(getErrorMessage(err, "取消失败")))}>取消查重</Button> : null}
+        {duplicateJob ? <span className="text-sm">状态：{duplicateJob.status} · 已比较 {duplicateJob.comparisons} 对{duplicateIncomplete ? " · 结果不完整（任务未完成或达到预算）" : ""}</span> : null}
+        <Button variant="outline" disabled={duplicatePage === 0} onClick={() => setDuplicatePage(p => p - 1)}>上一页</Button>
+        <Button variant="outline" disabled={(duplicatePage + 1) * 20 >= duplicateTotal} onClick={() => setDuplicatePage(p => p + 1)}>下一页</Button>
+      </div>
       <AdminPanel title="重复候选" description="按相似度和命中原因辅助人工判断，合并动作仍保持手动确认。">
         <div className="space-y-3">
           {loading ? (
@@ -161,7 +193,7 @@ const MaterialsGovernance = () => {
           ) : filteredDuplicates.length === 0 ? (
             <AdminEmptyState title={duplicates.length === 0 ? "暂无重复候选" : "没有匹配的重复候选"} />
           ) : (
-            filteredDuplicates.slice(0, 20).map((item) => (
+            filteredDuplicates.map((item) => (
               <div key={`${item.sourceMaterialId}-${item.targetMaterialId}`} className="rounded-md border border-zinc-800 p-3 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
