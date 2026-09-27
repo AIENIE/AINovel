@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$EnvironmentFile = (Join-Path $(if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { $env:TEMP }) 'Aienie\secrets\ainovel.env'),
+    [string]$EnvironmentFile = (Join-Path 'D:\project\aienie\aienie-runtime\private\app-secrets' 'ainovel.env'),
     [ValidateSet('All', 'Backend', 'Frontend')][string]$Component = 'All',
     [ValidateRange(30, 900)][int]$StartupTimeoutSeconds = 180,
     [switch]$EnableBackendDebug,

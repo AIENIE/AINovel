@@ -29,7 +29,7 @@ def save(path, value):
 
 def db():
     env = {}
-    path = Path(os.environ["LOCALAPPDATA"]) / "Aienie/secrets/ainovel-slop-20260926.env"
+    path = Path(r"D:\project\aienie\aienie-runtime\private\app-secrets") / "ainovel-slop-20260926.env"
     for line in path.read_text(encoding="utf-8-sig").splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
             k, v = line.split("=", 1)

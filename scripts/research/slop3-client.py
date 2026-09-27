@@ -15,7 +15,7 @@ def save(p,x): p.write_text(json.dumps(x,ensure_ascii=False,indent=2,default=str
 def sha(t): return hashlib.sha256(t.encode()).hexdigest()
 def db():
  env={}
- for line in (Path(os.environ['LOCALAPPDATA'])/'Aienie/secrets/ainovel-slop3-20260926.env').read_text(encoding='utf-8-sig').splitlines():
+ for line in (Path(r'D:\project\aienie\aienie-runtime\private\app-secrets')/'ainovel-slop3-20260926.env').read_text(encoding='utf-8-sig').splitlines():
   if '=' in line and not line.lstrip().startswith('#'):
    k,v=line.split('=',1); env[k.strip()]=v.strip().strip('"').strip("'")
  assert env['AI_VALIDATION_RUN_ID']==RUN and env['AI_VALIDATION_MAXIMUM_CALLS']=='40'
