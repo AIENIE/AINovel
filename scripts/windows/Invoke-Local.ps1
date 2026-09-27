@@ -193,13 +193,22 @@ function Get-ChildEnvironment {
     $child['REDIS_SSL_ENABLED'] = 'false'
     $child['QDRANT_HOST'] = 'http://localbase.testhut.top'
     $child['QDRANT_PORT'] = '26333'
-    $child['AI_GRPC_ADDR'] = 'static://localaiservice.testhut.top:12011'
-    $child['USER_GRPC_ADDR'] = 'static://localuserservice.testhut.top:12001'
-    $child['PAY_GRPC_ADDR'] = 'static://localpayservice.testhut.top:12021'
+    $child['AI_GRPC_ADDR'] = 'static://localaiservice.testhut.top:22011'
+    $child['USER_GRPC_ADDR'] = 'static://localuserservice.testhut.top:22001'
+    $child['PAY_GRPC_ADDR'] = 'static://localpayservice.testhut.top:22021'
     $child['USER_HTTP_ADDR'] = 'https://localuserservice.testhut.top'
     $child['SSO_CALLBACK_ORIGIN'] = 'https://localainovel.testhut.top'
     $child['VITE_SSO_ENTRY_BASE_URL'] = 'https://localainovel.testhut.top'
-    $child['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'] = ''
+    $localTrust = Join-Path $PSScriptRoot 'local-trust\localcert-root-ca.crt'
+    $trustItem = Get-Item -LiteralPath $localTrust -ErrorAction Stop
+    if (($trustItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Local gRPC trust certificate must be a regular file.'
+    }
+    $trustCert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($trustItem.FullName)
+    if ($trustCert.Thumbprint -cne 'ABB779409203615F6864BC73A32A983B91E9D081') {
+        throw 'Local gRPC trust certificate fingerprint mismatch.'
+    }
+    $child['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'] = $trustItem.FullName
     $child['EXTERNAL_GRPC_TLS_ENABLED'] = 'true'
     $child['EXTERNAL_GRPC_PLAINTEXT_ENABLED'] = 'false'
     return $child
@@ -346,7 +355,6 @@ function Stop-NativeRecord {
 }
 
 Assert-NativePowerShell
-
 if ($Action -in @('Build', 'Test', 'Start') -and $Component -in @('All', 'Frontend')) {
     Assert-FrontendToolchain
 }

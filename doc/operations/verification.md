@@ -65,7 +65,7 @@ corepack pnpm@11.22.0 --dir frontend run build
 1. 运行受影响的上下文、归因、迁移、API 与前端面板测试。默认质量测试应校验 36 个 fixture 的冻结分布、六类单缺陷、6 个 holdout、逐字证据及上下文引用，且不得访问网络。
 2. 执行 `mvn -q -f backend/pom.xml clean test`、`corepack pnpm@11.22.0 --dir frontend test`、`corepack pnpm@11.22.0 --dir frontend run build`。
 3. 分别验证新库从 V1 完整迁移到 V13，以及已有 V12 数据库只执行 V13 升级；确认 `scene_generation_runs` 的字段、索引和外键完整。
-4. 确认 MySQL、Redis、Qdrant 已在 `aienie-wsl` 对应 VM 的 `23306`、`26379`、`26333` 端口可达，ai-service、user-service、pay-service 的 local TLS/gRPC 入口分别为 `12011`、`12001`、`12021`；使用当前工作树的私有环境文件和 `scripts/windows/Start-Local.ps1 -EnvironmentFile <private-env-file>` 启动 AINovel，不得读取其他工作树的部署改动或环境文件作为替代。
+4. 确认 MySQL、Redis、Qdrant 已在 `localbase.testhut.top` 的 `23306`、`26379`、`26333` 端口可达，ai-service、user-service、pay-service 的 local TLS/gRPC 入口分别为 `22011`、`22001`、`22021`；使用当前工作树的私有环境文件和 `scripts/windows/Start-Local.ps1 -EnvironmentFile <private-env-file>` 启动 AINovel，不得读取其他工作树的部署改动或环境文件作为替代。
 5. 检查 `/api/actuator/health/liveness`、`/api/actuator/health/readiness` 和 `/api/actuator/health`。
 6. 使用真实 SSO 会话依次走通：跨章上下文预览 → fast/crafted 生成 → 等长与非等长编辑 → 标签确认 → 再生成 → 版本回滚 → 页面刷新恢复。
 7. 验证同一场景的上下文预览与生成 manifest 具有相同 `scene-draft-v2`、来源顺序、固定 3500 预算占用和 hash；未来场景、禁用 Lorebook 与待复核提取不得入选。

@@ -36,6 +36,13 @@ foreach ($versions in @(@('v24.13.0', '11.22.0'), @('v22.23.2', '11.21.0'), @(''
 if ($startText -notmatch "(?s)if \(\`$Action -in @\('Build', 'Test', 'Start'\).*?Assert-FrontendToolchain") {
     throw 'The frontend version policy is not applied before build/test/start.'
 }
+$localTrust = Join-Path $windowsRoot 'local-trust\localcert-root-ca.crt'
+$localTrustItem = Get-Item -LiteralPath $localTrust -ErrorAction Stop
+if (($localTrustItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        ([Security.Cryptography.X509Certificates.X509Certificate2]::new($localTrustItem.FullName)).Thumbprint -cne
+        'ABB779409203615F6864BC73A32A983B91E9D081') {
+    throw 'AINovel local gRPC trust root is missing or differs from LocalCert.'
+}
 if (($startText + $statusText) -match '(?i)Set-AienieProductOperationalState|AIENIE_PRODUCT_STATE_WRITER|config-center|release\.center|icacls|Get-Acl|Start-Direct\.ps1|Start-Native\.ps1') {
     throw 'AINovel local Start/Status must not depend on release, monitoring, ACL, or privileged launch automation.'
 }
@@ -53,7 +60,7 @@ foreach ($required in @(
         'Complete-AienieManagedProcessRecord',
         '''backend\pom.xml''',
         'Directory = Join-Path $repoRoot ''frontend''',
-        '[''EXTERNAL_GRPC_TRUST_CERT_COLLECTION''] = ''''',
+        '[''EXTERNAL_GRPC_TRUST_CERT_COLLECTION''] = $trustItem.FullName',
         '--maxWorkers=2'
 )) {
     if ($runtimeText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
