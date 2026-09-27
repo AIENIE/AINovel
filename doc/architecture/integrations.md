@@ -39,4 +39,5 @@
 - SSO 本地身份由不可变 `(issuer, remote_uid)` 唯一映射；username 仅作为同 UID 的可变展示字段，冲突登录会失败并记录安全事件。
 - ai-service、pay-service、user-service 使用独立 deadline；远程调用不得占用本地数据库事务。
 - 公共积分转换使用稳定 `remoteRequestId` 的可恢复 Saga，瞬态失败保留 `PENDING` 并退避重放，确定性拒绝才进入 `FAILED`。
-- `test`/`production` 强制 MySQL `VERIFY_IDENTITY`、Redis TLS+ACL、Qdrant HTTPS+API key；`local` 明文仅允许带显式启动告警运行。
+- `test` 的规范 MySQL 入口强制 `sslMode=REQUIRED`、`allowPublicKeyRetrieval=false`；当前受控共享 Redis 和 Qdrant 分别使用固定明文入口且不带凭据。`production` 仍强制 MySQL `VERIFY_IDENTITY`、Redis TLS+ACL、Qdrant HTTPS+API key；`local` 明文仅允许带显式启动告警运行。`REQUIRED` 只保证加密，不验证 MySQL 服务端身份；预生产首次恢复连接前须核对迁移历史和待执行版本。
+- Qdrant 1.19 的素材召回使用 `/collections/{collection}/points/query`；升级前须在隔离副本核对查询结果、payload、过滤条件与集合向量维度，不能用仅返回 HTTP 200 代替召回验收。

@@ -1,7 +1,7 @@
-FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS builder
+FROM node:22.23.2-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9 AS builder
 WORKDIR /src
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-RUN corepack enable pnpm && corepack pnpm@11.22.0 install --frozen-lockfile --no-fund --no-audit
+RUN corepack enable pnpm && corepack pnpm@11.22.0 install --frozen-lockfile
 COPY frontend/ ./
 RUN corepack pnpm@11.22.0 run build
 

@@ -120,7 +120,7 @@ class AiNovelApplicationPreflightTest {
         assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
 
         for (Map.Entry<String, String> invalid : Map.of(
-                "DB_URL", "jdbc:mysql://192.168.1.3:13306/ainovel?sslMode=DISABLED&allowPublicKeyRetrieval=false",
+                "DB_URL", "jdbc:mysql://192.168.1.3:13306/ainovel?sslMode=REQUIRED&allowPublicKeyRetrieval=false",
                 "REDIS_HOST", "192.168.1.3",
                 "REDIS_PORT", "26379",
                 "REDIS_SSL_ENABLED", "true",
@@ -134,6 +134,15 @@ class AiNovelApplicationPreflightTest {
         Map<String, String> duplicateOverride = new HashMap<>(environment);
         duplicateOverride.put("DB_URL", environment.get("DB_URL") + "&allowPublicKeyRetrieval=true");
         assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(duplicateOverride));
+
+        for (String insecureMode : java.util.List.of("DISABLED", "PREFERRED")) {
+            Map<String, String> insecure = new HashMap<>(environment);
+            insecure.put("DB_URL", environment.get("DB_URL").replace("sslMode=REQUIRED", "sslMode=" + insecureMode));
+            assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(insecure), insecureMode);
+        }
+        Map<String, String> duplicateMode = new HashMap<>(environment);
+        duplicateMode.put("DB_URL", environment.get("DB_URL") + "&sslMode=DISABLED");
+        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(duplicateMode));
 
         Map<String, String> fakeRedisCredential = new HashMap<>(environment);
         fakeRedisCredential.put("REDIS_PASSWORD", "not-configured-on-staging");
@@ -214,7 +223,7 @@ class AiNovelApplicationPreflightTest {
 
     private void configureStagingDataServices(Map<String, String> environment) {
         environment.put("DB_URL",
-                "jdbc:mysql://base.testhut.top:13306/ainovel?sslMode=DISABLED&allowPublicKeyRetrieval=false");
+                "jdbc:mysql://base.testhut.top:13306/ainovel?sslMode=REQUIRED&allowPublicKeyRetrieval=false");
         environment.put("REDIS_HOST", "base.testhut.top");
         environment.put("REDIS_PORT", "16379");
         environment.put("REDIS_SSL_ENABLED", "false");

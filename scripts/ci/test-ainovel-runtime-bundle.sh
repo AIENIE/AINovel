@@ -39,7 +39,7 @@ bash "$flattener" AINovel "$probe/legacy" "$probe/output"
 bash "$repo_root/scripts/ci/assemble-ainovel-runtime.sh" "$repo_root" "$probe/output"
 
 test -x "$probe/output/backend/start-backend.sh"
-test -x "$probe/output/docker/staging-load-env-file.sh"
+test -x "$probe/output/scripts/docker/staging-load-env-file.sh"
 grep -Fq 'entrypoint: ["/app/bin/start-backend.sh"]' "$probe/output/docker-compose.yml"
 grep -Fq 'command: ["/app/env.txt"]' "$probe/output/docker-compose.yml"
 grep -Fq '/api/actuator/health/readiness' "$probe/output/docker-compose.yml"
@@ -68,7 +68,7 @@ value = json.load(open(sys.argv[1], encoding="utf-8"))
 assert value["project_key"] == "AINovel"
 for expected in (
     "backend/start-backend.sh",
-    "docker/staging-load-env-file.sh",
+    "scripts/docker/staging-load-env-file.sh",
     "docker-compose.yml",
 ):
     assert expected in value["files"], expected

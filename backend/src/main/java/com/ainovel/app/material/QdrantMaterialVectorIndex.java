@@ -104,16 +104,16 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
         ensureCollection(vector.length);
         try {
             Map<String, Object> body = new java.util.LinkedHashMap<>();
-            body.put("vector", floats(vector));
+            body.put("query", floats(vector));
             body.put("limit", Math.max(1, Math.min(limit, 50)));
             body.put("with_payload", true);
             List<Object> should = new ArrayList<>();
             should.add(Map.of("key", "ownerUserId", "match", Map.of("value", "")));
             if (ownerUserId != null) should.add(Map.of("key", "ownerUserId", "match", Map.of("value", ownerUserId.toString())));
             body.put("filter", Map.of("must", List.of(Map.of("key", "status", "match", Map.of("value", "approved"))), "should", should));
-            JsonNode root = send("POST", "/collections/" + collection + "/points/search", body);
+            JsonNode root = send("POST", "/collections/" + collection + "/points/query", body);
             List<VectorMatch> matches = new ArrayList<>();
-            for (JsonNode item : root.path("result")) {
+            for (JsonNode item : root.path("result").path("points")) {
                 String chunkId = item.path("payload").path("chunkId").asText("");
                 double score = item.path("score").asDouble(0d);
                 if (!chunkId.isBlank()) {

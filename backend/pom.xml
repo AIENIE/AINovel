@@ -17,7 +17,7 @@
         <java.version>25</java.version>
         <flywayPluginVersion>12.10.0</flywayPluginVersion>
         <jjwt.version>0.11.5</jjwt.version>
-        <mysql.version>9.7.0</mysql.version>
+        <mysql.version>26.7.0</mysql.version>
         <grpc.version>1.84.0</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
         <netty.version>4.1.138.Final</netty.version>

@@ -125,10 +125,10 @@ public final class RuntimeEnvironmentPreflight {
     private static void validateStagingDataServices(Map<String, String> environment) {
         String dbUrl = environment.get("DB_URL");
         if (!hasMysqlEndpoint(dbUrl, STAGING_DATA_HOST, 13306)
-                || !hasOnlyQueryValue(dbUrl, "sslMode", "DISABLED")
+                || !hasOnlyQueryValue(dbUrl, "sslMode", "REQUIRED")
                 || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
             throw new IllegalStateException(
-                    "test DB_URL must use base.testhut.top:13306, sslMode=DISABLED, and allowPublicKeyRetrieval=false");
+                    "test DB_URL must use base.testhut.top:13306, sslMode=REQUIRED, and allowPublicKeyRetrieval=false");
         }
         if (!STAGING_DATA_HOST.equalsIgnoreCase(environment.get("REDIS_HOST"))
                 || !"16379".equals(environment.get("REDIS_PORT"))

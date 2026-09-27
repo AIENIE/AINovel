@@ -150,7 +150,7 @@ if python3 "$repo_root/scripts/ci/verify-staging-oci-role-contract.py" \
 fi
 [[ -f "$AIENIE_CI_OUTPUT_DIR/payload.bin" && -f "$AIENIE_DEPENDENCY_MANIFEST" \
   && -x "$AIENIE_CI_OUTPUT_DIR/backend/start-backend.sh" \
-  && -x "$AIENIE_CI_OUTPUT_DIR/docker/staging-load-env-file.sh" ]] || {
+  && -x "$AIENIE_CI_OUTPUT_DIR/scripts/docker/staging-load-env-file.sh" ]] || {
   echo 'Positive offline Build did not produce payload plus protected manifest.' >&2
   exit 1
 }

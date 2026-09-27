@@ -30,7 +30,7 @@ install_exact() {
 install_exact "$repo_root/backend/start-backend.sh" \
   "$output_dir/backend/start-backend.sh" 0555
 install_exact "$repo_root/scripts/docker/staging-load-env-file.sh" \
-  "$output_dir/docker/staging-load-env-file.sh" 0555
+  "$output_dir/scripts/docker/staging-load-env-file.sh" 0555
 install_exact "$repo_root/scripts/ci/ainovel-runtime-compose.yml" \
   "$output_dir/docker-compose.yml" 0444
 install_exact "$repo_root/scripts/ci/staging-oci-role-contract.json" \
@@ -57,7 +57,7 @@ required = (
     'command: ["/app/env.txt"]',
     "source: ./backend/start-backend.sh",
     "target: /app/bin/start-backend.sh",
-    "source: ./docker/staging-load-env-file.sh",
+    "source: ./scripts/docker/staging-load-env-file.sh",
     "target: /app/bin/staging-load-env-file.sh",
     "/api/actuator/health/readiness",
     "/run/aienie/trust/staging-root.pem",
