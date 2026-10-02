@@ -89,7 +89,7 @@ management:
     tags:
       component: ai-novel
       service: backend
-      environment: local
+      environment: develop
       release_id: unknown
       release_version: unknown
 app:
