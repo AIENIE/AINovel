@@ -6,7 +6,7 @@ spring:
     url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password:
+    password: null
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -17,11 +17,9 @@ spring:
     redis:
       host: localhost
       port: 0
-      password:
-
+      password: null
 server:
   port: 0
-
 app:
   admin-auth:
     username: admin
@@ -38,7 +36,15 @@ app:
     expiration-minutes: 120
     issuer: ainovel
     audience: ainovel-web
-
+  external:
+    security:
+      ai:
+        hmac-secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
+      user:
+        secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
+      pay:
+        secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
 sso:
   session-validation:
     enabled: false
+GRPC_SHARED_SECRET: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz

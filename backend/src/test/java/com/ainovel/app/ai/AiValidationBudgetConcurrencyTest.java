@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@DataJpaTest(showSql=false,properties={"app.ai.validation.run-id=concurrent-budget-test","app.ai.validation.maximum-calls=200"})
+@DataJpaTest(showSql=false,properties={"app.ai.validation.run-id=concurrent-budget-test","app.ai.validation.maximum-calls=200","spring.flyway.enabled=false","spring.jpa.hibernate.ddl-auto=create-drop"})
 @ActiveProfiles("local")
 @Import({AiValidationCallBudget.class,AiValidationBudgetConcurrencyTest.Beans.class})
 @Transactional(propagation=Propagation.NOT_SUPPORTED)

@@ -9,7 +9,8 @@ import java.util.Map;
 @SpringBootApplication
 public class AiNovelApplication {
     public static void main(String[] args) {
-        launch(System.getenv(), () -> SpringApplication.run(AiNovelApplication.class, args));
+        com.aienie.configpair.RuntimeConfiguration.initialize(args);
+        launch(com.aienie.configpair.RuntimeConfiguration.getenv(), () -> com.aienie.configpair.RuntimeConfiguration.run(AiNovelApplication.class, args));
     }
 
     static void preflight(Map<String, String> environment) {

@@ -3,23 +3,23 @@ spring:
     servlet:
       path: /api
   datasource:
-    url: ${DB_URL:jdbc:mysql://${MYSQL_HOST:localbase.testhut.top}:${MYSQL_PORT:23306}/${MYSQL_DB:ainovel}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
-    username: ${DB_USERNAME:${MYSQL_USER:ainovel}}
-    password: ${DB_PASSWORD:${MYSQL_PASSWORD:ainovelpwd}}
+    url: ''
+    username: ainovel
+    password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
-      minimum-idle: ${DB_POOL_MIN_IDLE:4}
-      connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:5000}
-      leak-detection-threshold: ${DB_POOL_LEAK_DETECTION_MS:30000}
+      maximum-pool-size: 20
+      minimum-idle: 4
+      connection-timeout: 5000
+      leak-detection-threshold: 30000
   jpa:
     hibernate:
-      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true
     open-in-view: false
   flyway:
-    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    enabled: true
     locations: classpath:db/migration
     baseline-version: 1
     baseline-on-migrate: false
@@ -27,46 +27,43 @@ spring:
     clean-disabled: true
   data:
     redis:
-      host: ${REDIS_HOST:localbase.testhut.top}
-      port: ${REDIS_PORT:26379}
-      username: ${REDIS_USERNAME:}
+      host: ''
+      port: 26379
+      username: ''
       password: ${REDIS_PASSWORD:}
       ssl:
-        enabled: ${REDIS_SSL_ENABLED:false}
-      timeout: ${REDIS_TIMEOUT:3s}
+        enabled: false
+      timeout: 3s
   cache:
     type: redis
     redis:
-      key-prefix: ${REDIS_KEY_PREFIX:aienie:ainovel:}
+      key-prefix: 'aienie:ainovel:'
       use-key-prefix: true
   servlet:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
   jackson:
-    time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
-
+    time-zone: Asia/Shanghai
 server:
-  port: ${PORT:11041}
-
+  port: 11041
 logging:
   file:
-    name: ${LOGGING_FILE_NAME:${APP_LOG_DIR:./logs}/ainovel.log}
+    name: ./logs/ainovel.log
   structured:
     format:
       file: ecs
   pattern:
-    level: "requestId=%X{requestId:-none} %5p"
+    level: requestId=%X{requestId:-none} %5p
   logback:
     rollingpolicy:
-      max-file-size: ${LOGGING_MAX_FILE_SIZE:10MB}
-      max-history: ${LOGGING_MAX_HISTORY:14}
-      total-size-cap: ${LOGGING_TOTAL_SIZE_CAP:1GB}
+      max-file-size: 10MB
+      max-history: 14
+      total-size-cap: 1GB
       clean-history-on-start: true
   level:
-    root: ${LOGGING_LEVEL_ROOT:INFO}
-    com.ainovel: ${LOGGING_LEVEL_APP:INFO}
-
+    root: INFO
+    com.ainovel: INFO
 management:
   endpoint:
     health:
@@ -92,110 +89,111 @@ management:
     tags:
       component: ai-novel
       service: backend
-      environment: ${DEPLOYMENT_ENVIRONMENT:local}
-      release_id: ${RELEASE_ID:unknown}
-      release_version: ${RELEASE_VERSION:unknown}
-
+      environment: local
+      release_id: unknown
+      release_version: unknown
 app:
-  time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+  time-zone: Asia/Shanghai
   records:
-    dir: ${APP_RECORD_DIR:./var/records}
-    elasticsearch-query-enabled: ${APP_RECORD_ES_QUERY_ENABLED:true}
-    max-file-size-bytes: ${APP_RECORD_MAX_FILE_SIZE_BYTES:10485760}
-    max-history-days: ${APP_RECORD_MAX_HISTORY_DAYS:14}
-    max-total-size-bytes: ${APP_RECORD_MAX_TOTAL_SIZE_BYTES:1073741824}
+    dir: ./var/records
+    elasticsearch-query-enabled: true
+    max-file-size-bytes: 10485760
+    max-history-days: 14
+    max-total-size-bytes: 1073741824
   admin-auth:
-    username: ${ADMIN_USERNAME:}
+    username: ''
     password-hash: ${ADMIN_PASSWORD_HASH:}
     encryption-keys: ${ADMIN_TOTP_ENCRYPTION_KEYS:}
-    active-key-version: ${ADMIN_TOTP_ACTIVE_KEY_VERSION:}
-    trusted-origins: ${ADMIN_TRUSTED_ORIGINS:https://localainovel.testhut.top}
-    cookie-secure: ${ADMIN_SESSION_COOKIE_SECURE:true}
-    session-minutes: ${ADMIN_SESSION_MINUTES:30}
-    session-idle-minutes: ${ADMIN_SESSION_IDLE_MINUTES:10}
-    recovery-session-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_MINUTES:15}
-    recovery-session-idle-minutes: ${ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES:10}
+    active-key-version: ''
+    trusted-origins: ''
+    cookie-secure: true
+    session-minutes: 30
+    session-idle-minutes: 10
+    recovery-session-minutes: 15
+    recovery-session-idle-minutes: 10
   jwt:
-    secret: ${JWT_SECRET:super-secret-change-me-1234567890abcdef-super-secret-change-me-1234567890}
+    secret: ${JWT_SECRET}
     expiration-minutes: 120
-    issuer: ${JWT_ISSUER:ainovel}
-    audience: ${JWT_AUDIENCE:ainovel-web}
+    issuer: ainovel
+    audience: ainovel-web
   ai:
-    model: ${AI_MODEL:deepseek-v4-flash}
-    base-url: ${AI_BASE_URL:}
+    model: deepseek-v4-flash
+    base-url: ''
     api-key: ${AI_API_KEY:}
     admission:
-      max-messages: ${AI_MAX_MESSAGES:64}
-      max-message-chars: ${AI_MAX_MESSAGE_CHARS:20000}
-      max-total-chars: ${AI_MAX_TOTAL_CHARS:100000}
-      max-requests-per-minute: ${AI_REQUESTS_PER_MINUTE:20}
-      max-user-in-flight: ${AI_MAX_USER_IN_FLIGHT:2}
-      max-global-in-flight: ${AI_MAX_GLOBAL_IN_FLIGHT:32}
-      reservation-credits: ${AI_RESERVATION_CREDITS:2}
+      max-messages: 64
+      max-message-chars: 20000
+      max-total-chars: 100000
+      max-requests-per-minute: 20
+      max-user-in-flight: 2
+      max-global-in-flight: 32
+      reservation-credits: 2
   external:
-    project-key: ${EXTERNAL_PROJECT_KEY:ainovel}
-    timeout-ms: ${EXTERNAL_TIMEOUT_MS:120000}
-    ai-timeout-ms: ${EXTERNAL_AI_TIMEOUT_MS:60000}
-    billing-timeout-ms: ${EXTERNAL_BILLING_TIMEOUT_MS:5000}
-    session-timeout-ms: ${EXTERNAL_SESSION_TIMEOUT_MS:3000}
+    project-key: ainovel
+    timeout-ms: 120000
+    ai-timeout-ms: 60000
+    billing-timeout-ms: 5000
+    session-timeout-ms: 3000
     grpc:
-      tls-enabled: ${EXTERNAL_GRPC_TLS_ENABLED:true}
-      plaintext-enabled: ${EXTERNAL_GRPC_PLAINTEXT_ENABLED:false}
-      trust-cert-collection: ${EXTERNAL_GRPC_TRUST_CERT_COLLECTION:}
+      tls-enabled: true
+      plaintext-enabled: false
+      trust-cert-collection: ''
     security:
-      fail-fast: ${EXTERNAL_SECURITY_FAIL_FAST:true}
+      fail-fast: true
       ai:
-        hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}
-        hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}
+        hmac-caller: ''
+        hmac-secret: ${GRPC_SHARED_SECRET}
       user:
-        caller-id: ${EXTERNAL_USER_SERVICE_JWT_CALLER_ID:ainovel}
-        issuer: ${EXTERNAL_USER_SERVICE_JWT_ISSUER:ainovel}
-        secret: ${EXTERNAL_USER_SERVICE_JWT_SECRET:}
-        audience: ${EXTERNAL_USER_SERVICE_JWT_AUDIENCE:aienie-userservice-grpc}
-        ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}
-        scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}
+        caller-id: ainovel
+        issuer: ainovel
+        secret: ${GRPC_SHARED_SECRET}
+        audience: aienie-userservice-grpc
+        ttl-seconds: 300
+        scopes: user.auth.session.read
       pay:
-        caller-id: ${EXTERNAL_PAY_SERVICE_JWT_CALLER_ID:ainovel}
-        issuer: ${EXTERNAL_PAY_SERVICE_JWT_ISSUER:ainovel}
-        service-name: ${EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME:ainovel}
-        secret: ${EXTERNAL_PAY_SERVICE_JWT_SECRET:}
-        audience: ${EXTERNAL_PAY_SERVICE_JWT_AUDIENCE:aienie-payservice-grpc}
-        role: ${EXTERNAL_PAY_SERVICE_JWT_ROLE:SERVICE}
-        ttl-seconds: ${EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS:300}
-        scopes: ${EXTERNAL_PAY_SERVICE_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read}
-        legacy-static-token: ${EXTERNAL_PAY_SERVICE_JWT:}
+        caller-id: ainovel
+        issuer: ainovel
+        service-name: ainovel
+        secret: ${GRPC_SHARED_SECRET}
+        audience: aienie-payservice-grpc
+        role: SERVICE
+        ttl-seconds: 300
+        scopes: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read
     userservice-http:
-      address: ${USER_HTTP_ADDR:https://userservice.seekerhut.com}
+      address: https://userservice.seekerhut.com
     aiservice-grpc:
-      address: ${AI_GRPC_ADDR:static://aiservice.seekerhut.com:443}
+      address: static://aiservice.seekerhut.com:443
     payservice-grpc:
-      address: ${PAY_GRPC_ADDR:static://payservice.seekerhut.com:443}
-
+      address: static://payservice.seekerhut.com:443
 sso:
-  callback-origin: ${SSO_CALLBACK_ORIGIN:https://localainovel.testhut.top}
+  callback-origin: ''
   session-validation:
-    enabled: ${SSO_SESSION_VALIDATION_ENABLED:true}
-    timeout-ms: ${USER_SESSION_GRPC_TIMEOUT_MS:5000}
-    grpc-address: ${USER_GRPC_ADDR:static://userservice.seekerhut.com:443}
-
+    enabled: true
+    timeout-ms: 5000
+    grpc-address: static://userservice.seekerhut.com:443
 qdrant:
-  host: ${QDRANT_HOST:http://localbase.testhut.top}
-  http-port: ${QDRANT_PORT:26333}
-  enabled: ${QDRANT_ENABLED:true}
+  host: ''
+  http-port: 26333
+  enabled: true
   api-key: ${QDRANT_API_KEY:}
-  connect-timeout-ms: ${QDRANT_CONNECT_TIMEOUT_MS:2000}
-  request-timeout-ms: ${QDRANT_REQUEST_TIMEOUT_MS:5000}
-
+  connect-timeout-ms: 2000
+  request-timeout-ms: 5000
 springdoc:
   api-docs:
-    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
+    enabled: false
   swagger-ui:
-    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
-
+    enabled: false
 elasticsearch:
-  hosts: ${ELASTICSEARCH_HOSTS:https://es.localhut.com:9200}
-  username: ${ELASTICSEARCH_USERNAME:elastic}
+  hosts: ''
+  username: elastic
   password: ${ELASTICSEARCH_PASSWORD:}
-
 filebeat:
-  index-prefix: ${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}
+  index-prefix: aienie-local-ainovel
+runtime:
+  configuration:
+    ENV: ''
+    AUTH_MODE: ''
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:}
+    ADMIN_TOTP_SECRET: ${ADMIN_TOTP_SECRET:}
+ENV: ${runtime.configuration.ENV}
+AUTH_MODE: ${runtime.configuration.AUTH_MODE}

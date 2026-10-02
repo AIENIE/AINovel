@@ -3,7 +3,7 @@ spring:
     url: jdbc:h2:mem:testdb;MODE=MySQL
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password: null
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -15,7 +15,6 @@ spring:
   data:
     redis:
       host: 127.0.0.1
-
 app:
   material:
     duplicates:
@@ -37,11 +36,11 @@ app:
     security:
       ai:
         hmac-caller: ai-novel
-        hmac-secret: test-ai-hmac-secret-32-bytes-distinct-value
+        hmac-secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
       user:
         caller-id: ainovel
         issuer: ainovel
-        secret: test-user-service-jwt-secret-32-bytes-distinct
+        secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
         audience: aienie-userservice-grpc
         ttl-seconds: 300
         scopes: user.auth.session.read
@@ -49,9 +48,10 @@ app:
         caller-id: ainovel
         issuer: ainovel
         service-name: ainovel
-        secret: test-pay-service-jwt-secret-32-bytes-distinct
+        secret: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz
         audience: aienie-payservice-grpc
         role: SERVICE
         ttl-seconds: 300
         scopes: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read
         legacy-static-token: ''
+GRPC_SHARED_SECRET: 0123456789abcdefABCDEFGHIJKLMNOPQRSTUVWXYZuvwxyz

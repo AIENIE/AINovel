@@ -1,0 +1,324 @@
+{
+  "format": "application-yaml-env-v1",
+  "component": "ai-novel",
+  "bindings": {
+    "AI_VALIDATION_RUN_ID": [
+      "app.ai.validation.run-id"
+    ],
+    "AI_VALIDATION_MAXIMUM_CALLS": [
+      "app.ai.validation.maximum-calls"
+    ],
+    "AI_VALIDATION_LOCAL_QUALITY_ONLY": [
+      "app.ai.validation.local-quality-only"
+    ],
+    "EXTERNAL_AI_TIMEOUT_MS": [
+      "app.external.ai-timeout-ms"
+    ],
+    "DB_URL": [
+      "spring.datasource.url"
+    ],
+    "DB_USERNAME": [
+      "spring.datasource.username"
+    ],
+    "DB_PASSWORD": [
+      "spring.datasource.password"
+    ],
+    "DB_POOL_MAX_SIZE": [
+      "spring.datasource.hikari.maximum-pool-size"
+    ],
+    "DB_POOL_MIN_IDLE": [
+      "spring.datasource.hikari.minimum-idle"
+    ],
+    "DB_POOL_CONNECTION_TIMEOUT_MS": [
+      "spring.datasource.hikari.connection-timeout"
+    ],
+    "DB_POOL_LEAK_DETECTION_MS": [
+      "spring.datasource.hikari.leak-detection-threshold"
+    ],
+    "SPRING_JPA_HIBERNATE_DDL_AUTO": [
+      "spring.jpa.hibernate.ddl-auto"
+    ],
+    "SPRING_FLYWAY_ENABLED": [
+      "spring.flyway.enabled"
+    ],
+    "REDIS_HOST": [
+      "spring.data.redis.host"
+    ],
+    "REDIS_PORT": [
+      "spring.data.redis.port"
+    ],
+    "REDIS_USERNAME": [
+      "spring.data.redis.username"
+    ],
+    "REDIS_PASSWORD": [
+      "spring.data.redis.password"
+    ],
+    "REDIS_SSL_ENABLED": [
+      "spring.data.redis.ssl.enabled"
+    ],
+    "REDIS_TIMEOUT": [
+      "spring.data.redis.timeout"
+    ],
+    "REDIS_KEY_PREFIX": [
+      "spring.cache.redis.key-prefix"
+    ],
+    "APP_TIME_ZONE": [
+      "spring.jackson.time-zone",
+      "app.time-zone"
+    ],
+    "PORT": [
+      "server.port"
+    ],
+    "LOGGING_FILE_NAME": [
+      "logging.file.name"
+    ],
+    "LOGGING_MAX_FILE_SIZE": [
+      "logging.logback.rollingpolicy.max-file-size"
+    ],
+    "LOGGING_MAX_HISTORY": [
+      "logging.logback.rollingpolicy.max-history"
+    ],
+    "LOGGING_TOTAL_SIZE_CAP": [
+      "logging.logback.rollingpolicy.total-size-cap"
+    ],
+    "LOGGING_LEVEL_ROOT": [
+      "logging.level.root"
+    ],
+    "LOGGING_LEVEL_APP": [
+      "logging.level.com.ainovel"
+    ],
+    "DEPLOYMENT_ENVIRONMENT": [
+      "management.metrics.tags.environment"
+    ],
+    "RELEASE_ID": [
+      "management.metrics.tags.release_id"
+    ],
+    "RELEASE_VERSION": [
+      "management.metrics.tags.release_version"
+    ],
+    "APP_RECORD_DIR": [
+      "app.records.dir"
+    ],
+    "APP_RECORD_ES_QUERY_ENABLED": [
+      "app.records.elasticsearch-query-enabled"
+    ],
+    "APP_RECORD_MAX_FILE_SIZE_BYTES": [
+      "app.records.max-file-size-bytes"
+    ],
+    "APP_RECORD_MAX_HISTORY_DAYS": [
+      "app.records.max-history-days"
+    ],
+    "APP_RECORD_MAX_TOTAL_SIZE_BYTES": [
+      "app.records.max-total-size-bytes"
+    ],
+    "ADMIN_USERNAME": [
+      "app.admin-auth.username"
+    ],
+    "ADMIN_PASSWORD_HASH": [
+      "app.admin-auth.password-hash"
+    ],
+    "ADMIN_TOTP_ENCRYPTION_KEYS": [
+      "app.admin-auth.encryption-keys"
+    ],
+    "ADMIN_TOTP_ACTIVE_KEY_VERSION": [
+      "app.admin-auth.active-key-version"
+    ],
+    "ADMIN_TRUSTED_ORIGINS": [
+      "app.admin-auth.trusted-origins"
+    ],
+    "ADMIN_SESSION_COOKIE_SECURE": [
+      "app.admin-auth.cookie-secure"
+    ],
+    "ADMIN_SESSION_MINUTES": [
+      "app.admin-auth.session-minutes"
+    ],
+    "ADMIN_SESSION_IDLE_MINUTES": [
+      "app.admin-auth.session-idle-minutes"
+    ],
+    "ADMIN_TOTP_RECOVERY_SESSION_MINUTES": [
+      "app.admin-auth.recovery-session-minutes"
+    ],
+    "ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES": [
+      "app.admin-auth.recovery-session-idle-minutes"
+    ],
+    "JWT_SECRET": [
+      "app.jwt.secret"
+    ],
+    "JWT_ISSUER": [
+      "app.jwt.issuer"
+    ],
+    "JWT_AUDIENCE": [
+      "app.jwt.audience"
+    ],
+    "AI_MODEL": [
+      "app.ai.model"
+    ],
+    "AI_BASE_URL": [
+      "app.ai.base-url"
+    ],
+    "AI_API_KEY": [
+      "app.ai.api-key"
+    ],
+    "AI_MAX_MESSAGES": [
+      "app.ai.admission.max-messages"
+    ],
+    "AI_MAX_MESSAGE_CHARS": [
+      "app.ai.admission.max-message-chars"
+    ],
+    "AI_MAX_TOTAL_CHARS": [
+      "app.ai.admission.max-total-chars"
+    ],
+    "AI_REQUESTS_PER_MINUTE": [
+      "app.ai.admission.max-requests-per-minute"
+    ],
+    "AI_MAX_USER_IN_FLIGHT": [
+      "app.ai.admission.max-user-in-flight"
+    ],
+    "AI_MAX_GLOBAL_IN_FLIGHT": [
+      "app.ai.admission.max-global-in-flight"
+    ],
+    "AI_RESERVATION_CREDITS": [
+      "app.ai.admission.reservation-credits"
+    ],
+    "EXTERNAL_PROJECT_KEY": [
+      "app.external.project-key"
+    ],
+    "EXTERNAL_TIMEOUT_MS": [
+      "app.external.timeout-ms"
+    ],
+    "EXTERNAL_BILLING_TIMEOUT_MS": [
+      "app.external.billing-timeout-ms"
+    ],
+    "EXTERNAL_SESSION_TIMEOUT_MS": [
+      "app.external.session-timeout-ms"
+    ],
+    "EXTERNAL_GRPC_TLS_ENABLED": [
+      "app.external.grpc.tls-enabled"
+    ],
+    "EXTERNAL_GRPC_PLAINTEXT_ENABLED": [
+      "app.external.grpc.plaintext-enabled"
+    ],
+    "EXTERNAL_GRPC_TRUST_CERT_COLLECTION": [
+      "app.external.grpc.trust-cert-collection"
+    ],
+    "EXTERNAL_SECURITY_FAIL_FAST": [
+      "app.external.security.fail-fast"
+    ],
+    "EXTERNAL_AI_HMAC_CALLER": [
+      "app.external.security.ai.hmac-caller"
+    ],
+    "EXTERNAL_USER_SERVICE_JWT_CALLER_ID": [
+      "app.external.security.user.caller-id"
+    ],
+    "EXTERNAL_USER_SERVICE_JWT_ISSUER": [
+      "app.external.security.user.issuer"
+    ],
+    "EXTERNAL_USER_SERVICE_JWT_AUDIENCE": [
+      "app.external.security.user.audience"
+    ],
+    "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS": [
+      "app.external.security.user.ttl-seconds"
+    ],
+    "EXTERNAL_USER_SERVICE_JWT_SCOPES": [
+      "app.external.security.user.scopes"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_CALLER_ID": [
+      "app.external.security.pay.caller-id"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_ISSUER": [
+      "app.external.security.pay.issuer"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME": [
+      "app.external.security.pay.service-name"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_AUDIENCE": [
+      "app.external.security.pay.audience"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_ROLE": [
+      "app.external.security.pay.role"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS": [
+      "app.external.security.pay.ttl-seconds"
+    ],
+    "EXTERNAL_PAY_SERVICE_JWT_SCOPES": [
+      "app.external.security.pay.scopes"
+    ],
+    "USER_HTTP_ADDR": [
+      "app.external.userservice-http.address"
+    ],
+    "AI_GRPC_ADDR": [
+      "app.external.aiservice-grpc.address"
+    ],
+    "PAY_GRPC_ADDR": [
+      "app.external.payservice-grpc.address"
+    ],
+    "SSO_CALLBACK_ORIGIN": [
+      "sso.callback-origin"
+    ],
+    "SSO_SESSION_VALIDATION_ENABLED": [
+      "sso.session-validation.enabled"
+    ],
+    "USER_SESSION_GRPC_TIMEOUT_MS": [
+      "sso.session-validation.timeout-ms"
+    ],
+    "USER_GRPC_ADDR": [
+      "sso.session-validation.grpc-address"
+    ],
+    "QDRANT_HOST": [
+      "qdrant.host"
+    ],
+    "QDRANT_PORT": [
+      "qdrant.http-port"
+    ],
+    "QDRANT_ENABLED": [
+      "qdrant.enabled"
+    ],
+    "QDRANT_API_KEY": [
+      "qdrant.api-key"
+    ],
+    "QDRANT_CONNECT_TIMEOUT_MS": [
+      "qdrant.connect-timeout-ms"
+    ],
+    "QDRANT_REQUEST_TIMEOUT_MS": [
+      "qdrant.request-timeout-ms"
+    ],
+    "SPRINGDOC_API_DOCS_ENABLED": [
+      "springdoc.api-docs.enabled"
+    ],
+    "SPRINGDOC_SWAGGER_UI_ENABLED": [
+      "springdoc.swagger-ui.enabled"
+    ],
+    "ELASTICSEARCH_HOSTS": [
+      "elasticsearch.hosts"
+    ],
+    "ELASTICSEARCH_USERNAME": [
+      "elasticsearch.username"
+    ],
+    "ELASTICSEARCH_PASSWORD": [
+      "elasticsearch.password"
+    ],
+    "FILEBEAT_INDEX_PREFIX": [
+      "filebeat.index-prefix"
+    ],
+    "ENV": [
+      "runtime.configuration.ENV"
+    ],
+    "AUTH_MODE": [
+      "runtime.configuration.AUTH_MODE"
+    ],
+    "ADMIN_PASSWORD": [
+      "runtime.configuration.ADMIN_PASSWORD"
+    ],
+    "ADMIN_TOTP_SECRET": [
+      "runtime.configuration.ADMIN_TOTP_SECRET"
+    ],
+    "SPRING_PROFILES_ACTIVE": [
+      "spring.profiles.active"
+    ],
+    "GRPC_SHARED_SECRET": [
+      "app.external.security.ai.hmac-secret",
+      "app.external.security.user.secret",
+      "app.external.security.pay.secret"
+    ]
+  }
+}

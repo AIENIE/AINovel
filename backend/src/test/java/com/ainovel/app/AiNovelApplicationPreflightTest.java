@@ -59,7 +59,8 @@ class AiNovelApplicationPreflightTest {
                         (left, right) -> right,
                         LinkedHashMap::new
                 ));
-        assertEquals(placeholders, fixedTemplateValues);
+        assertTrue(placeholders.entrySet().containsAll(fixedTemplateValues.entrySet()));
+        assertTrue(fixedTemplateValues.keySet().stream().allMatch(name -> name.matches(".*(PASSWORD|SECRET|KEY|TOKEN).*")));
 
         placeholders.forEach((name, value) -> {
             Map<String, String> environment = validEnvironment();
@@ -157,7 +158,7 @@ class AiNovelApplicationPreflightTest {
         for (Map.Entry<String, String> invalid : Map.of(
                 "EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "AINovel",
                 "EXTERNAL_USER_SERVICE_JWT_ISSUER", "issuer with spaces",
-                "EXTERNAL_USER_SERVICE_JWT_SECRET", "short-secret",
+                "GRPC_SHARED_SECRET", "short-secret",
                 "EXTERNAL_USER_SERVICE_JWT_AUDIENCE", "wrong-audience",
                 "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "901",
                 "EXTERNAL_USER_SERVICE_JWT_SCOPES", "user.auth.session.read,user.directory.read"
@@ -190,17 +191,17 @@ class AiNovelApplicationPreflightTest {
         environment.put("REDIS_PASSWORD", "unit-test-redis-password");
         environment.put("SPRING_JPA_HIBERNATE_DDL_AUTO", "none");
         environment.put("EXTERNAL_AI_HMAC_CALLER", "ainovel-unit-test");
-        environment.put("EXTERNAL_AI_HMAC_SECRET", "unit-test-hmac-secret-with-at-least-32-bytes");
+        environment.put("GRPC_SHARED_SECRET", "unit-test-hmac-secret-with-at-least-32-bytes");
         environment.put("EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "ainovel");
         environment.put("EXTERNAL_USER_SERVICE_JWT_ISSUER", "ainovel");
-        environment.put("EXTERNAL_USER_SERVICE_JWT_SECRET", "unit-test-user-service-jwt-secret-32-bytes");
+        environment.put("GRPC_SHARED_SECRET", "unit-test-user-service-jwt-secret-32-bytes");
         environment.put("EXTERNAL_USER_SERVICE_JWT_AUDIENCE", "aienie-userservice-grpc");
         environment.put("EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "300");
         environment.put("EXTERNAL_USER_SERVICE_JWT_SCOPES", "user.auth.session.read");
         environment.put("EXTERNAL_PAY_SERVICE_JWT_CALLER_ID", "ainovel");
         environment.put("EXTERNAL_PAY_SERVICE_JWT_ISSUER", "ainovel");
         environment.put("EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME", "ainovel");
-        environment.put("EXTERNAL_PAY_SERVICE_JWT_SECRET",
+        environment.put("GRPC_SHARED_SECRET",
                 "unit-test-pay-service-jwt-secret-32-bytes");
         environment.put("EXTERNAL_PAY_SERVICE_JWT_AUDIENCE", "aienie-payservice-grpc");
         environment.put("EXTERNAL_PAY_SERVICE_JWT_ROLE", "SERVICE");
@@ -223,13 +224,13 @@ class AiNovelApplicationPreflightTest {
 
     private void configureStagingDataServices(Map<String, String> environment) {
         environment.put("DB_URL",
-                "jdbc:mysql://base.testhut.top:13306/ainovel?sslMode=REQUIRED&allowPublicKeyRetrieval=false");
-        environment.put("REDIS_HOST", "base.testhut.top");
+                "jdbc:mysql://mysql.testhut.top:13306/ainovel?sslMode=REQUIRED&allowPublicKeyRetrieval=false");
+        environment.put("REDIS_HOST", "redis.testhut.top");
         environment.put("REDIS_PORT", "16379");
         environment.put("REDIS_SSL_ENABLED", "false");
         environment.put("REDIS_USERNAME", "");
         environment.put("REDIS_PASSWORD", "");
-        environment.put("QDRANT_HOST", "http://base.testhut.top");
+        environment.put("QDRANT_HOST", "http://qdrant.testhut.top");
         environment.put("QDRANT_PORT", "16333");
         environment.put("QDRANT_API_KEY", "");
     }

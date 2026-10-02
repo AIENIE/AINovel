@@ -9,7 +9,7 @@ public class SystemEnvAdminAuthPolicySource implements AdminAuthPolicySource {
     private final Function<String, String> environment;
 
     public SystemEnvAdminAuthPolicySource() {
-        this(System::getenv);
+        this(com.aienie.configpair.RuntimeConfiguration::getenv);
     }
 
     SystemEnvAdminAuthPolicySource(Function<String, String> environment) {

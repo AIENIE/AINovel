@@ -38,7 +38,7 @@ for required in (
     "release/production-migration-executor",
 ):
     assert required in manifest["files"], required
-assert contract["protected_config_overlay_contract"]["allowed_files"] == [{
+assert contract["protected_config_overlay_contract"]["allowed_files"] == [{"target_path":"application.yml","file_mode":"0444","owner":"runtime_identity","consumers":["backend-runtime","production-migration-executor"]}, {
     "target_path": "env.txt",
     "file_mode": "0600",
     "owner": "runtime_identity",

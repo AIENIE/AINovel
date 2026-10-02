@@ -32,7 +32,7 @@ public class ExternalSecurityStartupValidator implements ApplicationRunner {
         }
         if (isUnset(security.getAi().getHmacSecret())
                 || security.getAi().getHmacSecret().getBytes(StandardCharsets.UTF_8).length < 32) {
-            invalid.add("EXTERNAL_AI_HMAC_SECRET");
+            invalid.add("GRPC_SHARED_SECRET");
         }
         try {
             ExternalServiceProperties.User user = security.getUser();

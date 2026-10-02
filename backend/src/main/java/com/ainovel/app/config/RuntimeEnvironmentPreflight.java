@@ -26,12 +26,12 @@ public final class RuntimeEnvironmentPreflight {
             "JWT_SECRET", "JWT_ISSUER", "JWT_AUDIENCE",
             "MYSQL_PASSWORD", "SPRING_JPA_HIBERNATE_DDL_AUTO",
             "ADMIN_TRUSTED_ORIGINS", "ADMIN_SESSION_COOKIE_SECURE",
-            "EXTERNAL_AI_HMAC_CALLER", "EXTERNAL_AI_HMAC_SECRET",
+            "EXTERNAL_AI_HMAC_CALLER", "GRPC_SHARED_SECRET",
             "EXTERNAL_USER_SERVICE_JWT_CALLER_ID", "EXTERNAL_USER_SERVICE_JWT_ISSUER",
-            "EXTERNAL_USER_SERVICE_JWT_SECRET", "EXTERNAL_USER_SERVICE_JWT_AUDIENCE",
+            "EXTERNAL_USER_SERVICE_JWT_AUDIENCE",
             "EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS", "EXTERNAL_USER_SERVICE_JWT_SCOPES",
             "EXTERNAL_PAY_SERVICE_JWT_CALLER_ID", "EXTERNAL_PAY_SERVICE_JWT_ISSUER",
-            "EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME", "EXTERNAL_PAY_SERVICE_JWT_SECRET",
+            "EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME",
             "EXTERNAL_PAY_SERVICE_JWT_AUDIENCE", "EXTERNAL_PAY_SERVICE_JWT_ROLE",
             "EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS", "EXTERNAL_PAY_SERVICE_JWT_SCOPES"
     );
@@ -45,7 +45,9 @@ public final class RuntimeEnvironmentPreflight {
     private static final List<String> PRODUCTION_DATA_CREDENTIALS_REQUIRED = List.of(
             "REDIS_USERNAME", "REDIS_PASSWORD", "QDRANT_API_KEY"
     );
-    private static final String STAGING_DATA_HOST = "base.testhut.top";
+    private static final String STAGING_MYSQL_HOST = "mysql.testhut.top";
+    private static final String STAGING_REDIS_HOST = "redis.testhut.top";
+    private static final String STAGING_QDRANT_HOST = "qdrant.testhut.top";
     private static final String TEMPLATE_PLACEHOLDER_RESOURCE = "env-template-placeholders.properties";
     private static final Map<String, String> TEMPLATE_PLACEHOLDERS = loadTemplatePlaceholders();
 
@@ -124,22 +126,22 @@ public final class RuntimeEnvironmentPreflight {
 
     private static void validateStagingDataServices(Map<String, String> environment) {
         String dbUrl = environment.get("DB_URL");
-        if (!hasMysqlEndpoint(dbUrl, STAGING_DATA_HOST, 13306)
+        if (!hasMysqlEndpoint(dbUrl, STAGING_MYSQL_HOST, 13306)
                 || !hasOnlyQueryValue(dbUrl, "sslMode", "REQUIRED")
                 || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
             throw new IllegalStateException(
-                    "test DB_URL must use base.testhut.top:13306, sslMode=REQUIRED, and allowPublicKeyRetrieval=false");
+                    "test DB_URL must use mysql.testhut.top:13306, sslMode=REQUIRED, and allowPublicKeyRetrieval=false");
         }
-        if (!STAGING_DATA_HOST.equalsIgnoreCase(environment.get("REDIS_HOST"))
+        if (!STAGING_REDIS_HOST.equalsIgnoreCase(environment.get("REDIS_HOST"))
                 || !"16379".equals(environment.get("REDIS_PORT"))
                 || !"false".equals(environment.get("REDIS_SSL_ENABLED"))) {
             throw new IllegalStateException(
-                    "test Redis must use plaintext base.testhut.top:16379 exactly as rebaselined");
+                    "test Redis must use plaintext redis.testhut.top:16379 exactly as rebaselined");
         }
-        if (!("http://" + STAGING_DATA_HOST).equalsIgnoreCase(environment.get("QDRANT_HOST"))
+        if (!("http://" + STAGING_QDRANT_HOST).equalsIgnoreCase(environment.get("QDRANT_HOST"))
                 || !"16333".equals(environment.get("QDRANT_PORT"))) {
             throw new IllegalStateException(
-                    "test Qdrant must use http://base.testhut.top:16333 exactly as rebaselined");
+                    "test Qdrant must use http://qdrant.testhut.top:16333 exactly as rebaselined");
         }
         if (hasText(environment.get("REDIS_USERNAME")) || hasText(environment.get("REDIS_PASSWORD"))
                 || hasText(environment.get("QDRANT_API_KEY"))) {
@@ -159,7 +161,7 @@ public final class RuntimeEnvironmentPreflight {
             UserServiceJwtConfigurationValidator.validate(
                     environment.get("EXTERNAL_USER_SERVICE_JWT_CALLER_ID"),
                     environment.get("EXTERNAL_USER_SERVICE_JWT_ISSUER"),
-                    environment.get("EXTERNAL_USER_SERVICE_JWT_SECRET"),
+                    environment.get("GRPC_SHARED_SECRET"),
                     environment.get("EXTERNAL_USER_SERVICE_JWT_AUDIENCE"),
                     ttlSeconds,
                     environment.get("EXTERNAL_USER_SERVICE_JWT_SCOPES")
@@ -183,7 +185,7 @@ public final class RuntimeEnvironmentPreflight {
         pay.setCallerId(environment.get("EXTERNAL_PAY_SERVICE_JWT_CALLER_ID"));
         pay.setIssuer(environment.get("EXTERNAL_PAY_SERVICE_JWT_ISSUER"));
         pay.setServiceName(environment.get("EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME"));
-        pay.setSecret(environment.get("EXTERNAL_PAY_SERVICE_JWT_SECRET"));
+        pay.setSecret(environment.get("GRPC_SHARED_SECRET"));
         pay.setAudience(environment.get("EXTERNAL_PAY_SERVICE_JWT_AUDIENCE"));
         pay.setRole(environment.get("EXTERNAL_PAY_SERVICE_JWT_ROLE"));
         pay.setTtlSeconds(ttlSeconds);

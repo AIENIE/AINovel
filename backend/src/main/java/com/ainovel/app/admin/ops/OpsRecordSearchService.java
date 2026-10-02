@@ -31,7 +31,7 @@ public class OpsRecordSearchService {
     @Value("${app.records.elasticsearch-query-enabled:${APP_RECORD_ES_QUERY_ENABLED:true}}")
     private boolean enabled;
 
-    @Value("${elasticsearch.hosts:${ELASTICSEARCH_HOSTS:https://es.localhut.com:9200}}")
+    @Value("${elasticsearch.hosts:}")
     private String elasticsearchHosts;
 
     @Value("${elasticsearch.username:${ELASTICSEARCH_USERNAME:elastic}}")

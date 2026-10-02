@@ -2,6 +2,12 @@
 import ipaddress,json,pathlib,re,sys
 from urllib.parse import urlparse
 c=pathlib.Path(sys.argv[1]); y=pathlib.Path(sys.argv[2]); expected=sys.argv[3]; paths=map(pathlib.Path,sys.argv[4:]); v=json.loads(c.read_text(encoding='utf-8')); compose=y.read_text(encoding='utf-8'); runtime=compose+'\n'+'\n'.join(p.read_text(encoding='utf-8') for p in paths)
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1 if pathlib.Path(__file__).parent.name == "ci" and pathlib.Path(__file__).parent.parent.name == "fireflyChat" else 2]/"scripts/config-pair"))
+from read_configuration import read
+configuration_root = pathlib.Path(__file__).resolve().parents[1 if pathlib.Path(__file__).parent.parent.name == "fireflyChat" else 2]
+configuration_values = read(configuration_root, "production")
+runtime += "\n" + "\n".join(key+"="+value for key,value in configuration_values.items())
+
 if (v.get('schema_version'),v.get('canonical_component_id'),v.get('profile_id'),v.get('environment')) != ('aienie-product-production-contract-v1',expected,'prod-products-68','production'): raise SystemExit('production identity drifted')
 o=urlparse(v.get('public_origin',''))
 if o.scheme!='https' or not o.hostname or not o.hostname.endswith('.seekerhut.com'): raise SystemExit('invalid public origin')
@@ -9,8 +15,8 @@ if v.get('platform_injected_digest_fields')!=['source_commit','config_digest','a
 if v.get('authorization')!={'minimum_release_manifest_version':4,'policy':'signed-v4-only','outer_signature_required':True}: raise SystemExit('production releases require a signed outer v4 manifest')
 expected_overlay={
   'schema_version':'aienie-production-protected-config-overlay-contract-v1',
-  'allowed_files':[{'target_path':'env.txt','file_mode':'0600','owner':'runtime_identity','consumers':['backend-runtime','production-migration-executor']}],
-  'forbidden_exact_paths':['docker-compose.yml','application.yml','prompt.yml'],
+  'allowed_files':[{'target_path':'application.yml','file_mode':'0444','owner':'runtime_identity','consumers':['backend-runtime','production-migration-executor']},{'target_path':'env.txt','file_mode':'0600','owner':'runtime_identity','consumers':['backend-runtime','production-migration-executor']}],
+  'forbidden_exact_paths':['docker-compose.yml','prompt.yml'],
   'forbidden_prefixes':['backend/','frontend/','release/'],
   'artifact_override_policy':'deny','unlisted_path_policy':'deny',
 }

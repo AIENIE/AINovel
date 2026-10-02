@@ -1,0 +1,51 @@
+runtime:
+  configuration:
+    SERVER_ADDRESS: 0.0.0.0
+    SERVER_PORT: '11041'
+    APP_LOG_DIR: /app/logs
+server:
+  port: '11041'
+spring:
+  datasource:
+    url: jdbc:mysql://base.seekerhut.com:13306/ainovel?sslMode=VERIFY_IDENTITY&allowPublicKeyRetrieval=false&serverTimezone=Asia/Shanghai
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: none
+  data:
+    redis:
+      host: base.seekerhut.com
+      port: '16379'
+      ssl:
+        enabled: true
+qdrant:
+  host: https://base.seekerhut.com
+  http-port: '16333'
+app:
+  external:
+    userservice-http:
+      address: https://userservice.seekerhut.com
+    aiservice-grpc:
+      address: static://aiservice.seekerhut.com:12011
+    payservice-grpc:
+      address: static://payservice.seekerhut.com:12021
+    grpc:
+      tls-enabled: true
+      plaintext-enabled: false
+    security:
+      ai:
+        hmac-secret: ${GRPC_SHARED_SECRET}
+      user:
+        secret: ${GRPC_SHARED_SECRET}
+      pay:
+        secret: ${GRPC_SHARED_SECRET}
+  admin-auth:
+    trusted-origins: https://ainovel.seekerhut.com
+  records:
+    elasticsearch-query-enabled: false
+    dir: /app/records
+sso:
+  session-validation:
+    grpc-address: static://userservice.seekerhut.com:12001
+  callback-origin: https://ainovel.seekerhut.com

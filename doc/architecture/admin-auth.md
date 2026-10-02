@@ -2,7 +2,7 @@
 
 ## 策略入口
 
-后端认证策略只读取进程中的 `ENV` 和 `AUTH_MODE`，不接受 Spring profile、配置文件默认值、大小写转换、引号或前后空格。Windows 本地进程环境由 `Start-Local.ps1` 从 ACL 收紧的仓库外安全文件注入；非 Windows Docker 部署只能由经过门禁的 `0600` 普通文件 `env.txt` 提供，宿主同名变量不能补齐或覆盖。启动时只允许：
+后端认证策略读取有效 YAML 中的 ENV 和 AUTH_MODE，不接受大小写转换或前后空格；profile 和外部 YAML 按 Spring 原生优先级加载。Windows 本地进程环境由 `Start-Local.ps1` 从 ACL 收紧的仓库外安全文件注入；非 Windows Docker 部署只能由经过门禁的 `0600` 普通文件 `env.txt` 提供，宿主同名变量不能补齐或覆盖。启动时只允许：
 
 | ENV | AUTH_MODE | 行为 |
 | --- | --- | --- |

@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ActiveProfiles("test")
 @DataJpaTest
 @Import({com.ainovel.app.manuscript.ManuscriptContentService.class,
         com.ainovel.app.ai.AiModelPolicy.class,

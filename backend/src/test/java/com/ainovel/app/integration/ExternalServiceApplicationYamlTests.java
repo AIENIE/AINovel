@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ExternalServiceApplicationYamlTests {
 
@@ -16,23 +17,23 @@ class ExternalServiceApplicationYamlTests {
     void shouldUseCanonicalExternalSecurityPlaceholders() throws IOException {
         String yaml = applicationYaml();
 
-        assertTrue(yaml.contains("hmac-caller: ${EXTERNAL_AI_HMAC_CALLER:}"));
-        assertTrue(yaml.contains("hmac-secret: ${EXTERNAL_AI_HMAC_SECRET:}"));
-        assertTrue(yaml.contains("caller-id: ${EXTERNAL_USER_SERVICE_JWT_CALLER_ID:ainovel}"));
-        assertTrue(yaml.contains("issuer: ${EXTERNAL_USER_SERVICE_JWT_ISSUER:ainovel}"));
-        assertTrue(yaml.contains("secret: ${EXTERNAL_USER_SERVICE_JWT_SECRET:}"));
-        assertTrue(yaml.contains("audience: ${EXTERNAL_USER_SERVICE_JWT_AUDIENCE:aienie-userservice-grpc}"));
-        assertTrue(yaml.contains("ttl-seconds: ${EXTERNAL_USER_SERVICE_JWT_TTL_SECONDS:300}"));
-        assertTrue(yaml.contains("scopes: ${EXTERNAL_USER_SERVICE_JWT_SCOPES:user.auth.session.read}"));
-        assertTrue(yaml.contains("caller-id: ${EXTERNAL_PAY_SERVICE_JWT_CALLER_ID:ainovel}"));
-        assertTrue(yaml.contains("issuer: ${EXTERNAL_PAY_SERVICE_JWT_ISSUER:ainovel}"));
-        assertTrue(yaml.contains("service-name: ${EXTERNAL_PAY_SERVICE_JWT_SERVICE_NAME:ainovel}"));
-        assertTrue(yaml.contains("secret: ${EXTERNAL_PAY_SERVICE_JWT_SECRET:}"));
-        assertTrue(yaml.contains("audience: ${EXTERNAL_PAY_SERVICE_JWT_AUDIENCE:aienie-payservice-grpc}"));
-        assertTrue(yaml.contains("role: ${EXTERNAL_PAY_SERVICE_JWT_ROLE:SERVICE}"));
-        assertTrue(yaml.contains("ttl-seconds: ${EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS:300}"));
-        assertTrue(yaml.contains("scopes: ${EXTERNAL_PAY_SERVICE_JWT_SCOPES:billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read}"));
-        assertTrue(yaml.contains("legacy-static-token: ${EXTERNAL_PAY_SERVICE_JWT:}"));
+        assertTrue(yaml.contains("hmac-caller: "));
+        assertTrue(yaml.contains("hmac-secret: ${GRPC_SHARED_SECRET}"));
+        assertTrue(yaml.contains("caller-id: ainovel"));
+        assertTrue(yaml.contains("issuer: ainovel"));
+        assertTrue(yaml.contains("secret: ${GRPC_SHARED_SECRET}"));
+        assertTrue(yaml.contains("audience: aienie-userservice-grpc"));
+        assertTrue(yaml.contains("ttl-seconds: 300"));
+        assertTrue(yaml.contains("scopes: user.auth.session.read"));
+        assertTrue(yaml.contains("caller-id: ainovel"));
+        assertTrue(yaml.contains("issuer: ainovel"));
+        assertTrue(yaml.contains("service-name: ainovel"));
+        assertTrue(yaml.contains("secret: ${GRPC_SHARED_SECRET}"));
+        assertTrue(yaml.contains("audience: aienie-payservice-grpc"));
+        assertTrue(yaml.contains("role: SERVICE"));
+        assertTrue(yaml.contains("ttl-seconds: 300"));
+        assertTrue(yaml.contains("scopes: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read"));
+        assertFalse(yaml.contains("legacy-static-token:"));
     }
 
     @Test
@@ -50,24 +51,28 @@ class ExternalServiceApplicationYamlTests {
     void shouldKeepFlywayGovernanceEnabledByDefault() throws IOException {
         String yaml = applicationYaml();
 
-        assertTrue(yaml.contains("enabled: ${SPRING_FLYWAY_ENABLED:true}"));
+        assertTrue(yaml.contains("enabled: true"));
         assertTrue(yaml.contains("locations: classpath:db/migration"));
         assertTrue(yaml.contains("clean-disabled: true"));
         assertTrue(yaml.contains("baseline-on-migrate: false"));
         assertTrue(yaml.contains("validate-on-migrate: true"));
-        assertTrue(yaml.contains("project-key: ${EXTERNAL_PROJECT_KEY:ainovel}"));
+        assertTrue(yaml.contains("project-key: ainovel"));
     }
 
     @Test
     void shouldKeepOptionalRedisOutOfDeploymentHealthGroups() throws IOException {
         String yaml = applicationYaml();
 
-        assertTrue(yaml.contains("probes:\n        enabled: true"));
-        assertTrue(yaml.contains("liveness:\n          include: livenessState"));
-        assertTrue(yaml.contains("readiness:\n          include: readinessState,db,userService"));
-        assertTrue(yaml.contains("exposure:\n        include: health"));
+        assertEquals("true", property("management.endpoint.health.probes.enabled"));
+        assertEquals("livenessState", property("management.endpoint.health.group.liveness.include"));
+        assertEquals("readinessState,db,userService", property("management.endpoint.health.group.readiness.include"));
+        assertTrue(property("management.endpoints.web.exposure.include").contains("health"));
     }
 
+    private String property(String name) throws IOException {
+        var sources = new org.springframework.boot.env.YamlPropertySourceLoader().load("application", new org.springframework.core.io.FileSystemResource("src/main/resources/application.yml"));
+        return String.valueOf(sources.getFirst().getProperty(name));
+    }
     private String applicationYaml() throws IOException {
         return Files.readString(Path.of("src/main/resources/application.yml"), StandardCharsets.UTF_8);
     }

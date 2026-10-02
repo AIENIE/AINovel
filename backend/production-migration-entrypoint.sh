@@ -4,8 +4,12 @@ set -eu
 case "$1" in checkpoint|precheck|execute|reconcile) ;; *) echo 'AINovel migration action is invalid' >&2; exit 64;; esac
 [ -r /app/env.txt ] || { echo 'AINovel protected environment is unavailable' >&2; exit 70; }
 [ -r /app/bin/production-load-env-file.sh ] || { echo 'AINovel environment loader is unavailable' >&2; exit 70; }
-. /app/bin/production-load-env-file.sh /app/env.txt
-[ "${ENV:-}" = production ] || { echo 'AINovel production environment is required' >&2; exit 70; }
+. /app/bin/production-load-env-file.sh
+load_one_env_file /app/env.txt
+[ -f /app/application.yml ] || exit 1
+export SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/application.yml
+export SPRING_PROFILES_ACTIVE=production
+/opt/java/openjdk/bin/java -Dloader.main=com.aienie.configpair.ConfigurationPreflight -cp /app/app.jar org.springframework.boot.loader.launch.PropertiesLauncher production
 export AIENIE_NOVEL_MIGRATION_LEDGER=/app/release/migrations/flyway-ledger.json
 exec /opt/java/openjdk/bin/java \
   -Dloader.main=com.ainovel.app.config.ProductionNovelMigrationMain \

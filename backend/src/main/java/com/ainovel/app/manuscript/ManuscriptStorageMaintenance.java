@@ -14,6 +14,7 @@ public final class ManuscriptStorageMaintenance {
     private static final JsonColumnCodec JSON = new JsonColumnCodec(new ObjectMapper());
     private ManuscriptStorageMaintenance() {}
     public static void main(String[] args) throws Exception {
+        com.aienie.configpair.RuntimeConfiguration.initialize(args);
         if (args.length != 2 || !"--maintenance-confirmed".equals(args[1]))
             throw new IllegalArgumentException("Usage: backfill|verify|reverse --maintenance-confirmed; stop all writers and verify backup first");
         String url = required("AINOVEL_MIGRATION_JDBC_URL");
@@ -23,7 +24,7 @@ public final class ManuscriptStorageMaintenance {
         }
     }
     private static String required(String key) {
-        String value = System.getenv(key); if (value == null || value.isBlank()) throw new IllegalArgumentException("Missing " + key); return value;
+        String value = com.aienie.configpair.RuntimeConfiguration.getenv(key); if (value == null || value.isBlank()) throw new IllegalArgumentException("Missing " + key); return value;
     }
     public static int run(Connection connection, String action, int maxRows) throws Exception {
         if (!Set.of("backfill", "verify", "reverse").contains(action) || maxRows < 1) throw new IllegalArgumentException("Invalid maintenance action");

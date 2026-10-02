@@ -1,12 +1,229 @@
-# Canonical local AI gateway model 12 was renamed on 2026-09-12.
+spring:
+  mvc:
+    servlet:
+      path: /api
+  datasource:
+    url: jdbc:mysql://localmysql.testhut.top:23306/ainovel?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ainovel
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 4
+      connection-timeout: 5000
+      leak-detection-threshold: 30000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-version: 1
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+  data:
+    redis:
+      host: localredis.testhut.top
+      port: 26379
+      username: ''
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: false
+      timeout: 3s
+  cache:
+    type: redis
+    redis:
+      key-prefix: 'aienie:ainovel:'
+      use-key-prefix: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  jackson:
+    time-zone: Asia/Shanghai
+  config:
+    activate:
+      on-profile: local
+server:
+  port: 11041
+logging:
+  file:
+    name: /app/logs/ainovel.log
+  structured:
+    format:
+      file: ecs
+  pattern:
+    level: requestId=%X{requestId:-none} %5p
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 14
+      total-size-cap: 1GB
+      clean-history-on-start: true
+  level:
+    root: INFO
+    com.ainovel: INFO
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,userService
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    enable:
+      all: false
+      application.started.time: true
+      application.ready.time: true
+      process.start.time: true
+      process.uptime: true
+      http.server.requests: true
+    tags:
+      component: ai-novel
+      service: backend
+      environment: local
+      release_id: unknown
+      release_version: unknown
 app:
+  time-zone: Asia/Shanghai
+  records:
+    dir: /app/records
+    elasticsearch-query-enabled: true
+    max-file-size-bytes: 10485760
+    max-history-days: 14
+    max-total-size-bytes: 1073741824
+  admin-auth:
+    username: admin
+    password-hash: ${ADMIN_PASSWORD_HASH}
+    encryption-keys: v1:${ADMIN_TOTP_ENCRYPTION_KEY_V1}
+    active-key-version: v1
+    trusted-origins: https://localainovel.testhut.top
+    cookie-secure: true
+    session-minutes: 30
+    session-idle-minutes: 10
+    recovery-session-minutes: 15
+    recovery-session-idle-minutes: 10
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-minutes: 120
+    issuer: ainovel
+    audience: ainovel-web
   ai:
+    model: deepseek-v4-flash
+    base-url: ''
+    api-key: ${AI_API_KEY:}
+    admission:
+      max-messages: 64
+      max-message-chars: 20000
+      max-total-chars: 100000
+      max-requests-per-minute: 20
+      max-user-in-flight: 2
+      max-global-in-flight: 32
+      reservation-credits: 2
     validation:
-      run-id: ${AI_VALIDATION_RUN_ID:}
-      maximum-calls: ${AI_VALIDATION_MAXIMUM_CALLS:6}
-      local-quality-only: ${AI_VALIDATION_LOCAL_QUALITY_ONLY:false}
+      run-id: h23-20260922-quality-v1
+      maximum-calls: 200
+      local-quality-only: true
     text-model-key: deepseek-flash
     text-model-display-name: DeepSeek Flash
   external:
-    # Allow the gateway's 120s first-token/failover budget and bounded streaming completion.
-    ai-timeout-ms: ${EXTERNAL_AI_TIMEOUT_MS:180000}
+    project-key: ainovel
+    timeout-ms: 120000
+    ai-timeout-ms: 180000
+    billing-timeout-ms: 5000
+    session-timeout-ms: 3000
+    grpc:
+      tls-enabled: true
+      plaintext-enabled: false
+      trust-cert-collection: D:\project\aienie\aienie-projects\AINovel\scripts\windows\local-trust\localcert-root-ca.crt
+    security:
+      fail-fast: true
+      ai:
+        hmac-caller: ainovel
+        hmac-secret: ${GRPC_SHARED_SECRET}
+      user:
+        caller-id: ainovel
+        issuer: ainovel
+        secret: ${GRPC_SHARED_SECRET}
+        audience: aienie-userservice-grpc
+        ttl-seconds: 300
+        scopes: user.auth.session.read
+      pay:
+        caller-id: ainovel
+        issuer: ainovel
+        service-name: ainovel
+        secret: ${GRPC_SHARED_SECRET}
+        audience: aienie-payservice-grpc
+        role: SERVICE
+        ttl-seconds: 300
+        scopes: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.redeem.write,billing.ledger.read
+    userservice-http:
+      address: https://localuserservice.testhut.top
+    aiservice-grpc:
+      address: static://localaiservice.testhut.top:22011
+    payservice-grpc:
+      address: static://localpayservice.testhut.top:22021
+sso:
+  callback-origin: https://localainovel.testhut.top
+  session-validation:
+    enabled: true
+    timeout-ms: 5000
+    grpc-address: static://localuserservice.testhut.top:22001
+qdrant:
+  host: http://localqdrant.testhut.top
+  http-port: 26333
+  enabled: true
+  api-key: ${QDRANT_API_KEY:}
+  connect-timeout-ms: 2000
+  request-timeout-ms: 5000
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+elasticsearch:
+  hosts: https://es.localhut.com:9200
+  username: elastic
+  password: ${ELASTICSEARCH_PASSWORD}
+filebeat:
+  index-prefix: aienie-local-ainovel
+runtime:
+  configuration:
+    ENV: local
+    AUTH_MODE: password
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:}
+    ADMIN_TOTP_SECRET: ${ADMIN_TOTP_SECRET:}
+    APP_ENV: local
+    APP_LOG_DIR: D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel\logs
+    APP_SECURITY_CORS_ALLOWED_HEADERS: Authorization,Content-Type,Idempotency-Key,X-Requested-With,X-Request-Id,X-Admin-Operation-Proof
+    APP_SECURITY_CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS,PATCH
+    APP_SECURITY_CORS_ALLOWED_ORIGINS: https://localainovel.testhut.top
+    BACKEND_PORT: '11041'
+    EXTERNAL_PAY_JWT_AUDIENCE: aienie-payservice-grpc
+    EXTERNAL_PAY_JWT_ISSUER: aienie-services
+    EXTERNAL_PAY_JWT_ROLE: SERVICE
+    EXTERNAL_PAY_JWT_SCOPES: billing.balance.read,billing.balance.convert,billing.grant.write,billing.usage.deduct,billing.checkin.read,billing.checkin.write,billing.redeem.write,billing.ledger.read,billing.onboarding.write,billing.quota.consume
+    EXTERNAL_PAY_JWT_SERVICE: ainovel
+    EXTERNAL_PAY_JWT_TTL_SECONDS: '3600'
+    FRONTEND_PORT: '11040'
+    MYSQL_DB: ainovel
+    MYSQL_HOST: localmysql.testhut.top
+    MYSQL_PORT: '23306'
+    MYSQL_USER: ainovel
+    SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
+    VITE_SSO_ENTRY_BASE_URL: https://localainovel.testhut.top
+    APP_RECORD_DIR: D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel\records
+    SERVER_ADDRESS: 127.0.0.1
+ENV: ${runtime.configuration.ENV}
+AUTH_MODE: ${runtime.configuration.AUTH_MODE}

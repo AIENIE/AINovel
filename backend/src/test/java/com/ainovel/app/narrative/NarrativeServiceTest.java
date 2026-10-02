@@ -24,6 +24,7 @@ import static com.ainovel.app.narrative.NarrativeDtos.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
+@org.springframework.test.context.ActiveProfiles("test")
 @DataJpaTest(showSql = false)
 @Import({com.ainovel.app.manuscript.ManuscriptContentService.class,NarrativeService.class, NarrativeContextService.class, NarrativeInvalidationListener.class, ResourceAccessGuard.class, V2VersionPersistenceService.class,
         JsonColumnCodec.class, NarrativeServiceTest.Beans.class})

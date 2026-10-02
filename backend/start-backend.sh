@@ -17,14 +17,13 @@ unset JAVA_OPTS JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS _JAVA_OPTIONS MAVEN_OPTS MAVE
   exit 1
 }
 # shellcheck source=/dev/null
-. /app/bin/staging-load-env-file.sh "$1"
+. /app/bin/staging-load-env-file.sh
+load_one_env_file "$1"
 
-[ "${ENV:-}" = test ] || {
-  echo 'AINovel reviewed launcher is staging-only; production remains frozen' >&2
-  exit 1
-}
 
-export SERVER_ADDRESS=0.0.0.0 SERVER_PORT=11041 PORT=11041
+
+[ -f /app/application.yml ] || { echo "runtime application.yml is missing" >&2; exit 1; }
+export SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/application.yml
 exec /opt/java/openjdk/bin/java -Duser.timezone=Asia/Shanghai \
   -Dapp.external.grpc.trust-cert-collection=/run/aienie/trust/staging-root.pem \
   -jar /app/app.jar

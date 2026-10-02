@@ -135,7 +135,7 @@ class QualityRegressionOfflineTest {
         properties.getGrpc().setTlsEnabled(booleanValue(config.get("EXTERNAL_GRPC_TLS_ENABLED"), true));
         properties.getGrpc().setPlaintextEnabled(booleanValue(config.get("EXTERNAL_GRPC_PLAINTEXT_ENABLED"), false));
         properties.getSecurity().getAi().setHmacCaller(required(config, "EXTERNAL_AI_HMAC_CALLER"));
-        properties.getSecurity().getAi().setHmacSecret(required(config, "EXTERNAL_AI_HMAC_SECRET"));
+        properties.getSecurity().getAi().setHmacSecret(required(config, "GRPC_SHARED_SECRET"));
         return properties;
     }
 

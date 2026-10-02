@@ -56,6 +56,7 @@ public final class ProductionNovelMigrationMain {
     }
 
     public static void main(String[] args) {
+        com.aienie.configpair.RuntimeConfiguration.initialize(args);
         PrintStream receiptOutput = System.out;
         System.setOut(System.err);
         try {
@@ -238,7 +239,7 @@ public final class ProductionNovelMigrationMain {
     }
 
     private static String required(String name) {
-        String value = System.getenv(name);
+        String value = com.aienie.configpair.RuntimeConfiguration.getenv(name);
         if (value == null || value.isBlank() || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
             throw new IllegalStateException("required environment value is unavailable");
         }
@@ -246,9 +247,9 @@ public final class ProductionNovelMigrationMain {
     }
 
     private static String databasePassword() {
-        String value = System.getenv("DB_PASSWORD");
+        String value = com.aienie.configpair.RuntimeConfiguration.getenv("DB_PASSWORD");
         if (value == null || value.isBlank()) {
-            value = System.getenv("MYSQL_PASSWORD");
+            value = com.aienie.configpair.RuntimeConfiguration.getenv("MYSQL_PASSWORD");
         }
         if (value == null || value.isBlank() || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
             throw new IllegalStateException("database password is unavailable");

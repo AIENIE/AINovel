@@ -1,3 +1,5 @@
+配置文件管理说明：[`application.yml` 与 `env.txt`](scripts/config-pair/README.md)。
+
 # AINovel
 
 AINovel 是一个前后端分离的 AI 小说创作业务项目。
@@ -72,3 +74,7 @@ Windows 根入口为 `start.ps1`，参数为 `-Action Start|Build|Test|Status|St
 实际 L2 结果：退出码 `0`；后端 `336` 项通过、`12` 项条件跳过，前端 lint、类型检查、构建通过，Vitest `34` 文件/`136` 项通过。跳过项涉及外部 MySQL/Testcontainers 与另行授权的付费质量回归。VS Code 从包含 `start.ps1` 的仓库根目录打开，使用根任务启动调试；本轮前后端断点均已命中。完整启动的健康检查、HTTPS 与基础 API 已通过。
 
 AISocialGame 的真人验收仍在进行中，已实现功能不等同于整体验收通过。
+
+## 公共服务 gRPC 共享密钥（2026-10-02）
+
+同一环境的三个公共服务及所有调用项目共用 env.txt 中的 `GRPC_SHARED_SECRET`，YAML 的客户端秘密属性统一引用 `${GRPC_SHARED_SECRET}`。local/develop 使用开发密钥，staging 和 production 各有独立值。此项不合并登录 JWT、管理员、TOTP、CAP、数据库或 Firefly 主站/Studio 内部密钥。新制品携带 `grpc-shared-key-v1` 能力标记；保存配置不表示服务已经发布，切换需协调服务端与调用方。

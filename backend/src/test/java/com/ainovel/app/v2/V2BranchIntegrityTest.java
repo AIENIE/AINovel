@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@org.springframework.test.context.ActiveProfiles("test")
 @DataJpaTest
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({com.ainovel.app.manuscript.ManuscriptContentService.class,V2VersionPersistenceService.class, V2Json.class, JsonColumnCodec.class, V2BranchIntegrityTest.Beans.class})

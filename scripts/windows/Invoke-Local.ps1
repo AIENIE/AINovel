@@ -172,41 +172,15 @@ function Get-ChildEnvironment {
     }
     Assert-AienieLocalOnlyEnvironment -Values $child
     Remove-AienieProcessInjectionEnvironment -Values $child
-    $child['ENV'] = 'local'
-    $child['APP_ENV'] = 'local'
+    . (Join-Path $repoRoot 'scripts\config-pair\ConfigurationPair.ps1')
+    $yamlValues = Read-ConfigPairValues -ProjectRoot $repoRoot -EnvironmentFile $EnvironmentFile
+    foreach ($key in $yamlValues.Keys) { $child[$key] = $yamlValues[$key] }
+    if (Test-Path -LiteralPath ($EnvironmentFile + '.application.yml')) {
+        $child['AIENIE_APPLICATION_FILE'] = ([Uri][IO.Path]::GetFullPath($EnvironmentFile + '.application.yml')).AbsoluteUri
+    }
     $child['SPRING_PROFILES_ACTIVE'] = 'local'
     $child['AIENIE_RUNTIME_PLANE'] = 'windows-local'
-    $child['APP_LOG_DIR'] = Join-Path $directRunRoot 'logs'
-    $child['APP_RECORD_DIR'] = Join-Path $directRunRoot 'records'
-    $child['AUTH_MODE'] = 'password'
-    $child['SERVER_ADDRESS'] = '127.0.0.1'
-    $child['PORT'] = '11041'
-    $child['DB_URL'] = 'jdbc:mysql://localbase.testhut.top:23306/ainovel?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false'
-    $child['MYSQL_HOST'] = 'localbase.testhut.top'
-    $child['MYSQL_PORT'] = '23306'
-    $child['REDIS_HOST'] = 'localbase.testhut.top'
-    $child['REDIS_PORT'] = '26379'
-    $child['REDIS_SSL_ENABLED'] = 'false'
-    $child['QDRANT_HOST'] = 'http://localbase.testhut.top'
-    $child['QDRANT_PORT'] = '26333'
-    $child['AI_GRPC_ADDR'] = 'static://localaiservice.testhut.top:22011'
-    $child['USER_GRPC_ADDR'] = 'static://localuserservice.testhut.top:22001'
-    $child['PAY_GRPC_ADDR'] = 'static://localpayservice.testhut.top:22021'
-    $child['USER_HTTP_ADDR'] = 'https://localuserservice.testhut.top'
-    $child['SSO_CALLBACK_ORIGIN'] = 'https://localainovel.testhut.top'
-    $child['VITE_SSO_ENTRY_BASE_URL'] = 'https://localainovel.testhut.top'
-    $localTrust = Join-Path $PSScriptRoot 'local-trust\localcert-root-ca.crt'
-    $trustItem = Get-Item -LiteralPath $localTrust -ErrorAction Stop
-    if (($trustItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-        throw 'Local gRPC trust certificate must be a regular file.'
-    }
-    $trustCert = [Security.Cryptography.X509Certificates.X509Certificate2]::new($trustItem.FullName)
-    if ($trustCert.Thumbprint -cne 'ABB779409203615F6864BC73A32A983B91E9D081') {
-        throw 'Local gRPC trust certificate fingerprint mismatch.'
-    }
-    $child['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'] = $trustItem.FullName
-    $child['EXTERNAL_GRPC_TLS_ENABLED'] = 'true'
-    $child['EXTERNAL_GRPC_PLAINTEXT_ENABLED'] = 'false'
+    Assert-AienieLocalOnlyEnvironment -Values $child
     return $child
 }
 
