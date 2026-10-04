@@ -67,6 +67,17 @@ public class AdminAuthController {
                 ));
     }
 
+    @PostMapping("/login/recovery/challenge")
+    public ResponseEntity<?> recoveryChallenge(@Valid @RequestBody LoginRequest body,HttpServletRequest request) {
+        return noStore(authService.recoveryChallenge(body.username(),body.password(),source(request)));
+    }
+
+    @PostMapping("/recovery-codes/get")
+    @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
+    public ResponseEntity<?> getRecoveryCodes(@RequestBody(required=false) TotpRequest body,Authentication authentication,HttpServletRequest request) {
+        return noStore(authService.getRecoveryCodes(sessionHash(authentication),body == null ? null : body.code(),source(request)));
+    }
+
     @PostMapping("/login/challenge")
     public ResponseEntity<?> disabledPasswordlessLogin() {
         return ResponseEntity.status(HttpStatus.GONE)
@@ -263,7 +274,7 @@ public class AdminAuthController {
     public record ChallengeRequest(@NotBlank String challengeId) {}
     public record CodeRequest(@NotBlank String challengeId, @NotBlank String code) {}
     public record RecoveryRequest(@NotBlank String challengeId, @NotBlank String recoveryCode) {}
-    public record TotpRequest(@NotBlank String code) {}
+    public record TotpRequest(String code) {}
     public record LoginChallengeResponse(String status, String username, String challengeId, java.time.Instant expiresAt) {}
     public record AuthenticatedSession(
             String username,

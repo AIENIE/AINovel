@@ -5,7 +5,7 @@ import path from "path";
 
 const apiProxy = {
   "/api": {
-    target: "http://127.0.0.1:11041",
+    target: `http://127.0.0.1:${process.env.AINOVEL_BACKEND_PORT || "11041"}`,
     changeOrigin: true,
   },
 };

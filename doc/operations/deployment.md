@@ -25,7 +25,7 @@
 - HTTP 响应返回 `X-Request-Id`；只接受最长 64 位的字母、数字、点、下划线、冒号和连字符，其他值会重新生成。console 日志级别字段和 ECS 文件日志字段均包含同一 request id；AI operation、guided creation 与 G2 evaluation 线程池会传播 MDC，并在任务结束后恢复 worker 原上下文。
 - 浏览器不序列化原始异常或拒绝对象，只输出经过截断并对常见令牌、兑换码参数和邮箱模式脱敏的错误摘要。
 
-密码模式不解析或要求 TOTP keyring。测试和生产启动时若缺少 TOTP keyring、可信来源或其他必需配置会直接失败；生产处理认证请求时若共享 Redis 限流存储不可用则失败关闭。不要把密码、摘要、密钥、验证码、恢复码、challenge、session 或 proof 写入文档、日志或提交信息；从曾经跟踪过的 `env.txt` 取出的所有实际凭据应在部署前完成轮换。
+密码模式登录不要求 TOTP keyring；已有动态码绑定的管理员获取紧急码时需要有效密钥环。测试和生产启动时若缺少 TOTP keyring、可信来源或其他必需配置会直接失败；生产处理认证请求时若共享 Redis 限流存储不可用则失败关闭。不要把密码、摘要、密钥、验证码、恢复码、challenge、session 或 proof 写入文档、日志或提交信息；从曾经跟踪过的 `env.txt` 取出的所有实际凭据应在部署前完成轮换。
 
 ## 发版中心部署
 
@@ -46,7 +46,7 @@ Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-rele
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前最新版本为 V15。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因；V14 保留既有运行时治理迁移；V15 建立五张叙事证据状态表及快照保护标记，不将旧稿或旧日志自动转换为事实。发布清单、执行器与运行时契约同步接受 V1–V15，旧迁移文件不变。
+- 当前最新版本为 V24。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因；V14 保留既有运行时治理迁移；V15 建立五张叙事证据状态表及快照保护标记，不将旧稿或旧日志自动转换为事实。发布清单、执行器与运行时契约同步接受 V1–V24，旧迁移文件不变。
 - 数据库结构只通过 Flyway 迁移演进，不存在 schema.sql 一类的旁路 DDL 入口。
 
 V1 → V15 与 V14 → V15 的隔离 MySQL 验证使用 `external-mysql-verification` profile，并只创建符合 `ainovel_verify_<uuid>` 命名的临时库。执行账号必须具有 `CREATE DATABASE` 和 `DROP DATABASE` 权限；普通业务账号缺少该权限时应记录为环境阻塞，不得提升权限或改动共享业务库：
@@ -90,3 +90,10 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 - 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
 - 后端 healthcheck 使用 readiness；前端容器通过 `depends_on: condition: service_healthy` 等待后端就绪，compose healthcheck 的 `start_period` 提供启动宽限，任一服务未就绪不会进入健康状态。
 - 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
+
+
+### 管理员紧急码升级与隔离验收
+
+V24 废弃历史恢复码及对应恢复会话、未完成绑定 challenge，保留有效动态码和普通完整会话。升级后已有绑定管理员首次“获取紧急码”生成 10 个；后续获取只补已用数量。恢复重绑成功不会补码，剩余紧急码继续有效。迁移有一次性标记，可重复执行；备份和轮换须保留仍被凭据或码引用的密钥版本。
+
+并行 Windows 验收使用标准入口的可选 `-InstanceName emergency-codes -FrontendPort 12040 -BackendPort 12041`，Start、Stop、Get-LocalStatus 三个入口均传相同参数。使用仓库外隔离配置对和独立数据库，状态/进程日志位于 canonical native-runs 的实例目录，Vite 自动代理到指定后端端口。私有配置需同时设定隔离 APP_LOG_DIR/APP_RECORD_DIR、可信 Origin 和验收用本地 TOTP；HTTP 回环验收显式关闭 Secure Cookie。默认实例仍为 ainovel、11040/11041。

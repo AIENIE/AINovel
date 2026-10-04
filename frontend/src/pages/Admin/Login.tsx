@@ -31,6 +31,7 @@ const AdminLogin = () => {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
   const [authMode, setAuthMode] = useState<"password" | "totp">("totp");
 
   const nextPath = useMemo(() => {
@@ -115,6 +116,10 @@ const AdminLogin = () => {
   const submitPassword = (event: FormEvent) => {
     event.preventDefault();
     void run(async () => {
+      if (useRecovery) {
+        const gate = await api.adminAuth.recoveryChallenge(username,password);
+        setPassword(""); setChallengeId(gate.challengeId); setCode(""); setMode("recovery"); return;
+      }
       const result = await api.adminAuth.login(username, password);
       setPassword("");
       if (!result.status) {
@@ -161,9 +166,13 @@ const AdminLogin = () => {
 
   if (mode === "codes") {
     return (
-      <AuthCard title="保存恢复码" description="这些恢复码只显示这一次，请存放在安全位置。">
+      <AuthCard title="保存紧急码" description="每个紧急码只能使用一次，请存放在安全位置。">
         <RecoveryCodeList codes={recoveryCodes} />
-        <Button className="mt-4 w-full" onClick={() => navigate(nextPath, { replace: true })}>
+        <div className="mt-4 flex gap-2">
+          <Button onClick={() => void navigator.clipboard.writeText(recoveryCodes.join("\n"))}>复制</Button>
+          <Button onClick={() => { const url=URL.createObjectURL(new Blob([recoveryCodes.join("\n")],{type:"text/plain;charset=utf-8"})); const link=document.createElement("a"); link.href=url; link.download="AINovel-emergency-codes.txt"; link.click(); URL.revokeObjectURL(url); }}>下载</Button>
+        </div>
+        <Button className="mt-4 w-full" onClick={() => { setRecoveryCodes([]); navigate(nextPath, { replace: true }); }}>
           我已安全保存
         </Button>
       </AuthCard>
@@ -186,6 +195,10 @@ const AdminLogin = () => {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "确认重新绑定"}
           </Button>
         </form>
+        <Button className="mt-3 w-full" variant="ghost" disabled={loading} onClick={() => void run(async () => {
+          await api.adminAuth.logout(); setManualKey(""); setOtpauthUri(""); setCode(""); setChallengeId(""); setRecoveryCodes([]);
+          navigate("/admin/login", { replace:true });
+        })}>取消重绑并退出</Button>
         <AuthError message={error} />
       </AuthCard>
     );
@@ -204,6 +217,7 @@ const AdminLogin = () => {
         <form className="space-y-4" onSubmit={submitPassword}>
           <Field id="admin-username" label="管理员账号" value={username} onChange={setUsername} autoComplete="username" />
           <PasswordField value={password} onChange={setPassword} />
+          {authMode === "password" && <label className="flex gap-2 text-sm"><input type="checkbox" checked={useRecovery} onChange={(event) => setUseRecovery(event.target.checked)} />丢失动态码，使用紧急码</label>}
           <Button className="w-full" disabled={loading || !username || !password}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "继续"}
           </Button>
@@ -226,8 +240,8 @@ const AdminLogin = () => {
           <Button className="w-full" disabled={loading || code.length !== 6}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "登录管理后台"}
           </Button>
-          <Button type="button" variant="outline" className="w-full" onClick={() => setMode("recovery")}>
-            使用恢复码
+          <Button type="button" variant="outline" className="w-full" onClick={() => { setCode(""); setMode("recovery"); }}>
+            丢失动态码，使用紧急码
           </Button>
           <Button type="button" variant="ghost" className="w-full" onClick={() => { setChallengeId(""); setCode(""); setMode("password"); }}>
             返回密码验证
@@ -237,7 +251,7 @@ const AdminLogin = () => {
 
       {mode === "recovery" && (
         <form className="space-y-4" onSubmit={submitRecovery}>
-          <Field id="recovery-code" label="恢复码" value={code} onChange={setCode} />
+          <Field id="recovery-code" label="紧急码" value={code} onChange={setCode} />
           <Button className="w-full" disabled={loading || !code}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "进入受限恢复"}
           </Button>

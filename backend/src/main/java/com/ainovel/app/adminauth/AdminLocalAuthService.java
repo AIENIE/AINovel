@@ -62,6 +62,7 @@ public class AdminLocalAuthService {
 
     @Transactional
     public LoginStart login(String username, String password, String source) {
+        store.lockSubject(SUBJECT);
         String account = username == null ? "" : username;
         allowOrReject("login-password", account, source, 8, Duration.ofMinutes(5));
         boolean passwordMatches = passwordEncoder.matches(
@@ -96,7 +97,17 @@ public class AdminLocalAuthService {
     }
 
     @Transactional
+    public LoginStart recoveryChallenge(String username, String password, String source) {
+        store.lockSubject(SUBJECT);
+        allowOrReject("recovery-password",username,source,8,Duration.ofMinutes(5));
+        if (!secureEquals(username,properties.getUsername()) || !passwordEncoder.matches(password == null ? "" : password,properties.getPasswordHash()) || !store.credentialExists(SUBJECT)) throw invalid();
+        String challenge = createChallenge("LOGIN",null,Instant.now());
+        return LoginStart.challenge("TOTP_REQUIRED",properties.getUsername(),challenge,Instant.now().plusSeconds(CHALLENGE_TTL_SECONDS));
+    }
+
+    @Transactional
     public EnrollmentStart startEnrollment(String passwordChallenge, String source) {
+        store.lockSubject(SUBJECT);
         requireTotpMode();
         allowOrReject("enrollment-start", properties.getUsername(), source, 5, Duration.ofMinutes(10));
         ChallengeData gate = challenge(passwordChallenge, "ENROLLMENT_PASSWORD");
@@ -115,6 +126,7 @@ public class AdminLocalAuthService {
 
     @Transactional
     public LoginResult confirmEnrollment(String challenge, String code, String source) {
+        store.lockSubject(SUBJECT);
         requireTotpMode();
         allowOrReject("enrollment-confirm", properties.getUsername(), source, 10, Duration.ofMinutes(5));
         ChallengeData data = challenge(challenge, "ENROLLMENT");
@@ -127,8 +139,7 @@ public class AdminLocalAuthService {
         if (!store.acceptTimestep(SUBJECT, timestep)) {
             throw invalid();
         }
-        List<String> recovery = generateRecoveryCodes();
-        store.replaceRecoveryCodes(SUBJECT, recovery.stream().map(crypto::hashRecoveryCode).toList(), Instant.now());
+        List<String> recovery = replenishRecoveryCodes().recoveryCodes();
         AdminSessionService.Issued session = sessions.issue(
                 SUBJECT, "FULL", "PASSWORD_TOTP", data.passwordAuthenticatedAt(), Instant.now(),
                 encrypted.keyVersion()
@@ -139,6 +150,7 @@ public class AdminLocalAuthService {
 
     @Transactional
     public LoginResult loginTotp(String challenge, String code, String source) {
+        store.lockSubject(SUBJECT);
         requireTotpMode();
         allowOrReject("login-totp", properties.getUsername(), source, 10, Duration.ofMinutes(5));
         ChallengeData data = challenge(challenge, "LOGIN");
@@ -162,21 +174,20 @@ public class AdminLocalAuthService {
 
     @Transactional
     public LoginResult loginRecovery(String challenge, String recoveryCode, String source) {
-        requireTotpMode();
+        store.lockSubject(SUBJECT);
         allowOrReject("login-recovery", properties.getUsername(), source, 6, Duration.ofMinutes(10));
         ChallengeData data = challenge(challenge, "LOGIN");
         if (!store.incrementAttempt(data.hash())) {
             throw invalid();
         }
         String normalized = normalizeRecovery(recoveryCode);
-        String matching = store.activeRecoveryHashes(SUBJECT).stream()
+        String matching = store.activeRecoveryCodes(SUBJECT).stream().map(AdminAuthStore.RecoveryCode::hash)
                 .filter(hash -> crypto.matchesRecoveryCode(normalized, hash))
                 .findFirst()
                 .orElseThrow(this::invalid);
         if (!store.consumeRecoveryHash(SUBJECT, matching) || !store.consumeChallenge(data.hash())) {
             throw invalid();
         }
-        sessions.revokeAll(SUBJECT);
         AdminSessionService.Issued session = sessions.issue(
                 SUBJECT, "RECOVERY", "PASSWORD_RECOVERY", data.passwordAuthenticatedAt(), null,
                 store.credential(SUBJECT).map(AdminAuthStore.Credential::keyVersion).orElse(null)
@@ -185,14 +196,15 @@ public class AdminLocalAuthService {
         return LoginResult.from(properties.getUsername(), session, List.of());
     }
 
+    @Transactional
     public RebindStart startRebind(String sessionHash, String source) {
-        requireTotpMode();
+        store.lockSubject(SUBJECT);
         if (!sessions.isActive(sessionHash, "RECOVERY")) {
             throw invalid();
         }
         allowOrReject("rebind-start", properties.getUsername(), source, 3, Duration.ofMinutes(5));
         String secret = crypto.randomBase32(20);
-        String challenge = createChallenge("RESET", secret, Instant.now());
+        String challenge = createChallenge("RESET_V2", secret, Instant.now(), sessionHash);
         String uri = "otpauth://totp/" + enc("AINovel Admin:" + properties.getUsername()) + "?secret=" + secret
                 + "&issuer=AINovel%20Admin&algorithm=SHA1&digits=6&period=30";
         return new RebindStart(challenge, uri, secret, Instant.now().plusSeconds(CHALLENGE_TTL_SECONDS));
@@ -200,11 +212,11 @@ public class AdminLocalAuthService {
 
     @Transactional
     public LoginResult confirmRebind(String sessionHash, String challenge, String code, String source) {
-        requireTotpMode();
+        store.lockSubject(SUBJECT);
         if (!sessions.isActive(sessionHash, "RECOVERY")) {
             throw invalid();
         }
-        ChallengeData data = challenge(challenge, "RESET");
+        ChallengeData data = challenge(challenge, "RESET_V2", sessionHash);
         long timestep = verifyChallengeSecret(data, code);
         if (!store.consumeChallenge(data.hash())) {
             throw invalid();
@@ -214,11 +226,11 @@ public class AdminLocalAuthService {
                 || !store.acceptTimestep(SUBJECT, timestep)) {
             throw invalid();
         }
-        List<String> recovery = generateRecoveryCodes();
-        store.replaceRecoveryCodes(SUBJECT, recovery.stream().map(crypto::hashRecoveryCode).toList(), Instant.now());
+        List<String> recovery = List.of();
         sessions.revokeAll(SUBJECT);
+        store.invalidateChallenges(SUBJECT);
         AdminSessionService.Issued session = sessions.issue(
-                SUBJECT, "FULL", "PASSWORD_TOTP", data.passwordAuthenticatedAt(), Instant.now(),
+                SUBJECT, "FULL", policy.isPasswordMode() ? "PASSWORD" : "PASSWORD_TOTP", data.passwordAuthenticatedAt(), Instant.now(),
                 encrypted.keyVersion()
         );
         store.audit("admin.rebind.confirm", SUBJECT, data.hash(), source, "SUCCESS", null);
@@ -230,7 +242,7 @@ public class AdminLocalAuthService {
                 ? "PASSWORD_RECOVERY"
                 : policy.isPasswordMode() ? "PASSWORD" : "PASSWORD_TOTP";
         return new MeResult(properties.getUsername(), scope, assurance, policy.env(), policy.authMode(),
-                policy.requiresTotp() ? store.activeRecoveryCount(SUBJECT) : 0);
+                store.activeRecoveryCount(SUBJECT));
     }
 
     public void logout(String sessionHash) {
@@ -239,31 +251,55 @@ public class AdminLocalAuthService {
 
     public SecurityStatus status() {
         return new SecurityStatus(
-                policy.requiresTotp() && store.credentialExists(SUBJECT),
-                policy.requiresTotp() ? store.activeRecoveryCount(SUBJECT) : 0,
+                store.credentialExists(SUBJECT),
+                store.activeRecoveryCount(SUBJECT),
                 3,
                 policy.authMode()
         );
     }
 
     @Transactional
+    public RecoveryCodesResult getRecoveryCodes(String sessionHash, String code, String source) {
+        store.lockSubject(SUBJECT);
+        if (!sessions.isActive(sessionHash, "FULL")) throw invalid();
+        if (!store.credentialExists(SUBJECT)) throw new AdminAuthenticationException(HttpStatus.CONFLICT, "TOTP_NOT_BOUND", "请先完成动态码绑定");
+        allowOrReject("recovery-get", properties.getUsername(), source, 5, Duration.ofMinutes(10));
+        if (policy.requiresTotp() && !verifyCurrentTotp(code)) throw invalid();
+        RecoveryCodesResult result = replenishRecoveryCodes();
+        store.audit("admin.recovery.get", SUBJECT, null, source, "SUCCESS", null);
+        return result;
+    }
+
+    @Transactional
     public List<String> regenerateRecovery(String sessionHash, String code, String source) {
-        requireTotpMode();
-        if (!sessions.isActive(sessionHash, "FULL")) {
-            throw invalid();
+        return getRecoveryCodes(sessionHash, code, source).recoveryCodes();
+    }
+
+    private RecoveryCodesResult replenishRecoveryCodes() {
+        List<String> codes = new ArrayList<>();
+        for (AdminAuthStore.RecoveryCode row : store.activeRecoveryCodes(SUBJECT)) {
+            String code = crypto.decryptRecovery(SUBJECT,row.id(),row.ciphertext(),row.nonce(),row.keyVersion());
+            codes.add(code);
+            if (!properties.getActiveKeyVersion().equals(row.keyVersion())) store.rotateRecoveryKey(row.id(),crypto.encryptRecovery(SUBJECT,row.id(),code,properties.getActiveKeyVersion()));
         }
-        allowOrReject("recovery-regenerate", properties.getUsername(), source, 5, Duration.ofMinutes(10));
-        if (!verifyCurrentTotp(code)) {
-            throw invalid();
+        if (codes.size()>10) throw new IllegalStateException("Administrator emergency-code capacity exceeded");
+        int generated = 10-codes.size();
+        while (codes.size()<10) {
+            String id = java.util.UUID.randomUUID().toString();
+            String code = crypto.randomCode();
+            store.insertRecoveryCode(SUBJECT,id,crypto.hashRecoveryCode(code),crypto.encryptRecovery(SUBJECT,id,code,properties.getActiveKeyVersion()));
+            codes.add(code);
         }
-        List<String> recovery = generateRecoveryCodes();
-        store.replaceRecoveryCodes(SUBJECT, recovery.stream().map(crypto::hashRecoveryCode).toList(), Instant.now());
-        store.audit("admin.recovery.regenerate", SUBJECT, null, source, "SUCCESS", null);
-        return recovery;
+        return new RecoveryCodesResult(List.copyOf(codes),generated,codes.size());
+    }
+
+    public record RecoveryCodesResult(List<String> recoveryCodes,int generatedCount,int remaining) {
+        @Override public String toString() { return "RecoveryCodesResult[redacted]"; }
     }
 
     @Transactional
     public boolean verifyCurrentTotp(String code) {
+        store.lockSubject(SUBJECT);
         if (!policy.requiresTotp()) {
             return false;
         }
@@ -325,10 +361,16 @@ public class AdminLocalAuthService {
     }
 
     private ChallengeData challenge(String raw, String purpose) {
+        return challenge(raw,purpose,null);
+    }
+
+    private ChallengeData challenge(String raw, String purpose, String sessionHash) {
         if (raw == null || raw.isBlank()) {
             throw invalid();
         }
         return store.challenge(hash(raw))
+                .filter(value -> SUBJECT.equals(value.subject()))
+                .filter(value -> store.challengeBindingValid(value.hash(),sessionHash,store.lockSubject(SUBJECT)))
                 .filter(value -> purpose.equals(value.purpose()))
                 .filter(value -> value.consumedAt() == null)
                 .filter(value -> value.expiresAt().isAfter(Instant.now()))
@@ -343,6 +385,10 @@ public class AdminLocalAuthService {
     }
 
     private String createChallenge(String purpose, String secret, Instant passwordAuthenticatedAt) {
+        return createChallenge(purpose,secret,passwordAuthenticatedAt,null);
+    }
+
+    private String createChallenge(String purpose, String secret, Instant passwordAuthenticatedAt, String sessionHash) {
         String raw = crypto.randomBase32(32);
         AdminAuthCrypto.EncryptedValue encrypted = secret == null
                 ? null
@@ -351,6 +397,7 @@ public class AdminLocalAuthService {
                 hash(raw), SUBJECT, purpose, encrypted, passwordAuthenticatedAt,
                 Instant.now().plusSeconds(CHALLENGE_TTL_SECONDS)
         );
+        store.bindChallenge(hash(raw),sessionHash,store.lockSubject(SUBJECT));
         return raw;
     }
 
@@ -383,14 +430,6 @@ public class AdminLocalAuthService {
                     HttpStatus.NOT_FOUND, "TOTP_DISABLED", "当前认证模式未启用动态验证码"
             );
         }
-    }
-
-    private List<String> generateRecoveryCodes() {
-        List<String> codes = new ArrayList<>();
-        for (int i = 0; i < 8; i++) {
-            codes.add(crypto.randomCode());
-        }
-        return codes;
     }
 
     private boolean secureEquals(String left, String right) {

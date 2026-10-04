@@ -105,7 +105,7 @@ public class AdminSessionService {
 
     private int minutesFor(String scope) {
         return Math.max(1, "RECOVERY".equals(scope)
-                ? properties.getRecoverySessionMinutes()
+                ? Math.min(10, properties.getRecoverySessionMinutes())
                 : properties.getSessionMinutes());
     }
 

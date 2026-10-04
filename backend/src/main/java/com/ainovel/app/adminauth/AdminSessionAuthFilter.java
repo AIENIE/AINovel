@@ -53,6 +53,19 @@ public class AdminSessionAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean recovery = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(value -> AdminAuthConstants.RECOVERY_AUTHORITY.equals(value.getAuthority()));
+        String path = AdminRequestPaths.normalized(request);
+        boolean allowed = ("GET".equals(request.getMethod()) && ("/v1/admin-auth/me".equals(path) || "/v1/admin-auth/bootstrap".equals(path)))
+                || ("POST".equals(request.getMethod()) && ("/v1/admin-auth/rebind/start".equals(path) || "/v1/admin-auth/rebind/confirm".equals(path) || "/v1/admin-auth/logout".equals(path)));
+        if (recovery && !allowed) {
+            response.setStatus(403);
+            response.setHeader("Cache-Control", "no-store");
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":\"RECOVERY_SCOPE_REQUIRED\",\"message\":\"恢复会话仅允许重新绑定动态码或退出\"}");
+            return;
+        }
         filterChain.doFilter(request, response);
     }
 

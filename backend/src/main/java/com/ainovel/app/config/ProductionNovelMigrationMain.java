@@ -41,7 +41,7 @@ public final class ProductionNovelMigrationMain {
     private static final String LEDGER = "/app/release/migrations/flyway-ledger.json";
     private static final String LOCATION = "filesystem:/app/release/migrations/sql";
     private static final String CHECKPOINT = "/run/aienie/migration-restore/checkpoint.sql";
-    private static final int LATEST_VERSION = 15;
+    private static final int LATEST_VERSION = 24;
     private static final String TARGET = "V" + LATEST_VERSION;
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z0-9_]{1,64}");
     private static final Pattern NUMERIC_LITERAL = Pattern.compile(

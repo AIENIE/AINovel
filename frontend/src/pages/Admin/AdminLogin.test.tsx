@@ -11,6 +11,7 @@ const auth = vi.hoisted(() => ({
   confirmEnrollment: vi.fn(),
   loginTotp: vi.fn(),
   loginRecovery: vi.fn(),
+  recoveryChallenge: vi.fn(),
   startRebind: vi.fn(),
   confirmRebind: vi.fn(),
 }));
@@ -65,8 +66,8 @@ describe("AdminLogin", () => {
     await enterPassword();
     expect(await screen.findByLabelText("动态验证码")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "使用恢复码" }));
-    fireEvent.change(screen.getByLabelText("恢复码"), { target: { value: "RECOVERY-CODE" } });
+    fireEvent.click(screen.getByRole("button", { name: "丢失动态码，使用紧急码" }));
+    fireEvent.change(screen.getByLabelText("紧急码"), { target: { value: "RECOVERY-CODE" } });
     fireEvent.click(screen.getByRole("button", { name: "进入受限恢复" }));
 
     expect(await screen.findByText("重新绑定验证器")).toBeTruthy();
@@ -94,7 +95,7 @@ describe("AdminLogin", () => {
     fireEvent.change(screen.getByLabelText("首次验证码"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "确认绑定" }));
 
-    expect(await screen.findByText("保存恢复码")).toBeTruthy();
+    expect(await screen.findByText("保存紧急码")).toBeTruthy();
     expect(screen.getByText("RECOVERY-ONE")).toBeTruthy();
     expect(auth.confirmEnrollment).toHaveBeenCalledWith("enrollment-challenge", "123456");
   });
