@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,28 @@ const AdminSecurity = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const pageActive = useRef(true);
+  const materialEpoch = useRef(0);
+
+  useEffect(() => {
+    pageActive.current = true;
+    const clear = () => {
+      pageActive.current = false;
+      materialEpoch.current += 1;
+      setRecoveryCodes([]);
+      setCode("");
+      setSubmitting(false);
+    };
+    const resume = () => { pageActive.current = true; };
+    window.addEventListener("pagehide", clear);
+    window.addEventListener("pageshow", resume);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      window.removeEventListener("pageshow", resume);
+      clear();
+    };
+  }, []);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -38,18 +60,21 @@ const AdminSecurity = () => {
 
   const regenerate = (event: FormEvent) => {
     event.preventDefault();
+    const requestEpoch = materialEpoch.current;
+    const isCurrent = () => pageActive.current && requestEpoch === materialEpoch.current;
     void (async () => {
       setSubmitting(true);
       setError("");
       try {
         const result = await api.adminAuth.getRecoveryCodes(code);
+        if (!isCurrent()) return;
         setRecoveryCodes(result.recoveryCodes);
         setCode("");
         await load();
       } catch (cause: unknown) {
-        setError(cause instanceof Error ? cause.message : "无法获取紧急码");
+        if (isCurrent()) setError(cause instanceof Error ? cause.message : "无法获取紧急码");
       } finally {
-        setSubmitting(false);
+        if (isCurrent()) setSubmitting(false);
       }
     })();
   };

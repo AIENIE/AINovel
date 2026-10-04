@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Copy, Loader2, ShieldCheck } from "lucide-react";
@@ -34,6 +34,33 @@ const AdminLogin = () => {
   const [useRecovery, setUseRecovery] = useState(false);
   const [authMode, setAuthMode] = useState<"password" | "totp">("totp");
 
+  const pageActive = useRef(true);
+  const materialEpoch = useRef(0);
+
+  useEffect(() => {
+    pageActive.current = true;
+    const clear = () => {
+      pageActive.current = false;
+      materialEpoch.current += 1;
+      setPassword("");
+      setCode("");
+      setChallengeId("");
+      setManualKey("");
+      setOtpauthUri("");
+      setRecoveryCodes([]);
+      setMode("password");
+      setLoading(false);
+    };
+    const resume = () => { pageActive.current = true; };
+    window.addEventListener("pagehide", clear);
+    window.addEventListener("pageshow", resume);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      window.removeEventListener("pageshow", resume);
+      clear();
+    };
+  }, []);
+
   const nextPath = useMemo(() => {
     const value = new URLSearchParams(location.search).get("next") || "/admin/dashboard";
     return value.startsWith("/admin") ? value : "/admin/dashboard";
@@ -44,10 +71,12 @@ const AdminLogin = () => {
     const isRebind = new URLSearchParams(location.search).get("rebind") === "1";
 
     const load = async () => {
+      const requestEpoch = materialEpoch.current;
+      const isCurrent = () => !cancelled && pageActive.current && requestEpoch === materialEpoch.current;
       try {
         if (isRebind) {
           const result = await api.adminAuth.startRebind();
-          if (!cancelled) {
+          if (isCurrent()) {
             setEnrollment(result);
             setMode("rebind");
           }
@@ -56,7 +85,7 @@ const AdminLogin = () => {
 
         try {
           const session = await api.adminAuth.me();
-          if (cancelled) return;
+          if (!isCurrent()) return;
           if (session.sessionScope === "RECOVERY") {
             navigate("/admin/login?rebind=1", { replace: true });
           } else {
@@ -68,11 +97,11 @@ const AdminLogin = () => {
         }
 
         const bootstrap = await api.adminAuth.bootstrap();
-        if (cancelled) return;
+        if (!isCurrent()) return;
         setAuthMode(bootstrap.authMode);
         setMode("password");
       } catch (cause: unknown) {
-        if (!cancelled) {
+        if (isCurrent()) {
           setError(errorMessage(cause, "无法初始化管理员认证"));
           setMode("password");
         }
@@ -80,7 +109,9 @@ const AdminLogin = () => {
     };
 
     void load();
+    window.addEventListener("pageshow", load);
     return () => {
+      window.removeEventListener("pageshow", load);
       cancelled = true;
     };
   }, [location.search, navigate, nextPath]);
@@ -92,15 +123,17 @@ const AdminLogin = () => {
     setCode("");
   };
 
-  const run = async (task: () => Promise<void>) => {
+  const run = async (task: (isCurrent: () => boolean) => Promise<void>) => {
+    const requestEpoch = materialEpoch.current;
+    const isCurrent = () => pageActive.current && requestEpoch === materialEpoch.current;
     setLoading(true);
     setError("");
     try {
-      await task();
+      await task(isCurrent);
     } catch (cause: unknown) {
-      setError(errorMessage(cause, "认证失败"));
+      if (isCurrent()) setError(errorMessage(cause, "认证失败"));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -115,12 +148,14 @@ const AdminLogin = () => {
 
   const submitPassword = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => {
+    void run(async (isCurrent) => {
       if (useRecovery) {
         const gate = await api.adminAuth.recoveryChallenge(username,password);
+        if (!isCurrent()) return;
         setPassword(""); setChallengeId(gate.challengeId); setCode(""); setMode("recovery"); return;
       }
       const result = await api.adminAuth.login(username, password);
+      if (!isCurrent()) return;
       setPassword("");
       if (!result.status) {
         navigate(nextPath, { replace: true });
@@ -128,7 +163,9 @@ const AdminLogin = () => {
       }
       if (!result.challengeId) throw new Error("管理员登录挑战无效");
       if (result.status === "ENROLLMENT_REQUIRED") {
-        setEnrollment(await api.adminAuth.startEnrollment(result.challengeId));
+        const enrollment = await api.adminAuth.startEnrollment(result.challengeId);
+        if (!isCurrent()) return;
+        setEnrollment(enrollment);
         setMode("enrollment");
         return;
       }
@@ -140,22 +177,25 @@ const AdminLogin = () => {
 
   const confirmEnrollment = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => {
-      finish(await api.adminAuth.confirmEnrollment(challengeId, code));
+    void run(async (isCurrent) => {
+      const result = await api.adminAuth.confirmEnrollment(challengeId, code);
+      if (isCurrent()) finish(result);
     });
   };
 
   const submitTotp = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => {
-      finish(await api.adminAuth.loginTotp(challengeId, code));
+    void run(async (isCurrent) => {
+      const result = await api.adminAuth.loginTotp(challengeId, code);
+      if (isCurrent()) finish(result);
     });
   };
 
   const submitRecovery = (event: FormEvent) => {
     event.preventDefault();
-    void run(async () => {
+    void run(async (isCurrent) => {
       await api.adminAuth.loginRecovery(challengeId, code);
+      if (!isCurrent()) return;
       navigate("/admin/login?rebind=1", { replace: true });
     });
   };
@@ -187,7 +227,7 @@ const AdminLogin = () => {
           className="mt-4 space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void run(async () => finish(await api.adminAuth.confirmRebind(challengeId, code)));
+            void run(async (isCurrent) => { const result = await api.adminAuth.confirmRebind(challengeId, code); if (isCurrent()) finish(result); });
           }}
         >
           <CodeField id="rebind-code" label="新验证器验证码" value={code} onChange={setCode} />
@@ -195,8 +235,8 @@ const AdminLogin = () => {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "确认重新绑定"}
           </Button>
         </form>
-        <Button className="mt-3 w-full" variant="ghost" disabled={loading} onClick={() => void run(async () => {
-          await api.adminAuth.logout(); setManualKey(""); setOtpauthUri(""); setCode(""); setChallengeId(""); setRecoveryCodes([]);
+        <Button className="mt-3 w-full" variant="ghost" disabled={loading} onClick={() => void run(async (isCurrent) => {
+          await api.adminAuth.logout(); if (!isCurrent()) return; setManualKey(""); setOtpauthUri(""); setCode(""); setChallengeId(""); setRecoveryCodes([]);
           navigate("/admin/login", { replace:true });
         })}>取消重绑并退出</Button>
         <AuthError message={error} />
