@@ -49,7 +49,7 @@ $components = @(
         Command = 'corepack.cmd'
         BuildArguments = @($frontendPackageManager, 'install', '--frozen-lockfile')
         TestArguments = @($frontendPackageManager, 'run', 'test', '--maxWorkers=2')
-        StartArguments = @($frontendPackageManager, '--dir', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--', '--host', '127.0.0.1', '--port', [string]$FrontendPort, '--strictPort')
+        StartArguments = @($frontendPackageManager, '--dir', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--host', '127.0.0.1', '--port', [string]$FrontendPort, '--strictPort')
         Port = $FrontendPort
         HealthPath = '/'
         HealthKind = 'Http200'
