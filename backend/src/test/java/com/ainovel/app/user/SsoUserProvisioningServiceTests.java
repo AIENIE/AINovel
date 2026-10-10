@@ -12,6 +12,10 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 class SsoUserProvisioningServiceTests {
+    // Isolate business tests from the external SSO transport and its mounted CA.
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.ainovel.app.auth.SsoTokenExchangeService ssoTokenExchangeService;
+
 
     @Autowired
     private SsoUserProvisioningService provisioningService;

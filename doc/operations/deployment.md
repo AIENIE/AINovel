@@ -2,18 +2,19 @@
 
 ## 配置
 
-`env.txt` 不入库。Linux 发布的运行时 `env.txt` 由 config-center 维护（项目 → 环境 → env.txt），发版中心在部署时以 `0600` 普通文件只读挂载进后端容器；仓库、构建输入与发布产物都不携带实际值，也不允许由宿主 OS 环境变量补齐缺失键。`env.example` 保留为必需键清单参考，供 config-center 录入和本地调试对照。重点分组：
+运行时使用 config-center 托管的配置对：`application.yml` 保存地址、端点、ENV/AUTH_MODE 和其他非秘密设置，`env.txt` 仅保存密码、哈希、令牌和密钥。发版中心将两者作为普通文件只读挂载进后端容器，秘密文件权限为 `0600`。实际配置不进入仓库、构建输入或发布产物，也不允许由宿主 OS 环境变量补齐缺失键。配置格式与预检见 [`../../scripts/config-pair/README.md`](../../scripts/config-pair/README.md)，`env.example` 仅供秘密键清单参考。重点分组：
 
 - 基础设施：`MYSQL_*`、`REDIS_*`、`QDRANT_*`
 - 三服务地址：`USER_HTTP_ADDR`、`USER_GRPC_ADDR`、`PAY_GRPC_ADDR`、`AI_GRPC_ADDR`
 - SSO：`SSO_CALLBACK_ORIGIN`、`VITE_SSO_ENTRY_BASE_URL`、`JWT_SECRET`、`JWT_ISSUER`、`JWT_AUDIENCE`；业务令牌必须先通过本地签名、issuer 和 audience 校验，不允许以远程会话校验作为未验签令牌的 fallback
-- 管理员策略：`env.txt` 中的精确 `ENV`、`AUTH_MODE`；只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`
+- 管理员策略：`application.yml` 中的精确 `ENV`、`AUTH_MODE`；只允许 `local/password`、`local/totp`、`test/totp`、`production/totp`
 - 模板值：config-center 侧与本地调试文件不得遗留 `replace-*` 占位值；部署加载链与后端 Spring 启动前门禁都会按键名拒绝遗留占位值，不会输出配置内容
-- 管理员密码：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（BCrypt cost 至少 10；不接受明文密码配置）
+- 管理员身份与密码：YAML 中的 `ADMIN_USERNAME`、秘密文件中的 `ADMIN_PASSWORD_HASH`（BCrypt cost 至少 10；不接受明文密码配置）
 - 管理员 TOTP 密钥环：`ADMIN_TOTP_ENCRYPTION_KEYS`、`ADMIN_TOTP_ACTIVE_KEY_VERSION`
 - 管理员来源与会话：`ADMIN_TRUSTED_ORIGINS`、`ADMIN_SESSION_COOKIE_SECURE`、`ADMIN_SESSION_MINUTES`、`ADMIN_SESSION_IDLE_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_MINUTES`、`ADMIN_TOTP_RECOVERY_SESSION_IDLE_MINUTES`；非本地环境必须启用 Secure Cookie，本地隔离 HTTP 验收可显式设为 `false`
 - 外部鉴权：AI HMAC、user-service caller 独立短期 JWT 签名配置、pay-service service JWT；user-service 仅允许 `aud=aienie-userservice-grpc`、`scope=user.auth.session.read`、TTL `30..900` 秒，旧共享静态 token 会被部署和启动门禁拒绝
 - 数据库：`SPRING_JPA_HIBERNATE_DDL_AUTO=none`
+- stag SSO HTTPS 与 gRPC 共用目标环境挂载的 `/run/aienie/trust/staging-root.pem`。换码客户端仅在 `ENV=test` 加载该 CA，继续执行证书链与主机名校验；本地使用 Windows 系统信任，生产使用 JVM 系统信任并拒绝私有 stag CA。证书不进入仓库或制品。
 
 日志与运维记录默认写入挂载目录，并可通过环境变量收紧容量：
 
@@ -29,7 +30,7 @@
 
 ## 发版中心部署
 
-Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试，并按 `AIENIE_RELEASE_ENVIRONMENT`（`staging`/`production`）组装运行时包。两阶段契约、生产运行时契约与 Flyway ledger 说明见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。
+Linux 服务器发布唯一入口是发版中心。当前 Jenkins 按 catalog 检出固定 SHA、构建和推送镜像、上传 runtime bundle，控制面负责部署与健康检查；Job 名称不能用来判断目标环境，必须核对发布记录的 environment、目标服务器和 remote root。当前平台不调用本仓库的两阶段 `scripts/ci/build-release.sh`，AINovel 的 L2 与隔离迁移验证需单独完成；本轮已确认使用现有平台恢复 stag。仓库保留的两阶段契约、运行时契约及 Flyway ledger 说明见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。
 
 运行时配置、密钥和证书都不是构建输入：生产包只允许 config-center 提供的 `env.txt` 以 `0600` 只读挂载进后端容器，`backend/`、`frontend/`、`release/` 前缀的文件覆盖一律拒绝。仓库不再提供本地 Compose 部署脚本；本地开发使用 Windows 原生入口（见 [`windows-native.md`](windows-native.md)）。
 
@@ -71,7 +72,7 @@ mvn -q -f backend/pom.xml -Pexternal-mysql-verification `
 
 - 网站不可达：检查域名解析、Nginx、容器状态与端口。
 - SSO 成功但业务接口 403：检查 `USER_GRPC_ADDR`、caller JWT 的 id/issuer/audience/scope 配对和 user-service `ValidateSession` 可达性；不得以恢复旧共享静态 token 排障。
-- 管理员登录失败：先确认运行时 `env.txt`（config-center 或本地调试文件）中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
+- 管理员登录失败：先确认运行时配置对（config-center 或本地调试文件）中的 `ENV/AUTH_MODE` 是四个允许组合之一，再检查 `/api/v1/admin-auth/bootstrap`；确认 `ADMIN_PASSWORD_HASH` 与输入密码匹配，TOTP 模式完成密码阶段后再输入验证器动态码。恢复码仍需先通过密码阶段，并且只能进入受限重绑定流程。
 - 通用积分转换失败：检查 pay-service gRPC 地址、项目标识和 service JWT。
 - `curl` 出现代理相关 TLS 异常：对本地域名使用 `--noproxy '*'`。
 

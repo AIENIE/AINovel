@@ -13,7 +13,7 @@
 - 前端内部监听端口: 11040
 - 后端内部监听端口: 11041
 
-- 部署入口: Linux 服务器发布只通过发版中心执行 `scripts/ci/build-release.sh`（两阶段构建与运行时契约见 `scripts/ci/README.md`）；运行时 `env.txt` 由 config-center 管理、经发版中心以 `0600` 普通文件只读挂载进后端容器，仓库、构建输入与发布产物都不携带运行时配置。本地开发在 Windows 直跑 `scripts/windows/` 入口，不使用 Docker。
+- 部署入口: Linux 服务器发布只通过发版中心执行。当前平台按 catalog 构建并推送固定源码的镜像，控制面负责部署和健康检查；仓库保留的两阶段 `scripts/ci/build-release.sh` 契约与当前平台差异见 `scripts/ci/README.md`。运行时 `env.txt` 由 config-center 管理、经发版中心以 `0600` 普通文件只读挂载进后端容器，仓库、构建输入与发布产物都不携带运行时配置。本地开发在 Windows 直跑 `scripts/windows/` 入口，不使用 Docker。
 - 本段描述仓库提供的技术入口，实际目标环境和操作范围按当前任务及适用运行规范确定，不因文档列出脚本而自动执行。
 
 ## Anti Slop 专题必读入口

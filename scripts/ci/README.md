@@ -1,7 +1,8 @@
-# Aienie 两阶段发布构建契约
+# Aienie 仓库两阶段构建契约
 
-发布平台以仓库内 `scripts/ci/build-release.sh` 作为唯一入口。入口只接受一个位置参数，且必须与
-`AIENIE_CI_OUTPUT_DIR` 指向同一目录。
+当前发版中心按 catalog 执行 Fetch → 镜像 Build/Push → Publish，控制面执行 SSH 部署和健康检查；它不调用本仓库的两阶段脚本。2026-10-10 stag 恢复经任务确认使用现有平台流程，不能将该次 Jenkins 构建表述为下面的 Resolve/离线 Build 或安全扫描已执行。AINovel 的完整 L2 和隔离 MySQL 验证由本地入口单独完成，当前 catalog 验证器未覆盖 AINovel。
+
+以下是仓库保留的 `scripts/ci/build-release.sh` 契约。恢复平台对该入口的调用需要独立的平台变更，不得通过手工部署绕过发版中心。入口只接受一个位置参数，且必须与 `AIENIE_CI_OUTPUT_DIR` 指向同一目录。
 
 ## Resolve
 

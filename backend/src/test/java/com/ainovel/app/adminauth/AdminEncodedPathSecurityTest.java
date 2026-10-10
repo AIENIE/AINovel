@@ -39,6 +39,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AdminEncodedPathSecurityTest {
+    // Isolate business tests from the external SSO transport and its mounted CA.
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.ainovel.app.auth.SsoTokenExchangeService ssoTokenExchangeService;
+
     @Autowired
     private MockMvc mockMvc;
 

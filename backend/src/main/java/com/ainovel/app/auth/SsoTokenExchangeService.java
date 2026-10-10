@@ -27,10 +27,9 @@ public class SsoTokenExchangeService {
     private final JwtService jwtService;
 
     @Autowired
-    public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper, JwtService jwtService) {
-        this(ssoEntryService, objectMapper, jwtService, HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build());
+    public SsoTokenExchangeService(SsoEntryService ssoEntryService, ObjectMapper objectMapper,
+                                   JwtService jwtService, SsoHttpClientFactory clientFactory) {
+        this(ssoEntryService, objectMapper, jwtService, clientFactory.create());
     }
 
     // Package-visible compatibility constructor for transport-only unit tests.
