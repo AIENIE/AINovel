@@ -22,7 +22,7 @@ instead of failing. It also works from Windows PowerShell 5.1 by relaunching
 itself under pwsh.
 
 The default private input is
-`%LOCALAPPDATA%\Aienie\secrets\ainovel.env`. It must be a regular,
+`aienie-runtime/private/app-secrets/ainovel.env`. It must be a regular,
 non-reparse file, but the local launcher does not change or require a special
 Windows ACL, elevation, or UAC workflow. Override `-EnvironmentFile` when the
 file is stored elsewhere. It supplies credentials and caller-auth material;
@@ -34,10 +34,10 @@ as `AIENIE_RUNTIME_PLANE=windows-local`. A different runtime plane or a
 `test`, `staging`, or `production` selector is rejected before a child process is created. The backend and
 frontend bind to the documented Windows loopback ports `11041` and `11040`.
 Readiness requires HTTP 200, plus top-level `status=UP` for the backend.
-Owned PID state stays under `%LOCALAPPDATA%\Aienie\native-runs\ainovel`.
+Owned PID state stays under `aienie-runtime/local-services/direct-runs/native-runs/ainovel`.
 
 The Windows processes are one local application instance. Their shared data
-and public AI/User/Pay dependencies are different instances hosted by the WSL
+and public AI/User/Pay dependencies are different instances hosted on `aienie-6` and exposed through
 the three `local*.testhut.top` TLS services. The Java clients use the active
 JDK/JVM trust store; the launcher does not inject a CA file, trust-all mode,
 or plaintext public-service fallback.

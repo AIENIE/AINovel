@@ -68,6 +68,79 @@ class ExternalMySqlMigrationVerificationTest {
     }
 
     @Test
+    void upgradesStagingV23ThroughV35AndIsIdempotent() throws Exception {
+        assertUpgradeThroughV35("23", 12);
+    }
+
+    @Test
+    void upgradesDevelopV33ThroughV35AndIsIdempotent() throws Exception {
+        assertUpgradeThroughV35("33", 2);
+    }
+
+    private void assertUpgradeThroughV35(String baseline, int expectedPending) throws Exception {
+        ExternalMySqlConfig config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
+            Flyway.configure().dataSource(databaseUrl, config.username, config.password)
+                    .locations("classpath:db/migration").target(baseline).load().migrate();
+            var migration = flyway(config, databaseUrl);
+            assertEquals(expectedPending, migration.info().pending().length);
+            assertEquals(expectedPending, migration.migrate().migrationsExecuted);
+            assertEquals("35", migration.info().current().getVersion().getVersion());
+            try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
+                 Statement statement = connection.createStatement();
+                 var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_emergency_subjects WHERE subject_id='configured-admin'")) {
+                org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                assertEquals(1, rows.getInt(1));
+            }
+            assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
+        });
+    }
+
+    @Test
+    void restoresLegacyTinytextCapacityWithoutLosingDataOrCollation() throws Exception {
+        ExternalMySqlConfig config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
+            Flyway.configure().dataSource(databaseUrl, config.username, config.password)
+                    .locations("classpath:db/migration").target("34").load().migrate();
+            String before = "{\"text\":\"旧稿😀\"}";
+            try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
+                 Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE ai_operation_runs MODIFY payload_json TINYTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL");
+                statement.execute("SET FOREIGN_KEY_CHECKS=0");
+                try (var insert = connection.prepareStatement("INSERT INTO ai_operation_runs(id,user_id,operation_type,status,payload_json) VALUES(UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),'TEST','SUCCEEDED',?)")) {
+                    insert.setString(1, before);
+                    insert.executeUpdate();
+                }
+                statement.execute("SET FOREIGN_KEY_CHECKS=1");
+            }
+            assertEquals(1, flyway(config, databaseUrl).migrate().migrationsExecuted);
+            try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
+                 Statement statement = connection.createStatement()) {
+                try (var columns = statement.executeQuery("SELECT DATA_TYPE,COLLATION_NAME,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_operation_runs' AND COLUMN_NAME='payload_json'")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(columns.next());
+                    assertEquals("longtext", columns.getString(1));
+                    assertEquals("utf8mb4_bin", columns.getString(2));
+                    assertEquals("YES", columns.getString(3));
+                }
+                try (var row = statement.executeQuery("SELECT payload_json FROM ai_operation_runs")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(row.next());
+                    assertEquals(before, row.getString(1));
+                }
+                String longPayload = "正文😀".repeat(1000);
+                try (var update = connection.prepareStatement("UPDATE ai_operation_runs SET payload_json=?")) {
+                    update.setString(1, longPayload);
+                    assertEquals(1, update.executeUpdate());
+                }
+                try (var row = statement.executeQuery("SELECT payload_json FROM ai_operation_runs")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(row.next());
+                    assertEquals(longPayload, row.getString(1));
+                }
+            }
+            assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
+        });
+    }
+
+    @Test
     void upgradesV18ToLatestWithoutChangingArchivedManuscriptBody() throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (name, url) -> {

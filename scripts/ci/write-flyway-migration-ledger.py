@@ -29,8 +29,8 @@ def main(argv: list[str]) -> int:
             "version": match.group(1),
         })
     entries.sort(key=lambda item: int(item["version"]))
-    if [int(item["version"]) for item in entries] != list(range(1, 35)):
-        raise SystemExit("AINovel Flyway chain must remain contiguous V1..V34")
+    if [int(item["version"]) for item in entries] != list(range(1, 36)):
+        raise SystemExit("AINovel Flyway chain must remain contiguous V1..V35")
     value = {
         "authorization": {
             "minimum_release_manifest_version": 4,
@@ -38,7 +38,7 @@ def main(argv: list[str]) -> int:
             "restore_point_required_before_execute": True,
         },
         "canonical_component_id": "ai-novel",
-        "latest_version": "34",
+        "latest_version": "35",
         "location": "filesystem:/app/release/migrations/sql",
         "migrations": entries,
         "schema_version": "aienie-production-flyway-ledger-v2",

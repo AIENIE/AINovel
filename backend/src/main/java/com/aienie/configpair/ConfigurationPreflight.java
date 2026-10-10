@@ -6,6 +6,7 @@ public final class ConfigurationPreflight {
 
     public static void main(String[] args) {
         RuntimeConfiguration.initialize(new String[0]);
+        com.ainovel.app.config.RuntimeEnvironmentPreflight.validate(RuntimeConfiguration.getenv());
         if (args.length == 1 && !args[0].equals(RuntimeConfiguration.getenv("ENV")))
             throw new IllegalStateException("Effective ENV does not match this runtime entry point");
         if (args.length == 2 && args[0].equals("--expect-asset-root")) {

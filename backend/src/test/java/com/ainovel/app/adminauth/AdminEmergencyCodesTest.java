@@ -39,7 +39,7 @@ class AdminEmergencyCodesTest {
         } else ds.setUrl("jdbc:h2:mem:emergency-"+UUID.randomUUID()+";MODE=MySQL;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000");
         jdbc=new JdbcTemplate(ds);
         for(String table:List.of("admin_emergency_challenge_bindings","admin_emergency_codes","admin_emergency_subjects","admin_emergency_migrations","admin_operation_proofs","admin_operation_challenges","admin_auth_audit","admin_sessions","admin_recovery_codes","admin_auth_challenges","admin_totp_credentials")) jdbc.execute("drop table if exists "+table);
-        for(String name:List.of("V10__admin_totp_authentication.sql","V11__harden_admin_authentication.sql","V24__retained_admin_emergency_codes.sql")) migrate(name);
+        for(String name:List.of("V10__admin_totp_authentication.sql","V11__harden_admin_authentication.sql","V34__retained_admin_emergency_codes.sql")) migrate(name);
         properties=new AdminLocalAuthProperties();properties.setUsername("test-admin");properties.setPasswordHash(new BCryptPasswordEncoder().encode("test-password"));
         properties.setEncryptionKeys("v1:"+Base64.getEncoder().encodeToString(new byte[32]));properties.setActiveKeyVersion("v1");
         context=new AnnotationConfigApplicationContext();context.getBeanFactory().registerSingleton("dataSource",ds);context.getBeanFactory().registerSingleton("properties",properties);
@@ -92,7 +92,7 @@ class AdminEmergencyCodesTest {
     @Test void wrongPasswordExpiredAuthUsedCodeAndMigrationReplay() throws Exception {
         String session=full();var codes=auth.getRecoveryCodes(session,null,"test");assertThrows(AdminAuthenticationException.class,()->auth.recoveryChallenge("test-admin","wrong","test"));
         var recovery=recover(codes.recoveryCodes().getFirst());assertThrows(AdminAuthenticationException.class,()->recover(codes.recoveryCodes().getFirst()));
-        migrate("V24__retained_admin_emergency_codes.sql");assertNotNull(sessions.resolve(recovery.token()));assertEquals(9,store.activeRecoveryCount(AdminLocalAuthService.SUBJECT));
+        migrate("V34__retained_admin_emergency_codes.sql");assertNotNull(sessions.resolve(recovery.token()));assertEquals(9,store.activeRecoveryCount(AdminLocalAuthService.SUBJECT));
         jdbc.update("update admin_sessions set expires_at=? where scope='RECOVERY'",java.sql.Timestamp.from(Instant.now().minusSeconds(1)));assertNull(sessions.resolve(recovery.token()));
     }
     @Test void authenticatedCiphertextIsBoundToSubjectRecordAndBackend() {
@@ -135,8 +135,8 @@ class AdminEmergencyCodesTest {
     @Test void migrationRetiresHistoryOnceAndKeepsOrdinaryFullSessions() throws Exception {
         String full=full();var codes=auth.getRecoveryCodes(full,null,"test");var recovery=recover(codes.recoveryCodes().getFirst());
         jdbc.update("delete from admin_emergency_migrations");jdbc.update("insert into admin_recovery_codes(subject_id,code_hash,created_at) values(?,?,?)",AdminLocalAuthService.SUBJECT,crypto.hashRecoveryCode("OLD-CODE"),java.sql.Timestamp.from(Instant.now()));
-        migrate("V24__retained_admin_emergency_codes.sql");assertNull(sessions.resolve(recovery.token()));assertTrue(sessions.isActive(full,"FULL"));assertEquals(1,jdbc.queryForObject("select count(*) from admin_recovery_codes where replaced_at is not null",Integer.class));assertEquals(9,store.activeRecoveryCount(AdminLocalAuthService.SUBJECT));
-        var fresh=recover(codes.recoveryCodes().get(1));migrate("V24__retained_admin_emergency_codes.sql");assertNotNull(sessions.resolve(fresh.token()));
+        migrate("V34__retained_admin_emergency_codes.sql");assertNull(sessions.resolve(recovery.token()));assertTrue(sessions.isActive(full,"FULL"));assertEquals(1,jdbc.queryForObject("select count(*) from admin_recovery_codes where replaced_at is not null",Integer.class));assertEquals(9,store.activeRecoveryCount(AdminLocalAuthService.SUBJECT));
+        var fresh=recover(codes.recoveryCodes().get(1));migrate("V34__retained_admin_emergency_codes.sql");assertNotNull(sessions.resolve(fresh.token()));
     }
     @Test void firstEnrollmentGeneratesTenAndUnboundGetRequiresEnrollment() {
         jdbc.update("delete from admin_totp_credentials");assertThrows(AdminAuthenticationException.class,()->auth.getRecoveryCodes(full(),null,"test"));Config.mode="totp";
