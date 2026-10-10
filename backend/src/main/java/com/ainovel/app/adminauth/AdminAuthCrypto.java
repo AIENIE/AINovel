@@ -23,11 +23,15 @@ public class AdminAuthCrypto {
     private final Map<String, SecretKeySpec> keys;
 
     public AdminAuthCrypto(AdminLocalAuthProperties properties, AdminAuthPolicySource policy) {
-        if (!policy.requiresTotp()) {
+        if (!policy.requiresTotp() && (properties.getEncryptionKeys() == null || properties.getEncryptionKeys().isBlank())) {
             this.keys = Map.of();
             return;
         }
-        this.keys = parseKeys(properties.getEncryptionKeys());
+        Map<String, SecretKeySpec> parsed;
+        try { parsed = parseKeys(properties.getEncryptionKeys()); }
+        catch (IllegalStateException ex) { if (policy.requiresTotp()) throw ex; parsed = Map.of(); }
+        this.keys = parsed;
+        if (!policy.requiresTotp() && keys.isEmpty()) return;
         if (keys.isEmpty()) {
             throw new IllegalStateException("ADMIN_TOTP_ENCRYPTION_KEYS must contain at least one 32-byte key");
         }
@@ -70,11 +74,11 @@ public class AdminAuthCrypto {
     }
 
     public String hashRecoveryCode(String code) {
-        return recoveryCodeEncoder.encode(code);
+        return recoveryCodeEncoder.encode(normalizeRecovery(code));
     }
 
     public boolean matchesRecoveryCode(String code, String hash) {
-        return recoveryCodeEncoder.matches(code, hash);
+        return recoveryCodeEncoder.matches(normalizeRecovery(code), hash);
     }
 
     public String randomBase32(int bytes) {
@@ -83,7 +87,38 @@ public class AdminAuthCrypto {
         return Base32.encode(value);
     }
     public String randomCode() {
-        return randomBase32(16);
+        byte[] value = new byte[16];
+        random.nextBytes(value);
+        String hex = java.util.HexFormat.of().withUpperCase().formatHex(value);
+        return hex.replaceAll("(.{8})(?!$)", "$1-");
+    }
+
+    public static String normalizeRecovery(String code) {
+        return code == null ? "" : code.replaceAll("[\\s-]+", "").toUpperCase(java.util.Locale.ROOT);
+    }
+
+    public EncryptedValue encryptRecovery(String subject, String record, String plaintext, String version) {
+        byte[] nonce = new byte[NONCE_BYTES];
+        random.nextBytes(nonce);
+        return new EncryptedValue(recoveryCipher(Cipher.ENCRYPT_MODE, subject, record, plaintext, nonce, version), nonce, version);
+    }
+
+    public String decryptRecovery(String subject, String record, String ciphertext, byte[] nonce, String version) {
+        return recoveryCipher(Cipher.DECRYPT_MODE, subject, record, ciphertext, nonce, version);
+    }
+
+    private String recoveryCipher(int mode, String subject, String record, String input, byte[] nonce, String version) {
+        try {
+            SecretKeySpec key = keys.get(version);
+            if (key == null || nonce.length != NONCE_BYTES) throw new IllegalStateException("Unknown emergency-code encryption key");
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(mode, key, new GCMParameterSpec(GCM_TAG_BITS, nonce));
+            cipher.updateAAD(("AINovel|admin-emergency-v1|" + subject + "|" + record + "|" + version).getBytes(StandardCharsets.UTF_8));
+            if (mode == Cipher.ENCRYPT_MODE) return Base64.getEncoder().encodeToString(cipher.doFinal(input.getBytes(StandardCharsets.UTF_8)));
+            return new String(cipher.doFinal(Base64.getDecoder().decode(input)), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to process administrator emergency code", ex);
+        }
     }
 
     private Map<String, SecretKeySpec> parseKeys(String raw) {

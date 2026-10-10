@@ -3,6 +3,9 @@ param(
     [string]$EnvironmentFile = (Join-Path 'D:\project\aienie\aienie-runtime\private\app-secrets' 'ainovel.env'),
     [ValidateSet('All', 'Backend', 'Frontend')][string]$Component = 'All',
     [ValidateRange(30, 900)][int]$StartupTimeoutSeconds = 180,
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,47}$')][string]$InstanceName = 'ainovel',
+    [ValidateRange(1024,65535)][int]$FrontendPort = 11040,
+    [ValidateRange(1024,65535)][int]$BackendPort = 11041,
     [switch]$EnableBackendDebug,
     # -NoBrowser skips opening the project homepage after a successful start.
     [switch]$NoBrowser
@@ -36,9 +39,9 @@ if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -lt
     exit $LASTEXITCODE
 }
 
-& (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Start -Component $Component -EnvironmentFile $EnvironmentFile -StartupTimeoutSeconds $StartupTimeoutSeconds -EnableBackendDebug:$EnableBackendDebug
+& (Join-Path $PSScriptRoot 'Invoke-Local.ps1') -Action Start -Component $Component -EnvironmentFile $EnvironmentFile -StartupTimeoutSeconds $StartupTimeoutSeconds -EnableBackendDebug:$EnableBackendDebug -InstanceName $InstanceName -FrontendPort $FrontendPort -BackendPort $BackendPort
 
-if (-not $NoBrowser -and $Component -eq 'All') {
+if (-not $NoBrowser -and $Component -eq 'All' -and $InstanceName -eq 'ainovel') {
     $homepage = 'https://localainovel.testhut.top/'
     Write-Output "Opening the project homepage in the default browser: $homepage"
     Start-Process -FilePath $homepage

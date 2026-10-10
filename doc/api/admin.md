@@ -11,20 +11,24 @@
 - `POST /api/v1/admin-auth/enrollment/start`
   - 首次绑定时提交密码阶段返回的 challenge，返回一次性绑定 challenge、手动密钥和 `otpauth` URI。
 - `POST /api/v1/admin-auth/enrollment/confirm`
-  - 提交挑战与 6 位 TOTP，完成绑定并一次性返回恢复码。
+  - 提交挑战与 6 位 TOTP，完成绑定并返回 10 个紧急码。
 - `POST /api/v1/admin-auth/login/challenge`
   - 旧的无密码入口已禁用，返回 410。
 - `POST /api/v1/admin-auth/login/totp`
 - `POST /api/v1/admin-auth/login/recovery`
   - 恢复码只创建受限恢复会话，不授予普通管理接口权限。
+- `POST /api/v1/admin-auth/login/recovery/challenge`
+  - `{username,password}` 验证密码并返回 LOGIN challenge；用于本地密码模式下已绑定管理员的恢复流程。
+- `POST /api/v1/admin-auth/recovery-codes/get`
+  - 完整会话提交 `{code}`，当前 TOTP 验证成功后返回 `{recoveryCodes,generatedCount,remaining}`。本地密码模式免 TOTP，但仍要求已绑定。首次生成 10 个；重复获取保留未用码，只补缺口。各码以 128 位随机数展示为四组八位大写十六进制字符。
 - `GET /api/v1/admin-auth/me`
 - `POST /api/v1/admin-auth/logout`
 - `GET /api/v1/admin-auth/security/status`
 - `POST /api/v1/admin-auth/security/recovery-codes/regenerate`
-  - 需要当前 TOTP，会使旧恢复码全部失效。
+  - 兼容入口，同获取接口一样仅补足已失效的数量，返回完整可用码数组。
 - `POST /api/v1/admin-auth/rebind/start`
 - `POST /api/v1/admin-auth/rebind/confirm`
-  - 仅恢复会话可用；成功后撤销旧会话并生成新恢复码。
+  - 仅恢复会话可用；绑定 challenge 关联恢复会话与当前凭据版本，120 秒内最多 5 次。确认前保留旧凭据；成功后撤销旧会话、challenge 和 proof，替换凭据并签发完整会话，其余紧急码保持有效且不自动补码。
 - `POST /api/v1/admin-auth/operation-proofs/verify`
   - 完整 TOTP 会话提交 `{challengeId,code}`，返回仅存于内存的 `proofToken` 和固定 60 秒有效期。
 

@@ -29,7 +29,7 @@ public class AdminAuthStore {
     public Optional<Credential> credential(String subject) {
         return jdbc.query(
                 "select encrypted_secret,nonce,key_version,algorithm,digits,period_seconds,last_accepted_timestep "
-                        + "from admin_totp_credentials where subject_id=?",
+                        + "from admin_totp_credentials where subject_id=? for update",
                 (rs, n) -> new Credential(
                         rs.getString(1), rs.getBytes(2), rs.getString(3), rs.getString(4),
                         rs.getInt(5), rs.getInt(6), (Long) rs.getObject(7)
@@ -48,6 +48,7 @@ public class AdminAuthStore {
     }
 
     public int replaceCredential(String subject, AdminAuthCrypto.EncryptedValue secret, Instant now) {
+        jdbc.update("update admin_emergency_subjects set credential_version=credential_version+1 where subject_id=?", subject);
         return jdbc.update(
                 "update admin_totp_credentials set encrypted_secret=?,nonce=?,key_version=?,algorithm=?,digits=?,"
                         + "period_seconds=?,last_accepted_timestep=null,enabled_at=? where subject_id=?",
@@ -118,40 +119,49 @@ public class AdminAuthStore {
         ) == 1;
     }
 
-    public void replaceRecoveryCodes(String subject, List<String> hashes, Instant now) {
-        jdbc.update(
-                "update admin_recovery_codes set replaced_at=? where subject_id=? and used_at is null and replaced_at is null",
-                Timestamp.from(now), subject
-        );
-        for (String hash : hashes) {
-            jdbc.update(
-                    "insert into admin_recovery_codes(subject_id,code_hash,created_at) values(?,?,?)",
-                    subject, hash, Timestamp.from(now)
-            );
-        }
+    public long lockSubject(String subject) {
+        return jdbc.queryForObject("select credential_version from admin_emergency_subjects where subject_id=? for update", Long.class, subject);
     }
 
-    public List<String> activeRecoveryHashes(String subject) {
-        return jdbc.query(
-                "select code_hash from admin_recovery_codes where subject_id=? and used_at is null and replaced_at is null",
-                (rs, n) -> rs.getString(1), subject
-        );
+    public void bindChallenge(String hash, String session, long version) {
+        jdbc.update("insert into admin_emergency_challenge_bindings(challenge_hash,credential_version,recovery_session) values(?,?,?)", hash, version, session);
+    }
+
+    public boolean challengeBindingValid(String hash, String session, long version) {
+        Integer count = jdbc.queryForObject("select count(*) from admin_emergency_challenge_bindings where challenge_hash=? and credential_version=? and (recovery_session is null or recovery_session=?)", Integer.class, hash, version, session);
+        return count != null && count == 1;
+    }
+
+    public List<RecoveryCode> activeRecoveryCodes(String subject) {
+        return jdbc.query("select record_id,code_hash,encrypted_code,nonce,key_version from admin_emergency_codes where subject_id=? and used_at is null order by created_at,record_id for update",
+            (rs,n) -> new RecoveryCode(rs.getString(1),rs.getString(2),rs.getString(3),rs.getBytes(4),rs.getString(5)), subject);
+    }
+
+    public void insertRecoveryCode(String subject, String id, String hash, AdminAuthCrypto.EncryptedValue encrypted) {
+        jdbc.update("insert into admin_emergency_codes(record_id,subject_id,code_hash,encrypted_code,nonce,key_version,created_at) values(?,?,?,?,?,?,?)",
+            id,subject,hash,encrypted.ciphertext(),encrypted.nonce(),encrypted.keyVersion(),Timestamp.from(Instant.now()));
+    }
+
+    public void rotateRecoveryKey(String id, AdminAuthCrypto.EncryptedValue encrypted) {
+        jdbc.update("update admin_emergency_codes set encrypted_code=?,nonce=?,key_version=? where record_id=? and used_at is null", encrypted.ciphertext(),encrypted.nonce(),encrypted.keyVersion(),id);
     }
 
     public boolean consumeRecoveryHash(String subject, String hash) {
-        return jdbc.update(
-                "update admin_recovery_codes set used_at=? where subject_id=? and code_hash=? "
-                        + "and used_at is null and replaced_at is null",
-                Timestamp.from(Instant.now()), subject, hash
-        ) == 1;
+        return jdbc.update("update admin_emergency_codes set used_at=? where subject_id=? and code_hash=? and used_at is null", Timestamp.from(Instant.now()),subject,hash)==1;
     }
 
     public int activeRecoveryCount(String subject) {
-        Integer count = jdbc.queryForObject(
-                "select count(*) from admin_recovery_codes where subject_id=? and used_at is null and replaced_at is null",
-                Integer.class, subject
-        );
-        return count == null ? 0 : count;
+        return jdbc.queryForObject("select count(*) from admin_emergency_codes where subject_id=? and used_at is null", Integer.class,subject);
+    }
+
+    public void invalidateChallenges(String subject) {
+        jdbc.update("update admin_auth_challenges set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(Instant.now()),subject);
+        jdbc.update("update admin_operation_challenges set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(Instant.now()),subject);
+        jdbc.update("update admin_operation_proofs set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(Instant.now()),subject);
+    }
+
+    public record RecoveryCode(String id,String hash,String ciphertext,byte[] nonce,String keyVersion) {
+        @Override public String toString() { return "RecoveryCode[redacted]"; }
     }
 
     public void insertSession(
@@ -320,7 +330,7 @@ public class AdminAuthStore {
         jdbc.update("update admin_auth_challenges set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(now), subject);
         jdbc.update("update admin_operation_challenges set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(now), subject);
         jdbc.update("update admin_operation_proofs set consumed_at=? where subject_id=? and consumed_at is null", Timestamp.from(now), subject);
-        jdbc.update("delete from admin_totp_credentials where subject_id=?", subject);
+        jdbc.update("delete from admin_totp_credentials where subject_id=? for update", subject);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

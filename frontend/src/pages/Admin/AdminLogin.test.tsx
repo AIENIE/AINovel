@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminLogin from "./Login";
@@ -11,6 +11,7 @@ const auth = vi.hoisted(() => ({
   confirmEnrollment: vi.fn(),
   loginTotp: vi.fn(),
   loginRecovery: vi.fn(),
+  recoveryChallenge: vi.fn(),
   startRebind: vi.fn(),
   confirmRebind: vi.fn(),
 }));
@@ -34,6 +35,7 @@ const enterPassword = async () => {
 
 describe("AdminLogin", () => {
   beforeEach(() => {
+    cleanup();
     Object.values(auth).forEach((mockFn) => mockFn.mockReset());
     auth.me.mockRejectedValue(new Error("no session"));
   });
@@ -65,8 +67,8 @@ describe("AdminLogin", () => {
     await enterPassword();
     expect(await screen.findByLabelText("动态验证码")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "使用恢复码" }));
-    fireEvent.change(screen.getByLabelText("恢复码"), { target: { value: "RECOVERY-CODE" } });
+    fireEvent.click(screen.getByRole("button", { name: "丢失动态码，使用紧急码" }));
+    fireEvent.change(screen.getByLabelText("紧急码"), { target: { value: "RECOVERY-CODE" } });
     fireEvent.click(screen.getByRole("button", { name: "进入受限恢复" }));
 
     expect(await screen.findByText("重新绑定验证器")).toBeTruthy();
@@ -94,8 +96,23 @@ describe("AdminLogin", () => {
     fireEvent.change(screen.getByLabelText("首次验证码"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "确认绑定" }));
 
-    expect(await screen.findByText("保存恢复码")).toBeTruthy();
+    expect(await screen.findByText("保存紧急码")).toBeTruthy();
     expect(screen.getByText("RECOVERY-ONE")).toBeTruthy();
     expect(auth.confirmEnrollment).toHaveBeenCalledWith("enrollment-challenge", "123456");
+    fireEvent(window,new Event("pagehide"));
+    expect(screen.queryByText("RECOVERY-ONE")).toBeNull();
+    expect(screen.queryByText("RECOVERY-TWO")).toBeNull();
+    expect((screen.getByLabelText("管理员密码") as HTMLInputElement).value).toBe("");
   });
+  it("clears pending binding material and entered OTP on pagehide",async()=>{
+    auth.bootstrap.mockResolvedValue({authMode:"totp",state:"ENROLLMENT_REQUIRED"});auth.login.mockResolvedValue({status:"ENROLLMENT_REQUIRED",challengeId:"password-challenge"});auth.startEnrollment.mockResolvedValue({challengeId:"pending-challenge",manualKey:"PENDING-SEED",otpauthUri:"otpauth://totp/pending"});renderLogin();await enterPassword();
+    expect((await screen.findByLabelText("手工密钥") as HTMLInputElement).value).toBe("PENDING-SEED");fireEvent.change(screen.getByLabelText("首次验证码"),{target:{value:"123456"}});fireEvent(window,new Event("pagehide"));
+    expect(screen.queryByLabelText("手工密钥")).toBeNull();expect(screen.queryByLabelText("首次验证码")).toBeNull();expect((screen.getByLabelText("管理员密码") as HTMLInputElement).value).toBe("");
+  });
+  it("does not restore a late binding response after the page closes and resumes",async()=>{
+    auth.bootstrap.mockResolvedValue({authMode:"totp",state:"ENROLLMENT_REQUIRED"});auth.login.mockResolvedValue({status:"ENROLLMENT_REQUIRED",challengeId:"password-challenge"});
+    let resolve!: (value:{challengeId:string;manualKey:string;otpauthUri:string})=>void;auth.startEnrollment.mockReturnValue(new Promise(r=>{resolve=r;}));renderLogin();await enterPassword();await waitFor(()=>expect(auth.startEnrollment).toHaveBeenCalledTimes(1));
+    fireEvent(window,new Event("pagehide"));fireEvent(window,new Event("pageshow"));await act(async()=>{resolve({challengeId:"late-challenge",manualKey:"LATE-SEED",otpauthUri:"otpauth://totp/late"});});expect(screen.queryByLabelText("手工密钥")).toBeNull();expect(screen.queryByText("LATE-SEED")).toBeNull();
+  });
+
 });

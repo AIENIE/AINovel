@@ -16,7 +16,8 @@ $startText = [IO.File]::ReadAllText((Join-Path $windowsRoot 'Start-Local.ps1')) 
 $statusText = [IO.File]::ReadAllText((Join-Path $windowsRoot 'Get-LocalStatus.ps1')) +
     [IO.File]::ReadAllText((Join-Path $windowsRoot 'Invoke-Local.ps1'))
 $moduleText = [IO.File]::ReadAllText((Join-Path $windowsRoot 'LocalRuntime.psm1'))
-$runtimeText = $startText + $statusText + $moduleText
+$localConfigText = [IO.File]::ReadAllText((Join-Path $windowsRoot '../../backend/src/main/resources/application-local.yml'))
+$runtimeText = $startText + $statusText + $moduleText + $localConfigText
 # Exercise the exact launcher policy without executing its main action or loading runtime secrets.
 $launcherAst = [Management.Automation.Language.Parser]::ParseFile(
     (Join-Path $windowsRoot 'Invoke-Local.ps1'), [ref]$null, [ref]$null)
@@ -171,7 +172,7 @@ try {
     [IO.Directory]::CreateDirectory($testRoot) | Out-Null
     $env:LOCALAPPDATA = $testRoot
     $env:AIENIE_PRODUCT_STATE_WRITER = 'this-path-must-never-be-used'
-    & (Join-Path $windowsRoot 'Get-LocalStatus.ps1') | Out-Null
+    & (Join-Path $windowsRoot 'Get-LocalStatus.ps1') -InstanceName emergency-contract -FrontendPort 12040 -BackendPort 12041 | Out-Null
 } finally {
     if ($null -eq $previousWriter) { Remove-Item Env:AIENIE_PRODUCT_STATE_WRITER -ErrorAction SilentlyContinue }
     else { $env:AIENIE_PRODUCT_STATE_WRITER = $previousWriter }

@@ -11,6 +11,9 @@ param(
     [int]$StartupTimeoutSeconds = 180,
     [ValidateSet('L1', 'L2')]
     [string]$TestLevel = 'L2',
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,47}$')][string]$InstanceName = 'ainovel',
+    [ValidateRange(1024,65535)][int]$FrontendPort = 11040,
+    [ValidateRange(1024,65535)][int]$BackendPort = 11041,
     [switch]$AsJson
     ,[switch]$EnableBackendDebug
 )
@@ -21,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 Import-Module (Join-Path $PSScriptRoot 'LocalRuntime.psm1') -Force
-$stateRoot = Join-Path 'D:\project\aienie\aienie-runtime\local-services\direct-runs\native-runs' 'ainovel'
+$stateRoot = Join-Path 'D:\project\aienie\aienie-runtime\local-services\direct-runs\native-runs' $InstanceName
 $statePath = Join-Path $stateRoot 'processes.json'
 # Windows direct-run data root: logs/records live outside the checkout under
 # the shared aienie-runtime local-services tree, never on a drive root.
@@ -34,8 +37,8 @@ $components = @(
         Command = 'mvn.cmd'
         BuildArguments = @('-q', '-DskipTests', 'package')
         TestArguments = @('-q', 'test')
-        StartArguments = @('-f', (Join-Path $repoRoot 'backend\pom.xml'), '-q', 'spring-boot:run')
-        Port = 11041
+        StartArguments = @('-f', (Join-Path $repoRoot 'backend\pom.xml'), '-q', 'spring-boot:run', ('-Dspring-boot.run.arguments=--server.port=' + $BackendPort))
+        Port = $BackendPort
         HealthPath = '/api/actuator/health/readiness'
         HealthKind = 'JsonUp'
         NodeModulesPath = $null
@@ -46,8 +49,8 @@ $components = @(
         Command = 'corepack.cmd'
         BuildArguments = @($frontendPackageManager, 'install', '--frozen-lockfile')
         TestArguments = @($frontendPackageManager, 'run', 'test', '--maxWorkers=2')
-        StartArguments = @($frontendPackageManager, '--dir', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--', '--host', '127.0.0.1', '--port', '11040', '--strictPort')
-        Port = 11040
+        StartArguments = @($frontendPackageManager, '--dir', (Join-Path $repoRoot 'frontend'), 'run', 'dev', '--host', '127.0.0.1', '--port', [string]$FrontendPort, '--strictPort')
+        Port = $FrontendPort
         HealthPath = '/'
         HealthKind = 'Http200'
         NodeModulesPath = (Join-Path $repoRoot 'frontend\node_modules')
@@ -178,6 +181,7 @@ function Get-ChildEnvironment {
     if (Test-Path -LiteralPath ($EnvironmentFile + '.application.yml')) {
         $child['AIENIE_APPLICATION_FILE'] = ([Uri][IO.Path]::GetFullPath($EnvironmentFile + '.application.yml')).AbsoluteUri
     }
+    $child['AINOVEL_BACKEND_PORT'] = [string]$BackendPort
     $child['SPRING_PROFILES_ACTIVE'] = 'local'
     $child['AIENIE_RUNTIME_PLANE'] = 'windows-local'
     Assert-AienieLocalOnlyEnvironment -Values $child
@@ -413,8 +417,8 @@ switch ($Action) {
                 $persisted = @($records) + @($started | ForEach-Object { ConvertTo-AieniePersistedProcessRecord -Record $_ })
                 Save-ProcessState -Records $persisted
             }
-            if ($Component -in @('All','Frontend')) { Assert-LocalEndpoint 'https://localainovel.testhut.top/' }
-            & $PSCommandPath -Action Status
+            if ($InstanceName -eq 'ainovel' -and $FrontendPort -eq 11040 -and $Component -in @('All','Frontend')) { Assert-LocalEndpoint 'https://localainovel.testhut.top/' }
+            & $PSCommandPath -Action Status -InstanceName $InstanceName -FrontendPort $FrontendPort -BackendPort $BackendPort
         } catch {
             foreach ($record in $started) {
                 try {

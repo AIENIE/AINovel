@@ -30,7 +30,8 @@ class AdminSessionServiceTest {
                 "configured-admin", "RECOVERY", "PASSWORD_RECOVERY", passwordAt, null, "v1"
         );
 
-        assertTrue(issued.expiresAt().isAfter(Instant.now().plusSeconds(14 * 60)));
+        assertTrue(issued.expiresAt().isAfter(Instant.now().plusSeconds(9 * 60)));
+        assertTrue(!issued.expiresAt().isAfter(Instant.now().plusSeconds(10 * 60)));
         assertTrue(issued.token().length() >= 40);
         verify(store).insertSession(
                 any(), eq("configured-admin"), eq("RECOVERY"), eq("test"), eq("totp"),

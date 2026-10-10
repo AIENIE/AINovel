@@ -25,7 +25,7 @@
 - HTTP 响应返回 `X-Request-Id`；只接受最长 64 位的字母、数字、点、下划线、冒号和连字符，其他值会重新生成。console 日志级别字段和 ECS 文件日志字段均包含同一 request id；AI operation、guided creation 与 G2 evaluation 线程池会传播 MDC，并在任务结束后恢复 worker 原上下文。
 - 浏览器不序列化原始异常或拒绝对象，只输出经过截断并对常见令牌、兑换码参数和邮箱模式脱敏的错误摘要。
 
-密码模式不解析或要求 TOTP keyring。测试和生产启动时若缺少 TOTP keyring、可信来源或其他必需配置会直接失败；生产处理认证请求时若共享 Redis 限流存储不可用则失败关闭。不要把密码、摘要、密钥、验证码、恢复码、challenge、session 或 proof 写入文档、日志或提交信息；从曾经跟踪过的 `env.txt` 取出的所有实际凭据应在部署前完成轮换。
+密码模式登录不要求 TOTP keyring；已有动态码绑定的管理员获取紧急码时需要有效密钥环。测试和生产启动时若缺少 TOTP keyring、可信来源或其他必需配置会直接失败；生产处理认证请求时若共享 Redis 限流存储不可用则失败关闭。不要把密码、摘要、密钥、验证码、恢复码、challenge、session 或 proof 写入文档、日志或提交信息；从曾经跟踪过的 `env.txt` 取出的所有实际凭据应在部署前完成轮换。
 
 ## 发版中心部署
 
@@ -90,3 +90,10 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 - 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
 - 后端 healthcheck 使用 readiness；前端容器通过 `depends_on: condition: service_healthy` 等待后端就绪，compose healthcheck 的 `start_period` 提供启动宽限，任一服务未就绪不会进入健康状态。
 - 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
+
+
+### 管理员紧急码升级与隔离验收
+
+V24 废弃历史恢复码及对应恢复会话、未完成绑定 challenge，保留有效动态码和普通完整会话。升级后已有绑定管理员首次“获取紧急码”生成 10 个；后续获取只补已用数量。恢复重绑成功不会补码，剩余紧急码继续有效。迁移有一次性标记，可重复执行；备份和轮换须保留仍被凭据或码引用的密钥版本。
+
+并行 Windows 验收使用标准入口的可选 `-InstanceName emergency-codes -FrontendPort 12040 -BackendPort 12041`，Start、Stop、Get-LocalStatus 三个入口均传相同参数。使用仓库外隔离配置对和独立数据库，状态/进程日志位于 canonical native-runs 的实例目录，Vite 自动代理到指定后端端口。私有配置需同时设定隔离 APP_LOG_DIR/APP_RECORD_DIR、可信 Origin 和验收用本地 TOTP；HTTP 回环验收显式关闭 Secure Cookie。默认实例仍为 ainovel、11040/11041。

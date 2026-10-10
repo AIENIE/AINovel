@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,28 @@ const AdminSecurity = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const pageActive = useRef(true);
+  const materialEpoch = useRef(0);
+
+  useEffect(() => {
+    pageActive.current = true;
+    const clear = () => {
+      pageActive.current = false;
+      materialEpoch.current += 1;
+      setRecoveryCodes([]);
+      setCode("");
+      setSubmitting(false);
+    };
+    const resume = () => { pageActive.current = true; };
+    window.addEventListener("pagehide", clear);
+    window.addEventListener("pageshow", resume);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      window.removeEventListener("pageshow", resume);
+      clear();
+    };
+  }, []);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -38,18 +60,21 @@ const AdminSecurity = () => {
 
   const regenerate = (event: FormEvent) => {
     event.preventDefault();
+    const requestEpoch = materialEpoch.current;
+    const isCurrent = () => pageActive.current && requestEpoch === materialEpoch.current;
     void (async () => {
       setSubmitting(true);
       setError("");
       try {
-        const codes = await api.adminAuth.regenerateRecoveryCodes(code);
-        setRecoveryCodes(codes);
+        const result = await api.adminAuth.getRecoveryCodes(code);
+        if (!isCurrent()) return;
+        setRecoveryCodes(result.recoveryCodes);
         setCode("");
         await load();
       } catch (cause: unknown) {
-        setError(cause instanceof Error ? cause.message : "无法重新生成恢复码");
+        if (isCurrent()) setError(cause instanceof Error ? cause.message : "无法获取紧急码");
       } finally {
-        setSubmitting(false);
+        if (isCurrent()) setSubmitting(false);
       }
     })();
   };
@@ -58,7 +83,7 @@ const AdminSecurity = () => {
     return <div className="flex min-h-48 items-center justify-center text-zinc-400"><Loader2 className="h-4 w-4 animate-spin" /></div>;
   }
 
-  const lowCodes = status?.authMode === "totp" && status.recoveryCodesRemaining <= status.lowRecoveryThreshold;
+  const lowCodes = status?.enrolled && status.recoveryCodesRemaining <= status.lowRecoveryThreshold;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -75,17 +100,17 @@ const AdminSecurity = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-baseline justify-between border-b border-zinc-800 pb-4">
-            <span className="text-sm text-zinc-400">{status?.authMode === "password" ? "登录保障" : "可用恢复码"}</span>
-            <span className="font-mono text-lg">{status?.authMode === "password" ? "PASSWORD" : status?.recoveryCodesRemaining ?? 0}</span>
+            <span className="text-sm text-zinc-400">可用紧急码</span>
+            <span className="font-mono text-lg">{status?.recoveryCodesRemaining ?? 0}</span>
           </div>
           {lowCodes && (
             <div className="flex gap-2 rounded border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>恢复码数量偏低，请在安全位置保存重新生成后的新恢复码。</span>
+              <span>紧急码数量偏低，再次获取将只补充失效的码，未使用码保持有效。</span>
             </div>
           )}
-          {status?.authMode === "totp" && <form className="space-y-3" onSubmit={regenerate}>
-            <div className="space-y-2">
+          {status?.enrolled ? <form className="space-y-3" onSubmit={regenerate}>
+            {status.authMode === "totp" && <div className="space-y-2">
               <Label htmlFor="regenerate-totp">当前动态验证码</Label>
               <Input
                 id="regenerate-totp"
@@ -96,24 +121,32 @@ const AdminSecurity = () => {
                 className="border-zinc-700 bg-zinc-950"
                 onChange={(event) => setCode(event.target.value)}
               />
-            </div>
-            <Button disabled={submitting || code.length !== 6}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "重新生成恢复码"}
+            </div>}
+            <Button disabled={submitting || (status.authMode === "totp" && code.length !== 6)}>
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "获取紧急码"}
             </Button>
-          </form>}
+          </form> : <p className="text-sm text-zinc-400">请先完成动态码绑定。</p>}
           {error && <div className="rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</div>}
         </CardContent>
       </Card>
 
-      {status?.authMode === "totp" && recoveryCodes.length > 0 && (
+      {recoveryCodes.length > 0 && (
         <Card className="border-amber-700/50 bg-zinc-900 text-zinc-100">
           <CardHeader>
-            <CardTitle className="text-base">新的恢复码</CardTitle>
-            <CardDescription className="text-zinc-400">旧恢复码已失效；这些新恢复码只显示一次。</CardDescription>
+            <CardTitle className="text-base">保存紧急码</CardTitle>
+            <CardDescription className="text-zinc-400">未使用的紧急码保持有效；每个码只能使用一次，请保存在安全位置。</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2 rounded border border-zinc-700 bg-zinc-950 p-4 font-mono text-sm">
               {recoveryCodes.map((value) => <div key={value}>{value}</div>)}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button onClick={() => void navigator.clipboard.writeText(recoveryCodes.join("\n"))}>复制</Button>
+              <Button onClick={() => {
+                const url = URL.createObjectURL(new Blob([recoveryCodes.join("\n")], {type:"text/plain;charset=utf-8"}));
+                const link = document.createElement("a"); link.href=url; link.download="AINovel-emergency-codes.txt"; link.click(); URL.revokeObjectURL(url);
+              }}>下载</Button>
+              <Button variant="outline" onClick={() => setRecoveryCodes([])}>关闭</Button>
             </div>
           </CardContent>
         </Card>

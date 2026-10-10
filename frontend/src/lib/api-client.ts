@@ -822,6 +822,8 @@ export const api = {
       await requestVoid("/v1/admin-auth/logout", { method: "POST", body: "{}" }, adminCookieAuth());
     },
     status: async () => requestJson<{ enrolled: boolean; recoveryCodesRemaining: number; lowRecoveryThreshold: number; authMode: "password" | "totp" }>("/v1/admin-auth/security/status", { method: "GET" }, adminCookieAuth()),
+    getRecoveryCodes: async (code: string) => requestJson<{ recoveryCodes: string[]; generatedCount: number; remaining: number }>("/v1/admin-auth/recovery-codes/get", { method: "POST", body: JSON.stringify({ code }) }, adminCookieAuth()),
+    recoveryChallenge: async (username: string, password: string) => requestJson<{ challengeId: string }>("/v1/admin-auth/login/recovery/challenge", { method: "POST", body: JSON.stringify({ username,password }) }, ""),
     regenerateRecoveryCodes: async (code: string) => requestJson<string[]>("/v1/admin-auth/security/recovery-codes/regenerate", { method: "POST", body: JSON.stringify({ code }) }, adminCookieAuth()),
     startRebind: async () => requestJson<{ challengeId: string; otpauthUri: string; manualKey: string; expiresAt: string }>("/v1/admin-auth/rebind/start", { method: "POST", body: "{}" }, adminCookieAuth()),
     confirmRebind: async (challengeId: string, code: string) => requestJson<{ username: string; sessionScope: string; expiresAt: string; recoveryCodes: string[] }>("/v1/admin-auth/rebind/confirm", { method: "POST", body: JSON.stringify({ challengeId, code }) }, adminCookieAuth()),
