@@ -9,6 +9,13 @@ public interface MaterialChunkProjectionRepository extends JpaRepository<Materia
     void deleteByMaterialId(UUID materialId);
     List<MaterialChunkProjection> findByMaterialId(UUID materialId);
     @Query(value="""
+      SELECT EXISTS(SELECT 1 FROM material_chunks c JOIN materials m ON m.id=c.material_id
+        WHERE c.content_version=m.content_version AND m.status='approved' AND c.status='approved'
+          AND (c.owner_user_id IS NULL OR c.owner_user_id=:ownerId))
+      """,nativeQuery=true)
+    long visibleCorpusExists(@Param("ownerId") UUID ownerId);
+    default boolean existsVisible(UUID ownerId) { return visibleCorpusExists(ownerId) != 0; }
+    @Query(value="""
       SELECT c.* FROM material_chunks c JOIN materials m ON m.id=c.material_id
       WHERE c.content_version=m.content_version AND m.status='approved' AND c.status='approved' AND (c.owner_user_id IS NULL OR c.owner_user_id=:ownerId)
         AND (:query='' OR LOWER(c.title) LIKE LOWER(CONCAT('%',:query,'%'))

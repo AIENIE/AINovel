@@ -21,7 +21,7 @@ describe("sso helpers", () => {
   beforeEach(() => {
     const sessionStorage = createSessionStorage();
     vi.stubGlobal("window", {
-      location: { origin: "https://ainovel.localhut.com" },
+      location: { origin: "https://localainovel.testhut.top" },
       sessionStorage,
     });
     vi.stubGlobal("sessionStorage", sessionStorage);
@@ -34,7 +34,7 @@ describe("sso helpers", () => {
 
   it("builds backend sso entry url", () => {
     const url = buildSsoUrl("login", "/workbench", "state123");
-    expect(url).toBe("https://ainovel.localhut.com/api/v1/sso/login?next=%2Fworkbench&state=state123");
+    expect(url).toBe("https://localainovel.testhut.top/api/v1/sso/login?next=%2Fworkbench&state=state123");
   });
 
   it("prefers configured sso entry base url", () => {
@@ -45,7 +45,7 @@ describe("sso helpers", () => {
 
   it("defaults successful authentication to the creation dashboard", () => {
     const url = buildSsoUrl("login", undefined, "state123");
-    expect(url).toBe("https://ainovel.localhut.com/api/v1/sso/login?next=%2Fdashboard&state=state123");
+    expect(url).toBe("https://localainovel.testhut.top/api/v1/sso/login?next=%2Fdashboard&state=state123");
   });
 
   it("issues and validates one-time state", () => {

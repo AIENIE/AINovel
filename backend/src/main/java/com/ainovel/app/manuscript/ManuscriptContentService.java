@@ -52,6 +52,7 @@ public class ManuscriptContentService {
     @Transactional
     public void writeScene(Manuscript m, UUID sceneId, String content) {
         Objects.requireNonNull(content, "content");
+        invalidateEvidence(m);
         if (!normalized(m)) {
             Map<String,String> values = json.readSections(m.getSectionsJson()); values.put(sceneId.toString(), content);
             m.setSectionsJson(json.writeRequired(values));
@@ -65,6 +66,7 @@ public class ManuscriptContentService {
     }
     @Transactional
     public void replaceAll(Manuscript m, Map<String,String> sections) {
+        invalidateEvidence(m);
         Map<String,String> checked = json.readSections(json.writeRequired(sections));
         if (!normalized(m)) m.setSectionsJson(json.writeRequired(checked));
         else {
@@ -77,6 +79,10 @@ public class ManuscriptContentService {
         m.setUpdatedAt(Instant.now());
     }
     public void replaceSnapshot(Manuscript m, String snapshot) { replaceAll(m, json.readSections(snapshot)); }
+    private void invalidateEvidence(Manuscript m){
+        jdbc.update("update material_source_links set state='REVIEW_REQUIRED' where manuscript_id=? and state='CURRENT'",bytes(m.getId()));
+        jdbc.update("update material_processing_jobs set status='STALE' where manuscript_id=? and kind in ('CHECK','AUTO_CHECK') and status='COMPLETED'",bytes(m.getId()));
+    }
     public static UUID strictId(String key) {
         try { UUID id = UUID.fromString(key); if (!id.toString().equalsIgnoreCase(key)) throw new IllegalArgumentException(); return id; }
         catch (RuntimeException ex) { throw new ApiStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "STORED_SCENE_ID_INVALID"); }

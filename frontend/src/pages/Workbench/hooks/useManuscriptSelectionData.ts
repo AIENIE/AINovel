@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api-client";
+import { api, isApiError } from "@/lib/api-client";
 import type { Manuscript, Outline } from "@/types";
 import { t } from "@/i18n";
 
@@ -214,8 +214,24 @@ export function useManuscriptSelectionData({
 
   const createManuscript = useCallback(async (title: string) => {
     if (!selectedOutlineId) return null;
-    const created = await api.manuscripts.create(selectedOutlineId, { title: title.trim() || t("selectionData.defaultManuscriptTitle") });
-    queryClient.setQueryData<Manuscript[]>(manuscriptsQueryKey(selectedOutlineId), (current = []) => [...current, created]);
+    const name = title.trim() || t("selectionData.defaultManuscriptTitle");
+    const storageKey = `ainovel.manuscript-create:${selectedOutlineId}`;
+    let intent: { title: string; key: string } | null = null;
+    try { intent = JSON.parse(sessionStorage.getItem(storageKey) || "null"); } catch { /* Replace an invalid local intent. */ }
+    if (!intent || intent.title !== name || !intent.key) intent = { title: name, key: crypto.randomUUID() };
+    sessionStorage.setItem(storageKey, JSON.stringify(intent));
+    let created: Manuscript;
+    try { created = await api.manuscripts.create(selectedOutlineId, { title: name }, intent.key); }
+    catch (error) {
+      // A terminal receipt is not a new intent; a later explicit submit may start one.
+      if (isApiError(error) && (error.status === 409 || error.status === 410)) sessionStorage.removeItem(storageKey);
+      throw error;
+    }
+    sessionStorage.removeItem(storageKey);
+      queryClient.setQueryData<Manuscript[]>(manuscriptsQueryKey(selectedOutlineId), (current = []) =>
+        current.some((item) => item.id === created.id)
+          ? current.map((item) => item.id === created.id ? created : item)
+          : [...current, created]);
     setSelectedManuscriptId(created.id);
     toast({ title: t("selectionData.manuscriptCreated") });
     return created;

@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class AiGatewayGrpcClient {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
 
     private final ExternalServiceProperties properties;
     private final ClientInterceptor authInterceptor;
@@ -85,6 +87,10 @@ public class AiGatewayGrpcClient {
     }
 
     public ChatResult chatCompletions(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
+        return validated("CHAT", requestId, model, messages, () -> chatTransport(requestId, remoteUserId, model, messages));
+    }
+
+    private ChatResult chatTransport(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
         AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
         ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
@@ -106,6 +112,14 @@ public class AiGatewayGrpcClient {
     }
 
     public ChatResult chatCompletionsStream(String requestId,
+                                            long remoteUserId,
+                                            String model,
+                                            List<AiChatRequest.Message> messages,
+                                            StreamProgressListener listener) {
+        return validated("CHAT_STREAM", requestId, model, messages, () -> streamTransport(requestId, remoteUserId, model, messages, listener));
+    }
+
+    private ChatResult streamTransport(String requestId,
                                             long remoteUserId,
                                             String model,
                                             List<AiChatRequest.Message> messages,
@@ -184,9 +198,36 @@ public class AiGatewayGrpcClient {
     }
 
     public EmbeddingResult embeddings(long remoteUserId, String model, List<String> input, boolean normalize) {
+        String requestId = UUID.randomUUID().toString();
+        return validated("EMBEDDINGS", requestId, model, input, () -> embeddingTransport(requestId, remoteUserId, model, input, normalize));
+    }
+
+    /** Native retrieval is budgeted at the provider exit; it does not reuse historical local budgets. */
+    public fireflychat.ai.v1.EmbeddingsResponse nativeEmbeddings(String requestId,long user,String model,List<String> input,String type,String run){
+        var request=EmbeddingsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
+                .setUserId(user).setModel(model).addAllInput(input).setDimensions(1024).setInputType(type).setNormalize(true);
+        if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
+        return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).embeddings(request.build());
+    }
+    public fireflychat.ai.v1.RerankResponse rerank(String requestId,long user,String query,List<String> documents,String instruction,int top,String run){
+        var request=fireflychat.ai.v1.RerankRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
+                .setUserId(user).setModel("qwen3.7-text-rerank").setQuery(query).addAllDocuments(documents).setInstruct(instruction).setTopN(top);
+        if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
+        return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).rerank(request.build());
+    }
+    public ChatResult structured(String requestId,long user,List<AiChatRequest.Message> messages,String schema,int maxOutput,String run){
+        var request=ChatCompletionsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
+                .setUserId(user).setModel("qwen3.7-flash-2026-07-15").setJsonSchema(schema).setMaxOutputTokens(maxOutput).setThinkingEnabled(false);
+        for(var m:messages)request.addMessages(ChatMessage.newBuilder().setRole(m.role()).setContent(m.content()));
+        if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
+        var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request.build());
+        return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+    }
+
+    private EmbeddingResult embeddingTransport(String requestId, long remoteUserId, String model, List<String> input, boolean normalize) {
         AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
         EmbeddingsRequest.Builder builder = EmbeddingsRequest.newBuilder()
-                .setRequestId(UUID.randomUUID().toString())
+                .setRequestId(requestId)
                 .setProjectKey(properties.getProjectKey())
                 .setUserId(remoteUserId)
                 .setSessionId("")
@@ -210,6 +251,26 @@ public class AiGatewayGrpcClient {
             vectors.add(vector);
         }
         return new EmbeddingResult(response.getModelKey(), response.getDimensions(), vectors, response.getPromptTokens());
+    }
+
+    private <T> T validated(String kind, String requestId, String model, Object input, java.util.function.Supplier<T> call) {
+        if (requestId == null || requestId.length() > 160) throw new IllegalArgumentException("AI_REQUEST_ID_TOO_LONG");
+        UUID validationId;
+        try { validationId = validationBudget == null ? null : validationBudget.claimGateway(kind, input, requestId, model); }
+        catch (com.ainovel.app.common.ApiStatusException denied) {
+            throw new com.ainovel.app.ai.AiRequestNotSentException(denied.getStatus(), denied.getMessage());
+        }
+        try {
+            T result = call.get();
+            if (validationBudget != null) validationBudget.complete(validationId, result, true);
+            return result;
+        } catch (RuntimeException failure) {
+            if (validationBudget != null) {
+                try { validationBudget.complete(validationId, java.util.Map.of("errorType", failure.getClass().getSimpleName()), false); }
+                catch (RuntimeException recordingFailure) { failure.addSuppressed(recordingFailure); }
+            }
+            throw failure;
+        }
     }
 
     private AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub() {
@@ -255,6 +316,7 @@ public class AiGatewayGrpcClient {
             case MODEL_TYPE_IMAGE -> "image";
             case MODEL_TYPE_EMBEDDING -> "embedding";
             case MODEL_TYPE_AUDIO -> "audio";
+            case MODEL_TYPE_RERANK -> "rerank";
             default -> "unspecified";
         };
     }

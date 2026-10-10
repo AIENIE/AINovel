@@ -32,12 +32,18 @@ class GeneratedOpenApiContractTest {
         JsonNode document = mapper.readTree(mvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
         JsonNode paths = document.path("paths");
+        assertTrue(document.path("components").path("schemas").path("PatchDto").path("properties").has("reason"));
+        assertCritical(paths, "/v2/manuscripts/{manuscriptId}/scenes/{sceneId}/quality-runs/language/operations", "post", true, "202", "409");
+        assertCritical(paths, "/v2/manuscripts/{manuscriptId}/quality-runs/language/{reportId}/patches/{patchId}/{action}", "post", true, "200", "409");
+        assertTrue(paths.path("/v2/manuscripts/{manuscriptId}/quality-runs/language/{reportId}/patches/{patchId}/{action}").path("post").path("parameters").toString().contains("Idempotency-Key"));
         assertCritical(paths, "/v2/manuscripts/{manuscriptId}/branches/{branchId}/merge", "post", true, "400", "409");
         assertCritical(paths, "/v2/manuscripts/{manuscriptId}/versions/{versionId}/rollback", "post", false, "400", "409");
         assertCritical(paths, "/v1/manuscripts/{id}/scenes/{sceneId}/content", "put", true, "400", "409");
         assertCritical(paths, "/v1/ai-operations/{id}/cancel", "post", false, "200", "404");
         assertCritical(paths, "/v2/manuscripts/{manuscriptId}/export", "post", true, "200", "400");
         assertCritical(paths, "/v2/manuscripts/{manuscriptId}/export/jobs/{jobId}/download", "get", false, "200", "429");
+        assertCritical(paths, "/v1/outlines/{outlineId}/manuscripts", "post", true, "200", "409", "410");
+        assertTrue(paths.path("/v1/outlines/{outlineId}/manuscripts").path("post").path("parameters").toString().contains("Idempotency-Key"));
         String merge = paths.path("/v2/manuscripts/{manuscriptId}/branches/{branchId}/merge").path("post").toString();
         assertTrue(merge.contains("REPLACE_ALL") && merge.contains("SCENE_SELECT"));
         assertFalse(document.path("components").path("schemas").isEmpty(), "DTO schemas must be generated");

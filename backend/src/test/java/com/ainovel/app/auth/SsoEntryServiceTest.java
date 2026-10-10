@@ -36,13 +36,13 @@ class SsoEntryServiceTest {
     @Test
     void shouldConvertHostPortAddressIntoHttpRedirectBase() {
         ExternalServiceProperties properties = new ExternalServiceProperties();
-        properties.getUserserviceHttp().setAddress("userservice.localhut.com:10000");
+        properties.getUserserviceHttp().setAddress("localuserservice.testhut.top:10000");
 
         SsoEntryService service = new SsoEntryService(properties);
-        URI uri = service.buildRegisterRedirectUri("https://ainovel.localhut.com/sso/callback", "state-xyz");
+        URI uri = service.buildRegisterRedirectUri("https://localainovel.testhut.top/sso/callback", "state-xyz");
 
         assertEquals("http", uri.getScheme());
-        assertEquals("userservice.localhut.com", uri.getHost());
+        assertEquals("localuserservice.testhut.top", uri.getHost());
         assertEquals(10000, uri.getPort());
         assertEquals("/register", uri.getPath());
     }

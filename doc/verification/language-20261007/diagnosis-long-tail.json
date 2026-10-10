@@ -1,0 +1,75 @@
+{
+  "id": "e79c886a-d524-4422-9a71-ded5fafff8fb",
+  "manuscriptId": "0f608fc2-f55b-4e46-b54c-83b3f40d8a36",
+  "sceneId": "e8883fa4-6f5a-5ecc-81e6-1dd18664ad7f",
+  "source": {
+    "branchId": "3f93a72d-d5cb-40fb-8fd2-75ea62ae4366",
+    "bodyVersion": 2,
+    "snapshotId": "0b6c038a-2798-4d0f-baca-7a88f365e0ec",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "dad21d51fee7beda28bf429cf730ce9a99bac9c99e06d38b55370429b49c5ba3",
+    "textHash": "213b1f1d2ec5bd03c4a24310fe3856150741b4a10af3159ee16cdb2f0f680ea0",
+    "contextVersion": "14faacad959ec3ce383fe178792bc10bff17a4e46a4c4aa11792807ca57b1074",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "INCOMPLETE",
+  "summary": "语言检查未覆盖全部正文或结果不可用；未检查部分不能视为通过。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "PARAGRAPH",
+      "quote": "她逐页核对登记册，把已经确认的日期写在纸上。遇到看不清的字，她先记下页码，等同事回来再问。",
+      "impact": "该段落在整个检查范围内逐字重复140次，读者连续读到完全相同的内容，无法判断动作是一次发生还是文本复制错误，叙事没有任何推进。",
+      "direction": "删除其余逐字重复段落，仅保留必要的单次叙述；若确需表现反复核对，应通过不同时间、结果或上下文变化区分，不宜整段复制。",
+      "start": null,
+      "end": null,
+      "location": "AMBIGUOUS",
+      "paragraph": -1,
+      "context": "她逐页核对登记册，把已经确认的日期写在纸上。遇到看不清的字，她先记下页码，等同事回来再问。",
+      "currentStart": -1,
+      "currentEnd": -1,
+      "availability": "MANUAL_ONLY"
+    },
+    {
+      "id": "1-0",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "可‘找’这个动作还在，不拉也在。",
+      "impact": "“找”被写成“这个动作还在”，把人物实际仍在找什么的意图抽象成动作状态；后半句“不拉也在”又没有交代不拉什么、谁不拉，读者无法从前后文确定它与“找”的关系，整句像速记式结论，语义悬空。",
+      "direction": "补出人物和“拉”的对象或条件，直接写人物仍在找什么、仍打算做什么，不要用“动作还在”代替具体想法。",
+      "start": 7590,
+      "end": 7606,
+      "location": "EXACT",
+      "paragraph": 165,
+      "context": "可‘找’这个动作还在，不拉也在。",
+      "currentStart": 7590,
+      "currentEnd": 7606,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 6439,
+      "contextStart": 0,
+      "contextEnd": 6485,
+      "state": "PARTIAL",
+      "reason": "完整扫描 coreStart=0..coreEnd=6439。该范围由同一段45字符的叙述逐字复制140次组成（段间以换行分隔，末段无换行）。逐段内部人物、动作和对象清楚，未见省略、压缩、断句或搭配问题；明确问题是全篇连续重复同一段落，段落之间没有推进或差异。"
+    },
+    {
+      "index": 1,
+      "start": 6440,
+      "end": 7606,
+      "contextStart": 6394,
+      "contextEnd": 7606,
+      "state": "COMPLETE",
+      "reason": "已扫描 coreStart..coreEnd 范围：其中除最后一句外，是同一段核对登记册叙述的重复；该段本身动作、对象和先后关系清楚，不作为重复次数问题。核心范围内可明确指出的语言问题是末尾“可‘找’这个动作还在，不拉也在。”一句，存在抽象化和必要成分缺失。"
+    }
+  ],
+  "patches": [],
+  "operationId": "ed6d6329-9531-4c2e-a964-27289a1a15da",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:29:10.650522Z"
+}

@@ -1,0 +1,27 @@
+{
+  "storyId": "bceee1ea-2432-4bc8-b8cd-a919304d5313",
+  "outlineId": "30b0db50-dfbc-4cba-8f9b-f0907df0d8d7",
+  "scenes": {
+    "S5": "7e036f1e-5697-570d-bff2-a11cb2e9eb0c",
+    "S6": "7190d834-e33a-5a66-9b19-c232bf7da091",
+    "fast:3": "ea3a26a0-9293-5049-81a7-38d6fbed3285",
+    "fast:6": "42f87383-e04b-5d97-87f3-1045a56c67fb",
+    "normal": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+    "repeated": "71af8fc4-1629-5fb5-acf5-7efd6df7fd29",
+    "long-tail": "e8883fa4-6f5a-5ecc-81e6-1dd18664ad7f",
+    "H2-fast": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+    "H2-crafted": "4d2f8935-c29f-5760-9c11-ae9302f50c52"
+  },
+  "manuscripts": {
+    "S5": "c6fd7ce7-dfb1-46ab-8726-00d46d148ff1",
+    "S6": "2ee29a8f-943e-48e4-bc42-cb0246ce848a",
+    "fast:3": "486144c9-b6ce-4d20-a727-18bb5210728a",
+    "fast:6": "9a813999-cda9-4402-a794-c70a67ff481e",
+    "normal": "abe7eaf8-44f4-4875-8580-7024e6cdd12d",
+    "repeated": "0fdadec5-4715-459a-83ea-008c5893c193",
+    "long-tail": "0f608fc2-f55b-4e46-b54c-83b3f40d8a36",
+    "H2-fast": "0d902e60-12b2-4a91-a352-a0dadeaab88a",
+    "H2-crafted": "e56249b2-2037-4773-ba5a-05aec932beca"
+  },
+  "characterId": "d4338d96-a80d-4542-acd3-60a9676a1945"
+}

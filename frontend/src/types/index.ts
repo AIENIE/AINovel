@@ -156,6 +156,7 @@ export interface FileImportJob {
   status: 'processing' | 'completed' | 'failed';
   progress: number;
   message?: string;
+  materialId?: string | null;
 }
 
 export interface Scene {
@@ -708,6 +709,7 @@ export interface AiOperationProgress {
   outputTokensEstimated: boolean;
   attemptCount: number;
   resultJson?: string | null;
+  errorCode?: string | null;
   errorMessage?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;

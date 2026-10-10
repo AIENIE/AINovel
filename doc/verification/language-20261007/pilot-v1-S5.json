@@ -1,0 +1,50 @@
+{
+  "id": "9cc72937-9dc0-4285-8c6e-fa43a5775976",
+  "manuscriptId": "c6fd7ce7-dfb1-46ab-8726-00d46d148ff1",
+  "sceneId": "7e036f1e-5697-570d-bff2-a11cb2e9eb0c",
+  "source": {
+    "branchId": "7b664c1a-d563-46bc-9a5a-bafd11eda17e",
+    "bodyVersion": 2,
+    "snapshotId": "61f4b685-6076-4079-a2da-7f1b7291007f",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "b372700320d10231150f433435b9344a021a7361d9ea681596c619a6531cb36a",
+    "textHash": "e9b0fb7bb62027f158726623d425990e10228f0162471784670691111b030744",
+    "contextVersion": "421fdc239c138cad3f0405359175ef28fb5747a40dd08991cf24e8992be812c7",
+    "standardVersion": "zh-naturalness-v1"
+  },
+  "status": "ISSUES",
+  "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "可“找”这个动作还在，不拉也在。",
+      "impact": "“不拉也在”指代不明，读者需要停顿猜测“不拉”指什么，破坏了“找”的念头仍然存在的语义连贯。",
+      "direction": "核对“不拉”是否为误写；若想表达那个念头并未消失，应改用明确的说法，避免抽象且无对象的指代。",
+      "start": 303,
+      "end": 319,
+      "location": "EXACT",
+      "paragraph": 2,
+      "context": "修书架得先把书搬下来。她一本一本往地上放，灰尘扑到脸上，她用手背蹭了一下。搬到一半，她停住。那个念头又来了：要不要去找寄信人。信已经烧掉了，她清楚这一点。可“找”这个动作还在，不拉也在。她把一本厚词典放到地上，声音很闷。她对自己说，先修书架。",
+      "currentStart": 303,
+      "currentEnd": 319,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 755,
+      "contextStart": 0,
+      "contextEnd": 755,
+      "state": "COMPLETE",
+      "reason": "检查范围为核心段落全文（coreStart 0 至 coreEnd 755）。整体叙述连续，动作承接与省略基本自然，未发现大范围压缩、断句或生硬搭配问题；仅有一处短语表达不清。"
+    }
+  ],
+  "patches": [],
+  "operationId": "632edf32-ad26-4af5-9fa3-07c5ddbca8e2",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:15:21.035857Z"
+}

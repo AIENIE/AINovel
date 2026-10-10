@@ -2,6 +2,10 @@
 
 # AINovel
 
+> **重点质量审计：[AINovel Anti Slop 机制审计与改进依据](ANTI-SLOP-AUDIT.md)**
+>
+> 包含已复现的检测、修订和提示问题，说明快速与精雕的实际检查范围、漏检原因及改进依据。涉及正文质量的开发与验收，请先阅读这份根目录专题文档；阶段状态与排期仍以 [路线图](doc/roadmap.md) 为准。
+
 AINovel 是一个前后端分离的 AI 小说创作业务项目。
 
 - 前端：React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui

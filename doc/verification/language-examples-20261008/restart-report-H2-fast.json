@@ -1,0 +1,33 @@
+{
+  "id": "fe5afcb3-cf70-407e-9a21-56f825668598",
+  "manuscriptId": "1849e5ad-f1a6-4dff-b075-19804dd015cd",
+  "sceneId": "03634aa2-8d6e-5c04-864e-05bf019d056f",
+  "source": {
+    "branchId": "b3a9d0f3-d2a8-4e7b-bd82-c279827674a1",
+    "bodyVersion": 2,
+    "snapshotId": "97a44591-7f5c-4c2f-a136-5e11049b298a",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "9e8ea0b29c240d2856ff55dc63d6d5ec397abfe8194dd3ee7ebd46578065d89b",
+    "textHash": "f8dcb643ebe325055ea4896080b58b0f73e894db2186168bf358f2256199acb6",
+    "contextVersion": "b6a81acd68181339c79d885df2881d837f87de5d89232cbc9d2e7f459b3f18fa",
+    "standardVersion": "zh-naturalness-v3"
+  },
+  "status": "NO_CLEAR_ISSUES",
+  "summary": "已扫描记录范围，未发现明确语言问题；这不是文本完美或没有 AI 味的保证。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 529,
+      "contextStart": 0,
+      "contextEnd": 529,
+      "state": "COMPLETE",
+      "reason": "已完整扫描 coreStart=0 至 coreEnd=529 的全文。逐段检查人物动作、对白承接、物件描写和段落转换；未发现明确的省略、压缩、断句、搭配或整段生硬问题。"
+    }
+  ],
+  "patches": [],
+  "operationId": "347eeafb-3ca6-4940-841e-7f70017e743a",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-08T05:36:22.418335Z"
+}

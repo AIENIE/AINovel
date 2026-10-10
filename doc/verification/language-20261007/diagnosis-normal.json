@@ -1,0 +1,33 @@
+{
+  "id": "34850d7e-47cd-4ee4-81e2-e17f6acd502b",
+  "manuscriptId": "abe7eaf8-44f4-4875-8580-7024e6cdd12d",
+  "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+  "source": {
+    "branchId": "f90318d9-280d-4366-940c-cec1b32005d7",
+    "bodyVersion": 2,
+    "snapshotId": "6766b26f-6638-47d4-83da-7604e8499646",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "d3a865eeb4f0712ff4c0f194800be92796cf81bee3cb2db27f35bf97a512f576",
+    "textHash": "6bcac0b8c61a3f4c45c4c5e4d88db505bfdb88bf3126c60eca1ecc284d12f264",
+    "contextVersion": "625aee8a5e371a05032097c3b69d9cc398de74ce7e8f86e5971781261890ae00",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "NO_CLEAR_ISSUES",
+  "summary": "已扫描记录范围，未发现明确语言问题；这不是文本完美或没有 AI 味的保证。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 60,
+      "contextStart": 0,
+      "contextEnd": 60,
+      "state": "COMPLETE",
+      "reason": "已通读 coreStart..coreEnd 范围（全文 0..60），逐句检查叙述、对白及连续动作。人物、动作对象和先后关系清楚，未发现过度省略、压缩、刻意断句或生硬搭配等明确语言问题。"
+    }
+  ],
+  "patches": [],
+  "operationId": "ec591d5d-ebf3-4988-8058-da78830c43f9",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:28:51.971243Z"
+}

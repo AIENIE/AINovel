@@ -23,6 +23,8 @@ public final class SceneGenerationManifest {
             "model",
             "modelProvider",
             "promptVersion",
+            "languageStandardVersion",
+            "languageProfileVersion", "languageProfileHash", "languageGenerationEnabled", "languageDiagnosisEnabled",
             "promptHash",
             "attemptCount",
             "contextHash",

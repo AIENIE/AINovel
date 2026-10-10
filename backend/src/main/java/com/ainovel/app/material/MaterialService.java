@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class MaterialService {
+    @Autowired(required=false)
+    private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
@@ -143,8 +145,9 @@ public class MaterialService {
         materialRepository.saveAndFlush(material);
         fingerprints.update(material);
         job.setResultMaterialId(material.getId());
+        if(materialEvidence!=null)materialEvidence.capture(material);
         uploadJobRepository.save(job);
-        return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage());
+        return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage(), job.getResultMaterialId());
     }
 
     @Transactional(readOnly = true)
@@ -155,7 +158,7 @@ public class MaterialService {
         User current = accessGuard.currentUser(details);
         MaterialUploadJob job = uploadJobRepository.findByIdAndOwnerUserId(jobId, current.getId())
                 .orElseThrow(() -> new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "UPLOAD_JOB_NOT_FOUND"));
-        return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage());
+        return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage(), job.getResultMaterialId());
     }
 
     @Transactional(readOnly = true)

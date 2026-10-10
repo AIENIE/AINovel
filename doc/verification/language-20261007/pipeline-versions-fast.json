@@ -1,0 +1,73 @@
+[
+  {
+    "id": "8ac13a37-3941-46fa-9db4-4e9280f996ff",
+    "manuscriptId": "0d902e60-12b2-4a91-a352-a0dadeaab88a",
+    "branchId": "6a6622fa-6b56-44aa-bab1-471a355a2b97",
+    "versionNumber": 2,
+    "label": "场景生成 4d2f8935-c29f-5760-9c11-ae9302f50c52",
+    "snapshotType": "generation",
+    "contentHash": "e1263e3f448adc2a00094394cbd9796f3603b8c3b9f773a06c129e1ba52a7cca",
+    "sectionsJson": "{\"4d2f8935-c29f-5760-9c11-ae9302f50c52\":\"<p>周宁把红伞从鞋柜边拿起来，合了一下伞面。伞骨收拢时发出很轻的一声响。他捏住伞柄出门，走廊的声控灯被脚步惊亮，昏黄的光落在伞布上，那红色并不鲜艳，像是放久了的一副旧对联。</p><p>伞柄上写着字，这一点他记得。</p><p>走到邻居家门口，他先抬头看了一眼门牌，确认是这个号码，才用指节在门上敲了三下。</p><p>里面很快有了动静。脚步声靠近，门开了一道缝，邻居探出半个身子，看清是他，把门全开了。</p><p>周宁把伞递过去。“昨天放在楼下的，看着像你家的。”</p><p>邻居接过去，没有马上开口，先把伞撑开一半看了看伞面，又收回来，翻过伞柄，凑到门边的亮处。伞柄侧面写着一行小字，黑色的，像是用记号笔添上去的，又被什么擦过一遍，边缘发毛。</p><p>邻居的拇指压在字上，一个字一个字地挪过去。</p><p>周宁站在原地，没有再说什么。他本来想着，要是对方说不清，就把伞拿回去，交给楼下的门卫。这句话在嘴边转了一下，没出口。</p><p>“是我的。”邻居把伞柄转过来，朝周宁晃了一下。周宁没有凑近，只看见那行字里确实有个相同的姓。</p><p>“那就好。”周宁说。</p><p>“谢了。”</p><p>“不客气。”</p><p>邻居把伞收好，靠在门边的墙上，一只手在门框上搭了搭，像是还有话要说，最后只点了点头。周宁也点头，转身往回走。</p><p>走到楼道口，声控灯灭了一次，他踩了一脚，灯又亮起来。身后那扇门关上了，很轻的一声，之后走廊里再没有别的响动。</p>\"}",
+    "metadata": {
+      "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+      "generationManifest": {
+        "requestedAt": "2026-10-07T09:36:27.005992800Z",
+        "tokenBudget": 3500,
+        "tokenUsed": 602,
+        "promptHash": "4b75027c35c258fff7314bca79ee64cec8a52a02e9702cb839e1b543021a0668",
+        "contextHash": "4203a67712be8744ef3ff421c339607d49a534a1a8e2e176737d5d5f4a890ce9",
+        "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+        "modelKey": "deepseek-flash",
+        "branchId": "6a6622fa-6b56-44aa-bab1-471a355a2b97",
+        "mode": "fast",
+        "languageStandardVersion": "zh-naturalness-v2",
+        "attemptCount": 1,
+        "orderHash": "62455d96f171f3f752f3407161ba9203f3d4843c001be25d95fcad59468309be",
+        "generator": "SceneGenerationService",
+        "contextRevision": 1,
+        "settingsRevision": 1,
+        "promptVersion": "scene-isolation-h2-v4",
+        "sources": [
+          {
+            "sourceType": "CONTRACT",
+            "estimatedTokens": 18,
+            "sourceId": "contract",
+            "truncated": false,
+            "label": "CONTRACT",
+            "reason": "作者叙事约定"
+          },
+          {
+            "sourceType": "PLAN",
+            "estimatedTokens": 62,
+            "sourceId": "473527bd-6843-5d67-98cd-bfe7e566d7c5",
+            "truncated": false,
+            "label": "PLAN",
+            "reason": "本场作者计划，尚未发生"
+          }
+        ],
+        "schemaVersion": 1,
+        "manuscriptVersion": 1,
+        "canonRevision": 0
+      }
+    },
+    "parentVersionId": "5741af09-1e53-4417-846b-6568b4911496",
+    "createdBy": "a6862098-8e41-4872-98d6-76b5f24849fb",
+    "createdAt": "2026-10-07T09:36:27.014967Z"
+  },
+  {
+    "id": "5741af09-1e53-4417-846b-6568b4911496",
+    "manuscriptId": "0d902e60-12b2-4a91-a352-a0dadeaab88a",
+    "branchId": "6a6622fa-6b56-44aa-bab1-471a355a2b97",
+    "versionNumber": 1,
+    "label": "initial",
+    "snapshotType": "auto",
+    "contentHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "sectionsJson": "{}",
+    "metadata": {
+      "bootstrap": true
+    },
+    "parentVersionId": null,
+    "createdBy": "a6862098-8e41-4872-98d6-76b5f24849fb",
+    "createdAt": "2026-10-07T09:35:30.866216Z"
+  }
+]

@@ -1,0 +1,1199 @@
+[
+  {
+    "id": "case-04:entity_alias",
+    "evidence": [
+      {
+        "source": "case-04:bridge-v2",
+        "quote": "雨桥04日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签04才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-04:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:fictional_term",
+    "evidence": [
+      {
+        "source": "case-04:bridge-v2",
+        "quote": "墨铃签04是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-04:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:paraphrase",
+    "evidence": [
+      {
+        "source": "case-04:bridge-v2",
+        "quote": "雨桥04日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签04才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-04:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:negation_condition",
+    "evidence": [
+      {
+        "source": "case-04:bridge-v2",
+        "quote": "雨桥04日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签04才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-04:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-04:chronicle",
+        "quote": "第二章中，巡桥人阿04尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-04:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿04暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-04:chronicle:0": 3,
+      "case-04:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:inspiration",
+    "evidence": [
+      {
+        "source": "case-04:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-04:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-04:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-04:version_permission",
+    "evidence": [
+      {
+        "source": "case-04:bridge-v2",
+        "quote": "雨桥04日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签04才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-04:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:entity_alias",
+    "evidence": [
+      {
+        "source": "case-08:bridge-v2",
+        "quote": "雨桥08日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签08才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-08:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:fictional_term",
+    "evidence": [
+      {
+        "source": "case-08:bridge-v2",
+        "quote": "墨铃签08是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-08:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:paraphrase",
+    "evidence": [
+      {
+        "source": "case-08:bridge-v2",
+        "quote": "雨桥08日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签08才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-08:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:negation_condition",
+    "evidence": [
+      {
+        "source": "case-08:bridge-v2",
+        "quote": "雨桥08日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签08才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-08:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-08:chronicle",
+        "quote": "第二章中，巡桥人阿08尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-08:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿08暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-08:chronicle:0": 3,
+      "case-08:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:inspiration",
+    "evidence": [
+      {
+        "source": "case-08:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-08:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-08:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-08:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:entity_alias",
+    "evidence": [
+      {
+        "source": "case-09:bridge-v2",
+        "quote": "雨桥09日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签09才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-09:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:fictional_term",
+    "evidence": [
+      {
+        "source": "case-09:bridge-v2",
+        "quote": "墨铃签09是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-09:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:paraphrase",
+    "evidence": [
+      {
+        "source": "case-09:bridge-v2",
+        "quote": "雨桥09日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签09才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-09:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:negation_condition",
+    "evidence": [
+      {
+        "source": "case-09:bridge-v2",
+        "quote": "雨桥09日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签09才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-09:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-09:chronicle",
+        "quote": "第二章中，巡桥人阿09尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-09:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿09暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-09:chronicle:0": 3,
+      "case-09:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:inspiration",
+    "evidence": [
+      {
+        "source": "case-09:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-09:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-09:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-09:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:entity_alias",
+    "evidence": [
+      {
+        "source": "case-12:bridge-v2",
+        "quote": "雨桥12日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签12才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-12:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:fictional_term",
+    "evidence": [
+      {
+        "source": "case-12:bridge-v2",
+        "quote": "墨铃签12是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-12:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:paraphrase",
+    "evidence": [
+      {
+        "source": "case-12:bridge-v2",
+        "quote": "雨桥12日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签12才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-12:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:negation_condition",
+    "evidence": [
+      {
+        "source": "case-12:bridge-v2",
+        "quote": "雨桥12日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签12才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-12:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-12:chronicle",
+        "quote": "第二章中，巡桥人阿12尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-12:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿12暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-12:chronicle:0": 3,
+      "case-12:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:inspiration",
+    "evidence": [
+      {
+        "source": "case-12:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-12:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-12:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-12:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:entity_alias",
+    "evidence": [
+      {
+        "source": "case-13:bridge-v2",
+        "quote": "雨桥13日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签13才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-13:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:fictional_term",
+    "evidence": [
+      {
+        "source": "case-13:bridge-v2",
+        "quote": "墨铃签13是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-13:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:paraphrase",
+    "evidence": [
+      {
+        "source": "case-13:bridge-v2",
+        "quote": "雨桥13日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签13才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-13:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:negation_condition",
+    "evidence": [
+      {
+        "source": "case-13:bridge-v2",
+        "quote": "雨桥13日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签13才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-13:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-13:chronicle",
+        "quote": "第二章中，巡桥人阿13尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-13:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿13暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-13:chronicle:0": 3,
+      "case-13:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:inspiration",
+    "evidence": [
+      {
+        "source": "case-13:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-13:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-13:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-13:version_permission",
+    "evidence": [
+      {
+        "source": "case-13:bridge-v2",
+        "quote": "雨桥13日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签13才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-13:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:entity_alias",
+    "evidence": [
+      {
+        "source": "case-14:bridge-v2",
+        "quote": "雨桥14日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签14才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-14:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:fictional_term",
+    "evidence": [
+      {
+        "source": "case-14:bridge-v2",
+        "quote": "墨铃签14是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-14:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:paraphrase",
+    "evidence": [
+      {
+        "source": "case-14:bridge-v2",
+        "quote": "雨桥14日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签14才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-14:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:negation_condition",
+    "evidence": [
+      {
+        "source": "case-14:bridge-v2",
+        "quote": "雨桥14日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签14才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-14:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-14:chronicle",
+        "quote": "第二章中，巡桥人阿14尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-14:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿14暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-14:chronicle:0": 3,
+      "case-14:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:inspiration",
+    "evidence": [
+      {
+        "source": "case-14:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-14:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-14:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-14:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:entity_alias",
+    "evidence": [
+      {
+        "source": "case-15:bridge-v2",
+        "quote": "雨桥15日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签15才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-15:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:fictional_term",
+    "evidence": [
+      {
+        "source": "case-15:bridge-v2",
+        "quote": "墨铃签15是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-15:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:paraphrase",
+    "evidence": [
+      {
+        "source": "case-15:bridge-v2",
+        "quote": "雨桥15日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签15才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-15:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:negation_condition",
+    "evidence": [
+      {
+        "source": "case-15:bridge-v2",
+        "quote": "雨桥15日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签15才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-15:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-15:chronicle",
+        "quote": "第二章中，巡桥人阿15尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-15:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿15暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-15:chronicle:0": 3,
+      "case-15:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:inspiration",
+    "evidence": [
+      {
+        "source": "case-15:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-15:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-15:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-15:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:entity_alias",
+    "evidence": [
+      {
+        "source": "case-16:bridge-v2",
+        "quote": "雨桥16日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签16才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-16:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:fictional_term",
+    "evidence": [
+      {
+        "source": "case-16:bridge-v2",
+        "quote": "墨铃签16是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-16:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:paraphrase",
+    "evidence": [
+      {
+        "source": "case-16:bridge-v2",
+        "quote": "雨桥16日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签16才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-16:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:negation_condition",
+    "evidence": [
+      {
+        "source": "case-16:bridge-v2",
+        "quote": "雨桥16日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签16才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-16:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-16:chronicle",
+        "quote": "第二章中，巡桥人阿16尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-16:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿16暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-16:chronicle:0": 3,
+      "case-16:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:inspiration",
+    "evidence": [
+      {
+        "source": "case-16:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-16:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-16:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-16:version_permission",
+    "evidence": [
+      {
+        "source": "case-16:bridge-v2",
+        "quote": "雨桥16日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签16才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-16:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:entity_alias",
+    "evidence": [
+      {
+        "source": "case-17:bridge-v2",
+        "quote": "雨桥17日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签17才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-17:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:fictional_term",
+    "evidence": [
+      {
+        "source": "case-17:bridge-v2",
+        "quote": "墨铃签17是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-17:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:paraphrase",
+    "evidence": [
+      {
+        "source": "case-17:bridge-v2",
+        "quote": "雨桥17日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签17才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-17:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:negation_condition",
+    "evidence": [
+      {
+        "source": "case-17:bridge-v2",
+        "quote": "雨桥17日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签17才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-17:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-17:chronicle",
+        "quote": "第二章中，巡桥人阿17尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-17:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿17暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-17:chronicle:0": 3,
+      "case-17:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:inspiration",
+    "evidence": [
+      {
+        "source": "case-17:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-17:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-17:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-17:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:entity_alias",
+    "evidence": [
+      {
+        "source": "case-21:bridge-v2",
+        "quote": "雨桥21日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签21才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-21:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:fictional_term",
+    "evidence": [
+      {
+        "source": "case-21:bridge-v2",
+        "quote": "墨铃签21是守桥人签发的通行凭证，不是货币。",
+        "start": 74,
+        "end": 96
+      }
+    ],
+    "relevance": {
+      "case-21:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:paraphrase",
+    "evidence": [
+      {
+        "source": "case-21:bridge-v2",
+        "quote": "雨桥21日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签21才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-21:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:negation_condition",
+    "evidence": [
+      {
+        "source": "case-21:bridge-v2",
+        "quote": "雨桥21日出后禁止通行，日落后也不是一律开放：只有雨停且持有墨铃签21才可过桥。",
+        "start": 33,
+        "end": 73
+      }
+    ],
+    "relevance": {
+      "case-21:bridge-v2:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:cross_paragraph",
+    "evidence": [
+      {
+        "source": "case-21:chronicle",
+        "quote": "第二章中，巡桥人阿21尚不知道过桥暗号；他误以为白天可以过桥，这只是人物信念。",
+        "start": 0,
+        "end": 39
+      },
+      {
+        "source": "case-21:chronicle",
+        "quote": "第三章末，守桥人当面告诉巡桥人阿21暗号；他从此时才获知，不能倒推为第二章已经知道。",
+        "start": 1257,
+        "end": 1299
+      }
+    ],
+    "relevance": {
+      "case-21:chronicle:0": 3,
+      "case-21:chronicle:1": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:inspiration",
+    "evidence": [
+      {
+        "source": "case-21:tea",
+        "quote": "门檐积水，纸灯晃动；掌柜擦去杯沿的雾，远处木桥没有脚步声。",
+        "start": 40,
+        "end": 69
+      }
+    ],
+    "relevance": {
+      "case-21:tea:0": 3
+    },
+    "answerable": true,
+    "inspirationProxyOnly": true
+  },
+  {
+    "id": "case-21:no_answer",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  },
+  {
+    "id": "case-21:version_permission",
+    "evidence": [],
+    "relevance": {},
+    "answerable": false,
+    "inspirationProxyOnly": false
+  }
+]

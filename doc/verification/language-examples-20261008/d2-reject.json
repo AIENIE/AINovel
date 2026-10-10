@@ -1,0 +1,22 @@
+{
+  "patch": {
+    "id": "1ffd0879-a99c-41ff-9ee8-dd5763951020",
+    "reportId": "ff478fc9-8db2-4fa0-a11f-6e62e12a685d",
+    "issueId": "0-0",
+    "original": "核完最后一行，划掉一个名字，把表推到桌子中间。",
+    "replacement": null,
+    "beforeContext": "赵岑和许安坐在桌边，各自拿着一张登记表，两人面前都放着红笔。\n核完最后一行，划掉一个名字，把表推到桌子中间。",
+    "afterContext": null,
+    "review": null,
+    "status": "REJECTED",
+    "applicability": "NEEDS_CONTEXT",
+    "operationId": "dcc5888b-6d20-41d4-99d2-0fd69eff43a1",
+    "appliedSnapshotId": null,
+    "undoneSnapshotId": null,
+    "createdAt": "2026-10-08T05:45:18.920219Z",
+    "reason": "上下文只说明赵岑和许安各自拿着登记表、面前都有红笔，未说明是谁核完最后一行、划掉名字并把表推到桌子中间，也无法确定是否为两人共同完成。"
+  },
+  "bodyVersion": 2,
+  "branchId": "d10eb911-ac21-4b06-9a27-648f148321f4",
+  "content": "<p>赵岑和许安坐在桌边，各自拿着一张登记表，两人面前都放着红笔。</p><p>核完最后一行，划掉一个名字，把表推到桌子中间。</p>"
+}

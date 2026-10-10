@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-S5-examples",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已完整扫描 coreStart..coreEnd 全部正文。多数省略出现在同一主体紧密连续动作或对白承接中，可自然理解；明确问题集中在“可“找”这个动作还在，不拉也在。”一处，存在抽象化和搭配不通。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"AWKWARD\",\"quote\":\"可“找”这个动作还在，不拉也在。\",\"start\":null,\"end\":null,\"impact\":\"“不拉也在”与前文“找”无法建立可理解的搭配，读者会停顿猜测所指；同时用“动作还在”替代人物实际念头，表达抽象生硬。\",\"direction\":\"应写清她仍被“要不要去找寄信人”这个念头牵动，或即使不行动也放不下，避免用“动作还在，不拉也在”这类抽象说法。\"}]}",
+    "usage": {
+      "inputTokens": 2862.0,
+      "outputTokens": 4032.0,
+      "cacheTokens": 896.0,
+      "cacheHitRate": 0.31306778476589797,
+      "cost": 1.0
+    }
+  }
+}

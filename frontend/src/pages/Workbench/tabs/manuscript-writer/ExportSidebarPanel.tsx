@@ -19,6 +19,8 @@ type ExportSidebarPanelProps = {
   exportAuthorName: string;
   exportFormat: string;
   exportDownloadingJobId: string;
+  exportPending?: boolean;
+  exportError?: string;
   exportJobs: NetworkObject[];
   exportTemplateId: string;
   exportTemplates: NetworkObject[];
@@ -49,6 +51,8 @@ export function ExportSidebarPanel({
   exportAuthorName,
   exportFormat,
   exportDownloadingJobId,
+  exportPending,
+  exportError,
   exportJobs,
   exportTemplateId,
   exportTemplates,
@@ -134,7 +138,7 @@ export function ExportSidebarPanel({
           <Button size="sm" onClick={() => void createTemplate()}>
             {t("exportPanel.newTemplate")}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void createExportJob()}>
+          <Button size="sm" variant="secondary" disabled={exportPending || !selectedManuscriptId} onClick={() => void createExportJob()}>
             {t("exportPanel.createExportJob")}
           </Button>
         </div>
@@ -160,6 +164,7 @@ export function ExportSidebarPanel({
           ))}
         </div>
       </div>
+      {exportError && <p role="alert" className="mb-2 text-xs text-destructive">{exportError}</p>}
       <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2 text-xs">
         {exportJobs.map((job) => (
           <div key={job.id} className="rounded border p-2">

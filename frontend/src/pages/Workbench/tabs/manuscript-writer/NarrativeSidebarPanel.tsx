@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,10 @@ type Props = {
   active: boolean; manuscript: Manuscript | null | undefined; sceneId: string; dirty: boolean;
   busy: boolean; structureKey: string; characters: Characters; onManuscript: (manuscript: Manuscript) => void;
   scenes?: Array<{ id: string; title: string }>;
+  children?: ReactNode;
 };
 
-export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy, structureKey, characters, onManuscript, scenes=[] }: Props) {
+export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy, structureKey, characters, onManuscript, scenes=[], children }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const client = useQueryClient();
@@ -157,6 +159,7 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
     </>}
     {(error || state.error) && <p role="alert" className="text-sm text-destructive break-words">{error || narrativeErrorMessage(state.error)}</p>}
     <NarrativeEvidenceDialog source={source} evidence={highlight} onClose={() => setSource(null)} />
+    {children}
   </TabsContent>;
 }
 

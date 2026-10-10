@@ -37,6 +37,25 @@ class AiOperationRecoveryTest {
         when(repository.findByIdForUpdate(run.getId())).thenReturn(Optional.of(run));
         return run;
     }
+    @Test void retryDoesNotDispatchAnUncertainChargeOrDiscardTheOriginalRequest() {
+        var run=run(true);var user=new com.ainovel.app.user.User();user.setId(UUID.randomUUID());run.setUser(user);
+        run.setStatus(AiOperationStatus.RECOVERY_REQUIRED);run.setRequestId("original-"+"r".repeat(120));
+        var reservations=mock(com.ainovel.app.economy.repo.AiCreditReservationRepository.class);
+        ReflectionTestUtils.setField(service,"creditReservations",reservations);
+        when(reservations.hasUncertainOperation(eq(user.getId()),anyString(),eq(run.getRequestId()))).thenReturn(true);
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->service.retry(user,run.getId()));
+        assertEquals(AiOperationStatus.RECOVERY_REQUIRED,run.getStatus());assertTrue(run.getRequestId().startsWith("original-"));
+        verify(repository,never()).save(any());
+    }
+    @Test void retryRestoresAnAlreadyCommittedResultWithoutDispatchingOrChangingItsKey() {
+        var run=run(true);var user=new com.ainovel.app.user.User();user.setId(UUID.randomUUID());run.setUser(user);
+        run.setStatus(AiOperationStatus.RECOVERY_REQUIRED);run.setRequestId("original");run.setResultJson("{\"saved\":true}");
+        run.setErrorMessage("AI_RESULT_RECONCILIATION_REQUIRED"); run.setTotalSteps(3);
+        service.retry(user,run.getId());
+        assertEquals(AiOperationStatus.SUCCEEDED,run.getStatus());assertEquals("original",run.getRequestId());
+        assertEquals("{\"saved\":true}",run.getResultJson());assertNull(run.getActiveScopeKey());
+        assertNull(run.getErrorMessage()); assertEquals(3, run.getCompletedSteps());
+    }
     @Test void expiresReservationAndTaskTogetherThenDoesNotRepeatRecovery() throws Exception {
         var run = run(true);
         service.recover();

@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-S6-examples",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已通读 coreStart..coreEnd 全篇（0..829），逐段检查主体省略、动作压缩、断句和搭配；发现4处明确问题：三处主体省略或身体部位作主干，一处“重叠”词义混淆。其余段落未发现需上报的语言问题。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"拉抽屉找充电头时，指腹碰到一样硬东西。抽出来，是那张戏票。\",\"start\":null,\"end\":null,\"impact\":\"换到找充电头的动作后，未交代莫遥，直接让“指腹”和“抽出来”承担动作，摸到并抽出戏票的过程被压缩，读者需自行补出人物。\",\"direction\":\"明确莫遥或她作为动作主体，自然承接拉抽屉、摸到、抽出并认出戏票。\"},{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"消息列表往下翻，停在一个没有备注名的对话框上。\",\"start\":null,\"end\":null,\"impact\":\"新段以“消息列表”起头并省略翻看者，动作像是列表自己往下翻；虽然可从上下文推知是莫遥，但段落起始缺少主体。\",\"direction\":\"补出莫遥或她作为翻看消息的主体，再自然承接停在对话框上。\"},{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"箱子立到墙角。钥匙、零钱、身份证放在鞋柜上，摆成一排。\",\"start\":null,\"end\":null,\"impact\":\"换段后连续以“箱子”和“钥匙、零钱、身份证”作句子主干，未交代谁立箱、谁摆放物品，动作像自行发生；与上一句“她把手机扣在床上”的主体承接断裂。\",\"direction\":\"以莫遥或她为动作主体，自然承接把箱子立到墙角、把钥匙等摆在鞋柜上的动作。\"},{\"kind\":\"LANGUAGE\",\"category\":\"AWKWARD\",\"quote\":\"想了想又抽出来重叠。\",\"start\":null,\"end\":null,\"impact\":\"“重叠”通常表示物体互相叠合，用来表示把毛巾抽出来重新叠，容易被读成叠合，动作含义不清。\",\"direction\":\"改用表示重新折叠一次的措辞，避免与“重叠”的常用义混淆。\"}]}",
+    "usage": {
+      "inputTokens": 2908.0,
+      "outputTokens": 11686.0,
+      "cacheTokens": 2048.0,
+      "cacheHitRate": 0.7042640990371389,
+      "cost": 1.0
+    }
+  }
+}

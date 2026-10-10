@@ -19,12 +19,12 @@ describe("sso callback processor", () => {
   });
   it("rebuilds the token-exchange redirect without re-encoding the next path slash", () => {
     const redirect = buildSsoCallbackRedirectUrl(
-      "https://ainovel.localhut.com",
+      "https://localainovel.testhut.top",
       "/sso/callback",
       "?next=/workbench&code=code-1&state=state-1",
     );
 
-    expect(redirect).toBe("https://ainovel.localhut.com/sso/callback?next=/workbench");
+    expect(redirect).toBe("https://localainovel.testhut.top/sso/callback?next=/workbench");
   });
 
   it("handles a callback URL only once when React effects re-run", async () => {
@@ -43,7 +43,7 @@ describe("sso callback processor", () => {
 
     const callback = {
       search: "?next=/workbench&code=code-1&state=state-1",
-      redirect: "https://ainovel.localhut.com/sso/callback?next=/workbench",
+      redirect: "https://localainovel.testhut.top/sso/callback?next=/workbench",
     };
 
     await processor(callback);
@@ -70,7 +70,7 @@ describe("sso callback processor", () => {
 
     await processor({
       search: "?code=code-1&state=state-1",
-      redirect: "https://ainovel.localhut.com/sso/callback",
+      redirect: "https://localainovel.testhut.top/sso/callback",
     });
 
     expect(onSuccess).toHaveBeenCalledWith("/dashboard");

@@ -65,7 +65,7 @@ corepack pnpm@11.22.0 --dir frontend run build
 1. 运行受影响的上下文、归因、迁移、API 与前端面板测试。默认质量测试应校验 36 个 fixture 的冻结分布、六类单缺陷、6 个 holdout、逐字证据及上下文引用，且不得访问网络。
 2. 执行 `mvn -q -f backend/pom.xml clean test`、`corepack pnpm@11.22.0 --dir frontend test`、`corepack pnpm@11.22.0 --dir frontend run build`。
 3. 分别验证新库从 V1 完整迁移到 V13，以及已有 V12 数据库只执行 V13 升级；确认 `scene_generation_runs` 的字段、索引和外键完整。
-4. 确认 MySQL、Redis、Qdrant 已在 `localbase.testhut.top` 的 `23306`、`26379`、`26333` 端口可达，ai-service、user-service、pay-service 的 local TLS/gRPC 入口分别为 `22011`、`22001`、`22021`；使用当前工作树的私有环境文件和 `scripts/windows/Start-Local.ps1 -EnvironmentFile <private-env-file>` 启动 AINovel，不得读取其他工作树的部署改动或环境文件作为替代。
+4. 确认 MySQL、Redis、Qdrant 分别在 `localmysql.testhut.top:23306`、`localredis.testhut.top:26379`、`localqdrant.testhut.top:26333` 可达，ai-service、user-service、pay-service 的 local TLS/gRPC 入口分别为 `22011`、`22001`、`22021`；使用当前工作树的私有环境文件和 `scripts/windows/Start-Local.ps1 -EnvironmentFile <private-env-file>` 启动 AINovel，不得读取其他工作树的部署改动或环境文件作为替代。
 5. 检查 `/api/actuator/health/liveness`、`/api/actuator/health/readiness` 和 `/api/actuator/health`。
 6. 使用真实 SSO 会话依次走通：跨章上下文预览 → fast/crafted 生成 → 等长与非等长编辑 → 标签确认 → 再生成 → 版本回滚 → 页面刷新恢复。
 7. 验证同一场景的上下文预览与生成 manifest 具有相同 `scene-draft-v2`、来源顺序、固定 3500 预算占用和 hash；未来场景、禁用 Lorebook 与待复核提取不得入选。
@@ -108,3 +108,26 @@ mvn -f backend/pom.xml -Pquality-regression `
 - Windows L2：包含 L1，并运行前端全量 Vitest 与后端全量 Maven 测试。
 - L3：依次运行 `Build-Local.ps1`、`Start-Local.ps1 -EnvironmentFile .\env.txt`，验证 `127.0.0.1:11040`、后端 liveness/readiness 及 `https://localainovel.testhut.top`，最后运行 `Stop-Local.ps1`。
 - Docker/Testcontainers 不可用属于验收阻塞，不得把跳过测试记录成通过。
+
+## 创作链路稳定性验收
+
+- Windows 标准入口须通过自身预检查、完整 L2，再做可见浏览器验收。域名检查读取 `application-local.yml`，启动脚本不重复维护依赖地址。
+- `CreatorWorkflowMysqlTest` 使用明确预置的 `aienie_novel_audit_test_*` 隔离库，通过 `AIENIE_AUDIT_MYSQL_URL/USERNAME/PASSWORD` 注入连接。不使用测试外层事务，保留 Hibernate 字节码增强及 OSIV 关闭；覆盖 V24、并发创建回执、非空时间戳、删除重放、懒字段读取、越权和回滚。
+- 新一轮付费验收使用独立 `app.ai.validation.run-id`，预置 `ai_validation_budgets.provider_attempt_limit`。历史 `used` 仍为 RPC 次数，新增 `reserved_provider_attempts` 为保守供应商外发上限。
+- 预算检查位于 AI gRPC 客户端出口，覆盖 `CHAT`、`CHAT_STREAM`、`EMBEDDINGS`。每个 RPC 外发前以独立事务原子预留经核验的 `app.ai.validation.provider-attempts-per-rpc`；未知上限或余额不足拒绝外发。失败、未知结果、业务回滚和进程重启均不返还预留。
+- 本轮供应商尝试上限 10。若已核验每 RPC 最多 3 次，则最多发出 3 个 RPC、预留 9 次；余下 1 次不足以发起新 RPC。不能用 RPC 数冒充实际供应商次数。
+- 验证桌面及 390px 草稿结构操作、离开提示、创建重试、失败面板关闭恢复、上下文、版本和导出。导出须下载已完成产物，TXT 比对正文及章节顺序，其他格式检查文件可读性。
+
+- 隔离 MySQL 专项同时覆盖跨时区异步生成 TXT/DOCX/EPUB/PDF、下载校验和，以及并发预算预留在业务回滚后仍保留、第四个 RPC 被拒绝。运行 Maven 编译/测试期间先停本地后端，完成后再由标准入口启动，避免开发运行进程使用中的增强类被重新编译。
+- 大纲离开保护使用路由阻断，覆盖页内导航与浏览器前进/后退；刷新和关闭页面由浏览器原生未保存提示保护。
+
+## 资料检索与有限证据核验（2026-10-03）
+
+- 本项独立登记在路线图；不改变 H2 的输出门槛、H3–H6 或 G2 运营条件。Windows 标准完整 L2 后，单独运行无外层事务、增强开启及 OSIV 关闭的真实 MySQL 素材/创作专项。
+- 新增 V25–V32 迁移，验证原文修订、基础索引、调用身份、关联报告和有界等待；不得修改已执行迁移，也不得删除已授权隔离库的历史数据。
+- 本轮预算在 ai-service 实际供应商出口原子预留，同时限 100 元/1000 次并覆盖所有重试。新运行 `retrieval-evidence-20261003-v1` 不能使用或清零历史本地质量预算。缺少有效路由、价格、用量上界或预算时禁止外发。
+- 只有网关明确未外发的 `RETRIEVAL_BUDGET_IN_FLIGHT` 可有界等待；网络超时、未知结果和永久拒绝不得换键自动重推。原网关用户/运行及处理次数持久化，恢复优先读取已知结果。
+- 按 [选型工具说明](../../scripts/verification/README.md) 冻结 200 条查询及配置，先采集基础结果，再比较独立标准/Flash 索引和重排。评分器不能证明供应商来源，必须另核对权威使用量与成本台账；未执行组不记为供应商失败。
+- 自动核验报告及机器可能关联保持候选，仅在原文及版本仍有效时原子完成；作者决定是否采纳。核验失败、取消、过期不修改正文或 H1 账本。
+- 可见浏览器分别检查桌面及 390px 的资料、引用、报告、失败恢复和实际下载。密钥登记页面不录制、不截图、不读取或输出密码字段。依照本轮用户要求，结束时保留健康本地服务、测试作品与可见浏览器。
+- 当前代码、逐项验证及未完成项见 [实施记录](../verification/2026-10-03-material-evidence-implementation.md)，不把离线或模拟供应商结果登记为真实模型验收通过。

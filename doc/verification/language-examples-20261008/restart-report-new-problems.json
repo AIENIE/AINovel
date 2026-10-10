@@ -1,0 +1,33 @@
+{
+  "id": "49b7ae7b-a101-410b-b02b-9533a3bb5c3b",
+  "manuscriptId": "651f41dc-7f1d-4ec8-86bc-4dd37c64250c",
+  "sceneId": "4a0bab93-41b7-57a9-bc0e-1f67e1dd5cd4",
+  "source": {
+    "branchId": "79ac444f-dda7-485b-92ad-e509d68dd321",
+    "bodyVersion": 2,
+    "snapshotId": "47cb0f35-def7-4dde-b3f8-bc40ae1dc6f8",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "2580d26548dcb45747f42b51ca36181318a62ec4aa9e548e6a85a292580b4760",
+    "textHash": "672b68f16d78ba831eab9331d358b5b4a783d5de8f428bf94b4e394cfc20aa73",
+    "contextVersion": "681f42e3fba11bf9cb4524a7e8797ff4e413f20e38dbb3dca6aee3219ae55e4f",
+    "standardVersion": "zh-naturalness-v3"
+  },
+  "status": "FAILED",
+  "summary": "任务未完成：RECOVERY_REQUIRED。保留已有结果，未覆盖部分不视为通过。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 107,
+      "contextStart": 0,
+      "contextEnd": 107,
+      "state": "PENDING",
+      "reason": null
+    }
+  ],
+  "patches": [],
+  "operationId": "a598a220-8f41-4f55-aae1-ca79e7d3d646",
+  "canContinueBatch": false,
+  "createdAt": "2026-10-08T05:28:05.854549Z"
+}

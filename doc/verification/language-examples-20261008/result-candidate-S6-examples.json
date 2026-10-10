@@ -1,0 +1,14 @@
+{
+  "id": "candidate-S6-examples",
+  "response": {
+    "role": "assistant",
+    "content": "{\"outcome\":\"CANDIDATE\",\"replacement\":\"行李箱摊在床上，占去大半个床面。莫遥把箱盖掀到靠墙那侧，先塞了两件长袖衬衫，又用手掌压着折痕来回蹭了几下。她见衬衫的折痕压不平，就随它去了。洗漱包在衣柜最下层，她蹲下去翻洗漱包，摸到一包没拆封的牙刷，顺手扔进箱子。\"}",
+    "usage": {
+      "inputTokens": 2055.0,
+      "outputTokens": 4371.0,
+      "cacheTokens": 1536.0,
+      "cacheHitRate": 0.7474452554744525,
+      "cost": 1.0
+    }
+  }
+}

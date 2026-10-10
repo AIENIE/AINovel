@@ -18,6 +18,10 @@ import java.util.*;
 
 @Service
 public class MaterialRetrievalService {
+    @org.springframework.beans.factory.annotation.Value("${app.material-evidence.legacy-semantic-enabled:false}")
+    private boolean legacySemanticEnabled=true;
+    @Autowired(required=false)
+    private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MaterialRetrievalService.class);
     private final MaterialRepository materials;
     private final MaterialChunker chunker;
@@ -52,6 +56,7 @@ public class MaterialRetrievalService {
 
     @Transactional
     public void indexMaterial(User user, Material material) {
+        if(materialEvidence!=null&&material!=null&&material.getId()!=null){materialEvidence.capture(material);return;}
         if (jobs == null || material == null || material.getId() == null) return;
         MaterialIndexJob job = jobs.findByMaterialIdForUpdate(material.getId()).orElseGet(MaterialIndexJob::new);
         if (job.getMaterial() == null) job.setMaterial(material);
@@ -78,6 +83,7 @@ public class MaterialRetrievalService {
 
     @Scheduled(fixedDelayString="${app.material-index.dispatch-delay-ms:5000}")
     public void dispatchIndexJobs() {
+        if(!legacySemanticEnabled)return;
         if (jobs == null) return;
         recoverExpired();
         jobs.findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc("queued", Instant.now(), PageRequest.of(0,20))
@@ -161,6 +167,7 @@ public class MaterialRetrievalService {
     public List<MaterialSearchResultDto> search(User user, MaterialSearchRequest request) {
         String query=request==null||request.query()==null?"":request.query().trim();
         int limit=Math.max(1,Math.min(request!=null&&request.limit()!=null?request.limit():10,30));
+        if(materialEvidence!=null)return materialEvidence.legacySearch(user,query,limit);
         if(chunks==null)return legacySearch(user,query,limit);
         Map<String,MaterialSearchResultDto> merged=new LinkedHashMap<>();
         UUID owner=user==null?null:user.getId();
@@ -168,7 +175,7 @@ public class MaterialRetrievalService {
             double score=keywordScore(chunk,query); if(score<=0&&!query.isBlank())continue;
             merged.put(chunk.getChunkId(),new MaterialSearchResultDto(chunk.getMaterial().getId(),chunk.getChunkId(),chunk.getTitle(),snippet(chunk.getText()),score,chunk.getChunkSeq(),"keyword",List.of("database")));
         }
-        if(!query.isBlank())try{
+        if(legacySemanticEnabled && !query.isBlank() && chunks.existsVisible(owner))try{
             float[] vector=embeddings.embed(user,query);
             for(VectorMatch match:vectors.search(vector,limit*2,owner)){
                 MaterialChunkProjection current = chunks.findById(match.chunkId()).orElse(null);
@@ -179,7 +186,19 @@ public class MaterialRetrievalService {
                 MaterialSearchResultDto value=new MaterialSearchResultDto(live.getId(),current.getChunkId(),current.getTitle(),snippet(current.getText()),match.score(),current.getChunkSeq(),"vector",List.of("semantic"));
                 merged.merge(match.chunkId(),value,(a,b)->a.score()>=b.score()?a:b);
             }
-        }catch(RuntimeException ignored){}
+        }catch(RuntimeException failure){
+            String grpcCode = "none";
+            String upstreamStatus = "none";
+            if (failure instanceof io.grpc.StatusRuntimeException grpcFailure) {
+                grpcCode = grpcFailure.getStatus().getCode().name();
+                io.grpc.Metadata trailers = grpcFailure.getTrailers();
+                String status = trailers == null ? null : trailers.get(io.grpc.Metadata.Key.of(
+                        "x-aienie-upstream-http-status", io.grpc.Metadata.ASCII_STRING_MARSHALLER));
+                if (status != null && status.matches("[1-5][0-9]{2}")) upstreamStatus = status;
+            }
+            log.warn("event=material_semantic_search_failed fallback=keyword errorType={} grpcCode={} upstreamStatus={}",
+                    failure.getClass().getSimpleName(), grpcCode, upstreamStatus);
+        }
         return merged.values().stream().sorted(Comparator.comparingDouble(MaterialSearchResultDto::score).reversed()).limit(limit).toList();
     }
 

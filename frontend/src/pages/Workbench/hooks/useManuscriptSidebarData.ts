@@ -1,6 +1,6 @@
 import { exportFormatSchema, type BranchUpdate, type MergeConflict, type VersionDiff, type AutoSaveConfig } from "@/lib/api-contracts";
 import type { NetworkObject } from "@/lib/api-client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
@@ -91,6 +91,9 @@ export function useManuscriptSidebarData({
   const [versionVisibleCount, setVersionVisibleCount] = useState(VERSION_PAGE_SIZE);
   const [aiDiffSummary, setAiDiffSummary] = useState("");
   const [autoSaveConfig, setAutoSaveConfig] = useState<AutoSaveConfig | null>(null);
+  const [exportPending, setExportPending] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const exportLock = useRef(false);
   const [exportFormat, setExportFormat] = useState("txt");
   const [exportTemplateId, setExportTemplateId] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -179,7 +182,10 @@ export function useManuscriptSidebarData({
   const versions = useMemo(() => versionDataQuery.data?.versions ?? [], [versionDataQuery.data?.versions]);
   const branches = versionDataQuery.data?.branches ?? [];
   const exportJobs = useMemo(() => exportDataQuery.data?.jobs ?? [], [exportDataQuery.data?.jobs]);
-  const exportTemplates = exportDataQuery.data?.templates ?? [];
+  const exportTemplates = useMemo(() => (exportDataQuery.data?.templates ?? []).filter((template) => template.format === exportFormat), [exportDataQuery.data?.templates, exportFormat]);
+  useEffect(() => {
+    if (exportTemplateId && !exportTemplates.some((template) => template.id === exportTemplateId)) setExportTemplateId("");
+  }, [exportTemplates, exportTemplateId]);
   const workspaceStats = statsQuery.data ?? null;
 
   const visibleVersions = useMemo(() => versions.slice(0, versionVisibleCount), [versionVisibleCount, versions]);
@@ -307,16 +313,20 @@ export function useManuscriptSidebarData({
   }, [diffResult, selectedManuscriptId, toast]);
 
   const createExportJob = useCallback(async () => {
-    if (!selectedManuscriptId) return;
+    if (!selectedManuscriptId || exportLock.current) return;
+    setExportError("");
     const normalizedChapterRange = chapterRange.trim();
     if (normalizedChapterRange && !/^\d+(-\d+)?$/.test(normalizedChapterRange)) {
+      setExportError(t("sidebarData.chapterRangeFormatHint"));
       toast({ variant: "destructive", title: t("sidebarData.chapterRangeInvalid"), description: t("sidebarData.chapterRangeFormatHint") });
       return;
     }
+    exportLock.current = true;
+    setExportPending(true);
     try {
       await api.v2.export.createJob(selectedManuscriptId, {
         format: exportFormatSchema.parse(exportFormat),
-        templateId: exportTemplateId || undefined,
+        templateId: exportTemplates.find((template) => template.id === exportTemplateId)?.id || undefined,
         chapterRange: normalizedChapterRange || undefined,
         config: {
           includeTitlePage,
@@ -330,13 +340,18 @@ export function useManuscriptSidebarData({
       toast({ title: t("sidebarData.exportJobCreated") });
       await loadExport();
     } catch (e: unknown) {
+      setExportError(localizedErrorMessage(e));
       toast({ variant: "destructive", title: t("sidebarData.exportFailed"), description: localizedErrorMessage(e) });
+    } finally {
+      exportLock.current = false;
+      setExportPending(false);
     }
   }, [
     chapterRange,
     exportAuthorName,
     exportFormat,
     exportTemplateId,
+    exportTemplates,
     includeTableOfContents,
     includeTitlePage,
     loadExport,
@@ -590,14 +605,6 @@ export function useManuscriptSidebarData({
   }, [versionDataQuery.data]);
 
   useEffect(() => {
-    const templates = exportDataQuery.data?.templates ?? [];
-    setExportTemplateId((prev) => {
-      if (prev && templates.some((template: NetworkObject) => String(template.id) === prev)) return prev;
-      return String(templates[0]?.id || "");
-    });
-  }, [exportDataQuery.data]);
-
-  useEffect(() => {
     const hasRunningExportJob = exportJobs.some((job) => {
       const status = String(job.status || "").toLowerCase();
       return !["completed", "failed", "expired", "cancelled"].includes(status);
@@ -630,6 +637,8 @@ export function useManuscriptSidebarData({
     exportAuthorName,
     exportFormat,
     exportDownloadingJobId,
+    exportPending,
+    exportError,
     exportJobs,
     exportTemplateId,
     exportTemplates,

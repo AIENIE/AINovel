@@ -16,7 +16,6 @@ import java.time.Instant;
 
 @Service
 public class AiService {
-    @Autowired(required=false) private AiValidationCallBudget validationBudget;
     @org.springframework.beans.factory.annotation.Autowired
     private AiModelPolicy modelPolicy = new AiModelPolicy();
 
@@ -92,6 +91,9 @@ public class AiService {
                         result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens());
                 return response(user, result.content(), result.promptTokens(), result.completionTokens(),
                         result.cacheTokens(), charge.charged());
+            } catch (AiRequestNotSentException denied) {
+                economyService.releaseAiReservation(user, idempotencyKey);
+                throw denied;
             } catch (RuntimeException ex) {
                 // A transport failure is not proof of non-execution under the legacy gateway contract.
                 // Never refund/re-infer an uncertain request; RESULT_READY remains locally recoverable.
@@ -115,18 +117,6 @@ public class AiService {
     }
 
     private AiGatewayGrpcClient.ChatResult invokeGateway(Long remoteUid, AiChatRequest request, String requestId) {
-        UUID validationId=validationBudget==null?null:validationBudget.claim(request,requestId,modelPolicy.modelKey());
-        try {
-            var result=invokeGatewayTransport(remoteUid,request,requestId);
-            if(validationBudget!=null)validationBudget.complete(validationId,result,true);
-            return result;
-        } catch(RuntimeException failure) {
-            if(validationBudget!=null)validationBudget.complete(validationId,java.util.Map.of("errorType",failure.getClass().getSimpleName()),false);
-            throw failure;
-        }
-    }
-
-    private AiGatewayGrpcClient.ChatResult invokeGatewayTransport(Long remoteUid, AiChatRequest request, String requestId) {
         var progressListener = AiProgressContext.current();
         if (progressListener != null && !supportsRequiredModelStreaming(remoteUid)) {
             throw new BusinessException("当前 AI 模型不支持真实流式输出，请检查 ai-service 模型配置");

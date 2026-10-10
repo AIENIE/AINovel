@@ -1,6 +1,5 @@
 package com.ainovel.app.v2;
 
-import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +20,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v2")
 public class V2VersionController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.OwnedManuscriptTransactions manuscriptTransactions;
     private final ResourceAccessGuard accessGuard;
     private final V2VersionPersistenceService versionService;
 
@@ -36,8 +37,7 @@ public class V2VersionController {
     public List<Map<String, Object>> listVersions(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.listVersions(manuscript, user);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.listVersions(manuscript, user));
     }
 
     @Operation(summary = "保存当前稿件版本", description = "从当前工作副本创建不可变快照；正文 JSON 无效时失败并回滚。")
@@ -46,8 +46,7 @@ public class V2VersionController {
                                              @PathVariable UUID manuscriptId,
                                              @RequestBody(required = false) V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.createVersion(manuscript, user, payload == null ? Map.of() : payload.asMap());
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.createVersion(manuscript, user, payload == null ? Map.of() : payload.asMap()));
     }
 
     @Operation(summary = "读取稿件历史版本")
@@ -56,8 +55,7 @@ public class V2VersionController {
                                           @PathVariable UUID manuscriptId,
                                           @PathVariable UUID versionId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.getVersion(manuscript, user, versionId);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.getVersion(manuscript, user, versionId));
     }
 
     @Operation(summary = "回滚稿件到历史版本", description = "先保存当前工作副本快照，再在同一事务中替换正文；历史快照保持不可变。")
@@ -69,8 +67,7 @@ public class V2VersionController {
                                         @PathVariable UUID manuscriptId,
                                         @PathVariable UUID versionId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.rollback(manuscript, user, versionId);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.rollback(manuscript, user, versionId));
     }
 
     @Operation(summary = "比较两个稿件版本")
@@ -80,8 +77,7 @@ public class V2VersionController {
                                     @RequestParam UUID fromVersionId,
                                     @RequestParam UUID toVersionId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.diff(manuscript, user, fromVersionId, toVersionId);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.diff(manuscript, user, fromVersionId, toVersionId));
     }
 
     @Operation(summary = "列出稿件分支")
@@ -89,8 +85,7 @@ public class V2VersionController {
     public List<Map<String, Object>> listBranches(@AuthenticationPrincipal UserDetails principal,
                                                   @PathVariable UUID manuscriptId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.listBranches(manuscript, user);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.listBranches(manuscript, user));
     }
 
     @Operation(summary = "切换当前工作分支", description = "切换前保存当前工作副本快照；在同一事务中替换场景集合。")
@@ -99,8 +94,7 @@ public class V2VersionController {
                                               @PathVariable UUID manuscriptId,
                                               @PathVariable UUID branchId) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.checkoutBranch(manuscript, user, branchId);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.checkoutBranch(manuscript, user, branchId));
     }
 
     @Operation(summary = "创建稿件分支", description = "使用明确的分支创建请求；非法字段或来源版本返回 4xx。")
@@ -109,8 +103,7 @@ public class V2VersionController {
                                             @PathVariable UUID manuscriptId,
                                             @RequestBody V2BranchRequests.CreateBranch payload) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.createBranch(manuscript, user, payload);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.createBranch(manuscript, user, payload));
     }
 
     @Operation(summary = "更新稿件分支", description = "状态仅允许 active、abandoned、merged；非法状态返回 400。")
@@ -134,8 +127,7 @@ public class V2VersionController {
                                            @PathVariable UUID branchId,
                                            @RequestBody V2BranchRequests.MergeBranch payload) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return versionService.mergeBranch(manuscript, user, branchId, payload);
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> versionService.mergeBranch(manuscript, user, branchId, payload));
     }
 
     @Operation(summary = "放弃稿件分支")

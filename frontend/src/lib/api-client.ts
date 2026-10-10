@@ -1,5 +1,7 @@
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
+import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
+import { createLanguageQualityApi } from "./api/domains/language-quality";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
@@ -772,6 +774,8 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 }
 
 export const api = {
+  evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
+  language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   narrativeContext: {
     state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
     update: (mid: string, bid: string, value: import('@/types/narrative-context').ContextUpdate, key: string) =>
@@ -1246,8 +1250,9 @@ export const api = {
       const list = await requestJson<NetworkObject[]>(`/v1/outlines/${outlineId}/manuscripts`, { method: "GET" });
       return list.map(toManuscript);
     },
-    create: async (outlineId: string, payload: { title: string; worldId?: string }): Promise<Manuscript> => {
-      const dto = await requestJson<NetworkObject>(`/v1/outlines/${outlineId}/manuscripts`, { method: "POST", body: JSON.stringify(payload) });
+    create: async (outlineId: string, payload: { title: string; worldId?: string }, requestKey?: string): Promise<Manuscript> => {
+      const dto = await requestJson<NetworkObject>(`/v1/outlines/${outlineId}/manuscripts`, { method: "POST", body: JSON.stringify(payload),
+        headers: requestKey ? { "Idempotency-Key": requestKey } : undefined });
       return toManuscript(dto);
     },
     get: async (id: string): Promise<Manuscript> => {
@@ -1357,22 +1362,27 @@ export const api = {
       const data = await requestJson<NetworkObject[]>("/v1/materials", { method: "GET" });
       return data.map(toMaterial);
     },
-    create: async (payload: { title: string; type: unknown; content: string; tags?: string[] }) => {
-      const dto = await requestJson<NetworkObject>("/v1/materials", { method: "POST", body: JSON.stringify(payload) });
+    create: async (payload: { title: string; type: unknown; content: string; tags?: string[] }, requestKey?: string) => {
+      const dto = await requestJson<NetworkObject>(requestKey ? "/v1/material-evidence/sources" : "/v1/materials", { method: "POST", body: JSON.stringify(requestKey ? { input: payload, requestKey } : payload) });
       return toMaterial(dto);
     },
     update: async (id: string, payload: { title?: string; type?: unknown; summary?: string; content?: string; tags?: string[]; status?: string }) => {
       const dto = await requestJson<NetworkObject>(`/v1/materials/${id}`, { method: "PUT", body: JSON.stringify(payload) });
       return toMaterial(dto);
     },
+    updateVersioned: async (id: string, payload: { title: string; content: string; tags: string[] }, expectedVersion: number, requestKey: string) => {
+      const dto = await requestJson<NetworkObject>(`/v1/material-evidence/sources/${id}`, { method: "PUT", body: JSON.stringify({ input: payload, expectedVersion, requestKey }) });
+      return toMaterial(dto);
+    },
     delete: async (id: string) => {
       await requestVoid(`/v1/materials/${id}`, { method: "DELETE" });
       return true;
     },
-    upload: async (file: File): Promise<FileImportJob> => {
+    upload: async (file: File, requestKey?: string): Promise<FileImportJob> => {
       const form = new FormData();
       form.append("file", file);
-      return await requestForm<FileImportJob>("/v1/materials/upload", form);
+      if(requestKey) form.append("requestKey",requestKey);
+      return await requestForm<FileImportJob>(requestKey ? "/v1/material-evidence/sources/upload" : "/v1/materials/upload", form);
     },
     getUploadStatus: async (jobId: string): Promise<FileImportJob> => {
       return await requestJson<FileImportJob>(`/v1/materials/upload/${jobId}`, { method: "GET" });

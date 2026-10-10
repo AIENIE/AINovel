@@ -1,0 +1,101 @@
+[ {
+  "rawHits" : [ ],
+  "id" : "S5",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "S6",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "fast:3",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "fast:6",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "normal",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "repeated",
+  "result" : {
+    "overallRiskScore" : 0,
+    "maxSeverity" : "LOW",
+    "requiresAiReview" : false,
+    "issues" : [ ],
+    "shadowHits" : [ ]
+  }
+}, {
+  "rawHits" : [ ],
+  "id" : "long-tail",
+  "result" : {
+    "overallRiskScore" : 82,
+    "maxSeverity" : "HIGH",
+    "requiresAiReview" : true,
+    "issues" : [ {
+      "dimension" : "REPETITION",
+      "severity" : "HIGH",
+      "riskScore" : 82,
+      "evidence" : "她逐页核对登记册，把",
+      "whyItMatters" : "连续复用相同表达会让场景显得原地打转。",
+      "minimalFix" : "保留一次核心信息，其余改为动作、结果或删减。",
+      "charStart" : 0,
+      "charEnd" : 10,
+      "quote" : "她逐页核对登记册，把",
+      "module" : "surface_template",
+      "patternId" : "SURFACE_REPETITION_NGRAM",
+      "issueType" : "repetition",
+      "evidenceLevel" : "E2",
+      "alternativeExplanationsJson" : "[\"作者刻意回环\",\"类型文强调句\",\"人工水字数\"]",
+      "repairHint" : "保留一次核心信息，其余改为动作、结果或删减。"
+    } ],
+    "shadowHits" : [ {
+      "patternId" : "SHADOW_UNIFORM_SENTENCE_LENGTH",
+      "category" : "SHADOW_UNIFORM_LENGTH",
+      "occurrenceCount" : 331,
+      "charStart" : 0,
+      "charEnd" : 21,
+      "evidence" : "她逐页核对登记册，把已经确认的日期写在纸上"
+    }, {
+      "patternId" : "SHADOW_LOW_LEXICAL_VARIATION",
+      "category" : "SHADOW_LEXICAL_VARIATION",
+      "occurrenceCount" : 6559,
+      "charStart" : 0,
+      "charEnd" : 24,
+      "evidence" : "她逐页核对登记册，把已经确认的日期写在纸上。遇到"
+    } ]
+  }
+} ]

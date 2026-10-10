@@ -2,21 +2,29 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiOperationProgress } from "@/types";
 import { AiOperationProgressPanel } from "./AiOperationProgressPanel";
+import { aiOperationProgressSchema } from "@/lib/api-contracts";
 
 const tracked = vi.hoisted(() => ({
   operation: null as AiOperationProgress | null,
   resume: vi.fn(),
   retry: vi.fn(),
+  visibility: "open",
+  show: vi.fn(),
 }));
 
 vi.mock("@/contexts/auth-state", () => ({
-  useAuth: () => ({ isAuthenticated: true }),
+  useAuth: () => ({ isAuthenticated: true, user: { id: "user-1" } }),
 }));
 
 vi.mock("@/lib/ai-operation-store", () => ({
   resumeTrackedAiOperation: tracked.resume,
   retryTrackedAiOperation: tracked.retry,
   useTrackedAiOperation: () => tracked.operation,
+  useTrackedAiVisibility: () => tracked.visibility,
+  setTrackedAiVisibility: tracked.show,
+  setTrackedAiUser: vi.fn(),
+  refreshTrackedAiOperation: vi.fn(),
+  cancelTrackedAiOperation: vi.fn(),
 }));
 
 const operation = (overrides: Partial<AiOperationProgress> = {}): AiOperationProgress => ({
@@ -36,8 +44,23 @@ const operation = (overrides: Partial<AiOperationProgress> = {}): AiOperationPro
 describe("AiOperationProgressPanel", () => {
   beforeEach(() => {
     tracked.operation = null;
+    tracked.visibility = "open";
+    tracked.show.mockReset();
     tracked.resume.mockReset();
     tracked.retry.mockReset();
+  });
+
+  it("closes only the display and exposes a reopen entry", () => {
+    tracked.operation = operation({ status: "FAILED" });
+    const { rerender } = render(<AiOperationProgressPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "关闭任务面板" }));
+    expect(tracked.show).toHaveBeenCalledWith("closed");
+    expect(tracked.retry).not.toHaveBeenCalled();
+    tracked.visibility = "closed";
+    rerender(<AiOperationProgressPanel />);
+    expect(screen.queryByRole("complementary")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "查看 AI 任务" }));
+    expect(tracked.show).toHaveBeenCalledWith("open");
   });
 
   it("shows the current step, completed and remaining steps, and streamed token count", async () => {
@@ -63,4 +86,11 @@ describe("AiOperationProgressPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(tracked.retry).toHaveBeenCalledWith("operation-1");
   });
+  it("shows a recognized failure reason without exposing arbitrary server messages", () => {
+    tracked.operation = aiOperationProgressSchema.parse(operation({ status: "FAILED", errorCode: "AI_VALIDATION_BUDGET_EXHAUSTED", errorMessage: "sensitive diagnostic" }));
+    render(<AiOperationProgressPanel />);
+    expect(screen.getByText("本轮真实调用额度已用完，未发起新的 AI 请求。")).toBeTruthy();
+    expect(screen.queryByText("sensitive diagnostic")).toBeNull();
+  });
+
 });

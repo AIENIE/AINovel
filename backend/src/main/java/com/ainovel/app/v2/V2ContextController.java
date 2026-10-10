@@ -3,7 +3,6 @@ package com.ainovel.app.v2;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.manuscript.context.CompiledSceneDraftContext;
 import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
-import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
@@ -25,6 +24,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/v2")
 public class V2ContextController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.OwnedManuscriptTransactions manuscriptTransactions;
     private final ResourceAccessGuard accessGuard;
     private final V2ContextPersistenceService persistenceService;
     private final SceneDraftContextCompiler sceneDraftContextCompiler;
@@ -312,7 +313,7 @@ public class V2ContextController {
             throw new BusinessException("manuscriptId 与 sceneId 必须同时提供");
         }
         if (manuscriptId != null && sceneDraftContextCompiler != null) {
-            Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
+            return manuscriptTransactions.read(manuscriptId, user, manuscript -> {
             Story manuscriptStory = manuscript.getOutline() == null ? null : manuscript.getOutline().getStory();
             if (manuscriptStory == null || !storyId.equals(manuscriptStory.getId())) {
                 throw new BusinessException("稿件不属于当前故事");
@@ -321,6 +322,7 @@ public class V2ContextController {
                     manuscript, sceneId, SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET
             );
             return compiledPreview(storyId, compiled);
+            });
         }
 
         List<Map<String, Object>> enabled = listLorebookInternal(storyId).stream()

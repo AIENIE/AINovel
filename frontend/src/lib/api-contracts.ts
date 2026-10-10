@@ -57,7 +57,7 @@ export const aiOperationAcceptedSchema = z.object({ operationId: id });
 export const aiOperationProgressSchema = z.object({ id, operationType: z.string(), scopeType: z.string().nullish(), scopeId: id.nullish(),
   status: z.enum(["QUEUED", "RUNNING", "STREAMING", "RECOVERY_REQUIRED", "SUCCEEDED", "FAILED", "CANCELLED"]),
   currentStep: z.string().nullish(), totalSteps: version, completedSteps: version, remainingSteps: version, currentStepOutputTokens: version,
-  outputTokensEstimated: z.boolean(), attemptCount: version, resultJson: z.string().nullish(), errorMessage: z.string().nullish(),
+  outputTokensEstimated: z.boolean(), attemptCount: version, resultJson: z.string().nullish(), errorMessage: z.string().nullish(), errorCode: z.string().nullish(),
   createdAt: z.string().nullish(), updatedAt: z.string().nullish(), completedAt: z.string().nullish() });
 export type Branch = z.infer<typeof branchSchema>;
 export type BranchUpdate = z.infer<typeof updateBranchSchema>;

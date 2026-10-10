@@ -12,6 +12,10 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: false
+  sql:
+    init:
+      mode: embedded
+      schema-locations: classpath:material-evidence-h2.sql
   data:
     redis:
       host: 127.0.0.1

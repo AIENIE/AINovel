@@ -74,6 +74,17 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
 
     @Transactional
     public Map<String, Object> createVersion(Manuscript manuscript, User user, Map<String, Object> payload) {
+        return createVersion(manuscript,user,payload,false);
+    }
+
+    /** Author decisions always receive their own history entry, including a return to an earlier text. */
+    @Transactional
+    public Map<String,Object> createLanguageVersion(Manuscript manuscript,User user,boolean undo) {
+        String type=undo?"language_undo":"language_accept";
+        return createVersion(manuscript,user,Map.of("snapshotType",type,"label","语言检查 · "+type),true);
+    }
+
+    private Map<String,Object> createVersion(Manuscript manuscript,User user,Map<String,Object> payload,boolean forceNew) {
         ensureMainBranchAndInitialVersion(manuscript, user);
         UUID branchId = manuscript.getCurrentBranchId();
         if (payload != null && payload.get("branchId") != null && !payload.get("branchId").toString().isBlank()) {
@@ -87,7 +98,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
 
         V2ManuscriptVersion latest = latestVersion(manuscript.getId(), branchId);
         String currentHash = sha256(requireSectionsJson(contents.snapshot(manuscript)));
-        if (latest != null && Objects.equals(latest.getContentHash(), currentHash)) {
+        if (!forceNew && latest != null && Objects.equals(latest.getContentHash(), currentHash)) {
             Map<String, Object> dedup = versionMap(latest);
             dedup.put("deduplicated", true);
             return dedup;

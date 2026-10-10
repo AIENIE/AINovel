@@ -1,0 +1,98 @@
+[
+  {
+    "id": "belief",
+    "reference": "阿岚以为桥白天开放，但桥规写明白天禁行。",
+    "normal": {
+      "text": "阿岚相信白天可以过桥。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "桥的客观规约是白天开放。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "negation",
+    "reference": "守桥人没有把钥匙交给阿岚。",
+    "normal": {
+      "text": "阿岚尚未得到钥匙。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "阿岚已从守桥人处接过钥匙。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "condition",
+    "reference": "雨停且持墨铃签时才可过桥。",
+    "normal": {
+      "text": "雨停后，持签的阿岚过桥。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "暴雨中，没有凭证的阿岚按规约过桥。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "time",
+    "reference": "桥在第二日修复；第一日仍然断裂。",
+    "normal": {
+      "text": "第二日修复后阿岚过桥。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "第一日阿岚走过完整的桥面。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "homonym",
+    "reference": "雨桥茶馆白天营业；雨桥桥梁白天禁行。",
+    "normal": {
+      "text": "阿岚白天进入雨桥茶馆。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "因为同名茶馆营业，所以桥梁白天开放。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "knowledge",
+    "reference": "暗号只在第三章末当面告诉阿岚；此前没有其他获知来源。",
+    "normal": {
+      "text": "第三章末阿岚才知道暗号。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "第二章阿岚已熟知暗号。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "revision",
+    "reference": "本次冻结的是资料版本二：白天禁行。版本一曾写白天开放，现已失效。",
+    "normal": {
+      "text": "按版本二白天禁行。",
+      "expected": "SUPPORTED"
+    },
+    "defect": {
+      "text": "按有效规约白天无条件开放。",
+      "expected": "CONTRADICTED"
+    }
+  },
+  {
+    "id": "insufficient",
+    "reference": "桥规未记载飞艇。",
+    "normal": {
+      "text": "飞艇型号无法判断。",
+      "expected": "INSUFFICIENT"
+    },
+    "defect": {
+      "text": "飞艇型号一定是银鸢。",
+      "expected": "INSUFFICIENT"
+    }
+  }
+]

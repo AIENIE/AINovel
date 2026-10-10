@@ -69,6 +69,11 @@ public class SceneGenerationPromptBuilder {
                                  int maxSectionHan,
                                  GenerationMode mode,
                                  CompiledSceneDraftContext compiledContext) {
+        return build(owner,story,scene,characterContext,previousContext,previousDraft,previousCount,attempt,minSectionHan,maxSectionHan,mode,compiledContext,null);
+    }
+    public AssembledPrompt build(User owner,Story story,SceneGenerationContext scene,String characterContext,String previousContext,
+            String previousDraft,int previousCount,int attempt,int minSectionHan,int maxSectionHan,GenerationMode mode,
+            CompiledSceneDraftContext compiledContext,List<PromptReference> frozenReferences){
         String retryInstruction = "";
         boolean isolated=compiledContext != null && compiledContext.isolated();
         if (attempt > 1) {
@@ -93,7 +98,7 @@ public class SceneGenerationPromptBuilder {
                 scene.sceneOrder(),
                 compiledContext == null ? characterContext : "使用下方 SCENE_DRAFT_CONTEXT 中已采用的人物资料。",
                 isolated ? "前文与知情边界仅见下方受控上下文。" : previousContext,
-                isolated ? List.of() : materialReferences(owner, story, scene),
+                isolated ? List.of() : frozenReferences==null?materialReferences(owner, story, scene):frozenReferences,
                 recentAvoidExpressions(isolated ? compiledContext.content() : previousContext),
                 minSectionHan,
                 maxSectionHan,

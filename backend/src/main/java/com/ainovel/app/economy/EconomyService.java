@@ -291,7 +291,10 @@ public class EconomyService {
         User locked = lockUser(user);
         AiCreditReservation reservation = aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).orElseThrow();
         if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED || reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) return;
-        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED) throw new IllegalStateException("AI reservation lost");
+        if (reservation.getStatus() != AiCreditReservation.Status.RESERVED
+                && !("EVIDENCE_TASK".equals(reservation.getReferenceType())
+                && reservation.getStatus() == AiCreditReservation.Status.RECONCILIATION_REQUIRED))
+            throw new IllegalStateException("AI reservation lost");
         reservation.setResultContent(content);
         reservation.setPromptTokens(inputTokens);
         reservation.setCompletionTokens(outputTokens);
@@ -316,6 +319,9 @@ public class EconomyService {
         }
 
         long actualCost = calculateAiCost(inputTokens, outputTokens);
+        if ("EVIDENCE_TASK".equals(reservation.getReferenceType()) && actualCost > reservation.getReservedAmount()) {
+            throw new IllegalStateException("AI usage exceeded author accepted credit maximum");
+        }
         long adjustment = reservation.getReservedAmount() - actualCost;
         ProjectCreditAccount account = accountForUpdate(user);
         if (adjustment < 0 && account.getBalance() < -adjustment) {
@@ -340,6 +346,19 @@ public class EconomyService {
         reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
         return new AiChargeResult(actualCost, account.getBalance());
+    }
+
+    public record EvidenceReservation(String status, String content, long promptTokens,
+                                      long completionTokens, long cacheTokens) { }
+
+    @Transactional(readOnly = true)
+    public EvidenceReservation evidenceReservation(User user, String idempotencyKey) {
+        return aiReservationRepository.findByUserAndIdempotencyKey(user, idempotencyKey)
+                .filter(reservation -> "EVIDENCE_TASK".equals(reservation.getReferenceType()))
+                .map(reservation -> new EvidenceReservation(reservation.getStatus().name(),
+                        reservation.getResultContent(), reservation.getPromptTokens(),
+                        reservation.getCompletionTokens(), reservation.getCacheTokens()))
+                .orElse(null);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)

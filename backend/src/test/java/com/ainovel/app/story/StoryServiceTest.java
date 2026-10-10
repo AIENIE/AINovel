@@ -225,11 +225,21 @@ class StoryServiceTest {
 
         assertEquals("AI 雨城疑案", storyCard.title());
         assertEquals("更新后的梗概", storyCard.synopsis());
+        assertEquals(true, result.get("degraded"));
         assertEquals(2, characters.size());
         assertEquals("主角", characters.get(0).name());
         assertEquals("镜像角色", characters.get(1).name());
         assertTrue(generated.containsKey("plotPlanning"));
         assertTrue(generated.containsKey("outlineSeed"));
+    }
+
+    @Test void conceptionFailureDoesNotCreateFallbackStoryOrCharacters() {
+        var stories=mock(StoryRepository.class);var characters=mock(CharacterCardRepository.class);var ai=mock(AiService.class);
+        var service=service(stories,characters,mock(ResourceAccessGuard.class),ai);
+        when(ai.chat(any(),any())).thenThrow(new IllegalStateException("gateway failed"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,()->service.conception(user("failure"),
+                new StoryCreateRequest("未生成","保留输入","悬疑","克制",null,Map.of())));
+        org.mockito.Mockito.verifyNoInteractions(stories,characters);
     }
 
     private StoryService service(

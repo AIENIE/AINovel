@@ -1,0 +1,100 @@
+[
+  {
+    "id": "ef36b086-3ddf-4b68-b526-4dd9a4907ee3",
+    "manuscriptId": "e56249b2-2037-4773-ba5a-05aec932beca",
+    "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+    "source": {
+      "branchId": "118779aa-6134-4921-8d1a-77248ad8e7a4",
+      "bodyVersion": 2,
+      "snapshotId": "f8b7ef01-c290-4b23-8798-550d58f06417",
+      "projectionVersion": "QUALITY_PARAGRAPH_V2",
+      "htmlHash": "f2a780bb9306fe36d350209abfffd3ef7d7d1900b84601a514d45b7dbd23ca43",
+      "textHash": "da97c0ea7e9f7ed905555de1b3159c2d99078ebaf8797b38a82a0aad8f0aff46",
+      "contextVersion": "d9fd8050fa4ea9134aee893f588527ef326af11a8c21295ab2d0a7df381c92c5",
+      "standardVersion": "zh-naturalness-v2"
+    },
+    "status": "ISSUES",
+    "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+    "issues": [
+      {
+        "id": "0-0",
+        "kind": "LANGUAGE",
+        "category": "OMISSION",
+        "quote": "在他脚边积了一小片",
+        "impact": "“积”后缺少被积的对象，读者需要自行补出“水”，动作结果表达不完整。",
+        "direction": "补出积水对象，如“一小片水”一类明确名词。",
+        "start": 78,
+        "end": 87,
+        "location": "EXACT",
+        "paragraph": 0,
+        "context": "傍晚的楼道里还留着雨气，墙皮上有一块深色的水痕，从三楼拐角一直洇到楼梯口。周宁站在邻居家门前，把那把红伞从左手换到右手。伞面早就收拢了，水珠顺着伞骨往下走，在他脚边积了一小片。他抬手敲门，指节碰到铁门，声音比预想中闷。",
+        "currentStart": 78,
+        "currentEnd": 87,
+        "availability": "AVAILABLE"
+      },
+      {
+        "id": "0-1",
+        "kind": "LANGUAGE",
+        "category": "AWKWARD",
+        "quote": "再开时，门敞开了半扇。",
+        "impact": "“敞开”有完全打开之意，与“半扇”相抵，读者会在此处停顿并重新判断门的开启程度。",
+        "direction": "改用能明确表示半开状态的表达，避免“敞开”与“半扇”语义冲突。",
+        "start": 214,
+        "end": 225,
+        "location": "EXACT",
+        "paragraph": 2,
+        "context": "门开了一条缝，链子还挂着。邻居从缝里看过来，先看周宁，再看他手里的伞。周宁把伞往前递了递，伞尖差点碰到门框。邻居说：“等一下。”门合上，链子响了一下，再开时，门敞开了半扇。",
+        "currentStart": 214,
+        "currentEnd": 225,
+        "availability": "AVAILABLE"
+      },
+      {
+        "id": "0-2",
+        "kind": "LANGUAGE",
+        "category": "AWKWARD",
+        "quote": "可邻居只问了伞柄上的名字，确认完",
+        "impact": "前文邻居只是看伞、看纸条并说“是我的”，没有口头询问名字的动作；“问了”会让读者对邻居是否开口询问产生疑惑。",
+        "direction": "若实际是查看或确认，应换成相应动词；若确有询问，应补出询问内容或对话，使动作衔接清楚。",
+        "start": 419,
+        "end": 435,
+        "location": "EXACT",
+        "paragraph": 5,
+        "context": "周宁应了一声。他本来想好两句话，一句解释伞为什么会在他那儿，一句说伞面有一道小口子不是他弄的。可邻居只问了伞柄上的名字，确认完，就把伞收拢，靠在门边的鞋柜旁。那两句话在周宁嘴里转了转，最后他只说：“那我走了。”",
+        "currentStart": 419,
+        "currentEnd": 435,
+        "availability": "AVAILABLE"
+      },
+      {
+        "id": "0-3",
+        "kind": "LANGUAGE",
+        "category": "AWKWARD",
+        "quote": "才发觉自己一直捏着右手，掌心被伞柄压出一道红印",
+        "impact": "“捏着右手”通常会让读者理解为用另一只手握住自己的右手，而不是右手一直攥紧，人物动作与后文掌心红印的关系不够清楚。",
+        "direction": "写清是右手自身攥紧，还是另一只手握着右手，使受压部位与动作对应。",
+        "start": 545,
+        "end": 568,
+        "location": "EXACT",
+        "paragraph": 7,
+        "context": "门没有马上关。周宁转身下楼，听见身后门锁轻轻转动，然后咔哒一声扣上。楼道里的声控灯灭了。他走到二楼拐角，才发觉自己一直捏着右手，掌心被伞柄压出一道红印。雨后的风从单元门缝里钻进来，带着楼下花坛的湿土气。他想，下次在楼道里碰见，应该可以点个头，不用再像之前那样假装看手机。",
+        "currentStart": 545,
+        "currentEnd": 568,
+        "availability": "AVAILABLE"
+      }
+    ],
+    "coverage": [
+      {
+        "index": 0,
+        "start": 0,
+        "end": 628,
+        "contextStart": 0,
+        "contextEnd": 628,
+        "state": "COMPLETE",
+        "reason": "已完整扫描 coreStart..coreEnd（0..628）全文。文本整体连贯，发现局部表达问题：积水对象缺失、开门状态搭配不自然、邻居动作与前文不一致、右手动作指向不清。"
+      }
+    ],
+    "patches": [],
+    "operationId": "b443790c-69bc-4e5e-87f9-310be6c1bb2d",
+    "canContinueBatch": true,
+    "createdAt": "2026-10-07T09:37:02.682222Z"
+  }
+]

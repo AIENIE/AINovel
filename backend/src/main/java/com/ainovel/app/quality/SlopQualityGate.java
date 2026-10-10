@@ -32,6 +32,14 @@ public class SlopQualityGate {
     }
 
     public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request, AiUsageContext usageContext) {
+        return evaluateAndRepair(user, request, usageContext, false);
+    }
+
+    public SlopQualityResult evaluateLocal(User user, SlopQualityRequest request) {
+        return evaluateAndRepair(user, request, null, true);
+    }
+
+    private SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request, AiUsageContext usageContext, boolean languageWorkflow) {
         SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         String acceptedText = request.candidateText();
         boolean revised = false;
@@ -43,7 +51,7 @@ public class SlopQualityGate {
         SlopQualitySignals signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
         String summary = "本地规则低风险，直接接受。";
 
-        boolean localOnly = validationBudget != null && validationBudget.localQualityOnly();
+        boolean localOnly = languageWorkflow || validationBudget != null && validationBudget.localQualityOnly();
         if (localOnly) summary = "仅检查本地文本规则；人物知情、剧情和设定仍需作者核对。未调用付费诊断或修订。";
         if (heuristicResult.requiresAiReview() && !localOnly) {
             SlopJudgeResult judgeResult = safeJudge(user, request, heuristicResult,

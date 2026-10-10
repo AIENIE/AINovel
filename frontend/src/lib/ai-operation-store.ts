@@ -4,6 +4,10 @@ import type { AiOperationAccepted, AiOperationProgress } from "@/types";
 import { t } from "@/i18n";
 
 const STORAGE_KEY = "ainovel.active-ai-operation";
+let userScope = "";
+let visibility: "open" | "minimized" | "closed" = "open";
+const storageKey = () => `${STORAGE_KEY}:${userScope}`;
+const visibilityKey = () => `${storageKey()}:visibility`;
 let current: AiOperationProgress | null = null;
 const listeners = new Set<() => void>();
 let watching: string | null = null;
@@ -30,10 +34,33 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
+export function setTrackedAiUser(userId: string | null) {
+  const next = userId || "";
+  if (next === userScope) return;
+  activeWatch?.controller.abort();
+  activeWatch = null; watching = null; userScope = next;
+  visibility = "open";
+  emit(null);
+}
+
+export const useTrackedAiVisibility = () => useSyncExternalStore(subscribe, () => visibility, () => "open");
+export function setTrackedAiVisibility(mode: "open" | "minimized" | "closed") {
+  visibility = mode;
+  if (current) window.sessionStorage.setItem(visibilityKey(), JSON.stringify({ id: current.id, mode }));
+  listeners.forEach((listener) => listener());
+}
+
+export async function refreshTrackedAiOperation(id: string) {
+  const scope = userScope;
+  const result = await api.aiOperations.get(id);
+  if (scope === userScope && watching === id) emit(result);
+}
+
 function clearTracked(operationId: string) {
   if (watching !== operationId) return;
   watching = null;
-  window.sessionStorage.removeItem(STORAGE_KEY);
+  window.sessionStorage.removeItem(storageKey());
+  window.sessionStorage.removeItem(visibilityKey());
   emit(null);
 }
 
@@ -54,7 +81,11 @@ export const useTrackedAiOperation = () => useSyncExternalStore(subscribe, () =>
 
 async function watch(operationId: string): Promise<AiOperationProgress> {
   watching = operationId;
-  window.sessionStorage.setItem(STORAGE_KEY, operationId);
+  window.sessionStorage.setItem(storageKey(), operationId);
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(visibilityKey()) || "null");
+    visibility = saved?.id === operationId && ["open", "minimized", "closed"].includes(saved.mode) ? saved.mode : "open";
+  } catch { visibility = "open"; }
   const controller = new AbortController();
   const watchState = { operationId, controller, cancelRequested: false };
   activeWatch = watchState;
@@ -109,7 +140,7 @@ export async function cancelTrackedAiOperation(operationId: string): Promise<voi
 }
 
 export async function resumeTrackedAiOperation(): Promise<void> {
-  const id = window.sessionStorage.getItem(STORAGE_KEY);
+  const id = window.sessionStorage.getItem(storageKey());
   if (!id || watching === id) return;
   try {
     const final = await watch(id);

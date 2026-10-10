@@ -17,6 +17,8 @@ import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
 import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { NarrativeSidebarPanel } from "./manuscript-writer/NarrativeSidebarPanel";
+import { EvidenceSidebarPanel } from "./manuscript-writer/EvidenceSidebarPanel";
+import { LanguageQualityPanel } from "./manuscript-writer/LanguageQualityPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -158,6 +160,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     exportAuthorName,
     exportFormat,
     exportDownloadingJobId,
+  exportPending,
+  exportError,
     exportJobs,
     exportTemplateId,
     exportTemplates,
@@ -378,6 +382,13 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     scenes={outlineDraft?.chapters.flatMap(chapter => chapter.scenes.map(scene => ({ id: scene.id, title: `${chapter.title} · ${scene.title}` }))) || []}
     structureKey={JSON.stringify(outlineDraft?.chapters.map(chapter => [chapter.id, chapter.scenes.map(scene => scene.id)]))}
     characters={characters.map(character => ({ id: String(character.id), name: String(character.name) }))} onManuscript={replaceManuscript}
+  ><EvidenceSidebarPanel key={selectedManuscriptId + ":evidence:" + activeSceneId} storyId={selectedStoryId} manuscript={selectedManuscript} chapters={outlineDraft?.chapters || []} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]} active={sidebarTab === "narrative" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")} /></NarrativeSidebarPanel>;
+
+  const languagePanel = <LanguageQualityPanel
+    key={`${selectedManuscriptId}:${selectedManuscript?.currentBranchId || ""}:${activeSceneId}`}
+    manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
+    active={sidebarTab === "plot" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")}
+    busy={isSaving || isGenerating} save={persistSection} onApplied={applyServerSection} onSourceResolved={replaceManuscript}
   />;
 
   return (
@@ -391,12 +402,15 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           </div>
           <div className="min-h-0 flex-1">
           <MobileWorkbenchPanel
+          languagePanel={languagePanel}
           narrativePanel={narrativePanel}
           content={content}
           contextData={contextData}
           contextPreview={contextPreview}
           exportJobs={exportJobs}
           exportDownloadingJobId={exportDownloadingJobId}
+          exportPending={exportPending}
+          exportError={exportError}
           focusMode={focusMode}
           isPlotBusy={isPlotBusy}
           isPlotRevisionBusy={isPlotRevisionBusy}
@@ -543,6 +557,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
               onResize={(size) => setRightPanelSize(Math.round(size))}
             >
               <DesktopSidebarPanel
+                languagePanel={languagePanel}
                 narrativePanel={narrativePanel}
                 aiDiffSummary={aiDiffSummary}
                 abandonBranch={abandonBranch}
@@ -569,6 +584,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
                 exportAuthorName={exportAuthorName}
                 exportFormat={exportFormat}
                 exportDownloadingJobId={exportDownloadingJobId}
+          exportPending={exportPending}
+          exportError={exportError}
                 exportJobs={exportJobs}
                 exportTemplateId={exportTemplateId}
                 exportTemplates={exportTemplates}

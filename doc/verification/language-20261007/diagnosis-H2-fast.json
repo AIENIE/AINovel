@@ -1,0 +1,33 @@
+{
+  "id": "0dba94b4-fc0e-478e-9558-f724c9ea9132",
+  "manuscriptId": "0d902e60-12b2-4a91-a352-a0dadeaab88a",
+  "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+  "source": {
+    "branchId": "6a6622fa-6b56-44aa-bab1-471a355a2b97",
+    "bodyVersion": 2,
+    "snapshotId": "8ac13a37-3941-46fa-9db4-4e9280f996ff",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "99977b714f2ce22bb8d606dfdc9cb696781f7f001351ca3caf76073f6d3a65aa",
+    "textHash": "0175a162b72d06ff973153b4a19707d51cc2bab9a9e191ab553a0b0190931dbe",
+    "contextVersion": "a7b7b64a0d79d3ca330084af487d81645a576f57cfc04f2e78435c1ef9bf55c1",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "NO_CLEAR_ISSUES",
+  "summary": "已扫描记录范围，未发现明确语言问题；这不是文本完美或没有 AI 味的保证。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 555,
+      "contextStart": 0,
+      "contextEnd": 555,
+      "state": "COMPLETE",
+      "reason": "已通读 coreStart..coreEnd 全文，逐段检查过度省略、表达压缩、刻意断句、生硬搭配及段落节奏。对话、动作衔接和线索回扣均清楚，未发现需报告的语言问题。"
+    }
+  ],
+  "patches": [],
+  "operationId": "bc6be830-fc2d-4645-9c58-7210838abdcb",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:36:27.018409Z"
+}

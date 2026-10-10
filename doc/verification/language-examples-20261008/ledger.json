@@ -1,0 +1,354 @@
+{
+  "budget": {
+    "id": "language-examples-20261008-v1",
+    "used": 38,
+    "call_limit": 40,
+    "provider_attempt_limit": 120,
+    "reserved_provider_attempts": 114
+  },
+  "calls": [
+    {
+      "attempt": 1,
+      "request_id": "language-examples-20261008:diagnosis-S5-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:21:42.180669"
+    },
+    {
+      "attempt": 2,
+      "request_id": "language-examples-20261008:diagnosis-S5-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:22:11.264049"
+    },
+    {
+      "attempt": 3,
+      "request_id": "language-examples-20261008:diagnosis-S6-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:22:32.350153"
+    },
+    {
+      "attempt": 4,
+      "request_id": "language-examples-20261008:diagnosis-S6-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:24:28.024356"
+    },
+    {
+      "attempt": 5,
+      "request_id": "language-examples-20261008:diagnosis-new-problems-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:25:24.142926"
+    },
+    {
+      "attempt": 6,
+      "request_id": "language-examples-20261008:diagnosis-new-problems-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:25:47.757733"
+    },
+    {
+      "attempt": 7,
+      "request_id": "language-examples-20261008:diagnosis-new-boundary-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:26:17.477809"
+    },
+    {
+      "attempt": 8,
+      "request_id": "language-examples-20261008:diagnosis-new-boundary-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:26:24.285796"
+    },
+    {
+      "attempt": 9,
+      "request_id": "language-examples-20261008:G1-fast-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:26:38.971934"
+    },
+    {
+      "attempt": 10,
+      "request_id": "language-examples-20261008:candidate-S5-rules",
+      "model": "deepseek-flash",
+      "status": "FAILED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:26:49.053251"
+    },
+    {
+      "attempt": 11,
+      "request_id": "language-examples-20261008:G1-fast-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:27:30.807844"
+    },
+    {
+      "attempt": 12,
+      "request_id": "language-examples-20261008:G1-crafted-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:27:48.192123"
+    },
+    {
+      "attempt": 13,
+      "request_id": "ai:language_check:49b7ae7b-a101-410b-b02b-9533a3bb5c3b:chunk-0:zh-naturalness-v3",
+      "model": "deepseek-flash",
+      "status": "FAILED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:28:06.197473"
+    },
+    {
+      "attempt": 14,
+      "request_id": "language-examples-20261008:G1-crafted-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:28:42.063970"
+    },
+    {
+      "attempt": 15,
+      "request_id": "language-examples-20261008:G2-fast-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:29:04.518369"
+    },
+    {
+      "attempt": 16,
+      "request_id": "language-examples-20261008:G2-fast-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:29:21.119444"
+    },
+    {
+      "attempt": 17,
+      "request_id": "language-examples-20261008:G2-crafted-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:29:36.595734"
+    },
+    {
+      "attempt": 18,
+      "request_id": "language-examples-20261008:G2-crafted-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:29:49.259802"
+    },
+    {
+      "attempt": 19,
+      "request_id": "language-examples-20261008:G3-fast-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:30:03.382759"
+    },
+    {
+      "attempt": 20,
+      "request_id": "language-examples-20261008:G3-fast-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:30:15.226007"
+    },
+    {
+      "attempt": 21,
+      "request_id": "language-examples-20261008:G3-crafted-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:30:25.129769"
+    },
+    {
+      "attempt": 22,
+      "request_id": "language-examples-20261008:G3-crafted-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:30:53.769151"
+    },
+    {
+      "attempt": 23,
+      "request_id": "language-examples-20261008:candidate-S5-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:31:31.602397"
+    },
+    {
+      "attempt": 24,
+      "request_id": "language-examples-20261008:G4-fast-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:31:46.984776"
+    },
+    {
+      "attempt": 25,
+      "request_id": "language-examples-20261008:candidate-S6-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:32:02.239453"
+    },
+    {
+      "attempt": 26,
+      "request_id": "language-examples-20261008:G4-fast-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:32:29.204902"
+    },
+    {
+      "attempt": 27,
+      "request_id": "language-examples-20261008:candidate-S6-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:32:47.037479"
+    },
+    {
+      "attempt": 28,
+      "request_id": "language-examples-20261008:G4-crafted-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:33:03.453796"
+    },
+    {
+      "attempt": 29,
+      "request_id": "language-examples-20261008:review-S5-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:33:26.227019"
+    },
+    {
+      "attempt": 30,
+      "request_id": "language-examples-20261008:G4-crafted-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:33:45.229493"
+    },
+    {
+      "attempt": 31,
+      "request_id": "language-examples-20261008:review-S6-rules",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:33:59.058981"
+    },
+    {
+      "attempt": 32,
+      "request_id": "language-examples-20261008:review-S6-examples",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:34:32.456888"
+    },
+    {
+      "attempt": 33,
+      "request_id": "ff005a4b-2fd3-4797-98c8-16fc2b168837:19ad2a49c468612ae072d075ab99cb936f5c749858d08f4ebe5aa4c5458db6b0:0",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:35:51.242206"
+    },
+    {
+      "attempt": 34,
+      "request_id": "ai:language_check:fe5afcb3-cf70-407e-9a21-56f825668598:chunk-0:zh-naturalness-v3",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:36:23.142994"
+    },
+    {
+      "attempt": 35,
+      "request_id": "01306668-fed9-4f63-b51d-89efc89581c7:4d600508478dde879ebcc1d2fbe94c1631055af9d9c50329b5fda6ccc603d872:0",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:36:44.015272"
+    },
+    {
+      "attempt": 36,
+      "request_id": "ai:language_check:c58f0c3d-3744-478a-bdef-48bbc8402b5a:chunk-0:zh-naturalness-v3",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:37:04.673701"
+    },
+    {
+      "attempt": 37,
+      "request_id": "ai:language_check:ff478fc9-8db2-4fa0-a11f-6e62e12a685d:chunk-0:zh-naturalness-v3",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:39:54.082678"
+    },
+    {
+      "attempt": 38,
+      "request_id": "ai:language_patch:1ffd0879-a99c-41ff-9ee8-dd5763951020:candidate:zh-naturalness-v3",
+      "model": "deepseek-flash",
+      "status": "COMPLETED",
+      "operation_kind": "CHAT_STREAM",
+      "reserved_provider_attempts": 3,
+      "created_at": "2026-10-08 05:45:19.407723"
+    }
+  ],
+  "note": "reservedProviderAttempts is a worst-case bound, not measured provider sends"
+}

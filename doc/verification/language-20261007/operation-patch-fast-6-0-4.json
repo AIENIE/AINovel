@@ -1,0 +1,20 @@
+{
+  "id": "aa6eecfa-fad7-4949-be87-99bf5fa4b2ca",
+  "operationType": "LANGUAGE_SUGGESTION",
+  "scopeType": "LANGUAGE_PATCH",
+  "scopeId": "c2fbcb96-27a0-4ebd-93c4-1865088298c1",
+  "status": "SUCCEEDED",
+  "currentStep": "已完成",
+  "totalSteps": 2,
+  "completedSteps": 2,
+  "remainingSteps": 0,
+  "currentStepOutputTokens": 633,
+  "outputTokensEstimated": false,
+  "attemptCount": 1,
+  "resultJson": "{\"patchId\":\"c2fbcb96-27a0-4ebd-93c4-1865088298c1\"}",
+  "errorMessage": null,
+  "createdAt": "2026-10-07T09:31:30.493717Z",
+  "updatedAt": "2026-10-07T09:32:16.250054Z",
+  "completedAt": "2026-10-07T09:32:16.250054Z",
+  "errorCode": null
+}

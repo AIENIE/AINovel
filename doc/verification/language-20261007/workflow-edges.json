@@ -1,0 +1,127 @@
+{
+  "callsBefore": 38,
+  "checks": [
+    {
+      "name": "oversized indivisible paragraph explicitly uncovered, no model call",
+      "result": {
+        "id": "bfafacc1-f08c-4e5f-9a46-08d049ad3318",
+        "manuscriptId": "abe7eaf8-44f4-4875-8580-7024e6cdd12d",
+        "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+        "source": {
+          "branchId": "f90318d9-280d-4366-940c-cec1b32005d7",
+          "bodyVersion": 3,
+          "snapshotId": "3d46b69b-edef-4eaa-84c9-b109c7828b2b",
+          "projectionVersion": "QUALITY_PARAGRAPH_V2",
+          "htmlHash": "df8003c39057f25b77b562e9a68d8a0bbf5e77b6b84811538de8fb574df3c0fd",
+          "textHash": "97d7e366a29b98d329dbcdafa7c0bb28c7902bb2c411cc831d598db438f18684",
+          "contextVersion": "7519ab8ebcc19ba46aafb2fd2fd1cb4280b94563873c76d4d9e8a6d6d40b4604",
+          "standardVersion": "zh-naturalness-v2"
+        },
+        "status": "INCOMPLETE",
+        "summary": "语言检查未覆盖全部正文或结果不可用；未检查部分不能视为通过。",
+        "issues": [],
+        "coverage": [
+          {
+            "index": 0,
+            "start": 0,
+            "end": 18000,
+            "contextStart": 0,
+            "contextEnd": 18000,
+            "state": "SKIPPED",
+            "reason": "完整段落及相邻上下文超过实际输入预算"
+          }
+        ],
+        "patches": [],
+        "operationId": "b4472e5a-5c97-4470-8892-133c2e47bc5b",
+        "canContinueBatch": true,
+        "createdAt": "2026-10-07T09:39:51.977151Z"
+      }
+    },
+    {
+      "name": "cancelled check cannot display no-clear-issues",
+      "result": {
+        "cancel": {
+          "id": "9ea61a3c-627f-45ee-bc3f-88c57ea7aafe",
+          "operationType": "LANGUAGE_DIAGNOSIS",
+          "scopeType": "LANGUAGE_REPORT",
+          "scopeId": "317d78b5-86f8-499e-989c-a2937ce37ae8",
+          "status": "CANCELLED",
+          "currentStep": "等待后台语言检查",
+          "totalSteps": 1,
+          "completedSteps": 0,
+          "remainingSteps": 1,
+          "currentStepOutputTokens": 0,
+          "outputTokensEstimated": true,
+          "attemptCount": 1,
+          "resultJson": null,
+          "errorMessage": null,
+          "createdAt": "2026-10-07T09:39:53.212571Z",
+          "updatedAt": "2026-10-07T09:39:53.267557Z",
+          "completedAt": "2026-10-07T09:39:53.311725200Z",
+          "errorCode": null
+        },
+        "operation": {
+          "id": "9ea61a3c-627f-45ee-bc3f-88c57ea7aafe",
+          "operationType": "LANGUAGE_DIAGNOSIS",
+          "scopeType": "LANGUAGE_REPORT",
+          "scopeId": "317d78b5-86f8-499e-989c-a2937ce37ae8",
+          "status": "CANCELLED",
+          "currentStep": "等待后台语言检查",
+          "totalSteps": 1,
+          "completedSteps": 0,
+          "remainingSteps": 1,
+          "currentStepOutputTokens": 0,
+          "outputTokensEstimated": true,
+          "attemptCount": 1,
+          "resultJson": null,
+          "errorMessage": null,
+          "createdAt": "2026-10-07T09:39:53.212571Z",
+          "updatedAt": "2026-10-07T09:39:53.311725Z",
+          "completedAt": "2026-10-07T09:39:53.311725Z",
+          "errorCode": null
+        },
+        "report": {
+          "id": "317d78b5-86f8-499e-989c-a2937ce37ae8",
+          "manuscriptId": "abe7eaf8-44f4-4875-8580-7024e6cdd12d",
+          "sceneId": "4d2f8935-c29f-5760-9c11-ae9302f50c52",
+          "source": {
+            "branchId": "f90318d9-280d-4366-940c-cec1b32005d7",
+            "bodyVersion": 4,
+            "snapshotId": "ca17a421-5383-4fc2-9ecf-29ac528b9bfb",
+            "projectionVersion": "QUALITY_PARAGRAPH_V2",
+            "htmlHash": "1183b157412a25225b260ad5a3064d7c7021b9524206b09d05cc4687e08cbfc4",
+            "textHash": "73719fd2ccb734068ce583891a886fb37041f3c675975f7c7d1cb3e37e554282",
+            "contextVersion": "ae20923e99410015c1a72a4c7c8fbaac87b6b3ba1180d00f38246067723cc7d0",
+            "standardVersion": "zh-naturalness-v2"
+          },
+          "status": "FAILED",
+          "summary": "任务未完成：CANCELLED。保留已有结果，未覆盖部分不视为通过。",
+          "issues": [],
+          "coverage": [
+            {
+              "index": 0,
+              "start": 0,
+              "end": 75,
+              "contextStart": 0,
+              "contextEnd": 75,
+              "state": "PENDING",
+              "reason": null
+            }
+          ],
+          "patches": [],
+          "operationId": "9ea61a3c-627f-45ee-bc3f-88c57ea7aafe",
+          "canContinueBatch": false,
+          "createdAt": "2026-10-07T09:39:53.209064Z"
+        }
+      }
+    },
+    {
+      "name": "unknown result replay requests reconciliation without a new inference",
+      "result": {
+        "message": "AI_RESULT_RECONCILIATION_REQUIRED",
+        "timestamp": "2026-10-07T09:39:53.576434700Z"
+      }
+    }
+  ],
+  "callsAfter": 38
+}

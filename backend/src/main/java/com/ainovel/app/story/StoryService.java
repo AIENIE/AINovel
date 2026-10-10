@@ -160,6 +160,7 @@ public class StoryService {
         result.put("plotPlanning", draft.plotPlanning());
         result.put("outlineSeed", draft.outlineSeed());
         result.put("generated", draft.generated());
+        result.put("degraded", draft.generated().get("fallbackFields") instanceof List<?> fields && !fields.isEmpty());
         return result;
         }));
     }

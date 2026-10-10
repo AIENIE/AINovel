@@ -36,6 +36,26 @@ class WorldPublishFlowTests {
     private AiService aiService;
 
     @Test
+    @WithMockUser(username = "world_null_themes", roles = {"USER"})
+    void omittedAndLegacyNullThemesGenerateWithoutLosingWorldDescription() {
+        User user = new User(); user.setUsername("world_null_themes");
+        user.setEmail("world_null_themes@example.invalid"); user.setPasswordHash("x");
+        userRepository.save(user);
+        var created = worldService.create(user, new com.ainovel.app.world.dto.WorldCreateRequest(
+                "雾站", "当代小站，不含魔法", null, null, null));
+        assertNotNull(created.themes()); assertTrue(created.themes().isEmpty());
+        World legacy = worldRepository.findById(created.id()).orElseThrow();
+        legacy.setThemesJson("null"); worldRepository.save(legacy);
+        when(aiService.refine(any(), any())).thenAnswer(call -> {
+            com.ainovel.app.ai.dto.AiRefineRequest request = call.getArgument(1);
+            assertTrue(request.text().contains("当代小站，不含魔法"));
+            assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
+            return new AiRefineResponse("可用设定", new AiUsageDto(1, 1, 0, 0, 0), 100);
+        });
+        assertEquals("COMPLETED", worldService.generateModule(created.id(), "geography").moduleProgress().get("geography"));
+    }
+
+    @Test
     @WithMockUser(username = "world_test_user", roles = {"USER"})
     void publishKeepsCompletedModulesAndActivationAfterGeneration() {
         User user = new User();

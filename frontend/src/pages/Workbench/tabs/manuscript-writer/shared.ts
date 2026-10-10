@@ -4,14 +4,9 @@ import type { PlotQualityRun, SlopQualityRun, SlopRewriteTask } from "@/types";
 
 export const qualityStatusText = (run?: SlopQualityRun | null) => {
   if (!run) return t("qualityStatus.notRun");
-  if (run.analysisMode === "manual_scene") {
-    if (run.status === "DEGRADED") return t("qualityStatus.degraded");
-    if (run.status === "ACCEPTED_WITH_ISSUES" || ["high", "critical"].includes(run.riskLabel || "")) return t("qualityStatus.textPending");
-    return t("qualityStatus.textPassed");
-  }
-  if (run.status === "REVISED" || run.revised) return t("qualityStatus.revised");
-  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return t("qualityStatus.hasSuggestions");
-  return t("qualityStatus.passed");
+  if (run.status === "DEGRADED") return "历史检查不完整";
+  if (run.issues?.length || run.overallRiskScore >= 40) return "历史报告有建议";
+  return "历史报告（未验证当前正文）";
 };
 
 export const qualityStatusClass = (run?: SlopQualityRun | null) => {
@@ -19,7 +14,7 @@ export const qualityStatusClass = (run?: SlopQualityRun | null) => {
   if (run.analysisMode === "manual_scene" && run.status === "DEGRADED") return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
-  return "border-emerald-300 bg-emerald-50 text-emerald-700";
+  return "border-zinc-300 bg-zinc-50 text-zinc-700";
 };
 
 export const slopModuleLabel = (module?: string) => {

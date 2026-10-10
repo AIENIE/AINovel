@@ -1,0 +1,33 @@
+{
+  "id": "c58f0c3d-3744-478a-bdef-48bbc8402b5a",
+  "manuscriptId": "a30076ed-6453-45b4-b08d-4c5b058fec17",
+  "sceneId": "03634aa2-8d6e-5c04-864e-05bf019d056f",
+  "source": {
+    "branchId": "77610173-c1b9-42fb-a2cc-f29df2ec6b92",
+    "bodyVersion": 2,
+    "snapshotId": "12ccf38f-a816-4585-9181-13f4d5897b3c",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "1a405a3e77df51570727ba509e4d6d895ebc3089ef38e70f156f7c8c238f7a9f",
+    "textHash": "02bfdc4331fa865c78d70aff66d736b73ef93cebf64d23e66cc182319a3e47d6",
+    "contextVersion": "614308f2c45c4b354dbf23716fff14de3e7c73def9d565a4b0cba107fa3baf15",
+    "standardVersion": "zh-naturalness-v3"
+  },
+  "status": "NO_CLEAR_ISSUES",
+  "summary": "已扫描记录范围，未发现明确语言问题；这不是文本完美或没有 AI 味的保证。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 652,
+      "contextStart": 0,
+      "contextEnd": 652,
+      "state": "COMPLETE",
+      "reason": "已对全文0-652 UTF-16范围按场景段落通读，逐项检查主语省略、动作压缩、断句、生硬搭配和整段连贯性。段落中连续动作与对白省略有上下文承接，未发现明确语言问题；个别省略如开篇伞的状态描写未造成阅读障碍，不判为错误。"
+    }
+  ],
+  "patches": [],
+  "operationId": "d00b037c-4b8d-4d03-87b3-525960d9b4ac",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-08T05:37:04.309789Z"
+}

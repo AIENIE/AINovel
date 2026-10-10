@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-08",
+  "S5-examples": {
+    "verbatim": "候选肯定比原文好，原文是完全不可接受的。不过这个候选说实话也不是太好，后面我专门给你说说情况。",
+    "language": "improved but not accepted",
+    "meaning": "not separately confirmed"
+  },
+  "S6-examples": {
+    "verbatim": "至少这个示例上，没有改变",
+    "meaning": "author confirms preservation for this candidate",
+    "language": "not separately confirmed"
+  }
+}

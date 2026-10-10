@@ -33,6 +33,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe("narrative author workflow", () => {
+  it("keeps reference tools inside the selected evidence tab instead of every sidebar tab", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry:false } } });
+    const panel = (tab:string) => <QueryClientProvider client={client}><Tabs value={tab}><NarrativeSidebarPanel active={false} manuscript={manuscript} sceneId="scene" dirty={false} busy={false} structureKey="scene" characters={[]} onManuscript={vi.fn()}><p>参考资料核验工具</p></NarrativeSidebarPanel></Tabs></QueryClientProvider>;
+    const view=render(panel("version")); expect(screen.queryByText("参考资料核验工具")).toBeNull();
+    view.rerender(panel("narrative")); expect(screen.getByText("参考资料核验工具")).toBeTruthy();
+    view.rerender(panel("export")); expect(screen.queryByText("参考资料核验工具")).toBeNull();
+  });
   it("refreshes the context baseline after an author changes the ledger without changing body version", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(["narrative-context", "manuscript", "branch", 4], { canonRevision: 0 });

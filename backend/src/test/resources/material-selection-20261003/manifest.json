@@ -1,0 +1,47 @@
+{
+  "version": "synthetic-evidence-v1",
+  "sourceGroups": 25,
+  "documents": 100,
+  "queries": 200,
+  "development": 120,
+  "holdout": 80,
+  "groups": [
+    "entity_alias",
+    "fictional_term",
+    "paraphrase",
+    "negation_condition",
+    "cross_paragraph",
+    "inspiration",
+    "no_answer",
+    "version_permission"
+  ],
+  "configuration": {
+    "dimensions": 1024,
+    "chunk": "cp900-120-v1",
+    "inputTemplate": "document-v1",
+    "rrfConstant": 60,
+    "candidateLimit": 40,
+    "finalLimit": 8,
+    "arms": [
+      "basic",
+      "standard",
+      "flash",
+      "standard-rerank",
+      "flash-rerank"
+    ]
+  },
+  "sha256": {
+    "corpus.json": "bd017399b3184d471593ff85039d8f8badff6031f828a7901e701a2e0edd9d9e",
+    "development-queries.json": "1728a89834dc8640f125daf7e153ac86fea1d94dfc2387133b6928fc9d758706",
+    "holdout-queries.json": "c1f4c583f254122eff6a7251847ea7c0631dab31ab6000e0f03f6ca4bf158fed",
+    "development-answers.json": "c26de6059994a9b4b093d70dea93983a3a933785f4f79ca7f8d7d0ae37f52edb",
+    "holdout-answers.json": "bf61d4ad7a367c7d451d14529f7a09974355cd300317a7236101dacbe9e48a33",
+    "paired-checks.json": "2ff86e4889e64273e0bc7e66932ebd2408b44278155be0b1be182fa8eec576cc"
+  },
+  "limits": {
+    "rmb": 100,
+    "externalAttempts": 1000
+  },
+  "provenance": "Deterministic fictional engineering fixtures, not author-rated real-world quality evidence",
+  "holdoutRule": "Freeze configuration before evaluation. Do not read holdout answers while tuning. Never silently replace this dataset."
+}

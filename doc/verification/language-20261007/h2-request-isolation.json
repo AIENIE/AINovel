@@ -1,0 +1,106 @@
+{
+  "checks": [
+    {
+      "attempt": 1,
+      "requestId": "ai:language_check:9cc72937-9dc0-4285-8c6e-fa43a5775976:chunk-0:zh-naturalness-v1",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 2,
+      "requestId": "ai:language_check:bde3a47d-69ed-45de-8804-f6ba78428b46:chunk-0:zh-naturalness-v1",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 3,
+      "requestId": "ai:language_check:fbabd0e5-41a0-44da-bd6b-ef299c330822:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 4,
+      "requestId": "ai:language_check:0455622c-a925-45ac-a202-92fff5048d6d:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 6,
+      "requestId": "ai:language_check:e81c5a9f-7f1a-417f-8404-cee91edbb698:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 8,
+      "requestId": "ai:language_check:6a94c254-ce37-44c1-8d7b-fa9279fc6b74:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 9,
+      "requestId": "ai:language_check:34850d7e-47cd-4ee4-81e2-e17f6acd502b:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 10,
+      "requestId": "ai:language_check:12bdbd15-80b1-459f-8bfe-ab559f2540a3:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 11,
+      "requestId": "ai:language_check:e79c886a-d524-4422-9a71-ded5fafff8fb:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 12,
+      "requestId": "ai:language_check:e79c886a-d524-4422-9a71-ded5fafff8fb:chunk-1:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 15,
+      "requestId": "ai:language_patch:89ca69ce-3e76-43e4-87c5-c456bfa7cc6c:candidate:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 17,
+      "requestId": "ai:language_patch:89ca69ce-3e76-43e4-87c5-c456bfa7cc6c:review:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 19,
+      "requestId": "ai:language_patch:f8297009-c733-4c59-80d2-6348793fed01:candidate:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 21,
+      "requestId": "ai:language_patch:f8297009-c733-4c59-80d2-6348793fed01:review:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 23,
+      "requestId": "ai:language_patch:c2fbcb96-27a0-4ebd-93c4-1865088298c1:candidate:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 25,
+      "requestId": "ai:language_patch:c2fbcb96-27a0-4ebd-93c4-1865088298c1:review:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 27,
+      "requestId": "ai:language_patch:de703d24-f583-45ea-bffb-0b6690ef9bde:candidate:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 29,
+      "requestId": "ai:language_patch:de703d24-f583-45ea-bffb-0b6690ef9bde:review:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 36,
+      "requestId": "ai:language_check:0dba94b4-fc0e-478e-9558-f724c9ea9132:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 38,
+      "requestId": "ai:language_check:ef36b086-3ddf-4b68-b526-4dd9a4907ee3:chunk-0:zh-naturalness-v2",
+      "hiddenMarkersAbsent": true
+    }
+  ],
+  "allPassed": true,
+  "scope": "synthetic hidden markers in this acceptance fixture; not a proof about arbitrary hidden information"
+}

@@ -1,0 +1,50 @@
+{
+  "id": "0455622c-a925-45ac-a202-92fff5048d6d",
+  "manuscriptId": "2ee29a8f-943e-48e4-bc42-cb0246ce848a",
+  "sceneId": "7190d834-e33a-5a66-9b19-c232bf7da091",
+  "source": {
+    "branchId": "d148c7ef-c68a-4ede-9b35-efc00a48a37b",
+    "bodyVersion": 2,
+    "snapshotId": "752fac9d-ac13-42b9-8654-acf4828f5e49",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "0ffb1837e5225f7206192549549c6103d6fcc2cee8bf8d473e283e7792a06512",
+    "textHash": "5c5865bc654afb3a9d42f3f88a78c1f4abf87425832d77c6c962018ff392c296",
+    "contextVersion": "664dedbb1683272dac3678b271d9f47d7fc56d7cd7d532bd68e61d98640a37b6",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "ISSUES",
+  "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "对面只发过两个字：“知道了。”",
+      "impact": "“知道了”是三个汉字，与前文“两个字”不一致，数字和引文互相矛盾，读者会停下来核对，影响叙述准确性。",
+      "direction": "改为“三个字”，或改成不点明字数的“只回过一句”。",
+      "start": 523,
+      "end": 538,
+      "location": "EXACT",
+      "paragraph": 5,
+      "context": "消息列表往下翻，停在一个没有备注名的对话框上。上一条停在两周前，对面只发过两个字：“知道了。”莫遥点开输入框，打了“票的事”，看两秒，全部删掉。光标一闪一闪。她重新打字：“明天我出门早，早饭顺手给你带一份。”拇指悬在发送键上，停了一下，按下去。",
+      "currentStart": 523,
+      "currentEnd": 538,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 819,
+      "contextStart": 0,
+      "contextEnd": 819,
+      "state": "COMPLETE",
+      "reason": "已通读全文0..819，逐段检查过度省略、表达压缩、刻意断句、生硬搭配和整段连贯性。整体叙述自然，动作主体和对象在连续段落中清楚，未发现其他明确语言问题；仅发现一处引文内容与数量词不一致。"
+    }
+  ],
+  "patches": [],
+  "operationId": "3c8e9fa1-d558-4f4d-aa0d-ca21aa0023d3",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:26:49.731715Z"
+}

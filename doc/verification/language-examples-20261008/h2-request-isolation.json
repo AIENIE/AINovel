@@ -1,0 +1,201 @@
+{
+  "markers": [
+    "H2-SECRET-LANGUAGE-20261008",
+    "H2-CARD-SECRET-LANGUAGE-20261008",
+    "H2隐藏资料标记"
+  ],
+  "checks": [
+    {
+      "attempt": 1,
+      "requestId": "language-examples-20261008:diagnosis-S5-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 2,
+      "requestId": "language-examples-20261008:diagnosis-S5-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 3,
+      "requestId": "language-examples-20261008:diagnosis-S6-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 4,
+      "requestId": "language-examples-20261008:diagnosis-S6-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 5,
+      "requestId": "language-examples-20261008:diagnosis-new-problems-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 6,
+      "requestId": "language-examples-20261008:diagnosis-new-problems-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 7,
+      "requestId": "language-examples-20261008:diagnosis-new-boundary-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 8,
+      "requestId": "language-examples-20261008:diagnosis-new-boundary-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 9,
+      "requestId": "language-examples-20261008:G1-fast-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 10,
+      "requestId": "language-examples-20261008:candidate-S5-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 11,
+      "requestId": "language-examples-20261008:G1-fast-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 12,
+      "requestId": "language-examples-20261008:G1-crafted-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 13,
+      "requestId": "ai:language_check:49b7ae7b-a101-410b-b02b-9533a3bb5c3b:chunk-0:zh-naturalness-v3",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 14,
+      "requestId": "language-examples-20261008:G1-crafted-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 15,
+      "requestId": "language-examples-20261008:G2-fast-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 16,
+      "requestId": "language-examples-20261008:G2-fast-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 17,
+      "requestId": "language-examples-20261008:G2-crafted-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 18,
+      "requestId": "language-examples-20261008:G2-crafted-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 19,
+      "requestId": "language-examples-20261008:G3-fast-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 20,
+      "requestId": "language-examples-20261008:G3-fast-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 21,
+      "requestId": "language-examples-20261008:G3-crafted-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 22,
+      "requestId": "language-examples-20261008:G3-crafted-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 23,
+      "requestId": "language-examples-20261008:candidate-S5-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 24,
+      "requestId": "language-examples-20261008:G4-fast-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 25,
+      "requestId": "language-examples-20261008:candidate-S6-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 26,
+      "requestId": "language-examples-20261008:G4-fast-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 27,
+      "requestId": "language-examples-20261008:candidate-S6-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 28,
+      "requestId": "language-examples-20261008:G4-crafted-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 29,
+      "requestId": "language-examples-20261008:review-S5-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 30,
+      "requestId": "language-examples-20261008:G4-crafted-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 31,
+      "requestId": "language-examples-20261008:review-S6-rules",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 32,
+      "requestId": "language-examples-20261008:review-S6-examples",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 33,
+      "requestId": "ff005a4b-2fd3-4797-98c8-16fc2b168837:19ad2a49c468612ae072d075ab99cb936f5c749858d08f4ebe5aa4c5458db6b0:0",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 34,
+      "requestId": "ai:language_check:fe5afcb3-cf70-407e-9a21-56f825668598:chunk-0:zh-naturalness-v3",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 35,
+      "requestId": "01306668-fed9-4f63-b51d-89efc89581c7:4d600508478dde879ebcc1d2fbe94c1631055af9d9c50329b5fda6ccc603d872:0",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 36,
+      "requestId": "ai:language_check:c58f0c3d-3744-478a-bdef-48bbc8402b5a:chunk-0:zh-naturalness-v3",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 37,
+      "requestId": "ai:language_check:ff478fc9-8db2-4fa0-a11f-6e62e12a685d:chunk-0:zh-naturalness-v3",
+      "hiddenMarkersAbsent": true
+    },
+    {
+      "attempt": 38,
+      "requestId": "ai:language_patch:1ffd0879-a99c-41ff-9ee8-dd5763951020:candidate:zh-naturalness-v3",
+      "hiddenMarkersAbsent": true
+    }
+  ],
+  "allPassed": true,
+  "scope": "This batch's synthetic hidden markers only; not proof about arbitrary hidden information."
+}

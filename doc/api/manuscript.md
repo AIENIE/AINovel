@@ -50,3 +50,9 @@
 - 稿件响应新增单调递增的 `version`。
 - `PUT /v1/manuscripts/{manuscriptId}/sections/{sceneId}` 请求必须包含 `expectedVersion`；服务端版本不一致时返回 `409`，客户端应重新加载并显式处理冲突。
 - 场景 AI 生成以读取时版本为提交前提：AI 在事务外执行，正文已被其他请求修改时不会覆盖新内容。
+
+## 创建回执（2026-10-02）
+
+`POST /v1/outlines/{outlineId}/manuscripts` 可携带 UUID 格式的 `Idempotency-Key`。同用户、同大纲、同键和相同请求体返回原始创建响应；内容不同返回 `409 CREATION_REQUEST_CONFLICT`；原稿已删除返回 `410 CREATED_MANUSCRIPT_DELETED`，不会静默重建。未传键仍允许多次创建同名稿件。
+
+创建在数据库 flush 后构建响应，`version` 与非空 `updatedAt` 可直接用于后续编辑。前端一次创建意图使用固定键，延迟响应期间禁用重复点击，失败重试沿用原键，成功后选中新稿件并关闭创建框。

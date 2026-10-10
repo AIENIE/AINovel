@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-new-boundary-rules",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已通读 coreStart..coreEnd 范围内全文，逐段检查省略、压缩、断句、搭配与段落连贯性；对话省略符合语境，动作衔接与指代清楚，未发现明确语言问题。\",\"issues\":[]}",
+    "usage": {
+      "inputTokens": 1248.0,
+      "outputTokens": 1019.0,
+      "cacheTokens": 896.0,
+      "cacheHitRate": 0.717948717948718,
+      "cost": 1.0
+    }
+  }
+}

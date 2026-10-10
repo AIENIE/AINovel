@@ -1,0 +1,51 @@
+{
+  "view": "SCENE",
+  "characterId": null,
+  "sceneId": "03634aa2-8d6e-5c04-864e-05bf019d056f",
+  "stamp": {
+    "manuscriptId": "a30076ed-6453-45b4-b08d-4c5b058fec17",
+    "branchId": "77610173-c1b9-42fb-a2cc-f29df2ec6b92",
+    "manuscriptVersion": 1,
+    "canonRevision": 0,
+    "contextRevision": 1,
+    "settingsRevision": 1,
+    "orderHash": "a98361512480f34cd5373a880ddfa990eeec2c268a1ccd86f0d8b736b6016341"
+  },
+  "contextHash": "38bf59c7aa2e7f0f7e257fff0305533f95bed0711577bd5894c6374467210da4",
+  "tokenBudget": 3500,
+  "tokenUsed": 602,
+  "content": "H2：以下类型不能互换；PLAN 是未发生的作者计划；发言、信念不证明客观事实。没有知情依据不代表已知，也不证明一定不知。人物可用表述不转授给其他人物。未提供称谓、性别或身份时使用姓名，不自行补全。观察到结果不代表知道其原因。\n认知来源约束：BELIEF/BELIEVED 只支持人物相信，REPORTED 只支持听说，INFERRED 只支持推断。不得为这些内容补写亲眼目睹、亲手实施、可靠证人、事后核实或具体回忆来把它们坐实；获知过程未给出时保持未给出。梦境只属于梦境。即使需要补足篇幅，也只扩展本场允许的动作、感官与选择，不补造关键往事。限知叙述仅描写视角人物内心；对他人意图用可观察动作或明确不确定的猜测，不写成确定知晓。\n创作边界：可自由补充本场普通动作、环境、感官和对白措辞。关键事件的实施者、获知来源、重要往事、身份与核心设定只采用作者批准内容，不通过回忆、比喻或内心独白补造。knowledge.character 是相信或获知的人，不是事件实施者。eventActor 和 acquisitionBasis 只在原 content/kind/certainty 限定内适用；梦中行动者不迁移到现实，信念有来源也不证明为真。NOT_PROVIDED 表示作者未提供依据，不能猜测补齐，也不表示人物一定不知道。若 content 已明确行动者或来源可按原义使用；未指定行动者则保持未指定，不默认成自己。不要把这些标记写进小说。\n[CONTRACT] {\"viewpoint\":\"周宁\",\"allowInner\":true,\"perspective\":\"LIMITED_THIRD\"}\n[PLAN] 周宁按约把红伞还给邻居。邻居核对伞柄姓名，确认是自己的伞。两人只作简短对白。只写当前归还过程，不补往事或揭示其他人物的想法。\n",
+  "included": [
+    {
+      "id": "contract",
+      "category": "CONTRACT",
+      "content": "{\"viewpoint\":\"周宁\",\"allowInner\":true,\"perspective\":\"LIMITED_THIRD\"}",
+      "reason": "作者叙事约定",
+      "truncated": false
+    },
+    {
+      "id": "1b21154d-e25f-542a-a296-33db1d8d0f77",
+      "category": "PLAN",
+      "content": "周宁按约把红伞还给邻居。邻居核对伞柄姓名，确认是自己的伞。两人只作简短对白。只写当前归还过程，不补往事或揭示其他人物的想法。",
+      "reason": "本场作者计划，尚未发生",
+      "truncated": false
+    }
+  ],
+  "excluded": [
+    {
+      "id": "d4b5f1ce-c252-5435-9215-706d9d696666",
+      "category": "BACKGROUND",
+      "content": "H2-SECRET-LANGUAGE-20261008：未公开的以后剧情。",
+      "reason": "适用范围不匹配、待复核或仅为读者假设",
+      "truncated": false
+    },
+    {
+      "id": "unclassified",
+      "category": "LEGACY_SOURCES",
+      "content": "",
+      "reason": "未分类梗概、标题、章节规划、人物详情、世界备注、Lorebook、风格样文、素材及图关系不进入严格输入",
+      "truncated": false
+    }
+  ],
+  "promptVersion": "scene-isolation-h2-v4"
+}

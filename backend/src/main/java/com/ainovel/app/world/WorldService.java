@@ -69,7 +69,7 @@ public class WorldService {
         world.setUser(user);
         world.setName(request.name());
         world.setTagline(request.tagline());
-        world.setThemesJson(writeJson(request.themes()));
+        world.setThemesJson(writeJson(request.themes() == null ? List.of() : request.themes()));
         world.setCreativeIntent(request.creativeIntent());
         world.setNotes(request.notes());
         world.setStatus("draft");
@@ -280,6 +280,7 @@ public class WorldService {
 
     private String generateField(World world, WorldDefinitionDto module, WorldDefinitionDto.Field field) {
         String text = "世界名称：" + safe(world.getName()) + "\n"
+                + "世界简介：" + safe(world.getTagline()) + "\n"
                 + "主题：" + String.join("、", readThemes(world.getThemesJson())) + "\n"
                 + "创作意图：" + safe(world.getCreativeIntent()) + "\n"
                 + "模块：" + module.label() + "\n"
@@ -363,7 +364,8 @@ public class WorldService {
     }
 
     private List<String> readThemes(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, new ArrayList<>());
+        List<String> themes = jsonColumnCodec.read(json, new TypeReference<>() {}, List.of());
+        return themes == null ? List.of() : themes.stream().filter(Objects::nonNull).toList();
     }
 
     private Map<String, Map<String, String>> readModules(String json) {

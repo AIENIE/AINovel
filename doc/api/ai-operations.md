@@ -8,7 +8,7 @@
 - `GET /api/v1/ai-operations/{id}/events`：SSE `progress` 事件；连接异常时前端退回轮询。
 - `GET /api/v1/ai-operations/active?scopeType=&scopeId=`：恢复指定业务资源的活跃任务。
 - `POST /api/v1/ai-operations/{id}/retry`：重试 `FAILED` 或 `RECOVERY_REQUIRED` 任务，返回 `202 {operationId}`。
-- `POST /api/v1/ai-operations/{id}/cancel`：取消仍未结束的任务，返回 204。
+- `POST /api/v1/ai-operations/{id}/cancel`：取消仍未结束的任务，返回 200 和任务快照；若业务提交先完成则保持成功结果。
 
 创建任务返回 `202 {operationId}`。进度快照包含：
 
@@ -32,3 +32,13 @@
 - `POST /api/v2/manuscripts/{manuscriptId}/plot-quality-runs/{runId}/revision-candidate/operations`：生成剧情修订候选。
 
 原同步接口暂时保留兼容；当前前端的长任务入口使用上述异步接口，并在全局进度面板显示当前步骤、已完成/剩余步骤和当前步骤 token。
+
+## 创作链路恢复（2026-10-02）
+
+- 运行表与步骤表 `request_id` 最大 160 字符，不改写历史请求编号或幂等键。
+- 初始化远程失败或响应不可解析会保留失败状态。部分字段缺失时补齐基础结构，结果包含 `degraded: true`，前端提示核对设定。
+- 重试优先恢复已保存的 `resultJson`；积分回执为 `RECONCILIATION_REQUIRED` 时返回 `409 AI_RESULT_RECONCILIATION_REQUIRED`，不重新推理、不释放此前冻结积分。仅本地预算在外发前明确拒绝的新请求会释放该次预留。
+- 进度面板支持关闭、最小化和重新查看，显示状态按登录用户及任务存入 sessionStorage，刷新和跨页保留。关闭不取消任务；重试与取消执行期间禁用重复提交，错误保留在面板。
+
+- 失败进度增加可选 `errorCode`；前端只映射已知代码，不回显原始异常。恢复已有结果后清除旧错误并将步骤标记完成。
+- 新建世界未填主题按空列表保存；兼容历史 JSON `null`。模块字段生成包含世界简介，已有字段保持不变。

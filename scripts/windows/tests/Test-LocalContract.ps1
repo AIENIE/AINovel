@@ -46,21 +46,21 @@ if (($localTrustItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -
 if (($startText + $statusText) -match '(?i)Set-AienieProductOperationalState|AIENIE_PRODUCT_STATE_WRITER|config-center|release\.center|icacls|Get-Acl|Start-Direct\.ps1|Start-Native\.ps1') {
     throw 'AINovel local Start/Status must not depend on release, monitoring, ACL, or privileged launch automation.'
 }
+# Endpoint authority moved to the local config pair; launchers should not duplicate it.
+$localConfiguration = [IO.File]::ReadAllText((Join-Path $windowsRoot '../../backend/src/main/resources/application-local.yml'))
+foreach ($domain in @('localmysql.testhut.top', 'localredis.testhut.top', 'localqdrant.testhut.top',
+        'localuserservice.testhut.top', 'localpayservice.testhut.top', 'localaiservice.testhut.top')) {
+    if ($localConfiguration.IndexOf($domain, [StringComparison]::Ordinal) -lt 0) {
+        throw "AINovel local dependency configuration is missing: $domain"
+    }
+}
 foreach ($required in @(
-        'localbase.testhut.top',
-        'localuserservice.testhut.top',
-        'localpayservice.testhut.top',
-        'localaiservice.testhut.top',
-        '[''ENV''] = ''local''',
-        '[''APP_ENV''] = ''local''',
         '[''SPRING_PROFILES_ACTIVE''] = ''local''',
         '[''AIENIE_RUNTIME_PLANE''] = ''windows-local''',
-        '[''SERVER_ADDRESS''] = ''127.0.0.1''',
         'Remove-AienieProcessInjectionEnvironment',
         'Complete-AienieManagedProcessRecord',
         '''backend\pom.xml''',
         'Directory = Join-Path $repoRoot ''frontend''',
-        '[''EXTERNAL_GRPC_TRUST_CERT_COLLECTION''] = $trustItem.FullName',
         '--maxWorkers=2'
 )) {
     if ($runtimeText.IndexOf($required, [StringComparison]::Ordinal) -lt 0) {
@@ -76,6 +76,13 @@ if ($runtimeText -match '(?i)(?<![a-z0-9-])(?:base|userservice|payservice|aiserv
 }
 
 Import-Module (Join-Path $windowsRoot 'LocalRuntime.psm1') -Force
+. (Join-Path $windowsRoot '../config-pair/ConfigurationPair.ps1')
+$localValues = Read-ConfigPairValues -ProjectRoot (Resolve-Path (Join-Path $windowsRoot '../..')).Path
+foreach ($entry in @{ ENV='local'; APP_ENV='local'; SERVER_ADDRESS='127.0.0.1'; MYSQL_HOST='localmysql.testhut.top'; REDIS_HOST='localredis.testhut.top' }.GetEnumerator()) {
+    if ($localValues[$entry.Key] -cne $entry.Value) { throw "Local config pair mismatch: $($entry.Key)" }
+}
+if ([string]::IsNullOrWhiteSpace($localValues['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'])) { throw 'Local gRPC trust path is not configured.' }
+Assert-AienieLocalOnlyEnvironment -Values $localValues
 Assert-AienieLocalOnlyEnvironment -Values @{
     ENV = 'local'
     APP_ENV = 'local'

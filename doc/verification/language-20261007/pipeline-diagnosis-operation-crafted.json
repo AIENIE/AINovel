@@ -1,0 +1,20 @@
+{
+  "id": "b443790c-69bc-4e5e-87f9-310be6c1bb2d",
+  "operationType": "LANGUAGE_DIAGNOSIS",
+  "scopeType": "LANGUAGE_REPORT",
+  "scopeId": "ef36b086-3ddf-4b68-b526-4dd9a4907ee3",
+  "status": "SUCCEEDED",
+  "currentStep": "已完成",
+  "totalSteps": 1,
+  "completedSteps": 1,
+  "remainingSteps": 0,
+  "currentStepOutputTokens": 9938,
+  "outputTokensEstimated": false,
+  "attemptCount": 1,
+  "resultJson": "{\"reportId\":\"ef36b086-3ddf-4b68-b526-4dd9a4907ee3\"}",
+  "errorMessage": null,
+  "createdAt": "2026-10-07T09:37:02.686222Z",
+  "updatedAt": "2026-10-07T09:37:48.821409Z",
+  "completedAt": "2026-10-07T09:37:48.821409Z",
+  "errorCode": null
+}

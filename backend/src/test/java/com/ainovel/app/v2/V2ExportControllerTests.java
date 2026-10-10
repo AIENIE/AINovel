@@ -38,6 +38,7 @@ class V2ExportControllerTests {
         jobService = mock(V2ExportJobService.class);
         persistence = mock(V2ExportPersistenceService.class);
         controller = new V2ExportController(accessGuard, jobService, persistence, new ObjectMapper());
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "manuscriptTransactions", new com.ainovel.app.manuscript.OwnedManuscriptTransactions(accessGuard));
         principal = mock(UserDetails.class);
         user = new User();
         user.setId(UUID.randomUUID());

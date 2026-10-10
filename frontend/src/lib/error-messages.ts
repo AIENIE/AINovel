@@ -6,7 +6,24 @@ import { t } from "@/i18n";
  * 后端原始 message 从不直接展示给用户，只映射 HTTP 状态到稳定的前端错误类别；
  * 未命中类别时显示本地化通用操作失败。
  */
-const H2_MESSAGES: Record<string,string> = {
+const OPERATION_MESSAGES: Record<string,string> = {
+    LANGUAGE_FEATURE_DISABLED: '本环境暂未启用语言检查，历史报告和候选仍保留。',
+    LANGUAGE_EMPTY_SCENE: '请先保存需要检查的正文。',
+    LANGUAGE_CHECK_IN_PROGRESS: '语言检查尚未结束，请等待完整结果后生成修改建议。',
+    LANGUAGE_REPORT_STALE: '正文、分支或语言规范已变化，这份报告已过期。请主动重新检查。',
+    LANGUAGE_LOCATION_UNTRUSTED: '无法唯一确认原文位置，不能生成可直接应用的修改。请查看引文并手动编辑。',
+    LANGUAGE_PATCH_BLOCKED: '候选未通过语言效果或原意保留检查，不能一键采纳。请核对完整差异。',
+    LANGUAGE_PATCH_STALE: '正文或上下文已经变化，未覆盖现有内容。请核对差异。',
+    LANGUAGE_PATCH_LOCATION_CHANGED: '目标原文已经变化，不能采纳或撤销这项修改。',
+    LANGUAGE_BRANCH_CHANGED: '当前分支已经变化，不能在这个分支应用原候选。',
+    LANGUAGE_PATCH_DECIDED: '此候选的处置状态已经变化，请刷新结果。',
+    LANGUAGE_DECISION_KEY_CONFLICT: '请求键已经用于另一项处置，未再次修改正文。请刷新结果。',
+    LANGUAGE_RECORD_NOT_FOUND: '这份语言报告或候选不存在，或不属于当前稿件。',
+    AI_RESULT_RECONCILIATION_REQUIRED: '这个任务的结果仍待对账，已保留原任务和积分冻结。请刷新原任务状态，避免重复生成。',
+    AI_INITIALIZATION_INVALID_RESULT: 'AI 返回的初始化结果无法使用，请保留输入后重试。',
+    CREATION_REQUEST_CONFLICT: '此创建请求已用于其他内容，请关闭创建框后重新创建。',
+    CREATED_MANUSCRIPT_DELETED: '这次创建的稿件已经删除。请关闭创建框后发起新的创建。',
+    AI_VALIDATION_BUDGET_EXHAUSTED: '本轮真实调用额度已用完，未发起新的 AI 请求。',
     H2_KNOWLEDGE_KIND_MISMATCH: '人物可用表述的类型必须与关联陈述一致，请重新核对。',
     H2_PROMPT_BUDGET_EXCEEDED: '完整上下文与上一稿超出模型预算，已停止调用。已有稿件保留在生成稿中。',
     H2_LENGTH_LIMIT_REACHED: '一次篇幅修正后仍未达标，已保留初稿与修正稿，请查看后处理。',
@@ -18,6 +35,10 @@ const H2_MESSAGES: Record<string,string> = {
     H2_STALE_REQUIRES_NEW_DECISION: '待复核条目不能直接恢复有效；请保留历史并重新补充有依据的条目。',
     H2_REQUIRED_CONTEXT_TOO_LARGE: '本场计划超出上下文预算，请精简计划后重试。',
   };
+
+export function localizedOperationFailure(code?: string | null): string {
+  return (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
+}
 
 const ERROR_STATUS_KEYS: Record<number, string> = {
   400: "errors.badRequest",
@@ -45,7 +66,7 @@ export function errorKeyForStatus(status: number): string {
  */
 export function localizedErrorMessage(error: unknown, fallbackKey = "errors.operationFailed"): string {
   if (isApiError(error)) {
-    const message = H2_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
+    const message = OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
     return error.requestId && /^[a-zA-Z0-9-]{1,64}$/.test(error.requestId)
       ? `${message}（请求编号：${error.requestId}）` : message;
   }

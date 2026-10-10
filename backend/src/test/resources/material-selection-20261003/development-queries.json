@@ -1,0 +1,842 @@
+[
+  {
+    "id": "case-01:entity_alias",
+    "case": "case-01",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡01的通行规约"
+  },
+  {
+    "id": "case-01:fictional_term",
+    "case": "case-01",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签01究竟是什么凭证"
+  },
+  {
+    "id": "case-01:paraphrase",
+    "case": "case-01",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥01天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-01:negation_condition",
+    "case": "case-01",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥01太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-01:cross_paragraph",
+    "case": "case-01",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿01第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-01:inspiration",
+    "case": "case-01",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥01茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-01:no_answer",
+    "case": "case-01",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥01曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-01:version_permission",
+    "case": "case-01",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥01旧版白天放行规则目前还有效吗"
+  },
+  {
+    "id": "case-02:entity_alias",
+    "case": "case-02",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡02的通行规约"
+  },
+  {
+    "id": "case-02:fictional_term",
+    "case": "case-02",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签02究竟是什么凭证"
+  },
+  {
+    "id": "case-02:paraphrase",
+    "case": "case-02",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥02天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-02:negation_condition",
+    "case": "case-02",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥02太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-02:cross_paragraph",
+    "case": "case-02",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿02第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-02:inspiration",
+    "case": "case-02",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥02茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-02:no_answer",
+    "case": "case-02",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥02曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-02:version_permission",
+    "case": "case-02",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥02秘密花名玄鸦02的原文"
+  },
+  {
+    "id": "case-03:entity_alias",
+    "case": "case-03",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡03的通行规约"
+  },
+  {
+    "id": "case-03:fictional_term",
+    "case": "case-03",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签03究竟是什么凭证"
+  },
+  {
+    "id": "case-03:paraphrase",
+    "case": "case-03",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥03天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-03:negation_condition",
+    "case": "case-03",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥03太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-03:cross_paragraph",
+    "case": "case-03",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿03第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-03:inspiration",
+    "case": "case-03",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥03茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-03:no_answer",
+    "case": "case-03",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥03曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-03:version_permission",
+    "case": "case-03",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥03秘密花名玄鸦03的原文"
+  },
+  {
+    "id": "case-05:entity_alias",
+    "case": "case-05",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡05的通行规约"
+  },
+  {
+    "id": "case-05:fictional_term",
+    "case": "case-05",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签05究竟是什么凭证"
+  },
+  {
+    "id": "case-05:paraphrase",
+    "case": "case-05",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥05天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-05:negation_condition",
+    "case": "case-05",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥05太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-05:cross_paragraph",
+    "case": "case-05",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿05第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-05:inspiration",
+    "case": "case-05",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥05茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-05:no_answer",
+    "case": "case-05",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥05曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-05:version_permission",
+    "case": "case-05",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥05秘密花名玄鸦05的原文"
+  },
+  {
+    "id": "case-06:entity_alias",
+    "case": "case-06",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡06的通行规约"
+  },
+  {
+    "id": "case-06:fictional_term",
+    "case": "case-06",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签06究竟是什么凭证"
+  },
+  {
+    "id": "case-06:paraphrase",
+    "case": "case-06",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥06天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-06:negation_condition",
+    "case": "case-06",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥06太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-06:cross_paragraph",
+    "case": "case-06",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿06第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-06:inspiration",
+    "case": "case-06",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥06茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-06:no_answer",
+    "case": "case-06",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥06曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-06:version_permission",
+    "case": "case-06",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥06秘密花名玄鸦06的原文"
+  },
+  {
+    "id": "case-07:entity_alias",
+    "case": "case-07",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡07的通行规约"
+  },
+  {
+    "id": "case-07:fictional_term",
+    "case": "case-07",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签07究竟是什么凭证"
+  },
+  {
+    "id": "case-07:paraphrase",
+    "case": "case-07",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥07天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-07:negation_condition",
+    "case": "case-07",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥07太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-07:cross_paragraph",
+    "case": "case-07",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿07第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-07:inspiration",
+    "case": "case-07",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥07茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-07:no_answer",
+    "case": "case-07",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥07曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-07:version_permission",
+    "case": "case-07",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥07旧版白天放行规则目前还有效吗"
+  },
+  {
+    "id": "case-10:entity_alias",
+    "case": "case-10",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡10的通行规约"
+  },
+  {
+    "id": "case-10:fictional_term",
+    "case": "case-10",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签10究竟是什么凭证"
+  },
+  {
+    "id": "case-10:paraphrase",
+    "case": "case-10",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥10天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-10:negation_condition",
+    "case": "case-10",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥10太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-10:cross_paragraph",
+    "case": "case-10",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿10第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-10:inspiration",
+    "case": "case-10",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥10茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-10:no_answer",
+    "case": "case-10",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥10曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-10:version_permission",
+    "case": "case-10",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥10旧版白天放行规则目前还有效吗"
+  },
+  {
+    "id": "case-11:entity_alias",
+    "case": "case-11",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡11的通行规约"
+  },
+  {
+    "id": "case-11:fictional_term",
+    "case": "case-11",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签11究竟是什么凭证"
+  },
+  {
+    "id": "case-11:paraphrase",
+    "case": "case-11",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥11天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-11:negation_condition",
+    "case": "case-11",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥11太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-11:cross_paragraph",
+    "case": "case-11",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿11第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-11:inspiration",
+    "case": "case-11",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥11茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-11:no_answer",
+    "case": "case-11",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥11曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-11:version_permission",
+    "case": "case-11",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥11秘密花名玄鸦11的原文"
+  },
+  {
+    "id": "case-18:entity_alias",
+    "case": "case-18",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡18的通行规约"
+  },
+  {
+    "id": "case-18:fictional_term",
+    "case": "case-18",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签18究竟是什么凭证"
+  },
+  {
+    "id": "case-18:paraphrase",
+    "case": "case-18",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥18天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-18:negation_condition",
+    "case": "case-18",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥18太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-18:cross_paragraph",
+    "case": "case-18",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿18第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-18:inspiration",
+    "case": "case-18",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥18茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-18:no_answer",
+    "case": "case-18",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥18曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-18:version_permission",
+    "case": "case-18",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥18秘密花名玄鸦18的原文"
+  },
+  {
+    "id": "case-19:entity_alias",
+    "case": "case-19",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡19的通行规约"
+  },
+  {
+    "id": "case-19:fictional_term",
+    "case": "case-19",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签19究竟是什么凭证"
+  },
+  {
+    "id": "case-19:paraphrase",
+    "case": "case-19",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥19天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-19:negation_condition",
+    "case": "case-19",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥19太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-19:cross_paragraph",
+    "case": "case-19",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿19第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-19:inspiration",
+    "case": "case-19",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥19茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-19:no_answer",
+    "case": "case-19",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥19曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-19:version_permission",
+    "case": "case-19",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥19旧版白天放行规则目前还有效吗"
+  },
+  {
+    "id": "case-20:entity_alias",
+    "case": "case-20",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡20的通行规约"
+  },
+  {
+    "id": "case-20:fictional_term",
+    "case": "case-20",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签20究竟是什么凭证"
+  },
+  {
+    "id": "case-20:paraphrase",
+    "case": "case-20",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥20天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-20:negation_condition",
+    "case": "case-20",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥20太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-20:cross_paragraph",
+    "case": "case-20",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿20第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-20:inspiration",
+    "case": "case-20",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥20茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-20:no_answer",
+    "case": "case-20",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥20曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-20:version_permission",
+    "case": "case-20",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥20秘密花名玄鸦20的原文"
+  },
+  {
+    "id": "case-22:entity_alias",
+    "case": "case-22",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡22的通行规约"
+  },
+  {
+    "id": "case-22:fictional_term",
+    "case": "case-22",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签22究竟是什么凭证"
+  },
+  {
+    "id": "case-22:paraphrase",
+    "case": "case-22",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥22天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-22:negation_condition",
+    "case": "case-22",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥22太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-22:cross_paragraph",
+    "case": "case-22",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿22第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-22:inspiration",
+    "case": "case-22",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥22茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-22:no_answer",
+    "case": "case-22",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥22曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-22:version_permission",
+    "case": "case-22",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥22旧版白天放行规则目前还有效吗"
+  },
+  {
+    "id": "case-23:entity_alias",
+    "case": "case-23",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡23的通行规约"
+  },
+  {
+    "id": "case-23:fictional_term",
+    "case": "case-23",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签23究竟是什么凭证"
+  },
+  {
+    "id": "case-23:paraphrase",
+    "case": "case-23",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥23天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-23:negation_condition",
+    "case": "case-23",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥23太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-23:cross_paragraph",
+    "case": "case-23",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿23第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-23:inspiration",
+    "case": "case-23",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥23茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-23:no_answer",
+    "case": "case-23",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥23曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-23:version_permission",
+    "case": "case-23",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥23秘密花名玄鸦23的原文"
+  },
+  {
+    "id": "case-24:entity_alias",
+    "case": "case-24",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡24的通行规约"
+  },
+  {
+    "id": "case-24:fictional_term",
+    "case": "case-24",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签24究竟是什么凭证"
+  },
+  {
+    "id": "case-24:paraphrase",
+    "case": "case-24",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥24天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-24:negation_condition",
+    "case": "case-24",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥24太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-24:cross_paragraph",
+    "case": "case-24",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿24第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-24:inspiration",
+    "case": "case-24",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥24茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-24:no_answer",
+    "case": "case-24",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥24曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-24:version_permission",
+    "case": "case-24",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥24秘密花名玄鸦24的原文"
+  },
+  {
+    "id": "case-25:entity_alias",
+    "case": "case-25",
+    "group": "entity_alias",
+    "mode": "fact",
+    "query": "青梧渡25的通行规约"
+  },
+  {
+    "id": "case-25:fictional_term",
+    "case": "case-25",
+    "group": "fictional_term",
+    "mode": "fact",
+    "query": "墨铃签25究竟是什么凭证"
+  },
+  {
+    "id": "case-25:paraphrase",
+    "case": "case-25",
+    "group": "paraphrase",
+    "mode": "fact",
+    "query": "雨桥25天黑后想走到对岸，要满足什么限制"
+  },
+  {
+    "id": "case-25:negation_condition",
+    "case": "case-25",
+    "group": "negation_condition",
+    "mode": "fact",
+    "query": "雨桥25太阳升起后能否直接放行？下雨的夜里是否也允许"
+  },
+  {
+    "id": "case-25:cross_paragraph",
+    "case": "case-25",
+    "group": "cross_paragraph",
+    "mode": "fact",
+    "query": "巡桥人阿25第二章是否已知道暗号？什么时候真正知道"
+  },
+  {
+    "id": "case-25:inspiration",
+    "case": "case-25",
+    "group": "inspiration",
+    "mode": "inspiration",
+    "query": "想写雨桥25茶馆附近的雨夜、寂静和迟疑，有什么氛围参考"
+  },
+  {
+    "id": "case-25:no_answer",
+    "case": "case-25",
+    "group": "no_answer",
+    "mode": "fact",
+    "query": "雨桥25曾停靠的月亮飞艇型号是什么"
+  },
+  {
+    "id": "case-25:version_permission",
+    "case": "case-25",
+    "group": "version_permission",
+    "mode": "fact",
+    "query": "雨桥25旧版白天放行规则目前还有效吗"
+  }
+]

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Chapter, Manuscript, Outline, Story } from "@/types";
 import { SceneOutlinePanel } from "./SceneOutlinePanel";
@@ -55,7 +55,9 @@ const chapters: Chapter[] = [
 ];
 
 describe("SceneOutlinePanel", () => {
-  it("renders selectors, batch actions, chapters, and scenes", () => {
+  it("renders navigation and prevents repeated manuscript submission during a delayed response", async () => {
+    let finish!: () => void;
+    const create = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     render(
       <SceneOutlinePanel
         batchMoveChapterId=""
@@ -75,7 +77,7 @@ describe("SceneOutlinePanel", () => {
         onMoveScene={vi.fn()}
         onOpenBatchExport={vi.fn()}
         onCreateOutline={vi.fn()}
-        onCreateManuscript={vi.fn()}
+        onCreateManuscript={create}
         onSelectManuscript={vi.fn()}
         onSelectOutline={vi.fn()}
         onSelectStory={vi.fn()}
@@ -108,5 +110,14 @@ describe("SceneOutlinePanel", () => {
     expect(screen.getByText("第 1 章 开端")).toBeTruthy();
     expect(screen.getByText("雨夜抵达")).toBeTruthy();
     expect(screen.getByText("Sc.2")).toBeTruthy();
-    expect(screen.getByText("意见冲突")).toBeTruthy();  });
+    expect(screen.getByText("意见冲突")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("新建稿件"));
+    fireEvent.change(screen.getByPlaceholderText("稿件名称"), { target: { value: "新稿" } });
+    fireEvent.click(screen.getByRole("button", { name: "创建" }));
+    fireEvent.click(screen.getByRole("button", { name: "创建" }));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole("button", { name: "创建" }) as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => finish());
+    expect(screen.queryByPlaceholderText("稿件名称")).toBeNull();
+  });
 });

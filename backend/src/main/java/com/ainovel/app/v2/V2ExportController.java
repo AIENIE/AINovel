@@ -1,6 +1,5 @@
 package com.ainovel.app.v2;
 
-import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -25,6 +24,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/v2")
 public class V2ExportController {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.OwnedManuscriptTransactions manuscriptTransactions;
     private final ResourceAccessGuard accessGuard;
     private final V2ExportJobService jobs;
     private final V2ExportPersistenceService persistence;
@@ -43,8 +44,7 @@ public class V2ExportController {
                                                      @PathVariable UUID manuscriptId,
                                                      @Valid @RequestBody V2ExportDtos.CreateJobRequest request) {
         User user = accessGuard.currentUser(principal);
-        Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return job(jobs.create(user, manuscript, payload(request)));
+        return manuscriptTransactions.write(manuscriptId, user, manuscript -> job(jobs.create(user, manuscript, payload(request))));
     }
 
     @GetMapping("/manuscripts/{manuscriptId}/export/jobs")

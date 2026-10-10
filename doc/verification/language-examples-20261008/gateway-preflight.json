@@ -1,0 +1,15 @@
+{
+  "verified": true,
+  "date": "2026-10-08",
+  "host": "aienie-6",
+  "container": "aienie-aiservice-develop",
+  "image": "sha256:5bd691d1d39fcce83b10f9f098ecbe1e03ba0ff4c6b04f76aee6cdb093badd85",
+  "providerAttemptUpperBound": 3,
+  "evidence": [
+    "Current matrix and generated views validated; current local services are on aienie-6; retired aienie-devvm was not used.",
+    "Running image matches the previous deployed-class javap verification in ../language-20261007/README.md.",
+    "AI_GATEWAY_FAILOVER_MAX_ATTEMPTS absent from container environment and mounted env.txt. JVM command line has no override.",
+    "GatewayManagedCallFailover default 3; ProviderRetryPolicy managed adapters send once within that shared bound. AINovel invokes the stub once per business attempt."
+  ],
+  "accounting": "Reserve three provider sends per business call, including failures and unknown outcomes. Reserved upper bound is not an observed provider-send count."
+}

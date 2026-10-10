@@ -1,0 +1,17 @@
+{
+ "type":"object","additionalProperties":false,"required":["findings","coverage"],
+ "properties":{
+  "coverage":{"type":"string","maxLength":2000},
+  "findings":{"type":"array","maxItems":12,"items":{
+   "type":"object","additionalProperties":false,"required":["kind","claim","decision","condition","evidence"],
+   "properties":{
+    "kind":{"type":"string","enum":["FACT","BELIEF","DISCLOSURE","PLAN"]},
+    "claim":{"type":"string","maxLength":2000},"decision":{"type":"string","enum":["SUPPORTED","CONTRADICTED","INSUFFICIENT","UNKNOWN"]},
+    "condition":{"type":"string","maxLength":2000},
+    "evidence":{"type":"array","maxItems":12,"items":{"type":"object","additionalProperties":false,"required":["sourceId","quote","start","end"],"properties":{
+     "sourceId":{"type":"string","maxLength":200},"quote":{"type":"string","minLength":1,"maxLength":3000},"start":{"type":"integer","minimum":0},"end":{"type":"integer","minimum":0}
+    }}}
+   }
+  }}
+ }
+}

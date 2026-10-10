@@ -24,7 +24,7 @@ public class AiOperationRun {
     @Column(name = "output_tokens_estimated", nullable = false) private boolean outputTokensEstimated;
     @Column(name = "attempt_count", nullable = false) private int attemptCount;
     @Column(name = "stream_started", nullable = false) private boolean streamStarted;
-    @Column(name = "request_id", length = 100) private String requestId;
+    @Column(name = "request_id", length = 160) private String requestId;
     @Column(name = "model_key", length = 100) private String modelKey;
     @Lob @Column(name = "payload_json") private String payloadJson;
     @Lob @Column(name = "result_json") private String resultJson;
@@ -66,7 +66,10 @@ public class AiOperationRun {
     public boolean isStreamStarted() { return streamStarted; }
     public void setStreamStarted(boolean streamStarted) { this.streamStarted = streamStarted; }
     public String getRequestId() { return requestId; }
-    public void setRequestId(String requestId) { this.requestId = requestId; }
+    public void setRequestId(String requestId) {
+        if (requestId != null && requestId.length() > 160) throw new IllegalArgumentException("AI_REQUEST_ID_TOO_LONG");
+        this.requestId = requestId;
+    }
     public String getModelKey() { return modelKey; }
     public void setModelKey(String modelKey) { this.modelKey = modelKey; }
     public String getPayloadJson() { return payloadJson; }

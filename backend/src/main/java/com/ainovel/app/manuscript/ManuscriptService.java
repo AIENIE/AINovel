@@ -35,6 +35,12 @@ import java.util.UUID;
 
 @Service
 public class ManuscriptService {
+    @Autowired(required=false)
+    private com.ainovel.app.quality.language.LanguageQualityService languageQuality;
+    @Autowired(required=false)
+    private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
+    @Autowired private com.ainovel.app.manuscript.repo.ManuscriptCreationReceiptRepository creationReceipts;
+    @Autowired private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @Autowired private com.ainovel.app.narrative.NarrativeContextService narrativeContext;
@@ -68,16 +74,59 @@ public class ManuscriptService {
 
     @Transactional
     public ManuscriptDto create(UUID outlineId, ManuscriptCreateRequest request) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
+        return create(outlineId, request, null);
+    }
+
+    @Transactional
+    public ManuscriptDto create(UUID outlineId, ManuscriptCreateRequest request, String requestKey) {
+        String key = null;
+        if (requestKey != null) {
+            try {
+                key = UUID.fromString(requestKey).toString();
+                if (!key.equalsIgnoreCase(requestKey)) throw new IllegalArgumentException();
+            } catch (IllegalArgumentException ex) {
+                throw new ApiStatusException(HttpStatus.BAD_REQUEST, "INVALID_IDEMPOTENCY_KEY");
+            }
+        }
+        // Serialize competing creation intents for this outline before checking the receipt.
+        Outline outline = (key == null ? outlineRepository.findByIdWithStoryUser(outlineId) : outlineRepository.findByIdForUpdate(outlineId))
+                .orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
+        UUID userId = outline.getStory().getUser().getId();
+        String hash = key == null ? null : creationHash(request);
+        if (key != null) {
+            var receipt = creationReceipts.findByUserIdAndOutlineIdAndRequestKey(userId, outlineId, key);
+            if (receipt.isPresent()) {
+                if (!hash.equals(receipt.get().getRequestHash())) throw new ApiStatusException(HttpStatus.CONFLICT, "CREATION_REQUEST_CONFLICT");
+                if (receipt.get().getManuscriptId() == null) throw new ApiStatusException(HttpStatus.GONE, "CREATED_MANUSCRIPT_DELETED");
+                try { return objectMapper.readValue(receipt.get().getResponseJson(), ManuscriptDto.class); }
+                catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException("INVALID_CREATION_RECEIPT", ex); }
+            }
+        }
         Manuscript manuscript = new Manuscript();
         manuscript.setOutline(outline);
         manuscript.setTitle(request.title());
         manuscript.setWorldId(request.worldId());
         contents.initialize(manuscript);
         manuscript.setCharacterLogsJson(writeJson(new ArrayList<>()));
-        manuscriptRepository.save(manuscript);
-        return toDto(manuscript);
+        manuscriptRepository.saveAndFlush(manuscript);
+        ManuscriptDto result = toDto(manuscript);
+        if (key != null) {
+            try {
+                creationReceipts.saveAndFlush(new com.ainovel.app.manuscript.model.ManuscriptCreationReceipt(
+                        userId, outlineId, key, hash, manuscript.getId(), objectMapper.writeValueAsString(result)));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException("INVALID_CREATION_RECEIPT", ex); }
+        }
+        return result;
+    }
+
+    private String creationHash(ManuscriptCreateRequest request) {
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(request);
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (java.security.NoSuchAlgorithmException | com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("CREATION_HASH_FAILED", ex);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +148,10 @@ public class ManuscriptService {
     }
 
     public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId, GenerationMode mode) {
+        return generateForScene(manuscriptId,sceneId,mode,null);
+    }
+    public ManuscriptDto generateForScene(UUID manuscriptId, UUID sceneId, GenerationMode mode,
+            com.ainovel.app.quality.language.LanguageStandard.Selection frozenLanguage) {
         GenerationSnapshot snapshot = Objects.requireNonNull(transactionTemplate.execute(status -> {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
                     .orElseThrow(() -> new BusinessException("稿件不存在"));
@@ -109,11 +162,12 @@ public class ManuscriptService {
             return new GenerationSnapshot(current, ownerOf(current), current.getVersion(),
                     contents.readAll(current));
         }));
+        var languageSelection=frozenLanguage==null?sceneGenerationService.languageSelection(snapshot.manuscript()):frozenLanguage;
         SceneGenerationService.GenerationResult generation = sceneGenerationService.generateSceneSection(
                 snapshot.manuscript(),
                 sceneId,
                 snapshot.sections(),
-                mode
+                mode, languageSelection
         );
         var contextManifest=generation.metadata()==null?null:generation.metadata().contextManifest();
         var stamp=contextManifest==null?null:contextManifest.isolationStamp();
@@ -127,12 +181,16 @@ public class ManuscriptService {
             String generatedHtml = generation.html();
             contents.writeScene(manuscript, sceneId, generatedHtml);
             manuscriptRepository.saveAndFlush(manuscript);
-            Map<String, Object> manifest = buildGenerationManifest(sceneId, mode, generation.metadata());
+            Map<String, Object> manifest = new LinkedHashMap<>(buildGenerationManifest(sceneId, mode, generation.metadata()));
+            manifest.putAll(languageSelection.provenance());
             UUID generationVersionId = sceneGenerationSnapshotStore.createGenerationSnapshot(
                     manuscript, ownerOf(manuscript), sceneId, manifest);
+            if (languageQuality != null) languageQuality.afterGeneration(ownerOf(manuscript), manuscript, sceneId, generationVersionId,languageSelection);
+            if(materialEvidence!=null&&generation.metadata()!=null)materialEvidence.recordReferences(ownerOf(manuscript),manuscriptId,sceneId,manuscript.getCurrentBranchId(),generationVersionId,generation.metadata().references());
             SceneGenerationRunDto generatedRun = sceneGenerationAttributionService.recordGeneration(
                     manuscript, sceneId, generationVersionId, mode, manifest, generatedHtml);
             eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscriptId, null));
+            eventPublisher.publishEvent(new com.ainovel.app.material.evidence.MaterialGenerationCompleted(ownerOf(manuscript).getId(),manuscriptId,sceneId,generationVersionId));
             if(retainedId!=null) retainedCandidates.applied(retainedId);
             return toDto(manuscript, new SceneGenerationRunSummaryDto(
                     generatedRun.id(), generatedRun.generationVersionId(), generatedRun.status(), generatedRun.createdAt()));
@@ -286,6 +344,7 @@ public class ManuscriptService {
             manifest.put("promptVersion", generationMetadata.promptVersion());
             manifest.put("promptHash", generationMetadata.promptHash());
             manifest.put("attemptCount", generationMetadata.attemptCount());
+            manifest.put("languageStandardVersion", generationMetadata.languageStandardVersion());
             SceneDraftContextManifest context = generationMetadata.contextManifest();
             if (context != null) {
                 manifest.put("contextHash", context.contextHash());

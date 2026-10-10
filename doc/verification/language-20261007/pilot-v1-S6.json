@@ -1,0 +1,82 @@
+{
+  "id": "bde3a47d-69ed-45de-8804-f6ba78428b46",
+  "manuscriptId": "2ee29a8f-943e-48e4-bc42-cb0246ce848a",
+  "sceneId": "7190d834-e33a-5a66-9b19-c232bf7da091",
+  "source": {
+    "branchId": "d148c7ef-c68a-4ede-9b35-efc00a48a37b",
+    "bodyVersion": 2,
+    "snapshotId": "752fac9d-ac13-42b9-8654-acf4828f5e49",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "0ffb1837e5225f7206192549549c6103d6fcc2cee8bf8d473e283e7792a06512",
+    "textHash": "5c5865bc654afb3a9d42f3f88a78c1f4abf87425832d77c6c962018ff392c296",
+    "contextVersion": "664dedbb1683272dac3678b271d9f47d7fc56d7cd7d532bd68e61d98640a37b6",
+    "standardVersion": "zh-naturalness-v1"
+  },
+  "status": "ISSUES",
+  "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "指腹碰到一样硬东西",
+      "impact": "“一样硬东西”搭配不成立，读起来像漏了量词或“的”；正常表达应为“一个硬东西”或“一样硬的东西”，此处会中断阅读。",
+      "direction": "补足量词或定语结构，改为“一个硬东西”或“一样硬的东西”。",
+      "start": 184,
+      "end": 193,
+      "location": "EXACT",
+      "paragraph": 2,
+      "context": "拉抽屉找充电头时，指腹碰到一样硬东西。抽出来，是那张戏票。票面印着座位号，边缘有一道折痕，像被攥过。莫遥把它举到灯下看了一眼日期，压到床头柜的玻璃杯底下。杯里还剩半杯水，她端起来喝掉，杯子放回去，票就压在下面，只露出一个角。她没把它塞进钱包，也没扔。这张票用不上了，留着不占什么地方。",
+      "currentStart": 184,
+      "currentEnd": 193,
+      "availability": "AVAILABLE"
+    },
+    {
+      "id": "0-1",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "想了想又抽出来重叠",
+      "impact": "“重叠”通常读作chóngdié，表示叠在一起，与上文“重新折叠”的动作相混，读者需要回读才能确定意思。",
+      "direction": "改用“重新叠”“再叠一遍”等明确表示再次折叠的说法。",
+      "start": 343,
+      "end": 352,
+      "location": "EXACT",
+      "paragraph": 3,
+      "context": "毛巾还搭在椅背上。她拿起来叠两折，放进箱子最上面，想了想又抽出来重叠。拉链拉到一半卡住，她跪在床边，把露在外面的衬衣袖口往里推，再拉，这回顺了。",
+      "currentStart": 343,
+      "currentEnd": 352,
+      "availability": "AVAILABLE"
+    },
+    {
+      "id": "0-2",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "顺手把巷口名字补在后头",
+      "impact": "“巷口名字”搭配不自然；“巷口”在前文是地点，不是名称，读者不清楚补进去的是地点还是店名。",
+      "direction": "若补的是地点，可写“把‘巷口’补在后头”；若指店名，需明确写出或改说“把店名补在后头”。",
+      "start": 696,
+      "end": 707,
+      "location": "EXACT",
+      "paragraph": 9,
+      "context": "莫遥看着这行字，切回备忘录，把“豆浆”改成“粥”，顺手把巷口名字补在后头。她把手机扣在床上，继续拉箱子，这回一拉到顶。",
+      "currentStart": 696,
+      "currentEnd": 707,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 819,
+      "contextStart": 0,
+      "contextEnd": 819,
+      "state": "COMPLETE",
+      "reason": "已完整扫描全文（coreStart 0 到 coreEnd 819），重点检查叙事搭配、省略、压缩和动作衔接；发现3处明确语言问题：量词/定语结构不当、\"重叠\"歧义、\"巷口名字\"搭配不自然。其余短句与主语省略多属连续动作中的自然处理，未列为问题。"
+    }
+  ],
+  "patches": [],
+  "operationId": "bc743518-66b4-4453-81e9-122b238cc614",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:15:41.611919Z"
+}

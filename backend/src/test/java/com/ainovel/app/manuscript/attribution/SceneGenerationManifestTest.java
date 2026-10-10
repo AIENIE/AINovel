@@ -10,6 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class SceneGenerationManifestTest {
 
+    @Test void profileProvenanceSurvivesBothSnapshotAndAttributionSanitization() {
+        var selection=new com.ainovel.app.quality.language.LanguageStandard.Selection("zh-naturalness-v3",true,false);
+        assertEquals(selection.provenance(),SceneGenerationManifest.sanitize(SceneGenerationManifest.sanitize(selection.provenance())));
+    }
+
     @Test
     void keepsMetadataAndDropsPromptOrProse() {
         Map<String, Object> manifest = SceneGenerationManifest.sanitize(Map.of(

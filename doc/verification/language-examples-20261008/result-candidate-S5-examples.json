@@ -1,0 +1,14 @@
+{
+  "id": "candidate-S5-examples",
+  "response": {
+    "role": "assistant",
+    "content": "{\"outcome\":\"CANDIDATE\",\"replacement\":\"要修书架，她得先把书搬下来。她把书一本一本往地上放，灰尘扑到脸上，她用手背蹭了一下脸。搬到一半，她停住了。那个念头又来了：要不要去找寄信人。信已经烧掉了，她清楚这一点。可去找寄信人的念头还在，不用她刻意去想，也在那里。她把一本厚词典放到地上，词典落地时发出一声闷响。她对自己说，先修书架。\"}",
+    "usage": {
+      "inputTokens": 2199.0,
+      "outputTokens": 2891.0,
+      "cacheTokens": 640.0,
+      "cacheHitRate": 0.29104138244656663,
+      "cost": 1.0
+    }
+  }
+}

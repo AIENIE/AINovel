@@ -1,0 +1,68 @@
+{
+  "id": "ff478fc9-8db2-4fa0-a11f-6e62e12a685d",
+  "manuscriptId": "bafc8bb3-25fc-4e0f-bf22-3b7239f52adb",
+  "sceneId": "ec935817-b542-55f3-ae2b-388fb48ce8d4",
+  "source": {
+    "branchId": "d10eb911-ac21-4b06-9a27-648f148321f4",
+    "bodyVersion": 2,
+    "snapshotId": "9c07aaf8-c19e-41e6-9491-dae533d8d21b",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "2960eaa2288b6818e6b0d036e54a41c10c1de8a0aef46d10d5c2646e6691bb35",
+    "textHash": "6048e67b91cf6aaa982dec7ef6627ef102197f208e9c5712e9bd2de3a586bfd6",
+    "contextVersion": "01cfb6091e802a8e2875052b8628041f1328e5b34d46d96b5fc3a20057d00e44",
+    "standardVersion": "zh-naturalness-v3"
+  },
+  "status": "ISSUES",
+  "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "OMISSION",
+      "quote": "核完最后一行，划掉一个名字，把表推到桌子中间。",
+      "impact": "跨段后未交代主体，赵岑和许安都可能完成核表、划名和推表；读者无法确定行动者。",
+      "direction": "应明确行动者，但现有上下文不足以安全补出姓名，也不能用复数代词暗示二人共同参与。",
+      "start": 31,
+      "end": 54,
+      "location": "EXACT",
+      "paragraph": 1,
+      "context": "核完最后一行，划掉一个名字，把表推到桌子中间。",
+      "currentStart": 31,
+      "currentEnd": 54,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 54,
+      "contextStart": 0,
+      "contextEnd": 54,
+      "state": "COMPLETE",
+      "reason": "已按 coreStart 0..coreEnd 54 完整扫描两句。第一句交代赵岑、许安各自拿表且面前有红笔，表达清楚；第二句跨段省略主体，读者无法判断是谁核完、划名和推表。"
+    }
+  ],
+  "patches": [
+    {
+      "id": "1ffd0879-a99c-41ff-9ee8-dd5763951020",
+      "reportId": "ff478fc9-8db2-4fa0-a11f-6e62e12a685d",
+      "issueId": "0-0",
+      "original": "核完最后一行，划掉一个名字，把表推到桌子中间。",
+      "replacement": null,
+      "beforeContext": "赵岑和许安坐在桌边，各自拿着一张登记表，两人面前都放着红笔。\n核完最后一行，划掉一个名字，把表推到桌子中间。",
+      "afterContext": null,
+      "review": null,
+      "status": "REJECTED",
+      "applicability": "NEEDS_CONTEXT",
+      "operationId": "dcc5888b-6d20-41d4-99d2-0fd69eff43a1",
+      "appliedSnapshotId": null,
+      "undoneSnapshotId": null,
+      "createdAt": "2026-10-08T05:45:18.920219Z",
+      "reason": "上下文只说明赵岑和许安各自拿着登记表、面前都有红笔，未说明是谁核完最后一行、划掉名字并把表推到桌子中间，也无法确定是否为两人共同完成。"
+    }
+  ],
+  "operationId": "0597f8bf-8c5f-4302-a7e6-cfa892895eee",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-08T05:39:53.757986Z"
+}

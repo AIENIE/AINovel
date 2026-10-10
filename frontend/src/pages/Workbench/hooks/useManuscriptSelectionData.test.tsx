@@ -88,13 +88,17 @@ describe("useManuscriptSelectionData", () => {
     });
     await waitFor(() => expect(result.current.selectedOutlineId).toBe("outline-1"));
 
+    vi.mocked(api.manuscripts.create).mockRejectedValueOnce(new Error("response lost"));
     await act(async () => {
-      await result.current.createManuscript("正文稿");
+      await expect(result.current.createManuscript("正文稿")).rejects.toThrow("response lost");
     });
+    const intent = vi.mocked(api.manuscripts.create).mock.calls[0][2];
+    await act(async () => { await result.current.createManuscript("正文稿"); });
+    expect(vi.mocked(api.manuscripts.create).mock.calls[1][2]).toBe(intent);
     await waitFor(() => expect(result.current.selectedSceneId).toBe("scene-1"));
 
     expect(api.outlines.create).toHaveBeenCalledWith("story-2", { title: "主线大纲" });
-    expect(api.manuscripts.create).toHaveBeenCalledWith("outline-1", { title: "正文稿" });
+    expect(api.manuscripts.create).toHaveBeenCalledWith("outline-1", { title: "正文稿" }, expect.any(String));
     expect(result.current.selectedOutlineId).toBe("outline-1");
     expect(result.current.selectedManuscriptId).toBe("manuscript-1");
     expect(result.current.batchMoveChapterId).toBe("chapter-1");

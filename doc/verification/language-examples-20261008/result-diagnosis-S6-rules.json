@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-S6-rules",
+  "recoveredFrom": "completed server ledger; no new inference",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已通读 coreStart 0..coreEnd 829 的完整正文，按段落检查省略、压缩、断句、搭配与段落连贯。整体叙述基本自然，发现 4 处明确问题：新段/新动作开头缺少动作主体 2 处，词语搭配不当 1 处，数量与引文不一致 1 处。其余连续动作中的主语省略、受事主语句和短句可自然承接，未列为问题。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"拉抽屉找充电头时，指腹碰到一样硬东西。抽出来，是那张戏票。\",\"start\":null,\"end\":null,\"impact\":\"新段开头省略了动作主体；前句主语是“指腹”，本句“抽出来”若承前省略会读成“指腹抽出来”，实际动作主体莫遥未交代，读者需自行补出是谁把票抽出来。\",\"direction\":\"补出莫遥（或她）作为抽取动作的主体，避免让前句的“指腹”承前作“抽出来”的主语。\"},{\"kind\":\"LANGUAGE\",\"category\":\"AWKWARD\",\"quote\":\"想了想又抽出来重叠。\",\"start\":null,\"end\":null,\"impact\":\"“重叠”常用义是相同事物层层相叠，不表示“重新折叠一次”，此处容易误解为毛巾与其他物品叠在一起或重复堆叠。\",\"direction\":\"改用以“重新折叠”为义的表达，避免“重叠”的层层相叠义。\"},{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"消息列表往下翻，停在一个没有备注名的对话框上。\",\"start\":null,\"end\":null,\"impact\":\"段首把“消息列表”放在动作位置，实际是莫遥翻看，动作主体缺失，句子主语悬空；读者需从上一段补出人物。\",\"direction\":\"在段首补出莫遥（或她）作为“翻”这一动作的主体，并明确她翻的是消息列表。\"},{\"kind\":\"LANGUAGE\",\"category\":\"AWKWARD\",\"quote\":\"对面只发过两个字：“知道了。”\",\"start\":null,\"end\":null,\"impact\":\"引文“知道了”是三个汉字，与“两个字”数量不符，造成明显计数错误，阅读时会停顿并怀疑所称字数。\",\"direction\":\"统一数量与引文：要么将数量改为三个字，要么调整引文，使所称字数与引文一致。\"}]}",
+    "usage": {
+      "modelKey": "deepseek-flash",
+      "promptTokens": 1773,
+      "completionTokens": 12764,
+      "cacheTokens": 896
+    }
+  }
+}

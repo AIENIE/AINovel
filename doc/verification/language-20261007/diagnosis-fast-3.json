@@ -1,0 +1,50 @@
+{
+  "id": "e81c5a9f-7f1a-417f-8404-cee91edbb698",
+  "manuscriptId": "486144c9-b6ce-4d20-a727-18bb5210728a",
+  "sceneId": "ea3a26a0-9293-5049-81a7-38d6fbed3285",
+  "source": {
+    "branchId": "b3bff445-47a1-4e79-82b9-f6488c205b7d",
+    "bodyVersion": 2,
+    "snapshotId": "eaa518ff-0d6c-40b1-80b1-41b084c22920",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "45c9946dcc8c99c6a4e645ed19adac64f337d4ed44c3fce0927641aa195147c8",
+    "textHash": "d27be6b34563a8a4f4f78c79756ae5faaa2aa1bbe0ceddf34ab421f73eb02251",
+    "contextVersion": "85dbc9e9bd2f8d071bdffe2589ed402e2fd88610fed58cd09eca1b05787fc918",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "ISSUES",
+  "summary": "语言检查已完成，请逐项审阅；文风建议与观察不等于明确错误。",
+  "issues": [
+    {
+      "id": "0-0",
+      "kind": "LANGUAGE",
+      "category": "AWKWARD",
+      "quote": "门往内塌了半扇。",
+      "impact": "“门”与“塌了半扇”搭配生硬，且缺少门是被人推开、门扇倒开还是锁开后自行塌倒的动作承接，读者需要停顿判断门的具体状态。",
+      "direction": "明确门扇开启或倒下的动作与主体，选用与门扇状态相符的动词，避免“塌”造成误读。",
+      "start": 142,
+      "end": 150,
+      "location": "EXACT",
+      "paragraph": 2,
+      "context": "门往内塌了半扇。手电扫过去，分拣大厅比他想的窄，三排木格架倒了两排，纸箱泡塌在墙脚，烂成褐色的泥。天花板上一条水痕横贯，滴在正中央那台旧分拣台上，滴答声被雨压得很低，却清得像计时。林砚下意识看表，六点四十一。",
+      "currentStart": 142,
+      "currentEnd": 150,
+      "availability": "AVAILABLE"
+    }
+  ],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 965,
+      "contextStart": 0,
+      "contextEnd": 965,
+      "state": "COMPLETE",
+      "reason": "已通读 coreStart..coreEnd 全文，重点检查动作承接、压缩表达、断句、搭配与段落连贯性。整体叙述自然，仅发现一处门开启动作与“塌”搭配生硬，其余未形成明确语言障碍。"
+    }
+  ],
+  "patches": [],
+  "operationId": "25a90cf7-f41c-4f30-8458-ee9d5b5c2148",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:27:14.573536Z"
+}

@@ -25,16 +25,18 @@ public class AiFeatureOperationController {
     private final OutlineService outlines;
     private final WorldService worlds;
     private final ObjectMapper objectMapper;
+    private final com.ainovel.app.quality.language.LanguageFeature languageFeature;
 
     public AiFeatureOperationController(AiOperationService operations, CurrentUserResolver users,
                                         ResourceAccessGuard accessGuard, OutlineService outlines,
-                                        WorldService worlds, ObjectMapper objectMapper) {
+                                        WorldService worlds, ObjectMapper objectMapper, com.ainovel.app.quality.language.LanguageFeature languageFeature) {
         this.operations = operations;
         this.users = users;
         this.accessGuard = accessGuard;
         this.outlines = outlines;
         this.worlds = worlds;
         this.objectMapper = objectMapper;
+        this.languageFeature = languageFeature;
     }
 
     @PostMapping("/v1/conception/operations")
@@ -81,9 +83,10 @@ public class AiFeatureOperationController {
                                                                   @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                                   @RequestParam(defaultValue = "fast") String mode) {
         User user = users.require(principal);
-        accessGuard.requireOwnedManuscript(manuscriptId, user);
+        var manuscript=accessGuard.requireOwnedManuscript(manuscriptId, user);
+        var language=languageFeature.selection(manuscript.getOutline().getStory().getId());
         GenerationMode parsed = "crafted".equalsIgnoreCase(mode) ? GenerationMode.CRAFTED : GenerationMode.FAST;
-        return accepted(user, "SCENE_GENERATION", "MANUSCRIPT", manuscriptId, sceneId, parsed.name(), null, 5, "准备场景上下文", idempotencyKey);
+        return accepted(user, "SCENE_GENERATION", "MANUSCRIPT", manuscriptId, sceneId, parsed.name(), language, 5, "准备场景上下文", idempotencyKey);
     }
 
     @PostMapping("/v2/manuscripts/{manuscriptId}/scenes/{sceneId}/quality-runs/operations")

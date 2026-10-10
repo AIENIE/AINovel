@@ -39,6 +39,7 @@ class V2ContextControllerTests {
         accessGuard = mock(ResourceAccessGuard.class);
         persistenceService = mock(V2ContextPersistenceService.class);
         controller = new V2ContextController(accessGuard, persistenceService);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "manuscriptTransactions", new com.ainovel.app.manuscript.OwnedManuscriptTransactions(accessGuard));
 
         principal = mock(UserDetails.class);
         user = new User();
@@ -164,6 +165,7 @@ class V2ContextControllerTests {
     void previewWithManuscriptAndSceneShouldReuseSceneDraftCompiler() {
         SceneDraftContextCompiler compiler = mock(SceneDraftContextCompiler.class);
         V2ContextController compiledController = new V2ContextController(accessGuard, persistenceService, compiler);
+        org.springframework.test.util.ReflectionTestUtils.setField(compiledController, "manuscriptTransactions", new com.ainovel.app.manuscript.OwnedManuscriptTransactions(accessGuard));
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         UUID lorebookId = UUID.randomUUID();

@@ -36,6 +36,7 @@ class V2VersionControllerTests {
         accessGuard = mock(ResourceAccessGuard.class);
         versionService = mock(V2VersionPersistenceService.class);
         controller = new V2VersionController(accessGuard, versionService);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "manuscriptTransactions", new com.ainovel.app.manuscript.OwnedManuscriptTransactions(accessGuard));
 
         principal = mock(UserDetails.class);
         user = new User();

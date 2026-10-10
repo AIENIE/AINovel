@@ -45,9 +45,13 @@ public class ManuscriptController {
     }
 
     @PostMapping("/outlines/{outlineId}/manuscripts")
-    @Operation(summary = "创建稿件", description = "在指定大纲下创建稿件。")
-    public ManuscriptDto create(@PathVariable UUID outlineId, @Valid @RequestBody ManuscriptCreateRequest request) {
-        return manuscriptService.create(outlineId, request);
+    @Operation(summary = "创建或恢复稿件", description = "保存并刷新后返回非空 updatedAt 和 version。可选 UUID Idempotency-Key：同用户、大纲、键及内容重放原响应；同键不同内容返回 409，原稿删除返回 410。省略请求键保持旧行为。")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "已创建稿件或原创建回执"),
+            @ApiResponse(responseCode = "409", description = "创建请求键内容冲突"),
+            @ApiResponse(responseCode = "410", description = "原创建稿件已删除")})
+    public ManuscriptDto create(@PathVariable UUID outlineId, @Valid @RequestBody ManuscriptCreateRequest request,
+                                @RequestHeader(value = "Idempotency-Key", required = false) String requestKey) {
+        return manuscriptService.create(outlineId, request, requestKey);
     }
 
     @DeleteMapping("/manuscripts/{id}")

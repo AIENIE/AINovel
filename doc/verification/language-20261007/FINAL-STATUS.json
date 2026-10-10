@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-07",
+  "repository": "D:\\project\\aienie\\aienie-projects\\AINovel",
+  "branch": "master",
+  "head": "76f42e572881d3b1e6d56e117e0ebc1a924dfff9",
+  "taskCommit": null,
+  "pushed": false,
+  "preexistingChangesPreserved": true,
+  "currentStatusEntries": 146,
+  "backend": {
+    "tests": 557,
+    "passed": 512,
+    "skipped": 45,
+    "failed": 0
+  },
+  "frontend": {
+    "files": 49,
+    "tests": 211,
+    "failed": 0,
+    "lint": true,
+    "typecheck": true,
+    "build": true
+  },
+  "apiWorkflowChecks": 17,
+  "generationHandoffs": 2,
+  "restartChecks": true,
+  "modelCalls": 38,
+  "businessCallLimit": 40,
+  "providerAttemptsReservedUpperBound": 114,
+  "providerAttemptLimit": 120,
+  "supplierSendCountMeasured": false,
+  "languageEffectAcceptance": "NOT_PASSED",
+  "authorCandidateConfirmation": "PENDING",
+  "browserVisualAcceptance": "BLOCKED_TOOL_CONNECTION",
+  "runtime": "regular local configuration restored; language feature unavailable"
+}

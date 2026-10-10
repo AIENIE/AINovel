@@ -26,10 +26,12 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
     private final String apiKey;
     private final Duration requestTimeout;
     private final AtomicInteger ensuredDimensions = new AtomicInteger(0);
+    private boolean strict;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public QdrantMaterialVectorIndex(
             ObjectMapper objectMapper,
-            @Value("${qdrant.host:http://localbase.testhut.top}") String host,
+            @Value("${qdrant.host:http://localqdrant.testhut.top}") String host,
             @Value("${qdrant.http-port:26333}") int port,
             @Value("${qdrant.material-collection:ainovel_material_chunks}") String collection,
             @Value("${qdrant.api-key:}") String apiKey,
@@ -37,7 +39,7 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             @Value("${qdrant.request-timeout-ms:5000}") long requestTimeoutMs
     ) {
         this.objectMapper = objectMapper;
-        String normalized = host == null || host.isBlank() ? "http://localbase.testhut.top" : host.trim();
+        String normalized = host == null || host.isBlank() ? "http://localqdrant.testhut.top" : host.trim();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
@@ -51,6 +53,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
                 .build();
+    }
+    public QdrantMaterialVectorIndex(ObjectMapper mapper,String host,int port,String collection,String key,long connect,long timeout,boolean strict){
+        this(mapper,host,port,collection,key,connect,timeout);this.strict=strict;
     }
 
     @Override
@@ -98,6 +103,11 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
 
     @Override
     public List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId) {
+        return searchWithin(vector,limit,ownerUserId,null);
+    }
+    /** Null preserves the legacy scope; an empty list never searches the whole collection. */
+    public List<VectorMatch> searchWithin(float[] vector,int limit,java.util.UUID ownerUserId,List<java.util.UUID> allowedMaterials){
+        if(allowedMaterials!=null&&allowedMaterials.isEmpty())return List.of();
         if (vector == null || vector.length == 0) {
             return List.of();
         }
@@ -110,7 +120,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             List<Object> should = new ArrayList<>();
             should.add(Map.of("key", "ownerUserId", "match", Map.of("value", "")));
             if (ownerUserId != null) should.add(Map.of("key", "ownerUserId", "match", Map.of("value", ownerUserId.toString())));
-            body.put("filter", Map.of("must", List.of(Map.of("key", "status", "match", Map.of("value", "approved"))), "should", should));
+            List<Object> must=new ArrayList<>();must.add(Map.of("key","status","match",Map.of("value","approved")));
+            if(allowedMaterials!=null)must.add(Map.of("key","materialId","match",Map.of("any",allowedMaterials.stream().map(java.util.UUID::toString).toList())));
+            body.put("filter", Map.of("must",must,"should",should));
             JsonNode root = send("POST", "/collections/" + collection + "/points/query", body);
             List<VectorMatch> matches = new ArrayList<>();
             for (JsonNode item : root.path("result").path("points")) {
@@ -125,6 +137,7 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             }
             return matches;
         } catch (RuntimeException ignored) {
+            if(strict)throw ignored;
             return List.of();
         }
     }
@@ -134,6 +147,8 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             return;
         }
         if (collectionExists()) {
+            if(strict){var root=send("GET","/collections/"+collection,null);int actual=root.path("result").path("config").path("params").path("vectors").path("size").asInt(-1);
+                if(actual!=dimensions)throw new IllegalStateException("VECTOR_INDEX_DIMENSIONS_MISMATCH");}
             ensuredDimensions.set(dimensions);
             return;
         }
@@ -182,7 +197,7 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
                 builder.header("api-key", apiKey);
             }
             HttpRequest request = builder
-                    .method(method, HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .method(method, body==null?HttpRequest.BodyPublishers.noBody():HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {

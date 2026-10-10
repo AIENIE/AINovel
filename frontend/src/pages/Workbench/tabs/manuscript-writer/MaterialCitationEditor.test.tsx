@@ -1,0 +1,32 @@
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { MaterialCitationEditor } from "./MaterialCitationEditor";
+const mocks = vi.hoisted(() => ({ citationBody: vi.fn(), citation: vi.fn() }));
+vi.mock("@/lib/api-client", () => ({ api: { evidence: mocks } }));
+const props = { source: { chunkId: "chunk", materialId: "source", revisionId: "revision", sourceVersion: 1, title: "雨桥", text: "😀日落后", start: 30, end: 34, reasons: [], rank: 1 }, manuscript: "manuscript", scene: "scene", bodyVersion: "body", disabled: false, close: vi.fn(), saved: vi.fn() };
+beforeEach(() => { vi.resetAllMocks(); mocks.citationBody.mockResolvedValue({ branchId: "branch", manuscriptVersion: 9, blocks: [{ id: "p1", text: "日落后，桥开放。" }] }); });
+afterEach(cleanup);
+it("submits exact Unicode positions and preserves its request key after a delayed failed save", async () => {
+  let reject!: (error: Error) => void;
+  mocks.citation.mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; })).mockResolvedValue({ id: "citation" });
+  render(<MaterialCitationEditor {...props} />);
+  await screen.findByText("日落后，桥开放。");
+  const fields = screen.getAllByRole("textbox");
+  fireEvent.change(fields[0], { target: { value: "日落后" } });
+  fireEvent.change(fields[1], { target: { value: "日落后" } });
+  const button = screen.getByRole("button", { name: "确认正文引用" }); fireEvent.click(button); fireEvent.click(button);
+  expect(mocks.citation).toHaveBeenCalledTimes(1);
+  expect(mocks.citation.mock.calls[0][2]).toMatchObject({ start: 31, end: 34, bodyBlockId: "p1", expectedManuscriptVersion: 9 });
+  await act(async () => reject(new Error("保存暂时失败")));
+  fireEvent.click(button); await act(async () => { await Promise.resolve(); });
+  expect(mocks.citation.mock.calls[1][2].requestKey).toBe(mocks.citation.mock.calls[0][2].requestKey);
+  expect(props.saved).toHaveBeenCalledTimes(1);
+});
+it("rejects nonexact source evidence before sending and disables confirmation for unsaved prose", async () => {
+  const view = render(<MaterialCitationEditor {...props} />); await screen.findByText("日落后，桥开放。");
+  const fields = screen.getAllByRole("textbox"); fireEvent.change(fields[0], { target: { value: "天亮前" } }); fireEvent.change(fields[1], { target: { value: "日落后" } });
+  fireEvent.click(screen.getByRole("button", { name: "确认正文引用" }));
+  expect(screen.getByRole("alert")).toBeTruthy(); expect(mocks.citation).not.toHaveBeenCalled();
+  view.rerender(<MaterialCitationEditor {...props} disabled />);
+  expect((screen.getByRole("button", { name: "确认正文引用" }) as HTMLButtonElement).disabled).toBe(true);
+});

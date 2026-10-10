@@ -18,6 +18,7 @@ import { AlertCircle, ArrowRight, BookOpen, Loader2, Network, Sparkles, Wand2 } 
 import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ConceptionResult = {
+  degraded?: boolean;
   storyCard?: { id: string; title: string; synopsis: string; genre: string; tone: string };
   characterCards?: Array<{ id?: string; name: string; synopsis?: string; details?: string }>;
   plotPlanning?: PlotPlanning;
@@ -295,6 +296,7 @@ const StoryConception = () => {
         response.plotPlanning ||
         createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
       const nextResult: ConceptionResult = {
+        degraded: response.degraded === true,
         storyCard: response?.storyCard,
         characterCards: response?.characterCards || response?.generated?.characters || [],
         plotPlanning: nextPlanning,
@@ -305,7 +307,7 @@ const StoryConception = () => {
       if (response?.storyCard?.id) {
         writeCache(response.storyCard.id, nextResult);
       }
-      toast({ title: t("storyConception.generated"), description: t("storyConception.generatedDesc") });
+      toast({ title: response.degraded ? "已生成待补充草稿" : t("storyConception.generated"), description: response.degraded ? "部分 AI 字段缺失，已用基础结构补齐，请在写作前核对。" : t("storyConception.generatedDesc") });
     } catch {
       toast({ variant: "destructive", title: t("errors.generateFailed") });
     } finally {
@@ -382,6 +384,7 @@ const StoryConception = () => {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] h-full">
+      {result?.degraded && <p role="status" className="rounded border border-amber-500 p-3 text-sm">初始化结果不完整，部分设定使用了基础结构。请核对人物、反转和章节建议后再写作。</p>}
       <Card className="h-fit">
         <CardHeader>
           <CardTitle>{t("storyConception.entryTitle")}</CardTitle>

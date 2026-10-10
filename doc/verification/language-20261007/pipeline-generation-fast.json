@@ -1,0 +1,20 @@
+{
+  "id": "a4983861-8f2f-4991-b3a7-b43357f76483",
+  "operationType": "AINOVEL_LONG_TASK",
+  "scopeType": "MANUSCRIPT",
+  "scopeId": "0d902e60-12b2-4a91-a352-a0dadeaab88a",
+  "status": "SUCCEEDED",
+  "currentStep": "已完成",
+  "totalSteps": 5,
+  "completedSteps": 5,
+  "remainingSteps": 0,
+  "currentStepOutputTokens": 2305,
+  "outputTokensEstimated": false,
+  "attemptCount": 1,
+  "resultJson": "{\"id\":\"0d902e60-12b2-4a91-a352-a0dadeaab88a\",\"outlineId\":\"30b0db50-dfbc-4cba-8f9b-f0907df0d8d7\",\"title\":\"语言后台流程 · fast\",\"worldId\":null,\"sections\":{\"4d2f8935-c29f-5760-9c11-ae9302f50c52\":\"<p>周宁把红伞从鞋柜边拿起来，合了一下伞面。伞骨收拢时发出很轻的一声响。他捏住伞柄出门，走廊的声控灯被脚步惊亮，昏黄的光落在伞布上，那红色并不鲜艳，像是放久了的一副旧对联。</p><p>伞柄上写着字，这一点他记得。</p><p>走到邻居家门口，他先抬头看了一眼门牌，确认是这个号码，才用指节在门上敲了三下。</p><p>里面很快有了动静。脚步声靠近，门开了一道缝，邻居探出半个身子，看清是他，把门全开了。</p><p>周宁把伞递过去。“昨天放在楼下的，看着像你家的。”</p><p>邻居接过去，没有马上开口，先把伞撑开一半看了看伞面，又收回来，翻过伞柄，凑到门边的亮处。伞柄侧面写着一行小字，黑色的，像是用记号笔添上去的，又被什么擦过一遍，边缘发毛。</p><p>邻居的拇指压在字上，一个字一个字地挪过去。</p><p>周宁站在原地，没有再说什么。他本来想着，要是对方说不清，就把伞拿回去，交给楼下的门卫。这句话在嘴边转了一下，没出口。</p><p>“是我的。”邻居把伞柄转过来，朝周宁晃了一下。周宁没有凑近，只看见那行字里确实有个相同的姓。</p><p>“那就好。”周宁说。</p><p>“谢了。”</p><p>“不客气。”</p><p>邻居把伞收好，靠在门边的墙上，一只手在门框上搭了搭，像是还有话要说，最后只点了点头。周宁也点头，转身往回走。</p><p>走到楼道口，声控灯灭了一次，他踩了一脚，灯又亮起来。身后那扇门关上了，很轻的一声，之后走廊里再没有别的响动。</p>\"},\"lastGenerationRun\":{\"id\":\"efdd0f1f-6bd2-4b4c-9e94-9deb9575a591\",\"generationVersionId\":\"8ac13a37-3941-46fa-9db4-4e9280f996ff\",\"status\":\"GENERATED\",\"createdAt\":\"2026-10-07T09:36:27.035698Z\"},\"version\":2,\"updatedAt\":\"2026-10-07T09:36:27.004993Z\",\"currentBranchId\":\"6a6622fa-6b56-44aa-bab1-471a355a2b97\"}",
+  "errorMessage": null,
+  "createdAt": "2026-10-07T09:36:13.800529Z",
+  "updatedAt": "2026-10-07T09:36:27.075375Z",
+  "completedAt": "2026-10-07T09:36:27.075375Z",
+  "errorCode": null
+}

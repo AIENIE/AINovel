@@ -1,0 +1,52 @@
+{
+  "mysql": [
+    {
+      "name": "com.ainovel.app.quality.language.LanguageQualityMysqlTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.ainovel.app.v2.CreatorWorkflowMysqlTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "mysqlSchema": "aienie_novel_audit_test_examples_20261008",
+  "browser": {
+    "status": "not_completed",
+    "chrome": "Exited without DevToolsActivePort",
+    "edge": "Exited without DevToolsActivePort",
+    "inApp": "Create tab timed out"
+  },
+  "restart": {
+    "status": "passed",
+    "bodyUnchanged": true,
+    "D2ReasonAndDispositionRetained": true,
+    "reportsRetained": [
+      "H2-fast",
+      "H2-crafted",
+      "new-problems"
+    ],
+    "unknownCallNotRetried": true,
+    "businessCallsAfterRestart": 38,
+    "reservedProviderAttemptsAfterRestart": 114
+  },
+  "finalRuntime": {
+    "status": "restored_initial_stopped_state",
+    "backend": {
+      "port": 11041,
+      "processLive": false,
+      "tcpListening": false
+    },
+    "frontend": {
+      "port": 11040,
+      "processLive": false,
+      "tcpListening": false
+    },
+    "normalConfigurationChanged": false
+  }
+}

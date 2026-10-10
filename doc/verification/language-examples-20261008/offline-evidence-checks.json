@@ -1,0 +1,70 @@
+{
+  "rolePromptsUnchanged" : true,
+  "profileUnchanged" : true,
+  "diagnosticQuotes" : [ {
+    "issues" : 1,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "S5",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 1,
+    "arm" : "rules"
+  }, {
+    "issues" : 1,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "S5",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 1,
+    "arm" : "examples"
+  }, {
+    "issues" : 4,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "S6",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 4,
+    "arm" : "rules"
+  }, {
+    "issues" : 4,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "S6",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 4,
+    "arm" : "examples"
+  }, {
+    "issues" : 2,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "new-problems",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 2,
+    "arm" : "rules"
+  }, {
+    "issues" : 2,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "new-problems",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 2,
+    "arm" : "examples"
+  }, {
+    "issues" : 0,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "new-boundary",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 0,
+    "arm" : "rules"
+  }, {
+    "issues" : 1,
+    "complete" : true,
+    "missing" : 0,
+    "case" : "new-boundary",
+    "ambiguous" : 0,
+    "uniqueContinuousQuotes" : 1,
+    "arm" : "examples"
+  } ],
+  "scope" : "Mechanical evidence check only; model complete=true is not proof of recall."
+}

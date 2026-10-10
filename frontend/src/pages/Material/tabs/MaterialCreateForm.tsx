@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,23 +16,25 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pending = useRef(false);
+  const intent = useRef<{ hash: string; key: string } | null>(null);
   const { toast } = useToast();
   const { t } = useTranslation();
 
   const handleSubmit = async () => {
+    if (pending.current) return;
     if (!title || !content) {
       toast({ variant: "destructive", title: t("material.fillComplete") });
       return;
     }
 
-    setIsSubmitting(true);
+    pending.current = true; setIsSubmitting(true);
+    const payload = { title, type, content, tags: tags.split(",").map(tag => tag.trim()).filter(Boolean) };
+    const hash = JSON.stringify(payload);
+    if (intent.current?.hash !== hash) intent.current = { hash, key: crypto.randomUUID() };
     try {
-      await api.materials.create({
-        title,
-        type: type as unknown,
-        content,
-        tags: tags.split(",").map(tag => tag.trim()).filter(Boolean),
-      });
+      await api.materials.create(payload, intent.current.key);
+      intent.current = null;
       toast({ title: t("material.created") });
       setTitle("");
       setContent("");
@@ -41,6 +43,7 @@ const MaterialCreateForm = ({ onSuccess }: { onSuccess: () => void }) => {
     } catch (error) {
       toast({ variant: "destructive", title: t("errors.createFailed") });
     } finally {
+      pending.current = false;
       setIsSubmitting(false);
     }
   };

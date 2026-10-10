@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { localizedErrorMessage } from "@/lib/error-messages";
 import { useTranslation } from "react-i18next";
 import type { MouseEvent } from "react";
 import { ChevronDown, ChevronRight, GripVertical, Plus, X } from "lucide-react";
@@ -104,6 +105,18 @@ export function SceneOutlinePanel({
   const [creatingManuscript, setCreatingManuscript] = useState(false);
   const [outlineName, setOutlineName] = useState(t("outline.newOutline"));
   const [manuscriptName, setManuscriptName] = useState("");
+  const [creationPending, setCreationPending] = useState(false);
+  const [creationError, setCreationError] = useState("");
+  const creationLock = useRef(false);
+  const submitCreation = async (kind: "outline" | "manuscript") => {
+    if (creationLock.current) return;
+    creationLock.current = true; setCreationPending(true); setCreationError("");
+    try {
+      if (kind === "outline") { await onCreateOutline(outlineName); setCreatingOutline(false); }
+      else { await onCreateManuscript(manuscriptName); setCreatingManuscript(false); }
+    } catch (error) { setCreationError(localizedErrorMessage(error, "errors.createFailed")); }
+    finally { creationLock.current = false; setCreationPending(false); }
+  };
   return (
     <div className={cn("h-full flex flex-col gap-2 border-r pr-2", !showLeftPanel && "invisible")}>
       <div className="px-2 pt-2 space-y-2">
@@ -112,11 +125,12 @@ export function SceneOutlinePanel({
           <SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent>
         </Select>
         <div className="flex gap-1"><Select value={selectedOutlineId} onValueChange={onSelectOutline} disabled={!selectedStoryId}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={outlines.length ? t("common.selectOutline") : t("outline.noOutlineYet")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" disabled={!selectedStoryId} onClick={() => setCreatingOutline(true)} title={t("outline.newOutline")}><Plus className="h-4 w-4" /></Button></div>
-        {creatingOutline && <div className="flex gap-1"><Input value={outlineName} onChange={(e) => setOutlineName(e.target.value)} placeholder={t("outline.outlineName")} /><Button size="sm" disabled={!outlineName.trim()} onClick={async () => { await onCreateOutline(outlineName); setCreatingOutline(false); }}>{t("common.create")}</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div>}
+        {creatingOutline && <div className="flex gap-1"><Input disabled={creationPending} value={outlineName} onChange={(e) => setOutlineName(e.target.value)} placeholder={t("outline.outlineName")} /><Button size="sm" disabled={creationPending || !outlineName.trim()} onClick={() => void submitCreation("outline")}>{t("common.create")}</Button><Button size="icon" variant="ghost" disabled={creationPending} onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div>}
         <div className="flex gap-1"><Select value={selectedManuscriptId} onValueChange={onSelectManuscript} disabled={!selectedOutlineId}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={manuscripts.length ? t("common.selectManuscript") : t("sceneOutline.noManuscripts")} /></SelectTrigger><SelectContent>{manuscripts.map((manuscript) => <SelectItem key={manuscript.id} value={manuscript.id}>{manuscript.title}</SelectItem>)}</SelectContent></Select><Button type="button" size="icon" variant="outline" disabled={!selectedOutlineId} onClick={() => setCreatingManuscript(true)} title={t("sceneOutline.newManuscript")}><Plus className="h-4 w-4" /></Button></div>
-        {creatingManuscript && <div className="flex gap-1"><Input value={manuscriptName} onChange={(e) => setManuscriptName(e.target.value)} placeholder={t("sceneOutline.manuscriptName")} /><Button size="sm" disabled={!manuscriptName.trim()} onClick={async () => { await onCreateManuscript(manuscriptName); setCreatingManuscript(false); }}>{t("common.create")}</Button><Button size="icon" variant="ghost" onClick={() => setCreatingManuscript(false)}><X className="h-4 w-4" /></Button></div>}
+        {creatingManuscript && <div className="flex gap-1"><Input disabled={creationPending} value={manuscriptName} onChange={(e) => setManuscriptName(e.target.value)} placeholder={t("sceneOutline.manuscriptName")} /><Button size="sm" disabled={creationPending || !manuscriptName.trim()} onClick={() => void submitCreation("manuscript")}>{t("common.create")}</Button><Button size="icon" variant="ghost" disabled={creationPending} onClick={() => setCreatingManuscript(false)}><X className="h-4 w-4" /></Button></div>}
       </div>
 
+      {creationError && <p role="alert" className="px-2 text-sm text-destructive">{creationError}</p>}
       {selectedSceneIds.length > 1 && (
         <div className="px-2 py-2 border-y bg-muted/40 text-xs space-y-2">
           <div className="text-muted-foreground">{t("sceneOutline.multiSelected", { count: selectedSceneIds.length })}</div>

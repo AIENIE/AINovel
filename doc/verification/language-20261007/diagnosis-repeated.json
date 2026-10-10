@@ -1,0 +1,33 @@
+{
+  "id": "12bdbd15-80b1-459f-8bfe-ab559f2540a3",
+  "manuscriptId": "0fdadec5-4715-459a-83ea-008c5893c193",
+  "sceneId": "71af8fc4-1629-5fb5-acf5-7efd6df7fd29",
+  "source": {
+    "branchId": "78ff6227-ce13-4ed0-b745-f80920f02fcb",
+    "bodyVersion": 2,
+    "snapshotId": "eea2abf3-8c9f-48c3-9d8a-886277f22f41",
+    "projectionVersion": "QUALITY_PARAGRAPH_V2",
+    "htmlHash": "cc9dec6d98f21fcb0ae286ef0b617f3ea7753661c0df4cc1f53e901d19a125f0",
+    "textHash": "a7d1febd980fc942670db22a4c64d8a081776130cbb516823471c3439c445b4c",
+    "contextVersion": "75769cdb961bcd3d8e073d4b0f847569175de1dfe03b41e3b2efc1a06b6d5cad",
+    "standardVersion": "zh-naturalness-v2"
+  },
+  "status": "NO_CLEAR_ISSUES",
+  "summary": "已扫描记录范围，未发现明确语言问题；这不是文本完美或没有 AI 味的保证。",
+  "issues": [],
+  "coverage": [
+    {
+      "index": 0,
+      "start": 0,
+      "end": 65,
+      "contextStart": 0,
+      "contextEnd": 65,
+      "state": "COMPLETE",
+      "reason": "已完整检查 coreStart..coreEnd 范围。文本由四个短段落组成，动作主体与对象清楚，语义连贯；短句和重复的“他关上门”可视为节奏或线索性重复，未发现过度省略、表达压缩、刻意断句或生硬搭配等明确语言问题。"
+    }
+  ],
+  "patches": [],
+  "operationId": "953789a2-02aa-4e7d-b1f0-ae64b550cda8",
+  "canContinueBatch": true,
+  "createdAt": "2026-10-07T09:28:58.162937Z"
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Book, FileText, PenTool, Search, Rocket, BookOpen, Network, ClipboardCheck } from "lucide-react";
@@ -19,13 +19,16 @@ const Workbench = () => {
   const { t } = useTranslation();
   const [params] = useSearchParams();
   const location = useLocation();
+  const paramsRef = useRef(params);
+  useEffect(() => { paramsRef.current = params; }, [params]);
   const navigate = useNavigate();
   const setParams = useCallback((value: URLSearchParams | ((current: URLSearchParams) => URLSearchParams), options: { replace?: boolean }) => {
-    const next = typeof value === "function" ? value(params) : value;
+    const next = typeof value === "function" ? value(paramsRef.current) : value;
     const search = `?${next.toString()}`;
     if (search === location.search) return;
+    paramsRef.current = next;
     navigate({ search, hash: location.hash }, options);
-  }, [location.hash, location.search, navigate, params]);
+  }, [location.hash, location.search, navigate]);
   const storyId = params.get("storyId") || params.get("id") || "";
   const requestedTab = params.get("tab") || "";
   const initialTab = useMemo(() => {
@@ -45,11 +48,7 @@ const Workbench = () => {
     }
     return "writing";
   }, [requestedTab]);
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+  const activeTab = initialTab;
 
   useEffect(() => {
     if (!params.has("id")) return;
@@ -60,7 +59,6 @@ const Workbench = () => {
   }, [params, setParams, storyId]);
 
   const selectTab = (value: string) => {
-    setActiveTab(value);
     const next = new URLSearchParams(params);
     next.set("tab", value);
     setParams(next, { replace: false });
@@ -159,7 +157,7 @@ const Workbench = () => {
             />
           </TabsContent>
           <TabsContent value="search" className="h-full m-0 border-0 p-0">
-            <MaterialSearchPanel />
+            <MaterialSearchPanel storyId={storyId} />
           </TabsContent>
           <TabsContent value="lorebook" className="h-full m-0 border-0 p-0">
             <LorebookPanel initialStoryId={storyId} />

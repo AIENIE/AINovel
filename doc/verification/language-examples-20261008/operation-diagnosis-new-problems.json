@@ -1,0 +1,20 @@
+{
+  "id": "a598a220-8f41-4f55-aae1-ca79e7d3d646",
+  "operationType": "LANGUAGE_DIAGNOSIS",
+  "scopeType": "LANGUAGE_REPORT",
+  "scopeId": "49b7ae7b-a101-410b-b02b-9533a3bb5c3b",
+  "status": "RECOVERY_REQUIRED",
+  "currentStep": "检查语言范围 1/1",
+  "totalSteps": 1,
+  "completedSteps": 0,
+  "remainingSteps": 1,
+  "currentStepOutputTokens": 0,
+  "outputTokensEstimated": true,
+  "attemptCount": 1,
+  "resultJson": null,
+  "errorMessage": "AI_RESULT_RECONCILIATION_REQUIRED",
+  "createdAt": "2026-10-08T05:28:05.876102Z",
+  "updatedAt": "2026-10-08T05:28:36.579025Z",
+  "completedAt": "2026-10-08T05:28:36.579025Z",
+  "errorCode": "AI_RESULT_RECONCILIATION_REQUIRED"
+}

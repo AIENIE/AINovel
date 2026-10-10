@@ -69,7 +69,7 @@ class ManuscriptServiceTest {
         var outline=new Outline();outline.setStory(story);var m=new Manuscript();m.setId(UUID.randomUUID());m.setOutline(outline);m.setSectionsJson("{}");m.setCurrentBranchId(UUID.randomUUID());
         UUID scene=UUID.randomUUID();var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(m.getId(),m.getCurrentBranchId(),0,0,1,1,"hash");
         var manifest=new com.ainovel.app.manuscript.context.SceneDraftContextManifest("h2","hash","SHA-256",3500,10,null,null,m.getId(),scene,null,1,1,"",List.of(),List.of(),stamp);
-        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any())).thenReturn(
+        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any(),any())).thenReturn(
                 new SceneGenerationService.GenerationResult("<p>生成候选</p>",new SceneGenerationService.GenerationMetadata("test","h2","hash",1,manifest)));
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);var archive=mock(com.ainovel.app.narrative.NarrativeGenerationCandidateStore.class);
         ReflectionTestUtils.setField(s,"sceneGenerationService",generator);ReflectionTestUtils.setField(s,"narrativeContext",context);ReflectionTestUtils.setField(s,"retainedCandidates",archive);

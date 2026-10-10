@@ -243,13 +243,17 @@ public class V2ExportJobService {
             Path completedFile = temp;
             try (InputStream input = Files.newInputStream(completedFile)) {
                 transactions.executeWithoutResult(status -> jdbc.execute((ConnectionCallback<Void>) connection -> {
-                    try (var statement = connection.prepareStatement("UPDATE export_jobs SET content_blob=?, checksum=?, file_size_bytes=?, status='completed', progress=100, completed_at=?, lease_owner=NULL, lease_expires_at=NULL WHERE id=? AND lease_owner=? AND status='processing' AND lease_expires_at>CURRENT_TIMESTAMP(6)")) {
+                    // Hibernate stores Instant as UTC. The database session may use another zone.
+                    var now = java.sql.Timestamp.from(Instant.now());
+                    var utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+                    try (var statement = connection.prepareStatement("UPDATE export_jobs SET content_blob=?, checksum=?, file_size_bytes=?, status='completed', progress=100, completed_at=?, lease_owner=NULL, lease_expires_at=NULL WHERE id=? AND lease_owner=? AND status='processing' AND lease_expires_at>?")) {
                         statement.setBinaryStream(1, input, size);
                         statement.setString(2, checksum);
                         statement.setLong(3, size);
-                        statement.setObject(4, java.sql.Timestamp.from(Instant.now()));
+                        statement.setTimestamp(4, now, utc);
                         statement.setBytes(5, uuidBytes(id));
                         statement.setString(6, leaseOwner);
+                        statement.setTimestamp(7, now, utc);
                         if (statement.executeUpdate() != 1) throw new IllegalStateException("Export lease lost");
                     }
                     return null;

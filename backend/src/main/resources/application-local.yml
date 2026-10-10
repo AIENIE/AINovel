@@ -193,7 +193,7 @@ springdoc:
   swagger-ui:
     enabled: false
 elasticsearch:
-  hosts: https://es.localhut.com:9200
+  hosts: https://locales.testhut.top:9200
   username: elastic
   password: ${ELASTICSEARCH_PASSWORD}
 filebeat:

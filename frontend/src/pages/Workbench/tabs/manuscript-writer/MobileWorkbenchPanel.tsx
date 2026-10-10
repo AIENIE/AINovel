@@ -28,12 +28,15 @@ type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "s
 type MobilePane = "outline" | "editor" | "sidebar";
 
 type MobileWorkbenchPanelProps = {
+  languagePanel?: ReactNode;
   narrativePanel?: ReactNode;
   content: string;
   contextData: NetworkObject | null;
   contextPreview?: ContextPreview | null;
   exportJobs: NetworkObject[];
   exportDownloadingJobId: string;
+  exportPending?: boolean;
+  exportError?: string;
   focusMode: boolean;
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
@@ -71,9 +74,12 @@ export function MobileWorkbenchPanel({
   content,
   contextData,
   narrativePanel,
+  languagePanel,
   contextPreview = null,
   exportJobs,
   exportDownloadingJobId,
+  exportPending,
+  exportError,
   focusMode,
   isPlotBusy,
   isPlotRevisionBusy,
@@ -198,6 +204,7 @@ export function MobileWorkbenchPanel({
             </div>
             <ScrollArea className="h-[calc(100%-2.2rem)]">
               <div className="space-y-2">
+                {languagePanel}
                 <div className="rounded border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <span>{qualityStatusText(selectedQualityRun)}</span>
@@ -245,11 +252,12 @@ export function MobileWorkbenchPanel({
           </TabsContent>
           <TabsContent value="export" className="flex-1 m-0 mt-2 min-h-0 rounded border p-2 text-xs">
             <p className="mb-2 text-muted-foreground">{t("exportPanel.retentionNoteShort")}</p>
-            <Button size="sm" onClick={() => void onCreateExportJob()} className="mb-2">{t("exportPanel.createExportJob")}</Button>
-            <ScrollArea className="h-[calc(100%-2.2rem)]">
+            {exportError && <p role="alert" className="mb-2 text-destructive">{exportError}</p>}
+            <Button size="sm" disabled={exportPending} onClick={() => void onCreateExportJob()} className="mb-2">{t("exportPanel.createExportJob")}</Button>
+            <div className="h-[calc(100%-2.2rem)] min-w-0 overflow-y-auto">
               {exportJobs.map((job) => (
                 <div key={job.id} className="flex items-center justify-between gap-2 rounded border p-2 mb-2">
-                  <span className="min-w-0 truncate">{job.fileName || job.id}</span>
+                  <span className="min-w-0 flex-1 truncate" title={String(job.fileName || job.id)}>{job.fileName || job.id}</span>
                   {String(job.status).toLowerCase() === "completed" ? (
                     <Button
                       size="sm"
@@ -264,7 +272,7 @@ export function MobileWorkbenchPanel({
                   ) : null}
                 </div>
               ))}
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
       </TabsContent>

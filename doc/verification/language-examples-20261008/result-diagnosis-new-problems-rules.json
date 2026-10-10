@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-new-problems-rules",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已通读 coreStart 0 至 coreEnd 110 的四段文本。前段人物交代完整；主要问题集中在第二段和第四段：换段后连续动作缺少行动者，部分动作对象也以位置或省略方式带过，读者需从上文推断。第三段未见明确语言问题。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"核到最后一项，圈出一个数量，把单子递回桌对面。\",\"start\":null,\"end\":null,\"impact\":\"换段后连续动作“核、圈、递”都没有行动者，读者只能把上一段的谢青带入；接收者又用“桌对面”代称，未明确递给谁，动作过程显得压缩、断点明显。\",\"direction\":\"应交代实际行动者，并说明单子递给谁；若接收者是陆文，需以人物而非仅位置来交代。\"},{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"核完数量，签上名字，把单据放进文件袋。\",\"start\":null,\"end\":null,\"impact\":\"换段后仍无主语，三个连续动作没有行动者；读者需自行判断是两人各自还是共同完成，且“签上名字”“放进文件袋”的对象关系不完整，结尾呈速记式。\",\"direction\":\"补出行动者，并交代签名与放入文件袋的动作对象；无法从原文安全确定是各自还是共同时，至少应明确行动者，不新增未提供的关系。\"}]}",
+    "usage": {
+      "inputTokens": 1234.0,
+      "outputTokens": 4327.0,
+      "cacheTokens": 896.0,
+      "cacheHitRate": 0.7260940032414911,
+      "cost": 1.0
+    }
+  }
+}

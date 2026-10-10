@@ -13,6 +13,10 @@ public class AiValidationCall {
     @Lob private String resultJson;
     @Column(nullable=false,length=32) private String status;
     @Column(nullable=false) private Instant createdAt;
+    @Column(length=32) private String operationKind;
+    @Column(nullable=false) private int reservedProviderAttempts;
+    public void setOperationKind(String value){operationKind=value;}
+    public void setReservedProviderAttempts(int value){reservedProviderAttempts=value;}
     public UUID getId(){return id;}
     public void setRunId(String v){runId=v;}
     public void setAttempt(int v){attempt=v;}

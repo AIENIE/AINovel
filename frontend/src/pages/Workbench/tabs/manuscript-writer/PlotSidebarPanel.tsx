@@ -18,6 +18,7 @@ import {
 } from "./shared";
 
 type PlotSidebarPanelProps = {
+  languagePanel?: import("react").ReactNode;
   isPlotBusy: boolean;
   isPlotRevisionBusy: boolean;
   isSlopBusy: boolean;
@@ -38,6 +39,7 @@ type PlotSidebarPanelProps = {
 };
 
 export function PlotSidebarPanel({
+  languagePanel,
   isPlotBusy,
   isPlotRevisionBusy,
   isSlopBusy,
@@ -79,6 +81,7 @@ export function PlotSidebarPanel({
 
       <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 text-xs">
         <div className="space-y-3">
+          {languagePanel}
           <div className="rounded border p-2 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="font-medium">{t("plotPanel.slopRisk")}</div>

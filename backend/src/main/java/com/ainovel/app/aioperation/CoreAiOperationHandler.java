@@ -86,9 +86,14 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 yield result;
             }
             case "SCENE_GENERATION" -> {
+                if(payload.request()==null || payload.request().isNull()) throw new com.ainovel.app.ai.AiResultUncertainException(
+                        new IllegalStateException("LANGUAGE_PROFILE_MISSING_FROM_HISTORICAL_TASK"));
+                com.ainovel.app.quality.language.LanguageStandard.Selection language;
+                try { language=execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.quality.language.LanguageStandard.Selection.class); }
+                catch(Exception unavailable) { throw new com.ainovel.app.ai.AiResultUncertainException(unavailable); }
                 execution.progress().step("生成场景正文", 0, 5);
                 Object result = manuscripts.generateForScene(payload.primaryId(), payload.secondaryId(),
-                        GenerationMode.valueOf(payload.mode()));
+                        GenerationMode.valueOf(payload.mode()),language);
                 execution.progress().step("保存正文与质量结果", 4, 5);
                 yield result;
             }

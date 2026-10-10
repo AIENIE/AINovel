@@ -1,0 +1,25 @@
+{
+  "storyId": "961c0110-ab06-418b-983a-66e54552fc09",
+  "outlineId": "5aae4360-78a0-4032-bacc-c1dea96c3451",
+  "scenes": {
+    "S5": "813d51c8-8f8e-5982-a984-7ae9f357747c",
+    "S6": "b959382e-af78-5520-aedc-f12f2c2d60db",
+    "new-problems": "4a0bab93-41b7-57a9-bc0e-1f67e1dd5cd4",
+    "new-boundary": "e2f314a2-1307-51c5-97f2-c9557ceff27a",
+    "D2": "ec935817-b542-55f3-ae2b-388fb48ce8d4",
+    "normal": "03634aa2-8d6e-5c04-864e-05bf019d056f",
+    "H2-fast": "03634aa2-8d6e-5c04-864e-05bf019d056f",
+    "H2-crafted": "03634aa2-8d6e-5c04-864e-05bf019d056f"
+  },
+  "manuscripts": {
+    "S5": "6dcfb4ad-53a4-45e7-b798-7282b0a78f0a",
+    "S6": "aed492a1-d287-45c0-b5c3-dbbcf0d7c347",
+    "new-problems": "651f41dc-7f1d-4ec8-86bc-4dd37c64250c",
+    "new-boundary": "018257d6-2b5a-4ce9-a76e-78e5ca1ea4dd",
+    "D2": "bafc8bb3-25fc-4e0f-bf22-3b7239f52adb",
+    "normal": "d0b851da-a0ff-40c7-bdec-8e9258822c85",
+    "H2-fast": "1849e5ad-f1a6-4dff-b075-19804dd015cd",
+    "H2-crafted": "a30076ed-6453-45b4-b08d-4c5b058fec17"
+  },
+  "characterId": "6c80390d-5cc0-463b-9018-ada01409db14"
+}

@@ -34,6 +34,8 @@ import java.util.function.Consumer;
 
 @Service
 public class AiOperationService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.economy.repo.AiCreditReservationRepository creditReservations;
     private static final Logger log = LoggerFactory.getLogger(AiOperationService.class);
     private static final Set<AiOperationStatus> ACTIVE = EnumSet.of(
             AiOperationStatus.QUEUED, AiOperationStatus.RUNNING, AiOperationStatus.STREAMING,
@@ -103,7 +105,15 @@ public class AiOperationService {
             if (existing == null) throw ex;
             runId = existing.getId();
         }
-        dispatch(runId);
+        // A submitted operation may belong to an outer body-save transaction. Its worker must not
+        // observe uncommitted snapshots, and rollback must not leave an external model call behind.
+        UUID committedRunId = runId;
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { dispatch(committedRunId); }
+                    });
+        } else dispatch(runId);
         return new AiOperationDtos.Accepted(runId);
     }
 
@@ -133,11 +143,24 @@ public class AiOperationService {
     }
 
     public AiOperationDtos.Accepted retry(User user, UUID id) {
+        java.util.concurrent.atomic.AtomicBoolean recovered = new java.util.concurrent.atomic.AtomicBoolean();
         transactions.executeWithoutResult(status -> {
         AiOperationRun run = repository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("AI 操作不存在"));
         if (!run.getUser().getId().equals(user.getId())) throw new BusinessException("AI 操作不存在");
         if (run.getStatus() != AiOperationStatus.FAILED && run.getStatus() != AiOperationStatus.RECOVERY_REQUIRED) {
             throw new BusinessException("当前 AI 操作不需要重试");
+        }
+        if (run.getResultJson() != null && !run.getResultJson().isBlank()) {
+            run.setStatus(AiOperationStatus.SUCCEEDED);
+            run.setErrorMessage(null);
+            run.setCompletedSteps(run.getTotalSteps());
+            run.setCurrentStep("已恢复保存的结果");
+            run.setCompletedAt(Instant.now());
+            releaseLeaseAndScope(run);
+            repository.save(run); recovered.set(true); return;
+        }
+        if (creditReservations != null && creditReservations.hasUncertainOperation(user.getId(), id + ":%", run.getRequestId())) {
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "AI_RESULT_RECONCILIATION_REQUIRED");
         }
         run.setStatus(AiOperationStatus.QUEUED);
         run.setErrorMessage(null);
@@ -145,7 +168,6 @@ public class AiOperationService {
         run.setCompletedSteps(0);
         run.setOutputTokens(0);
         run.setOutputTokensEstimated(true);
-        run.setRequestId(null);
         run.setModelKey(null);
         run.setResultJson(null);
         run.setCompletedAt(null);
@@ -154,8 +176,7 @@ public class AiOperationService {
         run.setLeaseExpiresAt(null);
         repository.save(run);
         });
-        cancelTask(id);
-        dispatch(id);
+        if (!recovered.get()) { cancelTask(id); dispatch(id); }
         return new AiOperationDtos.Accepted(id);
     }
 
@@ -364,8 +385,7 @@ public class AiOperationService {
             if (run.getStatus() == AiOperationStatus.CANCELLED) return;
             run.setStatus(run.isStreamStarted() || uncertain(failure)
                     ? AiOperationStatus.RECOVERY_REQUIRED : AiOperationStatus.FAILED);
-            run.setErrorMessage("生成在" + run.getCompletedSteps() + "/" + run.getTotalSteps()
-                    + "步中断，请查看任务状态后重试；任务编号：" + id);
+            run.setErrorMessage(failureCode(failure));
             run.setCompletedAt(Instant.now());
             run.setLeaseOwner(null); run.setLeaseExpiresAt(null);
             if (run.getStatus() != AiOperationStatus.RECOVERY_REQUIRED) run.setActiveScopeKey(null);
@@ -461,9 +481,13 @@ public class AiOperationService {
         catch (Exception ex) { throw new BusinessException("AI 操作数据序列化失败"); }
     }
 
-    private String truncate(String message) {
-        String value = message == null || message.isBlank() ? "AI 操作失败" : message;
-        return value.length() <= 500 ? value : value.substring(0, 500);
+    private String failureCode(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof com.ainovel.app.common.ApiStatusException
+                    && cause.getMessage() != null && cause.getMessage().matches("[A-Z][A-Z0-9_]{1,79}")) return cause.getMessage();
+            if (cause == cause.getCause()) break;
+        }
+        return uncertain(failure) ? "AI_RESULT_RECONCILIATION_REQUIRED" : "AI_OPERATION_FAILED";
     }
 
     private String normalizeIdempotencyKey(String raw) {

@@ -40,28 +40,28 @@ public class StoryConceptionService {
     }
 
     private Map<String, Object> generateNormalizedDraft(User user, StoryCreateRequest request) {
-        Map<String, Object> parsed = Map.of();
         StoryConceptionPromptFactory.PromptContext promptContext = promptFactory.build(request);
-        try {
-            var response = aiService.chat(user, new AiChatRequest(
+        var response = aiService.chat(user, new AiChatRequest(
                     List.of(new AiChatRequest.Message("user", promptContext.prompt())),
                     null,
                     null
             ));
-            Map<String, Object> candidate = parseJsonObject(response.content());
-            if (candidate != null) {
-                parsed = candidate;
-            }
-        } catch (Exception ex) {
-            parsed = Map.of();
+        Map<String, Object> parsed = parseJsonObject(response.content());
+        if (parsed == null || parsed.isEmpty()) {
+            throw new com.ainovel.app.common.BusinessException("AI_INITIALIZATION_INVALID_RESULT");
         }
-        return draftNormalizer.normalize(
+        Map<String, Object> normalized = draftNormalizer.normalize(
                 request,
                 parsed,
                 promptContext.hintedPromise(),
                 promptContext.hintedTruth(),
                 promptContext.hintedMeme()
         );
+        List<String> missing = java.util.stream.Stream.of("synopsis", "characters", "skeleton", "twistOptions", "foreshadowSeeds", "memeStrategy", "outlineSuggestion")
+                .filter(key -> { Object value=parsed.get(key); return value==null || value instanceof String text && text.isBlank()
+                        || value instanceof java.util.Collection<?> items && items.isEmpty() || value instanceof Map<?,?> map && map.isEmpty(); }).toList();
+        normalized.put("fallbackFields", missing);
+        return normalized;
     }
 
     private Map<String, Object> parseJsonObject(String text) {

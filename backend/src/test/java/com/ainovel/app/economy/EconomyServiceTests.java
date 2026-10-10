@@ -193,6 +193,43 @@ class EconomyServiceTests {
     }
 
     @Test
+    void evidenceSettlementNeverChargesAboveAuthorAcceptedMaximum() {
+        User user = user();
+        AiCreditReservation reservation = new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RESULT_READY);
+        reservation.setReferenceType("EVIDENCE_TASK");
+        reservation.setReservedAmount(11);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user, "capped"))
+                .thenReturn(Optional.of(reservation));
+        assertThrows(IllegalStateException.class,
+                () -> economyService.settleAiUsage(user, "capped", "result", 1_100_001, 0, 0));
+        assertEquals(AiCreditReservation.Status.RESULT_READY, reservation.getStatus());
+        verify(accountRepository, never()).findForUpdateByUserId(any());
+        verify(ledgerRepository, never()).save(any());
+    }
+
+    @Test
+    void evidenceAuthoritativeRecoverySettlesExistingHoldWithoutReservingAgain() {
+        User user=user();
+        ProjectCreditAccount account=account(user,89);
+        AiCreditReservation reservation=new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);
+        reservation.setReferenceType("EVIDENCE_TASK");
+        reservation.setReservedAmount(11);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"evidence:recover"))
+                .thenReturn(Optional.of(reservation));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        economyService.recordAiResult(user,"evidence:recover","durable",123,12,0);
+        economyService.settleAiUsage(user,"evidence:recover","durable",123,12,0);
+        assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
+        assertEquals(99,account.getBalance());
+        assertEquals("durable",economyService.evidenceReservation(user,"evidence:recover").content());
+        verify(ledgerRepository,org.mockito.Mockito.times(1)).save(any());
+    }
+
+    @Test
     void failedReservationReleasesCreditsOnlyOnce() {
         User user = user();
         ProjectCreditAccount account = account(user, 8L);

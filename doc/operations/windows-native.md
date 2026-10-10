@@ -38,7 +38,6 @@ Owned PID state stays under `%LOCALAPPDATA%\Aienie\native-runs\ainovel`.
 
 The Windows processes are one local application instance. Their shared data
 and public AI/User/Pay dependencies are different instances hosted by the WSL
-runtime identified operationally as `aienie-wsl`: `localbase.testhut.top` and
 the three `local*.testhut.top` TLS services. The Java clients use the active
 JDK/JVM trust store; the launcher does not inject a CA file, trust-all mode,
 or plaintext public-service fallback.

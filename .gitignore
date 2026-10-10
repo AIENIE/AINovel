@@ -45,6 +45,10 @@ env.txt
 *.hprof
 hs_err_pid*
 
+# Python tooling outputs
+__pycache__/
+*.py[cod]
+
 # Frontend deps & build outputs
 /frontend/node_modules/
 /frontend/node_modules_corrupt_*/

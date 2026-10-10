@@ -17,6 +17,7 @@ import { VersionSidebarPanel } from "./VersionSidebarPanel";
 type SidebarTab = "copilot" | "context" | "feedback" | "version" | "export" | "stats" | "goals" | "plot" | "narrative";
 
 type DesktopSidebarPanelProps = {
+  languagePanel?: ReactNode;
   narrativePanel?: ReactNode;
   aiDiffSummary: string;
   abandonBranch: (branchId: string) => Promise<void> | void;
@@ -43,6 +44,8 @@ type DesktopSidebarPanelProps = {
   exportAuthorName: string;
   exportFormat: string;
   exportDownloadingJobId: string;
+  exportPending?: boolean;
+  exportError?: string;
   exportJobs: NetworkObject[];
   exportTemplateId: string;
   exportTemplates: NetworkObject[];
@@ -125,6 +128,7 @@ export function DesktopSidebarPanel({
   checkoutBranch,
   contextData,
   narrativePanel,
+  languagePanel,
   contextPreview,
   copySlopRewriteTask,
   createBranch,
@@ -142,6 +146,8 @@ export function DesktopSidebarPanel({
   exportAuthorName,
   exportFormat,
   exportDownloadingJobId,
+  exportPending,
+  exportError,
   exportJobs,
   exportTemplateId,
   exportTemplates,
@@ -240,6 +246,7 @@ export function DesktopSidebarPanel({
         />
 
         <PlotSidebarPanel
+          languagePanel={languagePanel}
           isPlotBusy={isPlotBusy}
           isPlotRevisionBusy={isPlotRevisionBusy}
           isSlopBusy={isSlopBusy}
@@ -306,6 +313,8 @@ export function DesktopSidebarPanel({
           exportAuthorName={exportAuthorName}
           exportFormat={exportFormat}
           exportDownloadingJobId={exportDownloadingJobId}
+          exportPending={exportPending}
+          exportError={exportError}
           exportJobs={exportJobs}
           exportTemplateId={exportTemplateId}
           exportTemplates={exportTemplates}

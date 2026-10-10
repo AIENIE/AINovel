@@ -1,7 +1,9 @@
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api-client";
 import {
   AiOperationCancelledError,
+  setTrackedAiUser, setTrackedAiVisibility, useTrackedAiVisibility, resumeTrackedAiOperation,
   cancelTrackedAiOperation,
   runTrackedAiOperation,
 } from "@/lib/ai-operation-store";
@@ -12,6 +14,24 @@ describe("ai operation tracking", () => {
     window.sessionStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("restores a closed failed panel for its owner after refresh without retrying", async () => {
+    setTrackedAiUser("owner-a");
+    vi.spyOn(api.aiOperations, "wait").mockImplementation(async (id, progress) => {
+      const failed = { ...completedOperation(id), status: "FAILED" as const };
+      progress?.(failed); return failed;
+    });
+    const retry = vi.spyOn(api.aiOperations, "retry");
+    const { result } = renderHook(() => useTrackedAiVisibility());
+    await act(async () => { await expect(runTrackedAiOperation(Promise.resolve({ operationId: "failure-a" }))).rejects.toThrow(); });
+    act(() => setTrackedAiVisibility("closed"));
+    act(() => setTrackedAiUser("owner-b"));
+    expect(result.current).toBe("open");
+    await act(async () => { setTrackedAiUser("owner-a"); await resumeTrackedAiOperation(); });
+    expect(result.current).toBe("closed");
+    expect(retry).not.toHaveBeenCalled();
+    act(() => setTrackedAiUser(null));
   });
 
   it("keeps waiting past the former 180 second client timeout", async () => {

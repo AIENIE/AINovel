@@ -1,0 +1,65 @@
+{
+  "com.ainovel.app.ai.AiValidationCallBudgetTest": {
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.021"
+  },
+  "com.ainovel.app.aioperation.AiOperationAfterCommitTest": {
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.035"
+  },
+  "com.ainovel.app.quality.GeneratedOpenApiContractTest": {
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "15.755"
+  },
+  "com.ainovel.app.quality.language.LanguageAnalysisTest": {
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.062"
+  },
+  "com.ainovel.app.quality.language.LanguageHandlerTest": {
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.018"
+  },
+  "com.ainovel.app.quality.language.LanguageProjectionTest": {
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.001"
+  },
+  "com.ainovel.app.quality.language.LanguageQualityMysqlTest": {
+    "tests": "2",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "3.152"
+  },
+  "com.ainovel.app.quality.language.LanguageQualityServiceTest": {
+    "tests": "7",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.082"
+  },
+  "com.ainovel.app.v2.CreatorWorkflowMysqlTest": {
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "15.757"
+  }
+}

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useBlocker } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption, World } from "@/types";
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { ChevronDown, FileText, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { localizedErrorMessage } from "@/lib/error-messages";
 
 interface OutlineWorkbenchProps {
@@ -54,10 +56,10 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null);
-  const [title, setTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [chapterPlanning, setChapterPlanning] = useState<ChapterPlanning>(chapterDefaults());
-  const [scenePlanning, setScenePlanning] = useState<ScenePlanning>(sceneDefaults());
+  const draftRef = useRef(selectedOutline);
+  draftRef.current = selectedOutline;
+  const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [creatingOutline, setCreatingOutline] = useState(false);
@@ -88,6 +90,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       .then((data) => {
         setOutlines(data);
         setSelectedOutline(data[0] || null);
+        setSavedSnapshot(JSON.stringify(data[0] || null));
         setSelectedNode(null);
       })
       .catch((error: unknown) => {
@@ -101,81 +104,64 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const activeTwistId = selectedOutline?.activeTwistId || planning?.selectedTwistId || twistOptions[0]?.id || "";
   const activeTwist = twistOptions.find((item) => item.id === activeTwistId) || twistOptions[0];
 
-  useEffect(() => {
-    if (!selectedOutline || !selectedNode) {
-      setTitle("");
-      setSummary("");
-      setChapterPlanning(chapterDefaults(activeTwistId));
-      setScenePlanning(sceneDefaults(activeTwistId));
-      return;
-    }
-    if (selectedNode.type === "chapter") {
-      const chapter = selectedOutline.chapters.find((item) => item.id === selectedNode.id);
-      setTitle(chapter?.title || "");
-      setSummary(chapter?.summary || "");
-      setChapterPlanning({ ...chapterDefaults(activeTwistId), ...(chapter?.planning || {}) });
-      setScenePlanning(sceneDefaults(activeTwistId));
-      return;
-    }
-    for (const chapter of selectedOutline.chapters) {
-      const scene = chapter.scenes.find((item) => item.id === selectedNode.id);
-      if (scene) {
-        setTitle(scene.title || "");
-        setSummary(scene.summary || "");
-        setScenePlanning({ ...sceneDefaults(activeTwistId), ...(scene.planning || {}) });
-        setChapterPlanning(chapterDefaults(activeTwistId));
-        return;
+  const chapter = selectedOutline?.chapters.find((item) => item.id === selectedNode?.id);
+  const scene = selectedOutline?.chapters.flatMap((item) => item.scenes).find((item) => item.id === selectedNode?.id);
+  const node = selectedNode?.type === "chapter" ? chapter : scene;
+  const title = node?.title || "";
+  const summary = node?.summary || "";
+  const chapterPlanning = { ...chapterDefaults(activeTwistId), ...chapter?.planning };
+  const scenePlanning = { ...sceneDefaults(activeTwistId), ...scene?.planning };
+  const updateNode = (patch: { title?: string; summary?: string; chapterPlanning?: ChapterPlanning; scenePlanning?: ScenePlanning }) => {
+    setSelectedOutline((current) => current ? { ...current, chapters: current.chapters.map((item) => {
+      if (selectedNode?.type === "chapter" && item.id === selectedNode.id) {
+        return { ...item, title: patch.title ?? item.title, summary: patch.summary ?? item.summary,
+          planning: patch.chapterPlanning ?? item.planning };
       }
-    }
-  }, [selectedNode, selectedOutline, activeTwistId]);
-
-  const applyEdits = () => {
-    if (!selectedOutline) return selectedOutline;
-    const nextPlanning = planning ? { ...planning, selectedTwistId: activeTwistId } : planning;
-    const chapters = selectedOutline.chapters.map((chapter) => {
-      if (selectedNode?.type === "chapter" && chapter.id === selectedNode.id) {
-        return {
-          ...chapter,
-          title,
-          summary,
-          planning: { ...chapterDefaults(activeTwistId), ...(chapter.planning || {}), ...chapterPlanning, selectedTwistId: activeTwistId },
-        };
-      }
-      if (selectedNode?.type === "scene") {
-        return {
-          ...chapter,
-          scenes: chapter.scenes.map((scene) =>
-            scene.id === selectedNode.id
-              ? {
-                  ...scene,
-                  title,
-                  summary,
-                  planning: { ...sceneDefaults(activeTwistId), ...(scene.planning || {}), ...scenePlanning, revealFor: activeTwistId },
-                }
-              : scene,
-          ),
-        };
-      }
-      return chapter;
-    });
-    return { ...selectedOutline, chapters, planning: nextPlanning, activeTwistId };
+      return { ...item, scenes: item.scenes.map((entry) => selectedNode?.type === "scene" && entry.id === selectedNode.id
+        ? { ...entry, title: patch.title ?? entry.title, summary: patch.summary ?? entry.summary,
+          planning: patch.scenePlanning ?? entry.planning } : entry) };
+    }) } : current);
   };
+  const setTitle = (value: string) => updateNode({ title: value });
+  const setSummary = (value: string) => updateNode({ summary: value });
+  const setChapterPlanning = (value: SetStateAction<ChapterPlanning>) => updateNode({ chapterPlanning: typeof value === "function" ? value(chapterPlanning) : value });
+  const setScenePlanning = (value: SetStateAction<ScenePlanning>) => updateNode({ scenePlanning: typeof value === "function" ? value(scenePlanning) : value });
+  const dirty = !!selectedOutline && JSON.stringify(selectedOutline) !== savedSnapshot;
+  const blocker = useBlocker(dirty);
+  const cancelNavigation = () => { setPendingNavigation(null); if (blocker.state === "blocked") blocker.reset(); };
+  const continueNavigation = () => {
+    const action = pendingNavigation; setPendingNavigation(null);
+    if (blocker.state === "blocked") blocker.proceed(); else action?.();
+  };
+  const navigateSafely = (action: () => void) => {
+    if (dirty) setPendingNavigation(() => action);
+    else action();
+  };
+  useEffect(() => {
+    if (!dirty) return;
+    const unload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", unload);
+    return () => window.removeEventListener("beforeunload", unload);
+  }, [dirty]);
 
   const handleSave = async () => {
-    if (!selectedOutline) return;
-    const nextOutline = applyEdits();
-    if (!nextOutline) return;
+    if (!selectedOutline) return false;
+    const nextOutline = selectedOutline;
     setIsSaving(true);
     setSaveStatus("");
     try {
       const saved = await api.outlines.save(selectedOutline.id, nextOutline as Outline & { worldId?: string });
-      setSelectedOutline(saved);
+      const noNewEdits = draftRef.current === nextOutline;
+      setSelectedOutline((current) => current === nextOutline ? saved : current);
+      setSavedSnapshot(JSON.stringify(saved));
       setOutlines((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
       setSaveStatus(t("outline.saved"));
       toast({ title: t("outline.structureSaved") });
+      return noNewEdits;
     } catch (error: unknown) {
       setSaveStatus(t("errors.saveFailed"));
       toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") });
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -187,6 +173,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       const created = await api.outlines.create(selectedStoryId, { title: newOutlineName.trim() || t("outline.newOutline"), planning });
       setOutlines((prev) => [created, ...prev]);
       setSelectedOutline(created);
+      setSavedSnapshot(JSON.stringify(created));
       setSelectedNode(null);
       setCreatingOutline(false);
       toast({ title: t("outline.created") });
@@ -200,13 +187,14 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     try {
       await api.outlines.delete(selectedOutline.id);
       const next = outlines.filter((outline) => outline.id !== selectedOutline.id);
-      setOutlines(next); setSelectedOutline(next[0] || null); setSelectedNode(null);
+      setOutlines(next); setSelectedOutline(next[0] || null); setSavedSnapshot(JSON.stringify(next[0] || null)); setSelectedNode(null);
       toast({ title: t("outline.deleted") });
     } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
   const handleGenerateNextChapter = async () => {
     if (!selectedOutline) return;
+    if (dirty && !(await handleSave())) return;
     const chapterNumber = selectedOutline.chapters.length + 1;
     const worldName = worlds.find((world) => world.id === selectedOutline.worldId)?.name || t("outline.defaultWorld");
     if (!confirm(t("outline.generateChapterConfirm", { chapterNumber, worldName }))) return;
@@ -215,6 +203,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       const refreshed = await api.outlines.get(selectedOutline.id);
       setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
       setSelectedOutline(refreshed);
+      setSavedSnapshot(JSON.stringify(refreshed));
       toast({ title: t("outline.chapterGenerated", { chapterNumber }) });
     } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.generateChapterFailed"), description: localizedErrorMessage(error, "errors.generateChapterFailed") }); }
   };
@@ -247,7 +236,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     });
   };
 
-  const handleSelectTwist = useCallback((twistId: string) => {
+  const handleSelectTwist = (twistId: string) => {
     if (!selectedOutline) return;
     setSelectedOutline({
       ...selectedOutline,
@@ -256,7 +245,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     });
     setChapterPlanning((current) => ({ ...current, selectedTwistId: twistId }));
     setScenePlanning((current) => ({ ...current, revealFor: twistId }));
-  }, [selectedOutline]);
+  };
 
   const handleAiRefine = async () => {
     if (!summary.trim()) return;
@@ -277,7 +266,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
     }
   };
 
-  const overview = useMemo(() => {
+  const renderOverview = () => {
     if (!planning) return null;
     return (
       <div className="space-y-6">
@@ -383,11 +372,11 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
         </Card>
       </div>
     );
-  }, [planning, twistOptions, activeTwistId, foreshadowPlans, handleSelectTwist, t]);
+  };
 
   const renderNodeEditor = () => {
     if (!selectedNode) {
-      return overview || <div className="h-full flex items-center justify-center text-muted-foreground">{t("outline.selectOutlineFirst")}</div>;
+      return renderOverview() || <div className="h-full flex items-center justify-center text-muted-foreground">{t("outline.selectOutlineFirst")}</div>;
     }
 
     return (
@@ -529,10 +518,18 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
 
   return (
     <div className="flex min-w-0 flex-col gap-5 lg:h-[calc(100vh-200px)] lg:flex-row lg:gap-6">
+      <Dialog open={!!pendingNavigation || blocker.state === "blocked"} onOpenChange={(open) => { if (!open && !isSaving) cancelNavigation(); }}>
+        <DialogContent><DialogHeader><DialogTitle>保留大纲修改</DialogTitle></DialogHeader>
+          <p>当前大纲有未保存的修改。</p><DialogFooter>
+            <Button variant="outline" disabled={isSaving} onClick={cancelNavigation}>取消</Button>
+            <Button variant="outline" disabled={isSaving} onClick={() => { setSelectedOutline(savedSnapshot ? JSON.parse(savedSnapshot) : null); continueNavigation(); }}>放弃修改</Button>
+            <Button disabled={isSaving} onClick={async () => { if (await handleSave()) { continueNavigation(); } }}>保存并继续</Button>
+          </DialogFooter></DialogContent>
+      </Dialog>
       <div className="flex w-full min-w-0 flex-col gap-4 border-b pb-4 lg:w-80 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4">
         <div className="space-y-2">
           <Label>{t("common.currentStory")}</Label>
-          <Select value={selectedStoryId} onValueChange={setSelectedStoryId}>
+          <Select value={selectedStoryId} onValueChange={(id) => navigateSafely(() => setSelectedStoryId(id))}>
             <SelectTrigger>
               <SelectValue placeholder={t("common.selectStory")} />
             </SelectTrigger>
@@ -548,7 +545,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
 
         <div className="space-y-2">
           <Label>{t("outline.currentOutline")}</Label>
-          <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => { setSelectedOutline(outlines.find((outline) => outline.id === id) || null); setSelectedNode(null); }} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={t("outline.noOutlineYet")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
+          <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => navigateSafely(() => { const next = outlines.find((outline) => outline.id === id) || null; setSelectedOutline(next); setSavedSnapshot(JSON.stringify(next)); setSelectedNode(null); })} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={t("outline.noOutlineYet")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
         </div>
 
         {selectedOutline && <div className="space-y-2"><Label>{t("outline.outlineWorld")}</Label><Select value={selectedOutline.worldId || "__default__"} onValueChange={(value) => setSelectedOutline({...selectedOutline, worldId: value === "__default__" ? undefined : value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__default__">{t("outline.useDefaultWorld")}</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div>}

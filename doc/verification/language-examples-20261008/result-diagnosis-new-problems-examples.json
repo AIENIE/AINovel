@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-new-problems-examples",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已完整扫描 coreStart 0 至 coreEnd 110（全文）。第一、三段表达清楚；第二段、第四段存在换段后主体省略问题，其中第四段行动者与动作分配无法安全确定。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"核到最后一项，圈出一个数量，把单子递回桌对面。\",\"start\":null,\"end\":null,\"impact\":\"换段后未交代主体，读者需要从上一段补出谢青；可推知所指不能作为默认省略的理由，核、圈、递三个动作的行动者因此没有被明确交代。\",\"direction\":\"明确谢青为行动者，并自然承接核完、圈出和递回的动作；保留原有数量与递回位置关系。\"},{\"kind\":\"LANGUAGE\",\"category\":\"OMISSION\",\"quote\":\"核完数量，签上名字，把单据放进文件袋。\",\"start\":null,\"end\":null,\"impact\":\"换段后连续省略主语，前一段虽有“两人”，但此处无法判断是两人各自核、签、放，还是其中一人处理；单据与文件袋的对应关系也不清楚。\",\"direction\":\"应明确行动者，并说明是两人各自完成还是其中一人处理；同时明确单据与文件袋的对应关系。现有上下文不足以安全补出具体姓名或共同参与。\"}]}",
+    "usage": {
+      "inputTokens": 2369.0,
+      "outputTokens": 5970.0,
+      "cacheTokens": 2048.0,
+      "cacheHitRate": 0.8644997889404812,
+      "cost": 1.0
+    }
+  }
+}

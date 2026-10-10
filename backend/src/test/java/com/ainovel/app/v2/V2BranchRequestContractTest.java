@@ -37,7 +37,9 @@ class V2BranchRequestContractTest {
         when(access.currentUser(any())).thenReturn(user);
         when(access.requireOwnedManuscript(manuscriptId, user)).thenReturn(manuscript);
         when(versions.mergeBranch(any(), any(), eq(branchId), any())).thenReturn(Map.of("status", "merged"));
-        mvc = MockMvcBuilders.standaloneSetup(new V2VersionController(access, versions))
+        var controller = new V2VersionController(access, versions);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller, "manuscriptTransactions", new com.ainovel.app.manuscript.OwnedManuscriptTransactions(access));
+        mvc = MockMvcBuilders.standaloneSetup(controller)
                 .setCustomArgumentResolvers(new org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }

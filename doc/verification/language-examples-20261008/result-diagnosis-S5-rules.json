@@ -1,0 +1,14 @@
+{
+  "id": "diagnosis-S5-rules",
+  "response": {
+    "role": "assistant",
+    "content": "{\"complete\":true,\"summary\":\"已通读 coreStart 0 至 coreEnd 761 全文，按叙述连贯、省略、压缩、抽象化等方向检查；明确问题集中在“找”的抽象表达与“不拉也在”指义不明，其余句子在上下文中可读。\",\"issues\":[{\"kind\":\"LANGUAGE\",\"category\":\"AWKWARD\",\"quote\":\"可“找”这个动作还在，不拉也在。\",\"start\":null,\"end\":null,\"impact\":\"“找”被写成脱离人物的抽象动作，“不拉也在”指义不明，读者无法确定她究竟在想什么、不做什么，表达生硬。\",\"direction\":\"明确写出人物的具体念头或打算，并交代“不拉”所指，避免用动作名词代替实际想法。\"}]}",
+    "usage": {
+      "inputTokens": 1727.0,
+      "outputTokens": 5381.0,
+      "cacheTokens": 0.0,
+      "cacheHitRate": 0.0,
+      "cost": 1.0
+    }
+  }
+}

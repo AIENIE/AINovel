@@ -1,0 +1,18 @@
+{
+  "backend": {
+    "tests": 569,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 46,
+    "suites": 155
+  },
+  "backendEntry": "scripts/windows/Test-Local.ps1 -Level L2 -Component Backend",
+  "frontend": {
+    "testFiles": 49,
+    "tests": 212,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed"
+  },
+  "frontendEntry": "scripts/windows/Test-Local.ps1 -Level L2 (All)"
+}

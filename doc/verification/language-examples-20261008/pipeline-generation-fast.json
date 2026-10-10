@@ -1,0 +1,20 @@
+{
+  "id": "ff005a4b-2fd3-4797-98c8-16fc2b168837",
+  "operationType": "AINOVEL_LONG_TASK",
+  "scopeType": "MANUSCRIPT",
+  "scopeId": "1849e5ad-f1a6-4dff-b075-19804dd015cd",
+  "status": "SUCCEEDED",
+  "currentStep": "已完成",
+  "totalSteps": 5,
+  "completedSteps": 5,
+  "remainingSteps": 0,
+  "currentStepOutputTokens": 5764,
+  "outputTokensEstimated": false,
+  "attemptCount": 2,
+  "resultJson": "{\"id\":\"1849e5ad-f1a6-4dff-b075-19804dd015cd\",\"outlineId\":\"5aae4360-78a0-4032-bacc-c1dea96c3451\",\"title\":\"语言后台流程 · fast\",\"worldId\":null,\"sections\":{\"03634aa2-8d6e-5c04-864e-05bf019d056f\":\"<p>周宁把红伞从臂弯里取下来，拎在手上，走到邻居家门口。伞收得整齐，扣带系着，伞尖上沾了一点灰。周宁抬手敲了两下门，退后半步，站在走廊的灯下等着。门里没有立刻回应，周宁把伞换到另一只手里，又等了一会儿。</p><p>门开了。邻居站在门里，看见周宁手里的伞，往旁边让了让。</p><p>“伞给你送回来了。”周宁把伞递过去。</p><p>“好。”邻居接过伞，先看了看伞面，又翻过伞柄。伞柄弯钩下面贴着一小块白胶布，边角起了毛，上面写着一个名字。邻居捏着伞柄转了半圈，把胶布凑近看了看，又用拇指按了按字迹。胶布有些旧，名字被手指磨得发淡，但还能认出来。</p><p>周宁没有催，只看着邻居的手。走廊尽头有人推自行车过去，车轮碾过地砖，响了一阵，又远了。</p><p>邻居抬起头：“是我的。”</p><p>“那就好。”周宁说，“你收着吧。”</p><p>邻居把伞撑开又合上，伞骨轻轻响了一声。红伞面在门口的光里亮了一下，又收拢起来。邻居把伞靠在门边，手还搭在伞柄上。</p><p>周宁见邻居确认完了，便往后退了一步：“没别的事，我先走了。”</p><p>“谢谢。”邻居说。</p><p>“不客气。”周宁说。</p><p>周宁转身往楼梯口走。走到拐角，听见身后传来关门声。那把红伞没有跟着出来，应该已经留在门里了。周宁下了一层，又想起伞柄上那块白胶布，字写得不大，但很清楚。周宁把手插进口袋，继续往下走。</p>\"},\"lastGenerationRun\":{\"id\":\"5bfe3c9e-6881-42cd-a36a-1ae344421753\",\"generationVersionId\":\"97a44591-7f5c-4c2f-a136-5e11049b298a\",\"status\":\"GENERATED\",\"createdAt\":\"2026-10-08T05:36:22.563220Z\"},\"version\":2,\"updatedAt\":\"2026-10-08T05:36:22.101588Z\",\"currentBranchId\":\"b3a9d0f3-d2a8-4e7b-bd82-c279827674a1\"}",
+  "errorMessage": null,
+  "createdAt": "2026-10-08T05:31:42.204861Z",
+  "updatedAt": "2026-10-08T05:36:22.812780Z",
+  "completedAt": "2026-10-08T05:36:22.812780Z",
+  "errorCode": null
+}
