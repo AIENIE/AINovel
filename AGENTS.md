@@ -18,9 +18,9 @@
 
 ## Anti Slop 专题必读入口
 
-涉及正文生成、Slop 检测、自动修订、风格和质量提示的分析、开发、审查或验收时，必须先阅读根目录的 **[AINovel Anti Slop 机制审计与改进依据](ANTI-SLOP-AUDIT.md)**。
+涉及正文生成、Slop 检测、自动修订、风格和质量提示的分析、开发、审查或验收时，必须先阅读现行说明 **[AINovel 中文正文质量机制](doc/architecture/language-quality.md)**。
 
-该文档记录现有机制、已复现问题和改进依据，不替代 `doc/roadmap.md`；阶段状态、排期与前置门槛继续以路线图为唯一权威。
+该文档记录当前机制、作者边界和未完成验收，不替代 `doc/roadmap.md`；阶段状态、排期与前置门槛继续以路线图为唯一权威。
 
 ## 后续分期事项 / Pending Phases
 

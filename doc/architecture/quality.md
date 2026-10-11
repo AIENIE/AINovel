@@ -41,4 +41,4 @@ Beta Reader 与通用连续性分析尚未接入真实模型评估。两个触�
 - 手动诊断与长篇巡检不修改正文。
 - 剧情候选只有用户采纳后写回，并重新检查正文哈希和文本质量。
 
-研究来源和未产品化规格见 [`../research/ai-writing-quality/README.md`](../research/ai-writing-quality/README.md)，后续 G2 阶段见 [`../roadmap.md`](../roadmap.md)。
+逐项语言检查、作者决定和未完成验收边界见[现行语言机制](language-quality.md)，后续阶段见[路线图](../roadmap.md)。

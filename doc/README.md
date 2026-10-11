@@ -1,37 +1,11 @@
 # AINovel 文档中心
 
-`doc/` 是研发文档的唯一入口；面向创作者和管理员的操作说明独立维护在 [`../user-doc/`](../user-doc/README.md)。代码是当前行为的事实来源。
+代码是实现事实来源，后续阶段与验收门槛只看[路线图](roadmap.md)。
 
-## 当前实现
+- 当前架构：[系统](architecture/overview.md)、[前端](architecture/frontend.md)、[页面](architecture/page-function-tree.md)、[引导创作](architecture/guided-creation.md)、[工作台](architecture/workbench.md)、[质量](architecture/quality.md)、[语言机制](architecture/language-quality.md)、[管理](architecture/admin.md)。
+- [HTTP API](api/README.md)、[开发](operations/development.md)、[部署](operations/deployment.md)、[Windows 入口](operations/windows-native.md)、[验证协议](operations/verification.md)。
+- [有期限的依赖例外](operations/security-exception-shaded-netty.md)。策略和到期日以原配置为准，本次仅迁移说明。
+- 待作者审阅：[语言候选](verification/language-20261007/README.md)、[示例候选](verification/language-examples-20261008/README.md)。
+- [创作者与管理员手册](../user-doc/README.md)。
 
-- [`architecture/overview.md`](architecture/overview.md)：系统边界、模块、路由和数据。
-- [`architecture/frontend.md`](architecture/frontend.md)：前端结构和页面地图。
-- [`architecture/page-function-tree.md`](architecture/page-function-tree.md)：页面功能树、职责边界和已知限制。
-- [`architecture/guided-creation.md`](architecture/guided-creation.md)：G1 引导创作。
-- [`architecture/workbench.md`](architecture/workbench.md)：创作工作台与 v2 能力。
-- [`architecture/quality.md`](architecture/quality.md)：文本质量、精雕和 G2 Step 1。
-- [`architecture/admin.md`](architecture/admin.md)：管理后台。
-- [`architecture/integrations.md`](architecture/integrations.md)：外部服务、鉴权和基础设施。
-
-## 接口与运维
-
-- [`api/README.md`](api/README.md)：HTTP API 索引。
-- [`operations/development.md`](operations/development.md)：开发环境和本地检查。
-- [`operations/deployment.md`](operations/deployment.md)：配置、部署、迁移与故障处理。
-- [`operations/windows-native.md`](operations/windows-native.md)：Windows 原生按需 Build/Start/Status/Stop/Test 入口。
-- [`operations/verification.md`](operations/verification.md)：标准验证链和可重复验收步骤。
-
-## 计划与研究
-
-- [`roadmap.md`](roadmap.md)：唯一后续工作账本。
-- [`planning/v3/README.md`](planning/v3/README.md)：G1-G4 v3 提案与设计依据。
-- [`planning/narrative-harness.md`](planning/narrative-harness.md)、[`planning/narrative-h1.md`](planning/narrative-h1.md)：H 系列长期设计与首期证据状态闭环。
-- [`research/ai-writing-quality/README.md`](research/ai-writing-quality/README.md)：AI 写作质量研究与采用状态。
-
-## 维护规则
-
-1. 当前行为与文档冲突时，以代码为准并同步修正文档。
-2. 后续状态、优先级和门槛只写入 `roadmap.md`，专题文档只保留设计依据。
-3. 不新增日期化执行结论、测试快照、截图证据、临时备份或第二份路线图；`operations/verification.md` 只维护可重复步骤，具体结果由 CI、提交记录或外部交付记录保存。
-4. 跨服务正式契约维护在工作区相对目录 `../../aienie-doc/service-integration/<service>/`，本仓库只记录消费方式；不要写入用户主目录绝对路径。
-5. 删除过时内容时依赖 Git 历史追溯，不在仓库内建立归档副本。
+仓库保留现行规范、活动路线图、可重复测试协议和夹具、未完成作者审阅内容；历史设计、旧评估、审查报告及执行快照的删除尚待完成；旧目录仍存在，本入口仅列现行资料。历史变更从 Git 查询。跨服务契约维护在工作区相对目录 `../../aienie-doc/service-integration/`；本机配置和运行证据不写入仓库。

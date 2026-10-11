@@ -6,7 +6,7 @@
 
 ```powershell
 python scripts/verification/collect-material-selection.py `
-  --environment-file D:/project/aienie/aienie-runtime/private/app-secrets/ainovel.env `
+  --environment-file ${AIENIE_RUNTIME_ROOT}/private/app-secrets/ainovel.env `
   --schema aienie_novel_audit_test_creator_20261002 `
   --run retrieval-evidence-20261003-v1 --split development `
   --output artifacts/retrieval-evidence-20261003/mysql-basic-development.json

@@ -6,7 +6,7 @@ param(
     [string]$Action,
     [ValidateSet('All', 'Backend', 'Frontend')]
     [string]$Component = 'All',
-    [string]$EnvironmentFile = (Join-Path 'D:\project\aienie\aienie-runtime\private\app-secrets' 'ainovel.env'),
+    [string]$EnvironmentFile = (Join-Path $(Join-Path $(if ($env:AIENIE_RUNTIME_ROOT) { $env:AIENIE_RUNTIME_ROOT } else { Join-Path $PSScriptRoot '../../../../aienie-runtime' }) 'private/app-secrets') 'ainovel.env'),
     [ValidateRange(30, 900)]
     [int]$StartupTimeoutSeconds = 180,
     [ValidateSet('L1', 'L2')]
@@ -24,11 +24,11 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 Import-Module (Join-Path $PSScriptRoot 'LocalRuntime.psm1') -Force
-$stateRoot = Join-Path 'D:\project\aienie\aienie-runtime\local-services\direct-runs\native-runs' $InstanceName
+$stateRoot = Join-Path $(Join-Path $(if ($env:AIENIE_RUNTIME_ROOT) { $env:AIENIE_RUNTIME_ROOT } else { Join-Path $PSScriptRoot '../../../../aienie-runtime' }) 'local-services/direct-runs/native-runs') $InstanceName
 $statePath = Join-Path $stateRoot 'processes.json'
 # Windows direct-run data root: logs/records live outside the checkout under
 # the shared aienie-runtime local-services tree, never on a drive root.
-$directRunRoot = 'D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel'
+$directRunRoot = $(Join-Path $(if ($env:AIENIE_RUNTIME_ROOT) { $env:AIENIE_RUNTIME_ROOT } else { Join-Path $PSScriptRoot '../../../../aienie-runtime' }) 'local-services/direct-runs/ainovel')
 $frontendPackageManager = 'pnpm@11.22.0'
 $components = @(
     [pscustomobject]@{

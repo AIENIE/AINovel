@@ -146,7 +146,7 @@ app:
     grpc:
       tls-enabled: true
       plaintext-enabled: false
-      trust-cert-collection: D:\project\aienie\aienie-projects\AINovel\scripts\windows\local-trust\localcert-root-ca.crt
+      trust-cert-collection: ${AIENIE_GRPC_CA_PATH:../scripts/windows/local-trust/localcert-root-ca.crt}
     security:
       fail-fast: true
       ai:
@@ -205,7 +205,7 @@ runtime:
     ADMIN_PASSWORD: ${ADMIN_PASSWORD:}
     ADMIN_TOTP_SECRET: ${ADMIN_TOTP_SECRET:}
     APP_ENV: local
-    APP_LOG_DIR: D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel\logs
+    APP_LOG_DIR: ${APP_LOG_DIR:../../aienie-runtime/local-services/direct-runs/ainovel/logs}
     APP_SECURITY_CORS_ALLOWED_HEADERS: Authorization,Content-Type,Idempotency-Key,X-Requested-With,X-Request-Id,X-Admin-Operation-Proof
     APP_SECURITY_CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS,PATCH
     APP_SECURITY_CORS_ALLOWED_ORIGINS: https://localainovel.testhut.top
@@ -223,7 +223,7 @@ runtime:
     MYSQL_USER: ainovel
     SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
     VITE_SSO_ENTRY_BASE_URL: https://localainovel.testhut.top
-    APP_RECORD_DIR: D:\project\aienie\aienie-runtime\local-services\direct-runs\ainovel\records
+    APP_RECORD_DIR: ${APP_RECORD_DIR:../../aienie-runtime/local-services/direct-runs/ainovel/records}
     SERVER_ADDRESS: 127.0.0.1
 ENV: ${runtime.configuration.ENV}
 AUTH_MODE: ${runtime.configuration.AUTH_MODE}
