@@ -21,6 +21,19 @@ const flushAsync = async () => {
 };
 
 describe("useManuscriptEditorState", () => {
+  it("keeps a recovered candidate local until an explicit manual save", async () => {
+    vi.useFakeTimers();
+    const manuscript = makeManuscript({ "scene-1": "" });
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(makeManuscript({ "scene-1": "<p>恢复后修改</p>" }));
+    const { result } = renderHook(() => useManuscriptEditorState({ replaceManuscript: vi.fn(), selectedManuscript: manuscript,
+      selectedManuscriptId: manuscript.id, selectedSceneId: "scene-1", selectedStoryId: "", toast: vi.fn() }));
+    act(() => result.current.loadCandidateDraft("<p>恢复正文</p>"));
+    act(() => result.current.handleEditorChange("<p>恢复后修改</p>"));
+    await act(async () => { vi.advanceTimersByTime(2000); await Promise.resolve(); });
+    expect(save).not.toHaveBeenCalled();expect(result.current.content).toBe("<p>恢复后修改</p>");
+    await act(async () => result.current.handleManualSave());expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it("never renders the previous scene's body when switching scenes", () => {
     const manuscript = makeManuscript({ "scene-1": "<p>第一场</p>", "scene-2": "<p>第二场</p>" });
     const renders: { scene: string; html: string }[] = [];
@@ -131,7 +144,7 @@ describe("useManuscriptEditorState", () => {
     expect(result.current.sceneDrafts["scene-1"]).toBe("<p>second</p>");
   });
 
-  it("cancels a pending empty autosave when server generation is applied and preserves other drafts", async () => {
+  it("preserves all unsaved edits when generation completes and cancels stale autosave", async () => {
     vi.useFakeTimers();
     const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
       makeManuscript({ "scene-1": "<p></p>" }),
@@ -163,10 +176,10 @@ describe("useManuscriptEditorState", () => {
     });
 
     expect(saveSection).not.toHaveBeenCalled();
-    expect(result.current.content).toBe("<p>generated text</p>");
-    expect(result.current.sceneDrafts["scene-1"]).toBe("<p>generated text</p>");
+    expect(result.current.content).toBe("<p></p>");
+    expect(result.current.sceneDrafts["scene-1"]).toBe("<p></p>");
     expect(result.current.sceneDrafts["scene-2"]).toBe("<p>other local draft</p>");
-    expect(result.current.dirtyScenes["scene-1"]).toBeUndefined();
+    expect(result.current.dirtyScenes["scene-1"]).toBe(true);
     expect(result.current.dirtyScenes["scene-2"]).toBe(true);
   });
 

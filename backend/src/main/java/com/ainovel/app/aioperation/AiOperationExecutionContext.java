@@ -9,6 +9,11 @@ public final class AiOperationExecutionContext {
     private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
     private AiOperationExecutionContext() { }
 
+    public static UUID operationId() {
+        Scope scope = CURRENT.get();
+        return scope == null ? null : scope.operationId;
+    }
+
     public static <T> T apply(Supplier<T> mutation) {
         Scope scope = CURRENT.get();
         return scope == null ? mutation.get() : scope.fence.apply(mutation, null);

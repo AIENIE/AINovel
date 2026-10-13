@@ -22,6 +22,7 @@ type DraftScope = {
   dirty: Record<string, boolean>;
   conflict: boolean;
   saving: number;
+  manualOnly?: Record<string, boolean>;
   lastSavedAt: string;
 };
 const scopeKey = (id: string, branch?: string | null) => JSON.stringify([id, branch || ""]);
@@ -87,6 +88,13 @@ export function useManuscriptEditorState({ autoSaveIntervalSeconds, replaceManus
     const target = scopes.current.get(targetKey) ?? emptyScope();
     stopTimer(targetKey, sceneId);
     target.manuscript = manuscript;
+    if (target.dirty[sceneId]) {
+      // Keep edits made while generation/adoption was in flight; only advance the server baseline.
+      scopes.current.set(targetKey, target);
+      if (activeKey.current === targetKey) replaceManuscript(manuscript);
+      refresh();
+      return;
+    }
     target.drafts = { ...target.drafts, [sceneId]: html };
     target.dirty = { ...target.dirty };
     delete target.dirty[sceneId];
@@ -104,7 +112,7 @@ export function useManuscriptEditorState({ autoSaveIntervalSeconds, replaceManus
     if (!target) return;
     stopTimer(key, sceneId);
     const save = async () => {
-      if (target.conflict && silent) return;
+      if ((target.conflict || target.manualOnly?.[sceneId]) && silent) return;
       target.saving++;
       refresh();
       try {
@@ -121,6 +129,7 @@ export function useManuscriptEditorState({ autoSaveIntervalSeconds, replaceManus
         if (target.drafts[sceneId] === undefined || target.drafts[sceneId] === html) {
           target.drafts = { ...target.drafts, [sceneId]: saved.sections?.[sceneId] ?? html };
           target.dirty = { ...target.dirty, [sceneId]: false };
+          if (target.manualOnly) delete target.manualOnly[sceneId];
         }
         target.conflict = false;
         target.lastSavedAt = new Date().toLocaleTimeString();
@@ -163,13 +172,20 @@ export function useManuscriptEditorState({ autoSaveIntervalSeconds, replaceManus
   const handleManualSave = useCallback(async () => {
     if (selectedSceneId) await persistSection(selectedSceneId, content);
   }, [content, persistSection, selectedSceneId]);
+  const loadCandidateDraft = useCallback((html: string) => {
+    const target = scopes.current.get(key);
+    if (!target || target.dirty[selectedSceneId] || target.saving) return;
+    stopTimer(key, selectedSceneId);
+    target.manualOnly = { ...target.manualOnly, [selectedSceneId]: true };
+    updateSceneDraft(selectedSceneId, html);
+  }, [key, selectedSceneId, stopTimer, updateSceneDraft]);
   const handleEditorChange = useCallback((html: string) => {
     if (!selectedSceneId || hydrated.current !== JSON.stringify([key, selectedSceneId])) return;
     recordSceneHtml(selectedSceneId, html);
     updateSceneDraft(selectedSceneId, html);
     scheduleSave(selectedSceneId, html);
   }, [key, recordSceneHtml, scheduleSave, selectedSceneId, updateSceneDraft]);
-  return { applyFetchedManuscript, applyServerSection, cancelPendingSectionSave, content, currentWordCount, dirtyScenes,
+  return { loadCandidateDraft, applyFetchedManuscript, applyServerSection, cancelPendingSectionSave, content, currentWordCount, dirtyScenes,
     handleEditorChange, handleManualSave, isSaving: scope.saving > 0,
     lastSavedAt: dirtyScenes[selectedSceneId] ? "" : scope.lastSavedAt || (scope.manuscript?.updatedAt ? new Date(scope.manuscript.updatedAt).toLocaleTimeString() : ""),
     persistSection, scheduleSave, sceneDrafts, sessionDurationSeconds, sessionNetWords, updateSceneDraft };

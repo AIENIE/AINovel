@@ -1,3 +1,4 @@
+import { sceneGenerationOutcome, SCENE_CANDIDATES_EVENT } from "@/lib/scene-candidates";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
@@ -22,6 +23,8 @@ type UseManuscriptSceneGenerationOptions = {
   selectedManuscriptId: string;
   selectedSceneId: string;
   toast: ToastFn;
+  hasUnsavedChanges?: boolean;
+  onSourceResolved?: (manuscript: Manuscript) => void;
 };
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -45,6 +48,8 @@ export function useManuscriptSceneGeneration({
   selectedManuscriptId,
   selectedSceneId,
   toast,
+  hasUnsavedChanges = false,
+  onSourceResolved,
 }: UseManuscriptSceneGenerationOptions) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("fast");
@@ -52,11 +57,21 @@ export function useManuscriptSceneGeneration({
 
   const generateScene = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId) return;
+    if (hasUnsavedChanges) { toast({ description: t("sceneCandidates.saveFirst") }); return; }
     const sceneId = selectedSceneId;
     cancelPendingSectionSave(sceneId);
     setIsGenerating(true);
     try {
-      await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode));
+      const operation = await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode));
+      const outcome = sceneGenerationOutcome(operation.resultJson);
+      if (outcome?.outcome === "NEEDS_REVIEW") {
+        // Initial generation can create the main branch even though no scene was saved.
+        if (onSourceResolved) onSourceResolved(await api.manuscripts.get(selectedManuscriptId));
+        setGenerationRevision(current => current + 1);
+        window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: outcome }));
+        toast({ title: t("sceneCandidates.needsReview") });
+        return;
+      }
       const saved = await readGeneratedManuscript(selectedManuscriptId, sceneId);
       const generatedHtml = saved.sections?.[sceneId];
       if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
@@ -76,6 +91,8 @@ export function useManuscriptSceneGeneration({
       setIsGenerating(false);
     }
   }, [
+    hasUnsavedChanges,
+    onSourceResolved,
     generationMode,
     loadPlotQuality,
     loadSlopQuality,

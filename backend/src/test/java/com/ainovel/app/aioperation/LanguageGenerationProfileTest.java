@@ -25,11 +25,11 @@ class LanguageGenerationProfileTest {
     @Test void executionUsesFrozenSelectionRatherThanCurrentGlobalVersion() throws Exception {
         var selection=new LanguageStandard.Selection("zh-naturalness-v2",true,false);
         var m=UUID.randomUUID();var scene=UUID.randomUUID();
-        handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(selection))));
-        verify(manuscripts).generateForScene(m,scene,GenerationMode.FAST,selection);
+        handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(selection),2)));
+        verify(manuscripts).generateSceneOutcome(m,scene,GenerationMode.FAST,selection);
     }
     @Test void oldUnknownPayloadCannotSilentlyStartCurrentProfile() throws Exception {
-        assertThrows(AiResultUncertainException.class,()->handler.execute(execution(
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->handler.execute(execution(
                 new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",UUID.randomUUID(),UUID.randomUUID(),"FAST",null))));
         verifyNoInteractions(manuscripts);
     }

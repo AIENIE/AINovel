@@ -84,7 +84,12 @@ public class SceneGenerationService {
         public GenerationMetadata(String modelKey,String promptVersion,String promptHash,int attemptCount,SceneDraftContextManifest contextManifest,List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references){this(modelKey,promptVersion,promptHash,attemptCount,contextManifest,references,null);}
     }
 
-    public record GenerationResult(String html, GenerationMetadata metadata) {}
+    public record GenerationResult(String html, GenerationMetadata metadata, List<UUID> candidateIds,
+            Integer minHan, Integer maxHan, Integer actualHan, boolean needsReview, String reviewReason) {
+        public GenerationResult(String html,GenerationMetadata metadata){this(html,metadata,List.of(),null,null,null,false,null);}
+    }
+    @Autowired(required=false) private com.ainovel.app.ai.AiAdmissionGuard admissionGuard;
+
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections) {
         return generateSceneSectionHtml(manuscript, sceneId, existingSections, GenerationMode.FAST);
@@ -107,117 +112,99 @@ public class SceneGenerationService {
     }
     public GenerationResult generateSceneSection(Manuscript manuscript, UUID sceneId, Map<String,String> existingSections,
             GenerationMode mode, com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection) {
-        SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
-        Story story = manuscript.getOutline().getStory();
-        boolean languageStandard = languageSelection.generation();
-        User owner = ownerOf(manuscript);
-        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, existingSections);
-        String characterContext = compiledContext == null
-                ? buildCharacterContext(characterCardRepository.findByStory(story)) : compiledContext.characterContext();
-        String previousContext = compiledContext == null
-                ? buildPreviousContext(sceneContext, existingSections)
-                : compiledContext.recentSceneContext();
-        String outlinePlanning = outlinePlanning(manuscript.getOutline());
-
-        String previousDraft = null;
-        int previousCount = 0;
-
-        int maxAttempts=compiledContext!=null && compiledContext.isolated()?2:MAX_GENERATION_ATTEMPTS;
-        var frozenReferences=freezeReferences(owner,story,manuscript,sceneContext,compiledContext);
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            if(referenceSelection!=null)referenceSelection.revalidate(owner,frozenReferences);
-            var prompt = referenceSelection==null ? sceneGenerationPromptBuilder.build(owner,story,sceneContext,characterContext,previousContext,previousDraft,previousCount,attempt,sceneContext.lengthRange().minHan(),sceneContext.lengthRange().maxHan(),mode,compiledContext) : sceneGenerationPromptBuilder.build(
-                    owner,
-                    story,
-                    sceneContext,
-                    characterContext,
-                    previousContext,
-                    previousDraft,
-                    previousCount,
-                    attempt,
-                    sceneContext.lengthRange().minHan(),
-                    sceneContext.lengthRange().maxHan(),
-                    mode,
-                    compiledContext,
-                    referenceSelection==null?null:promptReferences(frozenReferences)
-            );
-            if (languageStandard) {
-                prompt = com.ainovel.app.quality.language.LanguageStandard.augment(prompt,languageSelection.version(),true);
-                long upperBound=prompt.messages().stream().mapToLong(message->message.content().getBytes(StandardCharsets.UTF_8).length).sum()
-                        +Math.max(2048L,(long)sceneContext.lengthRange().maxHan()*3);
-                if (upperBound>prompt.tokenBudget()) throw new com.ainovel.app.common.ApiStatusException(
-                        org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"LANGUAGE_PROMPT_BUDGET_EXCEEDED");
-            }
-            String raw = aiService.chat(owner, new AiChatRequest(
-                    prompt.messages(),
-                    null,
-                    null
-            )).content();
-            String normalized = normalizeGeneratedText(raw);
-            int hanCount = countHanCharacters(normalized);
-            if (hanCount >= sceneContext.lengthRange().minHan() && hanCount <= sceneContext.lengthRange().maxHan()) {
-                SlopQualityResult qualityResult = evaluateGenerationQuality(
-                        owner, languageSelection.replacesLegacy(),
-                        compiledContext != null && compiledContext.isolated()
-                        ? scenePlotQualitySupport.buildIsolatedQualityRequest(manuscript,sceneContext,compiledContext.content(),normalized)
-                        : scenePlotQualitySupport.buildQualityRequest(
-                                manuscript,
-                                story,
-                                sceneContext,
-                                previousContext,
-                                characterContext,
-                                normalized
-                        )
-                );
-                int acceptedCount = countHanCharacters(qualityResult.acceptedText());
-                if (acceptedCount < sceneContext.lengthRange().minHan() || acceptedCount > sceneContext.lengthRange().maxHan()) {
-                    retainLengthRejected(compiledContext,sceneId,qualityResult.acceptedText(),prompt.messages(),attempt,languageStandard?languageSelection.version():null);
-                    previousDraft = qualityResult.acceptedText();
-                    previousCount = acceptedCount;
-                    continue;
-                }
-                if (validationBudget != null && validationBudget.localQualityOnly()) {
-                    // The bounded local acceptance run reserves its calls for extraction and drafting.
-                } else if (compiledContext != null && compiledContext.isolated()) {
-                    scenePlotQualitySupport.recordIsolatedPlotQuality(owner,manuscript,sceneContext,compiledContext,qualityResult.acceptedText());
-                } else scenePlotQualitySupport.recordPlotQuality(
-                        owner,
-                        manuscript,
-                        story,
-                        sceneContext,
-                        outlinePlanning,
-                        previousContext,
-                        characterContext,
-                        qualityResult.acceptedText()
-                );
-                return new GenerationResult(
-                        toEditorHtml(qualityResult.acceptedText()),
-                        new GenerationMetadata(
-                                modelPolicy.modelKey(),
-                                compiledContext == null ? SceneDraftContextCompiler.COMPILER_VERSION : compiledContext.compilerVersion(),
-                                promptHash(prompt.messages()),
-                                attempt,
-                                compiledContext == null ? null : compiledContext.manifest(),
-                                frozenReferences,
-                                languageStandard ? languageSelection.version() : null
-                        )
-                );
-            }
-            previousDraft = normalized;
-            previousCount = hanCount;
-            retainLengthRejected(compiledContext,sceneId,normalized,prompt.messages(),attempt,languageStandard?languageSelection.version():null);
+        UUID operationId=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
+        if(operationId==null) operationId=UUID.randomUUID();
+        var checkpoint=candidateStore==null?null:candidateStore.draft(operationId,1);
+        FrozenInput frozen;
+        if(checkpoint!=null&&checkpoint.getRequestJson()!=null) {
+            if(checkpoint.getManuscriptVersion()!=manuscript.getVersion()||!checkpoint.getBranchId().equals(manuscript.getCurrentBranchId()))
+                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"SCENE_CANDIDATE_VERSION_CONFLICT");
+            try {frozen=objectMapper.readValue(checkpoint.getRequestJson(),FrozenInput.class);}
+            catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
+        } else {
+            var scene=resolveSceneContext(manuscript.getOutline(),sceneId);
+            var story=manuscript.getOutline().getStory();
+            var compiled=compileContext(manuscript,sceneId,existingSections);
+            String characters=compiled==null?buildCharacterContext(characterCardRepository.findByStory(story)):compiled.characterContext();
+            String previous=compiled==null?buildPreviousContext(scene,existingSections):compiled.recentSceneContext();
+            var references=freezeReferences(ownerOf(manuscript),story,manuscript,scene,compiled);
+            var prompt=referenceSelection==null
+                    ?sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled)
+                    :sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled,promptReferences(references));
+            if(languageSelection.generation()) prompt=com.ainovel.app.quality.language.LanguageStandard.augment(prompt,languageSelection.version(),true);
+            frozen=new FrozenInput(scene,compiled,characters,previous,outlinePlanning(manuscript.getOutline()),references,prompt,mode,languageSelection);
+            if(candidateStore!=null) candidateStore.freeze(operationId,manuscript,sceneId,frozen);
         }
-
-        if (compiledContext!=null && compiledContext.isolated()) throw new com.ainovel.app.common.ApiStatusException(
-                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"H2_LENGTH_LIMIT_REACHED");
-        throw new RuntimeException("场景正文生成失败：重试 " + MAX_GENERATION_ATTEMPTS
-                + " 次后仍未达到 " + sceneContext.lengthRange().minHan() + "-" + sceneContext.lengthRange().maxHan()
-                + " 汉字（当前 " + previousCount + "）。请稍后重试。");
+        var sceneContext=frozen.scene(); var compiledContext=frozen.compiled();
+        var characterContext=frozen.characters(); var previousContext=frozen.previous(); var outlinePlanning=frozen.planning();
+        var frozenReferences=frozen.references();var initialPrompt=frozen.prompt();mode=frozen.mode();languageSelection=frozen.language();
+        boolean languageStandard=languageSelection.generation();
+        var story=manuscript.getOutline().getStory(); var owner=ownerOf(manuscript);
+        int min=sceneContext.lengthRange().minHan(),max=sceneContext.lengthRange().maxHan();
+        List<UUID> ids=new ArrayList<>();
+        GenerationResult previous=null;
+        String previousDraft=null;
+        for(int attempt=1;attempt<=2;attempt++) {
+            com.ainovel.app.aioperation.SceneGenerationProgress.report(attempt==1?"起草":"篇幅修订 1/1",attempt-1);
+            if(referenceSelection!=null) referenceSelection.revalidate(owner,frozenReferences);
+            // Freeze the entire first prompt, including materials and language settings; append only the revision instruction.
+            var messages=new ArrayList<>(initialPrompt.messages());
+            if(attempt==2) {
+                int last=messages.size()-1;
+                var message=messages.get(last);
+                messages.set(last,new AiChatRequest.Message(message.role(),message.content()
+                        +SceneGenerationPromptBuilder.lengthRevision(previousDraft,previous.actualHan(),min,max)));
+            }
+            var retained=candidateStore==null?null:candidateStore.draft(operationId,attempt);
+            var request=new AiChatRequest(messages,null,null);
+            if(attempt==2&&retained!=null&&retained.getRequestJson()!=null) {
+                try {request=objectMapper.readValue(retained.getRequestJson(),AiChatRequest.class);messages=new ArrayList<>(request.messages());}
+                catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
+            }
+            try {
+                long bytes=messages.stream().mapToLong(m->m.content().getBytes(StandardCharsets.UTF_8).length).sum()+Math.max(2048L,(long)max*3);
+                if(bytes>initialPrompt.tokenBudget()) throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"SCENE_PROMPT_BUDGET_EXCEEDED");
+                if(admissionGuard!=null) admissionGuard.validate(request);
+            } catch(com.ainovel.app.common.ApiStatusException e) {
+                if(previous!=null && List.of("SCENE_PROMPT_BUDGET_EXCEEDED","AI_REQUEST_TOO_LARGE","AI_MESSAGE_CONTENT_INVALID").contains(e.getMessage()))
+                    return new GenerationResult(previous.html(),previous.metadata(),List.copyOf(ids),min,max,previous.actualHan(),true,"REVISION_INPUT_BUDGET_EXCEEDED");
+                throw e;
+            }
+            if(attempt==2&&candidateStore!=null) candidateStore.freezeRequest(operationId,manuscript,sceneId,2,request);
+            String normalized=retained!=null&&retained.getActualHan()!=null
+                    ?normalizeGeneratedText(org.springframework.web.util.HtmlUtils.htmlUnescape(retained.getContent().replace("</p>","\n\n").replace("<br />","\n").replaceAll("<[^>]+>","")))
+                    :normalizeGeneratedText(aiService.chat(owner,request).content());
+            int count=countHanCharacters(normalized);
+            var metadata=new GenerationMetadata(modelPolicy.modelKey(),compiledContext==null?SceneDraftContextCompiler.COMPILER_VERSION:compiledContext.compilerVersion(),
+                    promptHash(messages),attempt,compiledContext==null?null:compiledContext.manifest(),frozenReferences,languageStandard?languageSelection.version():null);
+            UUID id=candidateStore==null?null:candidateStore.retainDraft(operationId,manuscript,sceneId,toEditorHtml(normalized),attempt,min,max,count,
+                    new com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source(mode,metadata,languageSelection));
+            if(id!=null) ids.add(id);
+            if(retained!=null&&"PROCESSED".equals(retained.getQualityStatus()))
+                return new GenerationResult(retained.getContent(),metadata,List.copyOf(ids),min,max,retained.getActualHan(),count<min||count>max,count<min||count>max?"QUALITY_LENGTH_OUT_OF_RANGE":null);
+            if(count>=min && count<=max) {
+                var quality=evaluateGenerationQuality(owner,languageSelection.replacesLegacy(),compiledContext!=null&&compiledContext.isolated()
+                        ?scenePlotQualitySupport.buildIsolatedQualityRequest(manuscript,sceneContext,compiledContext.content(),normalized)
+                        :scenePlotQualitySupport.buildQualityRequest(manuscript,story,sceneContext,previousContext,characterContext,normalized));
+                String accepted=quality.acceptedText();
+                int acceptedCount=countHanCharacters(accepted);
+                if(id!=null) candidateStore.qualityResult(id,toEditorHtml(accepted),acceptedCount);
+                boolean outOfRange=acceptedCount<min||acceptedCount>max;
+                if(!outOfRange && !(validationBudget!=null&&validationBudget.localQualityOnly())) {
+                    if(compiledContext!=null&&compiledContext.isolated()) scenePlotQualitySupport.recordIsolatedPlotQuality(owner,manuscript,sceneContext,compiledContext,accepted);
+                    else scenePlotQualitySupport.recordPlotQuality(owner,manuscript,story,sceneContext,outlinePlanning,previousContext,characterContext,accepted);
+                }
+                return new GenerationResult(toEditorHtml(accepted),metadata,List.copyOf(ids),min,max,acceptedCount,outOfRange,outOfRange?"QUALITY_LENGTH_OUT_OF_RANGE":null);
+            }
+            previous=new GenerationResult(toEditorHtml(normalized),metadata,List.copyOf(ids),min,max,count,true,"SCENE_LENGTH_OUT_OF_RANGE");
+            previousDraft=normalized;
+        }
+        return previous;
     }
 
-    private void retainLengthRejected(CompiledSceneDraftContext context,UUID sceneId,String text,List<AiChatRequest.Message> messages,int attempt,String languageVersion) {
-        if (context!=null && context.isolated()) candidateStore.retainLengthRejected(context.manifest().isolationStamp(),sceneId,toEditorHtml(text),new GenerationMetadata(modelPolicy.modelKey(),context.compilerVersion(),promptHash(messages),attempt,context.manifest(),List.of(),languageVersion));
-    }
+    public record FrozenInput(SceneGenerationContext scene,CompiledSceneDraftContext compiled,String characters,String previous,
+            String planning,List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references,com.ainovel.app.prompt.AssembledPrompt prompt,
+            GenerationMode mode,com.ainovel.app.quality.language.LanguageStandard.Selection language) {}
 
     private SlopQualityResult evaluateGenerationQuality(User user, boolean replacesLegacy, SlopQualityRequest request) {
         return replacesLegacy
@@ -445,7 +432,9 @@ public class SceneGenerationService {
         return continuity.length() == 0 ? "暂无可用前文。" : continuity.toString();
     }
 
-    private String normalizeGeneratedText(String raw) {
+    private String normalizeGeneratedText(String raw) { return normalizeGeneratedText(raw,objectMapper); }
+
+    static String normalizeGeneratedText(String raw,ObjectMapper objectMapper) {
         if (raw == null) return "";
         String text = raw.trim();
         if (text.startsWith("```")) {
@@ -474,7 +463,7 @@ public class SceneGenerationService {
         return text;
     }
 
-    private int countHanCharacters(String text) {
+    static int countHanCharacters(String text) {
         if (text == null || text.isBlank()) return 0;
         int count = 0;
         for (int i = 0; i < text.length(); ) {
@@ -487,7 +476,7 @@ public class SceneGenerationService {
         return count;
     }
 
-    private String toEditorHtml(String text) {
+    static String toEditorHtml(String text) {
         String normalized = text == null ? "" : text.trim();
         if (normalized.isBlank()) {
             return "<p></p>";
@@ -505,7 +494,7 @@ public class SceneGenerationService {
         return html.toString();
     }
 
-    private String escapeHtml(String value) {
+    private static String escapeHtml(String value) {
         return value
                 .replace("&", "&amp;")
                 .replace("<", "&lt;")

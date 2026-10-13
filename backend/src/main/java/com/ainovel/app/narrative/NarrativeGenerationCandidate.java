@@ -12,6 +12,39 @@ public class NarrativeGenerationCandidate {
     @Lob @Column(nullable=false) private String stampJson;
     @Column(nullable=false,length=32) private String status;
     @Column(nullable=false) private Instant createdAt;
+    private UUID operationId;
+    private Integer generationSequence;
+    private Long manuscriptVersion;
+    private Integer minHan;
+    private Integer maxHan;
+    private Integer actualHan;
+    @Column(length=32) private String qualityStatus;
+    @Column(length=32) private String sourceKind;
+    @Lob private String metadataJson;
+    @Lob private String requestJson;
+    public String getRequestJson(){return requestJson;}
+    public void setRequestJson(String v){requestJson=v;}
+    private Long adoptedVersion;
+    public UUID getOperationId(){return operationId;}
+    public void setOperationId(UUID v){operationId=v;}
+    public Integer getGenerationSequence(){return generationSequence;}
+    public void setGenerationSequence(Integer v){generationSequence=v;}
+    public Long getManuscriptVersion(){return manuscriptVersion;}
+    public void setManuscriptVersion(Long v){manuscriptVersion=v;}
+    public Integer getMinHan(){return minHan;}
+    public void setMinHan(Integer v){minHan=v;}
+    public Integer getMaxHan(){return maxHan;}
+    public void setMaxHan(Integer v){maxHan=v;}
+    public Integer getActualHan(){return actualHan;}
+    public void setActualHan(Integer v){actualHan=v;}
+    public String getQualityStatus(){return qualityStatus;}
+    public void setQualityStatus(String v){qualityStatus=v;}
+    public String getSourceKind(){return sourceKind;}
+    public void setSourceKind(String v){sourceKind=v;}
+    public String getMetadataJson(){return metadataJson;}
+    public void setMetadataJson(String v){metadataJson=v;}
+    public Long getAdoptedVersion(){return adoptedVersion;}
+    public void setAdoptedVersion(Long v){adoptedVersion=v;}
     public UUID getId(){return id;}
     public UUID getManuscriptId(){return manuscriptId;}
     public void setManuscriptId(UUID v){manuscriptId=v;}

@@ -129,7 +129,7 @@ public class AiFeatureOperationController {
                                                               UUID primaryId, UUID secondaryId, String mode,
                                                               Object request, int total, String step, String idempotencyKey) {
         var payload = new CoreAiOperationHandler.CorePayload(action, primaryId, secondaryId, mode,
-                request == null ? null : objectMapper.valueToTree(request));
+                request == null ? null : objectMapper.valueToTree(request), "SCENE_GENERATION".equals(action)?2:null);
         return ResponseEntity.accepted().body(operations.submit(user, CoreAiOperationHandler.TYPE,
                 scopeType, primaryId, payload, total, step, idempotencyKey));
     }

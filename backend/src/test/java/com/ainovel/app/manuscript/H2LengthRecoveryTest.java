@@ -35,10 +35,10 @@ class H2LengthRecoveryTest {
         when(compiler.compile(any(),any(),any())).thenReturn(compiled);
         when(builder.build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any())).thenReturn(new AssembledPrompt(List.of(new AiChatRequest.Message("user","frozen")),128000));
         when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","初稿仍太短",null,0),new AiChatResponse("assistant","修正稿仍太短",null,0));
-        assertThrows(ApiStatusException.class,()->service.generateSceneSection(manuscript,scene,Map.of(),GenerationMode.FAST));
+        assertTrue(service.generateSceneSection(manuscript,scene,Map.of(),GenerationMode.FAST).needsReview());
         verify(ai,times(2)).chat(any(),any());
-        verify(archive).retainLengthRejected(eq(stamp),eq(scene),eq("<p>初稿仍太短</p>"),argThat(m->m.attemptCount()==1 && m.contextManifest()==manifest));
-        verify(archive).retainLengthRejected(eq(stamp),eq(scene),eq("<p>修正稿仍太短</p>"),argThat(m->m.attemptCount()==2 && m.contextManifest()==manifest));
+        verify(archive).retainDraft(any(),eq(manuscript),eq(scene),eq("<p>初稿仍太短</p>"),eq(1),eq(600),eq(900),eq(5),any());
+        verify(archive).retainDraft(any(),eq(manuscript),eq(scene),eq("<p>修正稿仍太短</p>"),eq(2),eq(600),eq(900),eq(6),any());
         assertEquals("{}",manuscript.getSectionsJson());
     }
 }

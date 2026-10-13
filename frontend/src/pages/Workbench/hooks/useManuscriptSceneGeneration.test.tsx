@@ -54,6 +54,25 @@ describe("useManuscriptSceneGeneration", () => {
     expect(result.current.isGenerating).toBe(false);
   });
 
+  it("delivers NEEDS_REVIEW without fetching or overwriting manuscript content", async () => {
+    vi.spyOn(api.manuscripts, "startGenerateScene").mockResolvedValue({ operationId: "review-op" });
+    vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...completedOperation("review-op") as object,
+      resultJson: JSON.stringify({ outcome: "NEEDS_REVIEW", manuscriptId: "m", sceneId: "s", candidateIds: ["a", "b"], actualHan: 2750, minHan: 2800, maxHan: 3200, revisionCount: 1 }) } as never);
+    const get = vi.spyOn(api.manuscripts, "get"), apply = vi.fn(), toast = vi.fn();
+    const { result } = renderHook(() => useManuscriptSceneGeneration({ applyServerSection: apply,
+      cancelPendingSectionSave: vi.fn(), loadPlotQuality: vi.fn(), loadSlopQuality: vi.fn(), selectedManuscriptId: "m", selectedSceneId: "s", toast }));
+    await act(async () => result.current.generateScene());
+    expect(get).not.toHaveBeenCalled(); expect(apply).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith({ title: "正文已生成，篇幅待确认" });
+  });
+
+  it("does not start a new paid task over unsaved edits", async () => {
+    const start = vi.spyOn(api.manuscripts, "startGenerateScene");
+    const { result } = renderHook(() => useManuscriptSceneGeneration({ applyServerSection: vi.fn(), hasUnsavedChanges: true,
+      cancelPendingSectionSave: vi.fn(), loadPlotQuality: vi.fn(), loadSlopQuality: vi.fn(), selectedManuscriptId: "m", selectedSceneId: "s", toast: vi.fn() }));
+    await act(async () => result.current.generateScene()); expect(start).not.toHaveBeenCalled();
+  });
+
   it("shows a destructive toast when generation fails", async () => {
     vi.spyOn(api.manuscripts, "startGenerateScene").mockRejectedValue(new Error("network down"));
     const toast = vi.fn();

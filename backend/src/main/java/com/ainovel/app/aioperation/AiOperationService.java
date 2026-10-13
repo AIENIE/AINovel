@@ -166,8 +166,7 @@ public class AiOperationService {
         run.setErrorMessage(null);
         run.setStreamStarted(false);
         run.setCompletedSteps(0);
-        run.setOutputTokens(0);
-        run.setOutputTokensEstimated(true);
+        // Preserve already observed output across recovery; completed calls are replayed from cache.
         run.setModelKey(null);
         run.setResultJson(null);
         run.setCompletedAt(null);
@@ -295,7 +294,7 @@ public class AiOperationService {
             return;
         }
         AtomicLong lastUpdate = new AtomicLong();
-        AtomicLong currentStepTokenBase = new AtomicLong();
+        AtomicLong currentStepTokenBase = new AtomicLong(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
         AiGatewayGrpcClient.StreamProgressListener listener = new AiGatewayGrpcClient.StreamProgressListener() {
             @Override public void onStarted(String requestId, String modelKey) {
                 currentStepTokenBase.set(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
@@ -324,6 +323,7 @@ public class AiOperationService {
                     run.setOutputTokens(completedTotal);
                     run.setOutputTokensEstimated(false);
                     run.setStatus(AiOperationStatus.RUNNING);
+                    run.setStreamStarted(false);
                 });
             }
         };
@@ -353,8 +353,7 @@ public class AiOperationService {
                                     run.setCurrentStep(label);
                                     run.setCompletedSteps(Math.max(0, completed));
                                     run.setTotalSteps(Math.max(1, total));
-                                    run.setOutputTokens(0);
-                                    run.setOutputTokensEstimated(true);
+                                    run.setOutputTokens(currentStepTokenBase.get());
                                 })));
                     } catch (RuntimeException ex) {
                         throw ex;
@@ -425,7 +424,7 @@ public class AiOperationService {
         run.setCompletedSteps(run.getTotalSteps());
         run.setResultJson(write(result));
         run.setCompletedAt(Instant.now());
-        run.setCurrentStep("已完成");
+        run.setCurrentStep(result instanceof com.ainovel.app.manuscript.ManuscriptService.SceneOutcome scene && "NEEDS_REVIEW".equals(scene.outcome()) ? "待作者确认" : "已完成");
         releaseLeaseAndScope(run);
     }
 

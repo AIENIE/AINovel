@@ -76,7 +76,7 @@ class ManuscriptServiceTest {
         when(repository.findWithStoryById(m.getId())).thenReturn(Optional.of(m));
         org.mockito.Mockito.doThrow(new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"H2_CONTEXT_CHANGED")).when(context).requireStamp(owner,stamp);
         assertThrows(com.ainovel.app.common.ApiStatusException.class,()->s.generateForScene(m.getId(),scene));
-        verify(archive).retain(eq(stamp),eq(scene),eq("<p>生成候选</p>"),any());verify(archive,never()).applied(any());verify(repository,never()).saveAndFlush(any());assertEquals("{}",m.getSectionsJson());
+        verify(archive,never()).retain(any(),any(),any(),any());verify(archive,never()).applied(any());verify(repository,never()).saveAndFlush(any());assertEquals("{}",m.getSectionsJson());
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -165,13 +165,13 @@ class ManuscriptServiceTest {
         assertEquals("冷峻、压迫感强", gateRequest.styleContext());
 
         ArgumentCaptor<PlotQualityRequest> plotRequestCaptor = ArgumentCaptor.forClass(PlotQualityRequest.class);
-        verify(plotQualityService).analyze(eq(owner), plotRequestCaptor.capture());
+        verify(plotQualityService).analyzeDuringGeneration(eq(owner), plotRequestCaptor.capture());
         assertEquals(targetSceneId, plotRequestCaptor.getValue().sceneId());
         assertEquals(acceptedText, plotRequestCaptor.getValue().sceneText());
     }
 
     @Test
-    void generateForSceneShouldStopAfterThreeOutOfRangeAttempts() {
+    void generateForSceneShouldStopAfterOneRevisionAndExposeReviewOutcome() {
         ManuscriptRepository manuscriptRepository = mock(ManuscriptRepository.class);
         CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         AiService aiService = mock(AiService.class);
@@ -219,9 +219,9 @@ class ManuscriptServiceTest {
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> service.generateForScene(manuscript.getId(), targetSceneId));
 
-        assertTrue(ex.getMessage().contains("重试 3 次"));
-        verify(aiService, times(3)).chat(eq(owner), any());
-        verify(promptAssemblyService, times(3)).assembleSceneDraft(any());
+        assertEquals("SCENE_LENGTH_OUT_OF_RANGE",ex.getMessage());
+        verify(aiService, times(2)).chat(eq(owner), any());
+        verify(promptAssemblyService, times(1)).assembleSceneDraft(any());
         verify(manuscriptRepository, never()).save(any(Manuscript.class));
     }
 

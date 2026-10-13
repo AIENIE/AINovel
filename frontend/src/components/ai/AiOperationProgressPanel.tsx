@@ -1,3 +1,4 @@
+import { sceneGenerationOutcome, SCENE_CANDIDATES_EVENT } from "@/lib/scene-candidates";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, Loader2, RotateCcw, X, Minus } from "lucide-react";
@@ -40,6 +41,7 @@ export function AiOperationProgressPanel() {
   const percent = operation.totalSteps > 0
     ? Math.min(100, Math.round((operation.completedSteps / operation.totalSteps) * 100))
     : 0;
+  const sceneResult = sceneGenerationOutcome(operation.resultJson);
   const retryable = operation.status === "FAILED" || operation.status === "RECOVERY_REQUIRED";
   const running = ["QUEUED", "RUNNING", "STREAMING"].includes(operation.status);
 
@@ -53,7 +55,7 @@ export function AiOperationProgressPanel() {
         {running ? <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" /> : null}
         <div className="min-w-0 flex-1 space-y-3">
           <div>
-            <div className="font-medium">{operation.currentStep || t("ai.operationRunning")}</div>
+            <div className="font-medium">{sceneResult?.outcome === "NEEDS_REVIEW" ? t("sceneCandidates.needsReview") : operation.currentStep || t("ai.operationRunning")}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {t("ai.stepsCompleted", { completed: operation.completedSteps, remaining: operation.remainingSteps })}
             </div>
@@ -66,6 +68,8 @@ export function AiOperationProgressPanel() {
             </span>
             <span>{operation.completedSteps}/{operation.totalSteps}</span>
           </div>
+          {sceneResult && <div className="space-y-2 text-xs"><p>{t("sceneCandidates.count", { actual: sceneResult.actualHan, min: sceneResult.minHan, max: sceneResult.maxHan })}</p>
+            <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: sceneResult }))}>{t("sceneCandidates.title")}</Button></div>}
           {operation.errorMessage ? <p className="text-xs text-destructive"><span>{localizedOperationFailure(operation.errorCode)}</span> · 阶段：{operation.currentStep || operation.completedSteps}。任务编号：{operation.id}</p> : null}
           {operation.status === "RECOVERY_REQUIRED" && <p className="text-xs">任务结果需要核对。恢复原任务不会绕过积分对账；关闭面板不影响任务记录。</p>}
           {actionError && <p role="alert" className="text-xs text-destructive">{actionError}</p>}
@@ -78,7 +82,7 @@ export function AiOperationProgressPanel() {
             ) : null}
             {retryable ? (
               <Button size="sm" variant="outline" disabled={pending} onClick={() => void action(() => retryTrackedAiOperation(operation.id))}>
-                <RotateCcw className="mr-1 h-3.5 w-3.5" />{operation.status === "RECOVERY_REQUIRED" ? "恢复原任务" : t("common.retry")}
+                <RotateCcw className="mr-1 h-3.5 w-3.5" />{t("sceneCandidates.recoverTask")}
               </Button>
             ) : null}
           </div>

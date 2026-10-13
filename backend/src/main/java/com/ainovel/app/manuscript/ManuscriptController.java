@@ -76,6 +76,22 @@ public class ManuscriptController {
         return manuscriptService.updateSection(id, sceneId, request);
     }
 
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates")
+    public List<com.ainovel.app.narrative.SceneCandidateSummary> candidates(@PathVariable UUID id,@PathVariable UUID sceneId,@RequestParam UUID branchId) {
+        return manuscriptService.sceneCandidates(id,sceneId,branchId);
+    }
+
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates/{candidateId}")
+    public ManuscriptService.CandidateDetail candidate(@PathVariable UUID id,@PathVariable UUID sceneId,@PathVariable UUID candidateId,@RequestParam UUID branchId) {
+        return manuscriptService.sceneCandidate(id,sceneId,branchId,candidateId);
+    }
+
+    @PostMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates/{candidateId}/adopt")
+    public ManuscriptDto adoptCandidate(@PathVariable UUID id,@PathVariable UUID sceneId,@PathVariable UUID candidateId,
+            @Valid @RequestBody ManuscriptService.AdoptCandidateRequest request) {
+        return manuscriptService.adoptSceneCandidate(id,sceneId,candidateId,request);
+    }
+
     @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-runs")
     @Operation(summary = "查询场景生成历史", description = "按时间倒序返回生成记录；待重算记录会在查询中再次尝试精确归因。")
     public List<SceneGenerationRunDto> listSceneGenerationRuns(

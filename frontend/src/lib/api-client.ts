@@ -1,3 +1,4 @@
+import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
@@ -1271,6 +1272,14 @@ export const api = {
     },
     startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: "{}" }),
+    listSceneCandidates: (id: string, sceneId: string, branchId: string) =>
+      requestJson<SceneCandidate[]>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates?branchId=${encodeURIComponent(branchId)}`, { method: "GET" }),
+    sceneCandidate: (id: string, sceneId: string, branchId: string, candidateId: string) =>
+      requestJson<SceneCandidateDetail>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates/${candidateId}?branchId=${encodeURIComponent(branchId)}`, { method: "GET" }),
+    adoptSceneCandidate: async (id: string, sceneId: string, candidateId: string, expectedVersion: number, branchId: string): Promise<Manuscript> =>
+      toManuscript(await requestJson<NetworkObject>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates/${candidateId}/adopt`, {
+        method: "POST", body: JSON.stringify({ expectedVersion, branchId }),
+      })),
     listGenerationRuns: async (manuscriptId: string, sceneId: string, limit = 10): Promise<GenerationRunSummary[]> =>
       requestJson<GenerationRunSummary[]>(
         `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs?limit=${encodeURIComponent(String(limit))}`,

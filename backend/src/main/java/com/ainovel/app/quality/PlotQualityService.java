@@ -80,6 +80,11 @@ public class PlotQualityService {
                 () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
+    public PlotQualityRun analyzeDuringGeneration(User user,PlotQualityRequest request) {
+        PlotQualityRun result=evaluate(user,request);
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.apply(()->runRepository.save(result));
+    }
+
     private PlotQualityRun evaluate(User user, PlotQualityRequest request) {
         try {
             String content = aiService.chat(user, new AiChatRequest(

@@ -37,7 +37,20 @@ const OPERATION_MESSAGES: Record<string,string> = {
   };
 
 export function localizedOperationFailure(code?: string | null): string {
-  return (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
+  return (code && sceneFailureMessage(code)) || (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
+}
+
+function sceneFailureMessage(code: string): string | undefined {
+  const keys: Record<string, string> = {
+    SCENE_LENGTH_OUT_OF_RANGE: "sceneCandidates.needsReview",
+    SCENE_LEGACY_RECOVERY_REQUIRED: "sceneCandidates.legacyRecovery",
+    SCENE_CANDIDATE_MANUAL_SAVE_REQUIRED: "sceneCandidates.incompleteSource",
+    SCENE_CANDIDATE_VERSION_CONFLICT: "sceneCandidates.stale",
+    SCENE_CANDIDATE_NOT_FOUND: "sceneCandidates.notFound",
+    SCENE_CANDIDATE_SOURCE_UNAVAILABLE: "sceneCandidates.sourceUnavailable",
+    SCENE_PROMPT_BUDGET_EXCEEDED: "sceneCandidates.budgetExceeded",
+  };
+  return keys[code] ? t(keys[code]) : undefined;
 }
 
 const ERROR_STATUS_KEYS: Record<number, string> = {
@@ -66,7 +79,7 @@ export function errorKeyForStatus(status: number): string {
  */
 export function localizedErrorMessage(error: unknown, fallbackKey = "errors.operationFailed"): string {
   if (isApiError(error)) {
-    const message = OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
+    const message = sceneFailureMessage(error.message) || OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
     return error.requestId && /^[a-zA-Z0-9-]{1,64}$/.test(error.requestId)
       ? `${message}（请求编号：${error.requestId}）` : message;
   }

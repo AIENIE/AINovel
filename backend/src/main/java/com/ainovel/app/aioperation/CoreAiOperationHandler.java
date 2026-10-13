@@ -86,16 +86,16 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 yield result;
             }
             case "SCENE_GENERATION" -> {
+                if(payload.sceneGenerationVersion()==null) throw new com.ainovel.app.common.ApiStatusException(
+                        org.springframework.http.HttpStatus.CONFLICT,"SCENE_LEGACY_RECOVERY_REQUIRED");
                 if(payload.request()==null || payload.request().isNull()) throw new com.ainovel.app.ai.AiResultUncertainException(
                         new IllegalStateException("LANGUAGE_PROFILE_MISSING_FROM_HISTORICAL_TASK"));
                 com.ainovel.app.quality.language.LanguageStandard.Selection language;
                 try { language=execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.quality.language.LanguageStandard.Selection.class); }
                 catch(Exception unavailable) { throw new com.ainovel.app.ai.AiResultUncertainException(unavailable); }
-                execution.progress().step("生成场景正文", 0, 5);
-                Object result = manuscripts.generateForScene(payload.primaryId(), payload.secondaryId(),
-                        GenerationMode.valueOf(payload.mode()),language);
-                execution.progress().step("保存正文与质量结果", 4, 5);
-                yield result;
+                try(var stage=SceneGenerationProgress.install((label,completed)->execution.progress().step(label,completed,3))) {
+                    yield manuscripts.generateSceneOutcome(payload.primaryId(),payload.secondaryId(),GenerationMode.valueOf(payload.mode()),language);
+                }
             }
             case "SLOP_DIAGNOSIS" -> {
                 Manuscript manuscript = accessGuard.requireOwnedManuscript(payload.primaryId(), execution.user());
@@ -125,5 +125,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
         };
     }
 
-    public record CorePayload(String action, UUID primaryId, UUID secondaryId, String mode, JsonNode request) {}
+    public record CorePayload(String action,UUID primaryId,UUID secondaryId,String mode,JsonNode request,Integer sceneGenerationVersion) {
+        public CorePayload(String action,UUID primaryId,UUID secondaryId,String mode,JsonNode request) {this(action,primaryId,secondaryId,mode,request,null);}
+    }
 }

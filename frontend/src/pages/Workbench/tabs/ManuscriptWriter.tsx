@@ -1,3 +1,4 @@
+import { SceneCandidatesPanel } from "./manuscript-writer/SceneCandidatesPanel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ImperativePanelHandle } from "react-resizable-panels";
@@ -115,6 +116,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   });
 
   const {
+    loadCandidateDraft,
     applyFetchedManuscript,
     applyServerSection,
     cancelPendingSectionSave,
@@ -348,6 +350,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     isGenerating,
     setGenerationMode,
   } = useManuscriptSceneGeneration({
+    onSourceResolved: replaceManuscript,
+    hasUnsavedChanges: !!dirtyScenes[activeSceneId],
     applyServerSection,
     cancelPendingSectionSave,
     loadPlotQuality,
@@ -392,9 +396,14 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   />;
 
   return (
-    <div className="relative h-[calc(100vh-180px)]">
+    <div className="relative flex h-[calc(100vh-180px)] min-h-0 flex-col gap-2">
+      <div className="flex shrink-0 justify-end">
+        <SceneCandidatesPanel manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
+          busy={isSaving || isGenerating} revision={generationRevision} onApplied={applyServerSection}
+          onLoadDraft={loadCandidateDraft} onRegenerate={generateScene} />
+      </div>
       {isMobile ? (
-        <div className="flex h-full min-w-0 flex-col gap-2">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Select value={selectedStoryId} onValueChange={setSelectedStoryId}><SelectTrigger><SelectValue placeholder={t("common.selectStory")} /></SelectTrigger><SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent></Select>
             <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}><SelectTrigger><SelectValue placeholder={outlines.length ? t("common.selectOutline") : t("manuscript.createOutlineFirst")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select>

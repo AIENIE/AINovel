@@ -1,3 +1,4 @@
+import { sceneGenerationOutcome, SCENE_CANDIDATES_EVENT } from "./scene-candidates";
 import { useSyncExternalStore } from "react";
 import { api } from "@/lib/api-client";
 import type { AiOperationAccepted, AiOperationProgress } from "@/types";
@@ -65,6 +66,11 @@ function clearTracked(operationId: string) {
 }
 
 function refreshRecoveredResult(final: AiOperationProgress) {
+  const scene = sceneGenerationOutcome(final.resultJson);
+  if (scene) {
+    window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: scene }));
+    return;
+  }
   clearTracked(final.id);
   try {
     const result = final.resultJson ? JSON.parse(final.resultJson) : null;
