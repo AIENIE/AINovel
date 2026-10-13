@@ -40,8 +40,51 @@ class ExternalMySqlMigrationVerificationTest {
             SceneGenerationSchemaAssertions.assertV13Schema(
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
+            assertAssistantSchema(config, databaseUrl);
             assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
         });
+    }
+
+    @Test
+    void upgradesV36PreservingCandidatesAndEnforcingAssistantIdentity() throws Exception {
+        var config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (name, url) -> {
+            Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("36").load().migrate();
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                statement.execute("INSERT INTO manuscripts(id,sections_json,version) VALUES(UNHEX(REPEAT('01',16)),'{}',0)");
+                statement.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
+                statement.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>兼容旧候选😀</p>','{}','LENGTH_REJECTED',NOW(6))");
+            }
+            assertEquals(1, flyway(config, url).migrate().migrationsExecuted);
+            assertAssistantSchema(config, url);
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                try (var rows = statement.executeQuery("SELECT content,operation_id FROM narrative_generation_candidates")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals("<p>兼容旧候选😀</p>", rows.getString(1));
+                    org.junit.jupiter.api.Assertions.assertNull(rows.getBytes(2));
+                }
+                statement.execute("INSERT INTO writing_assistant_sessions(id,user_id,manuscript_id,branch_id,scene_id,created_at) VALUES(UNHEX(REPEAT('05',16)),UNHEX(REPEAT('06',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),NOW(6))");
+                org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () -> statement.execute("INSERT INTO writing_assistant_sessions SELECT UNHEX(REPEAT('07',16)),user_id,manuscript_id,branch_id,scene_id,created_at FROM writing_assistant_sessions"));
+                statement.execute("INSERT INTO writing_assistant_turns(id,session_id,request_key,request_hash,operation_id,frozen_json,created_at) VALUES(UNHEX(REPEAT('08',16)),UNHEX(REPEAT('05',16)),'request-1','hash',UNHEX(REPEAT('09',16)),'{\"draft\":\"原稿😀\"}',NOW(6))");
+                org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () -> statement.execute("INSERT INTO writing_assistant_turns(id,session_id,request_key,request_hash,frozen_json,created_at) SELECT UNHEX(REPEAT('10',16)),session_id,request_key,request_hash,frozen_json,created_at FROM writing_assistant_turns"));
+                org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () -> statement.execute("INSERT INTO writing_assistant_turns(id,session_id,request_key,request_hash,operation_id,frozen_json,created_at) SELECT UNHEX(REPEAT('10',16)),session_id,'request-2',request_hash,operation_id,frozen_json,created_at FROM writing_assistant_turns"));
+                statement.execute("INSERT INTO writing_assistant_proposals(id,turn_id,status,data_json,receipts_json,created_at) VALUES(UNHEX(REPEAT('11',16)),UNHEX(REPEAT('08',16)),'READY','{}','{}',NOW(6))");
+                org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () -> statement.execute("INSERT INTO writing_assistant_proposals SELECT UNHEX(REPEAT('12',16)),turn_id,status,data_json,receipts_json,created_at FROM writing_assistant_proposals"));
+            }
+            assertEquals(0, flyway(config, url).migrate().migrationsExecuted);
+        });
+    }
+
+    private static void assertAssistantSchema(ExternalMySqlConfig config, String url) throws Exception {
+        try (var connection = DriverManager.getConnection(url, config.username, config.password);
+             var statement = connection.createStatement();
+             var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('writing_assistant_sessions','writing_assistant_turns','writing_assistant_proposals')")) {
+            org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+            assertEquals(3, rows.getInt(1));
+        }
     }
 
     @Test
@@ -54,7 +97,7 @@ class ExternalMySqlMigrationVerificationTest {
                 q.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
                 q.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>旧 H2 正文</p>','{}','LENGTH_REJECTED',NOW(6))");
             }
-            assertEquals(1,flyway(config,url).migrate().migrationsExecuted);
+            assertEquals(2,flyway(config,url).migrate().migrationsExecuted);
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
                 try(var rows=q.executeQuery("SELECT content,operation_id FROM narrative_generation_candidates")) {
                     org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals("<p>旧 H2 正文</p>",rows.getString(1));org.junit.jupiter.api.Assertions.assertNull(rows.getBytes(2));
@@ -91,12 +134,12 @@ class ExternalMySqlMigrationVerificationTest {
 
     @Test
     void upgradesStagingV23ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("23", 13);
+        assertUpgradeThroughLatest("23", 14);
     }
 
     @Test
     void upgradesDevelopV33ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("33", 3);
+        assertUpgradeThroughLatest("33", 4);
     }
 
     private void assertUpgradeThroughLatest(String baseline, int expectedPending) throws Exception {
@@ -107,7 +150,7 @@ class ExternalMySqlMigrationVerificationTest {
             var migration = flyway(config, databaseUrl);
             assertEquals(expectedPending, migration.info().pending().length);
             assertEquals(expectedPending, migration.migrate().migrationsExecuted);
-            assertEquals("36", migration.info().current().getVersion().getVersion());
+            assertEquals("37", migration.info().current().getVersion().getVersion());
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement();
                  var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_emergency_subjects WHERE subject_id='configured-admin'")) {
@@ -135,7 +178,7 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 statement.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            assertEquals(2, flyway(config, databaseUrl).migrate().migrationsExecuted);
+            assertEquals(3, flyway(config, databaseUrl).migrate().migrationsExecuted);
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement()) {
                 try (var columns = statement.executeQuery("SELECT DATA_TYPE,COLLATION_NAME,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_operation_runs' AND COLUMN_NAME='payload_json'")) {

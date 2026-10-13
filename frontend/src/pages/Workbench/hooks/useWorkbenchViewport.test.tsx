@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { useWorkbenchViewport } from "./useWorkbenchViewport";
 
 const setViewportWidth = (width: number) => {
@@ -12,8 +12,16 @@ const setViewportWidth = (width: number) => {
 
 describe("useWorkbenchViewport", () => {
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
     setViewportWidth(1024);
+  });
+
+  it.each([390, 900, 1279, 1280, 1440])("uses the workbench's compact threshold for paged writing at %ipx without changing mobile navigation", width => {
+    setViewportWidth(width);
+    const { result } = renderHook(() => useWorkbenchViewport({ focusMode: false, setLeftPanelOpen: vi.fn(), setIsSidebarOpen: vi.fn() }));
+    expect(result.current.isCompact).toBe(width < 1280);
+    expect(result.current.isMobile).toBe(width < 768);
   });
 
   it("tracks mobile and compact breakpoints from the viewport width", async () => {

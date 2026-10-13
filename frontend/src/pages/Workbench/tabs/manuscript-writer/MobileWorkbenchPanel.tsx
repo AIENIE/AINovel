@@ -113,8 +113,9 @@ export function MobileWorkbenchPanel({
   versions,
 }: MobileWorkbenchPanelProps) {
   const { t } = useTranslation();
+  const readingAssistant = mobilePane === "sidebar" && sidebarTab === "copilot";
   return (
-    <Tabs value={mobilePane} onValueChange={(value) => onChangeMobilePane(value as MobilePane)} className="h-full rounded-lg border bg-background p-2">
+    <Tabs value={mobilePane} onValueChange={(value) => onChangeMobilePane(value as MobilePane)} className={cn("rounded-lg border bg-background p-2", readingAssistant ? "h-auto" : "h-full")}>
       <TabsList className="grid grid-cols-3">
         <TabsTrigger value="outline">{t("mobilePanel.outline")}</TabsTrigger>
         <TabsTrigger value="editor">{t("mobilePanel.editor")}</TabsTrigger>
@@ -163,10 +164,10 @@ export function MobileWorkbenchPanel({
           </div>
         </div>
       </TabsContent>
-      <TabsContent value="sidebar" className="h-[calc(100%-3rem)] m-0 mt-2 min-h-0">
-        <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
+      <TabsContent value="sidebar" className={cn("m-0 mt-2 min-h-0", readingAssistant ? "h-auto" : "h-[calc(100%-3rem)]")}>
+        <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className={cn("flex flex-col", readingAssistant ? "h-auto" : "h-full")}>
           <TabsList className="flex h-auto justify-start overflow-x-auto">
-            <TabsTrigger className="shrink-0" value="copilot">AI</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="copilot">{t("assistant.title")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="context">{t("mobilePanel.context")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="narrative">{t("narrative.tab")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
@@ -174,8 +175,8 @@ export function MobileWorkbenchPanel({
             <TabsTrigger className="shrink-0" value="version">{t("mobilePanel.version")}</TabsTrigger>
             <TabsTrigger className="shrink-0" value="export">{t("mobilePanel.export")}</TabsTrigger>
           </TabsList>
-          <TabsContent value="copilot" className="flex-1 m-0 mt-2 min-h-0">
-            <CopilotSidebar context={contextData ?? undefined} className="h-full border-none" />
+          <TabsContent value="copilot" className="m-0 mt-2">
+            <CopilotSidebar context={contextData ?? undefined} className="h-auto border-none [&_[role=log]]:min-h-[240px] [&_[role=log]]:max-h-[60vh] [&_[role=log]]:flex-none" />
           </TabsContent>
           <ContextSidebarPanel contextPreview={contextPreview} onRefresh={() => onLoadContextPreview?.()} />
           {narrativePanel}

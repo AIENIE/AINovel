@@ -5,6 +5,7 @@ import {
   AiOperationCancelledError,
   setTrackedAiUser, setTrackedAiVisibility, useTrackedAiVisibility, resumeTrackedAiOperation,
   cancelTrackedAiOperation,
+  retryTrackedAiOperation,
   runTrackedAiOperation,
 } from "@/lib/ai-operation-store";
 import type { AiOperationProgress } from "@/types";
@@ -78,6 +79,21 @@ describe("ai operation tracking", () => {
     await cancelTrackedAiOperation("operation-finished");
     remote.resolve(completedOperation("operation-finished"));
     await expect(operation).resolves.toMatchObject({ status: "SUCCEEDED" });
+  });
+  it("refreshes assistant history in place after recovery without reloading unsaved editor text", async () => {
+    vi.useFakeTimers();
+    const reload = vi.fn(), assign = vi.fn(), dispatch = vi.fn();
+    const originalWindow = window;
+    vi.stubGlobal("window", { sessionStorage: originalWindow.sessionStorage, setTimeout: originalWindow.setTimeout.bind(originalWindow), dispatchEvent: dispatch, location: { reload, assign } });
+    try {
+      vi.spyOn(api.aiOperations, "retry").mockResolvedValue({ operationId: "assistant-recovered" } as Awaited<ReturnType<typeof api.aiOperations.retry>>);
+      vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...completedOperation("assistant-recovered"), operationType: "WRITING_ASSISTANT_TURN" });
+      await retryTrackedAiOperation("assistant-recovered");
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "ainovel:writing-assistant-updated" }));
+      expect(reload).not.toHaveBeenCalled();
+      expect(assign).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(4000);
+    } finally { vi.unstubAllGlobals(); }
   });
 });
 

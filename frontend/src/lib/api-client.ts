@@ -3,6 +3,7 @@ import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
 import { createLanguageQualityApi } from "./api/domains/language-quality";
+import { createWritingAssistantApi } from "./api/domains/writing-assistant";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
@@ -777,6 +778,7 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 export const api = {
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
+  writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
   narrativeContext: {
     state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
     update: (mid: string, bid: string, value: import('@/types/narrative-context').ContextUpdate, key: string) =>

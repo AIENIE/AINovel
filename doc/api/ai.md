@@ -6,11 +6,11 @@
   - 当前仅返回 `deepseek-v4-flash`（显示名 `DeepSeek V4 Flash`）。
   - 响应项包含 `modelType=text`、`supportsImageInput` 和 `supportsStreaming`；后台长任务只在目标模型声明 `supportsStreaming=true` 时使用真实服务端流式输出。
 
-## Copilot 对话
+## 通用聊天（兼容接口）
 - `POST /api/v1/ai/chat`：请求 `{modelId,context?,messages:[{role,content}]}`，返回 `{role,content,usage:{inputTokens,outputTokens,cacheTokens,cacheHitRate,cost},remainingCredits}`。
   - `modelId` 字段保留兼容旧前端和脚本，但服务端会忽略请求值，统一使用 ai-service 的 `deepseek-v4-flash`。
   - `cacheTokens` 为 AiService/模型供应商上报的缓存命中输入 token 数；`cacheHitRate = cacheTokens / inputTokens`，服务端限制在 `0-1`。
-  - 前端 Copilot 会在助手消息下显示缓存命中 token 和命中率，用于观察提示词缓存优化效果。
+  - 旧聊天调用保留给其他消费者。工作台写作助手改用独立的[会话、上下文读取与修改提案接口](writing-assistant.md)，结果中的模型用量与正文汉字数分开显示。
 
 ## 文本润色
 - `POST /api/v1/ai/refine`：请求 `{text,instruction?,modelId}`，返回 `{result,usage,remainingCredits}`。

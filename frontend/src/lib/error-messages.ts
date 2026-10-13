@@ -42,6 +42,21 @@ export function localizedOperationFailure(code?: string | null): string {
 
 function sceneFailureMessage(code: string): string | undefined {
   const keys: Record<string, string> = {
+    ASSISTANT_FORMAT_PRESERVATION_LIMIT: "assistant.formatLimit",
+    ASSISTANT_SELECTION_INVALID: "assistant.invalidSource",
+    ASSISTANT_SELECTION_UNSUPPORTED: "assistant.unsupportedSelection",
+    ASSISTANT_REPLACEMENTS_INVALID: "assistant.invalidResult",
+    ASSISTANT_SOURCE_INVALID: "assistant.invalidSource",
+    ASSISTANT_PROPOSAL_STALE: "assistant.proposalStale",
+    ASSISTANT_BRANCH_CHANGED: "assistant.identityChanged",
+    ASSISTANT_SESSION_BUSY: "assistant.writeBusy",
+    ASSISTANT_TURN_IN_PROGRESS: "assistant.turnBusy",
+    ASSISTANT_CONTEXT_TOO_LARGE: "assistant.contextTooLarge",
+    ASSISTANT_CONTEXT_CHANGED: "assistant.proposalStale",
+    ASSISTANT_H2_SAVE_REQUIRED: "assistant.h2SaveRequired",
+    ASSISTANT_IDEMPOTENCY_CONFLICT: "assistant.requestConflict",
+    ASSISTANT_RESULT_INVALID: "assistant.invalidResult",
+    ASSISTANT_TOOL_REQUEST_INVALID: "assistant.invalidResult",
     SCENE_LENGTH_OUT_OF_RANGE: "sceneCandidates.needsReview",
     SCENE_LEGACY_RECOVERY_REQUIRED: "sceneCandidates.legacyRecovery",
     SCENE_CANDIDATE_MANUAL_SAVE_REQUIRED: "sceneCandidates.incompleteSource",

@@ -1,230 +1,73 @@
-import type { NetworkObject } from "@/lib/api-client";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/api-client";
-import { ModelConfig } from "@/types";
-import { useAuth } from "@/contexts/auth-state";
+import { Bot, Loader2, Send } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, User, Sparkles, Loader2, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useWritingAssistantContext } from "./writing-assistant-context";
+import { AssistantProposalCard } from "./AssistantProposalCard";
+import type { AssistantIntent } from "@/lib/api/domains/writing-assistant";
+import { assistantWarning, assistantSourceReason } from "@/lib/assistant-messages";
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  cost?: number;
-  cacheTokens?: number;
-  cacheHitRate?: number;
-}
-
-interface CopilotSidebarProps {
-  context?: NetworkObject; // Context data (story, chapter, etc.)
-  className?: string;
-}
-
-const pickDefaultChatModel = (models: ModelConfig[]): string => {
-  if (!models.length) return "";
-  const enabled = models.filter((m) => m.isEnabled !== false);
-  const candidates = enabled.length ? enabled : models;
-
-  const textModel = candidates.find((m) => (m.modelType || "").toLowerCase() === "text");
-  if (textModel) return textModel.id;
-
-  const nonEmbedding = candidates.find((m) => {
-    const key = `${m.displayName || ""} ${m.name || ""}`.toLowerCase();
-    return !key.includes("embedding") && !key.includes("ocr");
-  });
-  if (nonEmbedding) return nonEmbedding.id;
-
-  return candidates[0].id;
-};
-
-const formatPercent = (value?: number): string => {
-  if (value === undefined || Number.isNaN(value)) return "0%";
-  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
-};
-
-const CopilotSidebar = ({ context, className }: CopilotSidebarProps) => {
-  const { user, refreshProfile } = useAuth();
+interface CopilotSidebarProps { context?: unknown; className?: string }
+export default function CopilotSidebar({ className }: CopilotSidebarProps) {
+  const assistant = useWritingAssistantContext();
   const { t } = useTranslation();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', content: t('copilot.welcome') }
-  ]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [models, setModels] = useState<ModelConfig[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    api.ai
-      .getModels()
-      .then((data) => {
-        setModels(data);
-        setSelectedModelId(data.length > 0 ? pickDefaultChatModel(data) : "");
-      })
-      .catch(() => {
-        setModels([]);
-        setSelectedModelId("");
-      });
-  }, []);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || !selectedModelId) return;
-    if (user && user.credits <= 0) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: t('copilot.insufficientCredits') }]);
-      return;
-    }
-
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: input };
-    setMessages(prev => [...prev, userMsg]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const response = await api.ai.chat([...messages, userMsg], selectedModelId, context ?? {});
-      
-      const aiMsg: Message = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'assistant', 
-        content: response.content,
-        cost: response.usage?.cost,
-        cacheTokens: response.usage?.cacheTokens,
-        cacheHitRate: response.usage?.cacheHitRate,
-      };
-      
-      setMessages(prev => [...prev, aiMsg]);
-      await refreshProfile(); // Update credits in UI
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
-        role: 'assistant', 
-        content: t('copilot.requestFailed')
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const selectedModel = models.find(m => m.id === selectedModelId);
-
-  return (
-    <div className={cn("flex flex-col h-full border-l bg-card", className)}>
-      {/* Header */}
-      <div className="p-4 border-b space-y-3">
-        <div className="flex items-center gap-2 font-semibold">
-          <Bot className="h-5 w-5 text-primary" />
-          AI Copilot
+  const location = useLocation();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  useEffect(() => setExpanded(null), [assistant?.identity]);
+  if (!assistant?.id || !assistant.sceneId) return <p className="p-4 text-sm">{t("assistant.chooseScene")}</p>;
+  const latestProposal = [...assistant.turns].reverse().find(turn => turn.proposalId)?.proposalId;
+  return <section aria-label={t("assistant.title")} className={cn("flex h-full min-h-0 min-w-0 flex-col bg-card", className)}>
+    <header className="shrink-0 border-b p-3 space-y-2">
+      <div className="flex items-center gap-2 font-semibold"><Bot className="h-5 w-5" />{t("assistant.title")}<Button variant="ghost" size="sm" className="ml-auto" onClick={() => void assistant.refresh()}>{t("assistant.refresh")}</Button></div>
+      <p className="break-words text-xs text-muted-foreground">{assistant.sceneTitle} · {t("assistant.version", { version: assistant.manuscriptVersion })}</p>
+      <p className="text-xs">{assistant.session.data?.h2Enabled ? t("assistant.h2Note") : t("assistant.draftNote")}</p>
+    </header>
+    <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-4 break-words [overflow-wrap:anywhere]" role="log" aria-live="polite">
+      {assistant.hasOlder && <Button variant="outline" size="sm" disabled={assistant.loadingOlder} onClick={() => void assistant.loadOlder()}>{t("assistant.older")}</Button>}
+      {assistant.session.isPending && <p>{t("assistant.loading")}</p>}
+      {!assistant.session.isPending && !assistant.turns.length && <p className="text-sm text-muted-foreground">{t("assistant.welcome")}</p>}
+      {assistant.turns.map(turn => <article key={turn.id} className="space-y-2 text-sm">
+        <p className="rounded-lg bg-secondary p-3 whitespace-pre-wrap">{turn.instruction}</p>
+        <div className="space-y-2 rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">{t(`assistant.state.${turn.resultKind || turn.status}`, { defaultValue: turn.status })}</p>
+          {turn.answer && <p className="whitespace-pre-wrap leading-relaxed">{turn.answer}</p>}
+          {turn.warnings.map((warning, index) => <p key={index} className="text-xs text-amber-700">{assistantWarning(warning)}</p>)}
+          {!!turn.sources.length && <details><summary className="cursor-pointer text-xs">{t("assistant.sources", { count: turn.sources.length })}</summary>
+            <div className="mt-2 space-y-3">{turn.sources.map((source, index) => {
+              const params = new URLSearchParams(location.search); if (source.sceneId) params.set("sceneId", source.sceneId);
+              return <details className="rounded border p-2" key={`${source.id}:${index}`}><summary className="cursor-pointer">{source.title}</summary>
+                <p className="whitespace-pre-wrap leading-relaxed mt-2">{source.content}</p>
+                {source.truncated && <p className="text-xs text-amber-700">{t("assistant.sourceTruncated")}</p>}{source.reason && <p className="text-xs">{assistantSourceReason(source.reason)}</p>}
+                {source.sceneId && <Link className="text-primary underline text-xs" to={`${location.pathname}?${params}`}>{t("assistant.openSource")}</Link>}
+              </details>;
+            })}</div></details>}
+          <p className="text-xs text-muted-foreground">{t(["FAILED", "RECOVERY_REQUIRED", "CANCELLED"].includes(turn.status) ? "assistant.confirmedUsage" : "assistant.usage", { input: turn.usage.inputTokens, output: turn.usage.outputTokens, cost: turn.usage.cost, calls: turn.usage.modelCalls })}</p>
+          {turn.operationId && ["FAILED", "RECOVERY_REQUIRED"].includes(turn.status) && <Button size="sm" variant="outline" disabled={assistant.working} onClick={() => void assistant.recover(turn.operationId!)}>{t("assistant.recover")}</Button>}
+          {turn.proposalId && <>
+            <Button size="sm" variant="outline" onClick={() => setExpanded(expanded === turn.proposalId ? "" : turn.proposalId)}>{t("assistant.viewProposal")}</Button>
+            {(expanded === turn.proposalId || (expanded === null && turn.proposalId === latestProposal)) && <AssistantProposalCard key={`${assistant.identity}:${turn.proposalId}`} proposalId={turn.proposalId} />}
+          </>}
         </div>
-        
-        <div className="space-y-1">
-          <Select value={selectedModelId} onValueChange={setSelectedModelId}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder={t("copilot.selectModel")} />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map(m => (
-                <SelectItem key={m.id} value={m.id} className="text-xs">
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <span>{m.displayName}</span>
-                    <span className="text-muted-foreground opacity-70">x{m.outputMultiplier}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedModel && (
-            <div className="text-[10px] text-muted-foreground flex justify-between px-1">
-              <span>{t("copilot.inputMultiplier", { value: selectedModel.inputMultiplier })}</span>
-              <span>{t("copilot.outputMultiplier", { value: selectedModel.outputMultiplier })}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Chat Area */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        <div className="space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={cn(
-                "flex gap-3 text-sm",
-                msg.role === 'user' ? "flex-row-reverse" : "flex-row"
-              )}
-            >
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
-                msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted"
-              )}>
-                {msg.role === 'user' ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-              </div>
-              <div className={cn(
-                "rounded-lg p-3 max-w-[85%]",
-                msg.role === 'user' 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-muted/50 border"
-              )}>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-                {(msg.cost !== undefined || (msg.cacheTokens !== undefined && msg.cacheTokens > 0)) && (
-                  <div className="mt-2 text-[10px] opacity-70 border-t border-border/50 pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    {msg.cost !== undefined && <span>{t("copilot.cost", { cost: msg.cost })}</span>}
-                    {msg.cacheTokens !== undefined && msg.cacheTokens > 0 && (
-                      <span>{t("copilot.cacheHit", { tokens: Math.round(msg.cacheTokens), rate: formatPercent(msg.cacheHitRate) })}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-              <div className="bg-muted/50 border rounded-lg p-3 text-sm text-muted-foreground">
-                {t("copilot.thinking")}
-              </div>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      {/* Input Area */}
-      <div className="p-4 border-t bg-background">
-        {user && user.credits <= 0 && (
-          <div className="mb-2 flex items-center gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
-            <AlertTriangle className="h-3 w-3" />
-            {t("copilot.insufficientShort")}
-          </div>
-        )}
-        <form 
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          className="flex gap-2"
-        >
-          <Input 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={t("copilot.inputPlaceholder")}
-            className="flex-1"
-            disabled={isLoading || (user?.credits ?? 0) <= 0}
-          />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim() || (user?.credits ?? 0) <= 0}>
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
+      </article>)}
     </div>
-  );
-};
-
-export default CopilotSidebar;
+    <form className="shrink-0 border-t p-3 space-y-2" onSubmit={event => { event.preventDefault(); void assistant.submit(); }}>
+      {assistant.notice && <p role="status" className="text-xs break-words">{assistant.notice}</p>}
+      {assistant.error && <p role="alert" className="text-xs text-destructive break-words">{assistant.error}</p>}
+      {assistant.parent && <div className="text-xs rounded border p-2">{t("assistant.refining")}<Button type="button" size="sm" variant="ghost" onClick={assistant.clearParent}>{t("assistant.clear")}</Button></div>}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <select aria-label={t("assistant.intent")} className="min-w-0 rounded border bg-background p-1" value={assistant.intent} onChange={event => assistant.setIntent(event.target.value as AssistantIntent)}>
+          <option value="AUTO">{t("assistant.autoIntent")}</option><option value="EDIT">{t("assistant.editIntent")}</option><option value="AUTHOR_QA">{t("assistant.qaIntent")}</option>
+        </select>
+        <span>{assistant.parent ? t("assistant.parentScope") : assistant.target?.selection && !(assistant.intent === "AUTHOR_QA" && !assistant.target.supported) ? t(assistant.target.text ? "assistant.selectionScope" : "assistant.cursorScope") : t("assistant.sceneScope")}</span>
+        {assistant.target && <Button size="sm" type="button" variant="ghost" onClick={() => assistant.capture(null)}>{t("assistant.wholeScene")}</Button>}
+      </div>
+      {assistant.target && !assistant.target.supported && assistant.intent === "AUTHOR_QA" && <p className="text-xs text-muted-foreground">{t("assistant.qaFixedScope")}</p>}
+      {assistant.target?.text && <details className="text-xs"><summary className="cursor-pointer">{t("assistant.selectedText")}</summary><p className="max-h-28 overflow-auto whitespace-pre-wrap border-l-2 pl-2">{assistant.target.text}</p></details>}
+      <Textarea aria-label={t("assistant.instruction")} placeholder={t("assistant.placeholder")} value={assistant.input} onChange={event => assistant.setInput(event.target.value)} rows={3} disabled={assistant.working} />
+      <div className="flex items-center justify-between gap-2"><p className="text-[11px] text-muted-foreground">{t("assistant.callNote")}</p><Button type="submit" size="sm" disabled={assistant.disabled || !assistant.input.trim()}>{assistant.working ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}{t("assistant.send")}</Button></div>
+    </form>
+  </section>;
+}

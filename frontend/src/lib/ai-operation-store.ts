@@ -66,6 +66,10 @@ function clearTracked(operationId: string) {
 }
 
 function refreshRecoveredResult(final: AiOperationProgress) {
+  if (final.operationType === "WRITING_ASSISTANT_TURN") {
+    window.dispatchEvent(new CustomEvent("ainovel:writing-assistant-updated"));
+    return;
+  }
   const scene = sceneGenerationOutcome(final.resultJson);
   if (scene) {
     window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: scene }));
