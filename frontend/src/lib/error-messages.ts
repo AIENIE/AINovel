@@ -41,6 +41,7 @@ export function localizedOperationFailure(code?: string | null): string {
 }
 
 function sceneFailureMessage(code: string): string | undefined {
+  if (["STORY_RESOURCE_MISSING", "STORY_PARENT_CHANGED", "STORY_RESOURCE_ALREADY_EXISTS", "STORY_PROPOSAL_STALE", "STORY_RESOURCE_CONFLICT", "RESOURCE_VERSION_CONFLICT", "STORY_PROPOSAL_VERSION_CONFLICT", "STORY_PROPOSAL_DECIDED", "STORY_CREATE_UNDO_UNSUPPORTED", "STORY_ASSISTANT_CONTEXT_TOO_LARGE", "STORY_TARGET_NOT_READ", "STORY_ASSISTANT_SOURCES_INVALID", "STORY_OUTLINE_REQUIRED"].includes(code)) return t(`storyAssistant.reason.${code}`);
   const keys: Record<string, string> = {
     ASSISTANT_FORMAT_PRESERVATION_LIMIT: "assistant.formatLimit",
     ASSISTANT_SELECTION_INVALID: "assistant.invalidSource",

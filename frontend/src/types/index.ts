@@ -102,6 +102,7 @@ export interface ScenePlanning {
 
 export interface CharacterCard {
   id: string;
+  revision?: number;
   name: string;
   synopsis?: string | null;
   details?: string | null;
@@ -177,6 +178,7 @@ export interface Chapter {
 
 export interface Outline {
   id: string;
+  revision?: number;
   storyId: string;
   title: string;
   worldId?: string;

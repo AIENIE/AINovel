@@ -41,6 +41,7 @@ class ExternalMySqlMigrationVerificationTest {
                     databaseUrl, config.username, config.password, databaseName);
             assertNarrativeSchema(config, databaseUrl);
             assertAssistantSchema(config, databaseUrl);
+            assertStoryAssistantSchema(config, databaseUrl);
             assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
         });
     }
@@ -57,7 +58,7 @@ class ExternalMySqlMigrationVerificationTest {
                 statement.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
                 statement.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>兼容旧候选😀</p>','{}','LENGTH_REJECTED',NOW(6))");
             }
-            assertEquals(1, flyway(config, url).migrate().migrationsExecuted);
+            assertEquals(2, flyway(config, url).migrate().migrationsExecuted);
             assertAssistantSchema(config, url);
             try (var connection = DriverManager.getConnection(url, config.username, config.password);
                  var statement = connection.createStatement()) {
@@ -88,6 +89,58 @@ class ExternalMySqlMigrationVerificationTest {
     }
 
     @Test
+    void upgradesV37WithoutChangingCharactersOrFrozenSceneConversations() throws Exception {
+        var config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (name, url) -> {
+            Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("37").load().migrate();
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                statement.execute("INSERT INTO stories(id,title) VALUES(UNHEX(REPEAT('01',16)),'旧故事')");
+                statement.execute("INSERT INTO character_cards(id,story_id,name,details,relationships) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'林青','旧设定😀','妹妹')");
+                statement.execute("INSERT INTO manuscripts(id,sections_json,version) VALUES(UNHEX(REPEAT('03',16)),'{}',0)");
+                statement.execute("INSERT INTO writing_assistant_sessions(id,user_id,manuscript_id,branch_id,scene_id,created_at) VALUES(UNHEX(REPEAT('04',16)),UNHEX(REPEAT('05',16)),UNHEX(REPEAT('03',16)),UNHEX(REPEAT('06',16)),UNHEX(REPEAT('07',16)),NOW(6))");
+                statement.execute("INSERT INTO writing_assistant_turns(id,session_id,request_key,request_hash,frozen_json,created_at) VALUES(UNHEX(REPEAT('08',16)),UNHEX(REPEAT('04',16)),'old-request','old-hash','{\"original\":\"冻结正文😀\"}',NOW(6))");
+            }
+            assertEquals(1, flyway(config, url).migrate().migrationsExecuted);
+            assertStoryAssistantSchema(config, url);
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                try (var rows = statement.executeQuery("SELECT details,relationships,revision FROM character_cards")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals("旧设定😀", rows.getString(1));
+                    assertEquals("妹妹", rows.getString(2));
+                    assertEquals(0, rows.getLong(3));
+                }
+                try (var rows = statement.executeQuery("SELECT request_key,frozen_json FROM writing_assistant_turns")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals("old-request", rows.getString(1));
+                    assertEquals("{\"original\":\"冻结正文😀\"}", rows.getString(2));
+                }
+                statement.execute("INSERT INTO story_assistant_sessions(id,story_id,user_id,title,created_at,updated_at) VALUES(UNHEX(REPEAT('10',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('05',16)),'人物讨论',NOW(6),NOW(6))");
+                statement.execute("INSERT INTO story_assistant_turns(id,session_id,request_key,request_hash,frozen_json,created_at) VALUES(UNHEX(REPEAT('11',16)),UNHEX(REPEAT('10',16)),'new-request','new-hash','{}',NOW(6))");
+                org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, () -> statement.execute("INSERT INTO story_assistant_turns(id,session_id,request_key,request_hash,frozen_json,created_at) SELECT UNHEX(REPEAT('12',16)),session_id,request_key,request_hash,frozen_json,created_at FROM story_assistant_turns"));
+            }
+            assertEquals(0, flyway(config, url).migrate().migrationsExecuted);
+        });
+    }
+
+    private static void assertStoryAssistantSchema(ExternalMySqlConfig config, String url) throws Exception {
+        try (var connection = DriverManager.getConnection(url, config.username, config.password);
+             var statement = connection.createStatement()) {
+            try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('story_assistant_sessions','story_assistant_turns','story_assistant_proposals','story_assistant_receipts')")) {
+                org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                assertEquals(4, rows.getInt(1));
+            }
+            try (var rows = statement.executeQuery("SELECT COLUMN_DEFAULT,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='character_cards' AND COLUMN_NAME='revision'")) {
+                org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                assertEquals("0", rows.getString(1));
+                assertEquals("NO", rows.getString(2));
+            }
+        }
+    }
+
+    @Test
     void upgradesV35PreservingH2CandidatesAndEnforcingOperationSequence() throws Exception {
         var config=ExternalMySqlConfig.load();
         withIsolatedDatabase(config,(name,url)->{
@@ -97,7 +150,7 @@ class ExternalMySqlMigrationVerificationTest {
                 q.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
                 q.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>旧 H2 正文</p>','{}','LENGTH_REJECTED',NOW(6))");
             }
-            assertEquals(2,flyway(config,url).migrate().migrationsExecuted);
+            assertEquals(3,flyway(config,url).migrate().migrationsExecuted);
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
                 try(var rows=q.executeQuery("SELECT content,operation_id FROM narrative_generation_candidates")) {
                     org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals("<p>旧 H2 正文</p>",rows.getString(1));org.junit.jupiter.api.Assertions.assertNull(rows.getBytes(2));
@@ -134,12 +187,12 @@ class ExternalMySqlMigrationVerificationTest {
 
     @Test
     void upgradesStagingV23ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("23", 14);
+        assertUpgradeThroughLatest("23", 15);
     }
 
     @Test
     void upgradesDevelopV33ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("33", 4);
+        assertUpgradeThroughLatest("33", 5);
     }
 
     private void assertUpgradeThroughLatest(String baseline, int expectedPending) throws Exception {
@@ -150,7 +203,7 @@ class ExternalMySqlMigrationVerificationTest {
             var migration = flyway(config, databaseUrl);
             assertEquals(expectedPending, migration.info().pending().length);
             assertEquals(expectedPending, migration.migrate().migrationsExecuted);
-            assertEquals("37", migration.info().current().getVersion().getVersion());
+            assertEquals("38", migration.info().current().getVersion().getVersion());
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement();
                  var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_emergency_subjects WHERE subject_id='configured-admin'")) {
@@ -178,7 +231,7 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 statement.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            assertEquals(3, flyway(config, databaseUrl).migrate().migrationsExecuted);
+            assertEquals(4, flyway(config, databaseUrl).migrate().migrationsExecuted);
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement()) {
                 try (var columns = statement.executeQuery("SELECT DATA_TYPE,COLLATION_NAME,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_operation_runs' AND COLUMN_NAME='payload_json'")) {

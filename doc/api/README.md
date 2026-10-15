@@ -11,6 +11,7 @@
 - [`material.md`](material.md)：素材、导入、检索、审核、合并和引用。
 - [`ai.md`](ai.md)、[`ai-operations.md`](ai-operations.md)、[`settings.md`](settings.md)：AI、可恢复进度、提示词与设置。
 - [`writing-assistant.md`](writing-assistant.md)：有上下文的写作助手、持久对话、正文修改提案与作者采纳/撤销。
+- [`story-assistant.md`](story-assistant.md)：故事级话题、显式资料整理、角色卡及章节/场景提案、逐项采纳与更新撤销。
 - [`g2-evaluations.md`](g2-evaluations.md)：G2 投稿与匿名评审。
 - [`admin.md`](admin.md)：管理员认证、运营和治理。
 

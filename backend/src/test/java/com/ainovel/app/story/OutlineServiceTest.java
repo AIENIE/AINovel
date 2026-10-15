@@ -42,6 +42,21 @@ class OutlineServiceTest {
     private final JsonColumnCodec jsonColumnCodec = new JsonColumnCodec(objectMapper);
 
     @Test
+    void staleManualOutlineCannotReplaceNewlyAcceptedScenes() {
+        var repository = mock(OutlineRepository.class);
+        var service = service(repository, mock(StoryRepository.class), mock(ResourceAccessGuard.class), mock(AiService.class), mock(UserRepository.class));
+        var outline = outline(outlineId(), story(user("author")), Map.of("chapters", List.of(), "planning", Map.of()));
+        ReflectionTestUtils.setField(outline, "revision", 7L);
+        when(repository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
+        String original = outline.getContentJson();
+        var failure = assertThrows(com.ainovel.app.common.ApiStatusException.class,
+                () -> service.saveOutline(outline.getId(), new OutlineSaveRequest("旧编辑", null, Map.of(), List.of(), 6L)));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, failure.getStatus());
+        assertEquals(original, outline.getContentJson());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
     void saveOutlineShouldNormalizeNestedChapterTree() {
         OutlineRepository outlineRepository = mock(OutlineRepository.class);
         ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);

@@ -15,9 +15,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { ChevronDown, FileText, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { localizedErrorMessage } from "@/lib/error-messages";
+import { useStoryResourceDirty } from "@/components/ai/story-discussion-context";
+import { notifyStoryResourceChanged, STORY_RESOURCE_CHANGED, type StoryResourceChange } from "@/lib/story-assistant-events";
 
 interface OutlineWorkbenchProps {
   initialStoryId?: string;
+  initialOutlineId?: string;
+  initialSceneId?: string;
+  initialChapterId?: string;
+  onSelectionChange?: (selection: { storyId: string; outlineId: string; sceneId: string; chapterId: string }) => void;
 }
 
 type SelectedNode = { type: "chapter" | "scene"; id: string } | null;
@@ -47,7 +53,7 @@ const sceneDefaults = (twistId = ""): ScenePlanning => ({
   memeUsage: "",
 });
 
-const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
+const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, initialChapterId, onSelectionChange }: OutlineWorkbenchProps) => {
   const { toast } = useToast();
   const { t } = useTranslation();
   const [stories, setStories] = useState<Story[]>([]);
@@ -56,6 +62,9 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null);
+  const [selectionReady, setSelectionReady] = useState(false);
+  const initialNode = useRef({ sceneId: initialSceneId, chapterId: initialChapterId });
+  initialNode.current = { sceneId: initialSceneId, chapterId: initialChapterId };
   const draftRef = useRef(selectedOutline);
   draftRef.current = selectedOutline;
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -85,18 +94,26 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
 
   useEffect(() => {
     if (!selectedStoryId) return;
+    setSelectionReady(false);
+    let cancelled = false;
     api.outlines
       .listByStory(selectedStoryId)
       .then((data) => {
+        if (cancelled) return;
         setOutlines(data);
-        setSelectedOutline(data[0] || null);
-        setSavedSnapshot(JSON.stringify(data[0] || null));
-        setSelectedNode(null);
+        const initial = data.find(item => item.id === initialOutlineId) || data[0] || null;
+        setSelectedOutline(initial);
+        setSavedSnapshot(JSON.stringify(initial));
+        const { sceneId, chapterId } = initialNode.current;
+        setSelectedNode(sceneId && initial?.chapters.some(chapter => chapter.scenes.some(scene => scene.id === sceneId)) ? { type: "scene", id: sceneId } : chapterId && initial?.chapters.some(chapter => chapter.id === chapterId) ? { type: "chapter", id: chapterId } : null);
+        setSelectionReady(true);
       })
       .catch((error: unknown) => {
+        if (cancelled) return;
         toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error, "errors.loadOutlinesFailed") });
       });
-  }, [selectedStoryId, toast, t]);
+    return () => { cancelled = true; };
+  }, [selectedStoryId, initialOutlineId, toast, t]);
 
   const planning = selectedOutline?.planning;
   const twistOptions = useMemo(() => planning?.twistOptions || [], [planning]);
@@ -127,7 +144,36 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
   const setChapterPlanning = (value: SetStateAction<ChapterPlanning>) => updateNode({ chapterPlanning: typeof value === "function" ? value(chapterPlanning) : value });
   const setScenePlanning = (value: SetStateAction<ScenePlanning>) => updateNode({ scenePlanning: typeof value === "function" ? value(scenePlanning) : value });
   const dirty = !!selectedOutline && JSON.stringify(selectedOutline) !== savedSnapshot;
-  const blocker = useBlocker(dirty);
+  useStoryResourceDirty(selectedOutline ? `OUTLINE:${selectedOutline.id}` : "", dirty);
+  useEffect(() => {
+    if (!selectionReady || !selectedStoryId || (selectedOutline && selectedOutline.storyId !== selectedStoryId)) return;
+    onSelectionChange?.({ storyId: selectedStoryId, outlineId: selectedOutline?.id || "", sceneId: selectedNode?.type === "scene" ? selectedNode.id : "", chapterId: selectedNode?.type === "chapter" ? selectedNode.id : "" });
+  }, [selectionReady, selectedStoryId, selectedOutline, selectedNode, onSelectionChange]);
+  useEffect(() => {
+    if (dirty) return;
+    if (initialSceneId && selectedOutline?.chapters.some(chapter => chapter.scenes.some(scene => scene.id === initialSceneId))) setSelectedNode({ type: "scene", id: initialSceneId });
+    else if (initialChapterId && selectedOutline?.chapters.some(chapter => chapter.id === initialChapterId)) setSelectedNode({ type: "chapter", id: initialChapterId });
+  }, [initialSceneId, initialChapterId, selectedOutline?.id, selectedOutline?.chapters, dirty]);
+  useEffect(() => {
+    const refresh = (event: Event) => {
+      const change = (event as CustomEvent<StoryResourceChange>).detail;
+      if (change.storyId !== selectedStoryId || !change.outlineId || dirty) return;
+      void api.outlines.get(change.outlineId).then(updated => {
+        setOutlines(current => current.map(item => item.id === updated.id ? updated : item));
+        if (draftRef.current?.id === updated.id && JSON.stringify(draftRef.current) === savedSnapshot) {
+          setSelectedOutline(updated); setSavedSnapshot(JSON.stringify(updated));
+        }
+      }).catch(error => toast({ variant: "destructive", title: t("errors.loadOutlinesFailed"), description: localizedErrorMessage(error) }));
+    };
+    window.addEventListener(STORY_RESOURCE_CHANGED, refresh);
+    return () => window.removeEventListener(STORY_RESOURCE_CHANGED, refresh);
+  }, [selectedStoryId, dirty, savedSnapshot, toast, t]);
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (!dirty) return false;
+    if (currentLocation.pathname !== nextLocation.pathname) return true;
+    const current = new URLSearchParams(currentLocation.search), next = new URLSearchParams(nextLocation.search);
+    return ["tab", "storyId", "outlineId"].some(key => current.get(key) !== next.get(key));
+  });
   const cancelNavigation = () => { setPendingNavigation(null); if (blocker.state === "blocked") blocker.reset(); };
   const continueNavigation = () => {
     const action = pendingNavigation; setPendingNavigation(null);
@@ -156,6 +202,7 @@ const OutlineWorkbench = ({ initialStoryId }: OutlineWorkbenchProps) => {
       setSavedSnapshot(JSON.stringify(saved));
       setOutlines((prev) => prev.map((item) => (item.id === saved.id ? saved : item)));
       setSaveStatus(t("outline.saved"));
+      notifyStoryResourceChanged({ storyId: selectedStoryId, resourceType: "CHAPTER", outlineId: saved.id });
       toast({ title: t("outline.structureSaved") });
       return noNewEdits;
     } catch (error: unknown) {

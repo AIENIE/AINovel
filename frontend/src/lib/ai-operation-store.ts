@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import { api } from "@/lib/api-client";
 import type { AiOperationAccepted, AiOperationProgress } from "@/types";
 import { t } from "@/i18n";
+import { STORY_ASSISTANT_UPDATED } from "./story-assistant-events";
 
 const STORAGE_KEY = "ainovel.active-ai-operation";
 let userScope = "";
@@ -66,6 +67,10 @@ function clearTracked(operationId: string) {
 }
 
 function refreshRecoveredResult(final: AiOperationProgress) {
+  if (final.operationType === "STORY_ASSISTANT_TURN") {
+    window.dispatchEvent(new CustomEvent(STORY_ASSISTANT_UPDATED));
+    return;
+  }
   if (final.operationType === "WRITING_ASSISTANT_TURN") {
     window.dispatchEvent(new CustomEvent("ainovel:writing-assistant-updated"));
     return;

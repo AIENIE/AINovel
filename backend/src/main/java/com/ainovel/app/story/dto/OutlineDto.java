@@ -11,7 +11,12 @@ public record OutlineDto(UUID id,
                          String worldId,
                          Map<String, Object> planning,
                          List<ChapterDto> chapters,
-                         Instant updatedAt) {
+                         Instant updatedAt,
+                         long revision) {
+    public OutlineDto(UUID id, UUID storyId, String title, String worldId, Map<String, Object> planning,
+                      List<ChapterDto> chapters, Instant updatedAt) {
+        this(id, storyId, title, worldId, planning, chapters, updatedAt, 0);
+    }
     public record ChapterDto(UUID id,
                              String title,
                              String summary,

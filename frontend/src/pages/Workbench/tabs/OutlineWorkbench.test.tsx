@@ -40,6 +40,7 @@ describe("OutlineWorkbench", () => {
     const outline = {
       id: "outline-1",
       storyId: "story-1",
+      revision: 7,
       title: "大纲",
       chapters: [],
       planning: { twistOptions: [], foreshadowPlans: [] },
@@ -51,7 +52,7 @@ describe("OutlineWorkbench", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "保存大纲" }));
 
-    await waitFor(() => expect(saveSpy).toHaveBeenCalledWith("outline-1", expect.objectContaining({ id: "outline-1" })));
+    await waitFor(() => expect(saveSpy).toHaveBeenCalledWith("outline-1", expect.objectContaining({ id: "outline-1", revision: 7 })));
     expect((await screen.findByRole("status")).textContent).toBe("已保存");
   });
 
@@ -113,6 +114,20 @@ describe("OutlineWorkbench", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "保存并继续" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "保存并继续" }));
     expect(await screen.findByText("离开后的页面")).toBeTruthy();
+  });
+
+  it("opens the URL-selected outline and scene and reports the matching top-level context", async () => {
+    vi.spyOn(api.worlds, "list").mockResolvedValue([] as never);
+    vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as never);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([
+      { id: "outline-first", storyId: "story-1", title: "默认大纲", chapters: [] },
+      { id: "outline-selected", storyId: "story-1", title: "目标大纲", chapters: [{ id: "chapter-1", title: "目标章节", summary: "", scenes: [{ id: "scene-1", title: "目标场景", summary: "场景内容" }] }] },
+    ] as never);
+    const selection = vi.fn();
+    render(<RouterProvider router={createMemoryRouter([{ path: "*", element: <OutlineWorkbench initialStoryId="story-1" initialOutlineId="outline-selected" initialSceneId="scene-1" onSelectionChange={selection} /> }])} />);
+    expect(await screen.findByDisplayValue("场景内容")).toBeTruthy();
+    await waitFor(() => expect(selection).toHaveBeenLastCalledWith({ storyId: "story-1", outlineId: "outline-selected", sceneId: "scene-1", chapterId: "" }));
+    expect(selection.mock.calls.some(([value]) => value.outlineId === "outline-first")).toBe(false);
   });
 
 });

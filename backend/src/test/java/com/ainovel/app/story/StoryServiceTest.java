@@ -33,6 +33,23 @@ import static org.mockito.Mockito.when;
 
 class StoryServiceTest {
     @Test
+    void staleManualCharacterEditCannotOverwriteAcceptedProposal() {
+        var cards = mock(CharacterCardRepository.class);
+        var service = service(mock(StoryRepository.class), cards, mock(ResourceAccessGuard.class), mock(AiService.class));
+        var card = character(story(user("author")), "林舟");
+        card.setDetails("已经采纳的设定");
+        ReflectionTestUtils.setField(card, "revision", 4L);
+        when(cards.findByIdWithStoryUser(card.getId())).thenReturn(Optional.of(card));
+        var request = new CharacterRequest("林舟", "旧编辑", "旧设定", "");
+        request.setExpectedRevision(3L);
+        var failure = org.junit.jupiter.api.Assertions.assertThrows(com.ainovel.app.common.ApiStatusException.class,
+                () -> service.updateCharacter(card.getId(), request));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, failure.getStatus());
+        assertEquals("已经采纳的设定", card.getDetails());
+        org.mockito.Mockito.verify(cards, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
     void partialCharacterEditPreservesOmittedDetailsAndClearsExplicitNull() throws Exception {
         var cards = mock(CharacterCardRepository.class);
         var service = service(mock(StoryRepository.class), cards, mock(ResourceAccessGuard.class), mock(AiService.class));

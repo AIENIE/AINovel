@@ -80,16 +80,19 @@ describe("ai operation tracking", () => {
     remote.resolve(completedOperation("operation-finished"));
     await expect(operation).resolves.toMatchObject({ status: "SUCCEEDED" });
   });
-  it("refreshes assistant history in place after recovery without reloading unsaved editor text", async () => {
+  it.each([
+    ["WRITING_ASSISTANT_TURN", "ainovel:writing-assistant-updated"],
+    ["STORY_ASSISTANT_TURN", "ainovel:story-assistant-updated"],
+  ])("refreshes %s in place after recovery without reloading unsaved editor text", async (operationType, eventType) => {
     vi.useFakeTimers();
     const reload = vi.fn(), assign = vi.fn(), dispatch = vi.fn();
     const originalWindow = window;
     vi.stubGlobal("window", { sessionStorage: originalWindow.sessionStorage, setTimeout: originalWindow.setTimeout.bind(originalWindow), dispatchEvent: dispatch, location: { reload, assign } });
     try {
       vi.spyOn(api.aiOperations, "retry").mockResolvedValue({ operationId: "assistant-recovered" } as Awaited<ReturnType<typeof api.aiOperations.retry>>);
-      vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...completedOperation("assistant-recovered"), operationType: "WRITING_ASSISTANT_TURN" });
+      vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...completedOperation("assistant-recovered"), operationType });
       await retryTrackedAiOperation("assistant-recovered");
-      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: "ainovel:writing-assistant-updated" }));
+      expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: eventType }));
       expect(reload).not.toHaveBeenCalled();
       expect(assign).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(4000);

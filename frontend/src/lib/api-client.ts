@@ -4,6 +4,7 @@ import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
 import { createLanguageQualityApi } from "./api/domains/language-quality";
 import { createWritingAssistantApi } from "./api/domains/writing-assistant";
+import { createStoryAssistantApi } from "./api/domains/story-assistant";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
@@ -500,6 +501,7 @@ function toOutline(dto: NetworkObject): Outline {
   return {
     id: dto.id,
     storyId: dto.storyId,
+    revision: Number(dto.revision ?? 0),
     title: dto.title || "新大纲",
     worldId: dto.worldId || undefined,
     chapters: (dto.chapters || []).map((c: NetworkObject) => ({
@@ -779,6 +781,7 @@ export const api = {
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
+  storyAssistant: createStoryAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   narrativeContext: {
     state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
     update: (mid: string, bid: string, value: import('@/types/narrative-context').ContextUpdate, key: string) =>
@@ -1176,10 +1179,10 @@ export const api = {
     listCharacters: async (storyId: string) => {
       return await requestJson<CharacterCard[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
     },
-    addCharacter: async (storyId: string, payload: Omit<CharacterCard, "id" | "updatedAt">) => {
+    addCharacter: async (storyId: string, payload: Omit<CharacterCard, "id" | "updatedAt" | "revision">) => {
       return await requestJson<CharacterCard>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
     },
-    updateCharacter: async (id: string, payload: Partial<Omit<CharacterCard, "id" | "updatedAt">>) => {
+    updateCharacter: async (id: string, payload: Partial<Omit<CharacterCard, "id" | "updatedAt" | "revision">> & { expectedRevision?: number }) => {
       return await requestJson<CharacterCard>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
     deleteCharacter: async (id: string) => {
@@ -1212,6 +1215,7 @@ export const api = {
     save: async (outlineId: string, outline: Outline & { worldId?: string }) => {
       const payload = {
         title: outline.title,
+        expectedRevision: outline.revision,
         worldId: outline.worldId,
         planning: outline.planning,
         chapters: (outline.chapters || []).map((c: NetworkObject, ci: number) => ({

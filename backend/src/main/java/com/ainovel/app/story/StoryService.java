@@ -109,6 +109,9 @@ public class StoryService {
     public CharacterDto updateCharacter(UUID id, CharacterRequest request) {
         CharacterCard card = characterCardRepository.findByIdWithStoryUser(id).orElseThrow(() -> new BusinessException("角色不存在"));
         accessGuard.assertOwner(card.getStory().getUser());
+        if (request.expectedRevision() != null && request.expectedRevision() != card.getRevision()) {
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "STORY_RESOURCE_CONFLICT");
+        }
         if (request.name() != null) card.setName(request.name());
         if (request.has("synopsis")) card.setSynopsis(request.synopsis());
         if (request.has("details")) card.setDetails(request.details());
@@ -116,6 +119,7 @@ public class StoryService {
         if (request.has("role")) card.setRole(request.role());
         if (request.has("archetype")) card.setArchetype(request.archetype());
         characterCardRepository.save(card);
+        characterCardRepository.flush();
         return toCharacterDto(card);
     }
 
@@ -170,6 +174,6 @@ public class StoryService {
     }
 
     private CharacterDto toCharacterDto(CharacterCard card) {
-        return new CharacterDto(card.getId(), card.getName(), card.getSynopsis(), card.getDetails(), card.getRelationships(), card.getRole(), card.getArchetype(), card.getUpdatedAt());
+        return new CharacterDto(card.getId(), card.getName(), card.getSynopsis(), card.getDetails(), card.getRelationships(), card.getRole(), card.getArchetype(), card.getUpdatedAt(), card.getRevision());
     }
 }

@@ -82,6 +82,7 @@ public class OutlineService {
     public OutlineDto saveOutline(UUID outlineId, OutlineSaveRequest request) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
         outline.setWorldId(request.worldId());
         List<OutlineSaveRequest.ChapterPayload> normalized = normalizeChapters(request.chapters());
@@ -90,6 +91,7 @@ public class OutlineService {
         content.put("chapters", normalized);
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
+        outlineRepository.flush();
         if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
         return toDto(outline);
     }
@@ -98,6 +100,7 @@ public class OutlineService {
     public OutlineDto updateChapter(UUID chapterId, ChapterUpdateRequest request) {
         Outline outline = findOutlineContainingChapter(chapterId);
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -131,6 +134,7 @@ public class OutlineService {
     public OutlineDto updateScene(UUID sceneId, SceneUpdateRequest request) {
         Outline outline = findOutlineContainingScene(sceneId);
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -371,8 +375,15 @@ public class OutlineService {
                 outline.getWorldId(),
                 copyMap(objectMapper.convertValue(content.get("planning"), new TypeReference<>() {})),
                 chapterDtos,
-                outline.getUpdatedAt()
+                outline.getUpdatedAt(),
+                outline.getRevision()
         );
+    }
+
+    private void assertRevision(Outline outline, Long expectedRevision) {
+        if (expectedRevision != null && expectedRevision != outline.getRevision()) {
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "STORY_RESOURCE_CONFLICT");
+        }
     }
 
     private List<OutlineSaveRequest.ChapterPayload> normalizeChapters(List<OutlineSaveRequest.ChapterPayload> chapters) {
