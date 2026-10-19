@@ -43,7 +43,7 @@ public final class LanguageAnalysis {
         var task = instruction.equals(DIAGNOSE) ? LanguageStandard.Task.DIAGNOSE : instruction.equals(REVISE) ? LanguageStandard.Task.REVISE : instruction.equals(REVIEW) ? LanguageStandard.Task.REVIEW : null;
         if (task == null) throw new IllegalArgumentException("LANGUAGE_TASK_UNKNOWN");
         return new AiChatRequest(List.of(new AiChatRequest.Message("system",LanguageStandard.prompt(version,task,withExamples)),
-                new AiChatRequest.Message("user",body)), null, null);
+                new AiChatRequest.Message("user",body)), null, null).forFeature("language."+(task==LanguageStandard.Task.DIAGNOSE?"diagnose":task==LanguageStandard.Task.REVISE?"revise":"review"));
     }
     public static String input(LanguageProjection.Projection p, Coverage c, ObjectMapper mapper) {
         try { return mapper.writeValueAsString(Map.of("coreStart",c.start(),"coreEnd",c.end(),"contextStart",c.contextStart(),

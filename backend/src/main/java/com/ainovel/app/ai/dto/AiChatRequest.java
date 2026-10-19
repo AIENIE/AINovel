@@ -12,8 +12,11 @@ public record AiChatRequest(
         @Schema(description = "模型 ID", example = "2")
         String modelId,
         @Schema(description = "上下文对象（可选）", example = "{\"scene\":\"chapter-1\"}")
-        JsonNode context
+        JsonNode context,
+        String featureKey
 ) {
+    public AiChatRequest(List<Message> messages,String modelId,JsonNode context) {this(messages,modelId,context,null);}
+    public AiChatRequest forFeature(String feature) {return new AiChatRequest(messages,modelId,context,feature);}
     @Schema(description = "单条对话消息")
     public record Message(
             @Schema(description = "角色", example = "user")

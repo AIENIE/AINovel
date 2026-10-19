@@ -30,7 +30,7 @@ public class AiConservativeRevisionService implements ConservativeRevisionServic
                 List.of(new AiChatRequest.Message("user", buildPrompt(request, judgeResult))),
                 null,
                 null
-        );
+        ).forFeature("slop.revise");
         String revised = (usageContext == null
                 ? aiService.chat(user, chatRequest)
                 : aiService.chat(user, chatRequest, usageContext)).content();

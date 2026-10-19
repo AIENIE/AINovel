@@ -22,6 +22,7 @@ public interface ProjectCreditLedgerRepository extends JpaRepository<ProjectCred
             String referenceId,
             com.ainovel.app.economy.model.CreditLedgerType entryType
     );
+    List<ProjectCreditLedger> findByUserAndReferenceTypeAndReferenceId(User user,String referenceType,String referenceId);
     boolean existsByUserAndIdempotencyKey(User user, String idempotencyKey);
     Optional<ProjectCreditLedger> findFirstByUserAndIdempotencyKey(User user, String idempotencyKey);
 

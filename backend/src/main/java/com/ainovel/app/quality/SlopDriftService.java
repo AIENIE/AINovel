@@ -72,9 +72,10 @@ public class SlopDriftService {
                     List.of(new AiChatRequest.Message("user", buildPrompt(input, windows))),
                     null,
                     null
-            )).content());
+            ).forFeature("slop.drift")).content());
             return completedRun(input, windows, root);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             return degradedRun(input, windows, ex);
         }

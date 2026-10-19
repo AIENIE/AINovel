@@ -140,7 +140,7 @@ public class WorldService {
         if (prompt.isBlank()) {
             prompt = "请优化以下世界观字段表述，使其更清晰、更具细节且保持一致性。";
         }
-        return aiService.refine(user, new AiRefineRequest(text, prompt, null));
+        return aiService.refine(user, new AiRefineRequest(text, prompt, null).forFeature("world."+moduleKey+"."+fieldKey+".refine"));
     }
 
     @Transactional(readOnly = true)
@@ -286,7 +286,7 @@ public class WorldService {
                 + "模块：" + module.label() + "\n"
                 + "字段：" + field.label();
         String instruction = "请为该世界观字段生成可直接保存的中文设定内容，避免占位说明，保持具体、可用、与已有世界设定一致。";
-        AiRefineResponse response = aiService.refine(world.getUser(), new AiRefineRequest(text, instruction, null));
+        AiRefineResponse response = aiService.refine(world.getUser(), new AiRefineRequest(text, instruction, null).forFeature("world."+module.key()+"."+field.key()+".generate"));
         String result = response == null ? "" : safe(response.result()).trim();
         if (result.isBlank()) {
             throw new RuntimeException("AI 返回空内容");

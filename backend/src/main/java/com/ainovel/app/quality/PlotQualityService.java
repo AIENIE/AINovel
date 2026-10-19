@@ -91,9 +91,10 @@ public class PlotQualityService {
                     List.of(new AiChatRequest.Message("user", buildAnalysisPrompt(request))),
                     null,
                     null
-            )).content();
+            ).forFeature("plot.diagnose")).content();
             return toRun(request, parseJson(content), false);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             PlotQualityRun degraded = newBaseRun(request);
             degraded.setStatus(PlotQualityStatus.DEGRADED);
@@ -173,7 +174,7 @@ public class PlotQualityService {
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
         if (boundary != null) {
             var snapshot = boundary.snapshot(manuscript, current -> revisionPrompt(user, current, runId));
-            String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null)).content();
+            String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forFeature("plot.revise")).content();
             return boundary.save(snapshot, current -> {
                 PlotQualityRun run = requireRun(runId);
                 ensureRunBelongsToManuscript(run, current);
@@ -194,7 +195,7 @@ public class PlotQualityService {
                         + (run.getIsolationContext()==null?"":"\n必须遵守的 H2 上下文：\n"+run.getIsolationContext()))),
                 null,
                 null
-        )).content();
+        ).forFeature("plot.revise")).content();
         run.setRevisionCandidateText(stripWrapper(candidate));
         return runRepository.save(run);
     }

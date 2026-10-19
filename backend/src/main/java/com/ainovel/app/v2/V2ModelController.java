@@ -23,6 +23,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/v2")
 public class V2ModelController {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     private final ResourceAccessGuard accessGuard;
     private final V2ModelPersistenceService persistenceService;
     private final OpsRecordFileSink recordFileSink;
@@ -59,6 +61,7 @@ public class V2ModelController {
     @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     @SecurityRequirement(name = "adminSessionCookie")
     public List<Map<String, Object>> listRouting() {
+        if(modelConfiguration!=null)return modelConfiguration.features(null).stream().map(modelConfiguration::asMap).toList();
         return persistenceService.listRouting();
     }
 
@@ -70,7 +73,9 @@ public class V2ModelController {
     public Map<String, Object> updateRouting(Authentication authentication,
                                              @PathVariable String taskType,
                                              @RequestBody V2RequestPayload payload) {
-        Map<String, Object> updated = persistenceService.updateRouting(
+        if(modelConfiguration!=null&&!payload.value().has("options"))throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"AI_ROUTING_PAYLOAD_UPGRADE_REQUIRED");
+        Map<String, Object> updated = modelConfiguration!=null?modelConfiguration.asMap(modelConfiguration.update(taskType,
+                modelConfiguration.parseUpdate(payload.value()))):persistenceService.updateRouting(
                 taskType,
                 uuid(payload.get("recommendedModelId")),
                 uuid(payload.get("fallbackModelId")),
@@ -104,6 +109,10 @@ public class V2ModelController {
                                              @PathVariable String taskType,
                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
+        if(modelConfiguration!=null&&payload.value().has("preferredOptionId")) {
+            modelConfiguration.preference(user,taskType,(String)payload.get("preferredOptionId"));
+            return modelConfiguration.asMap(modelConfiguration.feature(taskType,user));
+        }
         return persistenceService.savePreference(user, taskType, uuid(payload.get("preferredModelId")));
     }
 

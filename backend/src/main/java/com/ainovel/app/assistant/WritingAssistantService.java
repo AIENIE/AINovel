@@ -226,7 +226,7 @@ public class WritingAssistantService {
         var row=store.turn(turnId);String raw=stage.equals("plan")?row.planResultJson():row.finalResultJson();
         if(raw!=null)return store.read(raw,AiChatResponse.class);
         String frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        if(frozen==null){var request=builder.get();AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",request);return null;});row=store.turn(turnId);frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
+        if(frozen==null){var request=builder.get().forFeature("assistant."+frozen(row).intent().toLowerCase(java.util.Locale.ROOT)+"."+stage);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",request);return null;});row=store.turn(turnId);frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var request=store.read(frozen,AiChatRequest.class);
         AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),request,execution.operationId()+":assistant:"+stage);

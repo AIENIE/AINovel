@@ -36,4 +36,7 @@ public class V2UserModelPreference {
     public void setPreferredModel(V2ModelRegistry preferredModel) { this.preferredModel = preferredModel; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    @Column(length=36) private String preferredOptionId;
+    public String getPreferredOptionId(){return preferredOptionId;}
+    public void setPreferredOptionId(String value){preferredOptionId=value;}
 }

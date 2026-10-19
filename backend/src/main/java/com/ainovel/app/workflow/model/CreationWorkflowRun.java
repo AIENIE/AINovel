@@ -96,4 +96,8 @@ public class CreationWorkflowRun {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public long getVersion() { return version; }
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String modelSelectionsJson;
+    public String getModelSelectionsJson(){return modelSelectionsJson;}
+    public void setModelSelectionsJson(String value){modelSelectionsJson=value;}
 }

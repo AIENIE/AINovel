@@ -1,3 +1,5 @@
+import { requestAiQuote } from "./ai-quote-store";
+import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment } from "./ai-model-config";
 import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
@@ -157,6 +159,29 @@ async function fetchWithAdminOperationProof(path: string, init: RequestInit, hea
     headers: requestHeaders,
   });
   const response = await execute(headers);
+  if (response.status === 428 && inferAuthScope(path) === "user") {
+    const reason = await response.clone().json().catch(() => null) as { code?: string } | null;
+    if (reason?.code === "AI_QUOTE_REQUIRED") {
+      const body = typeof init.body === "string" && init.body ? JSON.parse(init.body) as unknown : {};
+      const preview = async (selections: Record<string, string>) => {
+        const next = await fetch(`${API_BASE}/v2/ai-quotes`, { method: "POST", headers, credentials: "same-origin", signal: init.signal,
+          body: JSON.stringify({ target: path, body, selections }) });
+        if (!next.ok) throw new ApiError(next.status, await safeErrorMessage(next) || "AI_QUOTE_FAILED");
+        return await next.json() as AiQuote;
+      };
+      const remember = async (selections: Record<string, string>) => {
+        for (const [feature, preferredOptionId] of Object.entries(selections)) {
+          const saved = await fetch(`${API_BASE}/v2/users/me/model-preferences/${feature}`, { method: "PUT", headers, credentials: "same-origin",
+            body: JSON.stringify({ preferredOptionId }) });
+          if (!saved.ok) throw new ApiError(saved.status, "AI_PREFERENCE_SAVE_FAILED");
+        }
+      };
+      const quote = await preview({});
+      const quoteId = await requestAiQuote(quote, preview, remember, init.signal);
+      const quoted = new Headers(headers); quoted.set("X-AI-Quote-Id", quoteId);
+      return execute(quoted);
+    }
+  }
   if (response.status !== 428 || inferAuthScope(path) !== "admin") return response;
 
   const challenge = await response.clone().json().catch(() => null) as { challengeId?: string } | null;
@@ -180,11 +205,11 @@ async function fetchWithAdminOperationProof(path: string, init: RequestInit, hea
   return execute(retryHeaders);
 }
 
-async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string, responseType: "json" | "text" = "json"): Promise<T> {
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
   const method = (init.method || "GET").toUpperCase();
-  if (method === "POST" && (path.startsWith("/v1/ai/") || path.includes("/operations"))
+  if (method === "POST"
       && !headers.has("Idempotency-Key")) {
     headers.set("Idempotency-Key", globalThis.crypto.randomUUID());
   }
@@ -200,7 +225,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
     }
     throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
-  return (await resp.json()) as T;
+  return (responseType === "text" ? await resp.text() : await resp.json()) as T;
 }
 
 async function requestForm<T>(path: string, form: FormData, tokenOverride?: string): Promise<T> {
@@ -879,7 +904,24 @@ export const api = {
     },
   },
 
+  modelConfig: {
+    pending: () => requestJson<AiPendingPayment[]>("/v2/ai-quotes/pending"),
+    settle: (pending: AiPendingPayment) => requestJson<unknown>(pending.target, { method: "POST", body: JSON.stringify(pending.body),
+      headers: { "Idempotency-Key": pending.requestKey, ...(pending.quoteId ? { "X-AI-Quote-Id": pending.quoteId } : {}) } }, undefined,
+      /^\/v1\/(?:story-cards|character-cards|outlines\/scenes)\/[^/]+\/refine$/.test(pending.target) ? "text" : "json"),
+    catalog: () => requestJson<ModelCatalog>("/v2/admin/model-catalog", {}, adminCookieAuth()),
+    sync: () => requestJson<ModelCatalog>("/v2/admin/model-catalog/sync", { method: "POST" }, adminCookieAuth()),
+    routing: () => requestJson<AiFeature[]>("/v2/admin/model-routing", {}, adminCookieAuth()),
+    save: (feature: AiFeature) => requestJson<AiFeature>(`/v2/admin/model-routing/${feature.definition.key}`, { method: "PUT", body: JSON.stringify({ revision: feature.revision,
+      billingEnabled: feature.billingEnabled, defaultOptionId: feature.defaultOptionId, options: feature.options.map((option) => ({ id: option.optionId, modelKey: option.modelKey,
+        label: option.label, thinkingMode: option.thinkingMode, thinkingEffort: option.thinkingEffort, pricingMode: option.pricingMode,
+        fixedCredits: option.fixedCredits, inputPer1k: option.inputPer1k, outputPer1k: option.outputPer1k })) }) }, adminCookieAuth()),
+    features: () => requestJson<AiFeature[]>("/v2/ai-features"),
+    preference: (key: string, preferredOptionId: string | null) => requestJson<AiFeature>(`/v2/users/me/model-preferences/${key}`, { method: "PUT", body: JSON.stringify({ preferredOptionId }) }),
+  },
   ai: {
+    versionSummary: (messages: Array<{ role: string; content: string }>, context: NetworkObject) => requestJson<NetworkObject>("/v1/ai/version-summary", { method: "POST", body: JSON.stringify({ messages, context }) }),
+    outlineRefine: (text: string, instruction: string, kind: string) => requestJson<NetworkObject>("/v1/ai/outline-refine", { method: "POST", body: JSON.stringify({ text, instruction, kind }) }),
     chat: async (messages: Array<{ role: string; content: string }>, modelId: string, context: NetworkObject) => {
       const payload = {
         modelId,

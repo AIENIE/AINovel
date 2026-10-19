@@ -300,13 +300,14 @@ export function useManuscriptSidebarData({
       return `共变更 ${changes.length} 个场景（${sceneNames}${suffix}），约新增 ${added} 词、减少 ${removed} 词，主要集中在段落措辞与细节调整。`;
     })();
     try {
-      const models = await api.ai.getModels();
-      const modelId = models[0]?.id;
-      if (!modelId) throw new Error(t("sidebarData.noAiModel"));
       const prompt = [t("sidebarData.diffSummaryPrompt"), JSON.stringify((diffResult.changes || []).slice(0, 6), null, 2)].join("\n");
-      const result = await api.ai.chat([{ role: "user", content: prompt }], modelId, { manuscriptId: selectedManuscriptId });
+      const result = await api.ai.versionSummary([{ role: "user", content: prompt }], { manuscriptId: selectedManuscriptId });
       setAiDiffSummary(result.content || localSummary);
     } catch (e: unknown) {
+      if (e instanceof Error && (e.message === "AI_PAYMENT_REQUIRED" || e.message === "AI_QUOTE_CANCELLED")) {
+        toast({ description: localizedErrorMessage(e) });
+        return;
+      }
       setAiDiffSummary(localSummary);
       toast({ title: t("sidebarData.aiUnavailableLocalSummary"), description: localizedErrorMessage(e) });
     }

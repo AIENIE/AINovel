@@ -23,6 +23,8 @@ import java.util.*;
 
 @Service
 public class V2ModelPersistenceService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     @org.springframework.beans.factory.annotation.Autowired
     private AiModelPolicy modelPolicy = new AiModelPolicy();
     private final V2ModelRegistryRepository modelRepository;
@@ -121,6 +123,7 @@ public class V2ModelPersistenceService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> usageSummary(User user) {
+        if(modelConfiguration!=null)return modelConfiguration.usageSummary(user);
         List<V2ModelUsageLog> logs = usageRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
         int input = 0;
         int output = 0;
@@ -140,12 +143,14 @@ public class V2ModelPersistenceService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> usageDetails(User user, int limit) {
+        if(modelConfiguration!=null)return modelConfiguration.usageDetails(user,limit);
         return usageRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, Math.max(limit, 1)))
                 .stream().map(this::usageMap).toList();
     }
 
     @Transactional
     public void ensureSeeded() {
+        if(modelConfiguration!=null){modelConfiguration.ensureInitialized();return;}
         V2ModelRegistry model = modelRepository.findByModelKey(modelPolicy.modelKey()).orElseGet(() -> {
             V2ModelRegistry created = new V2ModelRegistry();
             created.setModelKey(modelPolicy.modelKey());
@@ -209,6 +214,7 @@ public class V2ModelPersistenceService {
         out.put("id", pref.getId());
         out.put("userId", pref.getUser().getId());
         out.put("taskType", pref.getTaskType());
+        out.put("preferredOptionId", pref.getPreferredOptionId());
         out.put("preferredModelId", pref.getPreferredModel() == null ? null : pref.getPreferredModel().getId());
         out.put("createdAt", pref.getCreatedAt());
         out.put("updatedAt", pref.getUpdatedAt());

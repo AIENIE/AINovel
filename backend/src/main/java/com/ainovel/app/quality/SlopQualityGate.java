@@ -119,6 +119,7 @@ public class SlopQualityGate {
         try {
             return judgeClient.judge(user, request, heuristicResult, usageContext);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             return new SlopJudgeResult(
                     heuristicResult.overallRiskScore(),
@@ -136,6 +137,7 @@ public class SlopQualityGate {
         try {
             return revisionService.revise(user, request, judgeResult, usageContext);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             return null;
         }

@@ -86,7 +86,7 @@ public class GuidedCreationGenerationService {
     private AiChatResponse chat(CreationWorkflowRun run, String prompt, AiUsageContext usageContext) {
         return aiService.chat(
                 run.getUser(),
-                new AiChatRequest(List.of(new AiChatRequest.Message("user", prompt)), null, null),
+                new AiChatRequest(List.of(new AiChatRequest.Message("user", prompt)), null, null).forFeature(usageContext.operation().endsWith(":json_repair")?"guided.json_repair":"guided."+usageContext.operation().split(":")[0]),
                 usageContext);
     }
 

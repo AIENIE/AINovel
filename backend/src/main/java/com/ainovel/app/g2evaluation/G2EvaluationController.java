@@ -45,6 +45,11 @@ public class G2EvaluationController {
         return evaluationService.nextReviewSample(currentUserResolver.require(principal), id);
     }
 
+    @PostMapping("/samples/{id}/retry")
+    public G2EvaluationDtos.SampleSubmissionResponse retry(@AuthenticationPrincipal UserDetails principal,@PathVariable UUID id) {
+        return evaluationService.resumePayment(currentUserResolver.require(principal),id);
+    }
+
     @PostMapping("/{id}/review/votes")
     public G2EvaluationDtos.ExperimentResponse vote(@AuthenticationPrincipal UserDetails principal,
                                                     @PathVariable UUID id,

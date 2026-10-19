@@ -90,4 +90,9 @@ public class AiOperationRun {
     public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt = value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String modelSelectionsJson;
+    public String getModelSelectionsJson() { return modelSelectionsJson; }
+    public void setModelSelectionsJson(String value) { modelSelectionsJson=value; }
 }

@@ -144,6 +144,6 @@ public class StoryController {
     @Operation(summary = "润色场景文本", description = "调用 AiService 对场景文本执行润色。")
     public ResponseEntity<String> refineScene(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @RequestBody RefineRequest request) {
         String instruction = request.instruction() == null ? "" : request.instruction();
-        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), new AiRefineRequest(request.text(), instruction, null)).result());
+        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), new AiRefineRequest(request.text(), instruction, null).forFeature("outline.scene_refine")).result());
     }
 }

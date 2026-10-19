@@ -6,6 +6,24 @@ import { t } from "@/i18n";
  * 后端原始 message 从不直接展示给用户，只映射 HTTP 状态到稳定的前端错误类别；
  * 未命中类别时显示本地化通用操作失败。
  */
+const AI_MODEL_ERROR_KEYS: Record<string, string> = {
+  AI_REQUEST_IN_PROGRESS: "aiModels.requestInProgress",
+  AI_RESULT_RECONCILIATION_REQUIRED: "aiModels.reconciliationNeeded",
+  AI_PAYMENT_REQUIRED: "aiModels.paymentRequired",
+  AI_QUOTE_REQUIRED: "aiModels.quoteRequired",
+  AI_QUOTE_CANCELLED: "aiModels.quoteCancelled",
+  AI_QUOTE_EXPIRED: "aiModels.quoteChanged",
+  AI_QUOTE_INPUT_CHANGED: "aiModels.quoteChanged",
+  AI_CONFIGURATION_CHANGED: "aiModels.quoteChanged",
+  AI_QUOTE_ALREADY_USED: "aiModels.quoteChanged",
+  AI_STEP_NOT_QUOTED: "aiModels.quoteChanged",
+  AI_PREFERENCE_UNAVAILABLE: "aiModels.preferenceUnavailable",
+  AI_OPTION_UNAVAILABLE: "aiModels.preferenceUnavailable",
+  AI_MODEL_UNAVAILABLE: "aiModels.preferenceUnavailable",
+  AI_THINKING_UNSUPPORTED: "aiModels.preferenceUnavailable",
+};
+const modelFailure = (code?: string | null) => code && AI_MODEL_ERROR_KEYS[code] ? t(AI_MODEL_ERROR_KEYS[code]) : null;
+
 const OPERATION_MESSAGES: Record<string,string> = {
     LANGUAGE_FEATURE_DISABLED: '本环境暂未启用语言检查，历史报告和候选仍保留。',
     LANGUAGE_EMPTY_SCENE: '请先保存需要检查的正文。',
@@ -37,7 +55,7 @@ const OPERATION_MESSAGES: Record<string,string> = {
   };
 
 export function localizedOperationFailure(code?: string | null): string {
-  return (code && sceneFailureMessage(code)) || (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
+  return modelFailure(code) || (code && sceneFailureMessage(code)) || (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
 }
 
 function sceneFailureMessage(code: string): string | undefined {
@@ -95,9 +113,10 @@ export function errorKeyForStatus(status: number): string {
  */
 export function localizedErrorMessage(error: unknown, fallbackKey = "errors.operationFailed"): string {
   if (isApiError(error)) {
-    const message = sceneFailureMessage(error.message) || OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
+    const message = modelFailure(error.message) || sceneFailureMessage(error.message) || OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
     return error.requestId && /^[a-zA-Z0-9-]{1,64}$/.test(error.requestId)
       ? `${message}（请求编号：${error.requestId}）` : message;
   }
+  if (error instanceof Error && error.message === "AI_QUOTE_CANCELLED") return t("aiModels.quoteCancelled");
   return t(fallbackKey);
 }

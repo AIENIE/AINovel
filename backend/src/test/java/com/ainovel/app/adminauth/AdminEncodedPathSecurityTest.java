@@ -61,6 +61,9 @@ class AdminEncodedPathSecurityTest {
     @MockBean
     private V2ModelPersistenceService persistenceService;
 
+    @MockBean
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
+
     @Test
     void encodedV1AdminWriteWithoutOriginIsRejectedByAdminFilter() throws Exception {
         mockMvc.perform(post(URI.create("/api/v1/%61dmin/redeem-codes"))
@@ -96,7 +99,7 @@ class AdminEncodedPathSecurityTest {
                 "session-hash", "local-admin", "FULL", "PASSWORD_TOTP",
                 now.minusSeconds(60), now.minusSeconds(30), now.plusSeconds(600)
         ));
-        when(persistenceService.listRouting()).thenReturn(List.of());
+        when(modelConfiguration.features(null)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v2/admin/model-routing")
                         .servletPath("/api")
@@ -104,7 +107,7 @@ class AdminEncodedPathSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
 
-        verify(persistenceService).listRouting();
+        verify(modelConfiguration).features(null);
         verify(jwtService, never()).parseClaims(any());
         verifyNoInteractions(resourceAccessGuard);
     }

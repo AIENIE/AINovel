@@ -115,7 +115,12 @@ public class ManuscriptController {
 
     @PostMapping("/manuscript/scenes/{sceneId}/generate")
     @Operation(summary = "生成场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件生成场景正文。")
-    public ManuscriptDto generateScene(@PathVariable UUID sceneId) { return manuscriptService.generateForScene(sceneId); }
+    public ManuscriptDto generateScene(@PathVariable UUID sceneId) {
+        var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        return selection!=null&&selection.businessScope()!=null
+                ?manuscriptService.generateForScene(UUID.fromString(selection.businessScope()),sceneId,com.ainovel.app.manuscript.GenerationMode.FAST)
+                :manuscriptService.generateForScene(sceneId);
+    }
 
     @PutMapping("/manuscript/sections/{sectionId}")
     @Operation(summary = "保存场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件更新正文。")

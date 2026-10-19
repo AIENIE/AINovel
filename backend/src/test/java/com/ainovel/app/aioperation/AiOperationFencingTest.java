@@ -102,4 +102,30 @@ class AiOperationFencingTest {
         ReflectionTestUtils.invokeMethod(service, "execute", run.getId());
         assertEquals(keys.get(0), keys.get(2)); assertEquals(keys.get(1), keys.get(3)); assertNotEquals(keys.get(0), keys.get(1));
     }
+    @Test void workerRestoresFrozenModelPriceAndIdentityAcrossRetryAndClearsThreadContext() throws Exception {
+        var option=new com.ainovel.app.modelconfig.AiModelSelection("generic.chat","preset","original-model","Original price","ON","HIGH",false,true,"FIXED",7L,null,null,4);
+        var snapshot=new com.ainovel.app.modelconfig.AiSelectionContext.Snapshot("original-quote",Map.of("generic.chat",option),null,Map.of("generic.chat",2000));
+        run.setModelSelectionsJson(new ObjectMapper().writeValueAsString(snapshot));
+        List<String> keys=new ArrayList<>();
+        when(handler.execute(any())).thenAnswer(i->{
+            assertEquals(snapshot,com.ainovel.app.modelconfig.AiSelectionContext.current());
+            keys.add(com.ainovel.app.modelconfig.AiSelectionContext.callKey("generic.chat"));
+            return Map.of("model",com.ainovel.app.modelconfig.AiSelectionContext.selection("generic.chat").modelKey());
+        });
+        ReflectionTestUtils.invokeMethod(service,"execute",run.getId());
+        assertNull(com.ainovel.app.modelconfig.AiSelectionContext.current());
+        run.setStatus(AiOperationStatus.QUEUED);ReflectionTestUtils.invokeMethod(service,"execute",run.getId());
+        assertEquals(keys.getFirst(),keys.getLast());assertEquals(2,keys.size());
+    }
+
+    @Test void unaryCompletionKeepsStageProgressAndRecordsActualModelWithoutStreaming() throws Exception {
+        when(handler.execute(any())).thenAnswer(i->{
+            AiProgressContext.current().onUnaryCompleted("unary-actual-model",50,30,4);
+            assertEquals(AiOperationStatus.RUNNING,run.getStatus());assertFalse(run.isStreamStarted());
+            assertEquals("unary-actual-model",run.getModelKey());assertEquals(50,run.getOutputTokens());assertFalse(run.isOutputTokensEstimated());
+            return Map.of("saved",true);
+        });
+        ReflectionTestUtils.invokeMethod(service,"execute",run.getId());assertEquals(AiOperationStatus.SUCCEEDED,run.getStatus());
+    }
+
 }

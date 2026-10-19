@@ -288,7 +288,7 @@ public class OutlineService {
                     List.of(new AiChatRequest.Message("user", prompt)),
                     null,
                     null
-            )).content();
+            ).forFeature("outline.chapter")).content();
             Map<String, Object> root = parseJson(content);
             if (root == null) {
                 return new GeneratedChapter(null, null, List.of());

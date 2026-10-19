@@ -91,7 +91,9 @@ public class AiAdmissionGuard {
 
     public String requestHash(AiChatRequest request) {
         try {
-            byte[] json = objectMapper.writeValueAsBytes(request);
+            var node=objectMapper.valueToTree(request);
+            if(request.featureKey()==null)((com.fasterxml.jackson.databind.node.ObjectNode)node).remove("featureKey");
+            byte[] json = objectMapper.writeValueAsBytes(node);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json));
         } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
             throw new IllegalStateException("Unable to hash AI request", ex);

@@ -73,4 +73,22 @@ public class AiCreditReservation {
     public void setAttemptCount(int value) { this.attemptCount = value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String selectionJson;
+    public String getSelectionJson() { return selectionJson; }
+    public void setSelectionJson(String value) { selectionJson=value; }
+    @Column(length=100) private String actualModelKey;
+    public String getActualModelKey() { return actualModelKey; }
+    public void setActualModelKey(String value) { actualModelKey=value; }
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String frozenRequestJson;
+    public String getFrozenRequestJson(){return frozenRequestJson;}
+    public void setFrozenRequestJson(String value){frozenRequestJson=value;}
+    private UUID operationId;
+    public UUID getOperationId(){return operationId;}
+    public void setOperationId(UUID value){operationId=value;}
+    @Column(length=160) private String requestIdentity;
+    public String getRequestIdentity(){return requestIdentity;}
+    public void setRequestIdentity(String value){requestIdentity=value;}
 }

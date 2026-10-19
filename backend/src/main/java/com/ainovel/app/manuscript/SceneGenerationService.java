@@ -78,8 +78,12 @@ public class SceneGenerationService {
             int attemptCount,
             SceneDraftContextManifest contextManifest,
             List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references,
-            String languageStandardVersion
+            String languageStandardVersion,
+            com.ainovel.app.modelconfig.AiModelSelection selection
     ) {
+        public GenerationMetadata(String modelKey,String promptVersion,String promptHash,int attemptCount,SceneDraftContextManifest contextManifest,List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references,String languageStandardVersion) {
+            this(modelKey,promptVersion,promptHash,attemptCount,contextManifest,references,languageStandardVersion,null);
+        }
         public GenerationMetadata(String modelKey,String promptVersion,String promptHash,int attemptCount,SceneDraftContextManifest contextManifest){this(modelKey,promptVersion,promptHash,attemptCount,contextManifest,List.of(),null);}
         public GenerationMetadata(String modelKey,String promptVersion,String promptHash,int attemptCount,SceneDraftContextManifest contextManifest,List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references){this(modelKey,promptVersion,promptHash,attemptCount,contextManifest,references,null);}
     }
@@ -156,7 +160,7 @@ public class SceneGenerationService {
                         +SceneGenerationPromptBuilder.lengthRevision(previousDraft,previous.actualHan(),min,max)));
             }
             var retained=candidateStore==null?null:candidateStore.draft(operationId,attempt);
-            var request=new AiChatRequest(messages,null,null);
+            var request=new AiChatRequest(messages,null,null).forFeature("scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length"));
             if(attempt==2&&retained!=null&&retained.getRequestJson()!=null) {
                 try {request=objectMapper.readValue(retained.getRequestJson(),AiChatRequest.class);messages=new ArrayList<>(request.messages());}
                 catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
@@ -171,12 +175,19 @@ public class SceneGenerationService {
                 throw e;
             }
             if(attempt==2&&candidateStore!=null) candidateStore.freezeRequest(operationId,manuscript,sceneId,2,request);
+            var aiResponse=retained!=null&&retained.getActualHan()!=null?null:aiService.chat(owner,request);
             String normalized=retained!=null&&retained.getActualHan()!=null
                     ?normalizeGeneratedText(org.springframework.web.util.HtmlUtils.htmlUnescape(retained.getContent().replace("</p>","\n\n").replace("<br />","\n").replaceAll("<[^>]+>","")))
-                    :normalizeGeneratedText(aiService.chat(owner,request).content());
+                    :normalizeGeneratedText(aiResponse.content());
             int count=countHanCharacters(normalized);
-            var metadata=new GenerationMetadata(modelPolicy.modelKey(),compiledContext==null?SceneDraftContextCompiler.COMPILER_VERSION:compiledContext.compilerVersion(),
-                    promptHash(messages),attempt,compiledContext==null?null:compiledContext.manifest(),frozenReferences,languageStandard?languageSelection.version():null);
+            String actualModel=aiResponse!=null&&aiResponse.actualModelKey()!=null?aiResponse.actualModelKey():modelPolicy.modelKey();
+            var modelSelection=aiResponse==null?null:aiResponse.selection();
+            if(aiResponse==null&&retained!=null&&retained.getMetadataJson()!=null) {
+                try {var source=objectMapper.readValue(retained.getMetadataJson(),com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source.class).generation();actualModel=source.modelKey();modelSelection=source.selection();}
+                catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
+            }
+            var metadata=new GenerationMetadata(actualModel,compiledContext==null?SceneDraftContextCompiler.COMPILER_VERSION:compiledContext.compilerVersion(),
+                    promptHash(messages),attempt,compiledContext==null?null:compiledContext.manifest(),frozenReferences,languageStandard?languageSelection.version():null,modelSelection);
             UUID id=candidateStore==null?null:candidateStore.retainDraft(operationId,manuscript,sceneId,toEditorHtml(normalized),attempt,min,max,count,
                     new com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source(mode,metadata,languageSelection));
             if(id!=null) ids.add(id);
@@ -264,7 +275,7 @@ public class SceneGenerationService {
                     owner, story, sceneContext, characterContext, previousContext,
                     previousDraft, previousCount, attempt, sceneContext.lengthRange().minHan(), sceneContext.lengthRange().maxHan(), mode, compiledContext
             );
-            String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null),
+            String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null).forFeature("scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length")),
                     usageContext.forOperation("draft-" + attempt)).content();
             String normalized = normalizeGeneratedText(raw);
             int hanCount = countHanCharacters(normalized);
@@ -277,7 +288,7 @@ public class SceneGenerationService {
                                 manuscript, story, sceneContext, previousContext, characterContext, normalized,
                                 "g2_evaluation"
                         ),
-                        usageContext.forOperation("quality")
+                        usageContext.forOperation("quality-"+attempt)
                 );
                 int acceptedCount = countHanCharacters(qualityResult.acceptedText());
                 if (acceptedCount < sceneContext.lengthRange().minHan() || acceptedCount > sceneContext.lengthRange().maxHan()) {

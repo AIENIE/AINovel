@@ -11,5 +11,11 @@ public record AiChatResponse(
         @Schema(description = "token 使用统计")
         AiUsageDto usage,
         @Schema(description = "剩余资产", example = "1200.0")
-        double remainingCredits
-) {}
+        double remainingCredits,
+        com.ainovel.app.modelconfig.AiModelSelection selection,
+        String actualModelKey
+) {
+    public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits) {
+        this(role,content,usage,remainingCredits,null,null);
+    }
+}

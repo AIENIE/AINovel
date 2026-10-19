@@ -79,7 +79,7 @@ class SceneGenerationAttributionServiceTest {
                 generationVersionId,
                 GenerationMode.CRAFTED,
                 Map.of(
-                        "modelKey", "ignored-model",
+                        "modelKey", "actual-provider-model",
                         "promptVersion", "ignored-prompt-version",
                         "promptHash", "d".repeat(64),
                         "attemptCount", 2,
@@ -102,7 +102,7 @@ class SceneGenerationAttributionServiceTest {
 
         assertEquals(SceneGenerationRunStatus.GENERATED, result.status());
         assertEquals("crafted", result.mode());
-        assertEquals("deepseek-v4-flash", result.modelKey());
+        assertEquals("actual-provider-model", result.modelKey());
         assertEquals("scene-draft-v2", result.promptVersion());
         assertEquals(2, result.attemptCount());
         assertEquals(previous.getId(), result.previousRunId());

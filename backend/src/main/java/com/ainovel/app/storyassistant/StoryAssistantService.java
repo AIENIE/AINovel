@@ -211,7 +211,8 @@ public class StoryAssistantService {
     private AiChatResponse call(AiOperationExecution execution,UUID turnId,String stage,AiChatRequest request){
         var row=store.turn(turnId);String raw=stage.equals("plan")?row.planResultJson():row.finalResultJson();if(raw!=null)return store.read(raw,AiChatResponse.class);
         String saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        if(saved==null){AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",request);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
+        var configured=request.forFeature("story_assistant."+store.read(row.frozenJson(),Frozen.class).intent().toLowerCase(java.util.Locale.ROOT)+"."+stage);
+        if(saved==null){AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var frozen=store.read(saved,AiChatRequest.class);AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),frozen,execution.operationId()+":story-assistant:"+stage);store.checkpoint(turnId,stage+"_result_json",response);return response;
     }

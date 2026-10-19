@@ -211,6 +211,8 @@ public class ManuscriptService {
         if(automatic&&languageQuality!=null) languageQuality.afterGeneration(ownerOf(manuscript),manuscript,sceneId,versionId,languageSelection);
         if(materialEvidence!=null&&generation.metadata()!=null) materialEvidence.recordReferences(ownerOf(manuscript),manuscriptId,sceneId,manuscript.getCurrentBranchId(),versionId,generation.metadata().references());
         var run=sceneGenerationAttributionService.recordGeneration(manuscript,sceneId,versionId,mode,manifest,generation.html());
+        if(generation.metadata()!=null&&generation.metadata().selection()!=null)
+            sceneGenerationAttributionService.recordModelSelection(run.id(),generation.metadata().selection());
         eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscriptId,null));
         if(automatic) eventPublisher.publishEvent(new com.ainovel.app.material.evidence.MaterialGenerationCompleted(ownerOf(manuscript).getId(),manuscriptId,sceneId,versionId));
         if(!generation.candidateIds().isEmpty()) {

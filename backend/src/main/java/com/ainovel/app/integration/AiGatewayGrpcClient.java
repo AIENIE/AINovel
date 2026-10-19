@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class AiGatewayGrpcClient {
+    public static final String RETRIEVAL_RERANK_MODEL="qwen3.7-text-rerank";
+    public static final String RETRIEVAL_STRUCTURED_MODEL="qwen3.7-flash-2026-07-15";
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
 
@@ -80,6 +82,54 @@ public class AiGatewayGrpcClient {
                 m.getSupportsStreaming()
         )));
         return models;
+    }
+
+    public List<com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel> listCallerModels() {
+        var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS)
+                .listCallerModels(fireflychat.ai.v1.ListCallerModelsRequest.getDefaultInstance());
+        return response.getModelsList().stream().map(m->{
+            var t=m.getThinking();
+            var thinking=m.hasThinking()?new com.ainovel.app.modelconfig.AiModelConfigurationService.Thinking(
+                    t.getDeclared(),t.getSupportsEnable(),t.getSupportsDisable(),t.getOptionsList().stream().filter(o->o.getEffortValue()>=1&&o.getEffortValue()<=6)
+                    .map(o->new com.ainovel.app.modelconfig.AiModelConfigurationService.ThinkingOption(
+                            o.getEffort().name().replace("THINKING_EFFORT_",""),o.getLabel())).toList(),
+                    t.hasDefaultEnabled()?t.getDefaultEnabled():null,
+                    t.hasDefaultEffort()?t.getDefaultEffort().name().replace("THINKING_EFFORT_",""):null)
+                    :com.ainovel.app.modelconfig.AiModelConfigurationService.Thinking.unknown();
+            return new com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel(
+                    Long.toString(m.getId()),m.getModelKey(),m.getDisplayName(),m.getProvider(),true,
+                    m.getSupportsStreaming(),m.getSupportsImageInput(),thinking,null);
+        }).toList();
+    }
+
+    public ChatResult complete(String requestId,long remoteUserId,
+            com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
+            StreamProgressListener listener) {
+        try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
+            var request=withThinking(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
+            if(listener==null) {
+                var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
+                return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+            }
+            return consumeStream(requestId,request,listener);
+        });}catch(io.grpc.StatusRuntimeException failure) {
+            if(failure.getStatus().getCode()==io.grpc.Status.Code.FAILED_PRECONDITION
+                    &&failure.getStatus().getDescription()!=null&&failure.getStatus().getDescription().startsWith("THINKING_OPTIONS_UNSUPPORTED"))
+                throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_THINKING_UNSUPPORTED");
+            throw failure;
+        }
+    }
+
+    static ChatCompletionsRequest withThinking(ChatCompletionsRequest original,
+            com.ainovel.app.modelconfig.AiModelSelection selected) {
+        var builder=original.toBuilder();
+        if("OFF".equals(selected.thinkingMode())) builder.setThinkingEnabled(false);
+        else if("ON".equals(selected.thinkingMode())) {
+            builder.setThinkingEnabled(true);
+            if(selected.thinkingEffort()!=null) builder.setThinkingEffort(
+                    fireflychat.ai.v1.ThinkingEffort.valueOf("THINKING_EFFORT_"+selected.thinkingEffort()));
+        }
+        return builder.build();
     }
 
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
@@ -125,6 +175,10 @@ public class AiGatewayGrpcClient {
                                             List<AiChatRequest.Message> messages,
                                             StreamProgressListener listener) {
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
+        return consumeStream(requestId,request,listener);
+    }
+
+    private ChatResult consumeStream(String requestId,ChatCompletionsRequest request,StreamProgressListener listener) {
         Iterator<ChatCompletionsStreamEvent> events = stub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .chatCompletionsStream(request);
@@ -211,13 +265,13 @@ public class AiGatewayGrpcClient {
     }
     public fireflychat.ai.v1.RerankResponse rerank(String requestId,long user,String query,List<String> documents,String instruction,int top,String run){
         var request=fireflychat.ai.v1.RerankRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
-                .setUserId(user).setModel("qwen3.7-text-rerank").setQuery(query).addAllDocuments(documents).setInstruct(instruction).setTopN(top);
+                .setUserId(user).setModel(RETRIEVAL_RERANK_MODEL).setQuery(query).addAllDocuments(documents).setInstruct(instruction).setTopN(top);
         if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
         return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).rerank(request.build());
     }
     public ChatResult structured(String requestId,long user,List<AiChatRequest.Message> messages,String schema,int maxOutput,String run){
         var request=ChatCompletionsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
-                .setUserId(user).setModel("qwen3.7-flash-2026-07-15").setJsonSchema(schema).setMaxOutputTokens(maxOutput).setThinkingEnabled(false);
+                .setUserId(user).setModel(RETRIEVAL_STRUCTURED_MODEL).setJsonSchema(schema).setMaxOutputTokens(maxOutput).setThinkingEnabled(false);
         for(var m:messages)request.addMessages(ChatMessage.newBuilder().setRole(m.role()).setContent(m.content()));
         if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
         var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request.build());
@@ -300,8 +354,13 @@ public class AiGatewayGrpcClient {
 
     public interface StreamProgressListener {
         default void onStarted(String requestId, String modelKey) {}
+        default void onModelResolved(String modelKey) {}
         void onDelta(long outputTokens, boolean estimated);
         default void onCompleted(long completionTokens, long promptTokens, long cacheTokens) {}
+        default void onUnaryCompleted(String modelKey,long completionTokens,long promptTokens,long cacheTokens) {
+            onModelResolved(modelKey);
+            onCompleted(completionTokens,promptTokens,cacheTokens);
+        }
     }
 
     public record EmbeddingResult(String modelKey, int dimensions, List<float[]> vectors, long promptTokens) {

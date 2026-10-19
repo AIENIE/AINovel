@@ -161,6 +161,9 @@ public class GuidedCreationJobService {
         job.setAttemptCount(0);
         job.setIdempotencyKey(idempotencyKey);
         job.setPayloadJson(codec.write(payload, "{}"));
+        var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        job.setModelSelectionsJson(selection==null?run.getModelSelectionsJson():codec.write(selection,"null"));
+        if(selection!=null)run.setModelSelectionsJson(job.getModelSelectionsJson());
         job = jobRepository.save(job);
 
         run.setActiveJobId(job.getId());
@@ -424,7 +427,8 @@ public class GuidedCreationJobService {
     }
 
     private String failureMessage(RuntimeException failure) {
-        String message = failure instanceof BusinessException ? failure.getMessage() : "生成失败，请重试；如持续失败，请提供草稿和任务编号";
+        String message = failure instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException ? "AI_PAYMENT_REQUIRED"
+                : failure instanceof BusinessException ? failure.getMessage() : "生成失败，请重试；如持续失败，请提供草稿和任务编号";
         if (message == null || message.isBlank()) message = "生成失败，请重试";
         return message.length() <= ERROR_LIMIT ? message : message.substring(0, ERROR_LIMIT);
     }

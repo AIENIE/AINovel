@@ -89,9 +89,10 @@ public class SlopDiagnosticService {
                     List.of(new AiChatRequest.Message("user", buildPrompt(request, heuristicResult))),
                     null,
                     null
-            )).content());
+            ).forFeature("slop.diagnose")).content());
             return toRun(request, root, heuristicResult, false);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             return fallbackRun(request, heuristicResult, ex);
         }

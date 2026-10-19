@@ -66,4 +66,18 @@ public class V2ModelRegistry {
     public void setPriority(int priority) { this.priority = priority; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    private Long gatewayModelId;
+    public Long getGatewayModelId() { return gatewayModelId; }
+    public void setGatewayModelId(Long value) { gatewayModelId=value; }
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String thinkingJson;
+    public String getThinkingJson() { return thinkingJson; }
+    public void setThinkingJson(String value) { thinkingJson=value; }
+    private Instant lastSyncedAt;
+    public Instant getLastSyncedAt() { return lastSyncedAt; }
+    public void setLastSyncedAt(Instant value) { lastSyncedAt=value; }
+    private boolean supportsImageInput;
+    public boolean getSupportsImageInput() { return supportsImageInput; }
+    public void setSupportsImageInput(boolean value) { supportsImageInput=value; }
 }

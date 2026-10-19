@@ -38,7 +38,7 @@ public class AiSlopJudgeClient implements SlopJudgeClient {
                 List.of(new AiChatRequest.Message("user", buildPrompt(request, heuristicResult))),
                 null,
                 null
-        );
+        ).forFeature("slop.judge");
         String content = (usageContext == null
                 ? aiService.chat(user, chatRequest)
                 : aiService.chat(user, chatRequest, usageContext)).content();

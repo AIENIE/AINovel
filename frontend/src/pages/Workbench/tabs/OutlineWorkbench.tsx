@@ -297,15 +297,12 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
   const handleAiRefine = async () => {
     if (!summary.trim()) return;
     try {
-      const models = await api.ai.getModels();
-      const modelId = models[0]?.id;
-      if (!modelId) throw new Error(t("outline.noAiModel"));
-      const response = await api.ai.refine(
+      const response = await api.ai.outlineRefine(
         summary,
         selectedNode?.type === "scene"
           ? t("outline.refineScenePrompt")
           : t("outline.refineChapterPrompt"),
-        modelId,
+        selectedNode?.type === "scene" ? "scene" : "chapter",
       );
       setSummary(response.result);
     } catch (error: unknown) {
