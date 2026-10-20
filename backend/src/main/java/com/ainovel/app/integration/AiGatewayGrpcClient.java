@@ -34,12 +34,15 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 @Component
 public class AiGatewayGrpcClient {
+    private static final Set<String> QUALITY_REPORT_FEATURES = Set.of("slop.judge", "slop.diagnose", "plot.diagnose");
     public static final String RETRIEVAL_RERANK_MODEL="qwen3.7-text-rerank";
     public static final String RETRIEVAL_STRUCTURED_MODEL="qwen3.7-flash-2026-07-15";
     @org.springframework.beans.factory.annotation.Autowired
@@ -106,7 +109,7 @@ public class AiGatewayGrpcClient {
             com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
             StreamProgressListener listener) {
         try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
-            var request=withThinking(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
+            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
             if(listener==null) {
                 var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
                 return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
@@ -130,6 +133,18 @@ public class AiGatewayGrpcClient {
                     fireflychat.ai.v1.ThinkingEffort.valueOf("THINKING_EFFORT_"+selected.thinkingEffort()));
         }
         return builder.build();
+    }
+
+    private static ChatCompletionsRequest selectedRequest(ChatCompletionsRequest original,
+            com.ainovel.app.modelconfig.AiModelSelection selected) {
+        var request = withThinking(original, selected);
+        var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
+        // JSON reports must not inherit a provider's much larger prose-generation default.
+        // Drafting and full-text revisions keep their existing output behavior.
+        if (snapshot != null && QUALITY_REPORT_FEATURES.contains(selected.featureKey())) {
+            request = request.toBuilder().setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
+        }
+        return request;
     }
 
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
@@ -320,7 +335,12 @@ public class AiGatewayGrpcClient {
             return result;
         } catch (RuntimeException failure) {
             if (validationBudget != null) {
-                try { validationBudget.complete(validationId, java.util.Map.of("errorType", failure.getClass().getSimpleName()), false); }
+                Map<String, String> failureMetadata = new java.util.LinkedHashMap<>();
+                failureMetadata.put("errorType", failure.getClass().getSimpleName());
+                if (failure instanceof io.grpc.StatusRuntimeException status) {
+                    failureMetadata.put("grpcCode", status.getStatus().getCode().name());
+                }
+                try { validationBudget.complete(validationId, failureMetadata, false); }
                 catch (RuntimeException recordingFailure) { failure.addSuppressed(recordingFailure); }
             }
             throw failure;
