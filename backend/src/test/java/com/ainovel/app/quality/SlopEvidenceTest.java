@@ -27,6 +27,15 @@ class SlopEvidenceTest {
         var newline=SlopEvidence.locate(p,999,1000,"字。\n她说"); assertFalse(newline.replaceable());
         var markup=LanguageProjection.of("<p>她<b>说</b>。</p>"); assertFalse(SlopEvidence.locate(markup,0,2,"她说").replaceable());
     }
+    @Test void fractionalCoordinatesCannotDisambiguateRepeatedQuotes() {
+        var p=LanguageProjection.of("<p>她说。她说。</p>");
+        var parsed=SlopEvidence.parse("""
+            {"complete":true,"evidence_items":[{"judgment":"CONFIRMED","kind":"LANGUAGE","category":"AWKWARD",
+            "char_start":0.5,"char_end":2.5,"quote":"她说","risk_explanation":"测试无效坐标","risk_score":80}]}
+            """,p,json);
+        assertEquals("AMBIGUOUS",parsed.findings().getFirst().location().trust());
+        assertFalse(parsed.findings().getFirst().eligible());assertEquals(0,parsed.risk());
+    }
     @Test void missingVerdictOrEvidenceBecomesObservationAndStyleCannotCreateCandidates() {
         var p=LanguageProjection.of("<p>她说当然可以。动作还在。</p>");
         var parsed=SlopEvidence.parse("""

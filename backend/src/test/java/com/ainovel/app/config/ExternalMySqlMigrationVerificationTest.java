@@ -59,7 +59,7 @@ class ExternalMySqlMigrationVerificationTest {
                 q.executeUpdate("INSERT INTO user_model_preferences(id,user_id,task_type,preferred_model_id) VALUES(UNHEX(REPLACE(UUID(),'-','')),UNHEX('"+user+"'),'draft_generation',UNHEX('"+model+"'))");
                 q.executeUpdate("INSERT INTO project_credit_ledger(id,user_id,entry_type,delta,balance_after,reference_type,reference_id,description,idempotency_key) VALUES(UNHEX(REPLACE(UUID(),'-','')),UNHEX('"+user+"'),'AI_DEBIT',-13,87,'AI_USAGE','legacy','Historical charge','legacy-charge')");
             }
-            assertEquals(1,flyway(config,url).migrate().migrationsExecuted);
+            assertEquals(3,flyway(config,url).migrate().migrationsExecuted);
             assertModelConfigurationSchema(config,url);
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
                 try(var rows=q.executeQuery("select credits from users where id=UNHEX('"+user+"')")){org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals(87,rows.getLong(1));}
@@ -68,6 +68,34 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 try(var rows=q.executeQuery("select delta,balance_after,description from project_credit_ledger where user_id=UNHEX('"+user+"')")){org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals(-13,rows.getLong(1));assertEquals(87,rows.getLong(2));assertEquals("Historical charge",rows.getString(3));org.junit.jupiter.api.Assertions.assertFalse(rows.next());}
                 try(var rows=q.executeQuery("select config_json from task_model_routing where task_type='draft_generation'")){org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals("{\"legacy\":true}",rows.getString(1));}
+            }
+            assertEquals(0,flyway(config,url).migrate().migrationsExecuted);
+        });
+    }
+    @Test void upgradesV39WithoutInventingSlopProvenanceOrRepricingHistory() throws Exception {
+        var config=ExternalMySqlConfig.load();
+        withIsolatedDatabase(config,(name,url)->{
+            Flyway.configure().dataSource(url,config.username,config.password).locations("classpath:db/migration").target("39").load().migrate();
+            try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
+                q.execute("INSERT INTO manuscripts(id,sections_json,version) VALUES(UNHEX(REPEAT('01',16)),'{}',0)");
+                q.execute("INSERT INTO slop_quality_runs(id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revised,summary) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('04',16)),'ACCEPTED','LOW',12,0,'历史报告😀')");
+                q.execute("INSERT INTO language_quality_reports(id,manuscript_id,scene_id,source_key,data_json,created_at) VALUES(UNHEX(REPEAT('05',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('04',16)),'old-report','{\"status\":\"ISSUES\"}',NOW(6))");
+                q.execute("INSERT INTO language_quality_patches(id,report_id,issue_id,data_json,created_at) VALUES(UNHEX(REPEAT('06',16)),UNHEX(REPEAT('05',16)),'old-issue','{\"candidate\":\"原候选😀\"}',NOW(6))");
+                q.execute("INSERT INTO ai_validation_budgets(id,used,call_limit) VALUES('historical',1,6)");
+                q.execute("INSERT INTO ai_validation_calls(id,run_id,attempt,request_id,request_json,status,created_at) VALUES(UNHEX(REPEAT('07',16)),'historical',1,'original-id','{}','STARTED',NOW(6))");
+            }
+            assertEquals(2,flyway(config,url).migrate().migrationsExecuted);
+            try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
+                try(var r=q.executeQuery("SELECT summary,review_context_json FROM slop_quality_runs")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(r.next());assertEquals("历史报告😀",r.getString(1));org.junit.jupiter.api.Assertions.assertNull(r.getString(2));
+                }
+                try(var r=q.executeQuery("SELECT data_json FROM language_quality_patches")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(r.next());assertEquals("{\"candidate\":\"原候选😀\"}",r.getString(1));
+                }
+                try(var r=q.executeQuery("SELECT request_id,status,budget_id,settled_cost,settlement_state FROM ai_validation_calls")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(r.next());assertEquals("original-id",r.getString(1));assertEquals("STARTED",r.getString(2));
+                    org.junit.jupiter.api.Assertions.assertNull(r.getString(3));org.junit.jupiter.api.Assertions.assertNull(r.getBigDecimal(4));org.junit.jupiter.api.Assertions.assertNull(r.getString(5));
+                }
             }
             assertEquals(0,flyway(config,url).migrate().migrationsExecuted);
         });
@@ -92,7 +120,7 @@ class ExternalMySqlMigrationVerificationTest {
                 statement.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
                 statement.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>兼容旧候选😀</p>','{}','LENGTH_REJECTED',NOW(6))");
             }
-            assertEquals(3, flyway(config, url).migrate().migrationsExecuted);
+            assertEquals(5, flyway(config, url).migrate().migrationsExecuted);
             assertAssistantSchema(config, url);
             try (var connection = DriverManager.getConnection(url, config.username, config.password);
                  var statement = connection.createStatement()) {
@@ -136,7 +164,7 @@ class ExternalMySqlMigrationVerificationTest {
                 statement.execute("INSERT INTO writing_assistant_sessions(id,user_id,manuscript_id,branch_id,scene_id,created_at) VALUES(UNHEX(REPEAT('04',16)),UNHEX(REPEAT('05',16)),UNHEX(REPEAT('03',16)),UNHEX(REPEAT('06',16)),UNHEX(REPEAT('07',16)),NOW(6))");
                 statement.execute("INSERT INTO writing_assistant_turns(id,session_id,request_key,request_hash,frozen_json,created_at) VALUES(UNHEX(REPEAT('08',16)),UNHEX(REPEAT('04',16)),'old-request','old-hash','{\"original\":\"冻结正文😀\"}',NOW(6))");
             }
-            assertEquals(2, flyway(config, url).migrate().migrationsExecuted);
+            assertEquals(4, flyway(config, url).migrate().migrationsExecuted);
             assertStoryAssistantSchema(config, url);
             try (var connection = DriverManager.getConnection(url, config.username, config.password);
                  var statement = connection.createStatement()) {
@@ -184,7 +212,7 @@ class ExternalMySqlMigrationVerificationTest {
                 q.execute("INSERT INTO manuscript_branches(id,manuscript_id,name,status,is_main) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('01',16)),'main','active',1)");
                 q.execute("INSERT INTO narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at) VALUES(UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('02',16)),UNHEX(REPEAT('04',16)),'<p>旧 H2 正文</p>','{}','LENGTH_REJECTED',NOW(6))");
             }
-            assertEquals(4,flyway(config,url).migrate().migrationsExecuted);
+            assertEquals(6,flyway(config,url).migrate().migrationsExecuted);
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
                 try(var rows=q.executeQuery("SELECT content,operation_id FROM narrative_generation_candidates")) {
                     org.junit.jupiter.api.Assertions.assertTrue(rows.next());assertEquals("<p>旧 H2 正文</p>",rows.getString(1));org.junit.jupiter.api.Assertions.assertNull(rows.getBytes(2));
@@ -221,12 +249,12 @@ class ExternalMySqlMigrationVerificationTest {
 
     @Test
     void upgradesStagingV23ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("23", 16);
+        assertUpgradeThroughLatest("23", 18);
     }
 
     @Test
     void upgradesDevelopV33ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("33", 6);
+        assertUpgradeThroughLatest("33", 8);
     }
 
     private void assertUpgradeThroughLatest(String baseline, int expectedPending) throws Exception {
@@ -237,7 +265,7 @@ class ExternalMySqlMigrationVerificationTest {
             var migration = flyway(config, databaseUrl);
             assertEquals(expectedPending, migration.info().pending().length);
             assertEquals(expectedPending, migration.migrate().migrationsExecuted);
-            assertEquals("39", migration.info().current().getVersion().getVersion());
+            assertEquals("41", migration.info().current().getVersion().getVersion());
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement();
                  var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_emergency_subjects WHERE subject_id='configured-admin'")) {
@@ -265,7 +293,7 @@ class ExternalMySqlMigrationVerificationTest {
                 }
                 statement.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            assertEquals(5, flyway(config, databaseUrl).migrate().migrationsExecuted);
+            assertEquals(7, flyway(config, databaseUrl).migrate().migrationsExecuted);
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement()) {
                 try (var columns = statement.executeQuery("SELECT DATA_TYPE,COLLATION_NAME,IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='ai_operation_runs' AND COLUMN_NAME='payload_json'")) {

@@ -92,8 +92,8 @@ public final class SlopEvidence {
         var findings=new ArrayList<Finding>();
         for(var node:root.path("evidence_items")) {
             String quote=node.path("quote").asText("");
-            Integer start=node.path("char_start").canConvertToInt()?node.path("char_start").intValue():null;
-            Integer end=node.path("char_end").canConvertToInt()?node.path("char_end").intValue():null;
+            Integer start=node.path("char_start").isIntegralNumber() && node.path("char_start").canConvertToInt()?node.path("char_start").intValue():null;
+            Integer end=node.path("char_end").isIntegralNumber() && node.path("char_end").canConvertToInt()?node.path("char_end").intValue():null;
             var location=locate(projection,start,end,quote);
             Judgment judgment=value(Judgment.class,node.path("judgment").asText(),Judgment.UNCERTAIN);
             Kind kind=value(Kind.class,node.path("kind").asText(),Kind.OBSERVATION);

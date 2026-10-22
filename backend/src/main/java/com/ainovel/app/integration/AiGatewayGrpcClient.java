@@ -47,6 +47,8 @@ public class AiGatewayGrpcClient {
     public static final String RETRIEVAL_STRUCTURED_MODEL="qwen3.7-flash-2026-07-15";
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.ai.AiValidationMoneyGateway moneyGateway;
 
     private final ExternalServiceProperties properties;
     private final ClientInterceptor authInterceptor;
@@ -113,6 +115,7 @@ public class AiGatewayGrpcClient {
     public ChatResult complete(String requestId,long remoteUserId,
             com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
             StreamProgressListener listener) {
+        if(monetaryValidation()) return moneyChat(selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected));
         try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
             var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
             if(listener==null) {
@@ -157,6 +160,7 @@ public class AiGatewayGrpcClient {
     }
 
     public ChatResult chatCompletions(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
+        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
         return validated("CHAT", requestId, model, messages, () -> chatTransport(requestId, remoteUserId, model, messages));
     }
 
@@ -186,7 +190,33 @@ public class AiGatewayGrpcClient {
                                             String model,
                                             List<AiChatRequest.Message> messages,
                                             StreamProgressListener listener) {
+        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
         return validated("CHAT_STREAM", requestId, model, messages, () -> streamTransport(requestId, remoteUserId, model, messages, listener));
+    }
+
+    private boolean monetaryValidation() { return validationBudget!=null && validationBudget.monetaryEnabled(); }
+    private com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
+        return new com.ainovel.app.ai.AiValidationMoneyGateway.Transport() {
+            public fireflychat.ai.v1.ModelChatCapabilities capabilities(String model) { return chatCapabilities(model); }
+            public fireflychat.ai.v1.PrepareCallBudgetResponse prepare(fireflychat.ai.v1.PrepareCallBudgetRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).prepareCallBudget(request);
+            }
+            public ChatCompletionsResponse send(ChatCompletionsRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
+            }
+            public fireflychat.ai.v1.GetBudgetCallStatusResponse status(fireflychat.ai.v1.GetBudgetCallStatusRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).getBudgetCallStatus(request);
+            }
+        };
+    }
+    private ChatResult moneyChat(ChatCompletionsRequest request) {
+        // Explicit local acceptance uses only the declared unary text budget path, even when the UI tracks progress.
+        var response=moneyGateway.call(request,moneyTransport());
+        return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+    }
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString="${app.ai.validation.reconcile-delay-ms:30000}")
+    public void reconcileValidationMoney() {
+        if(monetaryValidation()) moneyGateway.reconcilePending(moneyTransport());
     }
 
     private ChatResult streamTransport(String requestId,

@@ -38,7 +38,15 @@
 
 运行配置：`app.language.enabled=false` 为总开关；`generation-enabled`、`diagnosis-enabled` 可分别关闭（默认 true，仍受总开关与作品开关限制）。`input-token-budget=24000` 是输入预算，按 UTF-8 字节作保守 token 上界，同时受 AI admission 的消息/总字符上限约束。开启作品语言流程后，普通正文生成保留本地 Slop 规则，旧的付费 Slop 门禁及自动改稿退出该路径；冻结盲测提示不改变。关闭开关不删除报告、候选或已采纳正文。
 
-本地验收预算额外支持 `app.ai.validation.maximum-provider-attempts`；未设置时保留原先随 `maximum-calls` 的限制。当前专题账本必须为 40 次业务调用和 120 次供应商尝试，实际运行前另行核实 `provider-attempts-per-rpc`，不能仅凭默认重试数开始付费验证。
+本地验收沿用次数账本，并提供独立、默认关闭的人民币路径，配置见下节。既有不确定调用不重发，也不迁入新预算。
+
+### Local 人民币验收预算
+
+仅 `local` profile 且显式开启 `app.ai.validation.monetary-enabled=true` 时适用。需先创建独立 `ai_validation_budgets` 行，设置 run-id、currency=CNY、call-limit=24、provider-attempt-limit=24、cost-limit=30；配置 `maximum-calls=24`、`maximum-cost-cny=30`、`model-key=gemini-3.8-flash-high`，输出上限 `output-token-limit` 默认 4096。不自动创建或扩大预算。验收结束恢复原配置，不修改普通业务选型或价格。
+
+通过调用方目录的预算能力声明核实一元纯文本路径；先 `PrepareCallBudget(billing_currency=CNY,max_provider_attempts=1)` 取得价格版本和最高金额，再同时锁定次数与 `已结算＋未决最高预留＋本次最高报价≤预算上限`。带预算凭据发送的请求与报价请求完全一致。该路径不用流式或无预算回退，凭据不落账本。
+
+V41 在原验收预算和调用账本追加金额、预算标识、请求哈希、价格版本及结算状态；项目积分报价与人民币成本各自记账。空返回、解析失败仍占用调用次数并按权威用量结算。缺少能力、报价或权威用量则停止；发送后超时保留原编号和最高预留，仅调用 `GetBudgetCallStatus`。重启后的定时对账和同编号重试均不再次推理；只有已确认未发送才能释放金额预留，次数不返还。历史行的未知金额保持 NULL，不补造零费用。
 
 ## Slop 来源与逐项候选（slop-evidence-v2）
 
