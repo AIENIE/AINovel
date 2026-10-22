@@ -152,7 +152,7 @@ class SceneGenerationServiceMetadataTest {
         when(plotQualitySupport.buildQualityRequest(
                 eq(manuscript), eq(story), any(SceneGenerationContext.class), any(), any(), eq(acceptedText)
         )).thenReturn(qualityRequest);
-        when(qualityGate.evaluateAndRepair(owner, qualityRequest)).thenReturn(new SlopQualityResult(
+        when(qualityGate.evaluate(owner, qualityRequest)).thenReturn(new SlopQualityResult(
                 UUID.randomUUID(), acceptedText, 0, SlopSeverity.LOW, false, 0,
                 SlopQualityStatus.ACCEPTED, List.of()
         ));

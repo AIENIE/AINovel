@@ -4,7 +4,11 @@ import java.util.*;
 
 /** Server-owned functional identities, shared by configuration, quotation and callers. */
 public final class AiFeatures {
-    public record Definition(String key,String group,String zh,String tw,String en) {}
+    public record Definition(String key,String group,String zh,String tw,String en,boolean retired) {
+        public Definition(String key,String group,String zh,String tw,String en) {
+            this(key,group,zh,tw,en,"slop.revise".equals(key));
+        }
+    }
     private static final Map<String,Definition> DEFINITIONS=new LinkedHashMap<>();
     static {
         add("story.conception","creation","故事构思","故事構思","Story conception");

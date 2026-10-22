@@ -41,8 +41,9 @@ function FeatureEditor({ feature: draft, models, onSave, saving, setDraft }: { f
     setError("");
     try { await onSave(draft); } catch (failure) { setError(modelConfigError(failure)); }
   };
-  return <AdminPanel title={draft.definition.zh} description={draft.definition.key} actions={<Button onClick={() => void save()} disabled={saving} className="bg-zinc-100 text-zinc-950 hover:bg-white"><Save className="mr-2 h-4 w-4" />保存配置</Button>}>
-    <div className="space-y-5">
+  return <AdminPanel title={draft.definition.zh} description={draft.definition.key} actions={<Button onClick={() => void save()} disabled={saving || draft.definition.retired} className="bg-zinc-100 text-zinc-950 hover:bg-white"><Save className="mr-2 h-4 w-4" />保存配置</Button>}>
+    {draft.definition.retired ? <p className="mb-4 text-sm text-amber-300">已停用。保留此配置用于查询历史调用；新操作使用语言修订与语言复核配置。</p> : null}
+    <fieldset disabled={draft.definition.retired} className="space-y-5">
       <label className="flex items-start gap-3 rounded-md border border-zinc-800 p-3 text-sm"><input type="checkbox" className="mt-1" checked={draft.billingEnabled} onChange={(e) => {
         const billingEnabled = e.target.checked;
         setDraft((current) => ({ ...current, billingEnabled, options: billingEnabled ? current.options : current.options.filter((option) => option.optionId === current.defaultOptionId) }));
@@ -86,7 +87,7 @@ function FeatureEditor({ feature: draft, models, onSave, saving, setDraft }: { f
       }}><Plus className="mr-2 h-4 w-4" />添加模型方案</Button> : null}
       <p className="text-xs leading-relaxed text-zinc-400">Token 价格按输入、输出合计计算后向上取整，最低 1 项目积分。上游费率不作为用户售价。重复请求不重复扣费；已提交任务沿用原方案。</p>
       {error ? <p role="alert" className="text-sm text-red-400">{error}</p> : null}
-    </div>
+    </fieldset>
   </AdminPanel>;
 }
 export default function ModelConfiguration() {

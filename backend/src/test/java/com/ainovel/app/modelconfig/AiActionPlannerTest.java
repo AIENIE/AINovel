@@ -9,6 +9,13 @@ import static org.mockito.Mockito.mock;
 class AiActionPlannerTest {
     private final ObjectMapper json=new ObjectMapper();
     private final AiActionPlanner planner=new AiActionPlanner(mock(JdbcTemplate.class),json);
+    @Test void reviewedPlotAdoptionNeverQuotesOrInvokesSlopAndWholeDraftRepairIsRetired() {
+        assertThat(planner.features("/v2/manuscripts/id/plot-quality-runs/run/apply-revision",json.createObjectNode())).isEmpty();
+        assertThat(planner.candidate("POST","/v2/manuscripts/id/plot-quality-runs/run/apply-revision")).isFalse();
+        for(String route:java.util.List.of("/v1/manuscripts/id/scenes/id/generate/operations?mode=fast", "/v1/g2-evaluations/id/samples"))
+            assertThat(planner.features(route,json.createObjectNode())).doesNotContain("slop.revise");
+        assertThat(AiFeatures.require("slop.revise").retired()).isTrue();
+    }
     @Test void derivesStepsFromActualRouteAndBodyRatherThanClientFeatureFields() throws Exception {
         assertThat(planner.features("/v1/ai/chat",json.readTree("{\"featureKey\":\"free-feature\"}"))).containsExactly("generic.chat");
         assertThat(planner.features("/v1/manuscripts/id/scenes/id/generate/operations?mode=crafted",json.createObjectNode()))

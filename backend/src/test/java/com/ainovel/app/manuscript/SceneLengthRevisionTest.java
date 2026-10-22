@@ -50,7 +50,7 @@ class SceneLengthRevisionTest {
     }
     SceneGenerationService.GenerationResult generate(){return service.generateSceneSection(manuscript,scene,Map.of(),GenerationMode.FAST);}
     AiChatResponse response(int han){return new AiChatResponse("assistant","汉".repeat(han),null,0);}
-    void quality(int han){when(quality.evaluateAndRepair(any(),any())).thenReturn(new SlopQualityResult(UUID.randomUUID(),"汉".repeat(han),0,SlopSeverity.LOW,false,0,SlopQualityStatus.ACCEPTED,List.of()));}
+    void quality(int han){when(quality.evaluate(any(),any())).thenReturn(new SlopQualityResult(UUID.randomUUID(),"汉".repeat(han),0,SlopSeverity.LOW,false,0,SlopQualityStatus.ACCEPTED,List.of()));}
 
     @ParameterizedTest @CsvSource({"3000,0,3000,1,false","2719,3000,3000,2,false","2719,2750,2750,2,true","2719,3400,3400,2,true","3400,3000,3000,2,false"})
     void returnsDeliverableOutcomeWithoutThirdDraft(int first,int second,int expected,int calls,boolean review) {

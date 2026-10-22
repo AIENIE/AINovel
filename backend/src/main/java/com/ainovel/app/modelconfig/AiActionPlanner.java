@@ -51,7 +51,7 @@ public class AiActionPlanner {
             String mode="crafted".equalsIgnoreCase(queryParameter(target,"mode"))?"crafted":"fast";
             keys.add("scene."+mode+".draft");keys.add("scene."+mode+".length");generationQuality(keys);
         } else if(path.matches("/v1/g2-evaluations/[^/]+/samples")) {
-            for(String mode:List.of("fast","crafted")){keys.add("scene."+mode+".draft");keys.add("scene."+mode+".length");} keys.add("slop.judge");keys.add("slop.revise");
+            for(String mode:List.of("fast","crafted")){keys.add("scene."+mode+".draft");keys.add("scene."+mode+".length");} keys.add("slop.judge");
         } else if(path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/assistant/turns")) {
             String intent=body.path("intent").asText("AUTO").toLowerCase(Locale.ROOT);
             keys.add("assistant."+intent+".plan");keys.add("assistant."+intent+".final");
@@ -65,7 +65,6 @@ public class AiActionPlanner {
         else if(path.matches("/v2/manuscripts/[^/]+/slop-drift-runs(/operations)?"))keys.add("slop.drift");
         else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/plot-quality-runs(/operations)?"))keys.add("plot.diagnose");
         else if(path.matches("/v2/manuscripts/[^/]+/plot-quality-runs/[^/]+/revision-candidate(/operations)?"))keys.add("plot.revise");
-        else if(path.matches("/v2/manuscripts/[^/]+/plot-quality-runs/[^/]+/apply-revision")){keys.add("slop.judge");keys.add("slop.revise");}
         else if(path.equals("/v1/ai/chat"))keys.add("generic.chat");
         else if(path.equals("/v1/ai/refine"))keys.add("generic.refine");
         else if(path.equals("/v1/ai/version-summary"))keys.add("versions.summary");
@@ -73,7 +72,7 @@ public class AiActionPlanner {
         try{keys.forEach(AiFeatures::require);}catch(IllegalArgumentException e){throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_ACTION_INVALID");}
         return List.copyOf(keys);
     }
-    private static void generationQuality(Set<String> keys) {keys.addAll(List.of("slop.judge","slop.revise","plot.diagnose","language.diagnose"));}
+    private static void generationQuality(Set<String> keys) {keys.addAll(List.of("slop.judge","plot.diagnose","language.diagnose"));}
     public boolean candidate(String method,String target) {
         if(!"POST".equals(method)||target.contains("/admin"))return false;
         if(target.equals("/v1/creation-workflows")||target.matches(".*/assistant/turns"))return true;
@@ -118,7 +117,7 @@ public class AiActionPlanner {
                     if(!found.isEmpty())story=found.getFirst();
                 }
                 if(language==null||story==null||!language.checkAfterGeneration(story)||target.contains("/g2-evaluations/"))keys.remove("language.diagnose");
-                if(language!=null&&story!=null&&language.replacesLegacy(story)&&!target.contains("/g2-evaluations/")){keys.remove("slop.judge");keys.remove("slop.revise");}
+                if(language!=null&&story!=null&&language.replacesLegacy(story)&&!target.contains("/g2-evaluations/")){keys.remove("slop.judge");}
             }
         } catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException(e);}
         List<Step> steps=new ArrayList<>();

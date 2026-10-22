@@ -5,7 +5,7 @@ export type AiModelSelection = {
   fixedCredits: number | null; inputPer1k: number | null; outputPer1k: number | null; revision: number;
 };
 export type AiFeature = {
-  definition: { key: string; group: string; zh: string; tw: string; en: string };
+  definition: { key: string; group: string; zh: string; tw: string; en: string; retired?: boolean };
   revision: number; billingEnabled: boolean; defaultOptionId: string; preferredOptionId: string | null;
   preferenceInvalid: boolean; options: AiModelSelection[]; unavailableOptions: string[];
 };

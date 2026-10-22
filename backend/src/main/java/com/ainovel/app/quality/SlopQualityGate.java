@@ -14,32 +14,29 @@ public class SlopQualityGate {
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
     private final LocalSlopHeuristics heuristics;
     private final SlopJudgeClient judgeClient;
-    private final ConservativeRevisionService revisionService;
     private final SlopQualityRecorder recorder;
 
     public SlopQualityGate(LocalSlopHeuristics heuristics,
                            SlopJudgeClient judgeClient,
-                           ConservativeRevisionService revisionService,
                            SlopQualityRecorder recorder) {
         this.heuristics = heuristics;
         this.judgeClient = judgeClient;
-        this.revisionService = revisionService;
         this.recorder = recorder;
     }
 
-    public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request) {
-        return evaluateAndRepair(user, request, null);
+    public SlopQualityResult evaluate(User user, SlopQualityRequest request) {
+        return evaluate(user, request, null);
     }
 
-    public SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request, AiUsageContext usageContext) {
-        return evaluateAndRepair(user, request, usageContext, false);
+    public SlopQualityResult evaluate(User user, SlopQualityRequest request, AiUsageContext usageContext) {
+        return evaluate(user, request, usageContext, false);
     }
 
     public SlopQualityResult evaluateLocal(User user, SlopQualityRequest request) {
-        return evaluateAndRepair(user, request, null, true);
+        return evaluate(user, request, null, true);
     }
 
-    private SlopQualityResult evaluateAndRepair(User user, SlopQualityRequest request, AiUsageContext usageContext, boolean languageWorkflow) {
+    private SlopQualityResult evaluate(User user, SlopQualityRequest request, AiUsageContext usageContext, boolean languageWorkflow) {
         SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
         String acceptedText = request.candidateText();
         boolean revised = false;
@@ -64,26 +61,6 @@ public class SlopQualityGate {
                     ? "AI 诊断建议保守修订。"
                     : judgeResult.actionableHint();
 
-            if (judgeResult.revisionRecommended() && riskScore >= 55) {
-                String revisedText = safeRevise(user, request, judgeResult,
-                        usageContext == null ? null : usageContext.forOperation("quality-revision"));
-                if (revisedText != null && !revisedText.isBlank()) {
-                    SlopHeuristicResult revisedHeuristic = heuristics.evaluate(SlopHeuristicInput.from(request, revisedText));
-                    if (isSaferRevision(heuristicResult, revisedHeuristic)) {
-                        acceptedText = revisedText.trim();
-                        revised = true;
-                        revisionCount = 1;
-                        riskScore = Math.min(riskScore, revisedHeuristic.overallRiskScore());
-                        maxSeverity = revisedHeuristic.maxSeverity();
-                        issues = new ArrayList<>(revisedHeuristic.issues());
-                        acceptedShadowHits = revisedHeuristic.shadowHits();
-                        signals = SlopQualitySignals.fromIssues(riskScore, maxSeverity, issues);
-                        summary = "已执行一次保守修订。";
-                    } else {
-                        summary = "修订版风险未降低，保留原始候选。";
-                    }
-                }
-            }
         }
 
         SlopQualityStatus status = statusFor(revised, riskScore, maxSeverity);
@@ -103,15 +80,6 @@ public class SlopQualityGate {
         return new SlopQualityResult(runId, acceptedText, riskScore, maxSeverity, revised, revisionCount, status, List.copyOf(issues));
     }
 
-    private boolean isSaferRevision(SlopHeuristicResult original, SlopHeuristicResult revised) {
-        boolean notWorse = revised.overallRiskScore() <= original.overallRiskScore()
-                && revised.maxSeverity().ordinal() <= original.maxSeverity().ordinal();
-        boolean improved = revised.overallRiskScore() < original.overallRiskScore()
-                || revised.maxSeverity().ordinal() < original.maxSeverity().ordinal()
-                || revised.issues().size() < original.issues().size();
-        return notWorse && improved;
-    }
-
     private SlopJudgeResult safeJudge(User user,
                                       SlopQualityRequest request,
                                       SlopHeuristicResult heuristicResult,
@@ -127,19 +95,6 @@ public class SlopQualityGate {
                     heuristicResult.issues(),
                     "AI 诊断失败，按本地规则结果处理。"
             );
-        }
-    }
-
-    private String safeRevise(User user,
-                              SlopQualityRequest request,
-                              SlopJudgeResult judgeResult,
-                              AiUsageContext usageContext) {
-        try {
-            return revisionService.revise(user, request, judgeResult, usageContext);
-        } catch (RuntimeException ex) {
-            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
-            if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
-            return null;
         }
     }
 

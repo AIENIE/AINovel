@@ -36,7 +36,7 @@ export default function AiFeaturePreferences() {
       {loading ? <p className="text-sm text-muted-foreground">{t("common.loading")}</p> : null}
       {error ? <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">{error}<Button size="sm" variant="outline" onClick={() => void load()}>{t("aiModels.reload")}</Button></div> : null}
       <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
-        {features.filter((feature) => featureName(feature, i18n.language).toLowerCase().includes(search.toLowerCase())).map((feature) => {
+        {features.filter((feature) => !feature.definition.retired && featureName(feature, i18n.language).toLowerCase().includes(search.toLowerCase())).map((feature) => {
           const key = feature.definition.key;
           const selectedId = feature.preferredOptionId ?? feature.defaultOptionId;
           const selected = feature.options.find((option) => option.optionId === selectedId);

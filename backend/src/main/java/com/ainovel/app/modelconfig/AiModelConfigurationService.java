@@ -126,7 +126,8 @@ public class AiModelConfigurationService {
         return new FeatureView(definition,revision,bill,(String)row.get("default_option_id"),pref,invalid,options,List.copyOf(unavailable));
     }
     public FeatureView update(String key,FeatureUpdate request) {
-        AiFeatures.require(key);ensureInitialized();
+        if(AiFeatures.require(key).retired()) throw error("AI_FEATURE_RETIRED");
+        ensureInitialized();
         return tx.execute(s->{
             jdbc.queryForObject("select revision from ai_model_catalog_state where id=1 for update",Long.class);
             var prior=feature(key,null);
@@ -163,6 +164,7 @@ public class AiModelConfigurationService {
         } catch(Exception e){throw new ApiStatusException(HttpStatus.BAD_REQUEST,"AI_OPTIONS_INVALID");}
     }
     public void preference(User user,String key,String optionId) {
+        if(AiFeatures.require(key).retired()) throw error("AI_FEATURE_RETIRED");
         ensureInitialized();tx.executeWithoutResult(s->{
             var feature=feature(key,user);
             if(!feature.billingEnabled()) throw error("AI_FEATURE_IS_FREE");

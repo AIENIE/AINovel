@@ -219,7 +219,7 @@ public class SceneGenerationService {
 
     private SlopQualityResult evaluateGenerationQuality(User user, boolean replacesLegacy, SlopQualityRequest request) {
         return replacesLegacy
-                ? slopQualityGate.evaluateLocal(user, request) : slopQualityGate.evaluateAndRepair(user, request);
+                ? slopQualityGate.evaluateLocal(user, request) : slopQualityGate.evaluate(user, request);
     }
     private List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> freezeReferences(User owner,Story story,Manuscript manuscript,SceneGenerationContext scene,CompiledSceneDraftContext context){
         if(referenceSelection==null||(context!=null&&context.isolated()))return List.of();
@@ -280,7 +280,7 @@ public class SceneGenerationService {
             String normalized = normalizeGeneratedText(raw);
             int hanCount = countHanCharacters(normalized);
             if (hanCount >= sceneContext.lengthRange().minHan() && hanCount <= sceneContext.lengthRange().maxHan()) {
-                SlopQualityResult qualityResult = slopQualityGate.evaluateAndRepair(
+                SlopQualityResult qualityResult = slopQualityGate.evaluate(
                         owner,
                         compiledContext != null && compiledContext.isolated()
                         ? scenePlotQualitySupport.buildIsolatedQualityRequest(manuscript,sceneContext,compiledContext.content(),normalized)

@@ -137,7 +137,7 @@ class ManuscriptServiceTest {
         when(materialRetrievalService.search(eq(owner), any())).thenReturn(List.of());
         when(styleContextProvider.buildSlopContext(story)).thenReturn("冷峻、压迫感强");
         when(aiService.chat(eq(owner), any())).thenReturn(new AiChatResponse("assistant", "文".repeat(2900), null, 0));
-        when(slopQualityGate.evaluateAndRepair(eq(owner), any())).thenReturn(new SlopQualityResult(
+        when(slopQualityGate.evaluate(eq(owner), any())).thenReturn(new SlopQualityResult(
                 UUID.randomUUID(),
                 acceptedText,
                 18,
@@ -157,7 +157,7 @@ class ManuscriptServiceTest {
         verify(manuscriptRepository).saveAndFlush(manuscript);
 
         ArgumentCaptor<SlopQualityRequest> gateRequestCaptor = ArgumentCaptor.forClass(SlopQualityRequest.class);
-        verify(slopQualityGate).evaluateAndRepair(eq(owner), gateRequestCaptor.capture());
+        verify(slopQualityGate).evaluate(eq(owner), gateRequestCaptor.capture());
         SlopQualityRequest gateRequest = gateRequestCaptor.getValue();
         assertSame(manuscript.getId(), gateRequest.manuscriptId());
         assertEquals(targetSceneId, gateRequest.sceneId());
