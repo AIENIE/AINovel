@@ -5,7 +5,7 @@
 - 长篇 drift 基础路径：`/api/v2/manuscripts/{manuscriptId}/slop-drift-runs`
 - 剧情质量基础路径：`/api/v2/manuscripts/{manuscriptId}/plot-quality-runs`
 
-## 语言自然度检查与逐项修订（zh-naturalness-v2）
+## 语言自然度检查与逐项修订（zh-naturalness-v3）
 
 新增接口与原 Slop、drift、剧情接口并存，使用同一稿件所有权和 `AiOperation` 任务机制。旧请求/报告结构保持兼容；旧报告没有可信的分支/正文来源，不回填伪造来源，界面仅展示历史结论，不作为当前正文通过的证明。
 
@@ -32,7 +32,7 @@
 
 问题 `kind` 为 `LANGUAGE/STYLE/OBSERVATION`，`category` 为 `OMISSION/COMPRESSION/CHOPPY/AWKWARD/PARAGRAPH`，包含连续 `quote`、阅读影响 `impact`、修改方向 `direction`、原始与当前位置、完整原段落及定位状态。不存在、歧义或无效范围的位置不允许补丁。诊断只使用保存的本场正文，不读取 H2 隐藏资料、人物私密卡、未来规划或额外资料检索。
 
-候选 `status` 为 `GENERATING/READY/FAILED/ACCEPTED/REJECTED/UNDONE`；`applicability` 区分 `APPLICABLE/UNCERTAIN/BLOCKED/MANUAL_ONLY/STALE` 及未完成原因。`review.language` 与 `review.meaning` 独立为 `PASS/UNCERTAIN/FAIL`。明确失败禁用采纳，不确定显示给作者核对，模型通过也不自动采纳。`original/replacement` 为完整差异输入，`beforeContext/afterContext` 保留自然段与相邻段。
+候选 `status` 为 `GENERATING/READY/FAILED/NEEDS_CONTEXT/ACCEPTED/REJECTED/UNDONE`；`applicability` 区分 `APPLICABLE/UNCERTAIN/BLOCKED/MANUAL_ONLY/STALE` 及未完成原因。`NEEDS_CONTEXT` 保存缺失信息的原因，无有效候选，不调用复核。`review.language` 与 `review.meaning` 独立为 `PASS/UNCERTAIN/FAIL`。明确失败禁用采纳，不确定显示给作者核对，模型通过也不自动采纳。`original/replacement` 为完整差异输入，`beforeContext/afterContext` 保留自然段与相邻段。
 
 普通编辑/自动保存/回滚/合并/换分支不触发付费诊断；读取时按正文版本、分支和 HTML 哈希即时判旧报告失效。已知同批次补丁可确定性平移未受影响的建议；同段或相邻上下文影响的建议失效。`canContinueBatch` 只授权处理这些未受影响的项目，不表示原报告适用于新正文。采纳/撤销均产生新版本，外部编辑后不得强行反向覆盖。
 
@@ -164,15 +164,15 @@ V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史�
 ## 候选修订安全规则
 
 - 生成候选和采纳候选都会校验 `sourceTextHash`，如果场景正文已经变化，应重新诊断后再生成候选。
-- 采纳候选前服务端会复用文本 `SlopQualityGate`，避免候选引入明显套话、重复和 AI 伪迹。
+- 采纳候选不再调用 `SlopQualityGate`，直接保存作者已审阅的候选；该操作没有 Slop 审校或修订费用。
 - 前端工作台的 `plot` 侧栏只做人工确认入口；除用户点击“采纳候选”外，不会自动覆盖场景正文。
 
 ## 文本诊断安全规则
 
 - 文本诊断不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
-- 单点黑名单命中只能作为 `E1` 弱信号；短窗口密度或多信号共振才能升级为 `E2`。
-- 本地密度窗口固定为 500 字：同类 3 次或 3 类共现升级到 58/E2；同类 5 次或 4 类共现升级到 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1。
-- 设定硬冲突和元提示残留优先于表层套话，分别按 `E3` / `E4` 处理。
+- 本地线索保留旧 `E1/E2` 密度口径，但不直接成为语义确认的问题。
+- 本地密度窗口固定为 500 字：同类 3 次或 3 类共现为 58/E2；同类 5 次或 4 类共现为 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1；新报告风险不与这些本地分取最大值。
+- 旧 `E3/E4` 记录保留可读。新报告按 `review` 的判断、类别和有效引文解释；作品中的引语和日志不能仅凭协议字样判为残留。
 - `_shadow_pattern_hits` 不得改变 `overallRiskScore`、`maxSeverity`、`issues`、AI review 或 `safeClaim`，也不包含模型归因结论。
 - 平台合规、AIGC 标识和商业风险不计入文本 slop 总分。
 

@@ -1,0 +1,50 @@
+{
+  "codeCommit": "8653c40aeb488a6ae8032eb6a5cd19e99d98d088",
+  "backendL2": {
+    "tests": 734,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 96
+  },
+  "frontendL2": {
+    "files": 64,
+    "tests": 307,
+    "failures": 0,
+    "lint": true,
+    "typecheck": true,
+    "build": true
+  },
+  "isolatedMySQL": {
+    "migrationCases": 13,
+    "firstRunPassed": 10,
+    "correctedAffectedRerunPassed": 3,
+    "moneyCases": 6,
+    "languageCases": 3,
+    "effectivePassed": 22,
+    "note": "Union of initial passing cases and corrected affected rerun; not a single all-green first run"
+  },
+  "replayWrongCoordinates": 8,
+  "providerCalls": 15,
+  "diagnoses": 8,
+  "candidateRequests": 4,
+  "reviews": 3,
+  "needsContext": 1,
+  "budget": {
+    "id": "slop-repair-20261022-v1",
+    "used": 15,
+    "call_limit": 24,
+    "provider_attempt_limit": 24,
+    "reserved_provider_attempts": 15,
+    "currency": "CNY",
+    "cost_limit": 30.0,
+    "settled_cost": 0.531255,
+    "reserved_cost": 5.388689
+  },
+  "historicalUnknownOperationsPreserved": 6,
+  "historicalUnknownCreditReservationsPreserved": 9,
+  "restartAddedCalls": 0,
+  "oversizeAddedCalls": 0,
+  "authorAcceptance": "PENDING",
+  "g2VotesAdded": 0,
+  "phasePromotions": false
+}
