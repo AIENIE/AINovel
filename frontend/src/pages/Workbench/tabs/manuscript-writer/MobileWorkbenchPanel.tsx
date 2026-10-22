@@ -21,6 +21,7 @@ import {
   plotStatusText,
   qualityStatusClass,
   qualityStatusText,
+  qualityRiskText,
   slopModuleLabel,
 } from "./shared";
 
@@ -209,7 +210,7 @@ export function MobileWorkbenchPanel({
                 <div className="rounded border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <span>{qualityStatusText(selectedQualityRun)}</span>
-                    <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>{t("mobilePanel.risk", { score: selectedQualityRun?.review && selectedQualityRun.review.coverage !== "COMPLETE" ? "未检查" : selectedQualityRun?.overallRiskScore ?? "-" })}</Badge>
+                    <Badge variant="outline" className={qualityStatusClass(selectedQualityRun)}>{t("mobilePanel.risk", { score: qualityRiskText(selectedQualityRun) })}</Badge>
                   </div>
                   {!!selectedQualityRun?.safeClaim && <div className="mt-1 text-muted-foreground">{selectedQualityRun.safeClaim}</div>}
                   {!!selectedQualityRun?.evidenceLevel && <div className="mt-1 text-muted-foreground">{t("mobilePanel.evidenceLevel", { level: selectedQualityRun.evidenceLevel })}</div>}

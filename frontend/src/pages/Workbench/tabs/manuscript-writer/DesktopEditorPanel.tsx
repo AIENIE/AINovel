@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { G2EvaluationSubmitDialog } from "./G2EvaluationSubmitDialog";
 import type { PlotQualityRun, SlopQualityRun } from "@/types";
-import { plotStatusClass, plotStatusText, qualityStatusClass, qualityStatusText } from "./shared";
+import { plotStatusClass, plotStatusText, qualityStatusClass, qualityStatusText, qualityRiskText } from "./shared";
 
 type GenerationMode = "fast" | "crafted";
 
@@ -141,7 +141,7 @@ export function DesktopEditorPanel({
         </Badge>
         {selectedQualityRun ? (
           <>
-            <span className="text-muted-foreground">{t("editorPanel.risk", { score: selectedQualityRun.overallRiskScore })}</span>
+            <span className="text-muted-foreground">{t("editorPanel.risk", { score: qualityRiskText(selectedQualityRun) })}</span>
             {selectedQualityRun.summary ? <span className="text-muted-foreground truncate max-w-[520px]">{selectedQualityRun.summary}</span> : null}
           </>
         ) : (

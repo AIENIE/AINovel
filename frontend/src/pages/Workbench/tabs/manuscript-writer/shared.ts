@@ -22,6 +22,9 @@ export const qualityStatusClass = (run?: SlopQualityRun | null) => {
   return "border-zinc-300 bg-zinc-50 text-zinc-700";
 };
 
+export const qualityRiskText = (run?: SlopQualityRun | null) =>
+  run?.review && run.review.coverage !== "COMPLETE" ? "未检查" : run?.overallRiskScore ?? "-";
+
 export const slopModuleLabel = (module?: string) => {
   switch (module) {
     case "surface_template":

@@ -13,6 +13,7 @@ import {
   plotStatusText,
   qualityStatusClass,
   qualityStatusText,
+  qualityRiskText,
   slopModuleLabel,
   slopRewriteTaskTitle,
 } from "./shared";
@@ -92,7 +93,7 @@ export function PlotSidebarPanel({
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.risk")}</div>
-                <div className="text-lg font-semibold">{selectedQualityRun?.review && selectedQualityRun.review.coverage !== "COMPLETE" ? "未检查" : selectedQualityRun?.overallRiskScore ?? "-"}</div>
+                <div className="text-lg font-semibold">{qualityRiskText(selectedQualityRun)}</div>
               </div>
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.evidence")}</div>
