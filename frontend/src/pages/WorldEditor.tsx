@@ -41,10 +41,13 @@ const WorldEditor = () => {
   const [endedTaskId, setEndedTaskId] = useState<string | null>(null);
   const [checkingTask, setCheckingTask] = useState(true);
   const [taskLookupError, setTaskLookupError] = useState(false);
+  const [taskLookupMessage, setTaskLookupMessage] = useState("");
+  const [generationError, setGenerationError] = useState("");
   const [target, setTarget] = useState<WorldRefineTarget | null>(null);
   const [generation, setGeneration] = useState<WorldGenerationStatus | null>(null);
   const [localTask, setLocalTask] = useState<AiOperationProgress | null>(null);
   const taskUpdateVersion = useRef(0);
+  const generationRequest = useRef(0);
   const tracked = useTrackedAiOperation();
   const task = tracked?.scopeType === "WORLD" && tracked.scopeId === id ? tracked : localTask?.scopeId === id ? localTask : null;
   const running = !!task && runningStates.includes(task.status);
@@ -62,10 +65,12 @@ const WorldEditor = () => {
   const refreshStatus = useCallback(async () => {
     if (!id) return;
     const scope = epoch.current;
+    const request = ++generationRequest.current;
+    const isCurrent = () => scope === epoch.current && latest.current.id === id && request === generationRequest.current;
     try {
       const status = await api.worlds.generationStatus(id);
-      if (scope === epoch.current && latest.current.id === id) setGeneration(status);
-    } catch (error) { if (scope === epoch.current && latest.current.id === id) setActionError(localizedErrorMessage(error)); }
+      if (isCurrent()) { setGeneration(status); setGenerationError(""); }
+    } catch (error) { if (isCurrent()) setGenerationError(localizedErrorMessage(error)); }
   }, [id]);
 
   const checkActiveTask = useCallback(async () => {
@@ -75,10 +80,11 @@ const WorldEditor = () => {
     setCheckingTask(true); setTaskLookupError(false);
     try {
       const operation = await api.aiOperations.active("WORLD", id);
-      if (isCurrent()) setLocalTask(operation);
+      if (isCurrent()) { setLocalTask(operation); setTaskLookupMessage(""); }
     } catch (error) {
-      if (isCurrent() && !(isApiError(error) && error.status === 404)) {
-        setTaskLookupError(true); setActionError(localizedErrorMessage(error));
+      if (isCurrent()) {
+        if (isApiError(error) && error.status === 404) setTaskLookupMessage("");
+        else { setTaskLookupError(true); setTaskLookupMessage(localizedErrorMessage(error)); }
       }
     } finally { if (isCurrent()) setCheckingTask(false); }
   }, [id]);
@@ -86,7 +92,7 @@ const WorldEditor = () => {
   useEffect(() => {
     const lifecycle = epoch;
     epoch.current++;
-    setTarget(null); setLocalTask(null); setGeneration(null); setActionError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
+    setTarget(null); setLocalTask(null); setGeneration(null); setActionError(""); setTaskLookupMessage(""); setGenerationError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
     void refreshStatus();
     void checkActiveTask();
     return () => { lifecycle.current++; };
@@ -103,7 +109,7 @@ const WorldEditor = () => {
   }, [id, refresh, refreshStatus]);
 
   useEffect(() => {
-    if (tracked?.scopeType === "WORLD" && tracked.scopeId === id) { taskUpdateVersion.current++; setLocalTask(tracked); setCheckingTask(false); setTaskLookupError(false); }
+    if (tracked?.scopeType === "WORLD" && tracked.scopeId === id) { taskUpdateVersion.current++; setLocalTask(tracked); setCheckingTask(false); setTaskLookupError(false); setTaskLookupMessage(""); }
   }, [tracked, id]);
 
   // A reopened editor can find a server-side task even when this tab did not start it.
@@ -176,8 +182,9 @@ const WorldEditor = () => {
     <main className="flex-1 p-4 md:p-6 space-y-6">
       {!!editor.error && <div role="alert" className="space-y-2 text-destructive"><p>{conflict ? t("worlds.saveConflict") : localizedErrorMessage(editor.error)}</p><Button variant="outline" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
       {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
+      {[...new Set([taskLookupMessage, generationError].filter(Boolean))].map(message => <p key={message} role="alert" className="text-sm text-destructive">{message}</p>)}
       {checkingTask && <p role="status" className="text-sm text-muted-foreground">{t("worlds.checkingTask")}</p>}
-      {taskLookupError && <Button variant="outline" onClick={() => void checkActiveTask()}>{t("worlds.refreshTask")}</Button>}
+      {(taskLookupError || generationError) && <Button variant="outline" disabled={checkingTask} onClick={() => void Promise.all([checkActiveTask(), refreshStatus()])}>{t("worlds.refreshTask")}</Button>}
       {remote && <div role="status" className="rounded border p-3 space-y-2"><p>{t("worlds.remoteChanged")}</p><Button variant="outline" onClick={() => setReviewRemote(true)}>{t("worlds.compareServer")}</Button></div>}
       {draft && <p className="text-sm text-muted-foreground">{t(`worlds.status.${draft.status}`)} · v{draft.version}</p>}
       {task && <section aria-label={t("worlds.task")} className="rounded border p-3 space-y-2 text-sm">

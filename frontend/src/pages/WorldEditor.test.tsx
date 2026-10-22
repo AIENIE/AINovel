@@ -202,4 +202,43 @@ describe("WorldEditor", () => {
     expect(retryTrackedAiOperation).not.toHaveBeenCalled();
     expect(generate).not.toHaveBeenCalled();
   });
+
+  it.each(["task", "no task"])("clears a failed active lookup after a successful read with %s", async outcome => {
+    const active = vi.mocked(api.aiOperations.active).mockRejectedValueOnce(new ApiError(500, "unavailable"));
+    if (outcome === "task") active.mockResolvedValueOnce(operation("SUCCEEDED"));
+    else active.mockRejectedValueOnce(new ApiError(404, "NOT_FOUND"));
+    renderEditor();
+    expect((await screen.findByRole("alert")).textContent).toBe("服务器开小差了，请稍后重试");
+    fireEvent.click(screen.getByRole("button", { name: "刷新任务状态" }));
+    await waitFor(() => expect(screen.queryByText("服务器开小差了，请稍后重试")).toBeNull());
+    expect(active).toHaveBeenCalledTimes(2);
+    expect(api.worlds.generationStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains the generation-query error when active lookup recovers, and clears it after its own successful read", async () => {
+    vi.mocked(api.aiOperations.active).mockRejectedValueOnce(new ApiError(500, "unavailable")).mockRejectedValue(new ApiError(404, "NOT_FOUND"));
+    vi.mocked(api.worlds.generationStatus).mockRejectedValueOnce(new ApiError(503, "unavailable")).mockRejectedValueOnce(new ApiError(503, "unavailable")).mockResolvedValue({ queue: [] });
+    renderEditor();
+    await screen.findByText("服务器开小差了，请稍后重试");
+    await screen.findByText("服务暂时不可用，输入已保留，请稍后重试。");
+    fireEvent.click(screen.getByRole("button", { name: "刷新任务状态" }));
+    await waitFor(() => expect(screen.queryByText("服务器开小差了，请稍后重试")).toBeNull());
+    expect(screen.getByText("服务暂时不可用，输入已保留，请稍后重试。")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "刷新任务状态" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(api.worlds.generationStatus).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not clear a newer editing error when task status reads recover", async () => {
+    const pendingActive = deferred<AiOperationProgress>(), pendingGeneration = deferred<{ queue: [] }>();
+    vi.mocked(api.aiOperations.active).mockRejectedValueOnce(new ApiError(500, "unavailable")).mockReturnValueOnce(pendingActive.promise);
+    vi.mocked(api.worlds.generationStatus).mockRejectedValueOnce(new ApiError(503, "unavailable")).mockReturnValueOnce(pendingGeneration.promise);
+    renderEditor(); await screen.findByLabelText("地形地貌");
+    fireEvent.click(await screen.findByRole("button", { name: "刷新任务状态" }));
+    fireEvent.change(screen.getByLabelText("地形地貌"), { target: { value: "未保存的修改" } });
+    fireEvent.click(screen.getByRole("button", { name: "AI 补全空字段" }));
+    await act(async () => { pendingActive.resolve(operation("SUCCEEDED")); pendingGeneration.resolve({ queue: [] }); });
+    expect(screen.getByRole("alert").textContent).toBe("请先保存当前修改，再生成、精修或发布。");
+    expect((screen.getByLabelText("地形地貌") as HTMLTextAreaElement).value).toBe("未保存的修改");
+  });
 });
