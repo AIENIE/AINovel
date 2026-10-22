@@ -77,6 +77,7 @@ class ExternalMySqlMigrationVerificationTest {
         withIsolatedDatabase(config,(name,url)->{
             Flyway.configure().dataSource(url,config.username,config.password).locations("classpath:db/migration").target("39").load().migrate();
             try(var c=DriverManager.getConnection(url,config.username,config.password);var q=c.createStatement()) {
+                q.execute("INSERT INTO stories(id,title) VALUES(UNHEX(REPEAT('03',16)),'历史 Slop 作品')");
                 q.execute("INSERT INTO manuscripts(id,sections_json,version) VALUES(UNHEX(REPEAT('01',16)),'{}',0)");
                 q.execute("INSERT INTO slop_quality_runs(id,story_id,manuscript_id,scene_id,status,max_severity,overall_risk_score,revised,summary) VALUES(UNHEX(REPEAT('02',16)),UNHEX(REPEAT('03',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('04',16)),'ACCEPTED','LOW',12,0,'历史报告😀')");
                 q.execute("INSERT INTO language_quality_reports(id,manuscript_id,scene_id,source_key,data_json,created_at) VALUES(UNHEX(REPEAT('05',16)),UNHEX(REPEAT('01',16)),UNHEX(REPEAT('04',16)),'old-report','{\"status\":\"ISSUES\"}',NOW(6))");

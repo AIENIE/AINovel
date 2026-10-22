@@ -4,6 +4,11 @@ import type { PlotQualityRun, SlopQualityRun, SlopRewriteTask } from "@/types";
 
 export const qualityStatusText = (run?: SlopQualityRun | null) => {
   if (!run) return t("qualityStatus.notRun");
+  if (run.review) {
+    if (run.review.coverage !== "COMPLETE") return "正文未完整检查";
+    return run.review.findings.some(f => f.judgment === "CONFIRMED" && ["LANGUAGE", "OUTPUT_ARTIFACT"].includes(f.kind) && f.location.start !== null)
+      ? "冻结正文有确认问题" : "冻结正文未见确认问题";
+  }
   if (run.status === "DEGRADED") return "历史检查不完整";
   if (run.issues?.length || run.overallRiskScore >= 40) return "历史报告有建议";
   return "历史报告（未验证当前正文）";

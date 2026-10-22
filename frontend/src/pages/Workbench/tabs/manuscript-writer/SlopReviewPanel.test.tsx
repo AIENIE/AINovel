@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { api } from "@/lib/api-client";
 import { createQueryClientWrapper, createTestQueryClient } from "@/test/queryClient";
 import { SlopReviewPanel } from "./SlopReviewPanel";
+import { qualityStatusText } from "./shared";
 import type { Manuscript, SlopQualityRun, SlopReview } from "@/types";
 import type { LanguageReport } from "@/lib/api/domains/language-quality";
 vi.mock("@/lib/ai-operation-store", () => ({ runTrackedAiOperation: (start: Promise<unknown>) => start }));
@@ -18,6 +19,7 @@ beforeEach(()=>{vi.spyOn(api.language,"settings").mockResolvedValue({available:t
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 it("只有确认且可定位的语言问题能生成候选，显示引文重定位且不自动调用",async()=>{
   const r=run();r.review!.findings.push({...r.review!.findings[0],id:"style",kind:"STYLE"},{...r.review!.findings[0],id:"artifact",kind:"OUTPUT_ARTIFACT"},{...r.review!.findings[0],id:"dismissed",judgment:"DISMISSED"});
+  expect(qualityStatusText(r)).toBe("冻结正文有确认问题");
   render(<SlopReviewPanel {...props(r)} />,{wrapper:wrapper()});
   const button=await screen.findByRole("button",{name:"生成局部候选"});await waitFor(()=>expect(button.hasAttribute("disabled")).toBe(false));
   expect(screen.getAllByRole("button",{name:"生成局部候选"})).toHaveLength(1);expect(api.language.slopSuggest).not.toHaveBeenCalled();
@@ -25,12 +27,14 @@ it("只有确认且可定位的语言问题能生成候选，显示引文重定�
 });
 it("超限显示未检查，失效来源不能生成候选",async()=>{
   const r=run();r.review!.coverage="INPUT_LIMIT";r.review!.reason="正文未检查：输入超限";r.review!.source={...source,bodyVersion:0};
+  expect(qualityStatusText(r)).toBe("正文未完整检查");
   render(<SlopReviewPanel {...props(r)} />,{wrapper:wrapper()});
   expect(await screen.findByText("正文未检查：输入超限")).toBeTruthy();expect(screen.getByText(/正文未完整检查/)).toBeTruthy();
   expect(screen.getByRole("button",{name:"生成局部候选"}).hasAttribute("disabled")).toBe(true);
 });
 it("历史报告仅可读，不补造来源或候选",()=>{
   const r=run();r.review=null;render(<SlopReviewPanel {...props(r)} />,{wrapper:wrapper()});
+  expect(qualityStatusText(r)).toBe("历史报告有建议");
   expect(screen.getByText(/历史 Slop 报告缺少可靠来源快照/)).toBeTruthy();expect(screen.queryByRole("button",{name:"生成局部候选"})).toBeNull();
 });
 it("语义反转复核 FAIL 不能采纳，完整段落仍供作者核对",async()=>{
