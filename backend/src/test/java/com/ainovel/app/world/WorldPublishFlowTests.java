@@ -79,6 +79,7 @@ class WorldPublishFlowTests {
         worldRepository.save(world);
 
         WorldDetailDto afterPublish = worldService.publish(world.getId());
+        assertEquals(worldService.get(world.getId()).revision(), afterPublish.revision());
         assertEquals("generating", afterPublish.status());
         assertEquals("COMPLETED", afterPublish.moduleProgress().get("geography"));
         assertEquals("AWAITING_GENERATION", afterPublish.moduleProgress().get("society"));
@@ -112,6 +113,7 @@ class WorldPublishFlowTests {
         assertEquals("generating", afterSociety.status());
 
         WorldDetailDto afterMagic = worldService.generateModule(world.getId(), "magic_tech");
+        assertEquals(worldService.get(world.getId()).revision(), afterMagic.revision());
         assertEquals("active", afterMagic.status());
         assertEquals("0.1.1", afterMagic.version());
         assertTrue(afterMagic.modules().get("magic_tech").get("rules").contains("灵潮科技"));

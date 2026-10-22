@@ -1,6 +1,7 @@
 package com.ainovel.app.world;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.world.dto.*;
 import com.ainovel.app.world.model.World;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -76,7 +78,7 @@ public class WorldService {
         world.setVersion("0.1.0");
         world.setModulesJson(writeJson(new HashMap<String, Map<String, String>>()));
         world.setModuleProgressJson(writeJson(new HashMap<String, String>()));
-        worldRepository.save(world);
+        worldRepository.saveAndFlush(world);
         return toDetail(world);
     }
 
@@ -89,14 +91,18 @@ public class WorldService {
 
     @Transactional
     public WorldDetailDto update(UUID id, WorldUpdateRequest request) {
-        World world = worldRepository.findById(id).orElseThrow(() -> new BusinessException("世界不存在"));
-        accessGuard.assertOwner(world.getUser());
+        World world = requireEditableWorld(id, request.expectedRevision());
         if (request.name() != null) world.setName(request.name());
         if (request.tagline() != null) world.setTagline(request.tagline());
         if (request.themes() != null) world.setThemesJson(writeJson(request.themes()));
         if (request.creativeIntent() != null) world.setCreativeIntent(request.creativeIntent());
         if (request.notes() != null) world.setNotes(request.notes());
-        worldRepository.save(world);
+        if (request.modules() != null) {
+            Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
+            modules.putAll(request.modules());
+            world.setModulesJson(writeJson(modules));
+        }
+        worldRepository.saveAndFlush(world);
         return toDetail(world);
     }
 
@@ -112,24 +118,31 @@ public class WorldService {
 
     @Transactional
     public WorldDetailDto updateModules(UUID id, WorldModulesUpdateRequest request) {
-        World world = worldRepository.findById(id).orElseThrow();
-        accessGuard.assertOwner(world.getUser());
+        World world = requireEditableWorld(id, request.expectedRevision());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         if (request.modules() != null) modules.putAll(request.modules());
         world.setModulesJson(writeJson(modules));
-        worldRepository.save(world);
+        worldRepository.saveAndFlush(world);
         return toDetail(world);
     }
 
     @Transactional
     public WorldDetailDto updateModule(UUID id, String moduleKey, WorldModuleUpdateRequest request) {
-        World world = worldRepository.findById(id).orElseThrow();
-        accessGuard.assertOwner(world.getUser());
+        World world = requireEditableWorld(id, request.expectedRevision());
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         modules.put(moduleKey, request.fields());
         world.setModulesJson(writeJson(modules));
-        worldRepository.save(world);
+        worldRepository.saveAndFlush(world);
         return toDetail(world);
+    }
+
+    private World requireEditableWorld(UUID id, Long expectedRevision) {
+        World world = worldRepository.findByIdForUpdate(id).orElseThrow(() -> new BusinessException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());
+        if (expectedRevision != null && world.getRevision() != expectedRevision) {
+            throw new ApiStatusException(HttpStatus.CONFLICT, "WORLD_VERSION_CONFLICT");
+        }
+        return world;
     }
 
     @Transactional
@@ -171,8 +184,13 @@ public class WorldService {
 
     @Transactional
     public WorldDetailDto publish(UUID id) {
-        World world = worldRepository.findById(id).orElseThrow();
-        accessGuard.assertOwner(world.getUser());
+        return publish(id, null);
+    }
+
+    @Transactional
+    public WorldDetailDto publish(UUID id, WorldGenerationCheckpoint checkpoint) {
+        World world = requireEditableWorld(id, null);
+        if (checkpoint != null) checkpoint.validate(toDetail(world));
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
 
         Map<String, String> progress = new HashMap<>();
@@ -205,7 +223,7 @@ public class WorldService {
             world.setStatus("active");
         }
         world.setModuleProgressJson(writeJson(progress));
-        worldRepository.save(world);
+        worldRepository.saveAndFlush(world);
         return toDetail(world);
     }
 
@@ -225,6 +243,11 @@ public class WorldService {
     }
 
     public WorldDetailDto generateModule(UUID id, String moduleKey, boolean completeOperation) {
+        return generateModule(id, moduleKey, completeOperation, null);
+    }
+
+    public WorldDetailDto generateModule(UUID id, String moduleKey, boolean completeOperation,
+                                         WorldGenerationCheckpoint checkpoint) {
         TransactionTemplate tx = new TransactionTemplate(transactionManager);
         World snapshot = Objects.requireNonNull(tx.execute(status -> {
             World current = worldRepository.findById(id).orElseThrow();
@@ -233,7 +256,7 @@ public class WorldService {
             return current;
         }));
         World world = snapshot;
-        Map<String, String> progress = readProgress(world.getModuleProgressJson());
+        if (checkpoint != null) checkpoint.validate(toDetail(snapshot));
         Map<String, Map<String, String>> modules = readModules(world.getModulesJson());
         Optional<WorldDefinitionDto> moduleDef = definitions().stream().filter(d -> d.key().equals(moduleKey)).findFirst();
         if (moduleDef.isEmpty()) {
@@ -244,11 +267,12 @@ public class WorldService {
             for (WorldDefinitionDto.Field field : moduleDef.get().fields()) {
                 String existing = fields.get(field.key());
                 if (existing == null || existing.isBlank()) {
-                    fields.put(field.key(), generateField(world, moduleDef.get(), field));
+                    String generated = checkpoint == null ? generateField(world, moduleDef.get(), field)
+                            : checkpoint.field(moduleKey, field.key(), () -> generateField(world, moduleDef.get(), field));
+                    fields.put(field.key(), generated);
                 }
             }
             modules.put(moduleKey, fields);
-            progress.put(moduleKey, "COMPLETED");
         } catch (RuntimeException ex) {
             String error = cleanError(ex.getMessage());
             com.ainovel.app.aioperation.AiOperationExecutionContext.apply(() -> {
@@ -259,16 +283,21 @@ public class WorldService {
         java.util.function.Supplier<WorldDetailDto> apply = () -> tx.execute(status -> {
             World current = worldRepository.findByIdForUpdate(id).orElseThrow();
             accessGuard.assertOwner(current.getUser());
-            if (current.getRevision() != snapshot.getRevision())
+            if (checkpoint != null) checkpoint.validate(toDetail(current));
+            else if (current.getRevision() != snapshot.getRevision())
                 throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "WORLD_VERSION_CONFLICT");
             current.setModulesJson(writeJson(modules));
-            current.setModuleProgressJson(writeJson(progress));
-            boolean allDone = definitions().stream().allMatch(def -> "COMPLETED".equalsIgnoreCase(statusOnly(progress.get(def.key()))));
+            Map<String, String> currentProgress = readProgress(current.getModuleProgressJson());
+            currentProgress.put(moduleKey, "COMPLETED");
+            current.setModuleProgressJson(writeJson(currentProgress));
+            boolean allDone = definitions().stream().allMatch(def -> "COMPLETED".equalsIgnoreCase(statusOnly(currentProgress.get(def.key()))));
             if (allDone && !"active".equalsIgnoreCase(current.getStatus())) {
                 current.setStatus("active"); current.setVersion(bumpPatch(current.getVersion()));
             }
-            worldRepository.save(current);
-            return toDetail(current);
+            worldRepository.saveAndFlush(current);
+            WorldDetailDto updated = toDetail(current);
+            if (checkpoint != null) checkpoint.applied(moduleKey, updated);
+            return updated;
         });
         return completeOperation ? com.ainovel.app.aioperation.AiOperationExecutionContext.complete(apply)
                 : com.ainovel.app.aioperation.AiOperationExecutionContext.apply(apply);
@@ -318,7 +347,8 @@ public class WorldService {
                 world.getNotes(),
                 readModules(world.getModulesJson()),
                 readProgress(world.getModuleProgressJson()),
-                world.getUpdatedAt()
+                world.getUpdatedAt(),
+                world.getRevision()
         );
     }
 

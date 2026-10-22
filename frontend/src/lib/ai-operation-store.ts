@@ -4,6 +4,7 @@ import { api } from "@/lib/api-client";
 import type { AiOperationAccepted, AiOperationProgress } from "@/types";
 import { t } from "@/i18n";
 import { STORY_ASSISTANT_UPDATED } from "./story-assistant-events";
+import { WORLD_UPDATED, type WorldUpdatedDetail } from "./world-operation-events";
 
 const STORAGE_KEY = "ainovel.active-ai-operation";
 let userScope = "";
@@ -13,6 +14,7 @@ const visibilityKey = () => `${storageKey()}:visibility`;
 let current: AiOperationProgress | null = null;
 const listeners = new Set<() => void>();
 let watching: string | null = null;
+let watchRevision = 0;
 let activeWatch: {
   operationId: string;
   controller: AbortController;
@@ -40,6 +42,7 @@ export function setTrackedAiUser(userId: string | null) {
   const next = userId || "";
   if (next === userScope) return;
   activeWatch?.controller.abort();
+  watchRevision++;
   activeWatch = null; watching = null; userScope = next;
   visibility = "open";
   emit(null);
@@ -54,8 +57,22 @@ export function setTrackedAiVisibility(mode: "open" | "minimized" | "closed") {
 
 export async function refreshTrackedAiOperation(id: string) {
   const scope = userScope;
+  const revision = watchRevision;
   const result = await api.aiOperations.get(id);
-  if (scope === userScope && watching === id) emit(result);
+  if (scope !== userScope || watching !== id || revision !== watchRevision) return;
+  if (result.scopeType === "WORLD" && ["SUCCEEDED", "FAILED", "RECOVERY_REQUIRED", "CANCELLED"].includes(result.status)) {
+    // A completed read supersedes older stream snapshots, including a disconnected watcher.
+    const completedRevision = ++watchRevision;
+    emit(result);
+    if (result.status === "SUCCEEDED") {
+      notifyWorldUpdated(result);
+      window.setTimeout(() => {
+        if (scope === userScope && watching === id && watchRevision === completedRevision) clearTracked(id);
+      }, 4000);
+    }
+    return;
+  }
+  emit(result);
 }
 
 function clearTracked(operationId: string) {
@@ -67,6 +84,8 @@ function clearTracked(operationId: string) {
 }
 
 function refreshRecoveredResult(final: AiOperationProgress) {
+  // World watchers notify the mounted editor without discarding its local draft.
+  if (final.scopeType === "WORLD") return;
   if (final.operationType === "STORY_ASSISTANT_TURN") {
     window.dispatchEvent(new CustomEvent(STORY_ASSISTANT_UPDATED));
     return;
@@ -94,7 +113,27 @@ function refreshRecoveredResult(final: AiOperationProgress) {
 
 export const useTrackedAiOperation = () => useSyncExternalStore(subscribe, () => current, () => null);
 
+function notifyWorldUpdated(final: AiOperationProgress) {
+  if (final.scopeType !== "WORLD") return;
+  let worldId = final.scopeId?.trim();
+  if (!worldId) {
+    try {
+      const result: unknown = final.resultJson ? JSON.parse(final.resultJson) : null;
+      if (result && typeof result === "object" && "id" in result && typeof result.id === "string") {
+        worldId = result.id.trim();
+      }
+    } catch { /* A missing result cannot identify an editor to refresh. */ }
+  }
+  if (!worldId) return;
+  window.dispatchEvent(new CustomEvent<WorldUpdatedDetail>(WORLD_UPDATED, {
+    detail: { worldId, operationId: final.id },
+  }));
+}
+
 async function watch(operationId: string): Promise<AiOperationProgress> {
+  const scope = userScope;
+  const revision = ++watchRevision;
+  const isCurrentWatch = () => scope === userScope && watching === operationId && watchRevision === revision;
   watching = operationId;
   window.sessionStorage.setItem(storageKey(), operationId);
   try {
@@ -107,26 +146,29 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
   let final: AiOperationProgress;
   try {
     final = await api.aiOperations.wait(operationId, (progress) => {
-      if (watching === operationId) emit(progress);
+      if (isCurrentWatch()) emit(progress);
     }, controller.signal);
   } catch (error) {
     if (watchState.cancelRequested) {
       const cancelled = await api.aiOperations.get(operationId).catch(() => null);
-      if (cancelled) emit(cancelled);
-      clearTracked(operationId);
+      if (isCurrentWatch()) {
+        if (cancelled) emit(cancelled);
+        clearTracked(operationId);
+      }
       throw new AiOperationCancelledError();
     }
     throw error;
   } finally {
-    if (activeWatch?.operationId === operationId) activeWatch = null;
+    if (activeWatch === watchState) activeWatch = null;
   }
   if (watchState.cancelRequested || final.status === "CANCELLED") {
-    clearTracked(operationId);
+    if (isCurrentWatch()) clearTracked(operationId);
     throw new AiOperationCancelledError(final.errorMessage || t("aiOperation.cancelled"));
   }
-  if (final.status === "SUCCEEDED") {
+  if (final.status === "SUCCEEDED" && isCurrentWatch()) {
+    notifyWorldUpdated(final);
     window.setTimeout(() => {
-      clearTracked(operationId);
+      if (isCurrentWatch()) clearTracked(operationId);
     }, 4000);
   }
   return final;
@@ -164,7 +206,10 @@ export async function resumeTrackedAiOperation(): Promise<void> {
 }
 
 export async function retryTrackedAiOperation(id: string): Promise<void> {
+  const scope = userScope;
+  const revision = watchRevision;
   await api.aiOperations.retry(id);
+  if (scope !== userScope || revision !== watchRevision) return;
   const final = await watch(id);
   if (final.status === "SUCCEEDED") refreshRecoveredResult(final);
 }

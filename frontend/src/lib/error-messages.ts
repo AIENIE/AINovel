@@ -23,6 +23,7 @@ const AI_MODEL_ERROR_KEYS: Record<string, string> = {
   AI_THINKING_UNSUPPORTED: "aiModels.preferenceUnavailable",
 };
 const modelFailure = (code?: string | null) => code && AI_MODEL_ERROR_KEYS[code] ? t(AI_MODEL_ERROR_KEYS[code]) : null;
+const worldFailure = (code?: string | null) => code === "WORLD_VERSION_CONFLICT" ? t("worlds.taskConflict") : code === "WORLD_TASK_BASELINE_REQUIRED" ? t("worlds.taskBaselineMissing") : null;
 
 const OPERATION_MESSAGES: Record<string,string> = {
     LANGUAGE_FEATURE_DISABLED: '本环境暂未启用语言检查，历史报告和候选仍保留。',
@@ -55,7 +56,7 @@ const OPERATION_MESSAGES: Record<string,string> = {
   };
 
 export function localizedOperationFailure(code?: string | null): string {
-  return modelFailure(code) || (code && sceneFailureMessage(code)) || (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
+  return modelFailure(code) || worldFailure(code) || (code && sceneFailureMessage(code)) || (code && OPERATION_MESSAGES[code]) || t("errors.operationFailed");
 }
 
 function sceneFailureMessage(code: string): string | undefined {
@@ -113,7 +114,7 @@ export function errorKeyForStatus(status: number): string {
  */
 export function localizedErrorMessage(error: unknown, fallbackKey = "errors.operationFailed"): string {
   if (isApiError(error)) {
-    const message = modelFailure(error.message) || sceneFailureMessage(error.message) || OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
+    const message = modelFailure(error.message) || worldFailure(error.message) || sceneFailureMessage(error.message) || OPERATION_MESSAGES[error.message] || (error.status === 503 ? "服务暂时不可用，输入已保留，请稍后重试。" : t(errorKeyForStatus(error.status)));
     return error.requestId && /^[a-zA-Z0-9-]{1,64}$/.test(error.requestId)
       ? `${message}（请求编号：${error.requestId}）` : message;
   }

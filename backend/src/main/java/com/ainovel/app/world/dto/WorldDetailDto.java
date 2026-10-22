@@ -15,4 +15,12 @@ public record WorldDetailDto(UUID id,
                              String notes,
                              Map<String, Map<String, String>> modules,
                              Map<String, String> moduleProgress,
-                             Instant updatedAt) {}
+                             Instant updatedAt,
+                             long revision) {
+    public WorldDetailDto(UUID id, String name, String tagline, String status, String version,
+                          List<String> themes, String creativeIntent, String notes,
+                          Map<String, Map<String, String>> modules, Map<String, String> moduleProgress,
+                          Instant updatedAt) {
+        this(id, name, tagline, status, version, themes, creativeIntent, notes, modules, moduleProgress, updatedAt, 0);
+    }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,10 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api-client";
-import { World, WorldModuleDefinition } from "@/types";
+import type { World } from "@/types";
 import { showError, showSuccess } from "@/utils/toast";
+import { localizedErrorMessage } from "@/lib/error-messages";
+import { worldCoverage } from "./WorldBuilder/world-draft";
 
-type WorldCardStats = Record<string, { entries: number; completeness: number }>;
+type WorldCardStats = Record<string, ReturnType<typeof worldCoverage> | "error">;
 
 const WorldManager = () => {
   const navigate = useNavigate();
@@ -21,50 +23,43 @@ const WorldManager = () => {
   const [worlds, setWorlds] = useState<World[]>([]);
   const [stats, setStats] = useState<WorldCardStats>({});
   const [loading, setLoading] = useState(true);
-  const [definitions, setDefinitions] = useState<WorldModuleDefinition[]>([]);
-
-  useEffect(() => {
-    api.worlds.getDefinitions().then(setDefinitions).catch(() => setDefinitions([]));
-  }, []);
+  const [loadError, setLoadError] = useState("");
+  const sequence = useRef(0);
 
   const refresh = useCallback(async () => {
+    const request = ++sequence.current;
     setLoading(true);
+    setLoadError("");
+    setStats({});
     try {
-      const list = await api.worlds.list();
+      const [listResult, definitionsResult] = await Promise.allSettled([api.worlds.list(), api.worlds.getDefinitions()]);
+      if (request !== sequence.current) return;
+      if (listResult.status === "rejected") throw listResult.reason;
+      const list = listResult.value;
       setWorlds(list);
       setLoading(false);
-
-      (async () => {
-        const next: WorldCardStats = {};
-        await Promise.all(
-          list.map(async (w) => {
-            try {
-              const detail = await api.worlds.getDetail(w.id);
-              const entries = (detail.modules || []).reduce((acc, m) => {
-                const v = Object.values(m.fields || {}).filter((x) => (x || "").trim().length > 0).length;
-                return acc + v;
-              }, 0);
-              const totalFields =
-                definitions.length > 0
-                  ? definitions.reduce((acc, d) => acc + (d.fields || []).length, 0)
-                  : Math.max(entries, 1);
-              const completeness = totalFields > 0 ? Math.min(100, Math.round((entries / totalFields) * 100)) : 0;
-              next[w.id] = { entries, completeness };
-            } catch {
-              next[w.id] = { entries: 0, completeness: 0 };
-            }
-          })
-        );
-        setStats(next);
-      })();
+      if (definitionsResult.status === "rejected") {
+        setLoadError(localizedErrorMessage(definitionsResult.reason));
+        setStats(Object.fromEntries(list.map(world => [world.id, "error"])));
+        return;
+      }
+      const next: WorldCardStats = {};
+      await Promise.all(list.map(async world => {
+        try { next[world.id] = worldCoverage(await api.worlds.getDetail(world.id), definitionsResult.value); }
+        catch { next[world.id] = "error"; }
+      }));
+      if (request === sequence.current) setStats(next);
     } catch (e: unknown) {
+      if (request !== sequence.current) return;
       setLoading(false);
-      showError(e, "errors.loadFailed");
+      setLoadError(localizedErrorMessage(e, "errors.loadFailed"));
     }
-  }, [definitions]);
+  }, []);
 
   useEffect(() => {
-    refresh();
+    const requests = sequence;
+    void refresh();
+    return () => { requests.current++; };
   }, [refresh]);
 
   const handleDelete = async (worldId: string) => {
@@ -77,8 +72,6 @@ const WorldManager = () => {
       showError(e, "errors.deleteFailed");
     }
   };
-
-  const displayWorlds = useMemo(() => worlds, [worlds]);
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -99,6 +92,8 @@ const WorldManager = () => {
       </header>
 
       <main className="p-6 max-w-7xl mx-auto">
+        <p className="mb-4 text-sm text-muted-foreground">{t("worlds.coverageHelp")}</p>
+        {loadError && <div role="alert" className="mb-4 space-y-2"><p className="text-destructive">{loadError}</p><Button variant="outline" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link to="/worlds/create" className="block h-full">
             <div className="border-2 border-dashed border-muted-foreground/20 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 cursor-pointer flex flex-col items-center justify-center min-h-[240px] h-full transition-all duration-300 group bg-background/50">
@@ -110,12 +105,10 @@ const WorldManager = () => {
           </Link>
 
           {loading && <div className="col-span-full text-sm text-muted-foreground">{t("common.loading")}</div>}
-          {!loading && displayWorlds.length === 0 && <div className="col-span-full text-sm text-muted-foreground">{t("worlds.empty")}</div>}
+          {!loading && !loadError && worlds.length === 0 && <div className="col-span-full text-sm text-muted-foreground">{t("worlds.empty")}</div>}
 
-          {displayWorlds.map((world) => {
+          {worlds.map((world) => {
             const s = stats[world.id];
-            const entries = s?.entries ?? 0;
-            const completeness = s?.completeness ?? 0;
             return (
               <div
                 key={world.id}
@@ -136,7 +129,7 @@ const WorldManager = () => {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/world-editor?id=${world.id}`)}>{t("worlds.enterEdit")}</DropdownMenuItem>
                         {world.status === "draft" && (
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(world.id)}>
+                          <DropdownMenuItem className="text-destructive" onClick={event => { event.stopPropagation(); void handleDelete(world.id); }}>
                             <Trash2 className="mr-2 h-4 w-4" /> {t("worlds.deleteDraft")}
                           </DropdownMenuItem>
                         )}
@@ -147,17 +140,9 @@ const WorldManager = () => {
                   <h3 className="font-bold text-lg mb-1 group-hover:text-blue-600 transition-colors">{world.name}</h3>
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{world.tagline || t("worlds.noTagline")}</p>
 
-                  <div className="mt-auto grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">{t("worlds.entries")}</div>
-                      <div className="font-mono font-medium">{entries}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">{t("worlds.completeness")}</div>
-                      <div className="flex items-center gap-1 font-mono font-medium text-blue-600">
-                        <Activity className="h-3 w-3" /> {completeness}%
-                      </div>
-                    </div>
+                  <div className="mt-auto pt-4 border-t">
+                    <div className="text-xs text-muted-foreground mb-1">{t("worlds.coverage")}</div>
+                    {s === "error" ? <div className="text-sm"><span>{t("worlds.statsUnavailable")}</span><Button size="sm" variant="link" onClick={event => { event.stopPropagation(); void refresh(); }}>{t("common.retry")}</Button></div> : !s ? <span className="text-sm text-muted-foreground">{t("common.loading")}</span> : s.percent === null ? <span className="text-sm text-muted-foreground">{t("worlds.noDefinedFields")}</span> : <div className="flex items-center justify-between font-mono font-medium"><span>{s.filled} / {s.total}</span><span className="flex items-center gap-1 text-blue-600"><Activity className="h-3 w-3" />{s.percent}%</span></div>}
                   </div>
                 </div>
               </div>

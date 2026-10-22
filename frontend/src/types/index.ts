@@ -546,10 +546,22 @@ export interface WorldModuleData {
 }
 
 export interface WorldDetail extends World {
+  revision: number;
   themes: string[];
   creativeIntent: string;
   notes: string;
   modules: WorldModuleData[];
+}
+
+export interface WorldGenerationStatus {
+  queue: { moduleKey: string; status: string; attempts: number; error?: string | null }[];
+}
+
+export interface WorldGeneratedResults {
+  operationId: string;
+  worldId: string;
+  modules: Record<string, Record<string, string>>;
+  appliedModules: string[];
 }
 
 export interface PromptTemplates {

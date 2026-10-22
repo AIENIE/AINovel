@@ -43,6 +43,8 @@ import {
   V2ContinuityIssueUpdateRequest,
   World,
   WorldDetail,
+  WorldGenerationStatus,
+  WorldGeneratedResults,
   WorldModuleDefinition,
   WorldPromptMetadata,
   WorldPromptTemplates,
@@ -598,6 +600,7 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
   const modulesMap: Record<string, Record<string, string>> = dto.modules || {};
   return {
     id: dto.id,
+    revision: dto.revision,
     name: dto.name,
     tagline: dto.tagline || "",
     status: dto.status || "draft",
@@ -1370,8 +1373,10 @@ export const api = {
       const dto = await requestJson<NetworkObject>("/v1/worlds", { method: "POST", body: JSON.stringify(data) });
       return toWorldDetail(dto);
     },
-    update: async (id: string, detail: WorldDetail) => {
-      await requestJson<NetworkObject>(`/v1/worlds/${id}`, {
+    update: async (id: string, detail: WorldDetail): Promise<WorldDetail> => {
+      if (!Number.isInteger(detail.revision) || detail.revision < 0) throw new Error("WORLD_REVISION_REQUIRED");
+      const modules = Object.fromEntries(detail.modules.map((module) => [module.key, module.fields]));
+      const saved = await requestJson<NetworkObject>(`/v1/worlds/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           name: detail.name,
@@ -1379,12 +1384,11 @@ export const api = {
           themes: detail.themes,
           creativeIntent: detail.creativeIntent,
           notes: detail.notes,
+          modules,
+          expectedRevision: detail.revision,
         }),
       });
-      const modules: Record<string, Record<string, string>> = {};
-      (detail.modules || []).forEach((m) => (modules[m.key] = m.fields || {}));
-      await requestJson<NetworkObject>(`/v1/worlds/${id}/modules`, { method: "PUT", body: JSON.stringify({ modules }) });
-      return true;
+      return toWorldDetail(saved);
     },
     delete: async (id: string) => {
       await requestVoid(`/v1/worlds/${id}`, { method: "DELETE" });
@@ -1405,8 +1409,10 @@ export const api = {
     startPublish: async (worldId: string): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/publish/operations`, { method: "POST", body: "{}" }),
     generationStatus: async (worldId: string) => {
-      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
+      return await requestJson<WorldGenerationStatus>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
     },
+    generatedResults: async (worldId: string, operationId: string): Promise<WorldGeneratedResults> =>
+      requestJson<WorldGeneratedResults>(`/v1/worlds/${worldId}/operations/${operationId}/generated-results`, { method: "GET" }),
     generateModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}`, { method: "POST", body: "{}" });
     },

@@ -11,7 +11,6 @@ import com.ainovel.app.story.OutlineService;
 import com.ainovel.app.story.StoryService;
 import com.ainovel.app.story.dto.OutlineChapterGenerateRequest;
 import com.ainovel.app.story.dto.StoryCreateRequest;
-import com.ainovel.app.world.WorldService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 
@@ -24,19 +23,19 @@ public class CoreAiOperationHandler implements AiOperationHandler {
 
     private final StoryService stories;
     private final OutlineService outlines;
-    private final WorldService worlds;
+    private final WorldTaskService worldTasks;
     private final ManuscriptService manuscripts;
     private final ResourceAccessGuard accessGuard;
     private final SlopDiagnosticService slop;
     private final SlopDriftService drift;
     private final PlotQualityService plot;
 
-    public CoreAiOperationHandler(StoryService stories, OutlineService outlines, WorldService worlds,
+    public CoreAiOperationHandler(StoryService stories, OutlineService outlines, WorldTaskService worldTasks,
                                   ManuscriptService manuscripts, ResourceAccessGuard accessGuard,
                                   SlopDiagnosticService slop, SlopDriftService drift, PlotQualityService plot) {
         this.stories = stories;
         this.outlines = outlines;
-        this.worlds = worlds;
+        this.worldTasks = worldTasks;
         this.manuscripts = manuscripts;
         this.accessGuard = accessGuard;
         this.slop = slop;
@@ -65,26 +64,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 execution.progress().step("保存章节与场景", 2, 3);
                 yield result;
             }
-            case "WORLD_PUBLISH" -> {
-                var preview = worlds.preview(payload.primaryId());
-                int total = Math.max(2, preview.modulesToGenerate().size() + 2);
-                execution.progress().step("准备世界观发布", 0, total);
-                AiOperationExecutionContext.apply(() -> worlds.publish(payload.primaryId()));
-                int completed = 1;
-                for (String module : preview.modulesToGenerate()) {
-                    execution.progress().step("生成世界模块：" + module, completed, total);
-                    worlds.generateModule(payload.primaryId(), module, completed == preview.modulesToGenerate().size());
-                    completed++;
-                }
-                execution.progress().step("完成世界观发布", total - 1, total);
-                yield worlds.get(payload.primaryId());
-            }
-            case "WORLD_MODULE" -> {
-                execution.progress().step("生成世界模块：" + payload.mode(), 0, 2);
-                Object result = worlds.generateModule(payload.primaryId(), payload.mode());
-                execution.progress().step("保存世界模块", 1, 2);
-                yield result;
-            }
+            case "WORLD_PUBLISH", "WORLD_MODULE" -> worldTasks.execute(execution, payload);
             case "SCENE_GENERATION" -> {
                 if(payload.sceneGenerationVersion()==null) throw new com.ainovel.app.common.ApiStatusException(
                         org.springframework.http.HttpStatus.CONFLICT,"SCENE_LEGACY_RECOVERY_REQUIRED");
