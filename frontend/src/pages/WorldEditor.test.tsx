@@ -119,6 +119,20 @@ describe("WorldEditor", () => {
     expect(screen.getByText(/原文或世界内容已变化/)).toBeTruthy();
   });
 
+  it.each(["", " \n "])("preserves the source and explains an empty refinement result without retrying (%j)", async result => {
+    const refine = vi.spyOn(api.worlds, "refineField").mockResolvedValue({ result });
+    const update = vi.spyOn(api.worlds, "update");
+    renderEditor(); await screen.findByLabelText("地形地貌");
+    fireEvent.click(screen.getAllByRole("button", { name: "润色" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "生成候选" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("未获得可用的精修内容，原文已保留。");
+    expect((screen.getByLabelText("地形地貌") as HTMLTextAreaElement).value).toBe("群岛");
+    expect(screen.queryByLabelText("候选内容（可编辑）")).toBeNull();
+    expect(screen.queryByRole("button", { name: "采纳到当前输入" })).toBeNull();
+    expect(update).not.toHaveBeenCalled();
+    expect(refine).toHaveBeenCalledTimes(1);
+  });
+
   it("ends an explicitly rejected failed task without retrying it or immediately generating again", async () => {
     state.task = operation("FAILED", "WORLD_VERSION_CONFLICT");
     vi.spyOn(window, "confirm").mockReturnValue(true);

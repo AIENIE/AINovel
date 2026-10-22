@@ -23,7 +23,12 @@ const AI_MODEL_ERROR_KEYS: Record<string, string> = {
   AI_THINKING_UNSUPPORTED: "aiModels.preferenceUnavailable",
 };
 const modelFailure = (code?: string | null) => code && AI_MODEL_ERROR_KEYS[code] ? t(AI_MODEL_ERROR_KEYS[code]) : null;
-const worldFailure = (code?: string | null) => code === "WORLD_VERSION_CONFLICT" ? t("worlds.taskConflict") : code === "WORLD_TASK_BASELINE_REQUIRED" ? t("worlds.taskBaselineMissing") : null;
+const worldFailure = (code?: string | null) => {
+  if (code === "WORLD_VERSION_CONFLICT") return t("worlds.taskConflict");
+  if (code === "WORLD_TASK_BASELINE_REQUIRED") return t("worlds.taskBaselineMissing");
+  if (code === "WORLD_EMPTY_CANDIDATE") return t("worlds.emptyCandidate");
+  return null;
+};
 
 const OPERATION_MESSAGES: Record<string,string> = {
     LANGUAGE_FEATURE_DISABLED: '本环境暂未启用语言检查，历史报告和候选仍保留。',
@@ -110,7 +115,7 @@ export function errorKeyForStatus(status: number): string {
 /**
  * 将任意错误转换为本地化文案：
  * - ApiError 按 HTTP 状态映射稳定错误类别；
- * - 普通 Error / 未知值一律返回 fallbackKey（本地化通用文案），不泄露原始 message。
+ * - 普通 Error 仅识别已知世界错误码和报价取消，其余未知值返回 fallbackKey，不泄露原始 message。
  */
 export function localizedErrorMessage(error: unknown, fallbackKey = "errors.operationFailed"): string {
   if (isApiError(error)) {
@@ -119,5 +124,5 @@ export function localizedErrorMessage(error: unknown, fallbackKey = "errors.oper
       ? `${message}（请求编号：${error.requestId}）` : message;
   }
   if (error instanceof Error && error.message === "AI_QUOTE_CANCELLED") return t("aiModels.quoteCancelled");
-  return t(fallbackKey);
+  return (error instanceof Error && worldFailure(error.message)) || t(fallbackKey);
 }

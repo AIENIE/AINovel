@@ -217,7 +217,7 @@ const WorldEditor = () => {
       const result = await api.worlds.refineField(id, target.moduleKey, target.fieldKey, target.original, instruction);
       void refreshProfile();
       const text = result?.result || result?.content || result?.resultText;
-      if (typeof text !== "string" || !text.trim()) throw new Error(t("worlds.emptyCandidate"));
+      if (typeof text !== "string" || !text.trim()) throw new Error("WORLD_EMPTY_CANDIDATE");
       return text;
     }} onAccept={text => { if (!refineStale) { updateField(target.moduleKey, target.fieldKey, text); setTarget(null); } }} />}
   </div>;
