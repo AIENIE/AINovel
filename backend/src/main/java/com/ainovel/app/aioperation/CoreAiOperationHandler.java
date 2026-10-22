@@ -100,7 +100,8 @@ public class CoreAiOperationHandler implements AiOperationHandler {
             case "SLOP_DIAGNOSIS" -> {
                 Manuscript manuscript = accessGuard.requireOwnedManuscript(payload.primaryId(), execution.user());
                 execution.progress().step("执行文本 Slop 诊断", 0, 2);
-                var run = slop.analyzeScene(execution.user(), manuscript, payload.secondaryId());
+                var frozen=payload.request()==null?null:execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.quality.SlopEvidence.ReviewData.class);
+                var run = slop.analyzeFrozen(execution.user(), manuscript, payload.secondaryId(),frozen);
                 yield Map.of("resourceId", run.getId());
             }
             case "SLOP_DRIFT" -> {

@@ -53,4 +53,12 @@ public class SlopQualityController {
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
         return SlopQualityMapper.toDto(diagnosticService.analyzeScene(user, manuscript, sceneId));
     }
+
+    @PostMapping("/manuscripts/{manuscriptId}/quality-runs/{runId}/issues/{issueId}/suggestions/operations")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.ACCEPTED)
+    public com.ainovel.app.aioperation.AiOperationDtos.Accepted suggest(@AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID manuscriptId,@PathVariable UUID runId,@PathVariable UUID issueId) {
+        User user=accessGuard.currentUser(principal); accessGuard.requireOwnedManuscript(manuscriptId,user);
+        return diagnosticService.suggest(user,manuscriptId,runId,issueId);
+    }
 }

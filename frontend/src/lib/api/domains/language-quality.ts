@@ -41,6 +41,8 @@ export function createLanguageQualityApi(http: DomainTransport) {
     settings: (m: string) => parse(languageSettingsSchema, `${base(m)}/settings`),
     saveSettings: (m: string, settings: Pick<LanguageSettings, "generationStandard" | "checkAfterGeneration">) => parse(languageSettingsSchema, `${base(m)}/settings`, body(settings, "PUT")),
     reports: (m: string, scene: string, signal?: AbortSignal) => parse(languageReportSchema.array(), `${base(m)}?sceneId=${encodeURIComponent(scene)}`, { signal }),
+    report: (m: string, report: string) => parse(languageReportSchema, `${base(m)}/${report}`),
+    slopSuggest: (m: string, run: string, issue: string) => parse(aiOperationAcceptedSchema, `/v2/manuscripts/${m}/quality-runs/${run}/issues/${issue}/suggestions/operations`, body({})),
     check: (m: string, scene: string, version: LanguageVersion) => parse(aiOperationAcceptedSchema, `/v2/manuscripts/${m}/scenes/${scene}/quality-runs/language/operations`, body(version)),
     suggest: (m: string, report: string, issue: string) => parse(aiOperationAcceptedSchema, `${base(m)}/${report}/issues/${encodeURIComponent(issue)}/suggestions/operations`, body({})),
     patch: (m: string, report: string, patch: string) => parse(languagePatchSchema, `${base(m)}/${report}/patches/${patch}`),

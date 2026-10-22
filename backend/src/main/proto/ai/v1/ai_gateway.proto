@@ -42,6 +42,18 @@ message ModelOption {
   string model_key = 9;
   // Always present on updated servers; absent on older servers.
   ModelThinkingCapabilities thinking = 10;
+  // Canonical caller-visible route limits; absence means unknown.
+  ModelChatCapabilities chat_capabilities = 11;
+}
+
+message ModelChatCapabilities {
+  bool budget_declared = 1;
+  bool budget_available = 2;
+  bool supports_tools = 3;
+  int64 max_prompt_tokens = 4;
+  int64 max_output_tokens = 5;
+  string budget_unavailable_reason = 6;
+  bool tools_declared = 7;
 }
 
 message ThinkingOption {

@@ -26,6 +26,8 @@ public class AiFeatureOperationController {
     private final WorldService worlds;
     private final ObjectMapper objectMapper;
     private final com.ainovel.app.quality.language.LanguageFeature languageFeature;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.quality.SlopDiagnosticService slopDiagnostic;
 
     public AiFeatureOperationController(AiOperationService operations, CurrentUserResolver users,
                                         ResourceAccessGuard accessGuard, OutlineService outlines,
@@ -94,8 +96,9 @@ public class AiFeatureOperationController {
                                                          @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                          @PathVariable UUID manuscriptId, @PathVariable UUID sceneId) {
         User user = users.require(principal);
-        accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return accepted(user, "SLOP_DIAGNOSIS", "MANUSCRIPT", manuscriptId, sceneId, null, null, 2, "准备文本诊断", idempotencyKey);
+        var manuscript=accessGuard.requireOwnedManuscript(manuscriptId, user);
+        var frozen=slopDiagnostic.freeze(user,manuscript,sceneId);
+        return accepted(user, "SLOP_DIAGNOSIS", "MANUSCRIPT", manuscriptId, sceneId, null, frozen, 2, "准备文本诊断", idempotencyKey);
     }
 
     @PostMapping("/v2/manuscripts/{manuscriptId}/slop-drift-runs/operations")

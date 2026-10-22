@@ -21,6 +21,7 @@ import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { NarrativeSidebarPanel } from "./manuscript-writer/NarrativeSidebarPanel";
 import { EvidenceSidebarPanel } from "./manuscript-writer/EvidenceSidebarPanel";
+import { SlopReviewPanel } from "./manuscript-writer/SlopReviewPanel";
 import { LanguageQualityPanel } from "./manuscript-writer/LanguageQualityPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -386,12 +387,15 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     characters={characters.map(character => ({ id: String(character.id), name: String(character.name) }))} onManuscript={replaceManuscript}
   ><EvidenceSidebarPanel key={selectedManuscriptId + ":evidence:" + activeSceneId} storyId={selectedStoryId} manuscript={selectedManuscript} chapters={outlineDraft?.chapters || []} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]} active={sidebarTab === "narrative" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")} /></NarrativeSidebarPanel>;
 
-  const languagePanel = <LanguageQualityPanel
+  const languagePanel = <><LanguageQualityPanel
     key={`${selectedManuscriptId}:${selectedManuscript?.currentBranchId || ""}:${activeSceneId}`}
     manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
     active={sidebarTab === "plot" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")}
     busy={isSaving || isGenerating} save={persistSection} onApplied={applyServerSection} onSourceResolved={replaceManuscript}
-  />;
+  /><SlopReviewPanel key={`slop:${selectedManuscriptId}:${selectedManuscript?.currentBranchId || ""}:${activeSceneId}`}
+    manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
+    active={sidebarTab === "plot" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")}
+    busy={isSaving || isGenerating} run={selectedQualityRun} onApplied={applyServerSection} /></>;
 
   const pagedAssistantOpen = usePagedLayout && mobilePane === "sidebar" && sidebarTab === "copilot";
   return (

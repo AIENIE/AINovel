@@ -40,7 +40,25 @@
 
 本地验收预算额外支持 `app.ai.validation.maximum-provider-attempts`；未设置时保留原先随 `maximum-calls` 的限制。当前专题账本必须为 40 次业务调用和 120 次供应商尝试，实际运行前另行核实 `provider-attempts-per-rpc`，不能仅凭默认重试数开始付费验证。
 
-## 旧版文本质量门禁
+## Slop 来源与逐项候选（slop-evidence-v2）
+
+现有诊断与查询路由保留，新报告增加 `review`；历史报告为 null，不补造来源。
+
+- `source`：分支、正文版本、快照、投影与 HTML/文本/语境哈希；`promptVersion=slop-evidence-v2`。
+- `coverage`：`COMPLETE/PARTIAL/INPUT_LIMIT/FAILED/LOCAL_ONLY`，`reason` 说明覆盖。仅 COMPLETE 可形成完整检查结论；其它状态顶层 DEGRADED、riskLabel=unchecked，零分不代表低风险。
+- `localRisk/localSignals`：原算法的线索分与命中，不能直接确认为错误；SHADOW 仍只记录。
+- `findings[]`：稳定 id、judgment（CONFIRMED/DISMISSED/UNCERTAIN）、kind（LANGUAGE/OUTPUT_ARTIFACT/STYLE/OBSERVATION）、category、完整 quote、explanation、advice、risk、location。location 含 UTF-16 start/end、trust（EXACT/RELOCATED/AMBIGUOUS/MISSING/INVALID）与 replaceable。
+- `overallRiskScore` 仅汇总有效确认的语言问题与输出残留，文风与观察不参与；新报告 revised=false、revisionCount=0。
+
+新增 `POST /quality-runs/{runId}/issues/{issueId}/suggestions/operations`，空对象，返回 202 `{operationId}`。仅确认五类语言问题、来源未过期、定位可信且能够替换时受理。沿用语言功能环境开关，不改变作品生成规范或自动诊断设置。
+
+受理后 `review.languageReportId` 指向现有候选容器（来源 SLOP，不另跑语言诊断）；通过 `GET /quality-runs/language/{reportId}` 及既有候选处置接口读取、接受、拒绝或撤销。两步分别报价 language.revise/language.review。来源失效返回 409，同一问题返回原操作。停用的 slop.revise 不再出现在新报价中。
+
+受理前冻结完整正文、辅助语境和提示，续跑沿用冻结请求。超过现有消息限制、默认 24000 token 保守输入预算或模型声明限制时零发送，返回 INPUT_LIMIT，不截断、不分窗。缺少冻结来源的历史后台任务不能套用新处理重发。
+
+V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史记录不回填，候选与处置复用现有语言表。后端保存完整冻结材料，查询只返回审阅所需字段。以下旧字段继续供历史读取，新语义以 review 为准。
+
+## 历史文本质量字段
 
 - `GET /quality-runs`：查询稿件最近 20 条反 slop 质量门禁记录。
 - `GET /quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
@@ -60,11 +78,11 @@
 - `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
 - `safeClaim`：安全结论，只评价文本 slop 风险，不推断作者是否使用 AI。
 - `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`；保留键 `_shadow_pattern_hits` 记录不参与评分的影子规则命中摘要。
-- `alternativeExplanationsJson`：替代解释，例如传统网文俗套、人工低水平写作、工作室公式化、题材/平台惯例、作者个人文风。
+- `alternativeExplanationsJson`：历史替代解释；新报告不推断作者身份、亲历经验或输入方式。
 - `revisionPrioritiesJson`：修改优先级。
 - `rewriteTasksJson`：证据驱动改写任务。
 
-`generation_gate` 记录会复用上述扩展字段。低风险本地规则记录可能只包含本地模块分和默认替代解释；触发 AI review 后会持久化 AI 返回的模块分、证据等级、修改优先级和 rewrite tasks。即使存在 rewrite tasks，生成链路也只允许最多一次保守修订。
+`generation_gate` 新记录只检查和记录，原样返回输入候选；不执行整稿修订。本地线索未获语义确认时明确标记未检查。
 
 手动诊断和生成链路门禁会把故事 active 风格画像与角色声音作为 `voice_fit` 判断语境。未配置风格/声音时，服务端会明确传入空语境，诊断不得虚构角色语域不贴合问题。
 
@@ -100,11 +118,9 @@
 
 ## 生成链路行为
 
-`POST /api/v1/manuscripts/{id}/scenes/{sceneId}/generate` 在正文写入前自动执行质量门禁：
-- 低风险：直接保存候选正文并记录 `ACCEPTED`。
-- 中高风险：调用 AI 诊断 JSON，必要时执行一次保守修订。
-- 修订约束：不改变剧情事件、角色决策、人物关系和关键设定；只处理重复、套话、AI 输出伪迹、局部承接和轻量风格漂移。
-- 修订失败或风险未下降：保存最佳候选，并记录 `ACCEPTED_WITH_ISSUES` 供前端展示。
+- 快速与精雕均使用只读质量门，本地风险只决定是否需语义审校，绝不自动采用修订文本。
+- 语义审校使用全文输入准入；检查失败或超限记录 DEGRADED/unchecked，原候选不变。
+- 剧情候选采纳保存作者审阅稿，不再次调用 Slop，也没有 Slop 费用。
 
 ## 剧情质量诊断
 

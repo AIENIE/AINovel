@@ -309,7 +309,18 @@ export interface SlopRewriteTask {
   suggestedMethod?: string;
 }
 
+export interface SlopReview {
+  source: import("@/lib/api/domains/language-quality").LanguageReport["source"] | null;
+  promptVersion: string; coverage: string; reason: string; localRisk: number;
+  localSignals: Array<{ quote: string; patternId?: string; evidence: string; riskScore: number }>;
+  findings: Array<{ id: string; judgment: "CONFIRMED" | "DISMISSED" | "UNCERTAIN";
+    kind: "LANGUAGE" | "OUTPUT_ARTIFACT" | "STYLE" | "OBSERVATION"; category: string | null;
+    quote: string; explanation: string; advice: string; risk: number;
+    location: { start: number | null; end: number | null; trust: string; replaceable: boolean } }>;
+  languageReportId: string | null;
+}
 export interface SlopQualityRun {
+  review?: SlopReview | null;
   id: string;
   storyId: string;
   manuscriptId: string;

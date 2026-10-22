@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
 class H2RepairPromptTest {
     @Test void judgeKeepWholeControlledContextWithoutRawMetadata() {
         var ai=mock(AiService.class);
-        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","{\"risk_score\":10,\"issues\":[]}",null,0));
+        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","{\"complete\":true,\"evidence_items\":[]}",null,0));
         var owner=new User();var story=new Story();story.setTitle("FORBIDDEN_TITLE");story.setSynopsis("FORBIDDEN_SYNOPSIS");
         var outline=new Outline();outline.setStory(story);var manuscript=new Manuscript();manuscript.setOutline(outline);
         var scene=new SceneGenerationContext(UUID.randomUUID(),"FORBIDDEN_CHAPTER","FORBIDDEN_SUMMARY",1,"FORBIDDEN_SCENE","FORBIDDEN_PLAN",1,List.of(),List.of());

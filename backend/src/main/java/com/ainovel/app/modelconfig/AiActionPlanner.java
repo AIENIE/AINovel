@@ -60,6 +60,7 @@ public class AiActionPlanner {
             keys.add("story_assistant."+intent+".plan");keys.add("story_assistant."+intent+".final");
         } else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs/language/operations"))keys.add("language.diagnose");
         else if(path.matches("/v2/manuscripts/[^/]+/quality-runs/language/[^/]+/issues/[^/]+/suggestions/operations")){keys.add("language.revise");keys.add("language.review");}
+        else if(path.matches("/v2/manuscripts/[^/]+/quality-runs/[^/]+/issues/[^/]+/suggestions/operations")){keys.add("language.revise");keys.add("language.review");}
         else if(path.matches("/v2/manuscripts/[^/]+/branches/[^/]+/narrative/scene-approvals"))keys.add("narrative.extract");
         else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs(/operations)?"))keys.add("slop.diagnose");
         else if(path.matches("/v2/manuscripts/[^/]+/slop-drift-runs(/operations)?"))keys.add("slop.drift");

@@ -644,6 +644,7 @@ function toManuscript(value: unknown): Manuscript {
 
 function toSlopQualityRun(dto: NetworkObject): SlopQualityRun {
   return {
+    review: dto.review || null,
     id: String(dto.id),
     storyId: String(dto.storyId),
     manuscriptId: String(dto.manuscriptId),

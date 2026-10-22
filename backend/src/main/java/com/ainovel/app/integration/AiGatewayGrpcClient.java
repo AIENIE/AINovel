@@ -87,6 +87,11 @@ public class AiGatewayGrpcClient {
         return models;
     }
 
+    public fireflychat.ai.v1.ModelChatCapabilities chatCapabilities(String model) {
+        var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).listCallerModels(fireflychat.ai.v1.ListCallerModelsRequest.getDefaultInstance());
+        return response.getModelsList().stream().filter(m->m.getModelKey().equals(model) || Long.toString(m.getId()).equals(model))
+                .findFirst().map(fireflychat.ai.v1.ModelOption::getChatCapabilities).orElseThrow(()->new IllegalArgumentException("AI_MODEL_UNAVAILABLE"));
+    }
     public List<com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel> listCallerModels() {
         var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS)
                 .listCallerModels(fireflychat.ai.v1.ListCallerModelsRequest.getDefaultInstance());

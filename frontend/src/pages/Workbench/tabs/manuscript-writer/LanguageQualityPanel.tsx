@@ -103,8 +103,18 @@ export function LanguageQualityPanel({ manuscript, sceneId, content, dirty, acti
             {issue.location !== "EXACT" && <p className="text-amber-700">引文位置未验证，不能据此高亮或一键替换。</p>}
             <p>{issue.impact}</p><p className="text-muted-foreground">修改方向：{issue.direction}</p>
             <details><summary className="cursor-pointer">完整原文段落</summary><p className="mt-2 whitespace-pre-wrap leading-relaxed">{issue.context}</p></details>
-            {!patch && <Button size="sm" variant="outline" disabled={disabled || !canContinue || issue.availability !== "AVAILABLE" || issue.location !== "EXACT"} onClick={() => void suggest(issue)}>生成修改建议</Button>}
-            {patch && <div className="space-y-2 border-t pt-2">
+            {!patch && kind === "LANGUAGE" && <Button size="sm" variant="outline" disabled={disabled || !canContinue || issue.availability !== "AVAILABLE" || issue.location !== "EXACT"} onClick={() => void suggest(issue)}>生成修改建议</Button>}
+            {patch && <LanguagePatchReview patch={patch} disabled={disabled} dirty={dirty} onDecide={action => void decide(patch, action)} />}
+          </article>;
+        })}
+      </div>)}
+    </>}
+    {!report && !reports.isPending && !reports.error && <p className="text-muted-foreground">尚无语言报告。本地规则零命中也不代表语言自然；检查不会自动生成修改建议。</p>}
+  </section>;
+}
+
+export function LanguagePatchReview({ patch, disabled, dirty, onDecide }: { patch: LanguagePatch; disabled: boolean; dirty: boolean; onDecide: (action: "accept" | "reject" | "undo") => void }) {
+  return <div className="space-y-2 border-t pt-2">
               <p>{patchStates[patch.status] || patch.status}</p>
               {patch.reason && <p>{patch.reason}</p>}
               {patch.status === "NEEDS_CONTEXT" && <p className="text-muted-foreground">未生成候选，因此没有继续调用模型复核。请补充或编辑正文后主动重新检查。</p>}
@@ -115,16 +125,10 @@ export function LanguageQualityPanel({ manuscript, sceneId, content, dirty, acti
               {patch.review && <div className="space-y-1"><p>语言效果：{verdicts[patch.review.language]}。{patch.review.languageReason}</p><p>原意保留：{verdicts[patch.review.meaning]}。{patch.review.meaningReason}</p><ul>{patch.review.changes.map((change, i) => <li key={i}>{change}</li>)}</ul></div>}
               {!(["APPLICABLE", "UNCERTAIN", "PENDING", "NEEDS_CONTEXT"] as string[]).includes(patch.applicability) && <p className="text-amber-700">{patch.applicability === "MANUAL_ONLY" ? "富文本无法可靠映射，请参照差异手动编辑。" : patch.applicability === "STALE" ? "正文或相邻上下文已变化，此建议已失效。" : "候选或复核不满足一键采纳条件，请保留原文并核对差异。"}</p>}
               <div className="flex flex-wrap gap-2">
-                {patch.status === "READY" && <Button size="sm" disabled={disabled || dirty || !["APPLICABLE", "UNCERTAIN"].includes(patch.applicability)} onClick={() => void decide(patch, "accept")}>{patch.applicability === "UNCERTAIN" ? "已核对，仍采纳" : "采纳此项"}</Button>}
-                {["READY", "FAILED", "NEEDS_CONTEXT"].includes(patch.status) && <Button size="sm" variant="outline" disabled={disabled || dirty} onClick={() => void decide(patch, "reject")}>拒绝此项</Button>}
-                {patch.status === "ACCEPTED" && <Button size="sm" variant="outline" disabled={disabled || dirty || patch.applicability === "STALE"} onClick={() => void decide(patch, "undo")}>撤销此项</Button>}
+                {patch.status === "READY" && <Button size="sm" disabled={disabled || dirty || !["APPLICABLE", "UNCERTAIN"].includes(patch.applicability)} onClick={() => onDecide("accept")}>{patch.applicability === "UNCERTAIN" ? "已核对，仍采纳" : "采纳此项"}</Button>}
+                {["READY", "FAILED", "NEEDS_CONTEXT"].includes(patch.status) && <Button size="sm" variant="outline" disabled={disabled || dirty} onClick={() => onDecide("reject")}>拒绝此项</Button>}
+                {patch.status === "ACCEPTED" && <Button size="sm" variant="outline" disabled={disabled || dirty || patch.applicability === "STALE"} onClick={() => onDecide("undo")}>撤销此项</Button>}
               </div>
               {patch.appliedSnapshotId && <p className="text-muted-foreground">采纳已保存为独立版本{patch.undoneSnapshotId ? "；撤销也已保存新版本" : ""}。</p>}
-            </div>}
-          </article>;
-        })}
-      </div>)}
-    </>}
-    {!report && !reports.isPending && !reports.error && <p className="text-muted-foreground">尚无语言报告。本地规则零命中也不代表语言自然；检查不会自动生成修改建议。</p>}
-  </section>;
+            </div>;
 }

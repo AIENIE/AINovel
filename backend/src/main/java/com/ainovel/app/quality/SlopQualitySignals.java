@@ -17,7 +17,7 @@ public record SlopQualitySignals(
     public SlopQualitySignals {
         riskLabel = blankTo(riskLabel, "low");
         evidenceLevel = blankTo(evidenceLevel, "E1");
-        safeClaim = blankTo(safeClaim, "该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(riskLabel));
+        safeClaim = blankTo(safeClaim, "已确认文本问题的风险为%s；本地命中只作为检查线索。".formatted(riskLabel));
         moduleScores = moduleScores == null ? Map.of() : Map.copyOf(moduleScores);
         alternativeExplanations = alternativeExplanations == null ? defaultAlternatives() : List.copyOf(alternativeExplanations);
         revisionPriorities = revisionPriorities == null ? List.of() : List.copyOf(revisionPriorities);
@@ -35,7 +35,7 @@ public record SlopQualitySignals(
         return new SlopQualitySignals(
                 riskLabel,
                 evidenceLevel,
-                "该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(riskLabel),
+                "已确认文本问题的风险为%s；本地命中只作为检查线索。".formatted(riskLabel),
                 moduleScores(safeIssues),
                 defaultAlternatives(),
                 revisionPriorities(safeIssues),
@@ -174,7 +174,7 @@ public record SlopQualitySignals(
     }
 
     private static List<String> defaultAlternatives() {
-        return List.of("传统网文俗套", "人工低水平写作", "工作室公式化", "题材/平台惯例", "作者个人文风");
+        return List.of("角色对白", "有效否定推理", "必要重复", "题材惯例", "可选文风");
     }
 
     private static String blankTo(String value, String fallback) {
