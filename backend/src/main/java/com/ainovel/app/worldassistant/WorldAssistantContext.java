@@ -36,11 +36,10 @@ public class WorldAssistantContext {
             var p=frozen.parent();String id=p.resourceType.toLowerCase(Locale.ROOT)+":"+p.targetId+(p.fieldKey==null?"":":"+p.fieldKey);
             pool.stream().filter(s->s.id().equals(id)).forEach(s->chosen.put(s.id(),s));
         }
-        if(requests.isEmpty()) {
-            for(var source:pool.stream().filter(s->score(s,frozen.instruction())>0).sorted(Comparator.<Source>comparingInt(s->score(s,frozen.instruction())).reversed().thenComparing(Source::id)).toList()) {
-                if(tokens(store.write(chosen.values()))+tokens(store.write(source))>READ_BUDGET)continue;chosen.put(source.id(),source);
-            }
-        } else for(var request:requests) {
+        for(var source:pool.stream().filter(s->score(s,frozen.instruction())>0).sorted(Comparator.<Source>comparingInt(s->score(s,frozen.instruction())).reversed().thenComparing(Source::id)).toList()) {
+            if(tokens(store.write(chosen.values()))+tokens(store.write(source))>READ_BUDGET)continue;chosen.put(source.id(),source);
+        }
+        for(var request:requests) {
             if(request==null||request.tool()==null)throw invalid("WORLD_ASSISTANT_READ_INVALID");
             List<Source> found=switch(request.tool()) {
                 case "read_source"->pool.stream().filter(s->s.id().equals(request.sourceId())).toList();

@@ -88,6 +88,10 @@ public class WorldAssistantService {
         Frozen frozen=single?freezeSingle(user,worldId,entryId,json.convertValue(body,SingleRequest.class)):freeze(user,worldId,json.convertValue(body,TurnRequest.class));
         context.prompt(frozen,context.read(frozen,List.of()),single);return frozen;
     }
+    public int estimatedInput(Frozen frozen) {
+        var request=context.prompt(frozen,context.read(frozen,List.of()),frozen.singleFeature()!=null);
+        return Math.max(1,com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(request.messages().stream().map(AiChatRequest.Message::content).collect(java.util.stream.Collectors.joining("\n"))));
+    }
     private Frozen quoted(User user,UUID world,java.util.function.Supplier<Frozen> fallback) {
         var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
         if(selection==null||selection.worldAssistantInput()==null)return fallback.get();

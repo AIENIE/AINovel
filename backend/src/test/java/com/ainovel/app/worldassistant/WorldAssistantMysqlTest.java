@@ -134,6 +134,24 @@ class WorldAssistantMysqlTest {
         assertThatThrownBy(()->execute(f,a)).hasMessage("temporary");tx.executeWithoutResult(s->{var w=worlds.findById(f.world()).orElseThrow();w.setNotes("调用后新增备注");worlds.saveAndFlush(w);});execute(f,a);
         assertThat(identities).hasSize(3);assertThat(identities.get(1)).isEqualTo(identities.get(2));var turn=service.turn(f.user(),f.world(),a.turnId());assertThat(turn.usage().modelCalls()).isEqualTo(2);assertThat(turn.sources()).noneMatch(source->source.content().contains("调用后新增备注"));
     }
+    @Test void supplementalReadRetainsInitiallyReadTarget() {
+        var f=fixture();var a=submit(f,"PROPOSE",null);var calls=new AtomicInteger();
+        when(ai.chatWithIdempotency(any(),any(),anyString())).thenAnswer(i->{
+            if(calls.incrementAndGet()==1)return response(Map.of("kind","READ_BATCH","reads",List.of(Map.of("tool","read_source","sourceId","metadata:"+f.world()+":notes"))));
+            AiChatRequest request=i.getArgument(1);assertThat(request.messages().toString()).contains(f.entry().toString(),"白天开放");
+            return response(Map.of("kind","PROPOSALS","answer","请审阅","items",List.of(item("UPDATE","ENTRY",f.entry(),Map.of("content","只在白天退潮时开放")))));
+        });execute(f,a);assertThat(service.turn(f.user(),f.world(),a.turnId()).proposalIds()).hasSize(1);assertThat(calls.get()).isEqualTo(2);
+    }
+    @Test void quoteEstimateExcludesUnselectedTopicStorage() {
+        var f=fixture();var planner=new com.ainovel.app.modelconfig.AiActionPlanner(jdbc,json);
+        org.springframework.test.util.ReflectionTestUtils.setField(planner,"worldAssistant",service);
+        String path="/v1/worlds/"+f.world()+"/assistant/turns";var body=json.valueToTree(new TurnRequest(f.session(),"DISCUSS","退潮港",List.of(),null,null,revision(f)));
+        var first=planner.plan(f.user(),path,body);var other=service.createSession(f.user(),f.world(),new SessionRequest("无关话题"),"unrelated-topic");
+        var a=service.submit(f.user(),f.world(),new TurnRequest(other.id(),"DISCUSS","气候",List.of(),null,null,revision(f)),"unrelated-turn");
+        when(ai.chatWithIdempotency(any(),any(),anyString())).thenReturn(response(Map.of("kind","ANSWER","answer","其他话题的未确认设想".repeat(500))));execute(f,a);
+        var second=planner.plan(f.user(),path,body);assertThat(second.steps()).extracting(com.ainovel.app.modelconfig.AiActionPlanner.Step::estimatedInput).containsExactlyElementsOf(first.steps().stream().map(com.ainovel.app.modelconfig.AiActionPlanner.Step::estimatedInput).toList());
+        assertThat(second.worldAssistantInput().history()).isEmpty();
+    }
     @Test void acceptedQuoteSuppliesOriginalTemplatesAtTaskCreation(){
         var f=fixture();when(settings.getWorldPromptTemplates(any())).thenReturn(new WorldPromptTemplatesResponse(Map.of(),Map.of(),"{text}",Map.of("discuss","原模板：只讨论")));
         var request=new TurnRequest(f.session(),"DISCUSS","退潮港",List.of(),null,null,revision(f));var frozen=service.validateQuote(f.user(),f.world(),null,json.valueToTree(request),false);

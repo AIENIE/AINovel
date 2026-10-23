@@ -148,8 +148,13 @@ public class AiActionPlanner {
                 if(language!=null&&story!=null&&language.replacesLegacy(story)&&!target.contains("/g2-evaluations/")){keys.remove("slop.judge");}
             }
         } catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException(e);}
+        com.ainovel.app.worldassistant.WorldAssistantService.Frozen assistantInput=null;
+        if(worldAssistant!=null&&target.matches("/v1/worlds/[^/]+/(assistant/turns|entries/[^/]+/refine/operations|overview/integrate/operations)")) {
+            String[] parts=target.split("/");boolean single=!target.endsWith("/assistant/turns");
+            assistantInput=worldAssistant.validateQuote(user,UUID.fromString(parts[3]),target.contains("/entries/")?UUID.fromString(parts[5]):null,body,single);
+        }
         List<Step> steps=new ArrayList<>();
-        int input=Math.max(1,com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(state+body));
+        int input=assistantInput==null?Math.max(1,com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(state+body)):worldAssistant.estimatedInput(assistantInput);
         for(int i=0;i<keys.size();i++) {
             var k=keys.get(i);
             String calls=k.equals("language.diagnose")?"CHUNKS":target.contains("/g2-evaluations/")&&k.startsWith("slop.")?"QUALITY":k.startsWith("world.")?"ONE":k.equals("guided.json_repair")?"PER_STEP":
@@ -158,11 +163,6 @@ public class AiActionPlanner {
                     ||(target.contains("/generate")||target.contains("/g2-evaluations/"))&&(k.startsWith("slop.")||k.startsWith("plot.")||k.startsWith("language."));
             int output=k.startsWith("scene.")?sceneOutputTokens(target,body,state):4096;
             steps.add(new Step(k,conditional,calls,input,output));
-        }
-        com.ainovel.app.worldassistant.WorldAssistantService.Frozen assistantInput=null;
-        if(worldAssistant!=null&&target.matches("/v1/worlds/[^/]+/(assistant/turns|entries/[^/]+/refine/operations|overview/integrate/operations)")) {
-            String[] parts=target.split("/");boolean single=!target.endsWith("/assistant/turns");
-            assistantInput=worldAssistant.validateQuote(user,UUID.fromString(parts[3]),target.contains("/entries/")?UUID.fromString(parts[5]):null,body,single);
         }
         String compiledHash="";
         com.ainovel.app.world.WorldBindingService.Frozen worldInput=null;
