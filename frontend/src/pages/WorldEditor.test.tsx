@@ -34,6 +34,26 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 describe("WorldEditor", () => {
+  it("confirms entry deletion and removes its draft relations without saving implicitly", async () => {
+    const initial = {...world(), unpublishedChanges:false, relations:[{id:"r",sourceId:"terrain",targetId:"climate",type:"影响",description:""}]};
+    vi.mocked(api.worlds.getDetail).mockResolvedValue(initial);
+    const update = vi.spyOn(api.worlds,"update").mockImplementation(async (_id,draft) => ({...draft,revision:2}));
+    renderEditor(); await screen.findByLabelText("正文");
+    fireEvent.click(screen.getByRole("button",{name:"删除条目"}));
+    expect(screen.getByRole("alertdialog").textContent).toContain("地形地貌");
+    fireEvent.click(screen.getByRole("button",{name:"取消"}));
+    expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("群岛");
+    fireEvent.click(screen.getByRole("button",{name:"删除条目"}));
+    fireEvent.click(screen.getAllByRole("button",{name:"删除条目"}).at(-1)!);
+    expect(screen.queryByRole("button",{name:/^地形地貌/})).toBeNull();
+    expect(screen.getByText(/有未发布修改/)).toBeTruthy();
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"保存"}));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][1].entries?.map(e=>e.id)).toEqual(["climate"]);
+    expect(update.mock.calls[0][1].relations).toEqual([]);
+  });
+
   it.each(["detail", "definitions"])("selects the first tab after asynchronous %s arrives first", async first => {
     const detail = deferred<WorldDetail>(), defs = deferred<WorldModuleDefinition[]>();
     vi.mocked(api.worlds.getDetail).mockReturnValue(detail.promise);

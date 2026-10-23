@@ -24,7 +24,12 @@ class WorldMigrationMysqlTest {
             execute(db,"insert into stories(id,user_id,title,world_id) values(?,?,'故事',?)",story,owner,world.toString());
             execute(db,"insert into outlines(id,story_id,title,world_id,content_json,revision) values(?,?,'旧覆盖',?,'{}',0)",outline,story,world.toString());
             execute(db,"insert into manuscripts(id,outline_id,title,world_id) values(?,?,'旧稿件覆盖',?)",manuscript,outline,world.toString());
-            Flyway.configure().dataSource(url,user,password).load().migrate();
+            Flyway.configure().dataSource(url,user,password).initSql("SET time_zone = '+08:00'").target("44").load().migrate();
+            String baselineBeforeUtcRepair=(String)scalar(db,"select snapshot_json from world_versions where world_id=?",world);
+            Flyway.configure().dataSource(url,user,password).initSql("SET time_zone = '-05:00'").load().migrate();
+            assertEquals(baselineBeforeUtcRepair,scalar(db,"select snapshot_json from world_versions where world_id=?",world));
+            assertEquals(((Number)scalar(db,"select unix_timestamp(installed_on) from flyway_schema_history where version='43'")).longValue(),
+                ((Number)scalar(db,"select timestampdiff(SECOND,'1970-01-01 00:00:00',created_at) from world_versions where world_id=?",world)).longValue());
             assertEquals(original,scalar(db,"select legacy_modules_json from worlds where id=?",world));
             assertEquals(4L,((Number)scalar(db,"select count(*) from world_entries where world_id=?",world)).longValue());
             assertEquals("原始未知字段",scalar(db,"select content from world_entries where world_id=? and legacy_field_key='unknown'",world));

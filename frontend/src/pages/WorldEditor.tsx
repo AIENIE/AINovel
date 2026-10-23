@@ -174,7 +174,7 @@ const WorldEditor = () => {
       {checkingTask && <p role="status" className="text-sm text-muted-foreground">{t("worlds.checkingTask")}</p>}
       {(taskLookupError || generationError) && <Button variant="outline" disabled={checkingTask} onClick={() => void Promise.all([checkActiveTask(), refreshStatus()])}>{t("worlds.refreshTask")}</Button>}
       {remote && <div role="status" className="rounded border p-3 space-y-2"><p>{t("worlds.remoteChanged")}</p><Button variant="outline" onClick={() => setReviewRemote(true)}>{t("worlds.compareServer")}</Button></div>}
-      {draft && <p className="text-sm text-muted-foreground">{draft.latestPublished ? t("world2.version", {number:draft.latestPublished.sequenceNumber}) : t("world2.notPublished")} · {t(draft.unpublishedChanges ? "world2.unpublished" : "world2.upToDate")}</p>}
+      {draft && <p className="text-sm text-muted-foreground">{draft.latestPublished ? t("world2.version", {number:draft.latestPublished.sequenceNumber}) : t("world2.notPublished")} · {t(dirty || draft.unpublishedChanges ? "world2.unpublished" : "world2.upToDate")}</p>}
       {task && <section aria-label={t("worlds.task")} className="rounded border p-3 space-y-2 text-sm">
         <p>{t("worlds.task")} · {t(`worlds.taskStatus.${task.status}`)} · {task.completedSteps}/{task.totalSteps}</p>
         <details><summary>{t("worlds.taskDetails")}</summary><p className="break-all">{task.id}</p></details>

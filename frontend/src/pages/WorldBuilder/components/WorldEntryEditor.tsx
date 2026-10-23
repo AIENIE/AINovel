@@ -5,6 +5,7 @@ import type { WorldDetail, WorldEntry, WorldEntryType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const entryTypes: WorldEntryType[] = ['GEOGRAPHY','LOCATION','PERSON','ORGANIZATION','SPECIES','SOCIETY','RESOURCE','SYSTEM','RULE','HISTORY','CUSTOM'];
 const emptyEntries: WorldEntry[] = [];
@@ -32,6 +33,7 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
   const [tag, setTag] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<WorldEntry | null>(null);
   const entries = draft.entries || emptyEntries, relations = draft.relations || [];
   useEffect(()=>{if(!selected&&entries[0])setSelected(entries[0].id);},[selected,entries]);
   const tags = useMemo(() => [...new Set(entries.flatMap(e => e.tags))].sort(), [entries]);
@@ -65,10 +67,7 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
     {active ? <div className="min-w-0 space-y-6 p-5 md:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3"><span className="text-xs uppercase tracking-widest text-muted-foreground">{t(`world2.types.${active.type}`)}</span>
         <div className="flex items-center gap-2"><Button variant="outline" size="sm" disabled={busy} onClick={() => active.content?.trim() ? onRefine(active) : onGenerate(active)}><Sparkles className="mr-2 h-3.5 w-3.5" />{t(active.content?.trim() ? 'world2.refine' : 'world2.fill')}</Button>
-          <Button variant="ghost" size="icon" aria-label={t('world2.deleteEntry')} onClick={() => {
-            if (!window.confirm(t('world2.deleteConfirm',{title:active.title,count:related.length}))) return;
-            edit(current => ({...current,entries:current.entries?.filter(e => e.id !== active.id),relations:current.relations?.filter(r => r.sourceId !== active.id && r.targetId !== active.id)}));
-          }}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button></div>
+          <Button variant="ghost" size="icon" aria-label={t('world2.deleteEntry')} onClick={() => setPendingDelete(active)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button></div>
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
         <label className="space-y-2 text-sm">{t('world2.title')}<Input className="text-lg font-medium" value={active.title} maxLength={255} onChange={e => update({title:e.target.value})} /></label>
@@ -95,5 +94,16 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
       </section>
       {active.legacyModuleKey && <p className="text-xs text-muted-foreground">{t('world2.migratedEntry',{source:`${active.legacyModuleKey}.${active.legacyFieldKey}`})}</p>}
     </div> : <div className="flex min-h-72 flex-col items-center justify-center gap-4 p-8 text-center text-muted-foreground"><FileText className="h-8 w-8 opacity-40" /><p className="max-w-sm text-sm leading-7">{t(entries.length ? 'world2.noMatch' : 'world2.emptyHelp')}</p></div>}
+    <AlertDialog open={!!pendingDelete} onOpenChange={open => { if (!open) setPendingDelete(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader><AlertDialogTitle>{t('world2.deleteEntry')}</AlertDialogTitle>
+          <AlertDialogDescription>{pendingDelete && t('world2.deleteConfirm',{title:pendingDelete.title,count:relations.filter(r => r.sourceId === pendingDelete.id || r.targetId === pendingDelete.id).length})}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => {
+          if (!pendingDelete) return;
+          edit(current => ({...current,entries:current.entries?.filter(e => e.id !== pendingDelete.id),relations:current.relations?.filter(r => r.sourceId !== pendingDelete.id && r.targetId !== pendingDelete.id)}));
+        }}>{t('world2.deleteEntry')}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>;
 }
