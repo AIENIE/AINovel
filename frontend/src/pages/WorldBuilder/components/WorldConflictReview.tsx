@@ -8,7 +8,7 @@ export function WorldConflictReview({ local, server, definitions, open, onOpenCh
   open: boolean; onOpenChange: (open: boolean) => void; onResolve: (keepLocal: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const rows = ["name", "tagline", "creativeIntent", "themes", "notes"].map(key => ({
+  const rows = ["name", "tagline", "creativeIntent", "themes", "notes", "overview"].map(key => ({
     key, label: t(`worldMeta.${key}`),
     local: key === "themes" ? local.themes.join(", ") : String(local[key as keyof WorldDetail] ?? ""),
     server: key === "themes" ? server.themes.join(", ") : String(server[key as keyof WorldDetail] ?? ""),

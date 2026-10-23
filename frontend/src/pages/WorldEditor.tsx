@@ -14,11 +14,12 @@ import WorldMetadataForm from "./WorldBuilder/components/WorldMetadataForm";
 import { WorldEntryEditor } from "./WorldBuilder/components/WorldEntryEditor";
 import { WorldPublishDialog, WorldVersionHistory } from "./WorldBuilder/components/WorldVersionViews";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WorldRefineReview, type WorldRefineTarget } from "./WorldBuilder/components/WorldRefineReview";
+import { WorldAssistantPanel, type SingleWorldAction } from "./WorldBuilder/components/WorldAssistantPanel";
+import { WorldOverview } from "./WorldBuilder/components/WorldOverview";
 import { WorldConflictReview } from "./WorldBuilder/components/WorldConflictReview";
 import { WorldGeneratedResultsDialog } from "./WorldBuilder/components/WorldGeneratedResultsDialog";
 import { useWorldDraft } from "./WorldBuilder/useWorldDraft";
-import { useAuth } from "@/contexts/auth-state";
+
 
 const runningStates = ["QUEUED", "RUNNING", "STREAMING"];
 
@@ -27,7 +28,7 @@ const WorldEditor = () => {
   const id = params.get("id") || "";
   const { toast } = useToast();
   const { t } = useTranslation();
-  const { refreshProfile } = useAuth();
+
   const editor = useWorldDraft(id);
   const { draft, dirty, saving, remote, conflict, refresh } = editor;
   const latest = useRef({ id, editor }); latest.current = { id, editor };
@@ -46,7 +47,9 @@ const WorldEditor = () => {
   const [taskLookupMessage, setTaskLookupMessage] = useState("");
   const [generationError, setGenerationError] = useState("");
   const [publishing, setPublishing] = useState<WorldDetail | null>(null);
-  const [target, setTarget] = useState<WorldRefineTarget | null>(null);
+  const [target, setTarget] = useState<SingleWorldAction | null>(null);
+  const [tab, setTab] = useState("entries");
+  const [proposalDirty, setProposalDirty] = useState(false);
   const [generation, setGeneration] = useState<WorldGenerationStatus | null>(null);
   const [localTask, setLocalTask] = useState<AiOperationProgress | null>(null);
   const taskUpdateVersion = useRef(0);
@@ -95,7 +98,7 @@ const WorldEditor = () => {
   useEffect(() => {
     const lifecycle = epoch;
     epoch.current++;
-    setPublishing(null); setTarget(null); setLocalTask(null); setGeneration(null); setActionError(""); setTaskLookupMessage(""); setGenerationError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
+    setPublishing(null); setTarget(null); setTab("entries"); setProposalDirty(false); setLocalTask(null); setGeneration(null); setActionError(""); setTaskLookupMessage(""); setGenerationError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
     void refreshStatus();
     void checkActiveTask();
     return () => { lifecycle.current++; };
@@ -129,14 +132,14 @@ const WorldEditor = () => {
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [localTask, tracked?.id, refresh, refreshStatus]);
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty &&
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => (dirty || proposalDirty) &&
     (currentLocation.pathname !== nextLocation.pathname || new URLSearchParams(nextLocation.search).get("id") !== id));
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !proposalDirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, proposalDirty]);
 
   const ready = () => {
     if (!latest.current.editor.canAct()) { setActionError(t("worlds.saveBeforeAction")); return false; }
@@ -152,9 +155,8 @@ const WorldEditor = () => {
     catch (error) { if (scope === epoch.current && !(error instanceof Error && error.message === "AI_QUOTE_CANCELLED")) setActionError(localizedErrorMessage(error)); }
     finally { if (scope === epoch.current) { actionLock.current = false; setBusy(false); void refreshStatus(); } }
   };
-  const updateEntry = (entryId: string, value: string) => editor.edit(current => ({...current, entries: current.entries?.map(entry => entry.id === entryId ? {...entry,content:value} : entry)}));
   const save = async () => { const clean = await editor.save(); if (clean) toast({ title: t("worlds.saved") }); return clean; };
-  const refineStale = !!target && (target.worldId !== id || target.revision !== draft?.revision || dirty || !!remote || conflict || draft?.entries?.find(entry => entry.id === target.entryId)?.content !== target.original);
+
 
 
   if (!id) return <div className="p-6"><p>{t("worlds.missingId")}</p><Button asChild className="mt-4"><Link to="/worlds">{t("worlds.backToList")}</Link></Button></div>;
@@ -199,28 +201,23 @@ const WorldEditor = () => {
       </section>}
       {!!generation?.queue.length && <details className="text-sm"><summary>{t("worlds.moduleState")}</summary><ul className="mt-2 space-y-1">{generation.queue.map(module => <li key={module.moduleKey}>{definitions?.find(def => def.key === module.moduleKey)?.label || module.moduleKey} · {t(`worlds.moduleStatus.${module.status}`, { defaultValue: module.status })}{module.error && <p className="text-destructive">{module.error}</p>}</li>)}</ul></details>}
       {editor.loading && <div className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t("common.loading")}</div>}
-      {draft && <Tabs defaultValue="entries" key={id} className="space-y-5">
-        <TabsList><TabsTrigger value="entries">{t("world2.entries")}</TabsTrigger><TabsTrigger value="metadata">{t("world2.metadata")}</TabsTrigger><TabsTrigger value="history">{t("world2.history")}</TabsTrigger></TabsList>
+      {draft && <Tabs value={tab} onValueChange={setTab} key={id} className="space-y-5">
+        <TabsList className="h-auto flex-wrap justify-start"><TabsTrigger value="entries">{t("world2.entries")}</TabsTrigger><TabsTrigger value="metadata">{t("world2.metadata")}</TabsTrigger><TabsTrigger value="assistant">{t("world3.title")}</TabsTrigger><TabsTrigger value="overview">{t("world3.overview")}</TabsTrigger><TabsTrigger value="history">{t("world2.history")}</TabsTrigger></TabsList>
         <TabsContent value="entries"><WorldEntryEditor draft={draft} edit={editor.edit} busy={busy || running || saving}
           onGenerate={entry => { if (ready()) void run(async () => { await runTrackedAiOperation(api.worlds.startGenerateEntry(id, entry.id, draft.revision)); }); }}
-          onRefine={entry => { if (ready()) setTarget({worldId:id,revision:draft.revision,entryId:entry.id,label:entry.title,original:entry.content || ''}); }} /></TabsContent>
+          onRefine={entry => { if (ready()) {setTarget({entryId:entry.id,label:entry.title});setTab("assistant");} }} /></TabsContent>
         <TabsContent value="metadata"><WorldMetadataForm data={draft} onChange={(field,value) => editor.edit(current => ({...current,[field]:value}))} /></TabsContent>
+        <TabsContent value="assistant" hidden={tab!=="assistant"} forceMount className="data-[state=inactive]:hidden"><WorldAssistantPanel key={id} world={id} editor={editor} single={target} onSingleClose={()=>setTarget(null)} onDirty={setProposalDirty}/></TabsContent>
+        <TabsContent value="overview"><WorldOverview editor={editor} onIntegrate={()=>{if(ready()){setTarget({entryId:null,label:t("world3.overview")});setTab("assistant");}}}/></TabsContent>
         <TabsContent value="history"><WorldVersionHistory worldId={id} revision={draft.revision} /></TabsContent>
       </Tabs>}
       {definitionError && <p className="text-sm text-muted-foreground">{t("worlds.definitionsFailed")} <Button variant="ghost" onClick={() => setDefinitionAttempt(value => value + 1)}>{t("common.retry")}</Button></p>}
     </main>
-    <Dialog open={blocker.state === "blocked"} onOpenChange={open => { if (!open && blocker.state === "blocked") blocker.reset(); }}><DialogContent><DialogHeader><DialogTitle>{t("worlds.unsaved")}</DialogTitle><DialogDescription>{t("worlds.leaveHelp")}</DialogDescription></DialogHeader><DialogFooter className="gap-2"><Button variant="outline" onClick={() => { if (blocker.state === "blocked") blocker.reset(); }}>{t("common.cancel")}</Button><Button variant="outline" disabled={saving} onClick={() => { if (blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.discardAndLeave")}</Button><Button disabled={saving || !!remote || conflict} onClick={async () => { if (await save() && blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.saveAndLeave")}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={blocker.state === "blocked"} onOpenChange={open => { if (!open && blocker.state === "blocked") blocker.reset(); }}><DialogContent><DialogHeader><DialogTitle>{t("worlds.unsaved")}</DialogTitle><DialogDescription>{t(proposalDirty?"world3.candidateLeaveHelp":"worlds.leaveHelp")}</DialogDescription></DialogHeader><DialogFooter className="gap-2"><Button variant="outline" onClick={() => { if (blocker.state === "blocked") blocker.reset(); }}>{t("common.cancel")}</Button><Button variant="outline" disabled={saving} onClick={() => { if (blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.discardAndLeave")}</Button><Button disabled={saving || !!remote || conflict || proposalDirty} onClick={async () => { if (await save() && blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.saveAndLeave")}</Button></DialogFooter></DialogContent></Dialog>
     {draft && remote && <WorldConflictReview local={draft} server={remote} definitions={definitions || []} open={reviewRemote} onOpenChange={setReviewRemote} onResolve={keepLocal => { editor.resolveRemote(keepLocal); setReviewRemote(false); }} />}
     {task && <WorldGeneratedResultsDialog worldId={id} operationId={task.id} definitions={definitions || []} entries={draft?.entries} open={reviewGenerated} onOpenChange={setReviewGenerated} />}
     {publishing && <WorldPublishDialog draft={publishing} stale={dirty || !!remote || conflict || saving || draft?.revision !== publishing.revision} onClose={() => setPublishing(null)} onPublished={async () => { await refresh(); toast({title:t('worlds.publishDone')}); }} />}
-    {target && <WorldRefineReview key={`${target.worldId}:${target.entryId}`} target={target} stale={refineStale} onClose={() => setTarget(null)} onGenerate={async instruction => {
-      if (!latest.current.editor.canAct() || latest.current.id !== target.worldId || latest.current.editor.draft?.revision !== target.revision) throw new Error(t("worlds.refineStale"));
-      const result = await api.worlds.refineEntry(id, target.entryId, target.original, instruction);
-      void refreshProfile();
-      const text = result?.result;
-      if (typeof text !== "string" || !text.trim()) throw new Error("WORLD_EMPTY_CANDIDATE");
-      return text;
-    }} onAccept={text => { if (!refineStale) { updateEntry(target.entryId, text); setTarget(null); } }} />}
+
   </div>;
 };
 

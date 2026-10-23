@@ -86,6 +86,10 @@ function clearTracked(operationId: string) {
 function refreshRecoveredResult(final: AiOperationProgress) {
   // World watchers notify the mounted editor without discarding its local draft.
   if (final.scopeType === "WORLD") return;
+  if (final.operationType === "WORLD_ASSISTANT_TURN") {
+    window.dispatchEvent(new CustomEvent("ainovel:world-assistant-updated"));
+    return;
+  }
   if (final.operationType === "STORY_ASSISTANT_TURN") {
     window.dispatchEvent(new CustomEvent(STORY_ASSISTANT_UPDATED));
     return;

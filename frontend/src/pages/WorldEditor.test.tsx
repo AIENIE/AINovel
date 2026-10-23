@@ -6,6 +6,7 @@ import type { AiOperationProgress, WorldDetail, WorldModuleDefinition } from "@/
 import { WORLD_UPDATED } from "@/lib/world-operation-events";
 import { refreshTrackedAiOperation, retryTrackedAiOperation } from "@/lib/ai-operation-store";
 import WorldEditor from "./WorldEditor";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const state = vi.hoisted(() => ({ task: null as AiOperationProgress | null, listeners: new Set<() => void>() }));
 vi.mock("@/contexts/auth-state", () => ({ useAuth: () => ({ refreshProfile: vi.fn() }) }));
@@ -20,12 +21,14 @@ const world = (revision = 1): WorldDetail => ({ id: "world-a", revision, name: "
 const operation = (status: AiOperationProgress["status"], errorCode?: string): AiOperationProgress => ({ id: "op-a", operationType: "AINOVEL_LONG_TASK", scopeType: "WORLD", scopeId: "world-a", status, errorCode, completedSteps: 1, totalSteps: 2, remainingSteps: 1, currentStepOutputTokens: 0, outputTokensEstimated: false, attemptCount: 1 });
 const renderEditor = () => {
   const router = createMemoryRouter([{ path: "/world-editor", element: <WorldEditor /> }, { path: "/worlds", element: <p>世界列表页</p> }], { initialEntries: ["/world-editor?id=world-a"] });
-  render(<RouterProvider router={router} />); return router;
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><RouterProvider router={router} /></QueryClientProvider>); return router;
 };
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>(yes => { resolve = yes; }); return { promise, resolve }; }
 
 beforeEach(() => {
   state.task = null;
+  vi.spyOn(api.worldAssistant,"sessions").mockResolvedValue([]);
+  vi.spyOn(api.worldAssistant,"session").mockResolvedValue({id:null,worldId:"world-a",title:null,turns:[],hasMore:false,nextBefore:null});
   vi.spyOn(api.worlds, "getDetail").mockResolvedValue(world());
   vi.spyOn(api.worlds, "getDefinitions").mockResolvedValue(definitions);
   vi.spyOn(api.worlds, "generationStatus").mockResolvedValue({ queue: [] });
@@ -113,46 +116,33 @@ describe("WorldEditor", () => {
     expect(screen.getByRole("status").textContent).toContain("未保存");
   });
 
-  it("reviews and edits a refinement before adopting it locally, without saving automatically", async () => {
-    const update = vi.spyOn(api.worlds, "update");
-    const refine = vi.spyOn(api.worlds, "refineEntry").mockResolvedValue({ result: "山脊环绕的群岛" });
-    renderEditor();
-    await screen.findByLabelText("正文");
-    fireEvent.click(screen.getAllByRole("button", { name: "AI 精修" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成候选" }));
-    const candidate = await screen.findByLabelText("候选内容（可编辑）");
-    expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("群岛");
-    fireEvent.change(candidate, { target: { value: "作者修订后的群岛" } });
-    fireEvent.click(screen.getByRole("button", { name: "采纳到当前输入" }));
-    expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("作者修订后的群岛");
+  it("starts a persistent refinement without replacing the draft", async () => {
+    const update=vi.spyOn(api.worlds,"update");
+    const refine=vi.spyOn(api.worldAssistant,"single").mockResolvedValue({turnId:"turn",operationId:"operation",sessionId:"topic"});
+    renderEditor();await screen.findByLabelText("正文");
+    fireEvent.click(screen.getByRole("button",{name:"AI 精修"}));
+    fireEvent.click(screen.getByRole("button",{name:"生成审阅提案"}));
+    await waitFor(()=>expect(refine).toHaveBeenCalledWith("world-a","terrain",1,"",expect.any(String)));
     expect(update).not.toHaveBeenCalled();
-    expect(refine).toHaveBeenCalledWith("world-a", "terrain", "群岛", "");
+    await waitFor(()=>expect(screen.queryByRole("dialog")).toBeNull());
   });
-
-  it("rejects adopting a candidate after task completion changed the original", async () => {
-    vi.spyOn(api.worlds, "refineEntry").mockResolvedValue({ result: "候选地形" });
-    renderEditor(); await screen.findByLabelText("正文");
-    fireEvent.click(screen.getAllByRole("button", { name: "AI 精修" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成候选" }));
-    await screen.findByLabelText("候选内容（可编辑）");
+  it("rejects refinement after the original draft changes", async () => {
+    const refine=vi.spyOn(api.worldAssistant,"single");renderEditor();await screen.findByLabelText("正文");
+    fireEvent.click(screen.getByRole("button",{name:"AI 精修"}));
     vi.mocked(api.worlds.getDetail).mockResolvedValue(world(2));
-    act(() => window.dispatchEvent(new CustomEvent(WORLD_UPDATED, { detail: { worldId: "world-a", operationId: "other-op" } })));
-    await waitFor(() => expect(screen.getByRole("button", { name: "采纳到当前输入" }).hasAttribute("disabled")).toBe(true));
-    expect(screen.getByText(/原文或世界内容已变化/)).toBeTruthy();
+    act(()=>window.dispatchEvent(new CustomEvent(WORLD_UPDATED,{detail:{worldId:"world-a",operationId:"other"}})));
+    await waitFor(()=>expect(api.worlds.getDetail).toHaveBeenCalledTimes(2));
+    // Submission uses the freshly saved revision; it never replays the old baseline.
+    refine.mockResolvedValue({turnId:"t",operationId:"o",sessionId:"s"});
+    fireEvent.click(screen.getByRole("button",{name:"生成审阅提案"}));
+    await waitFor(()=>expect(refine).toHaveBeenCalledWith("world-a","terrain",2,"",expect.any(String)));
   });
-
-  it.each(["", " \n "])("preserves the source and explains an empty refinement result without retrying (%j)", async result => {
-    const refine = vi.spyOn(api.worlds, "refineEntry").mockResolvedValue({ result });
-    const update = vi.spyOn(api.worlds, "update");
-    renderEditor(); await screen.findByLabelText("正文");
-    fireEvent.click(screen.getAllByRole("button", { name: "AI 精修" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成候选" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("未获得可用的精修内容，原文已保留。");
-    expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("群岛");
-    expect(screen.queryByLabelText("候选内容（可编辑）")).toBeNull();
-    expect(screen.queryByRole("button", { name: "采纳到当前输入" })).toBeNull();
-    expect(update).not.toHaveBeenCalled();
-    expect(refine).toHaveBeenCalledTimes(1);
+  it("reports an unusable refinement result and keeps the draft unchanged", async () => {
+    const refine=vi.spyOn(api.worldAssistant,"single").mockRejectedValue(new ApiError(422,"WORLD_ASSISTANT_RESULT_INVALID"));
+    const update=vi.spyOn(api.worlds,"update");renderEditor();await screen.findByLabelText("正文");
+    fireEvent.click(screen.getByRole("button",{name:"AI 精修"}));fireEvent.click(screen.getByRole("button",{name:"生成审阅提案"}));
+    await waitFor(()=>expect(refine).toHaveBeenCalledTimes(1));expect(update).not.toHaveBeenCalled();
+    await waitFor(()=>expect(screen.getAllByRole("alert").some(e=>e.textContent?.includes("原结果与费用记录已保留"))).toBe(true));
   });
 
   it("ends an explicitly rejected failed task without retrying it or immediately generating again", async () => {
@@ -193,15 +183,17 @@ describe("WorldEditor", () => {
   });
 
   it("keeps the source unchanged and does not show an error when the refinement quote is dismissed", async () => {
-    vi.spyOn(api.worlds, "refineEntry").mockRejectedValue(new Error("AI_QUOTE_CANCELLED"));
+    vi.spyOn(api.worldAssistant, "single").mockRejectedValue(new Error("AI_QUOTE_CANCELLED"));
     const update = vi.spyOn(api.worlds, "update");
     renderEditor(); await screen.findByLabelText("正文");
     fireEvent.click(screen.getAllByRole("button", { name: "AI 精修" })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "生成候选" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "生成候选" }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "生成审阅提案" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "生成审阅提案" }).hasAttribute("disabled")).toBe(false));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByLabelText("候选内容（可编辑）")).toBeNull();
-    expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("群岛");
+    fireEvent.click(screen.getByRole("button",{name:"取消"}));
+    fireEvent.mouseDown(screen.getByRole("tab",{name:"世界条目"}),{button:0,ctrlKey:false});
+    expect((await screen.findByLabelText("正文") as HTMLTextAreaElement).value).toBe("群岛");
     expect(update).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { WorldListInput as ListInput } from './WorldListInput';
+import { WORLD_ENTRY_TYPES } from '../world-draft';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Search, Trash2, Sparkles, Link2, FileText } from 'lucide-react';
 import type { WorldDetail, WorldEntry, WorldEntryType } from '@/types';
@@ -7,22 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-const entryTypes: WorldEntryType[] = ['GEOGRAPHY','LOCATION','PERSON','ORGANIZATION','SPECIES','SOCIETY','RESOURCE','SYSTEM','RULE','HISTORY','CUSTOM'];
 const emptyEntries: WorldEntry[] = [];
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm';
-const split = (value: string) => value.split(/[,，]/).map(v => v.trim()).filter(Boolean);
 
-function ListInput({values,onChange,placeholder}: {values:string[];onChange:(value:string[])=>void;placeholder:string}) {
-  const [text,setText]=useState(values.join(', '));
-  const sent=useRef(JSON.stringify(values));
-  useEffect(()=>{
-    const value=JSON.stringify(values);
-    if(value!==sent.current){sent.current=value;setText(values.join(', '));}
-  },[values]);
-  return <Input value={text} placeholder={placeholder} onChange={event=>{
-    setText(event.target.value);const next=split(event.target.value);sent.current=JSON.stringify(next);onChange(next);
-  }}/>;
-}
 
 export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
   draft: WorldDetail; edit: (update: (draft: WorldDetail) => WorldDetail) => void; busy: boolean;
@@ -53,7 +42,7 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
         </div>
         <div className="relative"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" aria-label={t('world2.search')} placeholder={t('world2.search')} value={query} onChange={e => setQuery(e.target.value)} /></div>
         <div className="grid grid-cols-2 gap-2">
-          <select className={selectClass} aria-label={t('world2.filterType')} value={type} onChange={e => setType(e.target.value)}><option value="">{t('world2.allTypes')}</option>{entryTypes.map(key => <option key={key} value={key}>{t(`world2.types.${key}`)}</option>)}</select>
+          <select className={selectClass} aria-label={t('world2.filterType')} value={type} onChange={e => setType(e.target.value)}><option value="">{t('world2.allTypes')}</option>{WORLD_ENTRY_TYPES.map(key => <option key={key} value={key}>{t(`world2.types.${key}`)}</option>)}</select>
           <select className={selectClass} aria-label={t('world2.filterTag')} value={tag} onChange={e => setTag(e.target.value)}><option value="">{t('world2.allTags')}</option>{tags.map(value => <option key={value}>{value}</option>)}</select>
         </div>
       </div>
@@ -71,7 +60,7 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
         <label className="space-y-2 text-sm">{t('world2.title')}<Input className="text-lg font-medium" value={active.title} maxLength={255} onChange={e => update({title:e.target.value})} /></label>
-        <label className="space-y-2 text-sm">{t('world2.type')}<select className={selectClass} value={active.type} onChange={e => update({type:e.target.value as WorldEntryType})}>{entryTypes.map(key => <option key={key} value={key}>{t(`world2.types.${key}`)}</option>)}</select></label>
+        <label className="space-y-2 text-sm">{t('world2.type')}<select className={selectClass} value={active.type} onChange={e => update({type:e.target.value as WorldEntryType})}>{WORLD_ENTRY_TYPES.map(key => <option key={key} value={key}>{t(`world2.types.${key}`)}</option>)}</select></label>
       </div>
       <label className="block space-y-2 text-sm">{t('world2.summary')}<Textarea value={active.summary || ''} rows={2} onChange={e => update({summary:e.target.value})} /></label>
       <label className="block space-y-2 text-sm">{t('world2.content')}<Textarea className="min-h-[320px] leading-7" value={active.content || ''} onChange={e => update({content:e.target.value})} placeholder={t('world2.contentHelp')} /></label>

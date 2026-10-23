@@ -103,6 +103,7 @@ const WorldPrompts = () => {
         <TabsList>
           <TabsTrigger value="modules">{t("worldPrompts.tabModules")}</TabsTrigger>
           <TabsTrigger value="final">{t("worldPrompts.tabFinal")}</TabsTrigger>
+          <TabsTrigger value="actions">{t("world3.actionTemplates")}</TabsTrigger>
           <TabsTrigger value="refine">{t("worldPrompts.tabRefine")}</TabsTrigger>
         </TabsList>
         
@@ -127,7 +128,7 @@ const WorldPrompts = () => {
           ))}
         </TabsContent>
 
-        <TabsContent value="final" className="space-y-4 mt-4">
+        <TabsContent value="final" className="space-y-4 mt-4"><p className="text-sm text-muted-foreground">{t("world3.finalTemplateHelp")}</p>
           {Object.entries(prompts.finalTemplates).length > 0 ? (
             Object.entries(prompts.finalTemplates).map(([key, template]) => (
               <Card key={key}>
@@ -156,6 +157,7 @@ const WorldPrompts = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="actions" className="mt-4 space-y-5">{Object.entries(prompts.actions||{}).map(([key,value])=><label key={key} className="block space-y-2 text-sm"><span className="font-medium">{t(`world3.template.${key}`)}</span><Textarea className="min-h-[150px] font-mono text-sm" value={value} onChange={e=>setPrompts({...prompts,actions:{...prompts.actions,[key]:e.target.value}})}/></label>)}</TabsContent>
         <TabsContent value="refine" className="mt-4">
           <Card>
             <CardHeader>

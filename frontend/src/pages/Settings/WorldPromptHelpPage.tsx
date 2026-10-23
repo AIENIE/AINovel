@@ -78,31 +78,6 @@ const WorldPromptHelpPage = () => {
         </CardContent>
       </Card>
 
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>{t("promptHelp.functionsTitle")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("promptHelp.colFunction")}</TableHead>
-                <TableHead>{t("promptHelp.colDescription")}</TableHead>
-                <TableHead>{t("promptHelp.colExample")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {metadata?.functions.map((fn) => (
-                <TableRow key={fn.name}>
-                  <TableCell className="font-mono text-primary">{fn.name}</TableCell>
-                  <TableCell>{fn.description}</TableCell>
-                  <TableCell className="font-mono">{fn.example}</TableCell>
-                </TableRow>
-              )) ?? null}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

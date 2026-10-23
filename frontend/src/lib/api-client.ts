@@ -6,6 +6,7 @@ import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
 import { createLanguageQualityApi } from "./api/domains/language-quality";
 import { createWritingAssistantApi } from "./api/domains/writing-assistant";
+import { createWorldAssistantApi } from "./api/domains/world-assistant";
 import { createStoryAssistantApi } from "./api/domains/story-assistant";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
@@ -609,6 +610,7 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
     updatedAt: dto.updatedAt || new Date().toISOString(),
     themes: dto.themes || [],
     creativeIntent: dto.creativeIntent || "",
+    overview: dto.overview || "",
     notes: dto.notes || "",
     modules: Object.entries(modulesMap).map(([key, fields]) => ({ key, fields: fields || {} })),
   };
@@ -817,6 +819,7 @@ export const api = {
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
+  worldAssistant: createWorldAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   storyAssistant: createStoryAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   narrativeContext: {
     state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
@@ -1390,6 +1393,7 @@ export const api = {
           tagline: detail.tagline,
           themes: detail.themes,
           creativeIntent: detail.creativeIntent,
+          overview: detail.overview,
           notes: detail.notes },
           entries: detail.entries || [], relations: detail.relations || [],
           expectedRevision: detail.revision,

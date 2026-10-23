@@ -1,6 +1,6 @@
-import type { WorldDetail, WorldModuleDefinition } from "@/types";
+import type { WorldDetail, WorldModuleDefinition, WorldEntryType } from "@/types";
 
-const metadataKeys = ["name", "tagline", "themes", "creativeIntent", "notes"] as const;
+const metadataKeys = ["name", "tagline", "themes", "creativeIntent", "notes", "overview"] as const;
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 const fields = (world: WorldDetail) => Object.fromEntries(world.modules.map(module => [module.key, module.fields]));
 const orderedFields = (world: WorldDetail) => Object.fromEntries(Object.entries(fields(world)).sort(([a], [b]) => a.localeCompare(b)).map(([key, values]) => [key, Object.fromEntries(Object.entries(values).sort(([a], [b]) => a.localeCompare(b)))]));
@@ -58,3 +58,5 @@ export function worldCoverage(world: WorldDetail, definitions: WorldModuleDefini
   const filled = definitions.reduce((count, module) => count + module.fields.filter(field => values[module.key]?.[field.key]?.trim()).length, 0);
   return { filled, total, percent: total ? Math.round(filled / total * 100) : null };
 }
+
+export const WORLD_ENTRY_TYPES: WorldEntryType[] = ['GEOGRAPHY','LOCATION','PERSON','ORGANIZATION','SPECIES','SOCIETY','RESOURCE','SYSTEM','RULE','HISTORY','CUSTOM'];

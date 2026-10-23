@@ -546,6 +546,7 @@ export interface WorldModuleData {
 }
 
 export interface WorldDetail extends World {
+  overview?: string;
   revision: number;
   themes: string[];
   creativeIntent: string;
@@ -564,6 +565,7 @@ export interface WorldEntry {
 }
 export interface WorldRelation { id: string; sourceId: string; targetId: string; type: string; description: string | null }
 export interface WorldContent {
+  overview?: string | null;
   name: string; tagline: string | null; themes: string[]; creativeIntent: string | null; notes: string | null;
   entries: WorldEntry[]; relations: WorldRelation[]; modules: Record<string, Record<string, string>>; legacyModulesJson: string | null;
 }
@@ -606,6 +608,7 @@ export interface PromptTemplates {
 }
 
 export interface WorldPromptTemplates {
+  actions?: Record<string, string>;
   modules: Record<string, string>; // moduleKey -> template
   finalTemplates: Record<string, string>;
   fieldRefine: string;
