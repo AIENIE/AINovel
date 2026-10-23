@@ -66,7 +66,7 @@ public class OutlineService {
         Outline outline = new Outline();
         outline.setStory(story);
         outline.setTitle(request.title() == null ? "新大纲" : request.title());
-        outline.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(null, request.worldId());
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
         return toDto(outline);
@@ -84,7 +84,7 @@ public class OutlineService {
         accessGuard.assertOwner(outline.getStory().getUser());
         assertRevision(outline, request.expectedRevision());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
-        outline.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(outline.getWorldId(), request.worldId());
         List<OutlineSaveRequest.ChapterPayload> normalized = normalizeChapters(request.chapters());
         Map<String, Object> content = new HashMap<>();
         content.put("planning", copyMap(request.planning()));

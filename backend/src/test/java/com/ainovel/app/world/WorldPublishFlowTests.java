@@ -61,7 +61,7 @@ class WorldPublishFlowTests {
 
     @Test
     @WithMockUser(username = "world_test_user", roles = {"USER"})
-    void publishKeepsCompletedModulesAndActivationAfterGeneration() {
+    void legacyPublishPreparesDraftGenerationWithoutPublishing() {
         User user = new User();
         user.setUsername("world_test_user");
         user.setEmail("world_test_user@example.com");
@@ -80,7 +80,7 @@ class WorldPublishFlowTests {
 
         WorldDetailDto afterPublish = worldService.publish(world.getId());
         assertEquals(worldService.get(world.getId()).revision(), afterPublish.revision());
-        assertEquals("generating", afterPublish.status());
+        assertEquals("draft", afterPublish.status());
         assertEquals("COMPLETED", afterPublish.moduleProgress().get("geography"));
         assertEquals("AWAITING_GENERATION", afterPublish.moduleProgress().get("society"));
         assertEquals("AWAITING_GENERATION", afterPublish.moduleProgress().get("magic_tech"));
@@ -110,12 +110,12 @@ class WorldPublishFlowTests {
         assertTrue(afterSociety.modules().get("society").get("politics").contains("雨都议会"));
         assertFalse(afterSociety.modules().get("society").get("economy").contains("占位"));
         assertFalse(afterSociety.modules().get("society").get("culture").contains("占位"));
-        assertEquals("generating", afterSociety.status());
+        assertEquals("draft", afterSociety.status());
 
         WorldDetailDto afterMagic = worldService.generateModule(world.getId(), "magic_tech");
         assertEquals(worldService.get(world.getId()).revision(), afterMagic.revision());
-        assertEquals("active", afterMagic.status());
-        assertEquals("0.1.1", afterMagic.version());
+        assertEquals("draft", afterMagic.status());
+        assertEquals("0.1.0", afterMagic.version());
         assertTrue(afterMagic.modules().get("magic_tech").get("rules").contains("灵潮科技"));
         assertFalse(afterMagic.modules().get("magic_tech").get("limitations").contains("占位"));
     }

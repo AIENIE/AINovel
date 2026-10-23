@@ -33,6 +33,13 @@ public class World {
     private String notes;
     @Lob
     private String modulesJson; // moduleKey -> fields map
+    @Lob @Column(columnDefinition = "LONGTEXT")
+    private String legacyModulesJson;
+    private String draftContentHash;
+    public String getLegacyModulesJson() { return legacyModulesJson; }
+    public void setLegacyModulesJson(String value) { legacyModulesJson = value; }
+    public String getDraftContentHash() { return draftContentHash; }
+    public void setDraftContentHash(String value) { draftContentHash = value; }
     @Lob
     private String moduleProgressJson; // moduleKey -> status
 

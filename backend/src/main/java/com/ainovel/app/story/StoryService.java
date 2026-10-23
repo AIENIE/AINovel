@@ -56,7 +56,7 @@ public class StoryService {
         story.setSynopsis(request.synopsis());
         story.setGenre(request.genre());
         story.setTone(request.tone());
-        story.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(null, request.worldId());
         story.setStatus("draft");
         storyRepository.save(story);
         return toDto(story);
@@ -71,7 +71,7 @@ public class StoryService {
         if (request.genre() != null) story.setGenre(request.genre());
         if (request.tone() != null) story.setTone(request.tone());
         if (request.status() != null) story.setStatus(request.status());
-        if (request.worldId() != null) story.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(story.getWorldId(), request.worldId());
         storyRepository.save(story);
         return toDto(story);
     }

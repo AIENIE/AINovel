@@ -67,10 +67,6 @@ public class WorldController {
     @Operation(summary = "发布预检查", description = "检查缺失模块和待自动生成模块。")
     public WorldPublishPreviewResponse preview(@PathVariable UUID id) { return worldService.preview(id); }
 
-    @PostMapping("/{id}/publish")
-    @Operation(summary = "发布世界观", description = "推进发布状态并更新版本号。")
-    public WorldDetailDto publish(@PathVariable UUID id) { return worldService.publish(id); }
-
     @GetMapping("/{id}/generation")
     @Operation(summary = "查询生成状态", description = "查看各模块生成进度与状态。")
     public WorldGenerationStatus generation(@PathVariable UUID id) { return worldService.generationStatus(id); }

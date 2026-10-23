@@ -22,6 +22,12 @@ public class Outline {
     @Version private long revision;
     public long getRevision() { return revision; }
     private String worldId;
+    private UUID worldVersionId;
+    private long worldBindingRevision;
+    public UUID getWorldVersionId() { return worldVersionId; }
+    public void setWorldVersionId(UUID value) { worldVersionId = value; }
+    public long getWorldBindingRevision() { return worldBindingRevision; }
+    public void setWorldBindingRevision(long value) { worldBindingRevision = value; }
 
     @Lob
     private String contentJson; // chapters + scenes structure

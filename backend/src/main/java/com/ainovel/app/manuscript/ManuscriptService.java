@@ -107,7 +107,7 @@ public class ManuscriptService {
         Manuscript manuscript = new Manuscript();
         manuscript.setOutline(outline);
         manuscript.setTitle(request.title());
-        manuscript.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(null, request.worldId());
         contents.initialize(manuscript);
         manuscript.setCharacterLogsJson(writeJson(new ArrayList<>()));
         manuscriptRepository.saveAndFlush(manuscript);

@@ -133,8 +133,8 @@ class WorldTaskRecoveryTests {
         assertEquals(1, worlds.get(world.id()).modules().size());
 
         WorldDetailDto result = execute(operation, user);
-        assertEquals("active", result.status());
-        assertEquals("0.1.1", result.version());
+        assertEquals("draft", result.status());
+        assertEquals("0.1.0", result.version());
         assertEquals(3, result.modules().size());
         assertEquals(10, calls.get());
         assertEquals(3, features.stream().filter(feature -> feature.startsWith("world.geography.")).count());
