@@ -78,7 +78,7 @@ class StoryServiceTest {
                 "主角在雨夜追查旧案。",
                 "悬疑",
                 "冷峻",
-                "world-7",
+                null,
                 java.util.Map.of("goal", "快节奏")
         ));
 
@@ -87,7 +87,7 @@ class StoryServiceTest {
         assertSame(owner, saved.getUser());
         assertEquals("draft", saved.getStatus());
         assertEquals("雨城疑案", dto.title());
-        assertEquals("world-7", dto.worldId());
+        org.junit.jupiter.api.Assertions.assertNull(dto.worldId());
     }
 
     @Test
@@ -230,7 +230,7 @@ class StoryServiceTest {
                 "旧梗概",
                 "都市悬疑",
                 "克制",
-                "world-9",
+                null,
                 Map.of("corePromise", "错位真相")
         ));
 

@@ -34,6 +34,9 @@ public class GuidedCreationMaterializer {
     private final OutlineRepository outlineRepository;
     private final GuidedCreationJsonSupport jsonSupport;
     private final JsonColumnCodec codec;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldEntryStore entries;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldVersionService versions;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService bindings;
 
     public GuidedCreationMaterializer(CreationWorkflowRunRepository runRepository,
                                       StoryRepository storyRepository,
@@ -62,6 +65,7 @@ public class GuidedCreationMaterializer {
         CreationWorkflowRun run = requireRun(runId, actorId);
         Map<String, Object> steps = jsonSupport.readSteps(run);
         Map<String, Object> stepData = jsonSupport.stepData(steps, step);
+        if(step==GuidedCreationStep.WORLD&&Boolean.TRUE.equals(stepData.get("awaitingPublication")))return run;
         if (run.getCurrentStep() != step) {
             if (candidateId.equals(String.valueOf(stepData.get("selectedCandidateId")))) return run;
             throw new BusinessException("当前步骤已变化，请刷新后重试");
@@ -96,9 +100,32 @@ public class GuidedCreationMaterializer {
         };
         jsonSupport.recordSelection(stepData, candidateId, selected, entityIds);
         steps.put(step.name(), stepData);
-        advance(run, automatic);
+        if(step==GuidedCreationStep.WORLD) {
+            stepData.put("awaitingPublication",true);run.setAutoRun(false);run.setStatus(CreationWorkflowStatus.WAITING_USER);
+            run.setActiveJobId(null);run.setErrorMessage(null);
+        } else advance(run, automatic);
         jsonSupport.writeSteps(run, steps);
         return runRepository.save(run);
+    }
+
+    public record PublishWorldRequest(Long version,Long expectedRevision,UUID fromVersionId,Long expectedBindingRevision,String releaseNote,String requestKey) {}
+    @Transactional
+    public CreationWorkflowRun publishWorld(UUID runId,UUID actor,PublishWorldRequest request) {
+        var run=requireRun(runId,actor);var steps=jsonSupport.readSteps(run);var data=jsonSupport.stepData(steps,GuidedCreationStep.WORLD);
+        String hash=com.ainovel.app.modelconfig.AiActionPlanner.hash(codec.write(request,"{}"));
+        if(request.requestKey()!=null&&request.requestKey().equals(data.get("publishRequestKey"))) {
+            if(!hash.equals(data.get("publishRequestHash")))throw com.ainovel.app.world.WorldVersionService.conflict("WORLD_PUBLISH_REQUEST_CONFLICT");
+            return run;
+        }
+        if(run.getCurrentStep()!=GuidedCreationStep.WORLD||!Boolean.TRUE.equals(data.get("awaitingPublication"))||run.getWorld()==null)
+            throw com.ainovel.app.world.WorldEntryStore.error("WORLD_PUBLICATION_NOT_PENDING");
+        if(request.version()==null||request.version()!=run.getVersion())throw com.ainovel.app.world.WorldVersionService.conflict("WORKFLOW_VERSION_CONFLICT");
+        var version=versions.publish(run.getWorld().getId(),new com.ainovel.app.world.WorldDraftDtos.Publish(request.expectedRevision(),request.releaseNote(),request.requestKey()));
+        bindings.change("STORY",requireStory(run).getId(),new com.ainovel.app.world.WorldBindingService.Change(request.fromVersionId(),version.id(),request.expectedBindingRevision()));
+        data.put("awaitingPublication",false);data.put("publishedVersionId",version.id().toString());
+        data.put("selected",version.content());
+        data.put("publishRequestKey",request.requestKey());data.put("publishRequestHash",hash);steps.put("WORLD",data);
+        advance(run,false);run.setAutoRun(false);jsonSupport.writeSteps(run,steps);return runRepository.save(run);
     }
 
     @Transactional
@@ -162,9 +189,8 @@ public class GuidedCreationMaterializer {
         Map<String, String> progress = new LinkedHashMap<>();
         modules.keySet().forEach(key -> progress.put(key, "COMPLETED"));
         world.setModuleProgressJson(codec.write(progress, "{}"));
-        run.setWorld(worldRepository.save(world));
-        run.getStory().setWorldId(run.getWorld().getId().toString());
-        storyRepository.save(run.getStory());
+        run.setWorld(worldRepository.saveAndFlush(world));
+        entries.replaceLegacy(world,entries.modules(world.getModulesJson()));worldRepository.saveAndFlush(world);
         return run.getWorld().getId();
     }
 
@@ -235,7 +261,6 @@ public class GuidedCreationMaterializer {
         Outline outline = new Outline();
         outline.setStory(story);
         outline.setTitle(requiredText(selected, "title", 255));
-        outline.setWorldId(run.getWorld() == null ? null : run.getWorld().getId().toString());
         outline.setContentJson(codec.write(content, "{\"planning\":{},\"chapters\":[]}"));
         run.setOutline(outlineRepository.save(outline));
         return run.getOutline().getId();

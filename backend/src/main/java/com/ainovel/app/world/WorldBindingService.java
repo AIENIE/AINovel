@@ -18,6 +18,8 @@ public class WorldBindingService {
     public record View(String resourceType,UUID resourceId,long bindingRevision,UUID explicitVersionId,
                        boolean explicit,Resolved effective,List<Override> overrides) {}
     public record Change(UUID fromVersionId,UUID toVersionId,Long expectedBindingRevision) {}
+    /** A non-null envelope also freezes the deliberate absence of a world binding. */
+    public record Frozen(Resolved binding) {}
     private final EntityManager em;
     private final ResourceAccessGuard access;
     private final WorldRepository worlds;
@@ -42,6 +44,24 @@ public class WorldBindingService {
     public Resolved requireUsable(Resolved value) {
         if(value!=null&&value.unavailableReason()!=null)throw WorldEntryStore.error(value.unavailableReason());
         return value;
+    }
+    public Frozen freeze(Manuscript manuscript) {return new Frozen(resolve(manuscript));}
+    public Resolved lockCurrent(Manuscript manuscript) {
+        em.refresh(manuscript.getOutline().getStory(),LockModeType.PESSIMISTIC_WRITE);
+        em.refresh(manuscript.getOutline(),LockModeType.PESSIMISTIC_WRITE);
+        em.refresh(manuscript,LockModeType.PESSIMISTIC_WRITE);
+        return resolve(manuscript);
+    }
+    public Frozen input(Manuscript manuscript) {
+        var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        return selection!=null&&selection.worldInput()!=null?selection.worldInput():freeze(manuscript);
+    }
+    public String render(Resolved value) {
+        requireUsable(value);if(value==null)return "";
+        var c=value.content();
+        return "世界="+c.name()+"\n版本="+value.versionId()+"\n来源="+value.sourceType()+"\n简介="+Objects.toString(c.tagline(),"")
+            +"\n创作意图="+Objects.toString(c.creativeIntent(),"")+"\n主题="+store.write(c.themes())
+            +"\n条目="+store.write(c.entries())+"\n关系="+store.write(c.relations())+"\n备注="+Objects.toString(c.notes(),"");
     }
     private Resolved resolved(Story story,String rawWorld,UUID versionId,String source,UUID sourceId,long revision) {
         UUID worldId=null;try{worldId=UUID.fromString(rawWorld);}catch(Exception ignored){/* Show the broken explicit binding; do not inherit. */}
@@ -107,7 +127,7 @@ public class WorldBindingService {
         if(requested!=null&&!Objects.equals(Objects.toString(current,""),requested))
             throw WorldEntryStore.error("WORLD_USE_BINDING_PANEL");
     }
-    private Resolved reference(Resolved v) {
+    public Resolved reference(Resolved v) {
         return v==null?null:new Resolved(v.worldId(),v.versionId(),v.sourceType(),v.sourceId(),v.bindingRevision(),v.name(),
             v.sequenceNumber(),v.origin(),v.contentHash(),v.unavailableReason(),null);
     }

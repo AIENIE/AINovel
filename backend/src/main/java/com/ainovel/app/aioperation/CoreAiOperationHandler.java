@@ -64,17 +64,24 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 execution.progress().step("保存章节与场景", 2, 3);
                 yield result;
             }
-            case "WORLD_PUBLISH", "WORLD_MODULE" -> worldTasks.execute(execution, payload);
+            case "WORLD_PUBLISH", "WORLD_MODULE", "WORLD_ENTRY" -> worldTasks.execute(execution, payload);
             case "SCENE_GENERATION" -> {
                 if(payload.sceneGenerationVersion()==null) throw new com.ainovel.app.common.ApiStatusException(
                         org.springframework.http.HttpStatus.CONFLICT,"SCENE_LEGACY_RECOVERY_REQUIRED");
                 if(payload.request()==null || payload.request().isNull()) throw new com.ainovel.app.ai.AiResultUncertainException(
                         new IllegalStateException("LANGUAGE_PROFILE_MISSING_FROM_HISTORICAL_TASK"));
                 com.ainovel.app.quality.language.LanguageStandard.Selection language;
-                try { language=execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.quality.language.LanguageStandard.Selection.class); }
+                com.ainovel.app.world.WorldBindingService.Frozen world=null;
+                try {
+                    if(payload.sceneGenerationVersion()>=3) {
+                        var input=execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.manuscript.SceneGenerationService.Admission.class);
+                        language=input.language();world=input.world();
+                        if(world==null||language==null)throw new IllegalStateException("WORLD_TASK_BASELINE_REQUIRED");
+                    } else language=execution.objectMapper().treeToValue(payload.request(),com.ainovel.app.quality.language.LanguageStandard.Selection.class);
+                }
                 catch(Exception unavailable) { throw new com.ainovel.app.ai.AiResultUncertainException(unavailable); }
                 try(var stage=SceneGenerationProgress.install((label,completed)->execution.progress().step(label,completed,3))) {
-                    yield manuscripts.generateSceneOutcome(payload.primaryId(),payload.secondaryId(),GenerationMode.valueOf(payload.mode()),language);
+                    yield manuscripts.generateSceneOutcome(payload.primaryId(),payload.secondaryId(),GenerationMode.valueOf(payload.mode()),language,world,payload.sceneGenerationVersion()<3);
                 }
             }
             case "SLOP_DIAGNOSIS" -> {

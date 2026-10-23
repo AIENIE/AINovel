@@ -43,6 +43,7 @@ import {
   V2ContinuityIssueUpdateRequest,
   World,
   WorldDetail,
+  WorldVersion, WorldDiff, WorldBindingScope, WorldBindingView,
   WorldGenerationStatus,
   WorldGeneratedResults,
   WorldModuleDefinition,
@@ -613,6 +614,12 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
   };
 }
 
+function toWorldDraft(dto: NetworkObject): WorldDetail {
+  return { ...toWorldDetail(dto.world), entries: dto.entries || [], relations: dto.relations || [],
+    latestPublished: dto.latestPublished || null, unpublishedChanges: dto.unpublishedChanges };
+}
+const bindingCollection = (scope: WorldBindingScope) => ({ STORY: 'story-cards', OUTLINE: 'outlines', MANUSCRIPT: 'manuscripts' })[scope];
+
 function toMaterial(dto: NetworkObject): Material {
   return {
     id: dto.id,
@@ -1164,6 +1171,8 @@ export const api = {
         { method: "POST", body: "{}" },
       );
     },
+    publishWorld: (id: string, input: {version: number;expectedRevision: number;fromVersionId: string | null;expectedBindingRevision: number;releaseNote: string;requestKey: string}) =>
+      requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/steps/world/publish`, {method:'POST',body:JSON.stringify(input)}),
     startAuto: async (id: string, targetChapterCount: number): Promise<CreationWorkflow> => {
       return await requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/auto-run`, {
         method: "POST",
@@ -1262,7 +1271,6 @@ export const api = {
       const payload = {
         title: outline.title,
         expectedRevision: outline.revision,
-        worldId: outline.worldId,
         planning: outline.planning,
         chapters: (outline.chapters || []).map((c: NetworkObject, ci: number) => ({
           id: c.id,
@@ -1366,8 +1374,8 @@ export const api = {
       return await requestJson<WorldModuleDefinition[]>("/v1/world-building/definitions", { method: "GET" });
     },
     getDetail: async (id: string): Promise<WorldDetail> => {
-      const dto = await requestJson<NetworkObject>(`/v1/worlds/${id}`, { method: "GET" });
-      return toWorldDetail(dto);
+      const dto = await requestJson<NetworkObject>(`/v1/worlds/${id}/draft`, { method: "GET" });
+      return toWorldDraft(dto);
     },
     create: async (data: unknown): Promise<World> => {
       const dto = await requestJson<NetworkObject>("/v1/worlds", { method: "POST", body: JSON.stringify(data) });
@@ -1375,20 +1383,19 @@ export const api = {
     },
     update: async (id: string, detail: WorldDetail): Promise<WorldDetail> => {
       if (!Number.isInteger(detail.revision) || detail.revision < 0) throw new Error("WORLD_REVISION_REQUIRED");
-      const modules = Object.fromEntries(detail.modules.map((module) => [module.key, module.fields]));
-      const saved = await requestJson<NetworkObject>(`/v1/worlds/${id}`, {
+      const saved = await requestJson<NetworkObject>(`/v1/worlds/${id}/draft`, {
         method: "PUT",
         body: JSON.stringify({
-          name: detail.name,
+          metadata: { name: detail.name,
           tagline: detail.tagline,
           themes: detail.themes,
           creativeIntent: detail.creativeIntent,
-          notes: detail.notes,
-          modules,
+          notes: detail.notes },
+          entries: detail.entries || [], relations: detail.relations || [],
           expectedRevision: detail.revision,
         }),
       });
-      return toWorldDetail(saved);
+      return toWorldDraft(saved);
     },
     delete: async (id: string) => {
       await requestVoid(`/v1/worlds/${id}`, { method: "DELETE" });
@@ -1403,9 +1410,20 @@ export const api = {
     publishPreview: async (worldId: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish/preview`, { method: "GET" });
     },
-    publish: async (worldId: string) => {
-      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: "{}" });
+    publish: async (worldId: string, expectedRevision: number, releaseNote: string, requestKey: string): Promise<WorldVersion> => {
+      return await requestJson<WorldVersion>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: JSON.stringify({expectedRevision, releaseNote, requestKey}) });
     },
+    versions: (worldId: string) => requestJson<WorldVersion[]>(`/v1/worlds/${worldId}/versions`, { method: "GET" }),
+    version: (worldId: string, versionId: string) => requestJson<WorldVersion>(`/v1/worlds/${worldId}/versions/${versionId}`, { method: "GET" }),
+    diff: (worldId: string, fromVersionId?: string | null, toVersionId?: string | null, draftRevision?: number) => {
+      const query = new URLSearchParams();
+      if (fromVersionId) query.set('fromVersionId', fromVersionId);
+      if (toVersionId) query.set('toVersionId', toVersionId);
+      if (draftRevision !== undefined) query.set('draftRevision', String(draftRevision));
+      return requestJson<WorldDiff>(`/v1/worlds/${worldId}/diff?${query}`, { method: "GET" });
+    },
+    startGenerateEntry: (worldId: string, entryId: string, expectedRevision: number) => requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/entries/${entryId}/generate/operations`, {method:'POST', body:JSON.stringify({expectedRevision})}),
+    refineEntry: (worldId: string, entryId: string, text: string, instruction: string) => requestJson<{result: string}>(`/v1/worlds/${worldId}/entries/${entryId}/refine`, {method:'POST',body:JSON.stringify({text,instruction})}),
     startPublish: async (worldId: string): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/publish/operations`, { method: "POST", body: "{}" }),
     generationStatus: async (worldId: string) => {
@@ -1421,6 +1439,13 @@ export const api = {
     retryModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}/retry`, { method: "POST", body: "{}" });
     },
+  },
+
+  worldBindings: {
+    get: (scope: WorldBindingScope, id: string) => requestJson<WorldBindingView>(`/v1/${bindingCollection(scope)}/${id}/world-binding`, {method:'GET'}),
+    diff: (scope: WorldBindingScope, id: string, toVersionId: string) => requestJson<WorldDiff>(`/v1/${bindingCollection(scope)}/${id}/world-binding/diff?toVersionId=${encodeURIComponent(toVersionId)}`, {method:'GET'}),
+    change: (scope: WorldBindingScope, id: string, input: {fromVersionId: string | null; toVersionId: string | null; expectedBindingRevision: number}) =>
+      requestJson<WorldBindingView>(`/v1/${bindingCollection(scope)}/${id}/world-binding`, {method:'PUT',body:JSON.stringify(input)}),
   },
 
   materials: {

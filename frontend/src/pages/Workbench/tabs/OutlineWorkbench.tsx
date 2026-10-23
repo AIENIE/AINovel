@@ -1,8 +1,9 @@
+import { WorldBindingPanel } from "@/pages/WorldBuilder/components/WorldBindingPanel";
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { useBlocker } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
-import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption, World } from "@/types";
+import type { ChapterPlanning, Outline, ScenePlanning, Story, TwistOption } from "@/types";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,6 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedStoryId, setSelectedStoryId] = useState("");
   const [outlines, setOutlines] = useState<Outline[]>([]);
-  const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedOutline, setSelectedOutline] = useState<Outline | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNode>(null);
   const [selectionReady, setSelectionReady] = useState(false);
@@ -74,7 +74,6 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
   const [creatingOutline, setCreatingOutline] = useState(false);
   const [newOutlineName, setNewOutlineName] = useState(t("outline.newOutline"));
 
-  useEffect(() => { api.worlds.list().then((items) => setWorlds(items.filter((world) => world.status === "active"))).catch(() => setWorlds([])); }, []);
 
   useEffect(() => {
     api.stories
@@ -243,10 +242,9 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
     if (!selectedOutline) return;
     if (dirty && !(await handleSave())) return;
     const chapterNumber = selectedOutline.chapters.length + 1;
-    const worldName = worlds.find((world) => world.id === selectedOutline.worldId)?.name || t("outline.defaultWorld");
-    if (!confirm(t("outline.generateChapterConfirm", { chapterNumber, worldName }))) return;
+    if (!confirm(t("world2.chapterConfirm", { chapterNumber }))) return;
     try {
-      await runTrackedAiOperation(api.outlines.startGenerateChapter(selectedOutline.id, { chapterNumber, sectionsPerChapter: 3, wordsPerSection: 2000, worldId: selectedOutline.worldId || null }));
+      await runTrackedAiOperation(api.outlines.startGenerateChapter(selectedOutline.id, { chapterNumber, sectionsPerChapter: 3, wordsPerSection: 2000 }));
       const refreshed = await api.outlines.get(selectedOutline.id);
       setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
       setSelectedOutline(refreshed);
@@ -592,7 +590,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
           <div className="flex gap-1"><Select value={selectedOutline?.id || ""} onValueChange={(id) => navigateSafely(() => { const next = outlines.find((outline) => outline.id === id) || null; setSelectedOutline(next); setSavedSnapshot(JSON.stringify(next)); setSelectedNode(null); })} disabled={!outlines.length}><SelectTrigger className="min-w-0 flex-1"><SelectValue placeholder={t("outline.noOutlineYet")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select><Button size="icon" variant="outline" disabled={!selectedOutline} onClick={() => void handleDeleteOutline()}><Trash2 className="h-4 w-4" /></Button></div>
         </div>
 
-        {selectedOutline && <div className="space-y-2"><Label>{t("outline.outlineWorld")}</Label><Select value={selectedOutline.worldId || "__default__"} onValueChange={(value) => setSelectedOutline({...selectedOutline, worldId: value === "__default__" ? undefined : value})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__default__">{t("outline.useDefaultWorld")}</SelectItem>{worlds.map((world) => <SelectItem key={world.id} value={world.id}>{world.name}</SelectItem>)}</SelectContent></Select></div>}
+        {selectedOutline && <details className="text-sm"><summary className="cursor-pointer">{t("world2.binding")}</summary><div className="mt-3"><WorldBindingPanel key={selectedOutline.id} scope="OUTLINE" resourceId={selectedOutline.id} onChanged={() => { if (!dirty) void api.outlines.get(selectedOutline.id).then(next => { setSelectedOutline(next); setSavedSnapshot(JSON.stringify(next)); }); }} /></div></details>}
 
         <div className="rounded-lg border bg-muted/30 p-3">
           <div className="text-xs text-muted-foreground">{t("outline.currentPlan")}</div>

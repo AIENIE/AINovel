@@ -91,6 +91,12 @@ public class WorldService {
         return toDetail(world);
     }
 
+    @Transactional(readOnly = true)
+    public String contentHash(UUID id) {
+        var world=worldRepository.findById(id).orElseThrow(()->new BusinessException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());return entryStore.hash(entryStore.content(world));
+    }
+
     @Transactional
     public WorldDetailDto update(UUID id, WorldUpdateRequest request) {
         World world = requireEditableWorld(id, request.expectedRevision());

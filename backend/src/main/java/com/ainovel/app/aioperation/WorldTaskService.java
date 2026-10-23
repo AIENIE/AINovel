@@ -25,6 +25,8 @@ public class WorldTaskService {
     private final AiOperationRepository operations;
     private final ObjectMapper json;
     private final TransactionTemplate transactions;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.world.WorldEntryAiService entries;
 
     public WorldTaskService(WorldService worlds, AiOperationRepository operations, ObjectMapper json,
                             PlatformTransactionManager transactionManager) {
@@ -48,7 +50,12 @@ public class WorldTaskService {
                 return fields == null || fields.values().stream().noneMatch(v -> v != null && !v.isBlank());
             }).map(def -> def.key()).toList();
         }
-        return new WorldTaskState(1, fingerprint(world), modules, Map.of(), List.of());
+        return new WorldTaskState(2, worlds.contentHash(worldId), modules, Map.of(), List.of());
+    }
+
+    public WorldTaskState freezeEntry(UUID worldId,UUID entryId,Long revision) {
+        entries.requireEmpty(worldId,entryId,revision);
+        return new WorldTaskState(2,worlds.contentHash(worldId),List.of("entry:"+entryId),Map.of(),List.of());
     }
 
     public WorldDetailDto execute(AiOperationExecution execution, CoreAiOperationHandler.CorePayload payload) {
@@ -66,7 +73,8 @@ public class WorldTaskService {
         for (int i = 0; i < pending.size(); i++) {
             String module = pending.get(i);
             execution.progress().step("生成世界模块：" + module, checkpoint.state.appliedModules().size() + 1, total);
-            result = worlds.generateModule(payload.primaryId(), module, i == pending.size() - 1, checkpoint);
+            result = module.startsWith("entry:") ? entries.generate(payload.primaryId(),UUID.fromString(module.substring(6)),checkpoint)
+                : worlds.generateModule(payload.primaryId(), module, i == pending.size() - 1, checkpoint);
         }
         if (result == null) {
             result = AiOperationExecutionContext.complete(() -> {
@@ -84,7 +92,7 @@ public class WorldTaskService {
         CoreAiOperationHandler.CorePayload payload = payload(operation);
         if (!CoreAiOperationHandler.TYPE.equals(operation.getOperationType())
                 || !"WORLD".equals(operation.getScopeType()) || !worldId.equals(operation.getScopeId())
-                || !("WORLD_PUBLISH".equals(payload.action()) || "WORLD_MODULE".equals(payload.action())))
+                || !Set.of("WORLD_PUBLISH","WORLD_MODULE","WORLD_ENTRY").contains(payload.action()))
             throw new BusinessException("世界生成任务不存在");
         WorldTaskState state = readState(payload);
         return new GeneratedResults(operationId, worldId, state.generatedFields(), state.appliedModules());
@@ -94,7 +102,7 @@ public class WorldTaskService {
         if (payload.request() == null || payload.request().isNull()) throw missingBaseline();
         try {
             WorldTaskState state = json.treeToValue(payload.request(), WorldTaskState.class);
-            if (state.schemaVersion() != 1 || state.expectedContentHash() == null || state.expectedContentHash().isBlank()
+            if ((state.schemaVersion() != 1 && state.schemaVersion() != 2) || state.expectedContentHash() == null || state.expectedContentHash().isBlank()
                     || state.modules() == null || state.generatedFields() == null || state.appliedModules() == null)
                 throw missingBaseline();
             return state;
@@ -134,8 +142,12 @@ public class WorldTaskService {
         }
 
         @Override public void validate(WorldDetailDto current) {
-            if (!state.expectedContentHash().equals(fingerprint(current)))
+            if (!state.expectedContentHash().equals(contentHash(current)))
                 throw new ApiStatusException(HttpStatus.CONFLICT, "WORLD_VERSION_CONFLICT");
+        }
+
+        private String contentHash(WorldDetailDto world) {
+            return state.schemaVersion()==1 ? fingerprint(world) : worlds.contentHash(world.id());
         }
 
         @Override public String field(String moduleKey, String fieldKey, Supplier<String> generate) {
@@ -149,7 +161,7 @@ public class WorldTaskService {
             fields.put(fieldKey, output);
             generated.put(moduleKey, fields);
             AiOperationExecutionContext.apply(() -> transactions.execute(status -> {
-                persist(new WorldTaskState(1, state.expectedContentHash(), state.modules(), generated, state.appliedModules()));
+                persist(new WorldTaskState(state.schemaVersion(), state.expectedContentHash(), state.modules(), generated, state.appliedModules()));
                 return null;
             }));
             validate(worlds.get(original.primaryId()));
@@ -160,7 +172,7 @@ public class WorldTaskService {
             List<String> applied = new ArrayList<>(state.appliedModules());
             applied.add(moduleKey);
             // The caller already holds the operation fence before locking/writing the world.
-            persist(new WorldTaskState(1, fingerprint(updated), state.modules(), state.generatedFields(), applied));
+            persist(new WorldTaskState(state.schemaVersion(), contentHash(updated), state.modules(), state.generatedFields(), applied));
         }
 
         private void persist(WorldTaskState next) {

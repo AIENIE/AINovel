@@ -14,7 +14,11 @@ import java.util.regex.Pattern;
 @Component
 public class AiActionPlanner {
     public record Step(String featureKey,boolean conditional,String calls,int estimatedInput,int estimatedOutput) {}
-    public record Plan(String target,List<Step> steps,String businessHash,String businessScope) {}
+    public record Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput) {
+        public Plan(String target,List<Step> steps,String hash,String scope){this(target,steps,hash,scope,null);}
+    }
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.world.WorldBindingService worldBindings;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.ainovel.app.quality.language.LanguageFeature language;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
@@ -30,7 +34,7 @@ public class AiActionPlanner {
         String path=target.split("\\?",2)[0]; if(path.startsWith("/api/"))path=path.substring(4);
         var keys=new LinkedHashSet<String>();
         if(path.equals("/v1/creation-workflows")&&body.path("autoRun").asBoolean()) {
-            keys.addAll(automaticGuidedSteps());
+            keys.addAll(List.of("guided.premise","guided.world","guided.json_repair"));
         } else if(path.equals("/v1/conception")||path.equals("/v1/conception/operations"))keys.add("story.conception");
         else if(path.matches("/v1/story-cards/[^/]+/refine"))keys.add("story.refine");
         else if(path.matches("/v1/character-cards/[^/]+/refine"))keys.add("character.refine");
@@ -38,9 +42,11 @@ public class AiActionPlanner {
         else if(path.matches("/v1/outlines/[^/]+/chapters(/operations)?"))keys.add("outline.chapter");
         else if(path.matches("/v1/worlds/[^/]+/modules/[^/]+/fields/[^/]+/refine")) {
             String[] p=path.split("/"); keys.add("world."+p[5]+"."+p[7]+".refine");
+        } else if(path.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine)")) {
+            keys.add("world.entry."+(path.endsWith("/refine")?"refine":"generate"));
         } else if(path.matches("/v1/worlds/[^/]+/(publish/operations|generation/[^/]+(/operations|/retry)?)")) {
             var p=path.split("/");var module=p[4].equals("generation")?p[5]:null;
-            for(var f:AiFeatures.all())if(f.key().startsWith("world.")&&f.key().endsWith(".generate")&&(module==null||f.key().startsWith("world."+module+".")))keys.add(f.key());
+            for(var f:AiFeatures.all())if(f.key().startsWith("world.")&&!f.key().startsWith("world.entry.")&&f.key().endsWith(".generate")&&(module==null||f.key().startsWith("world."+module+".")))keys.add(f.key());
         } else if(path.matches("/v1/creation-workflows/[^/]+/(steps/[^/]+/generate|steps/outline/directions/[^/]+/(develop|expand)|auto-run)")) {
             if(path.endsWith("/auto-run")){keys.addAll(automaticGuidedSteps());}
             else if(path.endsWith("/develop"))keys.add("rewrite".equalsIgnoreCase(body.path("action").asText())?"guided.outline_rewrite":"guided.outline_develop");
@@ -85,6 +91,17 @@ public class AiActionPlanner {
         var keys=new ArrayList<>(features(target,body));
         if(keys.isEmpty())throw AiModelConfigurationService.error("AI_ACTION_INVALID");
         String state=businessState(user,target,body);
+        if(target.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine)")) {
+            var parts=target.split("/");String action=target.endsWith("/refine")?"refine":"generate";
+            var origins=jdbc.query("select legacy_module_key,legacy_field_key,content from world_entries where world_id=? and id=?",
+                (rs,i)->{var row=new HashMap<String,String>();row.put("legacy_module_key",rs.getString(1));row.put("legacy_field_key",rs.getString(2));row.put("content",rs.getString(3));return row;},
+                AiModelConfigurationService.bytes(UUID.fromString(parts[3])),AiModelConfigurationService.bytes(UUID.fromString(parts[5])));
+            if(origins.isEmpty())throw AiModelConfigurationService.error("WORLD_ENTRY_NOT_FOUND");
+            var entry=origins.getFirst();String module=(String)entry.get("legacy_module_key"),field=(String)entry.get("legacy_field_key");
+            String legacy="world."+module+"."+field+"."+action;
+            if(AiFeatures.all().stream().anyMatch(f->f.key().equals(legacy))){keys.clear();keys.add(legacy);}
+            if(action.equals("generate")&&!Objects.toString(entry.get("content"),"").isBlank())throw AiModelConfigurationService.error("WORLD_ENTRY_NOT_EMPTY");
+        }
         String scope=null;
         try {
             if(target.endsWith("/auto-run")) {
@@ -94,6 +111,8 @@ public class AiActionPlanner {
                 else {
                     for(int i=0;i<index;i++)keys.remove("guided."+stages.get(i).toLowerCase(Locale.ROOT));
                     var stepData=json.readTree(row.path("steps_json").asText("{}")).path(current);
+                    if(index<=1)keys.removeAll(List.of("guided.characters","guided.outline","guided.outline_expand"));
+                    if(stepData.path("awaitingPublication").asBoolean())keys.clear();
                     if(!stepData.path("candidates").isEmpty())keys.remove("guided."+current.toLowerCase(Locale.ROOT));
                     if(current.equals("OUTLINE")&&stepData.path("outlinePhase").asText().equals("OUTLINE_PREVIEW"))keys.remove("guided.outline_expand");
                     if(keys.stream().allMatch(key->key.equals("guided.json_repair")))keys.clear();
@@ -102,7 +121,7 @@ public class AiActionPlanner {
             if(target.matches("/v1/manuscript/scenes/[^/]+/generate")) {
                 var rows=json.readTree(state);scope=uuidFromJson(rows.get(0).path("id"));
             }
-            if(target.contains("/worlds/")&&!keys.isEmpty()&&keys.getFirst().startsWith("world.")&&keys.getFirst().endsWith(".generate")) {
+            if(target.contains("/worlds/")&&!target.contains("/entries/")&&!keys.isEmpty()&&keys.getFirst().startsWith("world.")&&keys.getFirst().endsWith(".generate")) {
                 var row=json.readTree(state).get(0);var modules=json.readTree(row.path("modules_json").asText("{}"));
                 keys.removeIf(key->{var parts=key.split("\\.");var module=modules.path(parts[1]);
                     if(target.contains("/publish/")&&module.isObject())for(var field:module)if(!field.asText("").isBlank())return true;
@@ -133,15 +152,22 @@ public class AiActionPlanner {
             steps.add(new Step(k,conditional,calls,input,output));
         }
         String compiledHash="";
+        com.ainovel.app.world.WorldBindingService.Frozen worldInput=null;
         if(compiler!=null&&manuscripts!=null&&contents!=null) {
             var scene=Pattern.compile("/manuscripts/([0-9a-fA-F-]{36})/scenes/([0-9a-fA-F-]{36})/(generate|assistant)").matcher(target);
-            if(scene.find()) {
-                var manuscript=manuscripts.findById(UUID.fromString(scene.group(1))).orElseThrow();
-                var compiled=compiler.compile(manuscript,UUID.fromString(scene.group(2)),contents.readAll(manuscript));
+            var legacyScene=Pattern.compile("/manuscript/scenes/([0-9a-fA-F-]{36})/generate").matcher(target);
+            UUID manuscriptId=null,sceneId=null;
+            if(scene.find()){manuscriptId=UUID.fromString(scene.group(1));sceneId=UUID.fromString(scene.group(2));}
+            else if(scope!=null&&legacyScene.find()){manuscriptId=UUID.fromString(scope);sceneId=UUID.fromString(legacyScene.group(1));}
+            if(manuscriptId!=null) {
+                var manuscript=manuscripts.findById(manuscriptId).orElseThrow();
+                if(worldBindings!=null)worldInput=worldBindings.freeze(manuscript);
+                var compiled=compiler.compile(manuscript,sceneId,contents.readAll(manuscript),
+                    com.ainovel.app.manuscript.context.SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,worldInput);
                 compiledHash=compiled.manifest().contextHash();
             }
         }
-        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash),scope);
+        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()),scope,worldInput);
     }
     private static List<String> automaticGuidedSteps() {
         return List.of("guided.premise","guided.world","guided.characters","guided.outline","guided.outline_expand","guided.json_repair");
@@ -174,6 +200,10 @@ public class AiActionPlanner {
         try{resource=UUID.fromString(id);}catch(RuntimeException e){throw AiModelConfigurationService.error("AI_ACTION_INVALID");}
         var rows=jdbc.queryForList(sql,AiModelConfigurationService.bytes(resource),AiModelConfigurationService.bytes(user.getId()));
         if(rows.isEmpty())throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.NOT_FOUND,"AI_RESOURCE_NOT_FOUND");
+        if("worlds".equals(kind)) {
+            rows.addAll(jdbc.queryForList("select * from world_entries where world_id=? order by id",AiModelConfigurationService.bytes(resource)));
+            rows.addAll(jdbc.queryForList("select * from world_relations where world_id=? order by id",AiModelConfigurationService.bytes(resource)));
+        }
         byte[] storyId=switch(kind) {
             case "story-cards"->AiModelConfigurationService.bytes(resource);
             case "character-cards","outlines"->(byte[])rows.getFirst().get("story_id");

@@ -26,6 +26,12 @@ public class WorldController {
     private WorldService worldService;
     @Autowired
     private CurrentUserResolver currentUserResolver;
+    @Autowired private WorldEntryAiService entries;
+
+    @PostMapping("/{id}/entries/{entryId}/refine")
+    public AiRefineResponse refineEntry(@PathVariable UUID id,@PathVariable UUID entryId,@RequestBody RefineRequest request) {
+        return entries.refine(id,entryId,request);
+    }
 
     @GetMapping
     @Operation(summary = "获取世界观列表", description = "返回当前用户全部世界观卡片。")

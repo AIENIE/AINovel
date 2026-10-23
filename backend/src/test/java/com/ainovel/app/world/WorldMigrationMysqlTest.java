@@ -32,6 +32,8 @@ class WorldMigrationMysqlTest {
             assertEquals(0L,((Number)scalar(db,"select count(*) from world_versions where origin='PUBLISHED'")).longValue());
             assertEquals(0L,((Number)scalar(db,"select count(*) from world_versions where world_id=?",unbound)).longValue());
             String snapshot=(String)scalar(db,"select snapshot_json from world_versions where world_id=?",world);
+            assertEquals(HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(snapshot.getBytes(java.nio.charset.StandardCharsets.UTF_8))),
+                scalar(db,"select content_hash from world_versions where world_id=?",world));
             var content=new ObjectMapper().readValue(snapshot,WorldDraftDtos.Content.class);
             assertEquals(original,content.legacyModulesJson());assertEquals(4,content.entries().size());
             assertEquals("MIGRATION_BASELINE",scalar(db,"select origin from world_versions where world_id=?",world));

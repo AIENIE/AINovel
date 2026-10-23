@@ -12,8 +12,8 @@ import com.ainovel.app.style.repo.CharacterVoiceRepository;
 import com.ainovel.app.style.repo.StyleProfileRepository;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2ContextPersistenceService;
-import com.ainovel.app.world.model.World;
-import com.ainovel.app.world.repo.WorldRepository;
+import com.ainovel.app.world.WorldBindingService;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 class SceneDraftContextCompilerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     @Test void strictCompilerNeverRetrievesUnclassifiedSourcesAndNeverFallsBack() throws Exception {
-        var world=mock(WorldRepository.class);var cards=mock(CharacterCardRepository.class);
+        var world=mock(WorldBindingService.class);var cards=mock(CharacterCardRepository.class);
         var style=mock(StyleProfileRepository.class);var voices=mock(CharacterVoiceRepository.class);var lore=mock(V2ContextPersistenceService.class);
         var compiler=new SceneDraftContextCompiler(objectMapper,world,cards,style,voices,lore);
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
@@ -59,7 +59,8 @@ class SceneDraftContextCompilerTest {
 
     @Test
     void shouldCompilePlanningWorldStyleMemoryAndStableManifestWithinBudget() throws Exception {
-        WorldRepository worldRepository = mock(WorldRepository.class);
+        WorldBindingService worldRepository = mock(WorldBindingService.class);
+        when(worldRepository.input(org.mockito.ArgumentMatchers.any())).thenReturn(new WorldBindingService.Frozen(null));
         CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         StyleProfileRepository styleProfileRepository = mock(StyleProfileRepository.class);
         CharacterVoiceRepository characterVoiceRepository = mock(CharacterVoiceRepository.class);
@@ -84,14 +85,11 @@ class SceneDraftContextCompilerTest {
 
         UUID worldId = UUID.randomUUID();
         story.setWorldId(worldId.toString());
-        World world = new World();
-        world.setId(worldId);
-        world.setUser(owner);
-        world.setName("潮汐雨城");
-        world.setCreativeIntent("所有超自然现象都必须留下可验证代价");
-        world.setThemesJson("[\"记忆\",\"代价\"]");
-        world.setModulesJson("{\"rules\":{\"tide\":\"午夜退潮\"}}");
-        when(worldRepository.findById(worldId)).thenReturn(Optional.of(world));
+        var frozen=new WorldBindingService.Resolved(worldId,UUID.randomUUID(),"STORY",story.getId(),1,"潮汐雨城",1,"PUBLISHED","hash",null,null);
+        when(worldRepository.input(org.mockito.ArgumentMatchers.any())).thenReturn(new WorldBindingService.Frozen(frozen));
+        when(worldRepository.requireUsable(frozen)).thenReturn(frozen);
+        when(worldRepository.reference(frozen)).thenReturn(frozen);
+        when(worldRepository.render(frozen)).thenReturn("名称=潮汐雨城\n创作意图=所有超自然现象都必须留下可验证代价\n规则=午夜退潮");
 
         StyleProfile profile = new StyleProfile();
         profile.setId(UUID.randomUUID());
@@ -258,7 +256,8 @@ class SceneDraftContextCompilerTest {
 
     @Test
     void shouldNotInferSceneTypeFromLegacyPlanningTypeOrApplySceneOverride() throws Exception {
-        WorldRepository worldRepository = mock(WorldRepository.class);
+        WorldBindingService worldRepository = mock(WorldBindingService.class);
+        when(worldRepository.input(org.mockito.ArgumentMatchers.any())).thenReturn(new WorldBindingService.Frozen(null));
         CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
         StyleProfileRepository styleProfileRepository = mock(StyleProfileRepository.class);
         CharacterVoiceRepository characterVoiceRepository = mock(CharacterVoiceRepository.class);

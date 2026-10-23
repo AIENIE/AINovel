@@ -24,6 +24,8 @@ public final class AiFeatures {
             String verb=operation.equals("generate")?"生成":"润色",traditional=operation.equals("generate")?"生成":"潤色";
             add("world."+m[0]+"."+m[i]+"."+operation,"world",m[1]+"·"+m[i+1]+verb,m[2]+"·"+traditional(m[i+1])+traditional,m[3]+" · "+m[i+2]+" · "+operation);
         }
+        add("world.entry.generate","world","世界条目补空","世界條目補空","Fill world entry");
+        add("world.entry.refine","world","世界条目精修","世界條目精修","Refine world entry");
         String[][] guided={{"premise","故事前提","故事前提","Premise"},{"world","世界观候选","世界觀候選","World candidates"},
                 {"characters","角色候选","角色候選","Character candidates"},{"outline","大纲候选","大綱候選","Outline candidates"},
                 {"outline_develop","大纲发展","大綱發展","Develop outline"},{"outline_rewrite","大纲重写","大綱重寫","Rewrite outline"},

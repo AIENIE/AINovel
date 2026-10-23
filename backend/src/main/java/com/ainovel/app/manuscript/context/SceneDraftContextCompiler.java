@@ -12,8 +12,7 @@ import com.ainovel.app.style.model.StyleProfile;
 import com.ainovel.app.style.repo.CharacterVoiceRepository;
 import com.ainovel.app.style.repo.StyleProfileRepository;
 import com.ainovel.app.v2.V2ContextPersistenceService;
-import com.ainovel.app.world.model.World;
-import com.ainovel.app.world.repo.WorldRepository;
+import com.ainovel.app.world.WorldBindingService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -45,7 +44,7 @@ public class SceneDraftContextCompiler {
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.narrative.NarrativeContextService isolation;
-    public static final String COMPILER_VERSION = "scene-draft-v3";
+    public static final String COMPILER_VERSION = "scene-draft-v4";
     public static final int DEFAULT_TOKEN_BUDGET = 3500;
     public static final int MAX_TOKEN_BUDGET = 3500;
     public static final int MAX_HISTORICAL_ANCHORS = 2;
@@ -59,20 +58,20 @@ public class SceneDraftContextCompiler {
     );
 
     private final ObjectMapper objectMapper;
-    private final WorldRepository worldRepository;
+    private final WorldBindingService worldBindings;
     private final CharacterCardRepository characterCardRepository;
     private final StyleProfileRepository styleProfileRepository;
     private final CharacterVoiceRepository characterVoiceRepository;
     private final V2ContextPersistenceService contextPersistenceService;
 
     public SceneDraftContextCompiler(ObjectMapper objectMapper,
-                                     WorldRepository worldRepository,
+                                     WorldBindingService worldBindings,
                                      CharacterCardRepository characterCardRepository,
                                      StyleProfileRepository styleProfileRepository,
                                      CharacterVoiceRepository characterVoiceRepository,
                                      V2ContextPersistenceService contextPersistenceService) {
         this.objectMapper = objectMapper;
-        this.worldRepository = worldRepository;
+        this.worldBindings = worldBindings;
         this.characterCardRepository = characterCardRepository;
         this.styleProfileRepository = styleProfileRepository;
         this.characterVoiceRepository = characterVoiceRepository;
@@ -98,6 +97,12 @@ public class SceneDraftContextCompiler {
                                              UUID sceneId,
                                              Map<String, String> existingSections,
                                              int requestedTokenBudget) {
+        return compile(manuscript,sceneId,existingSections,requestedTokenBudget,null);
+    }
+
+    @Transactional
+    public CompiledSceneDraftContext compile(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,
+            int requestedTokenBudget,WorldBindingService.Frozen frozenWorld) {
         RequiredContext required = requireContext(manuscript, sceneId);
         if (isolation != null && isolation.enabled(manuscript)) {
             var p=isolation.preview(required.story().getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
@@ -131,7 +136,9 @@ public class SceneDraftContextCompiler {
 
         addPlanningCandidates(candidates, required);
         addCharacterCandidates(candidates, required.story(), baseQueryText);
-        UUID boundWorldId = addWorldCandidate(candidates, required, warnings);
+        var world=worldBindings.requireUsable((frozenWorld==null?worldBindings.input(manuscript):frozenWorld).binding());
+        UUID boundWorldId=world==null?null:world.worldId();
+        if(world!=null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
         List<SceneSlot> recentScenes = recentScenes(required.position().priorScenes(), sections);
@@ -179,7 +186,7 @@ public class SceneDraftContextCompiler {
                 required.position().scene().order(),
                 sceneType,
                 rendered.sources(),
-                warnings
+                warnings, null, worldBindings.reference(world)
         );
         return new CompiledSceneDraftContext(
                 rendered.content(),
@@ -275,41 +282,6 @@ public class SceneDraftContextCompiler {
                 "当前章节规划", 990, 170, position.chapter().planning());
         addJsonCandidate(candidates, "planning.overall", "overall_planning", required.outline().getId(),
                 "全书规划", 980, 180, position.overallPlanning());
-    }
-
-    private UUID addWorldCandidate(List<Candidate> candidates, RequiredContext required, List<String> warnings) {
-        List<String> bindings = List.of(
-                text(required.manuscript().getWorldId()),
-                text(required.outline().getWorldId()),
-                text(required.story().getWorldId())
-        );
-        for (String binding : bindings) {
-            if (binding.isBlank()) {
-                continue;
-            }
-            UUID worldId;
-            try {
-                worldId = UUID.fromString(binding);
-            } catch (IllegalArgumentException ex) {
-                warnings.add("ignored invalid world binding: " + binding);
-                continue;
-            }
-            Optional<World> found = worldRepository.findById(worldId)
-                    .filter(world -> sameOwner(required.story(), world));
-            if (found.isEmpty()) {
-                warnings.add("bound world was unavailable: " + worldId);
-                continue;
-            }
-            World world = found.get();
-            String content = "名称=" + firstNonBlank(world.getName(), "未命名世界")
-                    + "\n创作意图=" + text(world.getCreativeIntent())
-                    + "\n主题=" + canonicalJsonText(world.getThemesJson())
-                    + "\n模块=" + canonicalJsonText(world.getModulesJson())
-                    + "\n备注=" + text(world.getNotes());
-            candidates.add(new Candidate("world", "world", worldId.toString(), "绑定世界", 940, 340, content));
-            return worldId;
-        }
-        return null;
     }
 
     private void addStyleCandidates(List<Candidate> candidates, Story story, String sceneType, String queryText) {
@@ -793,13 +765,6 @@ public class SceneDraftContextCompiler {
             }
         }
         return ids;
-    }
-
-    private boolean sameOwner(Story story, World world) {
-        if (story.getUser() == null || world.getUser() == null) {
-            return false;
-        }
-        return story.getUser().getId() != null && story.getUser().getId().equals(world.getUser().getId());
     }
 
     private String canonicalJsonText(String rawJson) {

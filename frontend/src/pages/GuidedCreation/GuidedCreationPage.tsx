@@ -13,6 +13,7 @@ import { ContextPanel, ContextSheet, MobileSteps, WorkflowRail } from "./GuidedC
 import { CompletedState, FailureState, GenerationState, LoadingState } from "./GuidedCreationStates";
 import { GUIDED_STEP_TITLES, guidedStatusLabel, guidedStepNumber } from "./guidedCreationUi";
 import { useGuidedCreation } from "./useGuidedCreation";
+import { GuidedWorldPublication } from './GuidedWorldPublication';
 
 const EMPTY_CANDIDATES: GuidedCreationCandidate[] = [];
 
@@ -25,6 +26,7 @@ export default function GuidedCreationPage() {
     ? workflow.steps[workflow.currentStep]
     : undefined;
   const candidates = stepData?.candidates ?? EMPTY_CANDIDATES;
+  const awaitingPublication = workflow?.currentStep === 'WORLD' && stepData?.awaitingPublication;
   const outlineSelection = workflow?.currentStep === "OUTLINE" && stepData?.outlinePhase === "DIRECTION_SELECTION";
   const outlinePreview = workflow?.currentStep === "OUTLINE" && stepData?.outlinePhase === "OUTLINE_PREVIEW";
   const [selectedId, setSelectedId] = useState<string>();
@@ -105,14 +107,14 @@ export default function GuidedCreationPage() {
                     <p className="mb-2 text-xs font-semibold uppercase text-emerald-700">{guidedStepNumber(workflow.currentStep)}</p>
                     <h2 className="text-2xl font-semibold text-zinc-950 md:text-3xl">{GUIDED_STEP_TITLES[workflow.currentStep]}</h2>
                   </div>
-                  {!workflow.autoRun ? (
+                  {!workflow.autoRun && !awaitingPublication ? (
                     <Button variant="outline" className="border-emerald-700 text-emerald-800 hover:bg-emerald-50" disabled={guided.busy || guided.shouldPoll} onClick={() => void guided.startAuto()}>
                       <Sparkles className="mr-2 h-4 w-4" /> {t("guided.autoComplete")}
                     </Button>
                   ) : null}
                 </div>
 
-                {guided.shouldPoll || candidates.length === 0 ? (
+                {awaitingPublication && workflow.worldId && workflow.storyId ? <GuidedWorldPublication key={workflow.id} worldId={workflow.worldId} storyId={workflow.storyId} publish={guided.publishWorld} /> : !guided.shouldPoll && candidates.length === 0 ? <div className="space-y-4"><p className="text-sm text-muted-foreground">{t('world2.continueHelp')}</p><Button disabled={guided.busy} onClick={() => void guided.generateCurrent()}>{t('world2.continueGeneration')}</Button></div> : guided.shouldPoll ? (
                   <GenerationState workflow={workflow} />
                 ) : (
                   <div className="space-y-8">
@@ -151,7 +153,7 @@ export default function GuidedCreationPage() {
                         </div>
                         <Button className="bg-zinc-950 px-6 text-white hover:bg-zinc-800" disabled={!draftCandidate || guided.busy} onClick={() => draftCandidate && void guided.confirm(draftCandidate)}>
                           {guided.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          {outlinePreview ? t("guided.confirmOutline") : t("guided.confirmContinue")} <ArrowRight className="ml-2 h-4 w-4" />
+                          {outlinePreview ? t("guided.confirmOutline") : workflow.currentStep === 'WORLD' ? t('world2.saveWorldDraft') : t("guided.confirmContinue")} <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
                     ) : null}

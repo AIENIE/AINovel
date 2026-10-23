@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Copy } from "lucide-react";
 import { api, isApiError } from "@/lib/api-client";
 import { localizedErrorMessage } from "@/lib/error-messages";
-import type { WorldModuleDefinition } from "@/types";
+import type { WorldModuleDefinition, WorldEntry } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -15,9 +15,10 @@ interface WorldGeneratedResultsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   definitions?: WorldModuleDefinition[];
+  entries?: WorldEntry[];
 }
 
-export function WorldGeneratedResultsDialog({ worldId, operationId, open, onOpenChange, definitions = [] }: WorldGeneratedResultsDialogProps) {
+export function WorldGeneratedResultsDialog({ worldId, operationId, open, onOpenChange, definitions = [], entries = [] }: WorldGeneratedResultsDialogProps) {
   const { t } = useTranslation();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<GeneratedResults | null>(null);
@@ -78,15 +79,15 @@ export function WorldGeneratedResultsDialog({ worldId, operationId, open, onOpen
       {!loading && error === null && modules.length === 0 && <p className="text-sm text-muted-foreground">{t("worldGeneratedResults.empty")}</p>}
       {modules.map(([moduleKey, fields]) => {
         const definition = definitions.find(item => item.key === moduleKey);
-        const applied = visibleResult?.appliedModules.includes(moduleKey);
+        const applied = moduleKey === 'entry' ? Object.keys(fields).every(id => visibleResult?.appliedModules.includes(`entry:${id}`)) : visibleResult?.appliedModules.includes(moduleKey);
         return <section key={moduleKey} className="min-w-0 space-y-3 border-t pt-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-medium">{definition?.label ?? moduleKey}</h3>
+            <h3 className="font-medium">{moduleKey === 'entry' ? t('world2.entries') : definition?.label ?? moduleKey}</h3>
             <span className="text-xs text-muted-foreground">{t(applied ? "worldGeneratedResults.applied" : "worldGeneratedResults.unapplied")}</span>
           </div>
           {Object.entries(fields).map(([fieldKey, text]) => {
             const field = JSON.stringify([moduleKey, fieldKey]);
-            const label = definition?.fields.find(item => item.key === fieldKey)?.label ?? fieldKey;
+            const label = moduleKey === 'entry' ? entries.find(entry => entry.id === fieldKey)?.title ?? t('world2.deleted') : definition?.fields.find(item => item.key === fieldKey)?.label ?? fieldKey;
             return <div key={fieldKey} className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-sm font-medium">{label}</h4>

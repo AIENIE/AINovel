@@ -63,6 +63,7 @@ class OutlineServiceTest {
         OutlineService service = service(outlineRepository, mock(StoryRepository.class), accessGuard, mock(AiService.class), mock(UserRepository.class));
         User owner = user("outline_author");
         Outline outline = outline(outlineId(), story(owner), Map.of("planning", Map.of(), "chapters", List.of()));
+        outline.setWorldId("world-2"); // Existing override survives ordinary outline edits.
 
         when(outlineRepository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
         when(outlineRepository.save(any(Outline.class))).thenAnswer(invocation -> invocation.getArgument(0));

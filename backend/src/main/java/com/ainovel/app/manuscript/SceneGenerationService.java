@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
 
 @Service
 public class SceneGenerationService {
+    public record Admission(com.ainovel.app.quality.language.LanguageStandard.Selection language,com.ainovel.app.world.WorldBindingService.Frozen world) {}
     @Autowired(required=false)
     private com.ainovel.app.quality.language.LanguageFeature languageFeature;
     @Autowired(required=false)
@@ -116,6 +117,11 @@ public class SceneGenerationService {
     }
     public GenerationResult generateSceneSection(Manuscript manuscript, UUID sceneId, Map<String,String> existingSections,
             GenerationMode mode, com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection) {
+        return generateSceneSection(manuscript,sceneId,existingSections,mode,languageSelection,null,false);
+    }
+    public GenerationResult generateSceneSection(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,
+            GenerationMode mode,com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection,
+            com.ainovel.app.world.WorldBindingService.Frozen admittedWorld,boolean requireHistoricalInput) {
         UUID operationId=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
         if(operationId==null) operationId=UUID.randomUUID();
         var checkpoint=candidateStore==null?null:candidateStore.draft(operationId,1);
@@ -126,9 +132,11 @@ public class SceneGenerationService {
             try {frozen=objectMapper.readValue(checkpoint.getRequestJson(),FrozenInput.class);}
             catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
         } else {
+            if(requireHistoricalInput)throw new com.ainovel.app.ai.AiResultUncertainException(new IllegalStateException("WORLD_TASK_BASELINE_REQUIRED"));
             var scene=resolveSceneContext(manuscript.getOutline(),sceneId);
             var story=manuscript.getOutline().getStory();
-            var compiled=compileContext(manuscript,sceneId,existingSections);
+            var compiled=admittedWorld==null?compileContext(manuscript,sceneId,existingSections)
+                :sceneDraftContextCompiler==null?null:sceneDraftContextCompiler.compile(manuscript,sceneId,existingSections,SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,admittedWorld);
             String characters=compiled==null?buildCharacterContext(characterCardRepository.findByStory(story)):compiled.characterContext();
             String previous=compiled==null?buildPreviousContext(scene,existingSections):compiled.recentSceneContext();
             var references=freezeReferences(ownerOf(manuscript),story,manuscript,scene,compiled);

@@ -1,4 +1,8 @@
 import { SceneCandidatesPanel } from "./manuscript-writer/SceneCandidatesPanel";
+import { api } from '@/lib/api-client';
+import { WorldBindingPanel } from '@/pages/WorldBuilder/components/WorldBindingPanel';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { WritingAssistantContext } from "@/components/ai/writing-assistant-context";
 import { useWritingAssistant } from "../hooks/useWritingAssistant";
 import { useEffect, useMemo, useState } from "react";
@@ -46,6 +50,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   const { t } = useTranslation();
   const { toast } = useToast();
   const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState<number | null>(null);
+  const [worldBindingOpen,setWorldBindingOpen] = useState(false);
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
   const [draggingChapterId, setDraggingChapterId] = useState("");
   const [dragOverChapterId, setDragOverChapterId] = useState("");
@@ -401,6 +406,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   return (
     <WritingAssistantContext.Provider value={writingAssistant}><div className={cn("relative flex min-h-0 flex-col gap-2", pagedAssistantOpen ? "min-h-[calc(100vh-180px)]" : "h-[calc(100vh-180px)]")}>
       <div className="flex shrink-0 justify-end">
+        <Button variant="ghost" size="sm" disabled={!selectedManuscriptId} onClick={()=>setWorldBindingOpen(true)}>{t('world2.binding')}</Button>
+        <Dialog open={worldBindingOpen} onOpenChange={setWorldBindingOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.binding')}</DialogTitle><DialogDescription>{t('world2.bindingHelp')}</DialogDescription></DialogHeader>{worldBindingOpen&&selectedManuscriptId&&<WorldBindingPanel key={selectedManuscriptId} scope="MANUSCRIPT" resourceId={selectedManuscriptId} onChanged={() => { void api.manuscripts.get(selectedManuscriptId).then(replaceManuscript).catch(() => {}); }}/>}</DialogContent></Dialog>
         <SceneCandidatesPanel manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
           busy={isSaving || isGenerating} revision={generationRevision} onApplied={applyServerSection}
           onLoadDraft={loadCandidateDraft} onRegenerate={generateScene} />

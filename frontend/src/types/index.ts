@@ -551,6 +551,39 @@ export interface WorldDetail extends World {
   creativeIntent: string;
   notes: string;
   modules: WorldModuleData[];
+  entries?: WorldEntry[];
+  relations?: WorldRelation[];
+  latestPublished?: WorldVersion | null;
+  unpublishedChanges?: boolean;
+}
+
+export type WorldEntryType = 'GEOGRAPHY' | 'LOCATION' | 'PERSON' | 'ORGANIZATION' | 'SPECIES' | 'SOCIETY' | 'RESOURCE' | 'SYSTEM' | 'RULE' | 'HISTORY' | 'CUSTOM';
+export interface WorldEntry {
+  id: string; type: WorldEntryType; title: string; summary: string | null; content: string | null;
+  aliases: string[]; tags: string[]; legacyModuleKey: string | null; legacyFieldKey: string | null;
+}
+export interface WorldRelation { id: string; sourceId: string; targetId: string; type: string; description: string | null }
+export interface WorldContent {
+  name: string; tagline: string | null; themes: string[]; creativeIntent: string | null; notes: string | null;
+  entries: WorldEntry[]; relations: WorldRelation[]; modules: Record<string, Record<string, string>>; legacyModulesJson: string | null;
+}
+export interface WorldVersion {
+  id: string; worldId: string; sequenceNumber: number; origin: 'PUBLISHED' | 'MIGRATION_BASELINE'; legacyVersion: string | null;
+  draftRevision: number; contentHash: string; releaseNote: string; createdAt: string; content: WorldContent | null;
+}
+export interface WorldDiff {
+  fromVersionId: string | null; toVersionId: string | null; draftRevision: number | null;
+  changes: { kind: 'METADATA' | 'ENTRY' | 'RELATION'; id: string; label: string; before: unknown; after: unknown }[];
+}
+export type WorldBindingScope = 'STORY' | 'OUTLINE' | 'MANUSCRIPT';
+export interface WorldBindingReference {
+  worldId: string; versionId: string; sourceType: WorldBindingScope; sourceId: string; bindingRevision: number;
+  name: string; sequenceNumber: number; origin: WorldVersion['origin']; contentHash: string; unavailableReason: string | null;
+}
+export interface WorldBindingView {
+  resourceType: WorldBindingScope; resourceId: string; bindingRevision: number; explicitVersionId: string | null; explicit: boolean;
+  effective: WorldBindingReference | null;
+  overrides: { resourceType: WorldBindingScope; resourceId: string; title: string; effective: WorldBindingReference | null }[];
 }
 
 export interface WorldGenerationStatus {
@@ -684,6 +717,8 @@ export interface GuidedCreationCandidate {
 }
 
 export interface GuidedCreationStepData {
+  awaitingPublication?: boolean;
+  publishedVersionId?: string;
   outlinePhase?: "DIRECTION_SELECTION" | "OUTLINE_PREVIEW";
   candidates?: GuidedCreationCandidate[];
   recommendedCandidateId?: string;

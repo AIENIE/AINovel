@@ -61,6 +61,24 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ManuscriptServiceTest {
+    @Test void worldUpgradeRetainsOldVersionResultWithoutWritingTheCurrentBody() {
+        var repository=mock(ManuscriptRepository.class);
+        var service=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),mock(ResourceAccessGuard.class),
+            mock(SlopQualityGate.class),mock(PlotQualityService.class),mock(PromptAssemblyService.class),mock(MaterialRetrievalService.class),mock(StyleContextProvider.class));
+        var owner=user("world-upgrade");var story=story(owner);var outline=outline(story,List.of());
+        var manuscript=manuscript(UUID.randomUUID(),outline,Map.of());var scene=UUID.randomUUID();var candidate=UUID.randomUUID();
+        var frozen=new com.ainovel.app.world.WorldBindingService.Resolved(UUID.randomUUID(),UUID.randomUUID(),"STORY",story.getId(),1,"群岛",1,"PUBLISHED","old",null,null);
+        var latest=new com.ainovel.app.world.WorldBindingService.Resolved(frozen.worldId(),UUID.randomUUID(),"STORY",story.getId(),2,"群岛",2,"PUBLISHED","new",null,null);
+        var manifest=new com.ainovel.app.manuscript.context.SceneDraftContextManifest("v4","hash","SHA-256",3500,10,story.getId(),outline.getId(),manuscript.getId(),scene,frozen.worldId(),1,1,"",List.of(),List.of(),null,frozen);
+        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any(),any(),any(),eq(false))).thenReturn(
+            new SceneGenerationService.GenerationResult("<p>旧世界版本生成结果</p>",new SceneGenerationService.GenerationMetadata("test","v4","hash",1,manifest),List.of(candidate),null,null,null,false,null));
+        var worlds=mock(com.ainovel.app.world.WorldBindingService.class);when(worlds.lockCurrent(manuscript)).thenReturn(latest);when(worlds.same(frozen,latest)).thenCallRealMethod();
+        ReflectionTestUtils.setField(service,"sceneGenerationService",generator);ReflectionTestUtils.setField(service,"worldBindings",worlds);
+        when(repository.findWithStoryById(manuscript.getId())).thenReturn(Optional.of(manuscript));
+        var result=service.generateSceneOutcome(manuscript.getId(),scene,com.ainovel.app.manuscript.GenerationMode.FAST,null);
+        assertEquals("NEEDS_REVIEW",result.outcome());assertEquals("WORLD_BINDING_CHANGED",result.reviewReason());assertEquals(List.of(candidate),result.candidateIds());
+        assertEquals("{}",manuscript.getSectionsJson());verify(repository,never()).saveAndFlush(any());
+    }
     @Test void h2VersionConflictRetainsCandidateWithoutWritingTheCurrentBody() {
         var repository=mock(ManuscriptRepository.class);var access=mock(ResourceAccessGuard.class);
         var s=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),access,
@@ -69,7 +87,7 @@ class ManuscriptServiceTest {
         var outline=new Outline();outline.setStory(story);var m=new Manuscript();m.setId(UUID.randomUUID());m.setOutline(outline);m.setSectionsJson("{}");m.setCurrentBranchId(UUID.randomUUID());
         UUID scene=UUID.randomUUID();var stamp=new com.ainovel.app.narrative.NarrativeContextDtos.Stamp(m.getId(),m.getCurrentBranchId(),0,0,1,1,"hash");
         var manifest=new com.ainovel.app.manuscript.context.SceneDraftContextManifest("h2","hash","SHA-256",3500,10,null,null,m.getId(),scene,null,1,1,"",List.of(),List.of(),stamp);
-        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any(),any())).thenReturn(
+        var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any(),any(),any(),eq(false))).thenReturn(
                 new SceneGenerationService.GenerationResult("<p>生成候选</p>",new SceneGenerationService.GenerationMetadata("test","h2","hash",1,manifest)));
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);var archive=mock(com.ainovel.app.narrative.NarrativeGenerationCandidateStore.class);
         ReflectionTestUtils.setField(s,"sceneGenerationService",generator);ReflectionTestUtils.setField(s,"narrativeContext",context);ReflectionTestUtils.setField(s,"retainedCandidates",archive);
@@ -153,7 +171,7 @@ class ManuscriptServiceTest {
         assertEquals(manuscript.getId(), dto.id());
         assertTrue(dto.sections().get(targetSceneId.toString()).startsWith("<p>稿稿稿"));
         assertEquals("<p>上一场景留下铜扣线索。</p>", dto.sections().get(previousSceneId.toString()));
-        verify(accessGuard, times(2)).assertOwner(owner);
+        verify(accessGuard, times(3)).assertOwner(owner);
         verify(manuscriptRepository).saveAndFlush(manuscript);
 
         ArgumentCaptor<SlopQualityRequest> gateRequestCaptor = ArgumentCaptor.forClass(SlopQualityRequest.class);
@@ -300,6 +318,7 @@ class ManuscriptServiceTest {
         when(transactions.execute(any())).thenAnswer(invocation ->
                 ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
         ReflectionTestUtils.setField(service, "transactionTemplate", transactions);
+        ReflectionTestUtils.setField(service, "worldBindings", mock(com.ainovel.app.world.WorldBindingService.class));
         return service;
     }
 

@@ -7,6 +7,7 @@ import { t } from "@/i18n";
  * 未命中类别时显示本地化通用操作失败。
  */
 const AI_MODEL_ERROR_KEYS: Record<string, string> = {
+  AI_FEATURE_UNCONFIGURED: 'world2.unconfigured',
   AI_REQUEST_IN_PROGRESS: "aiModels.requestInProgress",
   AI_RESULT_RECONCILIATION_REQUIRED: "aiModels.reconciliationNeeded",
   AI_PAYMENT_REQUIRED: "aiModels.paymentRequired",
@@ -24,9 +25,11 @@ const AI_MODEL_ERROR_KEYS: Record<string, string> = {
 };
 const modelFailure = (code?: string | null) => code && AI_MODEL_ERROR_KEYS[code] ? t(AI_MODEL_ERROR_KEYS[code]) : null;
 const worldFailure = (code?: string | null) => {
+  const keys: Record<string,string> = {WORLD_BINDING_CONFLICT:'bindingConflict',WORLD_BINDING_UNRESOLVED:'bindingUnavailable',WORLD_VERSION_UNAVAILABLE:'bindingUnavailable',WORLD_BINDING_CHANGED:'bindingChangedResult',WORLD_ENTRY_INVALID:'entryInvalid',WORLD_RELATION_INVALID:'entryInvalid',WORLD_ENTRY_NOT_EMPTY:'entryNotEmpty',WORLD_PUBLICATION_REQUIRED:'publishRequired',WORLD_BIND_AT_STORY:'useBindingPanel',WORLD_USE_BINDING_PANEL:'useBindingPanel',WORLD_PUBLISH_REQUEST_CONFLICT:'bindingConflict',WORKFLOW_VERSION_CONFLICT:'bindingConflict'};
+  if (code && keys[code]) return t(`world2.${keys[code]}`);
   if (code === "WORLD_VERSION_CONFLICT") return t("worlds.taskConflict");
   if (code === "WORLD_TASK_BASELINE_REQUIRED") return t("worlds.taskBaselineMissing");
-  if (code === "WORLD_EMPTY_CANDIDATE") return t("worlds.emptyCandidate");
+  if (code === "WORLD_EMPTY_CANDIDATE" || code === 'WORLD_AI_EMPTY_RESULT') return t("worlds.emptyCandidate");
   return null;
 };
 

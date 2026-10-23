@@ -5,6 +5,8 @@
 - `GET /api/v1/worlds/{id}/versions`：版本摘要列表；`GET .../versions/{versionId}` 返回完整只读快照。origin 区分 `PUBLISHED` 与 `MIGRATION_BASELINE`。
 - `GET /api/v1/worlds/{id}/diff?fromVersionId=...&toVersionId=...`：比较完整版本；省略 toVersionId 并提供 draftRevision 时比较指定草稿 revision。changes 含 kind、id、label、before、after。
 - `POST /api/v1/worlds/{id}/publish`：Body `{expectedRevision,releaseNote?,requestKey}`。允许未填完整的草稿，不调用 AI；返回不可变 Version。相同请求幂等，相同内容复用已有正式版本。
+- `POST /api/v1/worlds/{id}/entries/{entryId}/generate/operations`：Body `{expectedRevision}`。空条目补空，先报价；返回异步任务。世界输入变化或目标非空时不写入，已收到的结果仍可查看。
+- `POST /api/v1/worlds/{id}/entries/{entryId}/refine`：Body `{text,instruction?,model?}`。先报价，返回精修候选，不保存草稿；客户端核对输入基线后由作者采纳。新条目需要单独配置 generate/refine，未配置返回 `AI_FEATURE_UNCONFIGURED`。
 - `GET/PUT /api/v1/{story-cards|outlines|manuscripts}/{id}/world-binding`：查看或变更绑定。PUT Body `{fromVersionId,toVersionId,expectedBindingRevision}`；toVersionId=null 表示故事解绑或旧覆盖改为继承。GET 包含 explicitVersionId、bindingRevision、effective 的来源与实际版本，以及故事下独立覆盖清单。
 - `GET .../world-binding/diff?toVersionId=...`：预览绑定切换的完整前后差异。新绑定只允许故事层选择正式发布版本；旧下层覆盖仅升级同一世界或解除。
 
@@ -19,7 +21,7 @@
 - `PUT /api/v1/worlds/{id}/modules`：兼容批量保存模块，Body `{modules: {key: {field:value}},expectedRevision?:number}`。
 - `PUT /api/v1/worlds/{id}/modules/{moduleKey}`：兼容单模块保存，Body `{fields:{field:value},expectedRevision?:number}`。
 - `POST /api/v1/worlds/{id}/modules/{moduleKey}/fields/{fieldKey}/refine`：字段精修（调用 LLM 并扣费），返回 `AiRefineResponse {result,usage,remainingCredits}`。
-- `GET /api/v1/worlds/{id}/publish/preview`：发布预检。
+- `GET /api/v1/worlds/{id}/publish/preview`：旧模块生成预检，保留兼容；新版发布确认使用 draft/diff，不调用此接口。
 - `POST /api/v1/worlds/{id}/publish/operations`：兼容旧入口，仅补充缺失模块至草稿，返回可跟踪进度的任务；不会发布版本。
 - `GET /api/v1/worlds/{id}/generation`：生成队列状态。
 - `POST /api/v1/worlds/{id}/generation/{moduleKey}`：调用 AI 生成单模块缺失字段。AI 返回空内容或调用失败时不会写入占位内容，会将模块状态记录为 `FAILED` 并在生成状态中返回错误信息。

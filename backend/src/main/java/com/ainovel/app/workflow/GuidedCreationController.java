@@ -100,6 +100,12 @@ public class GuidedCreationController {
         return workflowService.skipWorld(currentUserResolver.require(principal), id, version);
     }
 
+    @PostMapping("/{id}/steps/world/publish")
+    public CreationWorkflowDtos.WorkflowResponse publishWorld(@AuthenticationPrincipal UserDetails principal,@PathVariable UUID id,
+            @RequestBody GuidedCreationMaterializer.PublishWorldRequest request) {
+        return workflowService.publishWorld(currentUserResolver.require(principal),id,request);
+    }
+
     @PostMapping("/{id}/auto-run")
     public ResponseEntity<CreationWorkflowDtos.WorkflowResponse> startAuto(
             @AuthenticationPrincipal UserDetails principal,

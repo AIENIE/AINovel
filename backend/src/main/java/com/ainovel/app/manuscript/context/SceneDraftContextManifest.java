@@ -19,8 +19,15 @@ public record SceneDraftContextManifest(
         String sceneType,
         List<Source> sources,
         List<String> warnings,
-        com.ainovel.app.narrative.NarrativeContextDtos.Stamp isolationStamp
+        com.ainovel.app.narrative.NarrativeContextDtos.Stamp isolationStamp,
+        com.ainovel.app.world.WorldBindingService.Resolved worldBinding
 ) {
+    public SceneDraftContextManifest(String compilerVersion,String contextHash,String hashAlgorithm,int tokenBudget,int tokenUsed,
+            UUID storyId,UUID outlineId,UUID manuscriptId,UUID sceneId,UUID boundWorldId,int chapterOrder,int sceneOrder,String sceneType,
+            List<Source> sources,List<String> warnings,com.ainovel.app.narrative.NarrativeContextDtos.Stamp stamp) {
+        this(compilerVersion,contextHash,hashAlgorithm,tokenBudget,tokenUsed,storyId,outlineId,manuscriptId,sceneId,boundWorldId,
+            chapterOrder,sceneOrder,sceneType,sources,warnings,stamp,null);
+    }
     public SceneDraftContextManifest(String compilerVersion,String contextHash,String hashAlgorithm,int tokenBudget,int tokenUsed,
             UUID storyId,UUID outlineId,UUID manuscriptId,UUID sceneId,UUID boundWorldId,int chapterOrder,int sceneOrder,String sceneType,
             List<Source> sources,List<String> warnings) {

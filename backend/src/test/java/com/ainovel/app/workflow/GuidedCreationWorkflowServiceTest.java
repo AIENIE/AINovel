@@ -34,6 +34,7 @@ class GuidedCreationWorkflowServiceTest {
         ReflectionTestUtils.setField(advanced, "id", runId);
         advanced.setCurrentStep(GuidedCreationStep.WORLD);
         advanced.setStatus(CreationWorkflowStatus.AUTO_RUNNING);
+        advanced.setAutoRun(true);
         when(materializer.confirm(runId, userId, GuidedCreationStep.PREMISE,
                 "recommended", null, null, true)).thenReturn(advanced);
 
@@ -45,6 +46,16 @@ class GuidedCreationWorkflowServiceTest {
                 "recommended", null, null, true);
         verify(jobService).enqueueAutomatic(runId);
         assertEquals(GuidedCreationStep.WORLD, advanced.getCurrentStep());
+    }
+
+    @Test void automaticWorldConfirmationWaitsWithoutQueuingAnotherPaidStep() {
+        var materializer=mock(GuidedCreationMaterializer.class);var jobs=mock(GuidedCreationJobService.class);
+        var service=new GuidedCreationWorkflowService(mock(CreationWorkflowRunRepository.class),mock(AsyncJobRepository.class),jobs,materializer,mock(GuidedCreationJsonSupport.class));
+        UUID runId=UUID.randomUUID(),userId=UUID.randomUUID();var run=new CreationWorkflowRun();
+        run.setCurrentStep(GuidedCreationStep.WORLD);run.setStatus(CreationWorkflowStatus.WAITING_USER);run.setAutoRun(false);
+        when(materializer.confirm(runId,userId,GuidedCreationStep.WORLD,"recommended",null,null,true)).thenReturn(run);
+        service.advanceAutomatic(new GuidedCreationJobService.Completion(runId,userId,GuidedCreationStep.WORLD,GuidedCreationOperation.STEP_CANDIDATES,true,"recommended"));
+        verifyNoInteractions(jobs);
     }
 
     @Test

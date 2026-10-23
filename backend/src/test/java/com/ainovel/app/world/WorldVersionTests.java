@@ -30,6 +30,32 @@ class WorldVersionTests {
     @Autowired UserRepository users;
     @Autowired StoryRepository stories;
     @Autowired OutlineRepository outlines;
+    @Autowired com.ainovel.app.workflow.GuidedCreationMaterializer materializer;
+    @Autowired com.ainovel.app.workflow.repo.CreationWorkflowRunRepository workflows;
+    @Autowired com.fasterxml.jackson.databind.ObjectMapper json;
+
+    @Test void guidedWorldWaitsForExplicitPublicationAndRetryDoesNotRepublish() throws Exception {
+        var owner=user();var s=story("向导测试");
+        var run=new com.ainovel.app.workflow.model.CreationWorkflowRun();run.setUser(owner);run.setStory(s);
+        run.setTemplateKey("quick-book-v1");run.setSeedIdea("退潮群岛");run.setAutoRun(true);
+        run.setCurrentStep(com.ainovel.app.workflow.model.GuidedCreationStep.WORLD);
+        run.setStatus(com.ainovel.app.workflow.model.CreationWorkflowStatus.AUTO_RUNNING);
+        run.setStepsJson(json.writeValueAsString(Map.of("WORLD",Map.of("candidates",List.of(Map.of(
+            "candidateId","one","name","向导世界","modules",Map.of("geography",Map.of("terrain","岛屿"))))))));
+        run=workflows.saveAndFlush(run);
+        var pending=materializer.confirm(run.getId(),owner.getId(),com.ainovel.app.workflow.model.GuidedCreationStep.WORLD,"one",null,run.getVersion(),true);
+        assertEquals(com.ainovel.app.workflow.model.GuidedCreationStep.WORLD,pending.getCurrentStep());
+        assertFalse(pending.isAutoRun());assertTrue(json.readTree(pending.getStepsJson()).path("WORLD").path("awaitingPublication").asBoolean());
+        assertNull(bindings.view("STORY",s.getId()).effective());assertTrue(versions.list(pending.getWorld().getId()).isEmpty());
+        var draft=versions.draft(pending.getWorld().getId());assertEquals("岛屿",draft.entries().getFirst().content());
+        var request=new com.ainovel.app.workflow.GuidedCreationMaterializer.PublishWorldRequest(pending.getVersion(),draft.world().revision(),null,0L,"作者确认",UUID.randomUUID().toString());
+        var published=materializer.publishWorld(run.getId(),owner.getId(),request);
+        assertEquals(com.ainovel.app.workflow.model.GuidedCreationStep.CHARACTERS,published.getCurrentStep());assertFalse(published.isAutoRun());
+        assertEquals(1,versions.list(draft.world().id()).size());
+        assertEquals(versions.list(draft.world().id()).getFirst().id(),bindings.view("STORY",s.getId()).effective().versionId());
+        assertEquals(published.getVersion(),materializer.publishWorld(run.getId(),owner.getId(),request).getVersion());
+        assertEquals(1,versions.list(draft.world().id()).size());verifyNoInteractions(ai);
+    }
     private User user() {
         return users.findByUsername("world_versions").orElseGet(()->{
             var u=new User();u.setUsername("world_versions");u.setEmail("world_versions@example.invalid");u.setPasswordHash("x");return users.save(u);

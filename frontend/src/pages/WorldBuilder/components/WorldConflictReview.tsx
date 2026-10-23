@@ -23,6 +23,16 @@ export function WorldConflictReview({ local, server, definitions, open, onOpenCh
     }
   }
   const differences = rows.filter(row => row.local !== row.server);
+  for (const kind of ['entries', 'relations'] as const) {
+    const localRows = new Map((local[kind] || []).map(row => [row.id, row]));
+    const serverRows = new Map((server[kind] || []).map(row => [row.id, row]));
+    for (const id of new Set([...localRows.keys(), ...serverRows.keys()])) {
+      const left = localRows.get(id), right = serverRows.get(id);
+      if (JSON.stringify(left) !== JSON.stringify(right)) differences.push({key:`${kind}:${id}`,
+        label: t(`world2.${kind}`) + ' · ' + (left && 'title' in left ? left.title : right && 'title' in right ? right.title : t('world2.relation')),
+        local: left ? JSON.stringify(left, null, 2) : t('world2.deleted'), server: right ? JSON.stringify(right, null, 2) : t('world2.deleted')});
+    }
+  }
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>{t("worlds.compareServer")}</DialogTitle><DialogDescription>{t("worlds.mergeHelp")}</DialogDescription></DialogHeader>

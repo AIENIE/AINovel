@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { assistantTextDiff } from "@/lib/assistant-editor";
 import { localizedErrorMessage } from "@/lib/error-messages";
 
-export type WorldRefineTarget = { worldId: string; revision: number; moduleKey: string; fieldKey: string; label: string; original: string };
+export type WorldRefineTarget = { worldId: string; revision: number; entryId: string; label: string; original: string };
 
 export function WorldRefineReview({ target, stale, onClose, onGenerate, onAccept }: {
   target: WorldRefineTarget; stale: boolean; onClose: () => void;

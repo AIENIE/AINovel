@@ -4,14 +4,16 @@ import { useTranslation } from "react-i18next";
 import { api, isApiError } from "@/lib/api-client";
 import { refreshTrackedAiOperation, retryTrackedAiOperation, runTrackedAiOperation, useTrackedAiOperation } from "@/lib/ai-operation-store";
 import { WORLD_UPDATED, type WorldUpdatedDetail } from "@/lib/world-operation-events";
-import type { AiOperationProgress, WorldGenerationStatus, WorldModuleDefinition } from "@/types";
+import type { AiOperationProgress, WorldGenerationStatus, WorldModuleDefinition, WorldDetail } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, ArrowLeft, Save, UploadCloud } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { localizedErrorMessage, localizedOperationFailure } from "@/lib/error-messages";
 import WorldMetadataForm from "./WorldBuilder/components/WorldMetadataForm";
-import WorldModuleEditor from "./WorldBuilder/components/WorldModuleEditor";
+import { WorldEntryEditor } from "./WorldBuilder/components/WorldEntryEditor";
+import { WorldPublishDialog, WorldVersionHistory } from "./WorldBuilder/components/WorldVersionViews";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorldRefineReview, type WorldRefineTarget } from "./WorldBuilder/components/WorldRefineReview";
 import { WorldConflictReview } from "./WorldBuilder/components/WorldConflictReview";
 import { WorldGeneratedResultsDialog } from "./WorldBuilder/components/WorldGeneratedResultsDialog";
@@ -43,6 +45,7 @@ const WorldEditor = () => {
   const [taskLookupError, setTaskLookupError] = useState(false);
   const [taskLookupMessage, setTaskLookupMessage] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [publishing, setPublishing] = useState<WorldDetail | null>(null);
   const [target, setTarget] = useState<WorldRefineTarget | null>(null);
   const [generation, setGeneration] = useState<WorldGenerationStatus | null>(null);
   const [localTask, setLocalTask] = useState<AiOperationProgress | null>(null);
@@ -92,7 +95,7 @@ const WorldEditor = () => {
   useEffect(() => {
     const lifecycle = epoch;
     epoch.current++;
-    setTarget(null); setLocalTask(null); setGeneration(null); setActionError(""); setTaskLookupMessage(""); setGenerationError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
+    setPublishing(null); setTarget(null); setLocalTask(null); setGeneration(null); setActionError(""); setTaskLookupMessage(""); setGenerationError(""); setBusy(false); setReviewRemote(false); setReviewGenerated(false); setEndedTaskId(null); actionLock.current = false;
     void refreshStatus();
     void checkActiveTask();
     return () => { lifecycle.current++; };
@@ -149,14 +152,10 @@ const WorldEditor = () => {
     catch (error) { if (scope === epoch.current && !(error instanceof Error && error.message === "AI_QUOTE_CANCELLED")) setActionError(localizedErrorMessage(error)); }
     finally { if (scope === epoch.current) { actionLock.current = false; setBusy(false); void refreshStatus(); } }
   };
-  const updateField = (moduleKey: string, fieldKey: string, value: string) => editor.edit(current => {
-    const modules = current.modules.some(module => module.key === moduleKey)
-      ? current.modules.map(module => module.key === moduleKey ? { ...module, fields: { ...module.fields, [fieldKey]: value } } : module)
-      : [...current.modules, { key: moduleKey, fields: { [fieldKey]: value } }];
-    return { ...current, modules };
-  });
+  const updateEntry = (entryId: string, value: string) => editor.edit(current => ({...current, entries: current.entries?.map(entry => entry.id === entryId ? {...entry,content:value} : entry)}));
   const save = async () => { const clean = await editor.save(); if (clean) toast({ title: t("worlds.saved") }); return clean; };
-  const refineStale = !!target && (target.worldId !== id || target.revision !== draft?.revision || dirty || !!remote || conflict || draft?.modules.find(module => module.key === target.moduleKey)?.fields[target.fieldKey] !== target.original);
+  const refineStale = !!target && (target.worldId !== id || target.revision !== draft?.revision || dirty || !!remote || conflict || draft?.entries?.find(entry => entry.id === target.entryId)?.content !== target.original);
+
 
   if (!id) return <div className="p-6"><p>{t("worlds.missingId")}</p><Button asChild className="mt-4"><Link to="/worlds">{t("worlds.backToList")}</Link></Button></div>;
   return <div className="min-h-screen bg-background flex flex-col">
@@ -165,18 +164,7 @@ const WorldEditor = () => {
       <div className="flex flex-wrap items-center gap-2">
         <span role="status" className="text-xs text-muted-foreground">{saving ? t("common.saving") : dirty ? t("worlds.unsaved") : draft ? t("worlds.saved") : ""}</span>
         <Button variant="outline" onClick={() => void save()} disabled={saving || busy || !draft || !!remote || conflict}><Save className="mr-2 h-4 w-4" />{t("common.save")}</Button>
-        <Button disabled={!draft || saving || busy || running} onClick={() => { if (!ready()) return; void run(async () => {
-          const revision = draft!.revision, scope = epoch.current;
-          const preview = await api.worlds.publishPreview(id);
-          if (scope !== epoch.current) return;
-          if (!latest.current.editor.canAct() || latest.current.editor.draft?.revision !== revision) { setActionError(t("worlds.actionStale")); return; }
-          const modules: string[] = preview.modulesToGenerate || [];
-          const names = modules.map(key => definitions?.find(module => module.key === key)?.label || key);
-          if (!confirm(modules.length ? t("worlds.publishNeeds", { count: modules.length, modules: names.join("、") }) : t("worlds.publishReady"))) return;
-          if (modules.length) await runTrackedAiOperation(api.worlds.startPublish(id));
-          else { await api.worlds.publish(id); if (scope === epoch.current) await refresh(); }
-          if (scope === epoch.current) toast({ title: t("worlds.publishDone") });
-        }); }}><UploadCloud className="mr-2 h-4 w-4" />{t("worlds.publishCheck")}</Button>
+        <Button disabled={!draft || saving || busy} onClick={() => { if (!editor.canAct()) { setActionError(t("worlds.saveBeforeAction")); return; } setPublishing(draft); }}><UploadCloud className="mr-2 h-4 w-4" />{t("world2.publishTitle")}</Button>
       </div>
     </header>
     <main className="flex-1 p-4 md:p-6 space-y-6">
@@ -186,7 +174,7 @@ const WorldEditor = () => {
       {checkingTask && <p role="status" className="text-sm text-muted-foreground">{t("worlds.checkingTask")}</p>}
       {(taskLookupError || generationError) && <Button variant="outline" disabled={checkingTask} onClick={() => void Promise.all([checkActiveTask(), refreshStatus()])}>{t("worlds.refreshTask")}</Button>}
       {remote && <div role="status" className="rounded border p-3 space-y-2"><p>{t("worlds.remoteChanged")}</p><Button variant="outline" onClick={() => setReviewRemote(true)}>{t("worlds.compareServer")}</Button></div>}
-      {draft && <p className="text-sm text-muted-foreground">{t(`worlds.status.${draft.status}`)} · v{draft.version}</p>}
+      {draft && <p className="text-sm text-muted-foreground">{draft.latestPublished ? t("world2.version", {number:draft.latestPublished.sequenceNumber}) : t("world2.notPublished")} · {t(draft.unpublishedChanges ? "world2.unpublished" : "world2.upToDate")}</p>}
       {task && <section aria-label={t("worlds.task")} className="rounded border p-3 space-y-2 text-sm">
         <p>{t("worlds.task")} · {t(`worlds.taskStatus.${task.status}`)} · {task.completedSteps}/{task.totalSteps}</p>
         <details><summary>{t("worlds.taskDetails")}</summary><p className="break-all">{task.id}</p></details>
@@ -211,22 +199,28 @@ const WorldEditor = () => {
       </section>}
       {!!generation?.queue.length && <details className="text-sm"><summary>{t("worlds.moduleState")}</summary><ul className="mt-2 space-y-1">{generation.queue.map(module => <li key={module.moduleKey}>{definitions?.find(def => def.key === module.moduleKey)?.label || module.moduleKey} · {t(`worlds.moduleStatus.${module.status}`, { defaultValue: module.status })}{module.error && <p className="text-destructive">{module.error}</p>}</li>)}</ul></details>}
       {editor.loading && <div className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t("common.loading")}</div>}
-      {draft && <WorldMetadataForm data={draft} onChange={(field, value) => editor.edit(current => ({ ...current, [field]: value }))} />}
-      {definitionError ? <div role="alert" className="space-y-2"><p>{t("worlds.definitionsFailed")} {definitionError}</p><Button variant="outline" onClick={() => setDefinitionAttempt(value => value + 1)}>{t("common.retry")}</Button></div> : definitions === null ? <p>{t("worlds.definitionsLoading")}</p> : draft && <WorldModuleEditor key={id} worldId={id} definitions={definitions} moduleData={draft.modules} busy={busy || running || saving} onUpdateModule={updateField}
-        onAutoGenerate={moduleKey => { if (ready()) void run(async () => { await runTrackedAiOperation(api.worlds.startGenerateModule(id, moduleKey)); }); }}
-        onRefineField={(moduleKey, fieldKey, original) => { if (ready()) setTarget({ worldId: id, revision: draft.revision, moduleKey, fieldKey, original, label: definitions.find(module => module.key === moduleKey)?.fields.find(field => field.key === fieldKey)?.label || fieldKey }); }} />}
+      {draft && <Tabs defaultValue="entries" key={id} className="space-y-5">
+        <TabsList><TabsTrigger value="entries">{t("world2.entries")}</TabsTrigger><TabsTrigger value="metadata">{t("world2.metadata")}</TabsTrigger><TabsTrigger value="history">{t("world2.history")}</TabsTrigger></TabsList>
+        <TabsContent value="entries"><WorldEntryEditor draft={draft} edit={editor.edit} busy={busy || running || saving}
+          onGenerate={entry => { if (ready()) void run(async () => { await runTrackedAiOperation(api.worlds.startGenerateEntry(id, entry.id, draft.revision)); }); }}
+          onRefine={entry => { if (ready()) setTarget({worldId:id,revision:draft.revision,entryId:entry.id,label:entry.title,original:entry.content || ''}); }} /></TabsContent>
+        <TabsContent value="metadata"><WorldMetadataForm data={draft} onChange={(field,value) => editor.edit(current => ({...current,[field]:value}))} /></TabsContent>
+        <TabsContent value="history"><WorldVersionHistory worldId={id} revision={draft.revision} /></TabsContent>
+      </Tabs>}
+      {definitionError && <p className="text-sm text-muted-foreground">{t("worlds.definitionsFailed")} <Button variant="ghost" onClick={() => setDefinitionAttempt(value => value + 1)}>{t("common.retry")}</Button></p>}
     </main>
     <Dialog open={blocker.state === "blocked"} onOpenChange={open => { if (!open && blocker.state === "blocked") blocker.reset(); }}><DialogContent><DialogHeader><DialogTitle>{t("worlds.unsaved")}</DialogTitle><DialogDescription>{t("worlds.leaveHelp")}</DialogDescription></DialogHeader><DialogFooter className="gap-2"><Button variant="outline" onClick={() => { if (blocker.state === "blocked") blocker.reset(); }}>{t("common.cancel")}</Button><Button variant="outline" disabled={saving} onClick={() => { if (blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.discardAndLeave")}</Button><Button disabled={saving || !!remote || conflict} onClick={async () => { if (await save() && blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.saveAndLeave")}</Button></DialogFooter></DialogContent></Dialog>
     {draft && remote && <WorldConflictReview local={draft} server={remote} definitions={definitions || []} open={reviewRemote} onOpenChange={setReviewRemote} onResolve={keepLocal => { editor.resolveRemote(keepLocal); setReviewRemote(false); }} />}
-    {task && <WorldGeneratedResultsDialog worldId={id} operationId={task.id} definitions={definitions || []} open={reviewGenerated} onOpenChange={setReviewGenerated} />}
-    {target && <WorldRefineReview key={`${target.worldId}:${target.moduleKey}:${target.fieldKey}`} target={target} stale={refineStale} onClose={() => setTarget(null)} onGenerate={async instruction => {
+    {task && <WorldGeneratedResultsDialog worldId={id} operationId={task.id} definitions={definitions || []} entries={draft?.entries} open={reviewGenerated} onOpenChange={setReviewGenerated} />}
+    {publishing && <WorldPublishDialog draft={publishing} stale={dirty || !!remote || conflict || saving || draft?.revision !== publishing.revision} onClose={() => setPublishing(null)} onPublished={async () => { await refresh(); toast({title:t('worlds.publishDone')}); }} />}
+    {target && <WorldRefineReview key={`${target.worldId}:${target.entryId}`} target={target} stale={refineStale} onClose={() => setTarget(null)} onGenerate={async instruction => {
       if (!latest.current.editor.canAct() || latest.current.id !== target.worldId || latest.current.editor.draft?.revision !== target.revision) throw new Error(t("worlds.refineStale"));
-      const result = await api.worlds.refineField(id, target.moduleKey, target.fieldKey, target.original, instruction);
+      const result = await api.worlds.refineEntry(id, target.entryId, target.original, instruction);
       void refreshProfile();
-      const text = result?.result || result?.content || result?.resultText;
+      const text = result?.result;
       if (typeof text !== "string" || !text.trim()) throw new Error("WORLD_EMPTY_CANDIDATE");
       return text;
-    }} onAccept={text => { if (!refineStale) { updateField(target.moduleKey, target.fieldKey, text); setTarget(null); } }} />}
+    }} onAccept={text => { if (!refineStale) { updateEntry(target.entryId, text); setTarget(null); } }} />}
   </div>;
 };
 

@@ -53,6 +53,7 @@ public class AiModelConfigurationService {
                 m.setSupportsStreaming(true);m.setAvailable(jdbc.queryForObject("select count(*) from ai_model_catalog_state where id=1 and last_success_at is not null",Integer.class)==0);return models.saveAndFlush(m);
             });
             for(var feature:AiFeatures.all()) {
+                if(feature.key().startsWith("world.entry."))continue;
                 if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,feature.key())>0) continue;
                 String id=UUID.randomUUID().toString();
                 jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,true,0,?)",
@@ -109,7 +110,9 @@ public class AiModelConfigurationService {
     }
     public FeatureView feature(String key,User user) {
         var definition=AiFeatures.require(key);
-        var row=jdbc.queryForMap("select billing_enabled,configuration_revision,default_option_id from task_model_routing where task_type=?",key);
+        var rows=jdbc.queryForList("select billing_enabled,configuration_revision,default_option_id from task_model_routing where task_type=?",key);
+        if(rows.isEmpty())return new FeatureView(definition,0,true,null,null,false,List.of(),List.of());
+        var row=rows.getFirst();
         Object enabled=row.get("billing_enabled");
         boolean bill=Boolean.TRUE.equals(enabled)||(enabled instanceof Number n&&n.intValue()!=0)||(enabled instanceof byte[] bytes&&bytes.length>0&&bytes[0]!=0);
         long revision=((Number)row.get("configuration_revision")).longValue();
@@ -145,12 +148,15 @@ public class AiModelConfigurationService {
                 selections.add(new AiModelSelection(key,option.id(),m.getModelKey(),option.label().strip(),option.thinkingMode(),option.thinkingEffort(),m.isSupportsStreaming(),request.billingEnabled(),request.billingEnabled()?option.pricingMode():"TOKENS",option.fixedCredits(),option.inputPer1k(),option.outputPer1k(),prior.revision()+1));
             }
             if(!ids.contains(request.defaultOptionId())) throw error("AI_DEFAULT_OPTION_INVALID");
+            var primary=selections.stream().filter(v->v.optionId().equals(request.defaultOptionId())).findFirst().orElseThrow();
+            if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,key)==0)
+                jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,?,0,?)",
+                    bytes(UUID.randomUUID()),key,bytes(models.findByModelKey(primary.modelKey()).orElseThrow().getId()),Timestamp.from(Instant.now()),Timestamp.from(Instant.now()),request.billingEnabled(),request.defaultOptionId());
             jdbc.update("update ai_model_options set active=false where task_type=?",key);
             int index=0;for(var selected:selections) {
                 jdbc.update("delete from ai_model_options where id=? and task_type=?",selected.optionId(),key);
                 insertOption(selected,models.findByModelKey(selected.modelKey()).orElseThrow().getId(),index++);
             }
-            var primary=selections.stream().filter(v->v.optionId().equals(request.defaultOptionId())).findFirst().orElseThrow();
             jdbc.update("update task_model_routing set billing_enabled=?,configuration_revision=configuration_revision+1,default_option_id=?,recommended_model_id=?,fallback_model_id=null,updated_at=? where task_type=?",request.billingEnabled(),request.defaultOptionId(),bytes(models.findByModelKey(primary.modelKey()).orElseThrow().getId()),Timestamp.from(Instant.now()),key);
             jdbc.update("update ai_model_catalog_state set revision=revision+1 where id=1");
             return feature(key,null);

@@ -40,7 +40,7 @@ class AssistantWorkflowTest {
     WritingAssistantService.Frozen frozen;
     @BeforeEach void setup()throws Exception{
         ReflectionTestUtils.setField(user,"id",UUID.randomUUID());
-        context=new AssistantContext(json,mock(ManuscriptContentService.class),mock(NarrativeContextService.class),mock(com.ainovel.app.story.repo.CharacterCardRepository.class),mock(com.ainovel.app.world.repo.WorldRepository.class));
+        context=new AssistantContext(json,mock(ManuscriptContentService.class),mock(NarrativeContextService.class),mock(com.ainovel.app.story.repo.CharacterCardRepository.class),mock(com.ainovel.app.world.WorldBindingService.class));
         var admission=new AiAdmissionGuard(mock(StringRedisTemplate.class),json,64,20000,100000,20,2,32);
         prompts=new AssistantPrompts(json,admission);
         service=new WritingAssistantService(store,mock(ResourceAccessGuard.class),mock(ManuscriptRepository.class),mock(ManuscriptContentService.class),mock(ManuscriptService.class),mock(NarrativeContextService.class),context,prompts,mock(AiOperationService.class),ai,json,mock(V2VersionPersistenceService.class),mock(ApplicationEventPublisher.class),mock(LanguageFeature.class));

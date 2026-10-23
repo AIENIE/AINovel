@@ -9,6 +9,12 @@ import static org.mockito.Mockito.mock;
 class AiActionPlannerTest {
     private final ObjectMapper json=new ObjectMapper();
     private final AiActionPlanner planner=new AiActionPlanner(mock(JdbcTemplate.class),json);
+    @Test void publicationIsFreeAndEntryAiHasSeparateFeatures() {
+        assertThat(planner.features("/v1/worlds/id/publish",json.createObjectNode())).isEmpty();
+        assertThat(planner.features("/v1/worlds/id/entries/entry/generate/operations",json.createObjectNode())).containsExactly("world.entry.generate");
+        assertThat(planner.features("/v1/worlds/id/entries/entry/refine",json.createObjectNode())).containsExactly("world.entry.refine");
+        assertThat(planner.features("/v1/worlds/id/publish/operations",json.createObjectNode())).hasSize(9).doesNotContain("world.entry.generate");
+    }
     @Test void reviewedPlotAdoptionNeverQuotesOrInvokesSlopAndWholeDraftRepairIsRetired() {
         assertThat(planner.features("/v2/manuscripts/id/plot-quality-runs/run/apply-revision",json.createObjectNode())).isEmpty();
         assertThat(planner.candidate("POST","/v2/manuscripts/id/plot-quality-runs/run/apply-revision")).isFalse();
@@ -34,9 +40,9 @@ class AiActionPlannerTest {
         assertThat(planner.features("/v2/manuscripts/id/quality-runs/language/report/issues/issue/suggestions/operations",json.createObjectNode())).containsExactly("language.revise","language.review");
         assertThat(planner.features("/v2/manuscripts/id/scenes/id/citations",json.createObjectNode())).isEmpty();
     }
-    @Test void automaticCreationQuotesAllItsChildJobsButManualDraftCreationDoesNot() throws Exception {
+    @Test void automaticCreationQuotesOnlyUntilWorldPublicationAndManualDraftCreationDoesNot() throws Exception {
         assertThat(planner.candidate("POST","/v1/creation-workflows")).isTrue();
-        assertThat(planner.features("/v1/creation-workflows",json.readTree("{\"autoRun\":true}"))).contains("guided.premise","guided.world","guided.characters","guided.outline","guided.json_repair").doesNotContain("guided.outline_develop","guided.outline_rewrite");
+        assertThat(planner.features("/v1/creation-workflows",json.readTree("{\"autoRun\":true}"))).containsExactly("guided.premise","guided.world","guided.json_repair");
         assertThat(planner.features("/v1/creation-workflows",json.readTree("{\"autoRun\":false}"))).isEmpty();
     }
     @Test void outlineRewriteHasItsOwnConfiguredStepAndInvalidIntentIsAClientError() throws Exception {

@@ -35,6 +35,7 @@ import java.util.UUID;
 
 @Service
 public class ManuscriptService {
+    @Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
     @Autowired(required=false)
     private com.ainovel.app.quality.language.LanguageQualityService languageQuality;
     @Autowired(required=false)
@@ -163,6 +164,11 @@ public class ManuscriptService {
 
     public SceneOutcome generateSceneOutcome(UUID manuscriptId,UUID sceneId,GenerationMode mode,
             com.ainovel.app.quality.language.LanguageStandard.Selection frozenLanguage) {
+        return generateSceneOutcome(manuscriptId,sceneId,mode,frozenLanguage,null,false);
+    }
+    public SceneOutcome generateSceneOutcome(UUID manuscriptId,UUID sceneId,GenerationMode mode,
+            com.ainovel.app.quality.language.LanguageStandard.Selection frozenLanguage,
+            com.ainovel.app.world.WorldBindingService.Frozen admittedWorld,boolean requireHistoricalInput) {
         GenerationSnapshot snapshot = Objects.requireNonNull(transactionTemplate.execute(status -> {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId)
                     .orElseThrow(() -> new BusinessException("稿件不存在"));
@@ -178,15 +184,23 @@ public class ManuscriptService {
                 snapshot.manuscript(),
                 sceneId,
                 snapshot.sections(),
-                mode, languageSelection
+                mode, languageSelection, admittedWorld, requireHistoricalInput
         );
         if(generation.needsReview()) {
             com.ainovel.app.aioperation.SceneGenerationProgress.report("待作者确认",2);
             return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> sceneOutcome(manuscriptId,sceneId,generation,null));
         }
         return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() ->
-                Objects.requireNonNull(transactionTemplate.execute(status -> sceneOutcome(manuscriptId,sceneId,generation,
-                        saveGenerated(manuscriptId,sceneId,snapshot.version(),snapshot.manuscript().getCurrentBranchId(),mode,generation,languageSelection,true)))));
+            Objects.requireNonNull(transactionTemplate.execute(status -> {
+                var current=ownedManuscript(manuscriptId);var binding=worldBindings.lockCurrent(current);
+                var manifest=generation.metadata()==null?null:generation.metadata().contextManifest();
+                boolean outdated=manifest!=null&&manifest.isolationStamp()==null&&
+                    (!worldBindings.same(manifest.worldBinding(),binding)||manifest.boundWorldId()!=null&&manifest.worldBinding()==null);
+                if(outdated)return sceneOutcome(manuscriptId,sceneId,new SceneGenerationService.GenerationResult(generation.html(),generation.metadata(),generation.candidateIds(),
+                    generation.minHan(),generation.maxHan(),generation.actualHan(),true,"WORLD_BINDING_CHANGED"),null);
+                return sceneOutcome(manuscriptId,sceneId,generation,
+                    saveGenerated(manuscriptId,sceneId,snapshot.version(),snapshot.manuscript().getCurrentBranchId(),mode,generation,languageSelection,true));
+            })));
     }
 
     private SceneOutcome sceneOutcome(UUID manuscriptId,UUID sceneId,SceneGenerationService.GenerationResult generation,ManuscriptDto saved) {

@@ -39,6 +39,7 @@ public class AiQuoteService {
             var selections=new LinkedHashMap<String,AiModelSelection>();List<QuoteStep> steps=new ArrayList<>();
             for(var step:plan.steps()) {
                 var feature=config.feature(step.featureKey(),user);
+                if(feature.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
                 String requested=request.selections()==null?null:request.selections().get(step.featureKey());
                 if(!feature.billingEnabled()) requested=feature.defaultOptionId();
                 else if(requested==null) {
@@ -54,7 +55,7 @@ public class AiQuoteService {
             String id=UUID.randomUUID().toString();Instant expires=Instant.now().plusSeconds(600);
             jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,expires_at) values(?,?,?,?,?,?,?,?,?)",
                     id,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),revision,
-                    config.write(new AiSelectionContext.Snapshot(id,selections,plan.businessScope(),budgets(plan))),Timestamp.from(expires));
+                    config.write(new AiSelectionContext.Snapshot(id,selections,plan.businessScope(),budgets(plan),plan.worldInput())),Timestamp.from(expires));
             return new View(id,expires,List.copyOf(steps),steps.stream().mapToLong(QuoteStep::estimatedCredits).sum());
         });
     }
@@ -77,11 +78,12 @@ public class AiQuoteService {
                 var plan=planner.plan(user,target,body);var values=new LinkedHashMap<String,AiModelSelection>();
                 for(var step:plan.steps()) {
                     var f=config.feature(step.featureKey(),user);
+                    if(f.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
                     if(f.billingEnabled())throw new ApiStatusException(HttpStatus.PRECONDITION_REQUIRED,"AI_QUOTE_REQUIRED");
                     var selected=f.options().stream().filter(v->v.optionId().equals(f.defaultOptionId())&&!f.unavailableOptions().contains(v.optionId())).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
                     values.put(step.featureKey(),selected);
                 }
-                var snapshot=new AiSelectionContext.Snapshot(receipt==null?UUID.randomUUID().toString():receipt,values,plan.businessScope(),budgets(plan));
+                var snapshot=new AiSelectionContext.Snapshot(receipt==null?UUID.randomUUID().toString():receipt,values,plan.businessScope(),budgets(plan),plan.worldInput());
                 if(receipt!=null)jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,accepted_request_key,expires_at) values(?,?,?,?,?,?,?,?,?,?)",
                         receipt,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),config.revision(),config.write(snapshot),requestKey,Timestamp.from(Instant.now()));
                 return snapshot;

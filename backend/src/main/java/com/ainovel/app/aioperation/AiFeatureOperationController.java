@@ -27,6 +27,7 @@ public class AiFeatureOperationController {
     private final com.ainovel.app.quality.language.LanguageFeature languageFeature;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.quality.SlopDiagnosticService slopDiagnostic;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
 
     public AiFeatureOperationController(AiOperationService operations, CurrentUserResolver users,
                                         ResourceAccessGuard accessGuard, OutlineService outlines,
@@ -81,6 +82,14 @@ public class AiFeatureOperationController {
         return worldTasks.generatedResults(users.require(principal), worldId, operationId);
     }
 
+    @PostMapping("/v1/worlds/{worldId}/entries/{entryId}/generate/operations")
+    public ResponseEntity<AiOperationDtos.Accepted> generateEntry(@AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID worldId,@PathVariable UUID entryId,@RequestHeader("Idempotency-Key") String key,
+            @RequestBody com.ainovel.app.world.WorldDraftDtos.EntryAi request) {
+        return accepted(users.require(principal),"WORLD_ENTRY","WORLD",worldId,entryId,null,
+            worldTasks.freezeEntry(worldId,entryId,request.expectedRevision()),2,"准备世界条目",key);
+    }
+
     @PostMapping("/v1/manuscripts/{manuscriptId}/scenes/{sceneId}/generate/operations")
     public ResponseEntity<AiOperationDtos.Accepted> generateScene(@AuthenticationPrincipal UserDetails principal,
                                                                   @PathVariable UUID manuscriptId,
@@ -91,7 +100,8 @@ public class AiFeatureOperationController {
         var manuscript=accessGuard.requireOwnedManuscript(manuscriptId, user);
         var language=languageFeature.selection(manuscript.getOutline().getStory().getId());
         GenerationMode parsed = "crafted".equalsIgnoreCase(mode) ? GenerationMode.CRAFTED : GenerationMode.FAST;
-        return accepted(user, "SCENE_GENERATION", "MANUSCRIPT", manuscriptId, sceneId, parsed.name(), language, 5, "准备场景上下文", idempotencyKey);
+        return accepted(user, "SCENE_GENERATION", "MANUSCRIPT", manuscriptId, sceneId, parsed.name(),
+            new com.ainovel.app.manuscript.SceneGenerationService.Admission(language,worldBindings.input(manuscript)),5,"准备场景上下文",idempotencyKey);
     }
 
     @PostMapping("/v2/manuscripts/{manuscriptId}/scenes/{sceneId}/quality-runs/operations")
@@ -135,7 +145,7 @@ public class AiFeatureOperationController {
                                                               UUID primaryId, UUID secondaryId, String mode,
                                                               Object request, int total, String step, String idempotencyKey) {
         var payload = new CoreAiOperationHandler.CorePayload(action, primaryId, secondaryId, mode,
-                request == null ? null : objectMapper.valueToTree(request), "SCENE_GENERATION".equals(action)?2:null);
+                request == null ? null : objectMapper.valueToTree(request), "SCENE_GENERATION".equals(action)?3:null);
         return ResponseEntity.accepted().body(operations.submit(user, CoreAiOperationHandler.TYPE,
                 scopeType, primaryId, payload, total, step, idempotencyKey));
     }

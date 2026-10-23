@@ -25,7 +25,14 @@ class LanguageGenerationProfileTest {
         var selection=new LanguageStandard.Selection("zh-naturalness-v2",true,false);
         var m=UUID.randomUUID();var scene=UUID.randomUUID();
         handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(selection),2)));
-        verify(manuscripts).generateSceneOutcome(m,scene,GenerationMode.FAST,selection);
+        verify(manuscripts).generateSceneOutcome(m,scene,GenerationMode.FAST,selection,null,true);
+    }
+    @Test void newTaskKeepsAdmittedWorldIdentityIncludingAnExplicitlyUnboundInput() throws Exception {
+        var selection=new LanguageStandard.Selection("zh-naturalness-v2",true,false);
+        var world=new com.ainovel.app.world.WorldBindingService.Frozen(null);
+        var m=UUID.randomUUID();var scene=UUID.randomUUID();
+        handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(new SceneGenerationService.Admission(selection,world)),3)));
+        verify(manuscripts).generateSceneOutcome(m,scene,GenerationMode.FAST,selection,world,false);
     }
     @Test void oldUnknownPayloadCannotSilentlyStartCurrentProfile() throws Exception {
         assertThrows(com.ainovel.app.common.ApiStatusException.class,()->handler.execute(execution(

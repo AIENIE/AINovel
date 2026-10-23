@@ -94,6 +94,19 @@ class AiModelConfigurationMysqlTest {
         return quotes.accept(user,"/v1/ai/chat",json.valueToTree(Map.of("messages",List.of(Map.of("role","user","content","hello")))),q.id(),key);
     }
     private AiChatRequest request(String content) {return new AiChatRequest(List.of(new AiChatRequest.Message("user",content)),null,null).forFeature("generic.chat");}
+    @Test void newWorldEntryStepsRemainUnconfiguredUntilExplicitlySaved() {
+        for(String key:List.of("world.entry.generate","world.entry.refine")) {
+            assertThat(config.feature(key,user).options()).isEmpty();
+            assertThat(config.feature(key,user).defaultOptionId()).isNull();
+            String id=UUID.randomUUID().toString();
+            var option=new AiModelConfigurationService.OptionInput(id,"model-a","条目模型","DEFAULT",null,"FIXED",2L,null,null);
+            var saved=config.update(key,new AiModelConfigurationService.FeatureUpdate(0,true,id,List.of(option)));
+            assertThat(saved.revision()).isEqualTo(1);assertThat(saved.options()).hasSize(1);
+            assertThat(saved.defaultOptionId()).isEqualTo(id);
+            jdbc.update("delete from ai_model_options where task_type=?",key);
+            jdbc.update("delete from task_model_routing where task_type=?",key);
+        }
+    }
     @Test void paidRequiresAQuoteAndAcceptedSelectionSurvivesPriceChangeAndExpiry() {
         assertThatThrownBy(()->quotes.accept(user,"/v1/ai/chat",json.createObjectNode(),null,"key")).hasMessage("AI_QUOTE_REQUIRED");
         var q=quote();var snapshot=accept(q,"same-request");

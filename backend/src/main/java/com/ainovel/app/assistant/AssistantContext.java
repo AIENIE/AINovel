@@ -7,7 +7,7 @@ import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
 import com.ainovel.app.narrative.*;
 import com.ainovel.app.story.repo.CharacterCardRepository;
 import com.ainovel.app.story.model.SceneLengthRange;
-import com.ainovel.app.world.repo.WorldRepository;
+import com.ainovel.app.world.WorldBindingService;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.*;
 import org.springframework.http.HttpStatus;
@@ -25,13 +25,16 @@ public class AssistantContext {
     private final ManuscriptContentService contents;
     private final NarrativeContextService narrative;
     private final CharacterCardRepository characters;
-    private final WorldRepository worlds;
+    private final WorldBindingService worlds;
     public AssistantContext(ObjectMapper json,ManuscriptContentService contents,NarrativeContextService narrative,
-            CharacterCardRepository characters,WorldRepository worlds){this.json=json;this.contents=contents;this.narrative=narrative;this.characters=characters;this.worlds=worlds;}
+            CharacterCardRepository characters,WorldBindingService worlds){this.json=json;this.contents=contents;this.narrative=narrative;this.characters=characters;this.worlds=worlds;}
     public record Snapshot(boolean h2,NarrativeContextDtos.Stamp stamp,List<Source> base,List<Source> editPool,List<Source> authorPool,
             int minHan,int maxHan) {}
     public record Reads(String intent,List<Source> sources,List<String> warnings) {}
     public Snapshot freeze(User user,Manuscript m,UUID sceneId){
+        return freeze(user,m,sceneId,worlds.input(m));
+    }
+    private Snapshot freeze(User user,Manuscript m,UUID sceneId,WorldBindingService.Frozen input){
         var root=tree(m.getOutline().getContentJson());JsonNode selected=null;var prior=new ArrayList<Source>();
         boolean found=false;
         for(var chapter:ordered(root.path("chapters")))for(var scene:ordered(chapter.path("scenes"))){
@@ -46,8 +49,8 @@ public class AssistantContext {
         authorPool.add(source("story:"+story.getId(),"STORY","故事资料",Objects.toString(story.getTitle(),"")+"\n"+Objects.toString(story.getSynopsis(),""),null));
         authorPool.add(source("outline:"+m.getOutline().getId(),"OUTLINE","当前场景大纲",selected.toString(),null));
         for(var c:characters.findByStory(story))authorPool.add(source("character:"+c.getId(),"CHARACTER",c.getName(),Objects.toString(c.getSynopsis(),"")+"\n"+Objects.toString(c.getDetails(),"")+"\n"+Objects.toString(c.getRelationships(),""),null));
-        UUID worldId=id(m.getWorldId()==null?story.getWorldId():m.getWorldId());
-        if(worldId!=null)worlds.findById(worldId).filter(w->w.getUser()!=null&&w.getUser().getId().equals(user.getId())).ifPresent(w->authorPool.add(source("world:"+w.getId(),"WORLD",w.getName(),Objects.toString(w.getModulesJson(),"")+"\n"+Objects.toString(w.getNotes(),""),null)));
+        var world=worlds.requireUsable(input.binding());
+        if(world!=null)authorPool.add(source("world:"+world.versionId(),"WORLD",world.name(),worlds.render(world),null));
         boolean h2=narrative.enabled(m);NarrativeContextDtos.Stamp stamp=null;
         if(h2){
             var p=narrative.preview(user,m.getId(),m.getCurrentBranchId(),sceneId,NarrativeContextDtos.View.SCENE,null,BUDGET-350);
@@ -101,8 +104,8 @@ public class AssistantContext {
     public boolean sourcesCurrent(User user,Manuscript m,UUID sceneId,Snapshot frozen,List<Source> used){
         if(frozen.h2())return narrative.stampCurrent(user,frozen.stamp());
         Snapshot current;
-        try{current=freeze(user,m,sceneId);}catch(ApiStatusException e){
-            if(Set.of("ASSISTANT_SCENE_MISSING","H2_CONFIGURATION_REQUIRED","H2_VIEWPOINT_REQUIRED","H2_REQUIRED_CONTEXT_TOO_LARGE").contains(e.getMessage()))return false;
+        try{current=freeze(user,m,sceneId,worlds.freeze(m));}catch(ApiStatusException e){
+            if(Set.of("ASSISTANT_SCENE_MISSING","H2_CONFIGURATION_REQUIRED","H2_VIEWPOINT_REQUIRED","H2_REQUIRED_CONTEXT_TOO_LARGE","WORLD_BINDING_UNRESOLVED").contains(e.getMessage()))return false;
             throw e;
         }
         var hashes=new HashMap<String,String>();

@@ -44,6 +44,50 @@ class WorldTaskRecoveryTests {
     @Autowired private UserRepository users;
     @Autowired private ObjectMapper json;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private com.ainovel.app.world.WorldVersionService versions;
+    @Autowired private com.ainovel.app.world.WorldEntryAiService entryAi;
+
+    @Test @WithMockUser(username="world_schema_one")
+    void frozenW1TaskKeepsItsSchemaAndSavedOutputWhenResumingAfterMigration() throws Exception {
+        var user=user("world_schema_one");var world=world(user);
+        var operation=operation(user,world,"WORLD_MODULE","geography",false);
+        String input="{\"name\":\"潮汐城\",\"tagline\":\"随潮水迁徙的城市\",\"themes\":[\"代价\"],\"creativeIntent\":\"寻找定居的可能\",\"notes\":null,\"modules\":{}}";
+        String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        var state=new WorldTaskService.WorldTaskState(1,hash,List.of("geography"),Map.of("geography",Map.of("terrain","W1 已生成地形")),List.of());
+        operation.setPayloadJson(json.writeValueAsString(new CoreAiOperationHandler.CorePayload("WORLD_MODULE",world.id(),null,"geography",json.valueToTree(state))));operations.saveAndFlush(operation);
+        when(ai.refine(any(),any())).thenReturn(output("恢复生成"));
+        var result=execute(operation,user);
+        assertEquals("W1 已生成地形",result.modules().get("geography").get("terrain"));verify(ai,times(2)).refine(any(),any());
+        assertEquals(1,json.readTree(operations.findById(operation.getId()).orElseThrow().getPayloadJson()).path("request").path("schemaVersion").asInt());
+        assertTrue(versions.list(world.id()).isEmpty());
+    }
+
+    @Test @WithMockUser(username="world_entry_ai")
+    void entryAiKeepsFeatureIdentityAndNeverOverwritesChangedDrafts() throws Exception {
+        var user=user("world_entry_ai");var world=world(user);var id=UUID.randomUUID();
+        var entry=new com.ainovel.app.world.WorldDraftDtos.Entry(id,"LOCATION","退潮港","","",List.of(),List.of(),null,null);
+        var draft=versions.save(world.id(),new com.ainovel.app.world.WorldDraftDtos.Save(null,List.of(entry),List.of(),world.revision()));
+        var operation=operation(user,world,"WORLD_ENTRY",null,false);
+        operation.setPayloadJson(json.writeValueAsString(new CoreAiOperationHandler.CorePayload("WORLD_ENTRY",world.id(),id,null,
+            json.valueToTree(tasks.freezeEntry(world.id(),id,draft.world().revision())))));
+        operations.saveAndFlush(operation);
+        when(ai.refine(any(),any())).thenAnswer(call->{
+            assertEquals("world.entry.generate",((AiRefineRequest)call.getArgument(1)).featureKey());
+            worlds.update(world.id(),new WorldUpdateRequest(null,null,null,null,"作者在调用期间修改"));
+            return output("只在退潮时开放的港口");
+        });
+        assertThrows(ApiStatusException.class,()->execute(operation,user));
+        assertEquals("",versions.draft(world.id()).entries().getFirst().content());
+        assertEquals("只在退潮时开放的港口",tasks.generatedResults(user,world.id(),operation.getId()).modules().get("entry").get(id.toString()));
+        assertThrows(ApiStatusException.class,()->execute(operation,user));verify(ai,times(1)).refine(any(),any());
+        reset(ai);when(ai.refine(any(),any())).thenReturn(output("候选正文"));
+        var candidate=entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","增加细节",null));
+        assertEquals("候选正文",candidate.result());assertEquals("",versions.draft(world.id()).entries().getFirst().content());
+        verify(ai).refine(any(),argThat(r->r.featureKey().equals("world.entry.refine")));
+        when(ai.refine(any(),any())).thenReturn(output(" "));
+        assertThrows(ApiStatusException.class,()->entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","",null)));
+        assertEquals("",versions.draft(world.id()).entries().getFirst().content());
+    }
 
     @Test
     @WithMockUser(username = "world_recover_fields")
