@@ -35,6 +35,10 @@ public class World {
     private String modulesJson; // moduleKey -> fields map
     @Lob @Column(columnDefinition = "LONGTEXT")
     private String legacyModulesJson;
+    @Lob @Column(columnDefinition = "LONGTEXT")
+    private String overview;
+    public String getOverview() { return overview; }
+    public void setOverview(String value) { overview = value; }
     private String draftContentHash;
     public String getLegacyModulesJson() { return legacyModulesJson; }
     public void setLegacyModulesJson(String value) { legacyModulesJson = value; }

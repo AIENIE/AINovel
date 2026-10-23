@@ -11,7 +11,12 @@ public final class WorldDraftDtos {
     public record Relation(UUID id, UUID sourceId, UUID targetId, String type, String description) {}
     public record Content(String name, String tagline, List<String> themes, String creativeIntent, String notes,
                           List<Entry> entries, List<Relation> relations, Map<String, Map<String,String>> modules,
-                          String legacyModulesJson) {}
+                          String legacyModulesJson,
+                          @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY) String overview) {
+        public Content(String name,String tagline,List<String> themes,String creativeIntent,String notes,List<Entry> entries,List<Relation> relations,Map<String,Map<String,String>> modules,String legacyModulesJson) {
+            this(name,tagline,themes,creativeIntent,notes,entries,relations,modules,legacyModulesJson,null);
+        }
+    }
     public record Version(UUID id, UUID worldId, int sequenceNumber, String origin, String legacyVersion,
                           long draftRevision, String contentHash, String releaseNote, Instant createdAt, Content content) {}
     public record Draft(WorldDetailDto world, List<Entry> entries, List<Relation> relations, Version latestPublished,

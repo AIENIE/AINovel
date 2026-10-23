@@ -108,6 +108,7 @@ public class WorldService {
             if (request.themes() != null) current.setThemesJson(writeJson(request.themes()));
             if (request.creativeIntent() != null) current.setCreativeIntent(request.creativeIntent());
             if (request.notes() != null) current.setNotes(request.notes());
+            if (request.overview() != null) current.setOverview(request.overview());
         });
         worldRepository.saveAndFlush(world);
         return toDetail(world);
@@ -345,7 +346,7 @@ public class WorldService {
                 entryStore.projection(entryStore.entries(world)),
                 readProgress(world.getModuleProgressJson()),
                 world.getUpdatedAt(),
-                world.getRevision()
+                world.getRevision(), world.getOverview()
         );
     }
 

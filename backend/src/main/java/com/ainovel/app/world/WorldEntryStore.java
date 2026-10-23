@@ -45,7 +45,7 @@ public class WorldEntryStore {
     public Content content(World world) {
         var items=entries(world);
         return new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),
-            world.getNotes(),items,relations(world.getId()),projection(items),world.getLegacyModulesJson());
+            world.getNotes(),items,relations(world.getId()),projection(items),world.getLegacyModulesJson(),world.getOverview());
     }
     public Map<String,Map<String,String>> projection(List<Entry> items) {
         var result=new TreeMap<String,Map<String,String>>();
@@ -103,7 +103,7 @@ public class WorldEntryStore {
         if(world.getLegacyModulesJson()==null)world.setLegacyModulesJson(world.getModulesJson());
         metadata.accept(world);
         world.setModulesJson(write(projection(normalized)));
-        world.setDraftContentHash(hash(new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),world.getNotes(),normalized,links,projection(normalized),world.getLegacyModulesJson())));
+        world.setDraftContentHash(hash(new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),world.getNotes(),normalized,links,projection(normalized),world.getLegacyModulesJson(),world.getOverview())));
     }
     public List<Entry> legacyEntries(UUID worldId,Map<String,Map<String,String>> modules) {
         var result=new ArrayList<Entry>();
@@ -140,7 +140,7 @@ public class WorldEntryStore {
     public String hash(Content value) {
         var sorted=new Content(value.name(),value.tagline(),value.themes(),value.creativeIntent(),value.notes(),
             value.entries().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),
-            value.relations().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),value.modules(),value.legacyModulesJson());
+            value.relations().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),value.modules(),value.legacyModulesJson(),value.overview());
         try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json.writer().with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).writeValueAsBytes(sorted)));}
         catch(Exception e){throw new IllegalStateException(e);}
     }

@@ -60,7 +60,7 @@ public class WorldBindingService {
         requireUsable(value);if(value==null)return "";
         var c=value.content();
         return "世界="+c.name()+"\n版本="+value.versionId()+"\n来源="+value.sourceType()+"\n简介="+Objects.toString(c.tagline(),"")
-            +"\n创作意图="+Objects.toString(c.creativeIntent(),"")+"\n主题="+store.write(c.themes())
+            +"\n世界概览="+Objects.toString(c.overview(),"")+"\n创作意图="+Objects.toString(c.creativeIntent(),"")+"\n主题="+store.write(c.themes())
             +"\n条目="+store.write(c.entries())+"\n关系="+store.write(c.relations())+"\n备注="+Objects.toString(c.notes(),"");
     }
     private Resolved resolved(Story story,String rawWorld,UUID versionId,String source,UUID sourceId,long revision) {

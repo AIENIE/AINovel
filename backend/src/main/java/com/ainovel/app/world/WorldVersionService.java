@@ -40,6 +40,7 @@ public class WorldVersionService {
             if(m.themes()!=null)world.setThemesJson(store.write(m.themes()));
             if(m.creativeIntent()!=null)world.setCreativeIntent(m.creativeIntent());
             if(m.notes()!=null)world.setNotes(m.notes());
+            if(m.overview()!=null)world.setOverview(m.overview());
         }
         });
         worlds.saveAndFlush(world);
@@ -107,7 +108,7 @@ public class WorldVersionService {
     }
     private Map<String,Object> metadata(Content c) {
         var result=new LinkedHashMap<String,Object>();result.put("name",c.name());result.put("tagline",c.tagline());
-        result.put("themes",c.themes());result.put("creativeIntent",c.creativeIntent());result.put("notes",c.notes());return result;
+        result.put("themes",c.themes());result.put("creativeIntent",c.creativeIntent());result.put("notes",c.notes());result.put("overview",Objects.toString(c.overview(),""));return result;
     }
     public Version dto(WorldVersion v,boolean content) {
         return new Version(v.getId(),v.getWorldId(),v.getSequenceNumber(),v.getOrigin(),v.getLegacyVersion(),v.getDraftRevision(),

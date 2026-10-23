@@ -72,7 +72,7 @@ public class SettingsService {
     public WorldPromptTemplatesResponse getWorldPromptTemplates(User user) {
         WorldPromptTemplatesEntity entity = worldPromptTemplatesRepository.findByUser(user)
                 .orElseGet(() -> worldPromptTemplatesRepository.save(defaultWorldPrompts(user)));
-        return new WorldPromptTemplatesResponse(jsonToMap(entity.getModulesJson()), jsonToMap(entity.getFinalTemplatesJson()), entity.getFieldRefine());
+        return new WorldPromptTemplatesResponse(jsonToMap(entity.getModulesJson()), jsonToMap(entity.getFinalTemplatesJson()), entity.getFieldRefine(), worldActions(entity));
     }
 
     @Transactional
@@ -82,6 +82,7 @@ public class SettingsService {
         if (request.modules() != null) entity.setModulesJson(mapToJson(request.modules()));
         if (request.finalTemplates() != null) entity.setFinalTemplatesJson(mapToJson(request.finalTemplates()));
         if (request.fieldRefine() != null) entity.setFieldRefine(request.fieldRefine());
+        if (request.actions() != null) entity.setActionTemplatesJson(mapToJson(request.actions()));
         worldPromptTemplatesRepository.save(entity);
         return getWorldPromptTemplates(user);
     }
@@ -94,6 +95,7 @@ public class SettingsService {
         entity.setModulesJson(defaults.getModulesJson());
         entity.setFinalTemplatesJson(defaults.getFinalTemplatesJson());
         entity.setFieldRefine(defaults.getFieldRefine());
+        entity.setActionTemplatesJson(defaults.getActionTemplatesJson());
         worldPromptTemplatesRepository.save(entity);
         return getWorldPromptTemplates(user);
     }
@@ -140,20 +142,13 @@ public class SettingsService {
 
     public WorldPromptMetadataResponse getWorldPromptMetadata() {
         return new WorldPromptMetadataResponse(
-                java.util.List.of(
-                        new WorldPromptMetadataResponse.Variable("worldName", "string", "世界名称"),
-                        new WorldPromptMetadataResponse.Variable("themes", "string", "世界主题"),
-                        new WorldPromptMetadataResponse.Variable("creativeIntent", "string", "创作意图"),
-                        new WorldPromptMetadataResponse.Variable("moduleName", "string", "当前模块名称"),
-                        new WorldPromptMetadataResponse.Variable("fieldLabel", "string", "当前字段名称")
-                ),
-                java.util.List.of(
-                        new WorldPromptMetadataResponse.FunctionItem("history", "获取历史时间线", "{{fn:history worldId}}")
-                ),
+                com.ainovel.app.world.WorldPromptRenderer.variables(),
+                java.util.List.of(),
                 java.util.List.of(
                         new WorldPromptMetadataResponse.Module("geography", "地理环境", java.util.List.of(
                                 new WorldPromptMetadataResponse.ModuleField("terrain", "地形地貌", 150),
-                                new WorldPromptMetadataResponse.ModuleField("climate", "气候特征", 120)
+                                new WorldPromptMetadataResponse.ModuleField("climate", "气候特征", 120),
+                                new WorldPromptMetadataResponse.ModuleField("locations", "重要地点", 150)
                         )),
                         new WorldPromptMetadataResponse.Module("society", "社会体系", java.util.List.of(
                                 new WorldPromptMetadataResponse.ModuleField("politics", "政治体制", 150),
@@ -192,6 +187,11 @@ public class SettingsService {
         entity.setFinalTemplatesJson(mapToJson(Map.of()));
         entity.setFieldRefine("优化世界观字段表述");
         return entity;
+    }
+
+    private Map<String,String> worldActions(WorldPromptTemplatesEntity entity) {
+        var result=new java.util.LinkedHashMap<>(com.ainovel.app.world.WorldPromptRenderer.DEFAULTS);
+        result.putAll(jsonToMap(entity.getActionTemplatesJson()));return result;
     }
 
     private Map<String, String> jsonToMap(String json) {
