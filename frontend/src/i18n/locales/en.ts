@@ -17,7 +17,7 @@ export const en = {
   "world3.createFirst": "Create a topic to start building this world.",
   "world3.unconfirmed": "Discussion material · unconfirmed",
   "world3.partialRead": "Only the displayed sources were read; this was not a whole-world review.",
-  "world3.usage": "{{calls}} calls · ¥{{cost}}",
+  "world3.usage": "{{calls}} calls · {{cost}} project credits",
   "world3.proposeSuggestion": "Propose: {{title}}",
   "world3.propose": "Create proposals",
   "world3.send": "Discuss",

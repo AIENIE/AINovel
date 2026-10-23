@@ -62,6 +62,9 @@ public class WorldAssistantContext {
         blocks.add("作者任务："+frozen.intent()+"\n作者指令："+frozen.instruction()+"\n模板要求："+instructions);
         blocks.add("世界ID："+frozen.worldId()+"；草稿revision："+frozen.snapshot().revision());
         blocks.add("实际已读取资源：\n"+store.write(reads.sources()));
+        var readIds=reads.sources().stream().map(Source::id).collect(java.util.stream.Collectors.toSet());
+        blocks.add("已读资源的提案目标对照（sourceId用于引用来源；targetId用于修改目标及关系端点）："+store.write(frozen.snapshot().resources().stream()
+            .filter(r->readIds.contains(WorldAssistantResources.sourceId(r))).map(r->Map.of("sourceId",WorldAssistantResources.sourceId(r),"targetId",r.id(),"resourceType",r.type(),"fieldKey",Objects.toString(r.fieldKey(),""))).toList()));
         blocks.add("未读范围："+store.write(reads.warnings()));
         boolean single=frozen.intent().equals("ENTRY_REFINE")||frozen.intent().equals("OVERVIEW");
         if(!single) {
@@ -94,6 +97,7 @@ public class WorldAssistantContext {
         ENTRY字段仅type,title,summary,content,aliases,tags。type仅GEOGRAPHY/LOCATION/PERSON/ORGANIZATION/SPECIES/SOCIETY/RESOURCE/SYSTEM/RULE/HISTORY/CUSTOM。
         RELATION字段仅sourceId,targetId,type,description。METADATA只可UPDATE，targetId为世界ID，fieldKey为name/tagline/themes/creativeIntent/notes之一，fields为{"value":新值}；themes为字符串数组。
         OVERVIEW只可UPDATE，targetId为世界ID，fields为{"content":"完整概览"}。概览独立于来源条目，保留约束、代价与不确定性。
+        修改目标targetId以及指向已有条目的关系端点sourceId/targetId必须使用目标对照中的纯UUID，不能填写entry:UUID、metadata:UUID:field或其他来源ID。只有conflicts.sourceIds和read_source.sourceId使用带类型前缀的来源ID。
         UPDATE必须读到目标的完整资源，仅输出修改的字段，不能编造原文。CREATE ENTRY提供完整字段及唯一clientKey（短字符串），不提供targetId，服务器分配UUID。
         新关系可用 sourceId/targetId 填现有UUID或同批新增条目的clientKey；关系须等两端条目采纳后才能采纳。
         conflicts为潜在矛盾数组，每项含title,explanation,sourceIds（至少两个实际已读资源ID）。只报告有来源的潜在矛盾，不宣称完成全世界一致性检查。资料不足返回NEEDS_INPUT。

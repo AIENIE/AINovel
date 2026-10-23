@@ -17,7 +17,7 @@ export const zhTW = {
   "world3.createFirst": "新增一個話題，開始獨立構建世界。",
   "world3.unconfirmed": "討論材料 · 尚未確認",
   "world3.partialRead": "本次僅閱讀所展示來源，未檢查整個世界。",
-  "world3.usage": "{{calls}} 次呼叫 · ¥{{cost}}",
+  "world3.usage": "{{calls}} 次呼叫 · {{cost}} 專案積分",
   "world3.proposeSuggestion": "整理：{{title}}",
   "world3.propose": "整理提案",
   "world3.send": "傳送討論",

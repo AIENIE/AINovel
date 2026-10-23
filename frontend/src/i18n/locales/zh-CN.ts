@@ -17,7 +17,7 @@ export const zhCN = {
   "world3.createFirst": "新建一个话题，开始独立构建世界。",
   "world3.unconfirmed": "讨论材料 · 尚未确认",
   "world3.partialRead": "本次仅阅读了展示的来源，未对整个世界进行检查。",
-  "world3.usage": "{{calls}} 次调用 · ¥{{cost}}",
+  "world3.usage": "{{calls}} 次调用 · {{cost}} 项目积分",
   "world3.proposeSuggestion": "整理：{{title}}",
   "world3.propose": "整理提案",
   "world3.send": "发送讨论",
