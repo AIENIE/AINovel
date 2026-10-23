@@ -432,6 +432,7 @@ public class AiOperationService {
         run.setCompletedAt(Instant.now());
         boolean review = result instanceof com.ainovel.app.manuscript.ManuscriptService.SceneOutcome scene && "NEEDS_REVIEW".equals(scene.outcome())
                 || "WRITING_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> values && "PROPOSAL_READY".equals(values.get("outcome"))
+                || "WORLD_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> worldValues && "PROPOSALS".equals(worldValues.get("outcome"))
                 || "STORY_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> storyValues && "PROPOSALS".equals(storyValues.get("outcome"));
         run.setCurrentStep(review ? "待作者确认" : "已完成");
         releaseLeaseAndScope(run);

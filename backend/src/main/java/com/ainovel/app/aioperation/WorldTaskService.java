@@ -50,12 +50,12 @@ public class WorldTaskService {
                 return fields == null || fields.values().stream().noneMatch(v -> v != null && !v.isBlank());
             }).map(def -> def.key()).toList();
         }
-        return new WorldTaskState(2, worlds.contentHash(worldId), modules, Map.of(), List.of());
+        return new WorldTaskState(3, worlds.contentHash(worldId), modules, Map.of(), List.of(), entries.freezeModules(worldId,modules));
     }
 
     public WorldTaskState freezeEntry(UUID worldId,UUID entryId,Long revision) {
         entries.requireEmpty(worldId,entryId,revision);
-        return new WorldTaskState(2,worlds.contentHash(worldId),List.of("entry:"+entryId),Map.of(),List.of());
+        return new WorldTaskState(3,worlds.contentHash(worldId),List.of("entry:"+entryId),Map.of(),List.of(),Map.of("entry:"+entryId,entries.freezeRequest(worldId,entryId,revision)));
     }
 
     public WorldDetailDto execute(AiOperationExecution execution, CoreAiOperationHandler.CorePayload payload) {
@@ -102,7 +102,8 @@ public class WorldTaskService {
         if (payload.request() == null || payload.request().isNull()) throw missingBaseline();
         try {
             WorldTaskState state = json.treeToValue(payload.request(), WorldTaskState.class);
-            if ((state.schemaVersion() != 1 && state.schemaVersion() != 2) || state.expectedContentHash() == null || state.expectedContentHash().isBlank()
+            if ((state.schemaVersion() < 1 || state.schemaVersion() > 3) || state.expectedContentHash() == null || state.expectedContentHash().isBlank()
+                    || state.schemaVersion()==3&&state.requests()==null
                     || state.modules() == null || state.generatedFields() == null || state.appliedModules() == null)
                 throw missingBaseline();
             return state;
@@ -150,6 +151,10 @@ public class WorldTaskService {
             return state.schemaVersion()==1 ? fingerprint(world) : worlds.contentHash(world.id());
         }
 
+        @Override public com.ainovel.app.ai.dto.AiChatRequest request(String module,String field) {
+            if(state.schemaVersion()<3)return null;
+            var request=state.requests().get(module+":"+field);if(request==null)throw missingBaseline();return request;
+        }
         @Override public String field(String moduleKey, String fieldKey, Supplier<String> generate) {
             validate(worlds.get(original.primaryId()));
             String saved = state.generatedFields().getOrDefault(moduleKey, Map.of()).get(fieldKey);
@@ -161,7 +166,7 @@ public class WorldTaskService {
             fields.put(fieldKey, output);
             generated.put(moduleKey, fields);
             AiOperationExecutionContext.apply(() -> transactions.execute(status -> {
-                persist(new WorldTaskState(state.schemaVersion(), state.expectedContentHash(), state.modules(), generated, state.appliedModules()));
+                persist(new WorldTaskState(state.schemaVersion(), state.expectedContentHash(), state.modules(), generated, state.appliedModules(),state.requests()));
                 return null;
             }));
             validate(worlds.get(original.primaryId()));
@@ -172,7 +177,7 @@ public class WorldTaskService {
             List<String> applied = new ArrayList<>(state.appliedModules());
             applied.add(moduleKey);
             // The caller already holds the operation fence before locking/writing the world.
-            persist(new WorldTaskState(state.schemaVersion(), contentHash(updated), state.modules(), state.generatedFields(), applied));
+            persist(new WorldTaskState(state.schemaVersion(), contentHash(updated), state.modules(), state.generatedFields(), applied,state.requests()));
         }
 
         private void persist(WorldTaskState next) {
@@ -190,7 +195,9 @@ public class WorldTaskService {
                                 Map<String, Map<String, String>> modules) { }
 
     public record WorldTaskState(int schemaVersion, String expectedContentHash, List<String> modules,
-                                 Map<String, Map<String, String>> generatedFields, List<String> appliedModules) { }
+                                 Map<String, Map<String, String>> generatedFields, List<String> appliedModules, Map<String,com.ainovel.app.ai.dto.AiChatRequest> requests) {
+        public WorldTaskState(int schemaVersion,String hash,List<String> modules,Map<String,Map<String,String>> fields,List<String> applied) {this(schemaVersion,hash,modules,fields,applied,null);}
+    }
 
     public record GeneratedResults(UUID operationId, UUID worldId, Map<String, Map<String, String>> modules,
                                     List<String> appliedModules) { }

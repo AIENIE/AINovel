@@ -15,6 +15,12 @@ class AiActionPlannerTest {
         assertThat(planner.features("/v1/worlds/id/entries/entry/refine",json.createObjectNode())).containsExactly("world.entry.refine");
         assertThat(planner.features("/v1/worlds/id/publish/operations",json.createObjectNode())).hasSize(9).doesNotContain("world.entry.generate");
     }
+    @Test void worldDiscussionHasAtMostTwoStepsAndOverviewAndEntryRefineAreSingleCalls() throws Exception {
+        for(String intent:java.util.List.of("discuss","propose","refine"))assertThat(planner.features("/v1/worlds/id/assistant/turns",json.readTree("{\"intent\":\""+intent.toUpperCase()+"\"}"))).containsExactly("world_assistant."+intent+".plan","world_assistant."+intent+".final");
+        assertThat(planner.features("/v1/worlds/id/entries/entry/refine/operations",json.createObjectNode())).containsExactly("world.entry.refine");
+        assertThat(planner.features("/v1/worlds/id/overview/integrate/operations",json.createObjectNode())).containsExactly("world.overview.integrate");
+        assertThat(planner.candidate("POST","/v1/worlds/id/assistant/turns")).isTrue();
+    }
     @Test void reviewedPlotAdoptionNeverQuotesOrInvokesSlopAndWholeDraftRepairIsRetired() {
         assertThat(planner.features("/v2/manuscripts/id/plot-quality-runs/run/apply-revision",json.createObjectNode())).isEmpty();
         assertThat(planner.candidate("POST","/v2/manuscripts/id/plot-quality-runs/run/apply-revision")).isFalse();

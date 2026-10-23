@@ -21,4 +21,10 @@ class WorldOverviewContractTest {
         assertThrows(RuntimeException.class,()->WorldPromptRenderer.render("{notSupported}",Map.of()));
         assertThrows(RuntimeException.class,()->WorldPromptRenderer.render("{{fn:history worldId}}",Map.of()));
     }
+    @Test void oversizedOverviewStopsBeforeAnyAiCall() {
+        var admission=new com.ainovel.app.ai.AiAdmissionGuard(null,json,64,20000,100000,20,2,32);
+        var renderer=new WorldPromptRenderer(null,store,admission);
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->renderer.request("world rules",List.of("x".repeat(100001))));
+    }
+
 }

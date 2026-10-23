@@ -50,7 +50,11 @@ public class WorldPromptRenderer {
         return matcher.appendTail(result).toString();
     }
     public String instructions(User user,String action,Content content,Entry entry,String instruction,String text,String actualContext) {
-        var saved=settings.getWorldPromptTemplates(user);var values=new HashMap<String,String>();
+        return instructions(settings.getWorldPromptTemplates(user),action,content,entry,instruction,text,actualContext);
+    }
+    public com.ainovel.app.settings.dto.WorldPromptTemplatesResponse freeze(User user) { return settings.getWorldPromptTemplates(user); }
+    public String instructions(com.ainovel.app.settings.dto.WorldPromptTemplatesResponse saved,String action,Content content,Entry entry,String instruction,String text,String actualContext) {
+        var values=new HashMap<String,String>();
         values.put("worldName",Objects.toString(content.name(),""));values.put("themes",store.write(content.themes()));
         values.put("creativeIntent",Objects.toString(content.creativeIntent(),""));values.put("notes",Objects.toString(content.notes(),""));
         values.put("worldContext",actualContext);values.put("instruction",Objects.toString(instruction,""));values.put("text",Objects.toString(text,""));

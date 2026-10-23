@@ -31,7 +31,7 @@
 
 编辑器以条目目录和详情组织内容，支持类型、标签与关键词筛选；基础信息和历史快照分别展示。草稿保存保持 W1 的三方冲突合并、离页提醒和保存期间输入保护。发布确认显示空缺和完整差异；已发布快照只能查看。
 
-单条补空要求正文为空，冻结整个世界内容基线并保留任务身份。模型输出先保存为任务结果，只有基线未变时才原子写入目标条目。精修返回可编辑候选，作者采纳后仍需保存；空结果与过期候选不覆盖输入。新条目分别使用 `world.entry.generate` / `world.entry.refine`，默认未配置，报价明确返回 `AI_FEATURE_UNCONFIGURED`；旧迁移条目仍使用来源字段的独立配置。旧任务 schema 1 的指纹算法保持不变，新任务 schema 2 覆盖条目、关系和兼容数据。缺失基线的旧任务停止恢复。
+单条补空要求正文为空，冻结整个世界内容基线并保留任务身份。模型输出先保存为任务结果，只有基线未变时才原子写入目标条目。W3 的单条精修结果进入持久提案库，作者采纳时原子保存对应目标；兼容精修接口只返回候选。空结果与过期候选不覆盖输入。新条目分别使用 `world.entry.generate` / `world.entry.refine`，默认未配置，报价明确返回 `AI_FEATURE_UNCONFIGURED`；旧迁移条目仍使用来源字段的独立配置。旧任务 schema 1 的指纹算法保持不变，新任务 schema 2 覆盖条目、关系和兼容数据。缺失基线的旧任务停止恢复。
 
 ## 生成和向导
 
@@ -44,3 +44,16 @@
 V46 增加 `worlds.overview`、`world_prompt_templates.action_templates_json` 和 `world_assistant_sessions/turns/proposals/receipts`。话题归属于独立世界；轮次保存冻结输入及分步请求与结果，提案保存候选和修订号，回执保证重复操作可重放。世界概览独立于来源条目，随新发布版本保存；旧快照不重写，空概览不改变原内容摘要。
 
 世界模板的实际变量与帮助说明来自同一注册表；旧模块及字段精修模板保留，旧分模块整合要求用于概览。尚未实现的函数不执行，未知变量在调用前报错。
+
+
+### W3 数据与任务约束
+
+- `world_assistant_sessions`：世界及作者归属、话题标题、时间；按世界列出话题。
+- `world_assistant_turns`：话题、幂等键/请求摘要、operation ID、冻结上下文 JSON、plan/final 请求与原始结果、实际补读及最终结果；分步结果单独提交，失败后仍可恢复。
+- `world_assistant_proposals`：轮次、批次序号、目标类型、状态、候选 revision；`data_json` 保存动作、稳定目标 ID、fieldKey、before/modelCandidate/candidate、理由、来源及语义矛盾提示。候选编辑保留 modelCandidate，细化另建子提案。
+- `world_assistant_receipts`：world/scope/request key 唯一回执；编辑、采纳及拒绝的并发重放保持同一结果。
+- `worlds.overview` 独立于条目。`world_prompt_templates.action_templates_json` 保留新模板，不迁移或覆盖作者旧模板。
+
+所有处置先锁世界，再锁话题/提案。采纳检查提案 revision、草稿 revision 和具体目标 before，原子写入目标、世界摘要/revision、提案状态与回执。其他目标变化需作者复核，不使整批候选全部不可用；概览使用完整来源摘要，来源变化则过期。
+
+报价保存本次冻结的世界协作输入，任务直接使用获准输入，避免报价后模板变化改变实际请求。旧 W1/W2 补空 checkpoint 保留原 schema 与原提示；新 schema 3 同时保存每字段完整请求，重试不重新渲染模板。世界协作只读取当前世界和所选话题；小说正文及 H2 不参与。

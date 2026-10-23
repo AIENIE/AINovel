@@ -89,7 +89,7 @@ public class WorldVersionService {
         else {checkRevision(world,revision);after=store.content(world);}
         return compare(from,to,to==null?world.getRevision():null,before,after);
     }
-    public Diff compare(UUID from,UUID to,Long revision,Content before,Content after) {
+    public static Diff compare(UUID from,UUID to,Long revision,Content before,Content after) {
         var changes=new ArrayList<Change>();
         var previous=before==null?Map.<String,Object>of():metadata(before);var next=metadata(after);
         next.forEach((key,value)->{if(!Objects.equals(previous.get(key),value))changes.add(new Change("METADATA",key,key,previous.get(key),value));});
@@ -97,7 +97,7 @@ public class WorldVersionService {
         compareItems(changes,"RELATION",before==null?List.of():before.relations(),after.relations(),Relation::id,Relation::type);
         return new Diff(from,to,revision,changes);
     }
-    private <T>void compareItems(List<Change> out,String kind,List<T> before,List<T> after,java.util.function.Function<T,UUID> id,java.util.function.Function<T,String> label) {
+    private static <T>void compareItems(List<Change> out,String kind,List<T> before,List<T> after,java.util.function.Function<T,UUID> id,java.util.function.Function<T,String> label) {
         var old=new TreeMap<String,T>();before.forEach(v->old.put(id.apply(v).toString(),v));
         var current=new TreeMap<String,T>();after.forEach(v->current.put(id.apply(v).toString(),v));
         var keys=new TreeSet<>(old.keySet());keys.addAll(current.keySet());
@@ -106,7 +106,7 @@ public class WorldVersionService {
             out.add(new Change(kind,key,label.apply(value),old.get(key),current.get(key)));
         }
     }
-    private Map<String,Object> metadata(Content c) {
+    private static Map<String,Object> metadata(Content c) {
         var result=new LinkedHashMap<String,Object>();result.put("name",c.name());result.put("tagline",c.tagline());
         result.put("themes",c.themes());result.put("creativeIntent",c.creativeIntent());result.put("notes",c.notes());result.put("overview",Objects.toString(c.overview(),""));return result;
     }

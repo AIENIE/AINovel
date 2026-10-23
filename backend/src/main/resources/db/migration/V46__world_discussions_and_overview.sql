@@ -35,6 +35,7 @@ CREATE TABLE world_assistant_proposals (
     turn_id BINARY(16) NOT NULL,
     item_index INT NOT NULL,
     status VARCHAR(16) NOT NULL,
+    resource_type VARCHAR(16) NOT NULL,
     revision BIGINT NOT NULL DEFAULT 0,
     data_json LONGTEXT NOT NULL,
     created_at TIMESTAMP(6) NOT NULL,

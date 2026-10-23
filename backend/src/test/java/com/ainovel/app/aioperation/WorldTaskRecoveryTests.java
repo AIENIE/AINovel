@@ -71,20 +71,20 @@ class WorldTaskRecoveryTests {
         operation.setPayloadJson(json.writeValueAsString(new CoreAiOperationHandler.CorePayload("WORLD_ENTRY",world.id(),id,null,
             json.valueToTree(tasks.freezeEntry(world.id(),id,draft.world().revision())))));
         operations.saveAndFlush(operation);
-        when(ai.refine(any(),any())).thenAnswer(call->{
-            assertEquals("world.entry.generate",((AiRefineRequest)call.getArgument(1)).featureKey());
+        when(ai.chat(any(),any())).thenAnswer(call->{
+            assertEquals("world.entry.generate",((com.ainovel.app.ai.dto.AiChatRequest)call.getArgument(1)).featureKey());
             worlds.update(world.id(),new WorldUpdateRequest(null,null,null,null,"作者在调用期间修改"));
-            return output("只在退潮时开放的港口");
+            return chatOutput("只在退潮时开放的港口");
         });
         assertThrows(ApiStatusException.class,()->execute(operation,user));
         assertEquals("",versions.draft(world.id()).entries().getFirst().content());
         assertEquals("只在退潮时开放的港口",tasks.generatedResults(user,world.id(),operation.getId()).modules().get("entry").get(id.toString()));
-        assertThrows(ApiStatusException.class,()->execute(operation,user));verify(ai,times(1)).refine(any(),any());
-        reset(ai);when(ai.refine(any(),any())).thenReturn(output("候选正文"));
+        assertThrows(ApiStatusException.class,()->execute(operation,user));verify(ai,times(1)).chat(any(),any());
+        reset(ai);when(ai.chat(any(),any())).thenReturn(chatOutput("候选正文"));
         var candidate=entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","增加细节",null));
         assertEquals("候选正文",candidate.result());assertEquals("",versions.draft(world.id()).entries().getFirst().content());
-        verify(ai).refine(any(),argThat(r->r.featureKey().equals("world.entry.refine")));
-        when(ai.refine(any(),any())).thenReturn(output(" "));
+        verify(ai).chat(any(),argThat(r->r.featureKey().equals("world.entry.refine")));
+        when(ai.chat(any(),any())).thenReturn(chatOutput(" "));
         assertThrows(ApiStatusException.class,()->entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","",null)));
         assertEquals("",versions.draft(world.id()).entries().getFirst().content());
     }
@@ -97,12 +97,12 @@ class WorldTaskRecoveryTests {
         AiOperationRun operation = operation(user, world, "WORLD_MODULE", "geography", true);
         var callKeys = new ArrayList<String>();
         AtomicInteger calls = new AtomicInteger();
-        when(ai.refine(any(), any())).thenAnswer(invocation -> {
-            AiRefineRequest request = invocation.getArgument(1);
+        when(ai.chat(any(), any())).thenAnswer(invocation -> {
+            com.ainovel.app.ai.dto.AiChatRequest request = invocation.getArgument(1);
             callKeys.add(AiSelectionContext.callKey(request.featureKey()));
             assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
             if (calls.incrementAndGet() == 2) throw new IllegalStateException("temporary model failure");
-            return output(request.featureKey());
+            return chatOutput(request.featureKey());
         });
 
         assertThrows(RuntimeException.class, () -> execute(operation, user));
@@ -125,7 +125,7 @@ class WorldTaskRecoveryTests {
         User user = user("world_recover_edited");
         WorldDetailDto world = world(user);
         AiOperationRun operation = operation(user, world, "WORLD_MODULE", "geography", true);
-        when(ai.refine(any(), any())).thenReturn(output("saved terrain"))
+        when(ai.chat(any(), any())).thenReturn(chatOutput("saved terrain"))
                 .thenThrow(new IllegalStateException("temporary model failure"));
         assertThrows(RuntimeException.class, () -> execute(operation, user));
         worlds.update(world.id(), new WorldUpdateRequest("作者的新名称", null, null, null, null));
@@ -144,18 +144,18 @@ class WorldTaskRecoveryTests {
         User user = user("world_edit_during_call");
         WorldDetailDto world = world(user);
         AiOperationRun operation = operation(user, world, "WORLD_MODULE", "geography", true);
-        when(ai.refine(any(), any())).thenAnswer(invocation -> {
+        when(ai.chat(any(), any())).thenAnswer(invocation -> {
             worlds.update(world.id(), new WorldUpdateRequest(null, null, null, null, "作者补充了限制"));
-            return output("old-input terrain");
+            return chatOutput("old-input terrain");
         });
         RuntimeException failure = assertThrows(RuntimeException.class, () -> execute(operation, user));
         assertEquals("WORLD_VERSION_CONFLICT", failure.getCause().getMessage());
-        verify(ai, times(1)).refine(any(), any());
+        verify(ai, times(1)).chat(any(), any());
         assertTrue(worlds.get(world.id()).modules().isEmpty());
         assertEquals("作者补充了限制", worlds.get(world.id()).notes());
         assertEquals("old-input terrain", tasks.generatedResults(user, world.id(), operation.getId()).modules().get("geography").get("terrain"));
         assertThrows(ApiStatusException.class, () -> execute(operation, user));
-        verify(ai, times(1)).refine(any(), any());
+        verify(ai, times(1)).chat(any(), any());
     }
 
     @Test
@@ -166,11 +166,11 @@ class WorldTaskRecoveryTests {
         AiOperationRun operation = operation(user, world, "WORLD_PUBLISH", null, true);
         AtomicInteger calls = new AtomicInteger();
         var features = new ArrayList<String>();
-        when(ai.refine(any(), any())).thenAnswer(invocation -> {
-            AiRefineRequest request = invocation.getArgument(1);
+        when(ai.chat(any(), any())).thenAnswer(invocation -> {
+            com.ainovel.app.ai.dto.AiChatRequest request = invocation.getArgument(1);
             features.add(request.featureKey());
             if (calls.incrementAndGet() == 4) throw new IllegalStateException("second module failure");
-            return output(request.featureKey());
+            return chatOutput(request.featureKey());
         });
         assertThrows(RuntimeException.class, () -> execute(operation, user));
         assertEquals(List.of("geography"), tasks.generatedResults(user, world.id(), operation.getId()).appliedModules());
@@ -248,4 +248,6 @@ class WorldTaskRecoveryTests {
     private AiRefineResponse output(String text) {
         return new AiRefineResponse(text, new AiUsageDto(1, 1, 0, 0, 0), 100);
     }
+    private com.ainovel.app.ai.dto.AiChatResponse chatOutput(String text) { return new com.ainovel.app.ai.dto.AiChatResponse("assistant",text,new AiUsageDto(10,20,0,0,1),99); }
+
 }

@@ -31,6 +31,7 @@ public class WorldService {
     @Autowired private com.ainovel.app.world.repo.WorldVersionRepository versions;
     @Autowired
     private AiService aiService;
+    @Autowired private WorldPromptRenderer prompts;
     @Autowired
     private ResourceAccessGuard accessGuard;
     @Autowired
@@ -163,7 +164,9 @@ public class WorldService {
         if (prompt.isBlank()) {
             prompt = "请优化以下世界观字段表述，使其更清晰、更具细节且保持一致性。";
         }
-        return aiService.refine(user, new AiRefineRequest(text, prompt, null).forFeature("world."+moduleKey+"."+fieldKey+".refine"));
+        var response=aiService.chat(user,prompts.entry(user,entryStore.content(world),templateEntry(world,moduleKey,fieldKey,text),prompt,true).forFeature("world."+moduleKey+"."+fieldKey+".refine"));
+        if(response==null||safe(response.content()).isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");
+        return new AiRefineResponse(response.content(),response.usage(),response.remainingCredits());
     }
 
     @Transactional(readOnly = true)
@@ -269,8 +272,13 @@ public class WorldService {
             for (WorldDefinitionDto.Field field : moduleDef.get().fields()) {
                 String existing = fields.get(field.key());
                 if (existing == null || existing.isBlank()) {
-                    String generated = checkpoint == null ? generateField(world, moduleDef.get(), field)
-                            : checkpoint.field(moduleKey, field.key(), () -> generateField(world, moduleDef.get(), field));
+                    String generated = checkpoint == null ? generateCurrentField(world, moduleDef.get(), field)
+                            : checkpoint.field(moduleKey, field.key(), () -> {
+                                var request=checkpoint.request(moduleKey,field.key());
+                                if(request==null)return generateField(world,moduleDef.get(),field);
+                                var response=aiService.chat(world.getUser(),request);String result=response==null?"":safe(response.content()).strip();
+                                if(result.isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");return result;
+                            });
                     fields.put(field.key(), generated);
                 }
             }
@@ -305,6 +313,17 @@ public class WorldService {
         return generateModule(id, moduleKey);
     }
 
+    private WorldDraftDtos.Entry templateEntry(World world,String module,String field,String text) {
+        var entry=entryStore.legacyEntries(world.getId(),Map.of(module,Map.of(field,safe(text)))).getFirst();
+        return entryStore.entries(world).stream().filter(e->Objects.equals(e.legacyModuleKey(),module)&&Objects.equals(e.legacyFieldKey(),field))
+            .map(e->new WorldDraftDtos.Entry(e.id(),e.type(),e.title(),e.summary(),safe(text),e.aliases(),e.tags(),module,field)).findFirst().orElse(entry);
+    }
+    private String generateCurrentField(World world,WorldDefinitionDto module,WorldDefinitionDto.Field field) {
+        var response=aiService.chat(world.getUser(),prompts.entry(world.getUser(),entryStore.content(world),templateEntry(world,module.key(),field.key(),""),"补全该字段正文",false)
+            .forFeature("world."+module.key()+"."+field.key()+".generate"));
+        if(response==null||safe(response.content()).isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");return response.content().strip();
+    }
+    // Frozen W1/W2 requests retain their original prompt and feature identity on recovery.
     private String generateField(World world, WorldDefinitionDto module, WorldDefinitionDto.Field field) {
         String text = "世界名称：" + safe(world.getName()) + "\n"
                 + "世界简介：" + safe(world.getTagline()) + "\n"

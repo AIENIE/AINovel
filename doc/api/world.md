@@ -31,3 +31,28 @@
 后台世界任务冻结提交时的业务内容基线、待生成模块和每字段已获得的结果。恢复沿用原任务及调用身份，跳过本任务已经应用的模块，复用已保存字段；元数据或模块被外部编辑后返回 `WORLD_VERSION_CONFLICT`，不将旧设定的结果自动写入新内容。自身进度、状态与模块应用不会使恢复基线失效。历史任务缺少基线时返回 `WORLD_TASK_BASELINE_REQUIRED`，不推测旧输入或重新收费生成。
 
 - `GET /api/v1/worlds/{worldId}/operations/{operationId}/generated-results`：读取当前用户该世界任务已保存的生成字段。返回 `{operationId,worldId,modules:{moduleKey:{fieldKey:text}},appliedModules:string[]}`，供失败或冲突后查看、复制；读取不触发 AI 或写入世界。该结果与通用任务的成功 `resultJson` 分开，部分输出不等于整个任务成功。
+
+
+## W3 独立世界协作
+
+下列路径均以 `/api/v1/worlds/{worldId}` 为前缀；复用现有认证、归属校验、报价与异步任务恢复。所有写入使用 `Idempotency-Key`。
+
+| 路径 | 方法与请求 | 结果 |
+| --- | --- | --- |
+| `/assistant/sessions` | GET；POST `{title}` | 话题列表 / 新话题 |
+| `/assistant/sessions/{sessionId}` | PUT `{title}` | 改名 |
+| `/assistant?sessionId=&before=&limit=` | GET | 话题历史，含 `hasMore/nextBefore` |
+| `/assistant/turns` | POST `{sessionId,intent,instruction,sourceTurnIds?,suggestionId?,parentProposalId?,expectedDraftRevision}` | `{turnId,operationId,sessionId}`；intent 为 DISCUSS/PROPOSE/REFINE |
+| `/assistant/turns/{turnId}` | GET | 持久回答、建议、实际来源、潜在矛盾及提案 ID |
+| `/assistant/proposals?status=&type=&sessionId=&before=` | GET | 提案分页列表 |
+| `/assistant/proposals/{proposalId}` | GET；PUT `{expectedRevision,candidate}` | 完整前文、模型原候选、作者候选、当前稿和状态 |
+| `/assistant/proposals/{proposalId}/accept` | POST `{expectedRevision,expectedDraftRevision,acknowledgeContextChange}` | 原子保存对应目标和提案状态；不发布、不升级绑定 |
+| `/assistant/proposals/{proposalId}/reject` | POST `{expectedRevision}` | 拒绝并保留候选 |
+| `/entries/{entryId}/refine/operations` | POST `{expectedRevision,instruction?}` | 一次调用形成持久提案 |
+| `/overview/integrate/operations` | POST `{expectedRevision,instruction?}` | 完整读取已保存设定，一次调用形成概览提案 |
+
+目标类型为 METADATA（按 `fieldKey`）、ENTRY、RELATION、OVERVIEW。仅 CREATE/UPDATE；删除继续由编辑器完成。新关系等待两端条目采纳。目标改变阻止采纳；仅背景改变时，需要读取当前稿后明确 `acknowledgeContextChange=true`。概览依赖完整来源，任何来源改变都阻止旧概览直接采纳。
+
+`draft` 的 metadata 及不可变快照增加 `overview`；空值读取兼容历史快照，不改写历史 JSON 或摘要。`/api/v1/world-prompts` 模板数据增加 `actions`，支持 entryGenerate/discuss/propose/refine/overview。旧模块和字段精修模板保留，finalTemplates 作为概览整合附加要求。
+
+普通讨论、整理及细化最多 plan/final 两次调用，final 仅在请求补读时执行；报价包含所有可能步骤。单条精修和概览一次调用。受理冻结草稿、话题、候选、模板和模型选择；恢复沿用原任务与请求身份，没有格式修复或自动重试调用。

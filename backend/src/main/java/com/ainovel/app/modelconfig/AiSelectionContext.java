@@ -6,7 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Explicitly persisted by both worker systems; never inherited by unrelated threads. */
 public final class AiSelectionContext {
     public record Snapshot(String identity, Map<String,AiModelSelection> selections,String businessScope,Map<String,Integer> outputBudgets,
-            com.ainovel.app.world.WorldBindingService.Frozen worldInput) {
+            com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput) {
+        public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput){this(identity,selections,scope,budgets,worldInput,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets){this(identity,selections,scope,budgets,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections){this(identity,selections,null,Map.of());}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope){this(identity,selections,scope,Map.of());}

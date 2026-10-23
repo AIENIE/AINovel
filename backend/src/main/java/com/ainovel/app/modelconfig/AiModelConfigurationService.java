@@ -53,7 +53,7 @@ public class AiModelConfigurationService {
                 m.setSupportsStreaming(true);m.setAvailable(jdbc.queryForObject("select count(*) from ai_model_catalog_state where id=1 and last_success_at is not null",Integer.class)==0);return models.saveAndFlush(m);
             });
             for(var feature:AiFeatures.all()) {
-                if(feature.key().startsWith("world.entry."))continue;
+                if(feature.key().startsWith("world.entry.")||feature.key().startsWith("world_assistant.")||feature.key().equals("world.overview.integrate"))continue;
                 if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,feature.key())>0) continue;
                 String id=UUID.randomUUID().toString();
                 jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,true,0,?)",

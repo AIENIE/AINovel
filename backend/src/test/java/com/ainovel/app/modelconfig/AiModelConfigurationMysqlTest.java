@@ -95,7 +95,7 @@ class AiModelConfigurationMysqlTest {
     }
     private AiChatRequest request(String content) {return new AiChatRequest(List.of(new AiChatRequest.Message("user",content)),null,null).forFeature("generic.chat");}
     @Test void newWorldEntryStepsRemainUnconfiguredUntilExplicitlySaved() {
-        for(String key:List.of("world.entry.generate","world.entry.refine")) {
+        for(String key:List.of("world.entry.generate","world.entry.refine","world_assistant.discuss.plan","world_assistant.discuss.final","world_assistant.propose.plan","world_assistant.propose.final","world_assistant.refine.plan","world_assistant.refine.final","world.overview.integrate")) {
             assertThat(config.feature(key,user).options()).isEmpty();
             assertThat(config.feature(key,user).defaultOptionId()).isNull();
             String id=UUID.randomUUID().toString();

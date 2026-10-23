@@ -26,6 +26,9 @@ public final class AiFeatures {
         }
         add("world.entry.generate","world","世界条目补空","世界條目補空","Fill world entry");
         add("world.entry.refine","world","世界条目精修","世界條目精修","Refine world entry");
+        for(String intent:List.of("discuss","propose","refine")) for(String stage:List.of("plan","final"))
+            add("world_assistant."+intent+"."+stage,"world","世界讨论·"+intentName(intent)+"·"+stageName(stage),"世界討論·"+traditional(intentName(intent))+"·"+stageName(stage),"World assistant · "+intent+" · "+stage);
+        add("world.overview.integrate","world","世界概览整合","世界概覽整合","Integrate world overview");
         String[][] guided={{"premise","故事前提","故事前提","Premise"},{"world","世界观候选","世界觀候選","World candidates"},
                 {"characters","角色候选","角色候選","Character candidates"},{"outline","大纲候选","大綱候選","Outline candidates"},
                 {"outline_develop","大纲发展","大綱發展","Develop outline"},{"outline_rewrite","大纲重写","大綱重寫","Rewrite outline"},

@@ -71,7 +71,7 @@ public class SettingsService {
 
     public WorldPromptTemplatesResponse getWorldPromptTemplates(User user) {
         WorldPromptTemplatesEntity entity = worldPromptTemplatesRepository.findByUser(user)
-                .orElseGet(() -> worldPromptTemplatesRepository.save(defaultWorldPrompts(user)));
+                .orElseGet(() -> defaultWorldPrompts(user));
         return new WorldPromptTemplatesResponse(jsonToMap(entity.getModulesJson()), jsonToMap(entity.getFinalTemplatesJson()), entity.getFieldRefine(), worldActions(entity));
     }
 

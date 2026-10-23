@@ -3,7 +3,7 @@ package com.ainovel.app.world;
 import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiRefineResponse;
+import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.ai.dto.AiUsageDto;
 import com.ainovel.app.world.dto.WorldDetailDto;
 import com.ainovel.app.world.dto.WorldGenerationStatus;
@@ -50,11 +50,11 @@ class WorldPublishFlowTests {
         assertNotNull(created.themes()); assertTrue(created.themes().isEmpty());
         World legacy = worldRepository.findById(created.id()).orElseThrow();
         legacy.setThemesJson("null"); worldRepository.save(legacy);
-        when(aiService.refine(any(), any())).thenAnswer(call -> {
-            com.ainovel.app.ai.dto.AiRefineRequest request = call.getArgument(1);
-            assertTrue(request.text().contains("当代小站，不含魔法"));
+        when(aiService.chat(any(), any())).thenAnswer(call -> {
+            com.ainovel.app.ai.dto.AiChatRequest request = call.getArgument(1);
+            assertTrue(request.messages().stream().anyMatch(message -> message.content().contains("当代小站，不含魔法")));
             assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());
-            return new AiRefineResponse("可用设定", new AiUsageDto(1, 1, 0, 0, 0), 100);
+            return new AiChatResponse("assistant", "可用设定", new AiUsageDto(1, 1, 0, 0, 0), 100);
         });
         assertEquals("COMPLETED", worldService.generateModule(created.id(), "geography").moduleProgress().get("geography"));
     }
@@ -85,23 +85,23 @@ class WorldPublishFlowTests {
         assertEquals("AWAITING_GENERATION", afterPublish.moduleProgress().get("society"));
         assertEquals("AWAITING_GENERATION", afterPublish.moduleProgress().get("magic_tech"));
 
-        when(aiService.refine(any(), any()))
-                .thenReturn(new AiRefineResponse("雨都议会按港口税权划分派系，商会控制粮运，平民节庆围绕潮汐钟展开。",
+        when(aiService.chat(any(), any()))
+                .thenReturn(new AiChatResponse("assistant", "雨都议会按港口税权划分派系，商会控制粮运，平民节庆围绕潮汐钟展开。",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100))
-                .thenReturn(new AiRefineResponse("商会以粮运和海盐为核心产业，税契由港口议会逐季审定。",
+                .thenReturn(new AiChatResponse("assistant", "商会以粮运和海盐为核心产业，税契由港口议会逐季审定。",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100))
-                .thenReturn(new AiRefineResponse("市民节庆围绕潮汐钟和雾灯巡游展开，外来者需先登记船印。",
+                .thenReturn(new AiChatResponse("assistant", "市民节庆围绕潮汐钟和雾灯巡游展开，外来者需先登记船印。",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100))
-                .thenReturn(new AiRefineResponse("灵潮科技",
+                .thenReturn(new AiChatResponse("assistant", "灵潮科技",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100))
-                .thenReturn(new AiRefineResponse("灵潮科技以潮汐晶体供能，越界使用会造成记忆回潮和城市停摆。",
+                .thenReturn(new AiChatResponse("assistant", "灵潮科技以潮汐晶体供能，越界使用会造成记忆回潮和城市停摆。",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100))
-                .thenReturn(new AiRefineResponse("核心限制是晶体过载会反噬使用者记忆，并让附近设备短暂停摆。",
+                .thenReturn(new AiChatResponse("assistant", "核心限制是晶体过载会反噬使用者记忆，并让附近设备短暂停摆。",
                         new AiUsageDto(1, 1, 0, 0, 0),
                         100));
 
@@ -139,7 +139,7 @@ class WorldPublishFlowTests {
         world.setModulesJson("{}");
         world.setModuleProgressJson("{\"geography\":\"AWAITING_GENERATION\"}");
         worldRepository.save(world);
-        when(aiService.refine(any(), any())).thenThrow(new RuntimeException("ai-service unavailable"));
+        when(aiService.chat(any(), any())).thenThrow(new RuntimeException("ai-service unavailable"));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> worldService.generateModule(world.getId(), "geography"));

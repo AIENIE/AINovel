@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 @Component
 public class AiActionPlanner {
     public record Step(String featureKey,boolean conditional,String calls,int estimatedInput,int estimatedOutput) {}
-    public record Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput) {
-        public Plan(String target,List<Step> steps,String hash,String scope){this(target,steps,hash,scope,null);}
+    public record Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput) {
+        public Plan(String target,List<Step> steps,String hash,String scope){this(target,steps,hash,scope,null,null);}
     }
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.ainovel.app.world.WorldBindingService worldBindings;
@@ -27,6 +27,9 @@ public class AiActionPlanner {
     private com.ainovel.app.manuscript.repo.ManuscriptRepository manuscripts;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.context.annotation.Lazy
+    private com.ainovel.app.worldassistant.WorldAssistantService worldAssistant;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     public AiActionPlanner(JdbcTemplate jdbc,ObjectMapper json) {this.jdbc=jdbc;this.json=json;}
@@ -42,11 +45,16 @@ public class AiActionPlanner {
         else if(path.matches("/v1/outlines/[^/]+/chapters(/operations)?"))keys.add("outline.chapter");
         else if(path.matches("/v1/worlds/[^/]+/modules/[^/]+/fields/[^/]+/refine")) {
             String[] p=path.split("/"); keys.add("world."+p[5]+"."+p[7]+".refine");
-        } else if(path.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine)")) {
-            keys.add("world.entry."+(path.endsWith("/refine")?"refine":"generate"));
+        } else if(path.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine(/operations)?)")) {
+            keys.add("world.entry."+(path.contains("/refine")?"refine":"generate"));
         } else if(path.matches("/v1/worlds/[^/]+/(publish/operations|generation/[^/]+(/operations|/retry)?)")) {
             var p=path.split("/");var module=p[4].equals("generation")?p[5]:null;
             for(var f:AiFeatures.all())if(f.key().startsWith("world.")&&!f.key().startsWith("world.entry.")&&f.key().endsWith(".generate")&&(module==null||f.key().startsWith("world."+module+".")))keys.add(f.key());
+        } else if(path.matches("/v1/worlds/[^/]+/overview/integrate/operations"))keys.add("world.overview.integrate");
+        else if(path.matches("/v1/worlds/[^/]+/assistant/turns")) {
+            String intent=body.path("intent").asText("DISCUSS").toLowerCase(Locale.ROOT);
+            if(!Set.of("discuss","propose","refine").contains(intent))throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_ACTION_INVALID");
+            keys.add("world_assistant."+intent+".plan");keys.add("world_assistant."+intent+".final");
         } else if(path.matches("/v1/creation-workflows/[^/]+/(steps/[^/]+/generate|steps/outline/directions/[^/]+/(develop|expand)|auto-run)")) {
             if(path.endsWith("/auto-run")){keys.addAll(automaticGuidedSteps());}
             else if(path.endsWith("/develop"))keys.add("rewrite".equalsIgnoreCase(body.path("action").asText())?"guided.outline_rewrite":"guided.outline_develop");
@@ -91,8 +99,8 @@ public class AiActionPlanner {
         var keys=new ArrayList<>(features(target,body));
         if(keys.isEmpty())throw AiModelConfigurationService.error("AI_ACTION_INVALID");
         String state=businessState(user,target,body);
-        if(target.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine)")) {
-            var parts=target.split("/");String action=target.endsWith("/refine")?"refine":"generate";
+        if(target.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine(/operations)?)")) {
+            var parts=target.split("/");String action=target.contains("/refine")?"refine":"generate";
             var origins=jdbc.query("select legacy_module_key,legacy_field_key,content from world_entries where world_id=? and id=?",
                 (rs,i)->{var row=new HashMap<String,String>();row.put("legacy_module_key",rs.getString(1));row.put("legacy_field_key",rs.getString(2));row.put("content",rs.getString(3));return row;},
                 AiModelConfigurationService.bytes(UUID.fromString(parts[3])),AiModelConfigurationService.bytes(UUID.fromString(parts[5])));
@@ -146,10 +154,15 @@ public class AiActionPlanner {
             var k=keys.get(i);
             String calls=k.equals("language.diagnose")?"CHUNKS":target.contains("/g2-evaluations/")&&k.startsWith("slop.")?"QUALITY":k.startsWith("world.")?"ONE":k.equals("guided.json_repair")?"PER_STEP":
                     target.contains("/g2-evaluations/")&&k.endsWith(".length")?"UP_TO_TWO":"ONE";
-            boolean conditional=k.endsWith(".length")||k.equals("guided.json_repair")||(target.endsWith("/auto-run")||target.equals("/v1/creation-workflows"))&&i>0
+            boolean conditional=k.startsWith("world_assistant.")&&k.endsWith(".final")||k.endsWith(".length")||k.equals("guided.json_repair")||(target.endsWith("/auto-run")||target.equals("/v1/creation-workflows"))&&i>0
                     ||(target.contains("/generate")||target.contains("/g2-evaluations/"))&&(k.startsWith("slop.")||k.startsWith("plot.")||k.startsWith("language."));
             int output=k.startsWith("scene.")?sceneOutputTokens(target,body,state):4096;
             steps.add(new Step(k,conditional,calls,input,output));
+        }
+        com.ainovel.app.worldassistant.WorldAssistantService.Frozen assistantInput=null;
+        if(worldAssistant!=null&&target.matches("/v1/worlds/[^/]+/(assistant/turns|entries/[^/]+/refine/operations|overview/integrate/operations)")) {
+            String[] parts=target.split("/");boolean single=!target.endsWith("/assistant/turns");
+            assistantInput=worldAssistant.validateQuote(user,UUID.fromString(parts[3]),target.contains("/entries/")?UUID.fromString(parts[5]):null,body,single);
         }
         String compiledHash="";
         com.ainovel.app.world.WorldBindingService.Frozen worldInput=null;
@@ -167,7 +180,7 @@ public class AiActionPlanner {
                 compiledHash=compiled.manifest().contextHash();
             }
         }
-        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()),scope,worldInput);
+        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()),scope,worldInput,assistantInput);
     }
     private static List<String> automaticGuidedSteps() {
         return List.of("guided.premise","guided.world","guided.characters","guided.outline","guided.outline_expand","guided.json_repair");
@@ -226,6 +239,10 @@ public class AiActionPlanner {
         if("story-cards".equals(kind)&&target.contains("/assistant/")&&body.hasNonNull("sessionId")) {
             try {rows.addAll(jdbc.queryForList("select t.* from story_assistant_turns t join story_assistant_sessions s on t.session_id=s.id where s.user_id=? and s.story_id=? and s.id=? order by t.created_at,t.id",AiModelConfigurationService.bytes(user.getId()),AiModelConfigurationService.bytes(resource),AiModelConfigurationService.bytes(UUID.fromString(body.path("sessionId").asText()))));}
             catch(IllegalArgumentException e){throw AiModelConfigurationService.error("AI_ACTION_INVALID");}
+        }
+        if("worlds".equals(kind)&&target.contains("/assistant/")) {
+            rows.addAll(jdbc.queryForList("select t.* from world_assistant_turns t join world_assistant_sessions s on t.session_id=s.id where s.world_id=? and s.user_id=? order by t.created_at,t.id",AiModelConfigurationService.bytes(resource),AiModelConfigurationService.bytes(user.getId())));
+            rows.addAll(jdbc.queryForList("select p.* from world_assistant_proposals p join world_assistant_turns t on p.turn_id=t.id join world_assistant_sessions s on t.session_id=s.id where s.world_id=? and s.user_id=? order by p.id",AiModelConfigurationService.bytes(resource),AiModelConfigurationService.bytes(user.getId())));
         }
         rows.addAll(templates);return writeState(rows);
     }
