@@ -32,7 +32,7 @@
 - `POST /api/v1/outlines/{outlineId}/chapters`：新增 AI 章节，Body `{chapterNumber?,sectionsPerChapter?,wordsPerSection?,worldId?}`。
 - `POST /api/v1/outlines/{outlineId}/chapters/operations`：章节生成的异步进度版本。
 - `sectionsPerChapter` 会被后端强制归一化到 `5-7`。
-- 生成逻辑要求返回结构化 JSON（章节标题、章节摘要、节标题与节摘要）；若 AI 返回异常则使用兜底文案。
+- 生成逻辑要求返回结构化 JSON（章节标题、章节摘要、节标题与节摘要）；空输出或格式异常会保留原结果并阻止追加，不创建占位章节。
 
 ## 章节/场景编辑
 
@@ -41,3 +41,11 @@
 - `POST /api/v1/outlines/scenes/{id}/refine`：场景润色。
 
 故事级讨论和逐项资料整理使用独立的[故事级助手 API](story-assistant.md)，不直接把讨论答复提交给本组保存接口。其新增操作只末尾追加，不能代替本组人工结构编辑能力。
+
+## W4 持久大纲 AI 结果
+
+`POST /api/v1/outlines/{id}/ai-operations`，携带 `Idempotency-Key`。请求 `{action,nodeId?,instruction?,text?,chapterNumber?,sectionsPerChapter?,expectedRevision?,contextHash?,expectedSelectionRevision?}`，action 为 CHAPTER_GENERATE、CHAPTER_REFINE 或 SCENE_REFINE。润色必须标明实际节点 ID。沿用 outline.chapter、outline.chapter_refine、outline.scene_refine 配置。响应 `{resultId,operationId}`。
+
+`GET /api/v1/outlines/{id}/ai-results` 返回最近 50 项；`GET /ai-results/{resultId}` 返回完整候选、原结果、修改前内容、参数和冻结来源。正常章节在同一事务核对大纲、绑定与选择后追加；变化时保留 READY 结果。`POST /ai-results/{resultId}/accept` 请求 `{expectedRevision,expectedOutlineRevision,contextHash,requestKey}`，由作者审阅当前预览后确认追加。相同处置键只追加一次。润色候选由前端采纳到编辑草稿，沿用人工保存接口。
+
+旧 chapters 及 chapters/operations 入口转用相同冻结和持久结果服务。带场景 ID 的旧润色校验归属并读取绑定世界；无资源身份的 `/api/v1/ai/outline-refine` 仅处理输入文本。旧 worldId 不覆盖正式绑定。无法判定输入的旧章节任务停止恢复，不按 W4 重建请求；既有结果与费用保留。

@@ -36,6 +36,7 @@ import java.util.UUID;
 @Service
 public class ManuscriptService {
     @Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
+    @Autowired private com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
     @Autowired(required=false)
     private com.ainovel.app.quality.language.LanguageQualityService languageQuality;
     @Autowired(required=false)
@@ -174,10 +175,15 @@ public class ManuscriptService {
                     .orElseThrow(() -> new BusinessException("稿件不存在"));
             User owner = ownerOf(manuscript);
             accessGuard.assertOwner(owner);
+            worldBindings.lockCurrent(manuscript);
+            var quote=com.ainovel.app.modelconfig.AiSelectionContext.current();
+            if(quote!=null&&quote.writingInput()!=null&&"SCENE".equals(quote.writingInput().purpose())) {
+                if(!sceneGenerationService.hasFrozenInput())sceneGenerationService.requireBaseline(manuscript,quote.writingInput().frozen());
+            }
             sceneGenerationSnapshotStore.ensureGenerationBaseline(manuscript, owner);
             Manuscript current = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
-            return new GenerationSnapshot(current, ownerOf(current), current.getVersion(),
-                    contents.readAll(current));
+            return new GenerationSnapshot(current, ownerOf(current), current.getVersion(),current.getCurrentBranchId(),
+                    sceneGenerationService.frozenPlanningHash(current),contents.readAll(current));
         }));
         var languageSelection=frozenLanguage==null?sceneGenerationService.languageSelection(snapshot.manuscript()):frozenLanguage;
         SceneGenerationService.GenerationResult generation = sceneGenerationService.generateSceneSection(
@@ -196,10 +202,16 @@ public class ManuscriptService {
                 var manifest=generation.metadata()==null?null:generation.metadata().contextManifest();
                 boolean outdated=manifest!=null&&manifest.isolationStamp()==null&&
                     (!worldBindings.same(manifest.worldBinding(),binding)||manifest.boundWorldId()!=null&&manifest.worldBinding()==null);
+                if(manifest!=null&&manifest.worldContext()!=null&&worldPreferences!=null)
+                    outdated|=worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(current,sceneId),binding).revision()!=manifest.worldContext().selectionRevision();
+                boolean inputChanged=current.getVersion()!=snapshot.version()||!Objects.equals(current.getCurrentBranchId(),snapshot.branchId())
+                    ||!Objects.equals(snapshot.planningHash(),sceneGenerationService.planningHash(current));
+                if(inputChanged)return sceneOutcome(manuscriptId,sceneId,new SceneGenerationService.GenerationResult(generation.html(),generation.metadata(),generation.candidateIds(),
+                    generation.minHan(),generation.maxHan(),generation.actualHan(),true,"SCENE_INPUT_CHANGED"),null);
                 if(outdated)return sceneOutcome(manuscriptId,sceneId,new SceneGenerationService.GenerationResult(generation.html(),generation.metadata(),generation.candidateIds(),
                     generation.minHan(),generation.maxHan(),generation.actualHan(),true,"WORLD_BINDING_CHANGED"),null);
                 return sceneOutcome(manuscriptId,sceneId,generation,
-                    saveGenerated(manuscriptId,sceneId,snapshot.version(),snapshot.manuscript().getCurrentBranchId(),mode,generation,languageSelection,true));
+                    saveGenerated(manuscriptId,sceneId,snapshot.version(),snapshot.branchId(),mode,generation,languageSelection,true));
             })));
     }
 
@@ -261,9 +273,14 @@ public class ManuscriptService {
     @Transactional(readOnly=true)
     public CandidateDetail sceneCandidate(UUID manuscriptId,UUID sceneId,UUID branchId,UUID candidateId) {
         var c=requireCandidate(manuscriptId,sceneId,branchId,candidateId);
-        return new CandidateDetail(c.getId(),c.getContent(),c.getStampJson(),c.getQualityStatus(),c.getSourceKind());
+        com.ainovel.app.worldcontext.WorldContextDtos.Selection world=null;
+        if(c.getMetadataJson()!=null)try {
+            var metadata=objectMapper.readTree(c.getMetadataJson()).path("generation").path("contextManifest").path("worldContext");
+            if(!metadata.isMissingNode()&&!metadata.isNull())world=objectMapper.treeToValue(metadata,com.ainovel.app.worldcontext.WorldContextDtos.Selection.class);
+        }catch(Exception e){throw new ApiStatusException(HttpStatus.CONFLICT,"SCENE_CANDIDATE_SOURCE_UNAVAILABLE");}
+        return new CandidateDetail(c.getId(),c.getContent(),c.getStampJson(),c.getQualityStatus(),c.getSourceKind(),world);
     }
-    public record CandidateDetail(UUID id,String content,String sourceFingerprint,String qualityStatus,String sourceKind) {}
+    public record CandidateDetail(UUID id,String content,String sourceFingerprint,String qualityStatus,String sourceKind,com.ainovel.app.worldcontext.WorldContextDtos.Selection worldContext) {}
     public record AdoptCandidateRequest(@jakarta.validation.constraints.NotNull Long expectedVersion,@jakarta.validation.constraints.NotNull UUID branchId) {}
 
     @Transactional
@@ -410,7 +427,7 @@ public class ManuscriptService {
         }
     }
 
-    private record GenerationSnapshot(Manuscript manuscript, User owner, long version,
+    private record GenerationSnapshot(Manuscript manuscript, User owner, long version,UUID branchId,String planningHash,
                                       Map<String, String> sections) { }
 
     private Map<String, Object> buildGenerationManifest(

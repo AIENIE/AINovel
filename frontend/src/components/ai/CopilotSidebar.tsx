@@ -1,3 +1,4 @@
+import { WorldSources } from './WorldContextPreview';
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, Loader2, Send } from "lucide-react";
@@ -34,6 +35,8 @@ export default function CopilotSidebar({ className }: CopilotSidebarProps) {
         <div className="space-y-2 rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">{t(`assistant.state.${turn.resultKind || turn.status}`, { defaultValue: turn.status })}</p>
           {turn.answer && <p className="whitespace-pre-wrap leading-relaxed">{turn.answer}</p>}
+          {turn.worldContext&&<details><summary className="cursor-pointer text-xs">{t('world4.frozenRange')}</summary><WorldSources selection={turn.worldContext}/></details>}
+          {turn.steps?.map(step=><details key={step.step}><summary className="cursor-pointer text-xs">{t('world4.actual')} · {step.step==='plan'?1:2}</summary>{step.sources.map(source=><details key={source.id} className="my-2 rounded border p-2"><summary>{source.title}</summary><p className="whitespace-pre-wrap break-words">{source.content}</p></details>)}</details>)}
           {turn.warnings.map((warning, index) => <p key={index} className="text-xs text-amber-700">{assistantWarning(warning)}</p>)}
           {!!turn.sources.length && <details><summary className="cursor-pointer text-xs">{t("assistant.sources", { count: turn.sources.length })}</summary>
             <div className="mt-2 space-y-3">{turn.sources.map((source, index) => {

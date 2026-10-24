@@ -46,7 +46,9 @@ public class WorldContextPreferences {
     }
     public Preferences read(String scope,WorldBindingService.Resolved binding) {
         if(binding==null)return Preferences.defaults(null);
-        var rows=jdbc.query("select * from world_context_preferences where scope_key=? and world_id=?",(r,n)->new Preferences(binding.worldId(),r.getLong("revision"),uuid(r.getBytes("reviewed_version_id")),
+        bindings.requireUsable(binding);
+        boolean writing=org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()&&!org.springframework.transaction.support.TransactionSynchronizationManager.isCurrentTransactionReadOnly();
+        var rows=jdbc.query("select * from world_context_preferences where scope_key=? and world_id=?"+(writing?" for update":""),(r,n)->new Preferences(binding.worldId(),r.getLong("revision"),uuid(r.getBytes("reviewed_version_id")),
                 parse(r.getString("choices_json"),new TypeReference<Map<String,Choice>>(){}),parse(r.getString("reviewed_hashes_json"),new TypeReference<Map<String,String>>(){})),scope,bytes(binding.worldId()));
         return rows.isEmpty()?Preferences.defaults(binding.worldId()):rows.getFirst();
     }

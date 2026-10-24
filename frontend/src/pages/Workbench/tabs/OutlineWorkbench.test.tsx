@@ -1,10 +1,11 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api-client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import OutlineWorkbench from "./OutlineWorkbench";
 
 describe("OutlineWorkbench", () => {
+  beforeEach(()=>vi.spyOn(api.worldContext,"outlineResults").mockResolvedValue([]));
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();

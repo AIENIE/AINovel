@@ -19,3 +19,16 @@ CREATE TABLE IF NOT EXISTS material_processing_jobs (
  budget_waits INT NOT NULL DEFAULT 0, not_before TIMESTAMP,
  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS world_context_preferences (
+ scope_key VARCHAR(160) NOT NULL, world_id BINARY(16) NOT NULL, user_id BINARY(16) NOT NULL,
+ revision BIGINT NOT NULL DEFAULT 0, reviewed_version_id BINARY(16) NOT NULL, choices_json CLOB NOT NULL,
+ reviewed_hashes_json CLOB NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(scope_key,world_id)
+);
+CREATE TABLE IF NOT EXISTS outline_ai_results (
+ id BINARY(16) PRIMARY KEY, outline_id BINARY(16) NOT NULL, user_id BINARY(16) NOT NULL, operation_id BINARY(16),
+ request_key VARCHAR(128) NOT NULL, request_hash VARCHAR(64) NOT NULL, action VARCHAR(32) NOT NULL,
+ status VARCHAR(32) NOT NULL, revision BIGINT NOT NULL DEFAULT 0, frozen_json CLOB NOT NULL,
+ raw_result_json CLOB, candidate_json CLOB, receipt_json CLOB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE(outline_id,request_key), UNIQUE(operation_id)
+);

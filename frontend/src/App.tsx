@@ -1,4 +1,5 @@
 import { AiQuotePrompt } from "@/components/ai/AiQuotePrompt";
+import { WorldContextPreview } from '@/components/ai/WorldContextPreview';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -71,7 +72,7 @@ const ProtectedRoute = () => {
 };
 
 const router = createBrowserRouter(createRoutesFromElements(
-  <Route element={<><AiQuotePrompt />
+  <Route element={<><AiQuotePrompt /><WorldContextPreview />
       <AiOperationProgressPanel /><Outlet /></>}>
 
             {/* Public Routes */}

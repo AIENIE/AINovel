@@ -79,6 +79,24 @@ class ManuscriptServiceTest {
         assertEquals("NEEDS_REVIEW",result.outcome());assertEquals("WORLD_BINDING_CHANGED",result.reviewReason());assertEquals(List.of(candidate),result.candidateIds());
         assertEquals("{}",manuscript.getSectionsJson());verify(repository,never()).saveAndFlush(any());
     }
+    @Test void planningChangeDuringGenerationRetainsCandidateWithoutSaving() {
+        var repository=mock(ManuscriptRepository.class);
+        var service=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),mock(ResourceAccessGuard.class),
+                mock(SlopQualityGate.class),mock(PlotQualityService.class),mock(PromptAssemblyService.class),mock(MaterialRetrievalService.class),mock(StyleContextProvider.class));
+        var owner=new User();var story=new Story();story.setUser(owner);var outline=new Outline();outline.setStory(story);
+        var manuscript=new Manuscript();manuscript.setId(UUID.randomUUID());manuscript.setOutline(outline);manuscript.setSectionsJson("{}");
+        var scene=UUID.randomUUID();var candidate=UUID.randomUUID();var generator=mock(SceneGenerationService.class);
+        when(generator.frozenPlanningHash(manuscript)).thenReturn("original");when(generator.planningHash(manuscript)).thenReturn("edited");
+        when(generator.generateSceneSection(any(),any(),any(),any(),any(),any(),eq(false))).thenReturn(
+                new SceneGenerationService.GenerationResult("<p>保留候选</p>",null,List.of(candidate),100,200,150,false,null));
+        ReflectionTestUtils.setField(service,"sceneGenerationService",generator);
+        when(repository.findWithStoryById(manuscript.getId())).thenReturn(Optional.of(manuscript));
+        var result=service.generateSceneOutcome(manuscript.getId(),scene,com.ainovel.app.manuscript.GenerationMode.FAST,null);
+        assertEquals("NEEDS_REVIEW",result.outcome());assertEquals("SCENE_INPUT_CHANGED",result.reviewReason());
+        assertEquals(List.of(candidate),result.candidateIds());assertEquals("{}",manuscript.getSectionsJson());
+        verify(repository,never()).saveAndFlush(any());
+    }
+
     @Test void h2VersionConflictRetainsCandidateWithoutWritingTheCurrentBody() {
         var repository=mock(ManuscriptRepository.class);var access=mock(ResourceAccessGuard.class);
         var s=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),access,

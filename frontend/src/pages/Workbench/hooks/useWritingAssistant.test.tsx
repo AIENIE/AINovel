@@ -7,6 +7,7 @@ import type { Manuscript } from "@/types";
 import type { AssistantProposal } from "@/lib/api/domains/writing-assistant";
 import { useWritingAssistant } from "./useWritingAssistant";
 
+vi.mock("@/lib/world-context-preview",()=>({reviewWorldPreview:vi.fn(async (_path, _request, preview)=>preview)}));
 vi.mock("@/lib/ai-operation-store", () => ({ runTrackedAiOperation: vi.fn().mockResolvedValue({ status: "SUCCEEDED" }), retryTrackedAiOperation: vi.fn().mockResolvedValue(undefined) }));
 const manuscript: Manuscript = { id: "m", currentBranchId: "b", version: 4, outlineId: "o", title: "稿件", sections: { s: "<p>原稿</p>" }, updatedAt: "2026-10-13" };
 const session = { id: null, branchId: "b", sceneId: "s", h2Enabled: false, turns: [], hasMore: false, nextBefore: null };
@@ -20,7 +21,7 @@ function mount(h2 = false, write = vi.fn(async (_html: string, action: (current:
   const hook = renderHook(({ content, sceneId, version }) => useWritingAssistant({ manuscript: { ...manuscript, version }, sceneId, sceneTitle: "场景", content, busy: false, locked: false, open: vi.fn(), runWrite: write, reconcileWrite: reconcile, initializeBranch: vi.fn(), onSourceResolved: vi.fn() }), { wrapper, initialProps: { content: "<p>原稿</p>", sceneId: "s", version: 4 } });
   return { ...hook, write, reconcile };
 }
-beforeEach(() => { vi.spyOn(api.writingAssistant, "submit").mockResolvedValue({ turnId: "t", operationId: "op" }); });
+beforeEach(() => { vi.spyOn(api.worldContext,"preview").mockResolvedValue({purpose:"ASSISTANT",contextHash:"frozen-world",preferences:{worldId:null,revision:0,reviewedVersionId:null,choices:{},reviewedHashes:{}},selection:null,compiledContext:"",firstSources:[],availableSources:[]}); vi.spyOn(api.writingAssistant, "submit").mockResolvedValue({ turnId: "t", operationId: "op" }); });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); vi.restoreAllMocks(); });
 describe("persistent writing assistant", () => {
   it("freezes an unsaved ordinary draft without an implicit save", async () => {

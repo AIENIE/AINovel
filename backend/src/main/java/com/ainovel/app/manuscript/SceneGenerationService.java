@@ -133,18 +133,13 @@ public class SceneGenerationService {
             catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
         } else {
             if(requireHistoricalInput)throw new com.ainovel.app.ai.AiResultUncertainException(new IllegalStateException("WORLD_TASK_BASELINE_REQUIRED"));
-            var scene=resolveSceneContext(manuscript.getOutline(),sceneId);
-            var story=manuscript.getOutline().getStory();
-            var compiled=admittedWorld==null?compileContext(manuscript,sceneId,existingSections)
-                :sceneDraftContextCompiler==null?null:sceneDraftContextCompiler.compile(manuscript,sceneId,existingSections,SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,admittedWorld);
-            String characters=compiled==null?buildCharacterContext(characterCardRepository.findByStory(story)):compiled.characterContext();
-            String previous=compiled==null?buildPreviousContext(scene,existingSections):compiled.recentSceneContext();
-            var references=freezeReferences(ownerOf(manuscript),story,manuscript,scene,compiled);
-            var prompt=referenceSelection==null
-                    ?sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled)
-                    :sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled,promptReferences(references));
-            if(languageSelection.generation()) prompt=com.ainovel.app.quality.language.LanguageStandard.augment(prompt,languageSelection.version(),true);
-            frozen=new FrozenInput(scene,compiled,characters,previous,outlinePlanning(manuscript.getOutline()),references,prompt,mode,languageSelection);
+            var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
+            var writing=selection==null?null:selection.writingInput();
+            if(writing!=null&&"SCENE".equals(writing.purpose()))frozen=objectMapper.convertValue(writing.frozen(),FrozenInput.class);
+            else frozen=prepare(manuscript,sceneId,existingSections,mode,languageSelection,admittedWorld);
+            if(frozen.sourceVersion()!=null&&frozen.branchId()!=null&&(frozen.sourceVersion()!=manuscript.getVersion()||!java.util.Objects.equals(frozen.branchId(),manuscript.getCurrentBranchId())))
+                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"SCENE_CANDIDATE_VERSION_CONFLICT");
+            if(frozen.compiled()!=null)com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(frozen.compiled().manifest().worldContext());
             if(candidateStore!=null) candidateStore.freeze(operationId,manuscript,sceneId,frozen);
         }
         var sceneContext=frozen.scene(); var compiledContext=frozen.compiled();
@@ -221,9 +216,64 @@ public class SceneGenerationService {
         return previous;
     }
 
+    public FrozenInput prepare(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,GenerationMode mode,
+            com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection,com.ainovel.app.world.WorldBindingService.Frozen world) {
+        var scene=resolveSceneContext(manuscript.getOutline(),sceneId);var story=manuscript.getOutline().getStory();
+        var compiled=world==null?compileContext(manuscript,sceneId,existingSections):sceneDraftContextCompiler==null?null:
+                sceneDraftContextCompiler.compile(manuscript,sceneId,existingSections,SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,world);
+        String characters=compiled==null?buildCharacterContext(characterCardRepository.findByStory(story)):compiled.characterContext();
+        String previous=compiled==null?buildPreviousContext(scene,existingSections):compiled.recentSceneContext();
+        var references=freezeReferences(ownerOf(manuscript),story,manuscript,scene,compiled);
+        var prompt=referenceSelection==null
+                ?sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled)
+                :sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled,promptReferences(references));
+        if(languageSelection.generation())prompt=com.ainovel.app.quality.language.LanguageStandard.augment(prompt,languageSelection.version(),true);
+        return new FrozenInput(scene,compiled,characters,previous,outlinePlanning(manuscript.getOutline()),references,prompt,mode,languageSelection,manuscript.getVersion(),manuscript.getCurrentBranchId(),planningHash(manuscript));
+    }
+    public FrozenInput prepare(Manuscript manuscript,UUID sceneId,GenerationMode mode,com.ainovel.app.world.WorldBindingService.Frozen world) {
+        return prepare(manuscript,sceneId,contents.readAll(manuscript),mode,languageSelection(manuscript),world);
+    }
     public record FrozenInput(SceneGenerationContext scene,CompiledSceneDraftContext compiled,String characters,String previous,
             String planning,List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references,com.ainovel.app.prompt.AssembledPrompt prompt,
-            GenerationMode mode,com.ainovel.app.quality.language.LanguageStandard.Selection language) {}
+            GenerationMode mode,com.ainovel.app.quality.language.LanguageStandard.Selection language,Long sourceVersion,UUID branchId,String planningHash) {
+        public FrozenInput(SceneGenerationContext scene,CompiledSceneDraftContext compiled,String characters,String previous,String planning,
+                List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references,com.ainovel.app.prompt.AssembledPrompt prompt,GenerationMode mode,
+                com.ainovel.app.quality.language.LanguageStandard.Selection language){this(scene,compiled,characters,previous,planning,references,prompt,mode,language,null,null,null);}
+    }
+
+    public String planningHash(Manuscript manuscript) {
+        var outline=manuscript.getOutline();var story=outline.getStory();
+        var characters=characterCardRepository.findByStory(story).stream()
+                .sorted(java.util.Comparator.comparing(c->Objects.toString(c.getId(),""))).toList();
+        return com.ainovel.app.quality.language.LanguageProjection.hash(objectMapper.valueToTree(java.util.Arrays.asList(
+                outline.getRevision(),outline.getTitle(),outline.getContentJson(),story.getTitle(),story.getSynopsis(),story.getGenre(),story.getTone(),characters.stream().map(c->java.util.Arrays.asList(c.getId(),c.getName(),c.getSynopsis(),c.getDetails(),c.getRelationships())).toList())).toString());
+    }
+
+    public boolean hasFrozenInput() {
+        var operation=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
+        var draft=operation==null||candidateStore==null?null:candidateStore.draft(operation,1);
+        return draft!=null&&draft.getRequestJson()!=null;
+    }
+    public String frozenPlanningHash(Manuscript manuscript) {
+        var operation=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
+        var draft=operation==null||candidateStore==null?null:candidateStore.draft(operation,1);
+        if(draft!=null&&draft.getRequestJson()!=null) {
+            try {var input=objectMapper.readTree(draft.getRequestJson());if(input.hasNonNull("planningHash"))return input.path("planningHash").asText();}
+            catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
+        }
+        var quote=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        if(quote!=null&&quote.writingInput()!=null&&quote.writingInput().frozen().hasNonNull("planningHash"))
+            return quote.writingInput().frozen().path("planningHash").asText();
+        return planningHash(manuscript);
+    }
+
+    public void requireBaseline(Manuscript manuscript,com.fasterxml.jackson.databind.JsonNode input) {
+        if(input.hasNonNull("sourceVersion")&&(input.path("sourceVersion").asLong()!=manuscript.getVersion()
+                ||!Objects.equals(input.path("branchId").isNull()?null:input.path("branchId").asText(),Objects.toString(manuscript.getCurrentBranchId(),null))))
+            throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("SCENE_CANDIDATE_VERSION_CONFLICT");
+        if(input.hasNonNull("planningHash")&&!input.path("planningHash").asText().equals(planningHash(manuscript)))
+            throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("WORLD_CONTEXT_CHANGED");
+    }
 
     private SlopQualityResult evaluateGenerationQuality(User user, boolean replacesLegacy, SlopQualityRequest request) {
         return replacesLegacy

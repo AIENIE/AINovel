@@ -4,6 +4,7 @@ export type SceneCandidate = {
   status: string; qualityStatus: string | null; sourceKind: string | null; createdAt: string;
 };
 export type SceneCandidateDetail = {
+  worldContext?: import("./api/domains/world-context").WorldSelection | null;
   id: string; content: string; sourceFingerprint: string; qualityStatus: string | null; sourceKind: string | null;
 };
 export type SceneGenerationOutcome = {

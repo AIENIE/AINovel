@@ -31,7 +31,7 @@ class LanguageGenerationProfileTest {
         var selection=new LanguageStandard.Selection("zh-naturalness-v2",true,false);
         var world=new com.ainovel.app.world.WorldBindingService.Frozen(null);
         var m=UUID.randomUUID();var scene=UUID.randomUUID();
-        handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(new SceneGenerationService.Admission(selection,world)),3)));
+        handler.execute(execution(new CoreAiOperationHandler.CorePayload("SCENE_GENERATION",m,scene,"FAST",json.valueToTree(new SceneGenerationService.Admission(selection,world)),4)));
         verify(manuscripts).generateSceneOutcome(m,scene,GenerationMode.FAST,selection,world,false);
     }
     @Test void oldUnknownPayloadCannotSilentlyStartCurrentProfile() throws Exception {

@@ -27,6 +27,7 @@ import static com.ainovel.app.quality.language.LanguageProjection.hash;
 
 @Service
 public class WritingAssistantService {
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
     public static final String TYPE="WRITING_ASSISTANT_TURN";
     private final AssistantStore store;
     private final ResourceAccessGuard access;
@@ -91,7 +92,11 @@ public class WritingAssistantService {
         requireKey(key);if(request==null||request.branchId()==null||request.expectedVersion()==null||request.sourceHtml()==null||request.instruction()==null||request.instruction().isBlank()||request.instruction().length()>8000)throw invalid("ASSISTANT_REQUEST_INVALID");
         String intent=Objects.toString(request.intent(),"AUTO");if(!Set.of("AUTO","EDIT","AUTHOR_QA").contains(intent))throw invalid("ASSISTANT_INTENT_INVALID");
         // One manuscript lock also arbitrates first-session creation and the frozen baseline.
-        manuscripts.findByIdForUpdate(manuscriptId).orElseThrow(()->missing());var m=owned(user,manuscriptId,request.branchId());
+        var m=owned(user,manuscriptId,request.branchId());
+        if(worldBindings!=null) {
+            var current=worldBindings.lockCurrent(m);var quoted=com.ainovel.app.modelconfig.AiSelectionContext.current();
+            if(quoted!=null&&quoted.worldInput()!=null&&!worldBindings.same(quoted.worldInput().binding(),current))throw conflict("WORLD_CONTEXT_CHANGED");
+        }else manuscripts.findByIdForUpdate(manuscriptId).orElseThrow(()->missing());
         var session=store.session(user.getId(),manuscriptId,request.branchId(),sceneId);
         String requestHash=hash(store.write(request));
         if(session!=null){
@@ -99,6 +104,31 @@ public class WritingAssistantService {
             if(replay!=null){if(!replay.requestHash().equals(requestHash))throw conflict("ASSISTANT_IDEMPOTENCY_CONFLICT");return new Accepted(replay.id(),replay.operationId());}
             if(operations.active(user,"ASSISTANT_SESSION",session.id())!=null)throw conflict("ASSISTANT_TURN_IN_PROGRESS");
         }
+        var frozen=prepare(user,manuscriptId,sceneId,request);
+        var selections=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        if(selections!=null&&selections.writingInput()!=null&&"ASSISTANT".equals(selections.writingInput().purpose())) {
+            var quoted=json.convertValue(selections.writingInput().frozen(),Frozen.class);
+            if(!hash(store.write(frozen)).equals(hash(store.write(quoted))))throw conflict("WORLD_CONTEXT_CHANGED");
+            frozen=quoted;
+        }
+        if(session==null)session=store.createSession(user.getId(),manuscriptId,request.branchId(),sceneId);
+        UUID turnId=store.createTurn(session.id(),key,requestHash,frozen);
+        var accepted=operations.submit(user,TYPE,"ASSISTANT_SESSION",session.id(),Map.of("turnId",turnId),2,"理解请求与准备上下文","assistant-turn:"+turnId);
+        store.attach(turnId,accepted.operationId());return new Accepted(turnId,accepted.operationId());
+    }
+    @Transactional(readOnly=true)
+    public Frozen prepare(User user,UUID manuscriptId,UUID sceneId,TurnRequest request) {
+        return prepare(user,manuscriptId,sceneId,request,false);
+    }
+    @Transactional(readOnly=true)
+    public Frozen preview(User user,UUID manuscriptId,UUID sceneId,TurnRequest request) {
+        return prepare(user,manuscriptId,sceneId,request,true);
+    }
+    private Frozen prepare(User user,UUID manuscriptId,UUID sceneId,TurnRequest request,boolean preview) {
+        if(request==null||request.branchId()==null||request.expectedVersion()==null||request.sourceHtml()==null||request.instruction()==null||request.instruction().isBlank()||request.instruction().length()>8000)throw invalid("ASSISTANT_REQUEST_INVALID");
+        String intent=Objects.toString(request.intent(),"AUTO");if(!Set.of("AUTO","EDIT","AUTHOR_QA").contains(intent))throw invalid("ASSISTANT_INTENT_INVALID");
+        var m=owned(user,manuscriptId,request.branchId());
+        var session=store.session(user.getId(),manuscriptId,request.branchId(),sceneId);
         if(m.getVersion()!=request.expectedVersion())throw conflict("MANUSCRIPT_VERSION_CONFLICT");
         String server=contents.readScene(m,sceneId);boolean h2=narrative.enabled(m);
         if(h2&&!server.equals(request.sourceHtml()))throw conflict("ASSISTANT_H2_SAVE_REQUIRED");
@@ -115,7 +145,9 @@ public class WritingAssistantService {
                 document=parentFrozen.document();parentChanges=data.replacements;
             }else if(!"ACCEPTED".equals(parent.status()))throw conflict("ASSISTANT_PROPOSAL_DECIDED");
         }
-        var snapshot=context.freeze(user,m,sceneId);var histories=new ArrayList<History>();var warnings=new ArrayList<String>();
+        var snapshot=context.freeze(user,m,sceneId,request.instruction(),request.sourceHtml());var histories=new ArrayList<History>();var warnings=new ArrayList<String>();
+        if(!preview&&snapshot.worldContext()!=null&&(!snapshot.h2()||intent.equals("AUTHOR_QA")))
+            com.ainovel.app.worldcontext.WorldContextPreferences.check(snapshot.worldContext(),null,request.expectedSelectionRevision());
         if(session!=null)for(var t:store.turns(session.id(),null,null,32)){
             if(t.resultJson()==null)continue;var out=store.read(t.resultJson(),Outcome.class);
             if(!out.intent().equals(intent.equals("AUTO")?"EDIT":intent))continue;
@@ -129,11 +161,17 @@ public class WritingAssistantService {
         var frozen=new Frozen(manuscriptId,request.branchId(),sceneId,m.getVersion(),hash(server),request.instruction(),intent,
                 request.parentProposalId(),document,parentChanges,snapshot,List.copyOf(histories),rules,warnings.stream().distinct().toList());
         // Required input is checked before a task or external call is accepted.
-        prompts.build(frozen,context.read(snapshot,intent.equals("AUTHOR_QA")?intent:"EDIT",List.of()),false);
-        if(session==null)session=store.createSession(user.getId(),manuscriptId,request.branchId(),sceneId);
-        UUID turnId=store.createTurn(session.id(),key,requestHash,frozen);
-        var accepted=operations.submit(user,TYPE,"ASSISTANT_SESSION",session.id(),Map.of("turnId",turnId),2,"理解请求与准备上下文","assistant-turn:"+turnId);
-        store.attach(turnId,accepted.operationId());return new Accepted(turnId,accepted.operationId());
+        if(!preview||snapshot.worldContext()==null||snapshot.worldContext().issues().isEmpty()||snapshot.h2()&&!intent.equals("AUTHOR_QA"))
+            prompts.build(frozen,context.read(snapshot,intent.equals("AUTHOR_QA")?intent:"EDIT",List.of()),false);
+        if(request.contextHash()!=null&&!request.contextHash().equals(hash(store.write(frozen))))throw conflict("WORLD_CONTEXT_CHANGED");
+        return frozen;
+    }
+    public AssistantContext.Reads firstReads(Frozen frozen) {
+        return context.read(frozen.context(),frozen.intent().equals("AUTHOR_QA")?"AUTHOR_QA":"EDIT",List.of());
+    }
+    public int estimatedInput(Frozen frozen) {
+        var initial=context.read(frozen.context(),frozen.intent().equals("AUTHOR_QA")?"AUTHOR_QA":"EDIT",List.of());
+        return prompts.build(frozen,initial,false).messages().stream().mapToInt(m->AssistantContext.tokens(m.content())).sum()+AssistantContext.BUDGET;
     }
     @Transactional(readOnly=true)
     public TurnDto turn(User user,UUID manuscriptId,UUID sceneId,UUID turnId){return dto(user,requireTurn(user,manuscriptId,sceneId,turnId));}
@@ -238,7 +276,18 @@ public class WritingAssistantService {
         var f=frozen(turn);var out=turn.resultJson()==null?null:store.read(turn.resultJson(),Outcome.class);var usage=Usage.zero();
         for(String raw:new String[]{turn.planResultJson(),turn.finalResultJson()})if(raw!=null){var r=store.read(raw,AiChatResponse.class).usage();usage=new Usage(usage.inputTokens()+r.inputTokens(),usage.outputTokens()+r.outputTokens(),usage.cost()+r.cost(),usage.modelCalls()+1);}
         String status=turn.operationId()==null?"QUEUED":operations.get(user,turn.operationId()).status().name();
-        return new TurnDto(turn.id(),turn.operationId(),status,out==null?null:out.kind(),f.instruction(),out==null?null:out.answer(),out==null?null:out.proposalId(),f.parentProposalId(),out==null?List.of():out.sources(),out==null?List.of():out.warnings(),usage,turn.createdAt());
+        var steps=new ArrayList<StepSources>();
+        if(turn.planResultJson()!=null)steps.add(new StepSources("plan",requestSources(turn.planRequestJson())));
+        if(turn.finalResultJson()!=null)steps.add(new StepSources("final",requestSources(turn.finalRequestJson())));
+        return new TurnDto(turn.id(),turn.operationId(),status,out==null?null:out.kind(),f.instruction(),out==null?null:out.answer(),out==null?null:out.proposalId(),f.parentProposalId(),out==null?List.of():out.sources(),out==null?List.of():out.warnings(),usage,turn.createdAt(),f.context().worldContext(),List.copyOf(steps));
+    }
+    private List<Source> requestSources(String raw) {
+        if(raw==null)return List.of();
+        var request=store.read(raw,AiChatRequest.class);String marker="实际提供的上下文与出处：\n";
+        for(var message:request.messages())if(message.content().startsWith(marker))
+            try{return json.readValue(message.content().substring(marker.length()),new TypeReference<List<Source>>(){});}
+            catch(Exception e){throw new IllegalStateException("ASSISTANT_STORED_SOURCES_INVALID",e);}
+        return List.of();
     }
     private Frozen frozen(AssistantStore.Turn turn){return store.read(turn.frozenJson(),Frozen.class);}
     private AssistantStore.Turn requireTurn(User user,UUID manuscript,UUID scene,UUID id){var t=store.turn(id);var s=store.session(t.sessionId());access.requireOwnedManuscript(manuscript,user);if(!s.userId().equals(user.getId())||!s.manuscriptId().equals(manuscript)||!s.sceneId().equals(scene))throw missing();return t;}

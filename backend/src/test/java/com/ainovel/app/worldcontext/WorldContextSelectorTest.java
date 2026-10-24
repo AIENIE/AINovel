@@ -53,4 +53,12 @@ class WorldContextSelectorTest {
         var result=selector.select(null,Preferences.defaults(null),"场景",3500,false);
         assertNull(result.binding());assertEquals("",result.content());assertEquals(0,result.tokenUsed());
     }
+    @Test void sameNameEntriesRemainDistinctAndRulesPrecedeOrdinaryMatches() {
+        var base=binding("","");var first=UUID.fromString("00000000-0000-0000-0000-000000000001");var second=UUID.fromString("00000000-0000-0000-0000-000000000002");
+        var c=new Content("群岛","",List.of(),"","",List.of(new Entry(first,"LOCATION","北堤","","通行",List.of(),List.of(),null,null),new Entry(second,"RULE","北堤","","通行",List.of(),List.of(),null,null)),List.of(),Map.of(),null,"");
+        var b=new WorldBindingService.Resolved(world,version,"STORY",base.sourceId(),1,"群岛",1,"PUBLISHED","x",null,c);
+        var selected=selector.select(b,Preferences.defaults(world),"北堤",3500,false).included().stream().filter(s->s.id().startsWith("entry:")).toList();
+        assertEquals(List.of("entry:"+second,"entry:"+first),selected.stream().map(Source::id).toList());
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->selector.select(new WorldBindingService.Resolved(world,null,"STORY",base.sourceId(),1,"群岛",0,null,null,"WORLD_BINDING_UNRESOLVED",null),Preferences.defaults(world),"",3500,false));
+    }
 }

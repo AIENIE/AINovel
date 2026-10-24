@@ -56,3 +56,13 @@
 `draft` 的 metadata 及不可变快照增加 `overview`；空值读取兼容历史快照，不改写历史 JSON 或摘要。`/api/v1/world-prompts` 模板数据增加 `actions`，支持 entryGenerate/discuss/propose/refine/overview。旧模块和字段精修模板保留，finalTemplates 作为概览整合附加要求。
 
 普通讨论、整理及细化最多 plan/final 两次调用，final 仅在请求补读时执行；报价包含所有可能步骤。单条精修和概览一次调用。受理冻结草稿、话题、候选、模板和模型选择；恢复沿用原任务与请求身份，没有格式修复或自动重试调用。
+
+## W4 写作世界上下文
+
+接口前缀为 `/api/v1`。大纲资源 `/outlines/{id}/world-context` 与稿件场景资源 `/manuscripts/{id}/scenes/{sceneId}/world-context` 均支持 GET、PUT 和 POST `/preview`。读取只使用实际绑定的不可变世界版本，失效绑定不会回退到草稿。
+
+PUT 请求为 `{worldId,versionId,expectedRevision,choices}`，choices 按 `metadata/overview/notes/entry:{稳定ID}/relation:{稳定ID}` 记录 `AUTO/INCLUDE/EXCLUDE`；AUTO 清除覆盖。响应包含 revision、核对版本和来源摘要。相同世界升级保留稳定 ID 的选择；缺失必选、必选关系端点排除及已变化必选需处理后生成。
+
+场景 preview 请求 `{purpose:"SCENE",mode:"fast"|"crafted"}`；助手 preview 为 `{purpose:"ASSISTANT",...TurnRequest}`。大纲 preview 使用下述大纲任务请求。响应含 `contextHash/preferences/selection/compiledContext/firstSources/availableSources`；selection 说明绑定层级、版本、来源完整内容、命中或排除原因和容量。助手 availableSources 是冻结可补读范围，不能视为已读。预览与偏好保存均不调用模型。
+
+场景和助手生成请求增加 `contextHash` 与 `expectedSelectionRevision`，由预览取得。报价持久化完整输入及来源；绑定、配置、输入或选择变化后须重新预览和报价。容量问题在模型调用前阻断，不能以截断概览或必选原文继续。H2 编辑预览明确说明世界材料隔离，首步及补读均不得读取未分类世界来源；AUTHOR_QA 不允许正文修改。

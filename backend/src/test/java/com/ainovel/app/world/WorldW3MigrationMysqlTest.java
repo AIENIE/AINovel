@@ -26,13 +26,13 @@ class WorldW3MigrationMysqlTest {
             execute(db,"insert into stories(id,user_id,title,world_id,world_version_id,world_binding_revision) values(?,?,'固定小说',?,?,4)",story,owner,world.toString(),version);
             String modules="{\"geography\":\"自定义 {worldName}\"}",finals="{\"geography\":\"保留潮汐约束\"}",refine="自定义字段精修 {text}";
             execute(db,"insert into world_prompt_templates(id,user_id,modules_json,final_templates_json,field_refine) values(?,?,?,?,?)",UUID.randomUUID(),owner,modules,finals,refine);
-            assertEquals(1,Flyway.configure().dataSource(url,user,password).load().migrate().migrationsExecuted);
+            assertEquals(1,Flyway.configure().dataSource(url,user,password).target("46").load().migrate().migrationsExecuted);
             assertNull(scalar(db,"select overview from worlds where id=?",world));assertEquals(hash,scalar(db,"select draft_content_hash from worlds where id=?",world));
             assertEquals(snapshot,scalar(db,"select snapshot_json from world_versions where id=?",version));assertEquals(hash,scalar(db,"select content_hash from world_versions where id=?",version));assertEquals("原发布说明",scalar(db,"select release_note from world_versions where id=?",version));
             assertEquals(hash,store.hash(store.parse(snapshot)));assertEquals(4L,((Number)scalar(db,"select world_binding_revision from stories where id=?",story)).longValue());
             assertEquals(modules,scalar(db,"select modules_json from world_prompt_templates where user_id=?",owner));assertEquals(finals,scalar(db,"select final_templates_json from world_prompt_templates where user_id=?",owner));assertEquals(refine,scalar(db,"select field_refine from world_prompt_templates where user_id=?",owner));assertNull(scalar(db,"select action_templates_json from world_prompt_templates where user_id=?",owner));
             for(String table:List.of("world_assistant_sessions","world_assistant_turns","world_assistant_proposals","world_assistant_receipts"))assertEquals(0L,((Number)scalar(db,"select count(*) from "+table)).longValue());
-            assertEquals(0,Flyway.configure().dataSource(url,user,password).load().migrate().migrationsExecuted);
+            assertEquals(0,Flyway.configure().dataSource(url,user,password).target("46").load().migrate().migrationsExecuted);
         }
     }
     private static void bind(PreparedStatement s,Object[] values)throws SQLException{

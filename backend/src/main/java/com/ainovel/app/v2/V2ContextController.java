@@ -506,6 +506,7 @@ public class V2ContextController {
         response.put("tokenBudget", compiled.manifest().tokenBudget());
         response.put("tokenUsed", compiled.manifest().tokenUsed());
         response.put("compiledContext", compiled.content());
+        response.put("worldContext", compiled.manifest().worldContext());
         response.put("manifest", compiled.manifest());
         response.put("sources", compiled.manifest().sources());
         response.put("lorebookEntries", selected);

@@ -44,7 +44,11 @@ public class SceneDraftContextCompiler {
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.narrative.NarrativeContextService isolation;
-    public static final String COMPILER_VERSION = "scene-draft-v4";
+    public static final String COMPILER_VERSION = "scene-draft-v5";
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.worldcontext.WorldContextSelector worldSelector;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
     public static final int DEFAULT_TOKEN_BUDGET = 3500;
     public static final int MAX_TOKEN_BUDGET = 3500;
     public static final int MAX_HISTORICAL_ANCHORS = 2;
@@ -138,7 +142,8 @@ public class SceneDraftContextCompiler {
         addCharacterCandidates(candidates, required.story(), baseQueryText);
         var world=worldBindings.requireUsable((frozenWorld==null?worldBindings.input(manuscript):frozenWorld).binding());
         UUID boundWorldId=world==null?null:world.worldId();
-        if(world!=null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
+        // Legacy standalone consumers have no W4 services; production always uses the selector below.
+        if(world!=null&&worldSelector==null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
         List<SceneSlot> recentScenes = recentScenes(required.position().priorScenes(), sections);
@@ -156,6 +161,16 @@ public class SceneDraftContextCompiler {
         );
         addAnchorCandidates(candidates, anchors, sections, anchorTerms);
 
+        com.ainovel.app.worldcontext.WorldContextDtos.Selection worldContext=null;
+        if(worldSelector!=null) {
+            var requiredCandidates=candidates.stream().filter(c->c.priority()>=980).toList();
+            var requiredRender=render(new ArrayList<>(requiredCandidates),tokenBudget);
+            String nearby=recentScenes.stream().map(s->plainSection(sections.get(id(s.id())))).reduce("",(a,b)->a+"\n"+b);
+            worldContext=worldSelector.select(world,worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(manuscript,sceneId),world),
+                    queryText+"\n"+nearby,Math.max(0,tokenBudget-estimateTokens(requiredRender.content())-24),false);
+            if(!worldContext.content().isBlank())candidates.add(new Candidate("world","world",world.versionId().toString(),"世界材料",960,
+                    worldContext.tokenUsed()+8,worldContext.content()));
+        }
         RenderedContext rendered = render(candidates, tokenBudget);
         Set<String> includedLorebookIds = sourceIds(rendered.sources(), "lorebook");
         List<Map<String, Object>> includedLorebook = lorebookSelection.entries().stream()
@@ -170,7 +185,12 @@ public class SceneDraftContextCompiler {
                 .reduce((left, right) -> left + "\n" + right)
                 .orElse("暂无可用前文。");
 
-        String contextHash = sha256(COMPILER_VERSION + "\n" + tokenBudget + "\n" + rendered.content());
+        String contextHash = sha256(COMPILER_VERSION + "\n" + tokenBudget + "\n" + rendered.content()+"\n"+(worldContext==null?"":worldContext.contextHash()));
+        var actualSources=new ArrayList<>(rendered.sources());
+        if(worldContext!=null) {
+            actualSources.removeIf(s->s.sourceType().equals("world"));
+            for(var source:worldContext.included())actualSources.add(new SceneDraftContextManifest.Source("world."+source.id(),"world_"+source.type(),source.id(),source.title(),source.reason(),960,source.estimatedTokens(),false,source.contentHash()));
+        }
         SceneDraftContextManifest manifest = new SceneDraftContextManifest(
                 COMPILER_VERSION,
                 contextHash,
@@ -185,8 +205,8 @@ public class SceneDraftContextCompiler {
                 required.position().chapter().order(),
                 required.position().scene().order(),
                 sceneType,
-                rendered.sources(),
-                warnings, null, worldBindings.reference(world)
+                List.copyOf(actualSources),
+                warnings, null, worldBindings.reference(world), worldContext
         );
         return new CompiledSceneDraftContext(
                 rendered.content(),
@@ -493,10 +513,13 @@ public class SceneDraftContextCompiler {
             String header = "\n\n[" + candidate.label() + "]\n";
             int headerTokens = estimateTokens(header);
             int fragmentBudget = Math.min(candidate.maxTokens(), remaining - headerTokens);
-            if (fragmentBudget < 8 || candidate.content().isBlank()) {
+            boolean whole=candidate.sourceType().equals("world")||candidate.priority()>=980;
+            if(whole&&estimateTokens(candidate.content())>remaining-headerTokens)
+                throw com.ainovel.app.worldcontext.WorldContextSelector.error("WORLD_CONTEXT_REQUIRED_CONTEXT_TOO_LARGE");
+            if ((!whole&&fragmentBudget < 8) || candidate.content().isBlank()) {
                 continue;
             }
-            String included = truncateToTokens(candidate.content(), fragmentBudget).trim();
+            String included = (whole?candidate.content():truncateToTokens(candidate.content(), fragmentBudget)).trim();
             if (included.isBlank()) {
                 continue;
             }
@@ -528,7 +551,8 @@ public class SceneDraftContextCompiler {
             ));
             fragmentsBySlot.put(candidate.slot(), candidate.label() + "：\n" + item.included());
         }
-        String compiled = truncateToTokens(content.toString(), tokenBudget).trim();
+        String compiled = content.toString().trim();
+        if(estimateTokens(compiled)>tokenBudget)throw com.ainovel.app.worldcontext.WorldContextSelector.error("WORLD_CONTEXT_REQUIRED_CONTEXT_TOO_LARGE");
         return new RenderedContext(
                 compiled,
                 List.copyOf(sources),
@@ -575,6 +599,9 @@ public class SceneDraftContextCompiler {
     private String queryText(RequiredContext required, String sceneType) {
         OutlinePosition position = required.position();
         return String.join(" ",
+                position.chapter().title(),
+                position.chapter().summary(),
+                canonicalJson(position.chapter().planning()),
                 position.scene().title(),
                 position.scene().summary(),
                 canonicalJson(position.scene().planning()),

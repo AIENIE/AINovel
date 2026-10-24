@@ -7,6 +7,15 @@ import { t } from "@/i18n";
  * 未命中类别时显示本地化通用操作失败。
  */
 const AI_MODEL_ERROR_KEYS: Record<string, string> = {
+  WORLD_CONTEXT_CHANGED: 'world4.stale',
+  WORLD_CONTEXT_SELECTION_CHANGED: 'world4.stale',
+  WORLD_CONTEXT_BINDING_CHANGED: 'world4.stale',
+  WORLD_CONTEXT_MISSING_REQUIRED: 'world4.MISSING_REQUIRED',
+  WORLD_CONTEXT_REVIEW_REQUIRED: 'world4.REVIEW_REQUIRED',
+  WORLD_CONTEXT_RELATION_ENDPOINT_CONFLICT: 'world4.RELATION_ENDPOINT_CONFLICT',
+  WORLD_CONTEXT_REQUIRED_CONTEXT_TOO_LARGE: 'world4.REQUIRED_CONTEXT_TOO_LARGE',
+  OUTLINE_AI_RESULT_NEEDS_REVIEW: 'world4.stale',
+  OUTLINE_AI_RESULT_INVALID: 'world4.INVALID',
   AI_FEATURE_UNCONFIGURED: 'world2.unconfigured',
   AI_REQUEST_IN_PROGRESS: "aiModels.requestInProgress",
   AI_RESULT_RECONCILIATION_REQUIRED: "aiModels.reconciliationNeeded",
@@ -130,5 +139,6 @@ export function localizedErrorMessage(error: unknown, fallbackKey = "errors.oper
       ? `${message}（请求编号：${error.requestId}）` : message;
   }
   if (error instanceof Error && error.message === "AI_QUOTE_CANCELLED") return t("aiModels.quoteCancelled");
+  if (error instanceof Error && error.message === 'WORLD_CONTEXT_CANCELLED') return t('world4.cancelled');
   return (error instanceof Error && worldFailure(error.message)) || t(fallbackKey);
 }

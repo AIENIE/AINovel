@@ -57,12 +57,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 yield result;
             }
             case "OUTLINE_CHAPTER" -> {
-                execution.progress().step("生成章节大纲", 0, 3);
-                OutlineChapterGenerateRequest request = execution.objectMapper().treeToValue(
-                        payload.request(), OutlineChapterGenerateRequest.class);
-                Object result = outlines.addGeneratedChapter(payload.primaryId(), request);
-                execution.progress().step("保存章节与场景", 2, 3);
-                yield result;
+                throw new com.ainovel.app.ai.AiResultUncertainException(new IllegalStateException("OUTLINE_TASK_BASELINE_REQUIRED"));
             }
             case "WORLD_PUBLISH", "WORLD_MODULE", "WORLD_ENTRY" -> worldTasks.execute(execution, payload);
             case "SCENE_GENERATION" -> {
@@ -81,7 +76,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                 }
                 catch(Exception unavailable) { throw new com.ainovel.app.ai.AiResultUncertainException(unavailable); }
                 try(var stage=SceneGenerationProgress.install((label,completed)->execution.progress().step(label,completed,3))) {
-                    yield manuscripts.generateSceneOutcome(payload.primaryId(),payload.secondaryId(),GenerationMode.valueOf(payload.mode()),language,world,payload.sceneGenerationVersion()<3);
+                    yield manuscripts.generateSceneOutcome(payload.primaryId(),payload.secondaryId(),GenerationMode.valueOf(payload.mode()),language,world,payload.sceneGenerationVersion()<4);
                 }
             }
             case "SLOP_DIAGNOSIS" -> {

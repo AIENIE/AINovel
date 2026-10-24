@@ -1,4 +1,5 @@
 import { requestAiQuote } from "./ai-quote-store";
+import { createWorldContextApi } from './api/domains/world-context';
 import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment } from "./ai-model-config";
 import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
@@ -816,6 +817,7 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 }
 
 export const api = {
+  worldContext: createWorldContextApi({json:requestJson,void:requestVoid,blob:requestBlob}),
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
@@ -1333,8 +1335,8 @@ export const api = {
       const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
       return toManuscript(dto);
     },
-    startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
-      requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: "{}" }),
+    startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast", context?: {contextHash:string;expectedSelectionRevision:number}): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: JSON.stringify(context??{}) }),
     listSceneCandidates: (id: string, sceneId: string, branchId: string) =>
       requestJson<SceneCandidate[]>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates?branchId=${encodeURIComponent(branchId)}`, { method: "GET" }),
     sceneCandidate: (id: string, sceneId: string, branchId: string, candidateId: string) =>

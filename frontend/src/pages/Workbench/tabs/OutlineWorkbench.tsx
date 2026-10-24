@@ -1,3 +1,6 @@
+import { OutlineAiResults } from '@/components/ai/OutlineAiResults';
+import { outlineContextPath, type OutlineAiRequest, type OutlineAiResult } from '@/lib/api/domains/world-context';
+import { reviewWorldPreview } from '@/lib/world-context-preview';
 import { WorldBindingPanel } from "@/pages/WorldBuilder/components/WorldBindingPanel";
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { useBlocker } from "react-router-dom";
@@ -70,6 +73,8 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiBusy,setAiBusy]=useState(false);
+  const [aiRevision,setAiRevision]=useState(0);
   const [saveStatus, setSaveStatus] = useState("");
   const [creatingOutline, setCreatingOutline] = useState(false);
   const [newOutlineName, setNewOutlineName] = useState(t("outline.newOutline"));
@@ -238,19 +243,33 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
     } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.deleteFailed"), description: localizedErrorMessage(error, "errors.deleteFailed") }); }
   };
 
-  const handleGenerateNextChapter = async () => {
-    if (!selectedOutline) return;
-    if (dirty && !(await handleSave())) return;
-    const chapterNumber = selectedOutline.chapters.length + 1;
-    if (!confirm(t("world2.chapterConfirm", { chapterNumber }))) return;
+  const refreshGenerated = async (id:string) => {
+    const baseline=draftRef.current;
+    const refreshed=await api.outlines.get(id);
+    setOutlines(current=>current.map(o=>o.id===id?refreshed:o));
+    if(baseline?.id===id&&draftRef.current===baseline&&JSON.stringify(baseline)===savedSnapshot){setSelectedOutline(refreshed);setSavedSnapshot(JSON.stringify(refreshed));}
+  };
+  const runOutlineAi = async (request:OutlineAiRequest) => {
+    if(!selectedOutline||aiBusy)return;
+    if(dirty){toast({description:t('world4.saveFirst')});return;}
+    const original=selectedOutline, path=outlineContextPath(original.id);
+    setAiBusy(true);
     try {
-      await runTrackedAiOperation(api.outlines.startGenerateChapter(selectedOutline.id, { chapterNumber, sectionsPerChapter: 3, wordsPerSection: 2000 }));
-      const refreshed = await api.outlines.get(selectedOutline.id);
-      setOutlines((current) => current.map((outline) => outline.id === refreshed.id ? refreshed : outline));
-      setSelectedOutline(refreshed);
-      setSavedSnapshot(JSON.stringify(refreshed));
-      toast({ title: t("outline.chapterGenerated", { chapterNumber }) });
-    } catch (error: unknown) { toast({ variant: "destructive", title: t("errors.generateChapterFailed"), description: localizedErrorMessage(error, "errors.generateChapterFailed") }); }
+      request.expectedRevision=original.revision;
+      const preview=await reviewWorldPreview(path,request,await api.worldContext.preview(path,request));
+      if(draftRef.current!==original){toast({description:t('world4.stale')});return;}
+      await runTrackedAiOperation(api.worldContext.submitOutline(original.id,{...request,contextHash:preview.contextHash,expectedSelectionRevision:preview.preferences.revision},crypto.randomUUID()));
+      if(draftRef.current===original)await refreshGenerated(original.id);
+      toast({title:t('world4.ready')});
+    }catch(error){toast({variant:'destructive',title:t('outline.aiRefineFailed'),description:localizedErrorMessage(error)});}
+    finally{setAiBusy(false);setAiRevision(v=>v+1);}
+  };
+  const handleGenerateNextChapter = () => runOutlineAi({action:'CHAPTER_GENERATE',chapterNumber:(selectedOutline?.chapters.length??0)+1,sectionsPerChapter:5});
+  const adoptOutlineResult=(result:OutlineAiResult,text:string)=>{
+    const current=draftRef.current;
+    const target=current?.chapters.flatMap(ch=>[ch,...ch.scenes]).find(n=>n.id===result.nodeId);
+    if(!current||!target||target.summary!==result.beforeText||current.revision!==result.sourceRevision){toast({description:t('world4.stale')});return;}
+    setSelectedOutline({...current,chapters:current.chapters.map(ch=>ch.id===result.nodeId?{...ch,summary:text}:{...ch,scenes:ch.scenes.map(sc=>sc.id===result.nodeId?{...sc,summary:text}:sc)})});
   };
 
   const handleAddChapter = () => {
@@ -292,20 +311,10 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
     setScenePlanning((current) => ({ ...current, revealFor: twistId }));
   };
 
-  const handleAiRefine = async () => {
-    if (!summary.trim()) return;
-    try {
-      const response = await api.ai.outlineRefine(
-        summary,
-        selectedNode?.type === "scene"
-          ? t("outline.refineScenePrompt")
-          : t("outline.refineChapterPrompt"),
-        selectedNode?.type === "scene" ? "scene" : "chapter",
-      );
-      setSummary(response.result);
-    } catch (error: unknown) {
-      toast({ variant: "destructive", title: t("outline.aiRefineFailed"), description: localizedErrorMessage(error, "outline.aiRefineFailed") });
-    }
+  const handleAiRefine = () => {
+    if(!selectedNode||!summary.trim())return;
+    return runOutlineAi({action:selectedNode.type==='scene'?'SCENE_REFINE':'CHAPTER_REFINE',nodeId:selectedNode.id,text:summary,
+      instruction:t(selectedNode.type==='scene'?'outline.refineScenePrompt':'outline.refineChapterPrompt')});
   };
 
   const renderOverview = () => {
@@ -545,7 +554,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
               {t("outline.addScene")}
             </Button>
           ) : null}
-          <Button variant="outline" onClick={handleAiRefine}>
+          <Button variant="outline" disabled={aiBusy} onClick={()=>void handleAiRefine()}>
             <Sparkles className="mr-2 h-4 w-4" />
             {t("outline.aiRefine")}
           </Button>
@@ -616,7 +625,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
           <Button size="sm" onClick={() => void handleSave()} disabled={!selectedOutline || isSaving}><Save className="mr-1 h-4 w-4" />{isSaving ? t("common.saving") : t("outline.saveOutline")}</Button>
           {saveStatus ? <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{saveStatus}</span> : null}
         </div>
-        <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline}><Sparkles className="mr-1 h-4 w-4" />{t("outline.generateNextChapter")}</Button>
+        <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline||aiBusy}><Sparkles className="mr-1 h-4 w-4" />{t("outline.generateNextChapter")}</Button>
 
         <ScrollArea className="flex-1">
           {selectedOutline ? (
@@ -660,6 +669,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
       </div>
 
       <div className="flex-1 min-w-0">
+        {selectedOutline && <OutlineAiResults key={selectedOutline.id} outline={selectedOutline} revision={aiRevision} dirty={dirty} onAdopt={adoptOutlineResult} onUpdated={refreshGenerated}/>}
         {selectedOutline ? renderNodeEditor() : <div className="h-full flex items-center justify-center text-muted-foreground">{t("outline.createOrSelectOutline")}</div>}
       </div>
     </div>

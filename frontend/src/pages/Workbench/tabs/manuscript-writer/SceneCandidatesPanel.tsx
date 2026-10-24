@@ -1,3 +1,4 @@
+import { WorldSources } from '@/components/ai/WorldContextPreview';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -86,6 +87,7 @@ export function SceneCandidatesPanel({ manuscript, sceneId, dirty, busy, revisio
           {c.status === "APPLIED" && <span className="block">{t("sceneCandidates.adopted")}</span>}
         </button>)}</div>
         {candidate && detail.data && <section className="space-y-3">
+          {detail.data.worldContext&&<details><summary>{t("world4.actual")}</summary><WorldSources selection={detail.data.worldContext}/></details>}
           {historical && <p className="text-sm">{t("sceneCandidates.incompleteSource")}</p>}
           {historical && typeof usage.completion_tokens === "number" && <p className="text-sm">{t("sceneCandidates.historicalUsage", { input: usage.prompt_tokens, output: usage.completion_tokens, credits: usage.settled_amount })}</p>}
           {outside && <p className="text-sm font-medium text-amber-700">{t("sceneCandidates.outside")}</p>}

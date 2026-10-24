@@ -1,11 +1,13 @@
 import { sceneGenerationOutcome, SCENE_CANDIDATES_EVENT } from "@/lib/scene-candidates";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
 import type { Manuscript, PlotQualityRun, PlotQualityTrend, SlopQualityRun } from "@/types";
 import { qualityStatusText, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/shared";
 import { t } from "@/i18n";
 import { localizedErrorMessage } from "@/lib/error-messages";
+import { sceneContextPath } from '@/lib/api/domains/world-context';
+import { reviewWorldPreview } from '@/lib/world-context-preview';
 
 type GenerationMode = "fast" | "crafted";
 
@@ -54,16 +56,23 @@ export function useManuscriptSceneGeneration({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<GenerationMode>("fast");
   const [generationRevision, setGenerationRevision] = useState(0);
+  const latest=useRef({selectedManuscriptId,selectedSceneId,hasUnsavedChanges});
+  latest.current={selectedManuscriptId,selectedSceneId,hasUnsavedChanges};
 
   const generateScene = useCallback(async () => {
     if (!selectedManuscriptId || !selectedSceneId) return;
     if (hasUnsavedChanges) { toast({ description: t("sceneCandidates.saveFirst") }); return; }
     const sceneId = selectedSceneId;
+    const unchanged=()=>latest.current.selectedManuscriptId===selectedManuscriptId&&latest.current.selectedSceneId===sceneId&&!latest.current.hasUnsavedChanges;
     cancelPendingSectionSave(sceneId);
     setIsGenerating(true);
     try {
-      const operation = await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode));
+      const path=sceneContextPath(selectedManuscriptId,sceneId), request={purpose:'SCENE',mode:generationMode};
+      const preview=await reviewWorldPreview(path,request,await api.worldContext.preview(path,request));
+      if(!unchanged()){toast({description:t('world4.stale')});return;}
+      const operation = await runTrackedAiOperation(api.manuscripts.startGenerateScene(selectedManuscriptId, sceneId, generationMode,{contextHash:preview.contextHash,expectedSelectionRevision:preview.preferences.revision}));
       const outcome = sceneGenerationOutcome(operation.resultJson);
+      if(!unchanged()){window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT));toast({description:t('world4.stale')});return;}
       if (outcome?.outcome === "NEEDS_REVIEW") {
         // Initial generation can create the main branch even though no scene was saved.
         if (onSourceResolved) onSourceResolved(await api.manuscripts.get(selectedManuscriptId));
@@ -73,6 +82,7 @@ export function useManuscriptSceneGeneration({
         return;
       }
       const saved = await readGeneratedManuscript(selectedManuscriptId, sceneId);
+      if(!unchanged()){toast({description:t('world4.stale')});return;}
       const generatedHtml = saved.sections?.[sceneId];
       if (typeof generatedHtml !== "string" || !stripHtml(generatedHtml)) {
         throw new Error(t("sceneGeneration.noGeneratedContent"));

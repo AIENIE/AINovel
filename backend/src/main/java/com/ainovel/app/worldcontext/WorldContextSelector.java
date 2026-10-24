@@ -24,6 +24,9 @@ public class WorldContextSelector {
     private record Ranked(Item item,int priority,int score,String reason,boolean required) {}
 
     public Selection select(WorldBindingService.Resolved binding,Preferences preferences,String query,int budget,boolean isolated) {
+        return select(binding,preferences,query,budget,isolated,s->tokens(render(s.title(),s.content())));
+    }
+    public Selection select(WorldBindingService.Resolved binding,Preferences preferences,String query,int budget,boolean isolated,java.util.function.ToIntFunction<Source> costOf) {
         int limit=Math.max(0,Math.min(3500,budget));
         if(binding==null)return result(null,preferences,query,limit,List.of(),List.of(),List.of());
         if(binding.unavailableReason()!=null)throw error(binding.unavailableReason());
@@ -48,11 +51,14 @@ public class WorldContextSelector {
         String normalized=normalize(query);var terms=terms(normalized);var direct=new HashSet<String>();List<Ranked> ranked=new ArrayList<>();
         for(var item:items) {
             var match=item.names().stream().map(WorldContextSelector::normalize).filter(n->!n.isBlank()&&normalized.contains(n)).findFirst();
-            int matches=overlap(terms,terms(item.title()+" "+String.join(" ",item.tags())+" "+item.content()));
-            boolean tag=item.tags().stream().anyMatch(t->!t.isBlank()&&normalized.contains(normalize(t)));
+            var contentTerms=terms(item.title()+" "+String.join(" ",item.tags())+" "+item.content());
+            var matchedTerms=terms.stream().filter(contentTerms::contains).sorted().toList();
+            int matches=matchedTerms.size();
+            var matchedTags=item.tags().stream().filter(t->!t.isBlank()&&normalized.contains(normalize(t))).sorted().toList();
+            boolean tag=!matchedTags.isEmpty();
             int priority=match.isPresent()?300:tag||matches>0?200:item.id().equals("metadata")?100:0;
             if(priority>=200&&item.endpoints().isEmpty())direct.add(item.id());
-            String reason=match.isPresent()?"NAME_MATCH:"+match.get():tag?"TAG_MATCH":matches>0?"CONTENT_MATCH":item.id().equals("metadata")?"WORLD_BACKGROUND":"NOT_RELEVANT";
+            String reason=match.isPresent()?"NAME_MATCH:"+match.get():tag?"TAG_MATCH:"+String.join("、",matchedTags):matches>0?"CONTENT_MATCH:"+String.join("、",matchedTerms.stream().limit(6).toList()):item.id().equals("metadata")?"WORLD_BACKGROUND":"NOT_RELEVANT";
             ranked.add(new Ranked(item,priority,matches,reason,mandatory.contains(item.id())));
         }
         var neighbors=new HashSet<String>();
@@ -75,7 +81,7 @@ public class WorldContextSelector {
             var item=r.item();Choice choice=choices.getOrDefault(item.id(),Choice.AUTO);
             String reason=isolated?"H2_UNCLASSIFIED":choice==Choice.EXCLUDE?"AUTHOR_EXCLUDED":choice==Choice.INCLUDE?"AUTHOR_REQUIRED":
                     r.required()?item.id().equals("overview")?"OVERVIEW_DEFAULT":"REQUIRED_RELATION_ENDPOINT":r.reason();
-            int cost=tokens(render(item.title(),item.content()));
+            int cost=costOf.applyAsInt(new Source(item.id(),item.type(),item.title(),item.content(),hash(item.content()),choice,reason,0,r.required()));
             boolean allowed=!isolated&&choice!=Choice.EXCLUDE&&(r.required()||r.priority()>0);
             if(allowed&&!selected.containsAll(item.endpoints())) {allowed=false;reason="ENDPOINT_NOT_INCLUDED";}
             if(allowed&&used+cost>limit) {allowed=false;reason="CAPACITY_EXCLUDED";if(r.required())issues.add("REQUIRED_CONTEXT_TOO_LARGE:"+item.id());}
@@ -94,7 +100,7 @@ public class WorldContextSelector {
         String content=included.stream().map(s->render(s.title(),s.content())).reduce("",String::concat);
         var reference=binding==null?null:new WorldBindingService.Resolved(binding.worldId(),binding.versionId(),binding.sourceType(),binding.sourceId(),binding.bindingRevision(),binding.name(),binding.sequenceNumber(),binding.origin(),binding.contentHash(),binding.unavailableReason(),null);
         String queryHash=hash(text(query));String fingerprint=hash(VERSION+"\n"+write(reference)+"\n"+prefs.revision()+"\n"+queryHash+"\n"+limit+"\n"+write(included)+"\n"+write(excluded)+"\n"+write(issues));
-        return new Selection(VERSION,reference,prefs.revision(),queryHash,fingerprint,limit,tokens(content),content,List.copyOf(included),List.copyOf(excluded),List.copyOf(issues));
+        return new Selection(VERSION,reference,prefs.revision(),queryHash,fingerprint,limit,included.stream().mapToInt(Source::estimatedTokens).sum(),content,List.copyOf(included),List.copyOf(excluded),List.copyOf(issues));
     }
     private List<Item> items(Content c) {
         var list=new ArrayList<Item>();
@@ -103,7 +109,7 @@ public class WorldContextSelector {
         if(!text(c.notes()).isBlank())list.add(new Item("notes","AUTHOR_NOTES","作者说明",c.notes(),List.of(),List.of(),List.of()));
         for(var e:c.entries()) {
             var names=new ArrayList<String>();names.add(e.title());if(e.aliases()!=null)names.addAll(e.aliases());
-            list.add(new Item("entry:"+e.id(),e.type(),e.title(),"类型："+e.type()+"\n别名："+write(e.aliases())+"\n标签："+write(e.tags())+"\n摘要："+text(e.summary())+"\n正文："+text(e.content()),names,e.tags()==null?List.of():e.tags(),List.of()));
+            list.add(new Item("entry:"+e.id(),e.type(),e.title(),"标题："+e.title()+"\n类型："+e.type()+"\n别名："+write(e.aliases())+"\n标签："+write(e.tags())+"\n摘要："+text(e.summary())+"\n正文："+text(e.content()),names,e.tags()==null?List.of():e.tags(),List.of()));
         }
         var names=new HashMap<UUID,String>();c.entries().forEach(e->names.put(e.id(),e.title()));
         for(var r:c.relations())list.add(new Item("relation:"+r.id(),"RELATION",names.getOrDefault(r.sourceId(),r.sourceId().toString())+" → "+names.getOrDefault(r.targetId(),r.targetId().toString()),
@@ -123,5 +129,4 @@ public class WorldContextSelector {
             }else if(!STOP.contains(term))result.add(term);
         }return result;
     }
-    private static int overlap(Set<String> a,Set<String> b){return (int)a.stream().filter(b::contains).count();}
 }

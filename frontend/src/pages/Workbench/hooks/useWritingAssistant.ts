@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "@/lib/api-client";
+import { sceneContextPath } from '@/lib/api/domains/world-context';
+import { reviewWorldPreview } from '@/lib/world-context-preview';
 import { runTrackedAiOperation, retryTrackedAiOperation } from "@/lib/ai-operation-store";
 import { AssistantInteractionError, sameAssistantDocument, type AssistantEditorTarget } from "@/lib/assistant-editor";
 import type { AssistantIntent, AssistantProposal, AssistantTurn, AssistantTurnRequest } from "@/lib/api/domains/writing-assistant";
@@ -66,6 +68,10 @@ export function useWritingAssistant(options: Options) {
     if (latest.current.identity !== identity || !sameAssistantDocument(latest.current.content, content)) throw new AssistantInteractionError(t("assistant.localChanged"));
     const request: AssistantTurnRequest = { branchId: branch, expectedVersion: source.version, instruction: input.trim(), sourceHtml: parent?.status === "READY" ? parent.beforeHtml : content,
       selection: intent === "AUTHOR_QA" && !target?.supported ? null : target?.selection || null, parentProposalId: parent?.id, intent };
+    const path=sceneContextPath(id,sceneId), previewRequest={...request,purpose:'ASSISTANT'};
+    const preview=await reviewWorldPreview(path,previewRequest,await api.worldContext.preview(path,previewRequest));
+    if(latest.current.identity!==identity||!sameAssistantDocument(latest.current.content,content))throw new AssistantInteractionError(t('assistant.localChanged'));
+    request.contextHash=preview.contextHash;request.expectedSelectionRevision=preview.preferences.revision;
     const submissionId = `${identity}:${intent}:${input}:${parent?.id || ""}:${JSON.stringify(target?.selection || null)}:${content}`;
     const pending = submissions.current.get(submissionId) || { key: crypto.randomUUID(), request };
     submissions.current.set(submissionId, pending);

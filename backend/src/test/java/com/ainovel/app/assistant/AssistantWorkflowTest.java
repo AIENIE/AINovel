@@ -89,6 +89,26 @@ class AssistantWorkflowTest {
         when(ai.chatWithIdempotency(eq(user),any(),anyString())).thenReturn(response(edit()));assertThrows(ApiStatusException.class,this::execute);assertNull(proposal.get());
         assertTrue(checkpoints.get("plan_request_json").contains("所有结果的 intent 必须保持 AUTHOR_QA"));
     }
+    @Test void worldSecretsInEverySourceAndAuthorHistoryStayOutsideH2BothSteps() {
+        var original=snapshot(true);var author=new ArrayList<>(original.authorPool());
+        for(String type:List.of("OVERVIEW","RULE","RELATION","AUTHOR_NOTES"))author.add(new Source("world:"+type,"WORLD_"+type,"禁止标题"+type,"秘密别名-"+type+"-SECRET_W4",null,"hash",false,null));
+        var snapshot=new AssistantContext.Snapshot(true,null,original.base(),original.editPool(),author,2800,3200);
+        frozen=frozen("<p>她推开门。</p>","EDIT",snapshot,List.of(new WritingAssistantService.History("AUTHOR_QA","禁止标题","SECRET_W4")));
+        when(ai.chatWithIdempotency(eq(user),any(),anyString())).thenReturn(response(read("EDIT","线索")),response(edit()));execute();
+        for(String key:List.of("plan_request_json","final_request_json")) {
+            assertFalse(checkpoints.get(key).contains("SECRET_W4"));assertFalse(checkpoints.get(key).contains("禁止标题"));assertFalse(checkpoints.get(key).contains("秘密别名"));
+        }
+        assertTrue(outcome.get().sources().stream().noneMatch(s->s.type().startsWith("WORLD_")));
+    }
+    @Test void manualExclusionCannotBeBypassedByAssistantSecondRead() {
+        var original=snapshot(false);
+        var included=new Source("world:selected","WORLD_RULE","可读规则","完整选中规则",null,"hash",false,null);
+        var pool=new ArrayList<>(original.editPool());pool.add(included);
+        var snapshot=new AssistantContext.Snapshot(false,null,original.base(),pool,pool,2800,3200);
+        var reads=context.read(snapshot,"EDIT",List.of(new ReadRequest("read_source",null,"world:excluded")));
+        assertTrue(reads.sources().stream().anyMatch(s->s.id().equals(included.id())&&!s.truncated()));
+        assertTrue(reads.sources().stream().noneMatch(s->s.id().equals("world:excluded")));
+    }
     @Test void explicitEditCanRequestClarificationWithoutChangingPurpose(){
         when(ai.chatWithIdempotency(eq(user),any(),anyString())).thenReturn(response("{\"kind\":\"NEEDS_INPUT\",\"intent\":\"EDIT\",\"answer\":\"请说明希望保留的结尾。\"}"));
         execute();assertEquals("NEEDS_INPUT",outcome.get().kind());assertEquals("EDIT",outcome.get().intent());assertNull(proposal.get());
