@@ -46,6 +46,11 @@ public class WorldBindingService {
         return value;
     }
     public Frozen freeze(Manuscript manuscript) {return new Frozen(resolve(manuscript));}
+    public Resolved lockCurrent(Outline outline) {
+        em.refresh(outline.getStory(),LockModeType.PESSIMISTIC_WRITE);
+        em.refresh(outline,LockModeType.PESSIMISTIC_WRITE);
+        return resolve(outline.getStory(),outline,null);
+    }
     public Resolved lockCurrent(Manuscript manuscript) {
         em.refresh(manuscript.getOutline().getStory(),LockModeType.PESSIMISTIC_WRITE);
         em.refresh(manuscript.getOutline(),LockModeType.PESSIMISTIC_WRITE);

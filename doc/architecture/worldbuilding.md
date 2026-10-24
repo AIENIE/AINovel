@@ -57,3 +57,12 @@ V46 增加 `worlds.overview`、`world_prompt_templates.action_templates_json` �
 所有处置先锁世界，再锁话题/提案。采纳检查提案 revision、草稿 revision 和具体目标 before，原子写入目标、世界摘要/revision、提案状态与回执。其他目标变化需作者复核，不使整批候选全部不可用；概览使用完整来源摘要，来源变化则过期。
 
 报价保存本次冻结的世界协作输入，任务直接使用获准输入，避免报价后模板变化改变实际请求。旧 W1/W2 补空 checkpoint 保留原 schema 与原提示；新 schema 3 同时保存每字段完整请求，重试不重新渲染模板。世界协作只读取当前世界和所选话题；小说正文及 H2 不参与。按需补读在第二步保留第一步已读材料，来源展示覆盖实际读取并集；报价的输入估算取实际冻结提示，不把其他话题的任务存储当作模型输入。
+
+## W4 写作上下文基础
+
+V47 增加两张表，历史世界快照及摘要不变：
+
+- `world_context_preferences` 以 `(scope_key, world_id)` 为主键，保存作者 `user_id`、乐观锁 `revision`、核对版本 `reviewed_version_id`、来源选择 `choices_json`、核对内容摘要 `reviewed_hashes_json` 和 `updated_at`。目标为大纲或稿件场景，世界变更不串用偏好；保存先锁绑定资源，再检查版本和偏好 revision。
+- `outline_ai_results` 保存 `id/outline_id/user_id/operation_id`、请求幂等键及摘要、动作、状态、revision、冻结输入、模型原结果、候选、处置回执和创建时间。大纲内请求键和 operation ID 各自唯一；大纲删除时级联清理结果。结果生成与原子追加分开，重复处置不得重复创建章节。
+
+`world-context-v1` 只在一个绑定快照内执行本地匹配，按名称/别名、内容/标签及一跳关系排序。规则在同级候选中优先，同分按稳定 ID。手动排除高于自动命中，必选关系要求两端。默认完整概览和所有必选来源放不下时返回容量问题；自动来源按整项排除，不截断世界原文。H2 隔离结果不包含任何世界来源，排除清单仅供作者查看。
