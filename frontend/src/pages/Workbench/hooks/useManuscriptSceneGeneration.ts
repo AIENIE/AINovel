@@ -96,6 +96,7 @@ export function useManuscriptSceneGeneration({
         description: qualityStatusText(latestRun),
       });
     } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'WORLD_CONTEXT_CANCELLED') return;
       toast({ variant: "destructive", title: t("sceneGeneration.generationFailed"), description: localizedErrorMessage(e) });
     } finally {
       setIsGenerating(false);

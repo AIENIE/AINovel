@@ -11,6 +11,9 @@ import { localizedErrorMessage } from '@/lib/error-messages';
 
 export function OutlineAiResults({outline,revision,dirty,onAdopt,onUpdated}:{outline:Outline;revision:number;dirty:boolean;onAdopt:(result:OutlineAiResult,text:string)=>void;onUpdated:(id:string)=>Promise<void>}) {
   const {t}=useTranslation();const [results,setResults]=useState<OutlineAiResult[]>([]);const [error,setError]=useState('');const [busy,setBusy]=useState(false);const [candidates,setCandidates]=useState<Record<string,string>>({});
+  const resultTitle=(result:OutlineAiResult)=>result.action==='CHAPTER_GENERATE'
+    ? result.candidate?.title||t('outline.generateNextChapter')
+    : `${t(`world4.${result.action}`)} · ${outline.chapters.flatMap(chapter=>[chapter,...chapter.scenes]).find(node=>node.id===result.nodeId)?.title||result.nodeId}`;
   const refresh=async()=>{try{setResults(await api.worldContext.outlineResults(outline.id));setError('');}catch(e){setError(localizedErrorMessage(e));}};
   useEffect(()=>{let active=true;setResults([]);setCandidates({});void api.worldContext.outlineResults(outline.id).then(rows=>{if(active)setResults(rows);}).catch(e=>{if(active)setError(localizedErrorMessage(e));});return ()=>{active=false;};},[outline.id,revision]);
   const append=async(result:OutlineAiResult)=>{
@@ -18,12 +21,12 @@ export function OutlineAiResults({outline,revision,dirty,onAdopt,onUpdated}:{out
     try {const current=await api.outlines.get(outline.id),path=outlineContextPath(outline.id),request={action:'CHAPTER_GENERATE',chapterNumber:result.chapterNumber,sectionsPerChapter:result.scenesCount,instruction:result.instruction,expectedRevision:current.revision};
       const preview=await reviewWorldPreview(path,request,await api.worldContext.preview(path,request));
       await api.worldContext.acceptOutline(outline.id,result,current.revision??0,preview.contextHash,crypto.randomUUID());await onUpdated(outline.id);await refresh();
-    }catch(e){setError(localizedErrorMessage(e));}finally{setBusy(false);}
+    }catch(e){if(e instanceof Error&&e.message==='WORLD_CONTEXT_CANCELLED')return;setError(localizedErrorMessage(e));}finally{setBusy(false);}
   };
   return <details className="mt-4 rounded border p-3"><summary className="cursor-pointer font-medium">{t('world4.results')}</summary>
     <Button size="sm" variant="outline" className="my-3" disabled={busy} onClick={()=>void refresh()}>{t('world4.refreshResults')}</Button>
     {!!error&&<p role="alert" className="text-destructive">{error}</p>}{!results.length&&<p className="text-sm text-muted-foreground">{t('world4.emptyResults')}</p>}
-    {results.map(result=><details key={result.id} className="my-2 rounded border p-3 text-sm"><summary className="cursor-pointer">{result.candidate?.title||t(result.action==='CHAPTER_GENERATE'?'outline.generateNextChapter':'outline.aiRefine')} · {t(`world4.${result.status}`,{defaultValue:result.status})}</summary>
+    {results.map(result=><details key={result.id} className="my-2 rounded border p-3 text-sm"><summary className="cursor-pointer">{resultTitle(result)} · {t(`world4.${result.status}`,{defaultValue:result.status})}</summary>
       <p className="my-2 text-muted-foreground">{result.createdAt}</p>
       {result.sourceRevision!==outline.revision&&result.status!=='APPLIED'&&<p className="my-2 text-amber-700">{t('world4.stale')}</p>}
       {!!result.beforeText&&<details><summary>{t('world4.before')}</summary><p className="whitespace-pre-wrap">{result.beforeText}</p></details>}

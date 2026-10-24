@@ -2,6 +2,8 @@
 export const zhTW = {
   "world4.sourceChanged": "此來源相較上次確認的版本已有變更，請核對全文。",
   "world4.frozenRange": "任務凍結的世界資料範圍（以各步實際讀取為準）",
+  "world4.CHAPTER_REFINE": "章節摘要潤色",
+  "world4.SCENE_REFINE": "場景摘要潤色",
   "world4.preview": "写作上下文预览",
   "world4.help": "这是当前预览。选择按此大纲或稿件场景保存；确认后再选择模型和报价。排除某项不代表概览或其他材料中不存在同一事实。",
   "world4.capacity": "世界材料约 {{used}} / {{limit}} tokens",

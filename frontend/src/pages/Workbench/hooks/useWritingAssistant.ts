@@ -56,7 +56,7 @@ export function useWritingAssistant(options: Options) {
   }, [open]);
   const execute = async (action: () => Promise<void>) => {
     setWorking(true); setError(""); setNotice("");
-    try { await action(); } catch (e) { if (latest.current.identity === identity) setError(e instanceof AssistantInteractionError ? e.message : localizedErrorMessage(e)); }
+    try { await action(); } catch (e) { if (e instanceof Error && e.message === 'WORLD_CONTEXT_CANCELLED') return; if (latest.current.identity === identity) setError(e instanceof AssistantInteractionError ? e.message : localizedErrorMessage(e)); }
     finally { await refresh(); if (latest.current.identity === identity) setWorking(false); }
   };
   const submit = () => execute(async () => {

@@ -7,7 +7,7 @@ import type { WorldChoice, WorldSelection } from '@/lib/api/domains/world-contex
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-export function WorldSources({selection, onChoice,reviewedHashes}:{selection:WorldSelection;onChoice?:(id:string,value:WorldChoice)=>void;reviewedHashes?:Record<string,string>}) {
+export function WorldSources({selection, onChoice,reviewedHashes,choiceDisabled=false}:{selection:WorldSelection;onChoice?:(id:string,value:WorldChoice)=>void;reviewedHashes?:Record<string,string>;choiceDisabled?:boolean}) {
   const {t}=useTranslation();
   const included=new Set(selection.included.map(source=>source.id));
   return <div className="space-y-3 text-sm">
@@ -19,7 +19,7 @@ export function WorldSources({selection, onChoice,reviewedHashes}:{selection:Wor
       {reviewedHashes?.[source.id]&&reviewedHashes[source.id]!==source.contentHash&&<p className="my-2 text-amber-700">{t('world4.sourceChanged')}</p>}
       <p className="my-2 text-muted-foreground">{t(`world4.${source.reason.split(':')[0]}`,{defaultValue:source.reason})}{source.reason.includes(':')?` · ${source.reason.substring(source.reason.indexOf(':')+1)}`:''} · {source.estimatedTokens} tokens</p>
       {onChoice&&<label className="flex flex-wrap items-center gap-2">{t('world4.choice')}
-        <select className="rounded border bg-background p-2" aria-label={`${source.title} ${t('world4.choice')}`} value={source.choice} onChange={e=>onChoice(source.id,e.target.value as WorldChoice)}>
+        <select disabled={choiceDisabled} className="rounded border bg-background p-2" aria-label={`${source.title} ${t('world4.choice')}`} value={source.choice} onChange={e=>onChoice(source.id,e.target.value as WorldChoice)}>
           {(['AUTO','INCLUDE','EXCLUDE'] as const).map(choice=><option key={choice} value={choice}>{t(`world4.${choice}`)}</option>)}
         </select></label>}
       <p className="my-2 text-xs text-muted-foreground">{t(source.type==='AUTHOR_NOTES'?'world4.authorNotes':'world4.versionText')}</p>
@@ -45,7 +45,7 @@ export function WorldContextPreview() {
   return <Dialog open={!!pending} onOpenChange={open=>{if(!open&&pending&&!busy)finishWorldPreview(pending);}}>
     <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>{t('world4.preview')}</DialogTitle><DialogDescription>{t('world4.help')}</DialogDescription></DialogHeader>
-      {value?.selection&&<WorldSources selection={value.selection} reviewedHashes={value.preferences.reviewedHashes} onChoice={(id,choice)=>void change(id,choice)}/>}
+      {value?.selection&&<WorldSources selection={value.selection} reviewedHashes={value.preferences.reviewedHashes} choiceDisabled={busy} onChoice={(id,choice)=>void change(id,choice)}/>}
       {!!value?.preferences.reviewedVersionId&&value.preferences.reviewedVersionId!==value.selection?.binding?.versionId&&<div className="rounded border p-3 text-sm"><p>{t('world4.versionChanged')}</p><Button variant="outline" size="sm" disabled={busy} onClick={()=>void acknowledge()}>{t('world4.reviewVersion')}</Button></div>}
       {missing.map(([id])=><div className="break-all text-sm" key={id}>{t('world4.missing')} {id} <Button variant="outline" size="sm" disabled={busy} onClick={()=>void change(id,'AUTO')}>{t('world4.resetMissing')}</Button></div>)}
       {!!value?.compiledContext&&<details><summary>{t('world4.sent')}</summary><pre className="whitespace-pre-wrap break-words text-xs">{value.compiledContext}</pre></details>}

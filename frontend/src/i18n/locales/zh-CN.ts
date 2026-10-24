@@ -2,6 +2,8 @@
 export const zhCN = {
   "world4.sourceChanged": "该来源已相对上次确认的版本变化，请核对全文。",
   "world4.frozenRange": "任务冻结的世界材料范围（以各步实际读取为准）",
+  "world4.CHAPTER_REFINE": "章节摘要润色",
+  "world4.SCENE_REFINE": "场景摘要润色",
   "world4.preview": "写作上下文预览",
   "world4.help": "这是当前预览。选择按此大纲或稿件场景保存；确认后再选择模型和报价。排除某项不代表概览或其他材料中不存在同一事实。",
   "world4.capacity": "世界材料约 {{used}} / {{limit}} tokens",

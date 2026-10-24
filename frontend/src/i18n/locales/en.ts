@@ -2,6 +2,8 @@
 export const en = {
   "world4.sourceChanged": "This source changed since the last confirmed version. Review its full content.",
   "world4.frozenRange": "Frozen world source pool (see actual reads per step)",
+  "world4.CHAPTER_REFINE": "Chapter summary refinement",
+  "world4.SCENE_REFINE": "Scene summary refinement",
   "world4.preview": "Writing context preview",
   "world4.help": "This is the current preview. Choices are saved for this outline or manuscript scene. Model and price confirmation follow. Excluding a source does not remove the same fact from the overview or other material.",
   "world4.capacity": "World context: about {{used}} / {{limit}} tokens",

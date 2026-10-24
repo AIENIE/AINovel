@@ -261,7 +261,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
       await runTrackedAiOperation(api.worldContext.submitOutline(original.id,{...request,contextHash:preview.contextHash,expectedSelectionRevision:preview.preferences.revision},crypto.randomUUID()));
       if(draftRef.current===original)await refreshGenerated(original.id);
       toast({title:t('world4.ready')});
-    }catch(error){toast({variant:'destructive',title:t('outline.aiRefineFailed'),description:localizedErrorMessage(error)});}
+    }catch(error){if(error instanceof Error&&error.message==='WORLD_CONTEXT_CANCELLED')return;toast({variant:'destructive',title:t('outline.aiRefineFailed'),description:localizedErrorMessage(error)});}
     finally{setAiBusy(false);setAiRevision(v=>v+1);}
   };
   const handleGenerateNextChapter = () => runOutlineAi({action:'CHAPTER_GENERATE',chapterNumber:(selectedOutline?.chapters.length??0)+1,sectionsPerChapter:5});
