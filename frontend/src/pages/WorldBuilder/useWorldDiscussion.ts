@@ -31,7 +31,11 @@ export function useWorldDiscussion(world:string,editor:WorldEditorState) {
   const clearParent=()=>setParents(v=>({...v,[selected]:null}));
   const send=(request:Omit<WorldTurnRequest,"expectedDraftRevision">)=>perform(async()=>{
     if(turns.some(active))return;const body={...request,expectedDraftRevision:saved()};
-    const accepted=await keyed(`turn:${JSON.stringify(body)}`,key=>api.worldAssistant.submit(world,body,key));setInputs(v=>({...v,[selected]:""}));clearParent();await refresh();await runTrackedAiOperation(Promise.resolve(accepted));
+    const submittedInput=input,submittedParent=parent;
+    const accepted=await keyed(`turn:${JSON.stringify(body)}`,key=>api.worldAssistant.submit(world,body,key));
+    setInputs(v=>v[selected]===submittedInput?{...v,[selected]:""}:v);
+    setParents(v=>v[selected]===submittedParent?{...v,[selected]:null}:v);
+    await refresh();await runTrackedAiOperation(Promise.resolve(accepted));
   });
   return {selected,sessions,session,turns,input,setInput,parent,clearParent,chooseSession,refresh,error:error||(session.error||sessions.error?localizedErrorMessage(session.error||sessions.error):""),working:busy||turns.some(active),
     create:(title:string)=>perform(async()=>{if(!title.trim())return;const s=await keyed(`create:${title}`,key=>api.worldAssistant.createSession(world,title.trim(),key));chooseSession(s.id);}),

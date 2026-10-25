@@ -48,6 +48,8 @@ export function WorldTimeline({draft,edit}:{draft:WorldDetail;edit:(update:(draf
   const events=timelineOrder(timeline.events.filter(event=>!eraFilter||event.eraIds.includes(eraFilter)),order);
   const orderedEras=timelineOrder(timeline.eras,order);
   const event=events.find(item=>item.id===selected)||events[0];
+  // Pin the implicit first selection before date/order edits can reorder the directory.
+  useEffect(()=>{if(event&&event.id!==selected)setSelected(event.id);},[event,selected]);
   const updateEvent=(patch:Partial<WorldEvent>)=>change(value=>({...value,events:value.events.map(row=>row.id===event?.id?{...row,...patch}:row)}));
   const updateEra=(id:string,patch:Partial<WorldEra>)=>change(value=>({...value,eras:value.eras.map(row=>row.id===id?{...row,...patch}:row)}));
   const move=(kind:'eras'|'events',id:string,offset:number)=>change(value=>{const rows=timelineOrder(value[kind] as (WorldEra|WorldEvent)[],'author'),index=rows.findIndex(row=>row.id===id),target=index+offset;if(target<0||target>=rows.length)return value;[rows[index],rows[target]]=[rows[target],rows[index]];return {...value,[kind]:rows.map((row,index)=>({...row,sortOrder:index}))};});

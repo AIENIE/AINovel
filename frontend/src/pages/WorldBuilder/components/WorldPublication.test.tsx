@@ -3,11 +3,19 @@ import {afterEach,describe,it,expect,vi} from 'vitest';
 import {MemoryRouter} from 'react-router-dom';
 import {api,ApiError} from '@/lib/api-client';
 import type {WorldDetail,WorldBindingView,WorldVersion} from '@/types';
-import {WorldPublishDialog} from './WorldVersionViews';
+import {WorldPublishDialog,WorldVersionHistory} from './WorldVersionViews';
 import {WorldBindingPanel} from './WorldBindingPanel';
 
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 describe('world publication and binding review',()=>{
+  it('shows a failed historical snapshot read inside its dialog and retries that exact version',async()=>{
+    vi.spyOn(api.worlds,'versions').mockResolvedValue([{id:'v1',sequenceNumber:1,origin:'PUBLISHED',createdAt:'2026-10-25'}] as WorldVersion[]);
+    const read=vi.spyOn(api.worlds,'version').mockRejectedValueOnce(new Error('snapshot offline')).mockResolvedValue({id:'v1',sequenceNumber:1,content:{name:'历史世界',tagline:'',themes:[],creativeIntent:'',notes:'',entries:[],relations:[]}} as unknown as WorldVersion);
+    render(<WorldVersionHistory worldId="world" revision={4}/>);fireEvent.click(await screen.findByRole('button',{name:/第 1 版/}));
+    const dialog=screen.getByRole('dialog');await waitFor(()=>expect(dialog.querySelector('[role="alert"]')?.textContent).toContain('操作失败'));
+    fireEvent.click(screen.getByRole('button',{name:'重试'}));await screen.findByText('历史世界');
+    expect(read.mock.calls).toEqual([['world','v1'],['world','v1']]);expect(screen.queryByRole('alert')).toBeNull();
+  });
   it('publishes an incomplete saved draft without generation and retries the same receipt',async()=>{
     const draft={id:'world',name:'群岛',revision:4,tagline:'',creativeIntent:'',themes:[],entries:[],relations:[],modules:[]} as unknown as WorldDetail;
     vi.spyOn(api.worlds,'diff').mockResolvedValue({fromVersionId:null,toVersionId:null,draftRevision:4,changes:[]});

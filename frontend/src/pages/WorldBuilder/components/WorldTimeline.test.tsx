@@ -6,6 +6,17 @@ import {WorldDateEditor,WorldTimeline,WorldTimelineSnapshot} from './WorldTimeli
 
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 describe('timeline editor',()=>{
+  it('keeps the same event selected when editing its date or author order reorders the directory',()=>{
+    const event=(id:string,year:number,sortOrder:number)=>({id,title:id,summary:'',content:'',aliases:[],tags:[],date:{start:{year},end:{year}},entryIds:[],eraIds:[],sortOrder});
+    const draft={id:'w',entries:[],timeline:{schemaVersion:1,calendarName:'',eras:[],events:[event('甲事件',1,0),event('乙事件',2,1)]}} as unknown as WorldDetail;
+    function Harness(){const[value,setValue]=useState(draft);return <WorldTimeline draft={value} edit={update=>setValue(update)}/>;}
+    render(<Harness/>);fireEvent.change(screen.getByLabelText('日期 开始 年'),{target:{value:'3'}});
+    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('甲事件');
+    fireEvent.change(screen.getByLabelText('显示顺序'),{target:{value:'author'}});fireEvent.click(screen.getByRole('button',{name:'下移'}));
+    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('甲事件');
+    fireEvent.change(screen.getByLabelText('正文'),{target:{value:'仍属于甲事件'}});
+    expect((screen.getByLabelText('正文') as HTMLTextAreaElement).value).toBe('仍属于甲事件');
+  });
   it('keeps fractional input visible and explains that dates require integers',()=>{
     const changed=vi.fn();function Harness(){const[value,setValue]=useState<WorldDateRange|null>({start:{year:1},end:{year:1}});return <WorldDateEditor value={value} onChange={next=>{setValue(next);changed(next);}}/>;}
     render(<Harness/>);fireEvent.change(screen.getByLabelText('日期 开始 年'),{target:{value:'1.5'}});
