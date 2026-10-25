@@ -33,6 +33,16 @@
 - `GET /api/v1/worlds/{worldId}/operations/{operationId}/generated-results`：读取当前用户该世界任务已保存的生成字段。返回 `{operationId,worldId,modules:{moduleKey:{fieldKey:text}},appliedModules:string[]}`，供失败或冲突后查看、复制；读取不触发 AI 或写入世界。该结果与通用任务的成功 `resultJson` 分开，部分输出不等于整个任务成功。
 
 
+## W5 时间线、作品时代与复制导出
+
+路径统一以 `/api` 为网关前缀。
+
+- 世界 `GET/PUT /v1/worlds/{id}/draft` 的响应及写入增加 `timeline`；快照 content 同样包含非空时间线。`timeline={schemaVersion:1,calendarName,eras,events}`；时代为 `{id,name,description,date,sortOrder}`，事件为 `{id,title,summary,content,aliases,tags,date,entryIds,eraIds,sortOrder}`。`date={start,end}`，端点为 `{year,month?,day?}` 或 null；未知日期为 null，单日期两端相同。省略/null 保留，显式空对象清空。沿用 expectedRevision、版本历史和稳定 ID 差异。
+- `GET /v1/stories/{id}/world-eras` 返回 worldId/worldVersionId、bindingRevision、独立 revision、reviewedVersionId、eraIds、当前可选 eras、reviewedEras、changedEraIds、missingEraIds。`PUT` 为 `{worldId,worldVersionId,expectedBindingRevision,expectedRevision,eraIds}`。无绑定返回空选择；不存在或不属于所绑版本的时代拒绝保存。此接口仅改变浏览标注，不使报价失效。
+- `POST /v1/worlds/{id}/copy` 请求 `{source:"DRAFT"|"VERSION",expectedRevision?,versionId?,name?,requestKey}`，返回新世界详情。DRAFT 必须带 revision 且不带 versionId；VERSION 必须带正式发布 versionId 且不带 revision。重试同键同请求返回原副本；键冲突、旧 revision 或副本已被删除返回冲突。
+- `GET /v1/worlds/{id}/export?source=DRAFT|VERSION&expectedRevision=&versionId=&format=MARKDOWN|JSON` 下载完整来源，选择规则与复制相同。响应设置 UTF-8 文件名。JSON 包含 formatVersion、source 和 content，source 记录原世界、版本/revision、内容摘要；不附带讨论、费用、任务或绑定。
+- W3 提案增加 ERA/EVENT，仍只有 CREATE/UPDATE；新事件可引用同批条目/时代的 clientKey，服务端预分配稳定 ID，依赖尚未采纳时阻止事件采纳并保留候选。W4 choices 增加 `event:{稳定ID}`，纳入、排除、容量及 H2 隔离规则保持一致。
+
 ## W3 独立世界协作
 
 下列路径均以 `/api/v1/worlds/{worldId}` 为前缀；复用现有认证、归属校验、报价与异步任务恢复。所有写入使用 `Idempotency-Key`。
@@ -51,7 +61,7 @@
 | `/entries/{entryId}/refine/operations` | POST `{expectedRevision,instruction?}` | 一次调用形成持久提案 |
 | `/overview/integrate/operations` | POST `{expectedRevision,instruction?}` | 完整读取已保存设定，一次调用形成概览提案 |
 
-目标类型为 METADATA（按 `fieldKey`）、ENTRY、RELATION、OVERVIEW。仅 CREATE/UPDATE；删除继续由编辑器完成。新关系等待两端条目采纳。目标改变阻止采纳；仅背景改变时，需要读取当前稿后明确 `acknowledgeContextChange=true`。概览依赖完整来源，任何来源改变都阻止旧概览直接采纳。
+目标类型为 METADATA（按 `fieldKey`）、ENTRY、RELATION、OVERVIEW、ERA、EVENT。仅 CREATE/UPDATE；删除继续由编辑器完成。新关系等待两端条目采纳，事件等待所关联条目和时代采纳。目标改变阻止采纳；仅背景改变时，需要读取当前稿后明确 `acknowledgeContextChange=true`。概览依赖完整来源，任何来源改变都阻止旧概览直接采纳。
 
 `draft` 的 metadata 及不可变快照增加 `overview`；空值读取兼容历史快照，不改写历史 JSON 或摘要。`/api/v1/world-prompts` 模板数据增加 `actions`，支持 entryGenerate/discuss/propose/refine/overview。旧模块和字段精修模板保留，finalTemplates 作为概览整合附加要求。
 
@@ -61,7 +71,7 @@
 
 接口前缀为 `/api/v1`。大纲资源 `/outlines/{id}/world-context` 与稿件场景资源 `/manuscripts/{id}/scenes/{sceneId}/world-context` 均支持 GET、PUT 和 POST `/preview`。读取只使用实际绑定的不可变世界版本，失效绑定不会回退到草稿。
 
-PUT 请求为 `{worldId,versionId,expectedRevision,choices}`，choices 按 `metadata/overview/notes/entry:{稳定ID}/relation:{稳定ID}` 记录 `AUTO/INCLUDE/EXCLUDE`；AUTO 清除覆盖。响应包含 revision、核对版本和来源摘要。相同世界升级保留稳定 ID 的选择；缺失必选、必选关系端点排除及已变化必选需处理后生成。
+PUT 请求为 `{worldId,versionId,expectedRevision,choices}`，choices 按 `metadata/overview/notes/entry:{稳定ID}/relation:{稳定ID}/event:{稳定ID}` 记录 `AUTO/INCLUDE/EXCLUDE`；AUTO 清除覆盖。响应包含 revision、核对版本和来源摘要。相同世界升级保留稳定 ID 的选择；缺失必选、必选关系端点排除及已变化必选需处理后生成。
 
 场景 preview 请求 `{purpose:"SCENE",mode:"fast"|"crafted"}`；助手 preview 为 `{purpose:"ASSISTANT",...TurnRequest}`。大纲 preview 使用下述大纲任务请求。响应含 `contextHash/preferences/selection/compiledContext/firstSources/availableSources`；selection 说明绑定层级、版本、来源完整内容、命中或排除原因和容量。助手 availableSources 是冻结可补读范围，不能视为已读。预览与偏好保存均不调用模型。
 

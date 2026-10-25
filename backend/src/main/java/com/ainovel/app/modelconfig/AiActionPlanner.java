@@ -229,7 +229,8 @@ public class AiActionPlanner {
             int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
             steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
         }
-        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()+json.valueToTree(writingInput)),scope,worldInput,assistantInput,writingInput);
+        return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()+json.valueToTree(writingInput)
+            +(assistantInput==null?"":json.valueToTree(assistantInput).toString())),scope,worldInput,assistantInput,writingInput);
     }
     private static List<String> automaticGuidedSteps() {
         return List.of("guided.premise","guided.world","guided.characters","guided.outline","guided.outline_expand","guided.json_repair");

@@ -61,4 +61,35 @@ class WorldContextSelectorTest {
         assertEquals(List.of("entry:"+second,"entry:"+first),selected.stream().map(Source::id).toList());
         assertThrows(com.ainovel.app.common.ApiStatusException.class,()->selector.select(new WorldBindingService.Resolved(world,null,"STORY",base.sourceId(),1,"群岛",0,null,null,"WORLD_BINDING_UNRESOLVED",null),Preferences.defaults(world),"",3500,false));
     }
+    private WorldBindingService.Resolved withTimeline(String body) {
+        var base=binding("","");var c=base.content();var era=UUID.fromString("00000000-0000-0000-0000-000000000020");
+        var date=new DateRange(new DatePoint(-20,null,null),new DatePoint(-10,null,null));
+        var timeline=new Timeline(1,"群岛纪年",List.of(new Era(era,"潮封时代","海路被封闭",date,0)),
+            List.of(new Event(relation,"归潮仪式","仪式摘要",body,List.of("返潮礼"),List.of("祭礼"),null,List.of(place),List.of(era),0)));
+        var content=new Content(c.name(),c.tagline(),c.themes(),c.creativeIntent(),c.notes(),c.entries(),c.relations(),c.modules(),c.legacyModulesJson(),c.overview(),timeline);
+        return new WorldBindingService.Resolved(world,version,"STORY",base.sourceId(),1,"群岛",1,"PUBLISHED","snapshot",null,content);
+    }
+    @Test void eventsMatchAliasesAndRenderOnlyTheBoundSnapshotWithSoftAssociations() {
+        var b=withTimeline("完整事件正文");var prefs=new Preferences(world,3,version,Map.of("event:"+relation,Choice.INCLUDE,"entry:"+place,Choice.EXCLUDE),Map.of());
+        var result=selector.select(b,prefs,"返潮礼",3500,false);
+        var event=result.included().stream().filter(s->s.id().equals("event:"+relation)).findFirst().orElseThrow();
+        assertTrue(event.content().contains("群岛纪年"));assertTrue(event.content().contains("潮封时代"));assertTrue(event.content().contains("-20年 — -10年"));
+        assertTrue(event.content().contains("日期未知"));assertTrue(event.content().contains("北堤盐匣库"));assertTrue(event.content().contains("完整事件正文"));
+        assertTrue(result.issues().isEmpty());assertTrue(result.included().stream().noneMatch(s->s.id().equals("entry:"+place)));
+        assertTrue(result.included().stream().noneMatch(s->s.type().equals("ERA")));
+        var automatic=selector.select(b,Preferences.defaults(world),"返潮礼",3500,false);
+        assertTrue(automatic.included().stream().anyMatch(s->s.type().equals("EVENT")&&s.reason().startsWith("NAME_MATCH")));
+        assertTrue(automatic.included().stream().anyMatch(s->s.id().equals("entry:"+place)&&s.reason().equals("RELATED_ONE_HOP")));
+    }
+    @Test void relatedEventsUseOneHopAndWholeSourcesRespectCapacityAndH2() {
+        var b=withTimeline("独立事件正文".repeat(5000));var p=Preferences.defaults(world);
+        var found=selector.select(b,p,"盐库",3500,false);var excluded=found.excluded().stream().filter(s->s.type().equals("EVENT")).findFirst().orElseThrow();
+        assertEquals("CAPACITY_EXCLUDED",excluded.reason());assertTrue(excluded.content().endsWith("独立事件正文".repeat(5000)));
+        var required=new Preferences(world,1,version,Map.of("event:"+relation,Choice.INCLUDE),Map.of());
+        assertTrue(selector.select(b,required,"",3500,false).issues().contains("REQUIRED_CONTEXT_TOO_LARGE:event:"+relation));
+        var h2=selector.select(b,required,"返潮礼",3500,true);assertEquals("",h2.content());assertTrue(h2.included().isEmpty());assertTrue(h2.issues().isEmpty());
+        assertTrue(h2.excluded().stream().allMatch(s->s.reason().equals("H2_UNCLASSIFIED")));
+        var before=selector.sourceHashes(withTimeline("旧事件"));var changed=new Preferences(world,1,UUID.randomUUID(),Map.of("event:"+relation,Choice.INCLUDE),before);
+        assertTrue(selector.select(withTimeline("新事件"),changed,"",3500,false).issues().contains("REVIEW_REQUIRED:event:"+relation));
+    }
 }

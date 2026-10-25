@@ -106,6 +106,35 @@ class WorldVersionTests {
         UUID outlineId=o.getId();
         assertThrows(ApiStatusException.class,()->bindings.change("OUTLINE",outlineId,new WorldBindingService.Change(null,first.id(),1L)));
     }
+    @Test void timelineSharesAtomicDraftRevisionAndKeepsPublishedReferences() {
+        UUID id=world(),entryId=UUID.randomUUID(),eraId=UUID.randomUUID(),eventId=UUID.randomUUID();
+        var d=versions.draft(id);
+        var timeline=new Timeline(1,"潮汐纪年",List.of(new Era(eraId,"初潮","群岛形成",null,0)),List.of(
+            new Event(eventId,"首次退潮","海底显露","盐晶被发现",List.of("露海"),List.of("潮汐"),
+                new DateRange(new DatePoint(-5,null,null),new DatePoint(0,2,null)),List.of(entryId),List.of(eraId),0)));
+        d=versions.save(id,new Save(null,List.of(entry(entryId,"盐晶保存声音")),List.of(),d.world().revision(),timeline));
+        var first=publish(id);assertEquals(timeline,first.content().timeline());
+        var unchanged=versions.save(id,new Save(null,d.entries(),d.relations(),versions.draft(id).world().revision()));
+        assertEquals(timeline,unchanged.timeline());assertFalse(unchanged.unpublishedChanges());assertEquals(first.id(),publish(id).id());
+        worlds.update(id,new WorldUpdateRequest("新名称",null,null,null,null));
+        assertEquals(timeline,versions.draft(id).timeline());
+        worlds.updateModules(id,new WorldModulesUpdateRequest(Map.of("geography",Map.of("terrain","群岛"))));
+        assertEquals(timeline,versions.draft(id).timeline());
+        var current=versions.draft(id);
+        var withoutEra=new Timeline(1,timeline.calendarName(),List.of(),timeline.events());
+        var changed=versions.save(id,new Save(null,List.of(),List.of(),current.world().revision(),withoutEra));
+        assertTrue(changed.timeline().events().getFirst().entryIds().isEmpty());
+        assertTrue(changed.timeline().events().getFirst().eraIds().isEmpty());
+        assertEquals(timeline,versions.get(id,first.id()).content().timeline());
+        assertThrows(ApiStatusException.class,()->versions.save(id,new Save(null,List.of(),List.of(),current.world().revision(),WorldTimeline.empty())));
+        UUID invalid=UUID.randomUUID();
+        var bad=new Timeline(1,"",List.of(),List.of(new Event(invalid,"错误引用","","",List.of(),List.of(),null,List.of(invalid),List.of(),0)));
+        assertThrows(ApiStatusException.class,()->versions.save(id,new Save(null,List.of(),List.of(),changed.world().revision(),bad)));
+        assertEquals(changed.world().revision(),versions.draft(id).world().revision());
+        assertEquals(changed.timeline(),versions.draft(id).timeline());
+        var cleared=versions.save(id,new Save(null,List.of(),List.of(),changed.world().revision(),new Timeline(0,null,null,null)));
+        assertNull(cleared.timeline());assertEquals(timeline,versions.get(id,first.id()).content().timeline());verifyNoInteractions(ai);
+    }
     @Test void unknownLegacyFieldsAndEntryRenameSurviveBothInterfaces() {
         UUID id=world();
         worlds.updateModules(id,new WorldModulesUpdateRequest(Map.of("geography",Map.of("terrain","群岛","unknown","未知字段原文"))));

@@ -37,6 +37,13 @@ public class WorldAssistantResources {
         for(var r:content.relations()) {
             ObjectNode fields=json.valueToTree(r);fields.remove("id");result.add(new Resource("RELATION",r.id(),null,r.type(),fields));
         }
+        var timeline=content.timeline()==null?WorldTimeline.empty():content.timeline();
+        for(var era:timeline.eras()) {
+            ObjectNode fields=json.valueToTree(era);fields.remove("id");result.add(new Resource("ERA",era.id(),null,era.name(),fields));
+        }
+        for(var event:timeline.events()) {
+            ObjectNode fields=json.valueToTree(event);fields.remove("id");result.add(new Resource("EVENT",event.id(),null,event.title(),fields));
+        }
         return List.copyOf(result);
     }
     public static String sourceId(Resource resource) {return resource.type().toLowerCase(Locale.ROOT)+":"+resource.id()+(resource.fieldKey()==null?"":":"+resource.fieldKey());}
@@ -48,6 +55,8 @@ public class WorldAssistantResources {
         Set<String> allowed=switch(type) {
             case "ENTRY"->Set.of("type","title","summary","content","aliases","tags");
             case "RELATION"->Set.of("sourceId","targetId","type","description");
+            case "ERA"->Set.of("name","description","date","sortOrder");
+            case "EVENT"->Set.of("title","summary","content","aliases","tags","date","entryIds","eraIds","sortOrder");
             case "METADATA"->Set.of("value");
             case "OVERVIEW"->Set.of("content");
             default->throw invalid("WORLD_PROPOSAL_TARGET_INVALID");
@@ -65,8 +74,32 @@ public class WorldAssistantResources {
             id(result.path("sourceId"));id(result.path("targetId"));text(result,"type",true,255);text(result,"description",false,100000);
         } else if(type.equals("METADATA")) {
             if(field.equals("themes"))strings(result,"value");else text(result,"value",field.equals("name"),field.equals("name")?255:100000);
+        } else if(type.equals("ERA")||type.equals("EVENT")) {
+            text(result,type.equals("ERA")?"name":"title",true,255);
+            if(type.equals("ERA"))text(result,"description",false,100000);
+            else {text(result,"summary",false,100000);text(result,"content",false,100000);strings(result,"aliases");strings(result,"tags");ids(result,"entryIds");ids(result,"eraIds");}
+            if(result.hasNonNull("sortOrder")&&(!result.path("sortOrder").isIntegralNumber()||!result.path("sortOrder").canConvertToInt()))throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+            if(!result.hasNonNull("sortOrder"))result.put("sortOrder",0);
+            date(result.path("date"));
+            result.set("date",json.valueToTree(WorldTimeline.normalizeDate(result.hasNonNull("date")?json.convertValue(result.path("date"),DateRange.class):null)));
         } else text(result,"content",true,100000);
         return result;
+    }
+    private void ids(ObjectNode node,String field) {
+        if(!node.hasNonNull(field)){node.putArray(field);return;}
+        if(!node.path(field).isArray()||node.path(field).size()>1000)throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+        var values=new LinkedHashSet<UUID>();for(var value:node.path(field))values.add(id(value));node.set(field,json.valueToTree(values));
+    }
+    private void date(JsonNode value) {
+        if(value.isMissingNode()||value.isNull())return;
+        if(!value.isObject())throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+        value.fieldNames().forEachRemaining(key->{if(!Set.of("start","end").contains(key))throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");});
+        for(String key:List.of("start","end")) {
+            var point=value.path(key);if(point.isMissingNode()||point.isNull())continue;
+            if(!point.isObject())throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+            point.fieldNames().forEachRemaining(field->{if(!Set.of("year","month","day").contains(field))throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");});
+            for(String field:List.of("year","month","day"))if(point.hasNonNull(field)&&(!point.path(field).isIntegralNumber()||!point.path(field).canConvertToInt()))throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+        }
     }
     private void text(ObjectNode node,String field,boolean required,int max) {
         JsonNode value=node.get(field);
@@ -91,6 +124,12 @@ public class WorldAssistantResources {
             var ids=content.entries().stream().map(Entry::id).collect(java.util.stream.Collectors.toSet());
             if(!ids.contains(id(data.candidate.path("sourceId")))||!ids.contains(id(data.candidate.path("targetId"))))reason="WORLD_PROPOSAL_ENDPOINT_MISSING";
         }
+        if(data.resourceType.equals("EVENT")) {
+            var entryIds=content.entries().stream().map(Entry::id).collect(java.util.stream.Collectors.toSet());
+            var eraIds=(content.timeline()==null?WorldTimeline.empty():content.timeline()).eras().stream().map(Era::id).collect(java.util.stream.Collectors.toSet());
+            for(var ref:data.candidate.path("entryIds"))if(!entryIds.contains(id(ref)))reason="WORLD_PROPOSAL_DEPENDENCY_MISSING";
+            for(var ref:data.candidate.path("eraIds"))if(!eraIds.contains(id(ref)))reason="WORLD_PROPOSAL_DEPENDENCY_MISSING";
+        }
         boolean changed=!Objects.equals(data.worldHash,hash(content));
         if(data.resourceType.equals("OVERVIEW")&&changed)reason="WORLD_OVERVIEW_STALE";
         return new State(world.getRevision(),current,reason,changed);
@@ -106,6 +145,15 @@ public class WorldAssistantResources {
             links.removeIf(r->r.id().equals(data.targetId));links.add(new Relation(data.targetId,id(fields.path("sourceId")),id(fields.path("targetId")),fields.path("type").asText(),fields.path("description").asText()));
         }
         entries.save(world,next,links,w->{
+            if(data.resourceType.equals("ERA")||data.resourceType.equals("EVENT")) {
+                var current=content.timeline()==null?WorldTimeline.empty():content.timeline();
+                var eras=new ArrayList<>(current.eras());var events=new ArrayList<>(current.events());
+                var value=((ObjectNode)fields.deepCopy()).put("id",data.targetId.toString());
+                if(data.resourceType.equals("ERA")){eras.removeIf(e->e.id().equals(data.targetId));eras.add(json.convertValue(value,Era.class));}
+                else {events.removeIf(e->e.id().equals(data.targetId));events.add(json.convertValue(value,Event.class));}
+                var timeline=WorldTimeline.normalize(new Timeline(1,current.calendarName(),eras,events),next.stream().map(Entry::id).collect(java.util.stream.Collectors.toSet()));
+                w.setTimelineJson(timeline==null?null:entries.write(timeline));
+            }
             if(data.resourceType.equals("OVERVIEW"))w.setOverview(fields.path("content").asText());
             if(data.resourceType.equals("METADATA"))switch(data.fieldKey) {
                 case "name"->w.setName(fields.path("value").asText());case "tagline"->w.setTagline(fields.path("value").asText());

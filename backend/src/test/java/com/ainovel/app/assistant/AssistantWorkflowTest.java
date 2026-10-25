@@ -91,12 +91,13 @@ class AssistantWorkflowTest {
     }
     @Test void worldSecretsInEverySourceAndAuthorHistoryStayOutsideH2BothSteps() {
         var original=snapshot(true);var author=new ArrayList<>(original.authorPool());
-        for(String type:List.of("OVERVIEW","RULE","RELATION","AUTHOR_NOTES"))author.add(new Source("world:"+type,"WORLD_"+type,"禁止标题"+type,"秘密别名-"+type+"-SECRET_W4",null,"hash",false,null));
+        for(String type:List.of("OVERVIEW","RULE","RELATION","AUTHOR_NOTES","EVENT"))author.add(new Source("world:"+type,"WORLD_"+type,"禁止标题"+type,"秘密别名-"+type+"-SECRET_W4；时代隐秘日期，关联秘密事件",null,"hash",false,null));
         var snapshot=new AssistantContext.Snapshot(true,null,original.base(),original.editPool(),author,2800,3200);
         frozen=frozen("<p>她推开门。</p>","EDIT",snapshot,List.of(new WritingAssistantService.History("AUTHOR_QA","禁止标题","SECRET_W4")));
         when(ai.chatWithIdempotency(eq(user),any(),anyString())).thenReturn(response(read("EDIT","线索")),response(edit()));execute();
         for(String key:List.of("plan_request_json","final_request_json")) {
             assertFalse(checkpoints.get(key).contains("SECRET_W4"));assertFalse(checkpoints.get(key).contains("禁止标题"));assertFalse(checkpoints.get(key).contains("秘密别名"));
+            assertFalse(checkpoints.get(key).contains("时代隐秘日期"));assertFalse(checkpoints.get(key).contains("关联秘密事件"));
         }
         assertTrue(outcome.get().sources().stream().noneMatch(s->s.type().startsWith("WORLD_")));
     }

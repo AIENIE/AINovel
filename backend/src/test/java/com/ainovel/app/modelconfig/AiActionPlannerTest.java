@@ -3,6 +3,9 @@ package com.ainovel.app.modelconfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.ainovel.app.worldassistant.*;
+import com.ainovel.app.settings.dto.WorldPromptTemplatesResponse;
+import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
@@ -68,6 +71,32 @@ class AiActionPlannerTest {
         assertThat(result.steps()).extracting(AiActionPlanner.Step::featureKey).containsExactly("guided.outline_expand","guided.json_repair");
         row.put("steps_json","{\"OUTLINE\":{\"candidates\":[{}],\"outlinePhase\":\"OUTLINE_PREVIEW\"}}");
         assertThat(planner.plan(user,"/v1/creation-workflows/"+id+"/auto-run",json.createObjectNode()).steps()).isEmpty();
+    }
+
+    @Test void worldQuoteIncludesProtocolTemplatesTopicAndCandidateWithoutChangingOtherHashes() {
+        var jdbc=mock(JdbcTemplate.class);var planner=new AiActionPlanner(jdbc,json);var assistant=mock(WorldAssistantService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(planner,"worldAssistant",assistant);
+        var user=new com.ainovel.app.user.User();user.setId(UUID.randomUUID());var world=UUID.randomUUID();var session=UUID.randomUUID();
+        org.mockito.Mockito.when(jdbc.queryForList(org.mockito.ArgumentMatchers.startsWith("select w.*"),org.mockito.ArgumentMatchers.any(byte[].class),org.mockito.ArgumentMatchers.any(byte[].class)))
+            .thenAnswer(i->new ArrayList<>(List.of(new LinkedHashMap<String,Object>(Map.of("name","固定世界")))));
+        String path="/v1/worlds/"+world+"/assistant/turns";var body=json.createObjectNode().put("intent","PROPOSE");
+        var content=new com.ainovel.app.world.WorldDraftDtos.Content("固定世界","",List.of(),"","",List.of(),List.of(),Map.of(),null);
+        var snapshot=new WorldAssistantContext.Snapshot(world,1,"hash",content,List.of(),List.of());
+        var base=new WorldAssistantService.Frozen(world,session,"PROPOSE","整理",null,null,null,snapshot,List.of(),new WorldPromptTemplatesResponse(Map.of(),Map.of(),"",Map.of()),null,WorldAssistantService.PROTOCOL);
+        org.mockito.Mockito.when(assistant.validateQuote(org.mockito.ArgumentMatchers.eq(user),org.mockito.ArgumentMatchers.eq(world),org.mockito.ArgumentMatchers.isNull(),org.mockito.ArgumentMatchers.eq(body),org.mockito.ArgumentMatchers.eq(false))).thenReturn(base);
+        var original=planner.plan(user,path,body).businessHash();var values=new ArrayList<WorldAssistantService.Frozen>();
+        values.add(new WorldAssistantService.Frozen(world,session,"PROPOSE","整理",null,null,null,snapshot,List.of(),base.templates(),null,"world-assistant-v1"));
+        values.add(new WorldAssistantService.Frozen(world,session,"PROPOSE","整理",null,null,null,snapshot,List.of(),new WorldPromptTemplatesResponse(Map.of(),Map.of(),"",Map.of("propose","新模板")),null,WorldAssistantService.PROTOCOL));
+        values.add(new WorldAssistantService.Frozen(world,session,"PROPOSE","整理",null,null,null,snapshot,List.of(new WorldAssistantService.History(UUID.randomUUID(),"话题","未确认设想")),base.templates(),null,WorldAssistantService.PROTOCOL));
+        var candidate=new WorldAssistantService.ProposalData();candidate.candidate=json.createObjectNode().put("title","作者编辑的候选");
+        values.add(new WorldAssistantService.Frozen(world,session,"PROPOSE","整理",UUID.randomUUID(),candidate,null,snapshot,List.of(),base.templates(),null,WorldAssistantService.PROTOCOL));
+        for(var changed:values) {
+            org.mockito.Mockito.when(assistant.validateQuote(user,world,null,body,false)).thenReturn(changed);
+            assertThat(planner.plan(user,path,body).businessHash()).isNotEqualTo(original);
+        }
+        // Without assistant input, preserve the exact historic concatenation and its hash.
+        var generic=planner.plan(user,"/v1/ai/chat",json.createObjectNode());
+        assertThat(generic.businessHash()).isEqualTo(com.ainovel.app.quality.language.LanguageProjection.hash("[][generic.chat]nullnull"));
     }
 
 }

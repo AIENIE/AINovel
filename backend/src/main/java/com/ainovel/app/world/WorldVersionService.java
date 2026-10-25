@@ -27,13 +27,13 @@ public class WorldVersionService {
         var world=owned(id,false);var content=store.content(world);
         var latest=versions.findFirstByWorldIdAndOriginOrderBySequenceNumberDesc(id,"PUBLISHED");
         return new Draft(legacy.get(id),content.entries(),content.relations(),latest.map(v->dto(v,false)).orElse(null),
-            latest.isEmpty()||!Objects.equals(latest.get().getContentHash(),store.hash(content)));
+            latest.isEmpty()||!Objects.equals(latest.get().getContentHash(),store.hash(content)),content.timeline());
     }
     @Transactional
     public Draft save(UUID id,Save request) {
         var world=owned(id,true);checkRevision(world,request.expectedRevision());
         var m=request.metadata();
-        store.save(world,request.entries(),request.relations(), current -> {
+        store.save(world,request.entries(),request.relations(),request.timeline(), current -> {
         if(m!=null) {
             if(m.name()!=null){if(m.name().isBlank())throw WorldEntryStore.error("WORLD_NAME_REQUIRED");world.setName(m.name());}
             if(m.tagline()!=null)world.setTagline(m.tagline());
@@ -95,6 +95,12 @@ public class WorldVersionService {
         next.forEach((key,value)->{if(!Objects.equals(previous.get(key),value))changes.add(new Change("METADATA",key,key,previous.get(key),value));});
         compareItems(changes,"ENTRY",before==null?List.of():before.entries(),after.entries(),Entry::id,Entry::title);
         compareItems(changes,"RELATION",before==null?List.of():before.relations(),after.relations(),Relation::id,Relation::type);
+        var previousTimeline=before==null||before.timeline()==null?WorldTimeline.empty():before.timeline();
+        var nextTimeline=after.timeline()==null?WorldTimeline.empty():after.timeline();
+        if(!Objects.equals(previousTimeline.calendarName(),nextTimeline.calendarName()))
+            changes.add(new Change("TIMELINE","calendarName","纪年名称",previousTimeline.calendarName(),nextTimeline.calendarName()));
+        compareItems(changes,"ERA",previousTimeline.eras(),nextTimeline.eras(),Era::id,Era::name);
+        compareItems(changes,"EVENT",previousTimeline.events(),nextTimeline.events(),Event::id,Event::title);
         return new Diff(from,to,revision,changes);
     }
     private static <T>void compareItems(List<Change> out,String kind,List<T> before,List<T> after,java.util.function.Function<T,UUID> id,java.util.function.Function<T,String> label) {

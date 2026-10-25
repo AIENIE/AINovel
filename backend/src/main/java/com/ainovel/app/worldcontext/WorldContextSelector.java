@@ -3,6 +3,7 @@ package com.ainovel.app.worldcontext;
 import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.manuscript.context.SceneDraftContextCompiler;
 import com.ainovel.app.world.WorldBindingService;
+import com.ainovel.app.world.WorldTimeline;
 import com.ainovel.app.world.WorldDraftDtos.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -15,12 +16,16 @@ import static com.ainovel.app.quality.language.LanguageProjection.hash;
 /** Deterministic retrieval from one immutable version. It never summarizes or truncates a source. */
 @Component
 public class WorldContextSelector {
-    public static final String VERSION="world-context-v1";
+    public static final String VERSION="world-context-v2";
     private static final Pattern TERMS=Pattern.compile("[\\p{IsHan}]+|[\\p{L}\\p{N}_]+",Pattern.UNICODE_CHARACTER_CLASS);
     private static final Set<String> STOP=Set.of("一个","这个","那个","世界","故事","场景","章节","人物","角色","当前","继续","生成","润色");
     private final ObjectMapper json;
     public WorldContextSelector(ObjectMapper json) { this.json=json; }
-    private record Item(String id,String type,String title,String content,List<String> names,List<String> tags,List<String> endpoints) {}
+    private record Item(String id,String type,String title,String content,List<String> names,List<String> tags,List<String> dependencies,List<String> adjacent) {
+        private Item(String id,String type,String title,String content,List<String> names,List<String> tags,List<String> dependencies) {
+            this(id,type,title,content,names,tags,dependencies,dependencies);
+        }
+    }
     private record Ranked(Item item,int priority,int score,String reason,boolean required) {}
 
     public Selection select(WorldBindingService.Resolved binding,Preferences preferences,String query,int budget,boolean isolated) {
@@ -39,7 +44,7 @@ public class WorldContextSelector {
         if(!text(binding.content().overview()).isBlank()&&choices.getOrDefault("overview",Choice.AUTO)!=Choice.EXCLUDE)mandatory.add("overview");
         for(var id:List.copyOf(mandatory)) {
             var item=byId.get(id);if(item==null)continue;
-            for(var endpoint:item.endpoints()) {
+            for(var endpoint:item.dependencies()) {
                 if(choices.get(endpoint)==Choice.EXCLUDE||!byId.containsKey(endpoint))issues.add("RELATION_ENDPOINT_CONFLICT:"+id);
                 else mandatory.add(endpoint);
             }
@@ -57,13 +62,13 @@ public class WorldContextSelector {
             var matchedTags=item.tags().stream().filter(t->!t.isBlank()&&normalized.contains(normalize(t))).sorted().toList();
             boolean tag=!matchedTags.isEmpty();
             int priority=match.isPresent()?300:tag||matches>0?200:item.id().equals("metadata")?100:0;
-            if(priority>=200&&item.endpoints().isEmpty())direct.add(item.id());
+            if(priority>=200&&item.dependencies().isEmpty())direct.add(item.id());
             String reason=match.isPresent()?"NAME_MATCH:"+match.get():tag?"TAG_MATCH:"+String.join("、",matchedTags):matches>0?"CONTENT_MATCH:"+String.join("、",matchedTerms.stream().limit(6).toList()):item.id().equals("metadata")?"WORLD_BACKGROUND":"NOT_RELEVANT";
             ranked.add(new Ranked(item,priority,matches,reason,mandatory.contains(item.id())));
         }
         var neighbors=new HashSet<String>();
-        for(var item:items)if(!item.endpoints().isEmpty()&&item.endpoints().stream().anyMatch(direct::contains)) {
-            neighbors.add(item.id());neighbors.addAll(item.endpoints());
+        for(var item:items)if(!item.adjacent().isEmpty()&&(direct.contains(item.id())||item.adjacent().stream().anyMatch(direct::contains))) {
+            neighbors.add(item.id());neighbors.addAll(item.adjacent());
         }
         ranked=ranked.stream().map(r->r.priority()==0&&neighbors.contains(r.item().id())?new Ranked(r.item(),50,0,"RELATED_ONE_HOP",r.required()):r)
                 .sorted(Comparator.<Ranked,Boolean>comparing(Ranked::required).reversed()
@@ -74,8 +79,8 @@ public class WorldContextSelector {
         // Entries precede relationships so no admitted relation can refer to omitted endpoint content.
         var ordered=new ArrayList<Ranked>();
         for(boolean required:List.of(true,false)) {
-            ordered.addAll(ranked.stream().filter(r->r.required()==required&&r.item().endpoints().isEmpty()).toList());
-            ordered.addAll(ranked.stream().filter(r->r.required()==required&&!r.item().endpoints().isEmpty()).toList());
+            ordered.addAll(ranked.stream().filter(r->r.required()==required&&r.item().dependencies().isEmpty()).toList());
+            ordered.addAll(ranked.stream().filter(r->r.required()==required&&!r.item().dependencies().isEmpty()).toList());
         }
         for(var r:ordered) {
             var item=r.item();Choice choice=choices.getOrDefault(item.id(),Choice.AUTO);
@@ -83,7 +88,7 @@ public class WorldContextSelector {
                     r.required()?item.id().equals("overview")?"OVERVIEW_DEFAULT":"REQUIRED_RELATION_ENDPOINT":r.reason();
             int cost=costOf.applyAsInt(new Source(item.id(),item.type(),item.title(),item.content(),hash(item.content()),choice,reason,0,r.required()));
             boolean allowed=!isolated&&choice!=Choice.EXCLUDE&&(r.required()||r.priority()>0);
-            if(allowed&&!selected.containsAll(item.endpoints())) {allowed=false;reason="ENDPOINT_NOT_INCLUDED";}
+            if(allowed&&!selected.containsAll(item.dependencies())) {allowed=false;reason="ENDPOINT_NOT_INCLUDED";}
             if(allowed&&used+cost>limit) {allowed=false;reason="CAPACITY_EXCLUDED";if(r.required())issues.add("REQUIRED_CONTEXT_TOO_LARGE:"+item.id());}
             var source=new Source(item.id(),item.type(),item.title(),item.content(),hash(item.content()),choice,reason,cost,r.required());
             if(allowed){included.add(source);selected.add(item.id());used+=cost;}else excluded.add(source);
@@ -114,6 +119,18 @@ public class WorldContextSelector {
         var names=new HashMap<UUID,String>();c.entries().forEach(e->names.put(e.id(),e.title()));
         for(var r:c.relations())list.add(new Item("relation:"+r.id(),"RELATION",names.getOrDefault(r.sourceId(),r.sourceId().toString())+" → "+names.getOrDefault(r.targetId(),r.targetId().toString()),
                 "起点："+r.sourceId()+"\n终点："+r.targetId()+"\n关系："+text(r.type())+"\n说明："+text(r.description()),List.of(),List.of(),List.of("entry:"+r.sourceId(),"entry:"+r.targetId())));
+        if(c.timeline()!=null) {
+            var eras=new HashMap<UUID,Era>();c.timeline().eras().forEach(e->eras.put(e.id(),e));
+            for(var event:c.timeline().events()) {
+                var eventNames=new ArrayList<String>();eventNames.add(event.title());eventNames.addAll(event.aliases());
+                String eraText=event.eraIds().stream().map(id->{var era=eras.get(id);return era==null?id.toString():era.name()+"（"+WorldTimeline.renderDate(era.date())+"；"+text(era.description())+"）";}).collect(java.util.stream.Collectors.joining("、"));
+                String entries=event.entryIds().stream().map(id->names.getOrDefault(id,id.toString())+" ["+id+"]").collect(java.util.stream.Collectors.joining("、"));
+                String content="标题："+event.title()+"\n别名："+write(event.aliases())+"\n标签："+write(event.tags())+
+                    "\n历法："+text(c.timeline().calendarName())+"\n日期："+WorldTimeline.renderDate(event.date())+"\n时代："+eraText+
+                    "\n关联条目："+entries+"\n摘要："+text(event.summary())+"\n正文："+text(event.content());
+                list.add(new Item("event:"+event.id(),"EVENT",event.title(),content,eventNames,event.tags(),List.of(),event.entryIds().stream().map(id->"entry:"+id).toList()));
+            }
+        }
         return list;
     }
     private String write(Object value){try{return json.writeValueAsString(value);}catch(Exception e){throw new IllegalStateException(e);}}

@@ -45,7 +45,7 @@ public class WorldEntryStore {
     public Content content(World world) {
         var items=entries(world);
         return new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),
-            world.getNotes(),items,relations(world.getId()),projection(items),world.getLegacyModulesJson(),world.getOverview());
+            world.getNotes(),items,relations(world.getId()),projection(items),world.getLegacyModulesJson(),world.getOverview(),WorldTimeline.read(world.getTimelineJson(),json));
     }
     public Map<String,Map<String,String>> projection(List<Entry> items) {
         var result=new TreeMap<String,Map<String,String>>();
@@ -66,7 +66,11 @@ public class WorldEntryStore {
     }
     public void save(World world,List<Entry> supplied,List<Relation> links) {save(world,supplied,links,w->{});}
     public void save(World world,List<Entry> supplied,List<Relation> links,java.util.function.Consumer<World> metadata) {
+        save(world,supplied,links,null,metadata);
+    }
+    public void save(World world,List<Entry> supplied,List<Relation> links,Timeline timeline,java.util.function.Consumer<World> metadata) {
         if(supplied==null||links==null)throw error("WORLD_DRAFT_CONTENT_REQUIRED");
+        var previousTimeline=WorldTimeline.read(world.getTimelineJson(),json);
         var prior=entries.findByWorldIdOrderById(world.getId());
         var before=new HashMap<UUID,WorldEntry>();prior.forEach(e->before.put(e.getId(),e));
         var ids=new HashSet<UUID>();var legacyKeys=new HashSet<List<String>>();var normalized=new ArrayList<Entry>();
@@ -102,8 +106,13 @@ public class WorldEntryStore {
         entries.deleteAll(prior.stream().filter(e->!ids.contains(e.getId())).toList());entries.flush();
         if(world.getLegacyModulesJson()==null)world.setLegacyModulesJson(world.getModulesJson());
         metadata.accept(world);
+        var nextTimeline=timeline==null?WorldTimeline.read(world.getTimelineJson(),json):timeline;
+        var deletedEntries=new HashSet<>(before.keySet());deletedEntries.removeAll(ids);
+        var deletedEras=new HashSet<>(WorldTimeline.eraIds(previousTimeline));deletedEras.removeAll(WorldTimeline.eraIds(nextTimeline));
+        nextTimeline=WorldTimeline.normalize(WorldTimeline.cleanupReferences(nextTimeline,deletedEntries,deletedEras),ids);
+        world.setTimelineJson(nextTimeline==null?null:write(nextTimeline));
         world.setModulesJson(write(projection(normalized)));
-        world.setDraftContentHash(hash(new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),world.getNotes(),normalized,links,projection(normalized),world.getLegacyModulesJson(),world.getOverview())));
+        world.setDraftContentHash(hash(new Content(world.getName(),world.getTagline(),strings(world.getThemesJson()),world.getCreativeIntent(),world.getNotes(),normalized,links,projection(normalized),world.getLegacyModulesJson(),world.getOverview(),nextTimeline)));
     }
     public List<Entry> legacyEntries(UUID worldId,Map<String,Map<String,String>> modules) {
         var result=new ArrayList<Entry>();
@@ -140,7 +149,7 @@ public class WorldEntryStore {
     public String hash(Content value) {
         var sorted=new Content(value.name(),value.tagline(),value.themes(),value.creativeIntent(),value.notes(),
             value.entries().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),
-            value.relations().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),value.modules(),value.legacyModulesJson(),value.overview());
+            value.relations().stream().sorted(Comparator.comparing(e->e.id().toString())).toList(),value.modules(),value.legacyModulesJson(),value.overview(),WorldTimeline.normalize(value.timeline()));
         try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json.writer().with(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS).writeValueAsBytes(sorted)));}
         catch(Exception e){throw new IllegalStateException(e);}
     }

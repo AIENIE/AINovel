@@ -39,6 +39,10 @@ public class World {
     private String overview;
     public String getOverview() { return overview; }
     public void setOverview(String value) { overview = value; }
+    @Lob @Column(name = "timeline_json", columnDefinition = "LONGTEXT")
+    private String timelineJson;
+    public String getTimelineJson() { return timelineJson; }
+    public void setTimelineJson(String value) { timelineJson = value; }
     private String draftContentHash;
     public String getLegacyModulesJson() { return legacyModulesJson; }
     public void setLegacyModulesJson(String value) { legacyModulesJson = value; }

@@ -2,6 +2,21 @@
 
 阶段状态以 [路线图](../roadmap.md) 为准。W2 将世界工作草稿与小说使用的内容分开。
 
+## W5 时间线与管理
+
+V48 仅增加 `worlds.timeline_json`、`story_world_eras` 和 `world_copy_receipts`，不回填旧设定，不修改历史快照、摘要、模板或绑定。
+
+- `timeline_json` 是 schemaVersion 1 的草稿内容：calendarName、eras、events。时代含稳定 UUID、名称、说明、date、sortOrder；事件另含摘要、正文、别名、标签、entryIds、eraIds。时间点由 year/month/day 表示，年允许负数及零，月日为正整数并逐级填写；日期范围的两端分别保留精度，null 表示未知，不按现实历法换算。时代可重叠、事件可属多个时代，日期不自动决定归属。
+- 时间线与条目共用世界 revision，保存、提案采纳、关联清理在同一事务内完成。旧保存请求省略或传 null 保留时间线，显式空对象清空。逻辑空时间线在快照内容中省略；新增对象按稳定 ID 规范化，sortOrder 显式参与摘要，偶然数组顺序不影响摘要。发布后不可变，差异按 ERA/EVENT 的稳定 ID 对齐。
+- `story_world_eras` 完整字段为 id、story_id、world_id、reviewed_version_id、revision、era_ids_json；story/world 唯一，故事/世界删除级联，已核对版本外键保留。选择仅用于浏览，采用独立 revision，不写世界绑定或写作偏好；升级保留缺失/变化项供复核，其他世界的覆盖不套用标注。
+- `world_copy_receipts` 完整字段为 id、user_id、request_key、request_hash、source_world_id、copied_world_id、created_at；user/request_key 唯一。复制锁用户及来源世界并使用同一事务；回执保留已删除副本的 ID，重试不能重新创建副本。来源与副本 ID 不设删除级联，用户删除沿用归属级联。
+
+世界讨论、提案和概览读取已保存时间线。ERA/EVENT 提案沿用原审阅事务，只合并当前稿中的目标；同批预分配稳定 ID，事件依赖先采纳的条目/时代，不能自动连带采纳。新任务保存协议版本；旧任务缺少可恢复请求时停止，尤其不使用新规则重建尚未持久化的第二步。
+
+W4 筛选器新增 EVENT 来源，完整渲染同一绑定版本的纪年、日期、时代和关联文字。事件邻接只供本地一跳检索，原关系端点才是硬依赖。作品时代不进入提示，也不作未来事件过滤。旧冻结请求不重新筛选；H2 排除包含新增标题、日期及关联文字，作者问答保持原边界。
+
+复制只读取明确的已保存草稿 revision 或正式发布版本，所有结构化 ID 重新分配并重映射关联；不复制历史、讨论、提案、任务、费用、绑定、偏好或用户模板。导出使用同一明确来源，Markdown 提供完整设定册，JSON 的 content 保留原快照内容和兼容字段；两者记录来源版本/revision、摘要和格式版本。无导入、公开分享或自动备份。
+
 ## 数据与写入
 
 - `worlds` 保留草稿基础信息、乐观锁 `revision`，增加 `draft_content_hash` 和原样保留的 `legacy_modules_json`。

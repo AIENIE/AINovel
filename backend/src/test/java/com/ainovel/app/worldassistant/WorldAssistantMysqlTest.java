@@ -160,4 +160,37 @@ class WorldAssistantMysqlTest {
         when(ai.chatWithIdempotency(any(),any(),anyString())).thenAnswer(i->{AiChatRequest r=i.getArgument(1);String prompts=r.messages().toString();assertThat(prompts).contains("原模板：只讨论").doesNotContain("后来改的模板");return response(Map.of("kind","ANSWER","answer","讨论"));});execute(f,a);
     }
 
+    @Test void timelineBatchDependenciesAndAtomicAdoptionPreserveConcurrentTimeline() {
+        var f=fixture();var event=item("CREATE","EVENT",null,Map.of("title","大潮封港","entryIds",List.of("port"),"eraIds",List.of("era")));event.put("clientKey","storm");
+        var era=item("CREATE","ERA",null,Map.of("name","潮封纪","description","港口封闭的时代"));era.put("clientKey","era");
+        var entry=item("CREATE","ENTRY",null,Map.of("type","LOCATION","title","外港","content","新建港口"));entry.put("clientKey","port");
+        var ids=propose(f,List.of(event,era,entry));var candidate=service.proposal(f.user(),f.world(),ids.getFirst());
+        assertThat(candidate.staleReason()).isEqualTo("WORLD_PROPOSAL_DEPENDENCY_MISSING");
+        assertThatThrownBy(()->accept(f,ids.getFirst(),true)).hasMessage("WORLD_PROPOSAL_DEPENDENCY_MISSING");
+        var eraId=service.proposal(f.user(),f.world(),ids.get(1)).targetId();var entryId=service.proposal(f.user(),f.world(),ids.get(2)).targetId();
+        accept(f,ids.get(1),false);assertThat(service.proposal(f.user(),f.world(),ids.getFirst()).applicable()).isFalse();accept(f,ids.get(2),true);
+        var otherId=UUID.randomUUID();tx.executeWithoutResult(s->{
+            var world=worlds.findById(f.world()).orElseThrow();var content=entries.content(world);
+            var timeline=new WorldDraftDtos.Timeline(1,"潮历",content.timeline().eras(),List.of(new WorldDraftDtos.Event(otherId,"并发新增事件","","作者新输入",List.of(),List.of(),null,List.of(),List.of(),3)));
+            entries.save(world,content.entries(),content.relations(),timeline,w->{});worlds.saveAndFlush(world);
+        });
+        assertThat(service.proposal(f.user(),f.world(),ids.getFirst()).applicable()).isTrue();
+        long before=revision(f);assertThatThrownBy(()->tx.executeWithoutResult(s->{accept(f,ids.getFirst(),true);throw new IllegalStateException("rollback-timeline");})).hasMessage("rollback-timeline");
+        assertThat(revision(f)).isEqualTo(before);assertThat(service.proposal(f.user(),f.world(),ids.getFirst()).status()).isEqualTo("READY");
+        var rolledBackEvents=tx.execute(s->entries.content(worlds.findById(f.world()).orElseThrow()).timeline().events());
+        assertThat(rolledBackEvents).extracting(WorldDraftDtos.Event::id).containsExactly(otherId);
+        var ready=service.proposal(f.user(),f.world(),ids.getFirst());var decision=new DecisionRequest(ready.revision(),revision(f),true);
+        var applied=service.decide(f.user(),f.world(),ready.id(),"accept",decision,"timeline-adopt-once");
+        long adoptedRevision=revision(f);assertThat(adoptedRevision).isEqualTo(before+1);assertThat(applied.draftRevision()).isEqualTo(adoptedRevision);
+        var replayed=service.decide(f.user(),f.world(),ready.id(),"accept",decision,"timeline-adopt-once");
+        JsonNode expectedReceipt=json.valueToTree(applied),actualReceipt=json.valueToTree(replayed);
+        assertThat(actualReceipt).isEqualTo(expectedReceipt);assertThat(revision(f)).isEqualTo(adoptedRevision);
+        assertThat(service.proposal(f.user(),f.world(),ready.id()).revision()).isEqualTo(applied.proposal().revision());
+        var saved=tx.execute(s->entries.content(worlds.findById(f.world()).orElseThrow()));assertThat(saved.timeline().calendarName()).isEqualTo("潮历");
+        assertThat(saved.timeline().events()).extracting(WorldDraftDtos.Event::id).containsExactlyInAnyOrder(otherId,ready.targetId());
+        var adopted=saved.timeline().events().stream().filter(e->e.id().equals(ready.targetId())).findFirst().orElseThrow();
+        assertThat(adopted.entryIds()).containsExactly(entryId);assertThat(adopted.eraIds()).containsExactly(eraId);assertThat(adopted.date()).isNull();
+        assertThat(saved.entries()).extracting(WorldDraftDtos.Entry::id).contains(f.entry(),entryId);assertThat(text(f)).isEqualTo("白天开放");
+    }
+
 }

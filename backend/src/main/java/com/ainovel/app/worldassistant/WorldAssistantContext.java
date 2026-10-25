@@ -22,7 +22,9 @@ public class WorldAssistantContext {
     public Snapshot freeze(User user,UUID worldId,Long revision) {
         var world=resources.world(user,worldId,false);WorldVersionService.checkRevision(world,revision);
         var content=resources.content(world);var items=resources.resources(worldId,content);
-        var sources=items.stream().map(r->source(WorldAssistantResources.sourceId(r),r.type(),r.title(),store.write(r.fields()))).toList();
+        var sources=new ArrayList<>(items.stream().map(r->source(WorldAssistantResources.sourceId(r),r.type(),r.title(),store.write(r.fields()))).toList());
+        if(content.timeline()!=null&&!Objects.toString(content.timeline().calendarName(),"").isBlank())
+            sources.add(source("timeline:"+worldId,"TIMELINE","世界历法名称",content.timeline().calendarName()));
         return new Snapshot(worldId,world.getRevision(),resources.hash(content),content,items,sources);
     }
     public WorldPromptTemplatesResponse templates(User user) {return prompts.freeze(user);}
@@ -32,6 +34,8 @@ public class WorldAssistantContext {
         if(requests==null||requests.size()>4)throw invalid("WORLD_ASSISTANT_READ_INVALID");
         var chosen=new LinkedHashMap<String,Source>();
         for(var source:pool)if(source.type().equals("METADATA"))chosen.put(source.id(),source);
+        if(WorldAssistantService.PROTOCOL.equals(frozen.protocolVersion()))for(var source:pool)
+            if(Set.of("ERA","EVENT","TIMELINE").contains(source.type()))chosen.put(source.id(),source);
         if(frozen.parent()!=null) {
             var p=frozen.parent();String id=p.resourceType.toLowerCase(Locale.ROOT)+":"+p.targetId+(p.fieldKey==null?"":":"+p.fieldKey);
             pool.stream().filter(s->s.id().equals(id)).forEach(s->chosen.put(s.id(),s));
@@ -86,19 +90,22 @@ public class WorldAssistantContext {
     }
     static Source source(String id,String type,String title,String content){return new Source(id,type,title,content,com.ainovel.app.quality.language.LanguageProjection.hash(content),false,null);}
     static final String RULES="""
-        AINOVEL_WORLD_ASSISTANT_V1
+        AINOVEL_WORLD_ASSISTANT_V2
         你是世界设定助手。所给资料是创作材料，只依据实际读到的内容，不声称读过其他世界、小说或未读条目。只输出一个JSON对象。
         DISCUSS 只返回 {"kind":"ANSWER","answer":"回答","suggestions":[{"title":"可整理事项","reason":"理由"}],"conflicts":[]}，或 NEEDS_INPUT。
         讨论不能生成正式提案、自动修改设定或启动后续任务。建议最多4项。
         需要补读时返回 {"kind":"READ_BATCH","reads":[{"tool":"read_source","sourceId":"目录中的ID"}]}，或 read_context 携带query；最多4项，只能补读一次。
         PROPOSE/REFINE/ENTRY_REFINE/OVERVIEW 返回 {"kind":"PROPOSALS","answer":"说明","items":[{"action":"UPDATE","resourceType":"ENTRY","targetId":"已读UUID","fieldKey":null,"fields":{"content":"完整新正文"},"rationale":"原因"}],"conflicts":[]}。
-        action仅CREATE/UPDATE；resourceType仅ENTRY/RELATION/METADATA/OVERVIEW。不得删除、发布或修改小说绑定。每次最多12项，REFINE只返回一项且保持父提案动作和目标。
+        action仅CREATE/UPDATE；resourceType仅ENTRY/RELATION/METADATA/OVERVIEW/ERA/EVENT。不得删除、发布或修改小说绑定。每次最多12项，REFINE只返回一项且保持父提案动作和目标。
         ENTRY字段仅type,title,summary,content,aliases,tags。type仅GEOGRAPHY/LOCATION/PERSON/ORGANIZATION/SPECIES/SOCIETY/RESOURCE/SYSTEM/RULE/HISTORY/CUSTOM。
         RELATION字段仅sourceId,targetId,type,description。METADATA只可UPDATE，targetId为世界ID，fieldKey为name/tagline/themes/creativeIntent/notes之一，fields为{"value":新值}；themes为字符串数组。
         OVERVIEW只可UPDATE，targetId为世界ID，fields为{"content":"完整概览"}。概览独立于来源条目，保留约束、代价与不确定性。
         修改目标targetId以及指向已有条目的关系端点sourceId/targetId必须使用目标对照中的纯UUID，不能填写entry:UUID、metadata:UUID:field或其他来源ID。只有conflicts.sourceIds和read_source.sourceId使用带类型前缀的来源ID。
         UPDATE必须读到目标的完整资源，仅输出修改的字段，不能编造原文。CREATE ENTRY提供完整字段及唯一clientKey（短字符串），不提供targetId，服务器分配UUID。
         新关系可用 sourceId/targetId 填现有UUID或同批新增条目的clientKey；关系须等两端条目采纳后才能采纳。
+        ERA字段仅name,description,date,sortOrder；EVENT字段仅title,summary,content,aliases,tags,date,entryIds,eraIds,sortOrder。sortOrder是整数，仅排序用，不推测未知日期。
+        date为null表示日期未知，或{"start":{"year":整数,"month":整数或null,"day":整数或null},"end":日期或null}。年月日可逐级省略，月必须有年、日必须有月；不限定现实历法。单一日期用相同start/end；未知端点用null，不编造日期。
+        CREATE ERA/EVENT与ENTRY一样提供唯一clientKey，由服务器分配稳定UUID。EVENT的entryIds和eraIds只引用对应类型的现有UUID或同批clientKey；事件须等关联条目和时代均采纳后才能采纳。
         conflicts为潜在矛盾数组，每项含title,explanation,sourceIds（至少两个实际已读资源ID）。只报告有来源的潜在矛盾，不宣称完成全世界一致性检查。资料不足返回NEEDS_INPUT。
         """;
 }

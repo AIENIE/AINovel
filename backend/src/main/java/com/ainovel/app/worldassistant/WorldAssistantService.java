@@ -20,6 +20,7 @@ import static com.ainovel.app.quality.language.LanguageProjection.hash;
 @Service
 public class WorldAssistantService {
     public static final String TYPE="WORLD_ASSISTANT_TURN";
+    public static final String PROTOCOL="world-assistant-v2";
     private final WorldAssistantStore store;
     private final WorldAssistantResources resources;
     private final WorldAssistantContext context;
@@ -32,7 +33,12 @@ public class WorldAssistantService {
     }
     public record History(UUID turnId,String instruction,String answer) {}
     public record Frozen(UUID worldId,UUID sessionId,String intent,String instruction,UUID parentProposalId,ProposalData parent,
-            UUID targetId,WorldAssistantContext.Snapshot snapshot,List<History> history,WorldPromptTemplatesResponse templates,String singleFeature) {}
+            UUID targetId,WorldAssistantContext.Snapshot snapshot,List<History> history,WorldPromptTemplatesResponse templates,String singleFeature,String protocolVersion) {
+        public Frozen(UUID worldId,UUID sessionId,String intent,String instruction,UUID parentProposalId,ProposalData parent,
+                UUID targetId,WorldAssistantContext.Snapshot snapshot,List<History> history,WorldPromptTemplatesResponse templates,String singleFeature) {
+            this(worldId,sessionId,intent,instruction,parentProposalId,parent,targetId,snapshot,history,templates,singleFeature,PROTOCOL);
+        }
+    }
     public record Outcome(String kind,String answer,List<Suggestion> suggestions,List<UUID> proposalIds,List<Source> sources,List<String> warnings,List<SemanticConflict> conflicts) {}
     public static class ProposalData {
         public String action,resourceType,fieldKey,worldHash,rationale;
@@ -95,7 +101,7 @@ public class WorldAssistantService {
     private Frozen quoted(User user,UUID world,java.util.function.Supplier<Frozen> fallback) {
         var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
         if(selection==null||selection.worldAssistantInput()==null)return fallback.get();
-        var frozen=selection.worldAssistantInput();if(!world.equals(frozen.worldId()))throw conflict("AI_QUOTE_INPUT_CHANGED");
+        var frozen=selection.worldAssistantInput();if(!world.equals(frozen.worldId())||!PROTOCOL.equals(frozen.protocolVersion()))throw conflict("AI_QUOTE_INPUT_CHANGED");
         WorldVersionService.checkRevision(resources.world(user,world,false),frozen.snapshot().revision());return frozen;
     }
     private Accepted start(User user,Frozen frozen,String key,String requestHash) {
@@ -178,9 +184,12 @@ public class WorldAssistantService {
         if(!session.userId().equals(execution.user().getId())||!execution.operationId().equals(row.operationId()))throw missing();
         if(row.resultJson()!=null)return result(turnId,outcome(row));
         var frozen=frozen(row);var reads=context.read(frozen,List.of());var exposed=new LinkedHashMap<String,Source>();reads.sources().forEach(s->exposed.put(s.id(),s));
-        var response=call(execution,turnId,"plan",context.prompt(frozen,reads,frozen.singleFeature()!=null));var parsed=parse(response.content());
+        var response=call(execution,turnId,"plan",()->context.prompt(frozen,context.read(frozen,List.of()),frozen.singleFeature()!=null));var parsed=parse(response.content());
         if(parsed.path("kind").asText().equals("READ_BATCH")) {
             if(frozen.singleFeature()!=null)throw invalid("WORLD_ASSISTANT_READ_INVALID");
+            // A historic first-stage result does not authorize rebuilding its missing second request with new rules.
+            if(!PROTOCOL.equals(frozen.protocolVersion())&&(row.readsJson()==null||row.finalRequestJson()==null))
+                throw conflict("WORLD_ASSISTANT_LEGACY_INPUT_UNAVAILABLE");
             execution.progress().step("读取冻结资料并形成结果",1,2);
             if(store.turn(turnId).readsJson()==null) {
                 if(!parsed.path("reads").isArray())throw invalid("WORLD_ASSISTANT_READ_INVALID");
@@ -188,7 +197,7 @@ public class WorldAssistantService {
                 AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,"reads_json",selected);return null;});
             }
             reads=store.read(store.turn(turnId).readsJson(),WorldAssistantContext.Reads.class);reads.sources().forEach(s->exposed.put(s.id(),s));
-            response=call(execution,turnId,"final",context.prompt(frozen,reads,true));parsed=parse(response.content());
+            var finalReads=reads;response=call(execution,turnId,"final",()->context.prompt(frozen,finalReads,true));parsed=parse(response.content());
         }
         String kind=parsed.path("kind").asText(),answer=parsed.path("answer").asText("").strip();
         if(!Set.of("ANSWER","NEEDS_INPUT","PROPOSALS").contains(kind)||answer.isBlank()||frozen.intent().equals("DISCUSS")&&kind.equals("PROPOSALS"))throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
@@ -207,11 +216,11 @@ public class WorldAssistantService {
         var candidates=new ArrayList<ProposalData>();
         if(kind.equals("PROPOSALS")) {
             var items=parsed.path("items");if(!items.isArray()||items.isEmpty()||items.size()>12||(frozen.parent()!=null||frozen.singleFeature()!=null)&&items.size()!=1)throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
-            var ids=new HashMap<String,UUID>();int index=0;
-            for(var item:items) {if(item.path("action").asText().equals("CREATE")&&item.path("resourceType").asText().equals("ENTRY")) {
-                String key=item.path("clientKey").asText("item:"+index);if(key.isBlank()||ids.putIfAbsent(key,frozen.parent()==null?UUID.randomUUID():frozen.parent().targetId)!=null)throw invalid("WORLD_PROPOSAL_DUPLICATE_TARGET");}index++;}
+            var ids=new HashMap<String,UUID>();var types=new HashMap<String,String>();int index=0;
+            for(var item:items) {if(item.path("action").asText().equals("CREATE")&&Set.of("ENTRY","ERA","EVENT").contains(item.path("resourceType").asText())) {
+                String key=item.path("clientKey").asText("item:"+index);if(key.isBlank()||ids.putIfAbsent(key,frozen.parent()==null?UUID.randomUUID():frozen.parent().targetId)!=null)throw invalid("WORLD_PROPOSAL_DUPLICATE_TARGET");types.put(key,item.path("resourceType").asText());}index++;}
             index=0;var targets=new HashSet<String>();for(var item:items) {
-                var data=prepare(frozen,item,index++,ids,reads.sources());String target=data.resourceType+":"+data.targetId+":"+data.fieldKey;
+                var data=prepare(frozen,item,index++,ids,types,reads.sources());String target=data.resourceType+":"+data.targetId+":"+data.fieldKey;
                 if(!targets.add(target))throw invalid("WORLD_PROPOSAL_DUPLICATE_TARGET");data.sources=List.copyOf(sources);data.sourceTurnIds=List.copyOf(sourceTurns);data.conflicts=conflicts;candidates.add(data);
             }
         }
@@ -221,11 +230,12 @@ public class WorldAssistantService {
             var outcome=new Outcome(kind,answer,List.copyOf(suggestions),List.copyOf(ids),List.copyOf(sources),warnings,conflicts);store.finish(turnId,outcome);store.touch(session.id());return result(turnId,outcome);
         });
     }
-    private ProposalData prepare(Frozen frozen,JsonNode item,int index,Map<String,UUID> ids,List<Source> finalSources) {
+    private ProposalData prepare(Frozen frozen,JsonNode item,int index,Map<String,UUID> ids,Map<String,String> types,List<Source> finalSources) {
         var data=new ProposalData();data.action=item.path("action").asText();data.resourceType=item.path("resourceType").asText();data.fieldKey=item.hasNonNull("fieldKey")?item.path("fieldKey").asText():null;
-        if(!Set.of("CREATE","UPDATE").contains(data.action)||!Set.of("ENTRY","RELATION","METADATA","OVERVIEW").contains(data.resourceType))throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
+        if(!Set.of("CREATE","UPDATE").contains(data.action)||!Set.of("ENTRY","RELATION","METADATA","OVERVIEW","ERA","EVENT").contains(data.resourceType))throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
+        if(!PROTOCOL.equals(frozen.protocolVersion())&&Set.of("ERA","EVENT").contains(data.resourceType))throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
         if(!data.resourceType.equals("METADATA")&&data.fieldKey!=null)throw invalid("WORLD_PROPOSAL_TARGET_INVALID");
-        data.targetId=data.action.equals("UPDATE")?WorldAssistantResources.id(item.path("targetId")):data.resourceType.equals("ENTRY")?ids.get(item.path("clientKey").asText("item:"+index)):UUID.randomUUID();
+        data.targetId=data.action.equals("UPDATE")?WorldAssistantResources.id(item.path("targetId")):Set.of("ENTRY","ERA","EVENT").contains(data.resourceType)?ids.get(item.path("clientKey").asText("item:"+index)):UUID.randomUUID();
         if(frozen.parent()!=null&&data.action.equals("CREATE"))data.targetId=frozen.parent().targetId;
         data.worldHash=frozen.snapshot().hash();data.parentProposalId=frozen.parentProposalId();
         if(data.action.equals("UPDATE")) {
@@ -240,12 +250,24 @@ public class WorldAssistantService {
         if(data.resourceType.equals("OVERVIEW")&&!frozen.intent().equals("OVERVIEW")&&(finalSources.size()!=frozen.snapshot().pool().size()))throw invalid("WORLD_OVERVIEW_FULL_CONTEXT_REQUIRED");
         JsonNode fields=item.path("fields").deepCopy();
         if(data.resourceType.equals("RELATION")&&fields.isObject())for(String key:List.of("sourceId","targetId")) {
-            String raw=fields.path(key).asText();if(ids.containsKey(raw))((ObjectNode)fields).put(key,ids.get(raw).toString());
+            String raw=fields.path(key).asText();if(ids.containsKey(raw)){if(!"ENTRY".equals(types.get(raw)))throw invalid("WORLD_PROPOSAL_ENDPOINT_MISSING");((ObjectNode)fields).put(key,ids.get(raw).toString());}
+        }
+        if(data.resourceType.equals("EVENT")&&fields.isObject())for(String key:List.of("entryIds","eraIds")) {
+            if(!fields.has(key))continue;if(!fields.path(key).isArray())throw invalid("WORLD_PROPOSAL_FIELDS_INVALID");
+            var resolved=json.createArrayNode();for(var ref:fields.path(key)) {
+                String raw=ref.asText();if(ids.containsKey(raw)) {
+                    if(!types.get(raw).equals(key.equals("entryIds")?"ENTRY":"ERA"))throw invalid("WORLD_PROPOSAL_DEPENDENCY_MISSING");resolved.add(ids.get(raw).toString());
+                }else resolved.add(ref);
+            }((ObjectNode)fields).set(key,resolved);
         }
         data.candidate=resources.normalize(data.resourceType,data.fieldKey,data.action,fields,frozen.parent()==null?data.before:frozen.parent().candidate);
         if(data.resourceType.equals("RELATION"))for(String key:List.of("sourceId","targetId")) {
-            UUID endpoint=WorldAssistantResources.id(data.candidate.path(key));if(frozen.snapshot().content().entries().stream().noneMatch(e->e.id().equals(endpoint))&&!ids.containsValue(endpoint)&&frozen.parent()==null)throw invalid("WORLD_PROPOSAL_ENDPOINT_MISSING");
+            UUID endpoint=WorldAssistantResources.id(data.candidate.path(key));if(frozen.snapshot().content().entries().stream().noneMatch(e->e.id().equals(endpoint))&&!allocated(ids,types,endpoint,"ENTRY")&&frozen.parent()==null)throw invalid("WORLD_PROPOSAL_ENDPOINT_MISSING");
             if(frozen.parent()!=null&&!frozen.parent().candidate.path(key).equals(data.candidate.path(key)))throw invalid("WORLD_CANDIDATE_STRUCTURE_CHANGED");
+        }
+        if(data.resourceType.equals("EVENT"))for(String key:List.of("entryIds","eraIds"))for(var ref:data.candidate.path(key)) {
+            UUID id=WorldAssistantResources.id(ref);String type=key.equals("entryIds")?"ENTRY":"ERA";
+            if(resources.target(frozen.worldId(),frozen.snapshot().content(),type,id,null)==null&&!allocated(ids,types,id,type))throw invalid("WORLD_PROPOSAL_DEPENDENCY_MISSING");
         }
         if(frozen.intent().equals("ENTRY_REFINE")) {
             var original=(ObjectNode)data.before.deepCopy();
@@ -263,11 +285,14 @@ public class WorldAssistantService {
             if(title.isBlank()||explanation.isBlank()||ids.size()<2||!read.containsAll(ids))throw invalid("WORLD_CONFLICT_SOURCE_INVALID");result.add(new SemanticConflict(title,explanation,List.copyOf(ids)));
         }return List.copyOf(result);
     }
-    private AiChatResponse call(AiOperationExecution execution,UUID turnId,String stage,AiChatRequest request) {
+    private static boolean allocated(Map<String,UUID> ids,Map<String,String> types,UUID id,String type) {
+        return ids.entrySet().stream().anyMatch(e->e.getValue().equals(id)&&type.equals(types.get(e.getKey())));
+    }
+    private AiChatResponse call(AiOperationExecution execution,UUID turnId,String stage,java.util.function.Supplier<AiChatRequest> request) {
         var row=store.turn(turnId);String result=stage.equals("plan")?row.planResultJson():row.finalResultJson();if(result!=null)return store.read(result,AiChatResponse.class);
         var frozen=frozen(row);String feature=frozen.singleFeature()==null?"world_assistant."+frozen.intent().toLowerCase(Locale.ROOT)+"."+stage:frozen.singleFeature();
         String saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        if(saved==null){var configured=request.forFeature(feature);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
+        if(saved==null){if(!PROTOCOL.equals(frozen.protocolVersion()))throw conflict("WORLD_ASSISTANT_LEGACY_INPUT_UNAVAILABLE");var configured=request.get().forFeature(feature);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var input=store.read(saved,AiChatRequest.class);AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),input,execution.operationId()+":world-assistant:"+stage);store.checkpoint(turnId,stage+"_result_json",response);return response;
     }
