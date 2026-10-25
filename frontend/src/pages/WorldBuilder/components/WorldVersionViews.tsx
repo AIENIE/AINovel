@@ -1,3 +1,4 @@
+import { WorldTimelineSnapshot } from './WorldTimeline';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorldContent, WorldDetail, WorldDiff, WorldVersion } from '@/types';
@@ -12,14 +13,14 @@ export function WorldChangeList({diff}: {diff: WorldDiff}) {
   const render = (value: unknown) => {
     if (value == null) return t('world2.absent');
     if (typeof value === 'string') return value || t('worlds.emptyField');
-    if (Array.isArray(value)) return value.join('、');
+    if (Array.isArray(value)) return value.map(item=>typeof item==='object'?JSON.stringify(item,null,2):String(item)).join('、');
     if (typeof value === 'object') return Object.entries(value).filter(([key]) => !['id','legacyModuleKey','legacyFieldKey'].includes(key))
-      .map(([key,item]) => `${t(`world2.${key}`,{defaultValue:key})}: ${key === 'type' ? t(`world2.types.${item}`,{defaultValue:String(item)}) : Array.isArray(item) ? item.join('、') : item ?? ''}`).join('\n\n');
+      .map(([key,item]) => `${t(`world5.${key}`,{defaultValue:t(`world2.${key}`,{defaultValue:key})})}: ${key === 'type' ? t(`world2.types.${item}`,{defaultValue:String(item)}) : item!=null&&typeof item==='object' ? JSON.stringify(item,null,2) : item ?? ''}`).join('\n\n');
     return String(value);
   };
   if (!diff.changes.length) return <p className="py-6 text-sm text-muted-foreground">{t('worlds.sameContent')}</p>;
   return <div className="space-y-3">{diff.changes.map(change => <details key={`${change.kind}:${change.id}`} className="rounded-md border px-4 py-3">
-    <summary className="cursor-pointer text-sm"><span className="mr-3 text-xs text-muted-foreground">{t(change.before == null ? 'world2.added' : change.after == null ? 'world2.deleted' : 'world2.modified')}</span>{change.kind === 'METADATA' ? t(`worldMeta.${change.id}`) : change.label}</summary>
+    <summary className="cursor-pointer text-sm"><span className="mr-3 text-xs text-muted-foreground">{t(change.before == null ? 'world2.added' : change.after == null ? 'world2.deleted' : 'world2.modified')}</span>{change.kind === 'METADATA' ? t(`worldMeta.${change.id}`) : change.kind==='TIMELINE'?t(`world5.${change.id}`,{defaultValue:change.label}):change.label}</summary>
     <div className="mt-4 grid gap-4 md:grid-cols-2">{[{label:t('world2.before'),value:change.before},{label:t('world2.after'),value:change.after}].map(item => <section key={item.label} className="min-w-0"><h4 className="mb-2 text-xs font-medium text-muted-foreground">{item.label}</h4><div className="whitespace-pre-wrap break-words rounded bg-muted/30 p-3 text-sm leading-6">{render(item.value)}</div></section>)}</div>
   </details>)}</div>;
 }
@@ -30,6 +31,7 @@ export function WorldSnapshot({content}: {content: WorldContent}) {
     <header className="space-y-2 border-b pb-5"><h3 className="text-xl font-semibold">{content.name}</h3><p className="whitespace-pre-wrap text-sm text-muted-foreground">{content.tagline}</p></header>
     {[['themes',content.themes.join('、')],['creativeIntent',content.creativeIntent],['notes',content.notes],['overview',content.overview]].map(([key,value]) => value && <section key={key}><h4 className="mb-2 text-xs text-muted-foreground">{t(`worldMeta.${key}`)}</h4><p className="whitespace-pre-wrap text-sm leading-7">{value}</p></section>)}
     {content.entries.map(entry => <article className="space-y-2 border-t pt-5" key={entry.id}><span className="text-xs text-muted-foreground">{t(`world2.types.${entry.type}`)}</span><h4 className="font-semibold">{entry.title}</h4>{entry.summary && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{entry.summary}</p>}<p className="whitespace-pre-wrap break-words text-sm leading-7">{entry.content || t('world2.blank')}</p>{!!entry.aliases.length && <p className="text-xs text-muted-foreground">{t('world2.aliases')} · {entry.aliases.join('、')}</p>}{!!entry.tags.length && <p className="text-xs text-muted-foreground">{t('world2.tags')} · {entry.tags.join('、')}</p>}</article>)}
+    <WorldTimelineSnapshot timeline={content.timeline} entryTitles={Object.fromEntries(content.entries.map(entry=>[entry.id,entry.title]))}/>
     {!!content.relations.length && <section className="space-y-3 border-t pt-5"><h4 className="font-medium">{t('world2.relations')}</h4>{content.relations.map(r => <p key={r.id} className="whitespace-pre-wrap text-sm leading-7">{content.entries.find(e => e.id === r.sourceId)?.title} → {content.entries.find(e => e.id === r.targetId)?.title} · {r.type}{r.description && `\n${r.description}`}</p>)}</section>}
   </div>;
 }

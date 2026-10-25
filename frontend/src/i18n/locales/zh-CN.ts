@@ -1,5 +1,7 @@
+import { world5ZhCN } from './world5';
 // 简体中文（默认 & fallback）。值为原始用户侧文案，作为其他语言的事实源。
 export const zhCN = {
+  ...world5ZhCN,
   "world4.sourceChanged": "该来源已相对上次确认的版本变化，请核对全文。",
   "world4.frozenRange": "任务冻结的世界材料范围（以各步实际读取为准）",
   "world4.CHAPTER_REFINE": "章节摘要润色",

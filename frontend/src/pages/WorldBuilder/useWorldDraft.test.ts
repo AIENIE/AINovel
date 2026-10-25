@@ -17,6 +17,16 @@ function deferred<T>() {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("useWorldDraft", () => {
+  it("preserves timeline edits made while an earlier timeline save completes", async () => {
+    const event={id:'event',title:'启航',summary:'',content:'原文',aliases:[],tags:[],date:null,entryIds:[],eraIds:[],sortOrder:0};
+    const first=world('a',1,{entries:[],relations:[],timeline:{schemaVersion:1,calendarName:'潮历',eras:[],events:[event]}});
+    vi.spyOn(api.worlds,'getDetail').mockResolvedValue(first);const pending=deferred<WorldDetail>();vi.spyOn(api.worlds,'update').mockReturnValue(pending.promise);
+    const {result}=renderHook(()=>useWorldDraft('a'));await waitFor(()=>expect(result.current.loading).toBe(false));
+    act(()=>result.current.edit(draft=>({...draft,timeline:{...draft.timeline!,calendarName:'新潮历'}})));let save!:Promise<boolean>;act(()=>{save=result.current.save();});
+    act(()=>result.current.edit(draft=>({...draft,timeline:{...draft.timeline!,events:[{...event,content:'保存期间继续编辑'}]}})));
+    await act(async()=>{pending.resolve({...first,revision:2,timeline:{...first.timeline!,calendarName:'新潮历'}});expect(await save).toBe(false);});
+    expect(result.current.draft?.timeline?.events[0].content).toBe('保存期间继续编辑');expect(result.current.dirty).toBe(true);expect(result.current.draft?.revision).toBe(2);
+  });
   it("keeps newer typing dirty when an earlier save completes and uses the returned revision for the next save", async () => {
     vi.spyOn(api.worlds, "getDetail").mockResolvedValue(world());
     const pending = deferred<WorldDetail>();

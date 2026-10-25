@@ -45,6 +45,7 @@ import {
   V2ContinuityIssueUpdateRequest,
   World,
   WorldDetail,
+  StoryWorldEras,
   WorldVersion, WorldDiff, WorldBindingScope, WorldBindingView,
   WorldGenerationStatus,
   WorldGeneratedResults,
@@ -619,6 +620,7 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
 
 function toWorldDraft(dto: NetworkObject): WorldDetail {
   return { ...toWorldDetail(dto.world), entries: dto.entries || [], relations: dto.relations || [],
+    timeline: dto.timeline || null,
     latestPublished: dto.latestPublished || null, unpublishedChanges: dto.unpublishedChanges };
 }
 const bindingCollection = (scope: WorldBindingScope) => ({ STORY: 'story-cards', OUTLINE: 'outlines', MANUSCRIPT: 'manuscripts' })[scope];
@@ -1398,6 +1400,7 @@ export const api = {
           overview: detail.overview,
           notes: detail.notes },
           entries: detail.entries || [], relations: detail.relations || [],
+          timeline: detail.timeline,
           expectedRevision: detail.revision,
         }),
       });
@@ -1420,6 +1423,10 @@ export const api = {
       return await requestJson<WorldVersion>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: JSON.stringify({expectedRevision, releaseNote, requestKey}) });
     },
     versions: (worldId: string) => requestJson<WorldVersion[]>(`/v1/worlds/${worldId}/versions`, { method: "GET" }),
+    copy: async (worldId: string, input: {source: 'DRAFT' | 'VERSION'; expectedRevision?: number; versionId?: string; name: string; requestKey: string}) =>
+      toWorldDetail(await requestJson<NetworkObject>(`/v1/worlds/${worldId}/copy`, {method:'POST',body:JSON.stringify(input)})),
+    export: (worldId: string, input: {source: 'DRAFT' | 'VERSION'; expectedRevision?: number; versionId?: string; format:'MARKDOWN'|'JSON'}) =>
+      requestBlob(`/v1/worlds/${worldId}/export?${new URLSearchParams(Object.entries(input).filter(([,value])=>value!==undefined).map(([key,value])=>[key,String(value)]))}`),
     version: (worldId: string, versionId: string) => requestJson<WorldVersion>(`/v1/worlds/${worldId}/versions/${versionId}`, { method: "GET" }),
     diff: (worldId: string, fromVersionId?: string | null, toVersionId?: string | null, draftRevision?: number) => {
       const query = new URLSearchParams();
@@ -1448,6 +1455,9 @@ export const api = {
   },
 
   worldBindings: {
+    eras: (storyId: string) => requestJson<StoryWorldEras>(`/v1/stories/${storyId}/world-eras`, {method:'GET'}),
+    saveEras: (storyId: string, input: {worldId:string;worldVersionId:string;expectedBindingRevision:number;expectedRevision:number;eraIds:string[]}) =>
+      requestJson<StoryWorldEras>(`/v1/stories/${storyId}/world-eras`,{method:'PUT',body:JSON.stringify(input)}),
     get: (scope: WorldBindingScope, id: string) => requestJson<WorldBindingView>(`/v1/${bindingCollection(scope)}/${id}/world-binding`, {method:'GET'}),
     diff: (scope: WorldBindingScope, id: string, toVersionId: string) => requestJson<WorldDiff>(`/v1/${bindingCollection(scope)}/${id}/world-binding/diff?toVersionId=${encodeURIComponent(toVersionId)}`, {method:'GET'}),
     change: (scope: WorldBindingScope, id: string, input: {fromVersionId: string | null; toVersionId: string | null; expectedBindingRevision: number}) =>

@@ -1,3 +1,4 @@
+import { WorldManageDialog } from './WorldBuilder/components/WorldManageDialog';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const WorldManager = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [worlds, setWorlds] = useState<World[]>([]);
+  const [manageWorld,setManageWorld]=useState<string|null>(null);
   const [stats, setStats] = useState<WorldCardStats>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -128,6 +130,7 @@ const WorldManager = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/world-editor?id=${world.id}`)}>{t("worlds.enterEdit")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={event=>{event.stopPropagation();setManageWorld(world.id);}}>{t("world5.manage")}</DropdownMenuItem>
                         {world.status === "draft" && (
                           <DropdownMenuItem className="text-destructive" onClick={event => { event.stopPropagation(); void handleDelete(world.id); }}>
                             <Trash2 className="mr-2 h-4 w-4" /> {t("worlds.deleteDraft")}
@@ -150,6 +153,7 @@ const WorldManager = () => {
           })}
         </div>
       </main>
+      {manageWorld&&<WorldManageDialog key={manageWorld} worldId={manageWorld} onClose={()=>setManageWorld(null)} onCopied={()=>void refresh()}/>}
     </div>
   );
 };

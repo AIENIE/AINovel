@@ -1,3 +1,4 @@
+import { StoryWorldEras } from './StoryWorldEras';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { WorldChangeList } from './WorldVersionViews';
 
 const selectClass='h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm';
-export function WorldBindingPanel({scope,resourceId,onChanged}: {scope:WorldBindingScope;resourceId:string;onChanged?:()=>void}) {
+export function WorldBindingPanel({scope,resourceId,storyId,onChanged}: {scope:WorldBindingScope;resourceId:string;storyId?:string;onChanged?:()=>void}) {
   const {t}=useTranslation();
   const [view,setView]=useState<WorldBindingView|null>(null),[worlds,setWorlds]=useState<World[]>([]),[versions,setVersions]=useState<WorldVersion[]>([]);
   const [worldId,setWorldId]=useState(''),[target,setTarget]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[attempt,setAttempt]=useState(0),[stale,setStale]=useState(false);
@@ -48,6 +49,7 @@ export function WorldBindingPanel({scope,resourceId,onChanged}: {scope:WorldBind
       setBusy(true);setError('');try{await api.worldBindings.change(scope,resourceId,{fromVersionId:view.explicitVersionId,toVersionId:null,expectedBindingRevision:view.bindingRevision});reload();onChanged?.();}catch(e){setError(localizedErrorMessage(e));}finally{setBusy(false);}
     }}>{t(scope==='STORY'?'world2.unbind':'world2.useInheritance')}</Button>}
     {!!view?.overrides.length && <div className="space-y-2 border-t pt-4"><h4 className="text-xs font-medium text-muted-foreground">{t('world2.overrides')}</h4>{view.overrides.map(item=><div className="flex flex-wrap items-center justify-between gap-2" key={`${item.resourceType}:${item.resourceId}`}><div><p className="text-sm">{item.title} · {t(`world2.scope.${item.resourceType}`)}</p><p className="text-xs text-muted-foreground">{item.effective?.name} · {item.effective?.origin==='MIGRATION_BASELINE'?t('world2.migrationBaseline'):t('world2.version',{number:item.effective?.sequenceNumber})}</p></div><Button variant="outline" size="sm" onClick={()=>setOverride(item)}>{t('world2.manageOverride')}</Button></div>)}</div>}
+    {view?.effective&&(scope==="STORY"||storyId)&&<StoryWorldEras key={`${scope=== "STORY"?resourceId:storyId}:${view.effective.worldId}:${view.effective.versionId}:${attempt}`} storyId={scope==="STORY"?resourceId:storyId!} effective={view.effective} editable={scope==="STORY"} onRefreshBinding={reload}/>}
     {error && <div role="alert" className="space-y-2 text-sm text-destructive"><p>{error}</p><Button variant="outline" onClick={reload}>{t('world2.refreshBinding')}</Button></div>}
     <Dialog open={!!review} onOpenChange={open=>{if(!open&&!busy)setReview(null);}}><DialogContent className="max-h-[90dvh] max-w-5xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.reviewUpgrade')}</DialogTitle><DialogDescription>{t('world2.upgradeHelp')}</DialogDescription></DialogHeader>
       {review && <><p className="text-sm">{review.view.effective?.name||t('world2.unbound')} → {worlds.find(w=>w.id===worldId)?.name||view?.effective?.name} · {t('world2.version',{number:versions.find(v=>v.id===review.target)?.sequenceNumber})}</p><WorldChangeList diff={review.diff}/></>}
@@ -55,6 +57,6 @@ export function WorldBindingPanel({scope,resourceId,onChanged}: {scope:WorldBind
         if(!review)return;setBusy(true);setError('');try{await api.worldBindings.change(scope,resourceId,{fromVersionId:review.view.explicitVersionId,toVersionId:review.target,expectedBindingRevision:review.view.bindingRevision});setReview(null);reload();onChanged?.();}catch(e){setReview(null);if(e instanceof ApiError&&e.status===409)setStale(true);setError(localizedErrorMessage(e));}finally{setBusy(false);}
       }}>{t('world2.confirmUpgrade')}</Button></DialogFooter>
     </DialogContent></Dialog>
-    <Dialog open={!!override} onOpenChange={open=>{if(!open)setOverride(null);}}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{override?.title}</DialogTitle><DialogDescription>{t('world2.overrideHelp')}</DialogDescription></DialogHeader>{override && <WorldBindingPanel key={override.resourceId} scope={override.resourceType} resourceId={override.resourceId} onChanged={reload}/>}</DialogContent></Dialog>
+    <Dialog open={!!override} onOpenChange={open=>{if(!open)setOverride(null);}}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{override?.title}</DialogTitle><DialogDescription>{t('world2.overrideHelp')}</DialogDescription></DialogHeader>{override && <WorldBindingPanel key={override.resourceId} scope={override.resourceType} resourceId={override.resourceId} storyId={scope==="STORY"?resourceId:storyId} onChanged={reload}/>}</DialogContent></Dialog>
   </section>;
 }

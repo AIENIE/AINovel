@@ -22,6 +22,7 @@ export function WorldConflictReview({ local, server, definitions, open, onOpenCh
         local: localModules[moduleKey]?.[fieldKey] || "", server: serverModules[moduleKey]?.[fieldKey] || "" });
     }
   }
+  rows.push({key:"timeline",label:t("world5.timeline"),local:JSON.stringify(local.timeline||null,null,2),server:JSON.stringify(server.timeline||null,null,2)});
   const differences = rows.filter(row => row.local !== row.server);
   for (const kind of ['entries', 'relations'] as const) {
     const localRows = new Map((local[kind] || []).map(row => [row.id, row]));

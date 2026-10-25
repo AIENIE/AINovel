@@ -1,5 +1,7 @@
+import { world5ZhTW } from './world5';
 // 繁體中文（人工用詞，非 OpenCC 轉換）
 export const zhTW = {
+  ...world5ZhTW,
   "world4.sourceChanged": "此來源相較上次確認的版本已有變更，請核對全文。",
   "world4.frozenRange": "任務凍結的世界資料範圍（以各步實際讀取為準）",
   "world4.CHAPTER_REFINE": "章節摘要潤色",

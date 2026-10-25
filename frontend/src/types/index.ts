@@ -546,6 +546,7 @@ export interface WorldModuleData {
 }
 
 export interface WorldDetail extends World {
+  timeline?: WorldTimeline | null;
   overview?: string;
   revision: number;
   themes: string[];
@@ -564,7 +565,14 @@ export interface WorldEntry {
   aliases: string[]; tags: string[]; legacyModuleKey: string | null; legacyFieldKey: string | null;
 }
 export interface WorldRelation { id: string; sourceId: string; targetId: string; type: string; description: string | null }
+export interface WorldDatePoint { year: number | null; month?: number | null; day?: number | null }
+export interface WorldDateRange { start: WorldDatePoint | null; end: WorldDatePoint | null }
+export interface WorldEra { id: string; name: string; description: string; date: WorldDateRange | null; sortOrder: number }
+export interface WorldEvent { id: string; title: string; summary: string; content: string; aliases: string[]; tags: string[]; date: WorldDateRange | null; entryIds: string[]; eraIds: string[]; sortOrder: number }
+export interface WorldTimeline { schemaVersion: number; calendarName: string; eras: WorldEra[]; events: WorldEvent[] }
+export interface StoryWorldEras { worldId: string | null; worldVersionId: string | null; bindingRevision: number; revision: number; reviewedVersionId: string | null; eraIds: string[]; eras: WorldEra[]; reviewedEras?: WorldEra[]; changedEraIds: string[]; missingEraIds: string[] }
 export interface WorldContent {
+  timeline?: WorldTimeline | null;
   overview?: string | null;
   name: string; tagline: string | null; themes: string[]; creativeIntent: string | null; notes: string | null;
   entries: WorldEntry[]; relations: WorldRelation[]; modules: Record<string, Record<string, string>>; legacyModulesJson: string | null;
@@ -575,7 +583,7 @@ export interface WorldVersion {
 }
 export interface WorldDiff {
   fromVersionId: string | null; toVersionId: string | null; draftRevision: number | null;
-  changes: { kind: 'METADATA' | 'ENTRY' | 'RELATION'; id: string; label: string; before: unknown; after: unknown }[];
+  changes: { kind: 'METADATA' | 'ENTRY' | 'RELATION' | 'TIMELINE' | 'ERA' | 'EVENT'; id: string; label: string; before: unknown; after: unknown }[];
 }
 export type WorldBindingScope = 'STORY' | 'OUTLINE' | 'MANUSCRIPT';
 export interface WorldBindingReference {

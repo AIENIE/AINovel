@@ -21,4 +21,18 @@ describe("world atomic save", () => {
     await expect(api.worlds.update(detail.id, { ...detail, revision: undefined as never })).rejects.toThrow("WORLD_REVISION_REQUIRED");
     expect(fetch).not.toHaveBeenCalled();
   });
+  it("round-trips an explicit timeline in the same revision-checked atomic draft write",async()=>{
+    const timeline={schemaVersion:1,calendarName:'潮历',eras:[],events:[{id:'event',title:'启航',summary:'',content:'全文',aliases:[],tags:[],date:{start:{year:0},end:null},entryIds:[],eraIds:[],sortOrder:0}]};
+    const fetch=vi.fn(async()=>new Response(JSON.stringify({world:{...detail,modules:{},revision:9},entries:[],relations:[],timeline})));vi.stubGlobal('fetch',fetch);
+    const saved=await api.worlds.update(detail.id,{...detail,timeline});expect(saved.timeline).toEqual(timeline);expect(JSON.parse(String((fetch.mock.calls as unknown as [string,RequestInit][])[0][1].body))).toMatchObject({expectedRevision:8,timeline});
+  });
+  it("keeps era selection revisions separate and sends the explicit bound version",async()=>{
+    const body={worldId:'world',worldVersionId:'version',expectedBindingRevision:4,expectedRevision:7,eraIds:['era-a','era-c']};
+    const fetch=vi.fn(async(_url:string,_init?:RequestInit)=>new Response('{}'));vi.stubGlobal('fetch',fetch);await api.worldBindings.saveEras('story',body);
+    expect(fetch.mock.calls[0][0]).toBe('/api/v1/stories/story/world-eras');expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual(body);expect(fetch.mock.calls[0][1]?.method).toBe('PUT');
+  });
+  it("exports a chosen immutable source with authenticated download metadata",async()=>{
+    const fetch=vi.fn(async(_url:string)=>new Response('完整设定',{headers:{'Content-Disposition':"attachment; filename*=UTF-8''%E7%BE%A4%E5%B2%9B.json"}}));vi.stubGlobal('fetch',fetch);
+    const download=await api.worlds.export('world',{source:'VERSION',versionId:'version',format:'JSON'});expect(fetch.mock.calls[0][0]).toBe('/api/v1/worlds/world/export?source=VERSION&versionId=version&format=JSON');expect(download.fileName).toBe('群岛.json');expect(await download.blob.text()).toBe('完整设定');
+  });
 });

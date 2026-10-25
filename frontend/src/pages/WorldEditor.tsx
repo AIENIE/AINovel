@@ -1,3 +1,5 @@
+import { WorldTimeline } from './WorldBuilder/components/WorldTimeline';
+import { WorldManageDialog } from './WorldBuilder/components/WorldManageDialog';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useBlocker, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -40,6 +42,7 @@ const WorldEditor = () => {
   const actionLock = useRef(false);
   const [actionError, setActionError] = useState("");
   const [reviewRemote, setReviewRemote] = useState(false);
+  const [manageOpen,setManageOpen]=useState(false);
   const [reviewGenerated, setReviewGenerated] = useState(false);
   const [endedTaskId, setEndedTaskId] = useState<string | null>(null);
   const [checkingTask, setCheckingTask] = useState(true);
@@ -164,6 +167,7 @@ const WorldEditor = () => {
     <header className="border-b flex flex-wrap items-center justify-between gap-3 p-4 lg:px-8 bg-background/95 backdrop-blur sticky top-0 z-10">
       <div className="flex min-w-0 items-center gap-3"><Button asChild variant="ghost" size="icon"><Link to="/worlds" aria-label={t("worlds.backToList")}><ArrowLeft className="h-4 w-4" /></Link></Button><span className="font-semibold break-words">{draft?.name || t("worlds.editorTitle")}</span></div>
       <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" disabled={!draft || busy} onClick={()=>setManageOpen(true)}>{t("world5.manage")}</Button>
         <span role="status" className="text-xs text-muted-foreground">{saving ? t("common.saving") : dirty ? t("worlds.unsaved") : draft ? t("worlds.saved") : ""}</span>
         <Button variant="outline" onClick={() => void save()} disabled={saving || busy || !draft || !!remote || conflict}><Save className="mr-2 h-4 w-4" />{t("common.save")}</Button>
         <Button disabled={!draft || saving || busy} onClick={() => { if (!editor.canAct()) { setActionError(t("worlds.saveBeforeAction")); return; } setPublishing(draft); }}><UploadCloud className="mr-2 h-4 w-4" />{t("world2.publishTitle")}</Button>
@@ -202,10 +206,11 @@ const WorldEditor = () => {
       {!!generation?.queue.length && <details className="text-sm"><summary>{t("worlds.moduleState")}</summary><ul className="mt-2 space-y-1">{generation.queue.map(module => <li key={module.moduleKey}>{definitions?.find(def => def.key === module.moduleKey)?.label || module.moduleKey} · {t(`worlds.moduleStatus.${module.status}`, { defaultValue: module.status })}{module.error && <p className="text-destructive">{module.error}</p>}</li>)}</ul></details>}
       {editor.loading && <div className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t("common.loading")}</div>}
       {draft && <Tabs value={tab} onValueChange={setTab} key={id} className="space-y-5">
-        <TabsList className="h-auto flex-wrap justify-start"><TabsTrigger value="entries">{t("world2.entries")}</TabsTrigger><TabsTrigger value="metadata">{t("world2.metadata")}</TabsTrigger><TabsTrigger value="assistant">{t("world3.title")}</TabsTrigger><TabsTrigger value="overview">{t("world3.overview")}</TabsTrigger><TabsTrigger value="history">{t("world2.history")}</TabsTrigger></TabsList>
+        <TabsList className="h-auto flex-wrap justify-start"><TabsTrigger value="entries">{t("world2.entries")}</TabsTrigger><TabsTrigger value="timeline">{t("world5.timeline")}</TabsTrigger><TabsTrigger value="metadata">{t("world2.metadata")}</TabsTrigger><TabsTrigger value="assistant">{t("world3.title")}</TabsTrigger><TabsTrigger value="overview">{t("world3.overview")}</TabsTrigger><TabsTrigger value="history">{t("world2.history")}</TabsTrigger></TabsList>
         <TabsContent value="entries"><WorldEntryEditor draft={draft} edit={editor.edit} busy={busy || running || saving}
           onGenerate={entry => { if (ready()) void run(async () => { await runTrackedAiOperation(api.worlds.startGenerateEntry(id, entry.id, draft.revision)); }); }}
           onRefine={entry => { if (ready()) {setTarget({entryId:entry.id,label:entry.title});setTab("assistant");} }} /></TabsContent>
+        <TabsContent value="timeline"><WorldTimeline draft={draft} edit={editor.edit}/></TabsContent>
         <TabsContent value="metadata"><WorldMetadataForm data={draft} onChange={(field,value) => editor.edit(current => ({...current,[field]:value}))} /></TabsContent>
         <TabsContent value="assistant" hidden={tab!=="assistant"} forceMount className="data-[state=inactive]:hidden"><WorldAssistantPanel key={id} world={id} editor={editor} single={target} onSingleClose={()=>setTarget(null)} onDirty={setProposalDirty}/></TabsContent>
         <TabsContent value="overview"><WorldOverview editor={editor} onIntegrate={()=>{if(ready()){setTarget({entryId:null,label:t("world3.overview")});setTab("assistant");}}}/></TabsContent>
@@ -216,6 +221,7 @@ const WorldEditor = () => {
     <Dialog open={blocker.state === "blocked"} onOpenChange={open => { if (!open && blocker.state === "blocked") blocker.reset(); }}><DialogContent><DialogHeader><DialogTitle>{t("worlds.unsaved")}</DialogTitle><DialogDescription>{t(proposalDirty?"world3.candidateLeaveHelp":"worlds.leaveHelp")}</DialogDescription></DialogHeader><DialogFooter className="gap-2"><Button variant="outline" onClick={() => { if (blocker.state === "blocked") blocker.reset(); }}>{t("common.cancel")}</Button><Button variant="outline" disabled={saving} onClick={() => { if (blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.discardAndLeave")}</Button><Button disabled={saving || !!remote || conflict || proposalDirty} onClick={async () => { if (await save() && blocker.state === "blocked") blocker.proceed(); }}>{t("worlds.saveAndLeave")}</Button></DialogFooter></DialogContent></Dialog>
     {draft && remote && <WorldConflictReview local={draft} server={remote} definitions={definitions || []} open={reviewRemote} onOpenChange={setReviewRemote} onResolve={keepLocal => { editor.resolveRemote(keepLocal); setReviewRemote(false); }} />}
     {task && <WorldGeneratedResultsDialog worldId={id} operationId={task.id} definitions={definitions || []} entries={draft?.entries} open={reviewGenerated} onOpenChange={setReviewGenerated} />}
+    {manageOpen&&draft&&<WorldManageDialog key={id} worldId={id} editor={editor} onClose={()=>setManageOpen(false)}/>}
     {publishing && <WorldPublishDialog draft={publishing} stale={dirty || !!remote || conflict || saving || draft?.revision !== publishing.revision} onClose={() => setPublishing(null)} onPublished={async () => { await refresh(); toast({title:t('worlds.publishDone')}); }} />}
 
   </div>;

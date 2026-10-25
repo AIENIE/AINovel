@@ -39,3 +39,12 @@ it("preserves typing that arrives while an accepted proposal is being refreshed"
   render(<QueryClientProvider client={client}><Harness/></QueryClientProvider>);const accept=await screen.findByRole("button",{name:"采纳并保存"});await waitFor(()=>expect(accept.hasAttribute("disabled")).toBe(false));fireEvent.click(accept);fireEvent.change(screen.getByLabelText("继续输入"),{target:{value:"采纳期间继续输入的备注"}});
   current=proposal({status:"ACCEPTED",revision:1,applicable:false});vi.mocked(api.worlds.getDetail).mockResolvedValue({...world,revision:2});await act(async()=>resolve({proposal:current,draftRevision:2}));expect((screen.getByLabelText("继续输入") as HTMLTextAreaElement).value).toBe("采纳期间继续输入的备注");
 });
+it("edits event dates and dependency arrays without converting structured candidates to text",async()=>{
+  const event={title:"启航",summary:"",content:"舰队出港",aliases:[],tags:[],date:{start:{year:-2},end:{year:-2}},entryIds:["pending-port"],eraIds:["era"],sortOrder:0};
+  current=proposal({resourceType:"EVENT",action:"CREATE",before:null,current:null,candidate:event,modelCandidate:event,applicable:false,staleReason:"WORLD_PROPOSAL_DEPENDENCY_MISSING"});
+  editor.draft={...editor.draft!,timeline:{schemaVersion:1,calendarName:"潮历",eras:[{id:"era",name:"迁徙纪",description:"",date:null,sortOrder:0}],events:[]}};
+  const drafts=new Map<string,ProposalDraft>();mount(drafts);await screen.findByRole("button",{name:"采纳并保存"});fireEvent.click(screen.getByText("查看完整候选并手动修改"));
+  fireEvent.change(screen.getByLabelText("日期 开始 年"),{target:{value:"0"}});fireEvent.click(screen.getByRole("checkbox",{name:/pending-port/}));
+  expect(drafts.get("p")?.candidate).toMatchObject({date:{start:{year:0},end:{year:0}},entryIds:[],eraIds:["era"]});
+  expect(screen.getByRole("button",{name:"采纳并保存"}).hasAttribute("disabled")).toBe(true);expect(screen.getByRole("button",{name:"保存候选"})).toBeTruthy();
+});

@@ -22,7 +22,7 @@ export function WorldSources({selection, onChoice,reviewedHashes,choiceDisabled=
         <select disabled={choiceDisabled} className="rounded border bg-background p-2" aria-label={`${source.title} ${t('world4.choice')}`} value={source.choice} onChange={e=>onChoice(source.id,e.target.value as WorldChoice)}>
           {(['AUTO','INCLUDE','EXCLUDE'] as const).map(choice=><option key={choice} value={choice}>{t(`world4.${choice}`)}</option>)}
         </select></label>}
-      <p className="my-2 text-xs text-muted-foreground">{t(source.type==='AUTHOR_NOTES'?'world4.authorNotes':'world4.versionText')}</p>
+      <p className="my-2 text-xs text-muted-foreground">{t(source.type==='AUTHOR_NOTES'?'world4.authorNotes':source.type==='EVENT'?'world5.eventSource':'world4.versionText')}</p>
       <pre className="whitespace-pre-wrap break-words font-sans">{source.content}</pre>
       <details className="mt-2 text-xs text-muted-foreground"><summary>{t('world4.technical')}</summary><p className="break-all">{source.id}<br/>{source.contentHash}</p></details>
     </details>)}

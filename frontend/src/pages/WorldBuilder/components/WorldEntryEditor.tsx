@@ -87,10 +87,11 @@ export function WorldEntryEditor({draft, edit, busy, onGenerate, onRefine}: {
       <AlertDialogContent>
         <AlertDialogHeader><AlertDialogTitle>{t('world2.deleteEntry')}</AlertDialogTitle>
           <AlertDialogDescription>{pendingDelete && t('world2.deleteConfirm',{title:pendingDelete.title,count:relations.filter(r => r.sourceId === pendingDelete.id || r.targetId === pendingDelete.id).length})}</AlertDialogDescription>
+          {pendingDelete&&draft.timeline?.events.some(event=>event.entryIds.includes(pendingDelete.id))&&<p className="text-sm text-muted-foreground">{t("world5.entryDeleteImpact",{events:draft.timeline.events.filter(event=>event.entryIds.includes(pendingDelete.id)).map(event=>event.title).join("、")})}</p>}
         </AlertDialogHeader>
         <AlertDialogFooter><AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel><AlertDialogAction onClick={() => {
           if (!pendingDelete) return;
-          edit(current => ({...current,entries:current.entries?.filter(e => e.id !== pendingDelete.id),relations:current.relations?.filter(r => r.sourceId !== pendingDelete.id && r.targetId !== pendingDelete.id)}));
+          edit(current => ({...current,entries:current.entries?.filter(e => e.id !== pendingDelete.id),relations:current.relations?.filter(r => r.sourceId !== pendingDelete.id && r.targetId !== pendingDelete.id),timeline:current.timeline?{...current.timeline,events:current.timeline.events.map(event=>({...event,entryIds:event.entryIds.filter(id=>id!==pendingDelete.id)}))}:current.timeline}));
         }}>{t('world2.deleteEntry')}</AlertDialogAction></AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
