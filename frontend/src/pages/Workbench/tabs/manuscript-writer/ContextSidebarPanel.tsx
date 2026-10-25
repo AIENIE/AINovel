@@ -14,6 +14,14 @@ type ContextSidebarPanelProps = {
 
 export function ContextSidebarPanel({ contextPreview, onRefresh }: ContextSidebarPanelProps) {
   const { t } = useTranslation();
+  const worldTypeKeys: Record<string,string> = {METADATA:'world2.metadata',OVERVIEW:'world3.overview',AUTHOR_NOTES:'world4.authorNotes',RELATION:'world2.relation',EVENT:'world3.type.EVENT'};
+  const sourceTypeLabel = (type: string) => type.startsWith('world_')
+    ? t(worldTypeKeys[type.slice(6)] || `world2.types.${type.slice(6)}`, {defaultValue:type}) : type;
+  const sourceReason = (type:string, reason:string) => {
+    if(!type.startsWith('world_'))return reason || t('common.none');
+    const separator=reason.indexOf(':'),code=separator<0?reason:reason.slice(0,separator);
+    return t(`world4.${code}`,{defaultValue:code || t('common.none')})+(separator<0?'':` · ${reason.slice(separator+1)}`);
+  };
   return (
     <TabsContent value="context" className="flex-1 m-0 mt-2 min-h-0 px-2 pb-2">
       <Button size="sm" variant="outline" className="mb-2" onClick={() => void onRefresh()}>
@@ -35,10 +43,10 @@ export function ContextSidebarPanel({ contextPreview, onRefresh }: ContextSideba
             <div key={`${source.sourceType}-${source.sourceId}`} className="mb-2 rounded bg-muted/40 p-2 last:mb-0">
               <div className="flex flex-wrap items-center gap-1">
                 <span className="font-medium">{source.label || source.sourceId}</span>
-                <Badge variant="outline">{source.sourceType}</Badge>
+                <Badge variant="outline">{sourceTypeLabel(source.sourceType)}</Badge>
                 {source.truncated && <Badge variant="secondary">{t("contextPanel.truncated")}</Badge>}
               </div>
-              <div className="mt-1 text-muted-foreground">{source.reason || t("common.none")}</div>
+              <div className="mt-1 text-muted-foreground">{sourceReason(source.sourceType,source.reason || '')}</div>
               <div className="mt-1 text-muted-foreground">
                 {t("contextPanel.estimatedTokens", { count: source.estimatedTokens })}
               </div>

@@ -225,7 +225,7 @@ export function DesktopSidebarPanel({
       <Tabs value={sidebarTab} onValueChange={(value) => onChangeSidebarTab(value as SidebarTab)} className="h-full flex flex-col">
         <TabsList className="mx-2 mt-2 flex h-auto justify-start overflow-x-auto">
           <TabsTrigger className="shrink-0" value="copilot">{t("assistant.title")}</TabsTrigger>
-          <TabsTrigger className="shrink-0" value="context">context</TabsTrigger>
+          <TabsTrigger className="shrink-0" value="context">{t("mobilePanel.context")}</TabsTrigger>
           <TabsTrigger className="shrink-0" value="narrative">{t("narrative.tab")}</TabsTrigger>
           <TabsTrigger className="shrink-0" value="feedback">{t("generationFeedback.tab")}</TabsTrigger>
           <TabsTrigger className="shrink-0" value="plot">plot</TabsTrigger>

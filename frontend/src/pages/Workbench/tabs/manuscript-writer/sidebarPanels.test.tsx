@@ -133,6 +133,10 @@ describe("manuscript writer sidebar panels", () => {
               reason: "保证动作衔接",
               estimatedTokens: 80,
               truncated: false,
+            },{
+              sourceType:'world_EVENT',sourceId:'event:a',label:'退潮信号',reason:'AUTHOR_REQUIRED',estimatedTokens:20,truncated:false,
+            },{
+              sourceType:'world_RULE',sourceId:'entry:b',label:'燃料限制',reason:'NAME_MATCH:灯塔燃料',estimatedTokens:20,truncated:false,
             }],
             generatedAt: "2026-07-06T00:00:00Z",
             systemPromptEntries: [],
@@ -152,6 +156,10 @@ describe("manuscript writer sidebar panels", () => {
     expect(screen.getByText(/scene-generation-v3/)).toBeTruthy();
     expect(screen.getByText(/ctx-hash/)).toBeTruthy();
     expect(screen.getByText("保证动作衔接")).toBeTruthy();
+    expect(screen.getByText('作者必选')).toBeTruthy();
+    expect(screen.getByText('标题或别名命中 · 灯塔燃料')).toBeTruthy();
+    expect(screen.getByText('事件')).toBeTruthy();
+    expect(screen.getByText('规则限制')).toBeTruthy();
 
     rerender(
       <Tabs value="export" onValueChange={() => undefined}>
