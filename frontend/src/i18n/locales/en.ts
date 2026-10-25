@@ -124,7 +124,7 @@ export const en = {
   "world3.refineEntry": "Refine entry: {{title}}",
   "world3.refineHelp": "One call creates a persistent proposal you can review after refresh. Your entry changes only when accepted.",
   "world3.integrate": "Integrate overview",
-  "world3.integrateHelp": "One call reads all saved basic information, author notes, entries and relationships to propose an overview. Unaccepted ideas are not canon. Oversized input stops before a call.",
+  "world3.integrateHelp": "One call reads all saved basic information, author notes, entries, relationships, eras and events to propose an overview. Unaccepted ideas are not canon. Oversized input stops before a call.",
   "world3.generateProposal": "Generate proposal",
   "world3.overviewHelp": "The overview is saved independently. Edit it yourself or generate a proposal from the complete saved settings. Accepting it leaves source entries unchanged.",
   "world3.overviewContent": "Overview content",

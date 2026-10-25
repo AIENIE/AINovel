@@ -124,7 +124,7 @@ export const zhCN = {
   "world3.refineEntry": "精修条目：{{title}}",
   "world3.refineHelp": "单次生成一项持久提案，刷新后仍可审阅。已有正文不会被自动替换。",
   "world3.integrate": "整合概览",
-  "world3.integrateHelp": "完整读取已保存的基础信息、作者备注、条目与关系，单次生成概览提案。未采纳讨论与候选不作为设定事实；超出容量时停止并提示调整。",
+  "world3.integrateHelp": "完整读取已保存的基础信息、作者备注、条目、关系、时代与事件，单次生成概览提案。未采纳讨论与候选不作为设定事实；超出容量时停止并提示调整。",
   "world3.generateProposal": "生成审阅提案",
   "world3.overviewHelp": "概览独立保存。可手工编辑，也可将完整设定整合为提案；采纳概览不会改写来源条目。",
   "world3.overviewContent": "概览内容",

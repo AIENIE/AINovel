@@ -124,7 +124,7 @@ export const zhTW = {
   "world3.refineEntry": "精修條目：{{title}}",
   "world3.refineHelp": "單次生成一項持久提案，重新整理後仍可審閱。既有正文不會自動替換。",
   "world3.integrate": "整合概覽",
-  "world3.integrateHelp": "完整讀取已儲存的基礎資訊、作者備註、條目與關係，單次生成概覽提案。未採納討論與候選不視為設定事實；超出容量時停止並提示調整。",
+  "world3.integrateHelp": "完整讀取已儲存的基礎資訊、作者備註、條目、關係、時代與事件，單次生成概覽提案。未採納討論與候選不視為設定事實；超出容量時停止並提示調整。",
   "world3.generateProposal": "生成審閱提案",
   "world3.overviewHelp": "概覽獨立儲存。可手動編輯，也可將完整設定整合成提案；採納概覽不會改寫來源條目。",
   "world3.overviewContent": "概覽內容",
