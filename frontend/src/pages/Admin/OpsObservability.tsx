@@ -7,13 +7,6 @@ import { Activity, AlertTriangle, Bell, ClipboardList, Database, RefreshCcw, Ser
 import { AdminEmptyState, AdminErrorState, AdminLoadingState, AdminPageHeader, AdminPanel, adminPanelClass } from "./components/AdminChrome";
 import { getErrorMessage } from "./admin-list-utils";
 
-type OpsRecordPage = {
-  available?: boolean;
-  message?: string;
-  items?: Array<Record<string, unknown>>;
-  total?: number;
-};
-
 type Dependency = {
   key: string;
   name: string;
@@ -56,11 +49,8 @@ const fmt = (value: unknown) => {
 const OpsObservability = () => {
   const [summary, setSummary] = useState<NetworkObject | null>(null);
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
-  const [events, setEvents] = useState<OpsRecordPage | null>(null);
-  const [audit, setAudit] = useState<OpsRecordPage | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [diagnostics, setDiagnostics] = useState<Record<string, NetworkObject> | null>(null);
-  const [activeView, setActiveView] = useState<"events" | "audit">("events");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -68,20 +58,16 @@ const OpsObservability = () => {
     setIsLoading(true);
     setError("");
     try {
-      const [summaryData, dependencyData, alertData, diagnosticsData, eventData, auditData] = await Promise.all([
+      const [summaryData, dependencyData, alertData, diagnosticsData] = await Promise.all([
         api.admin.getOpsSummary(),
         api.admin.listDependencies(),
         api.admin.listOpsAlerts(),
         api.admin.getOpsDiagnostics(),
-        api.admin.listOpsEvents({ page: 0, size: 20 }),
-        api.admin.listAuditRecords({ page: 0, size: 20 }),
       ]);
       setSummary(summaryData);
       setDependencies((dependencyData || []) as unknown as Dependency[]);
       setAlerts((alertData || []) as unknown as AlertItem[]);
       setDiagnostics((diagnosticsData || null) as unknown as Record<string, NetworkObject> | null);
-      setEvents((eventData || null) as unknown as OpsRecordPage | null);
-      setAudit((auditData || null) as unknown as OpsRecordPage | null);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "运维观测数据加载失败"));
     } finally {
@@ -95,7 +81,7 @@ const OpsObservability = () => {
 
   const requestStats = summary?.requests || {};
   const issueCount = useMemo(() => dependencies.filter((item) => item.status !== "UP").length, [dependencies]);
-  const visibleRecords = activeView === "events" ? events : audit;
+  const logsUrl = typeof summary?.logsUrl === "string" ? summary.logsUrl : "https://control.testhut.top/config-center/logs?component=ai-novel";
 
   const cards = [
     { label: "总请求", value: Number(requestStats.totalRequests ?? 0).toLocaleString(), note: "当前进程滚动累计", icon: Activity },
@@ -170,47 +156,14 @@ const OpsObservability = () => {
             </div>
           </AdminPanel>
 
-          <AdminPanel
-            title="结构化记录"
-            description="从 AINovel 自有 ES 索引读取；ES 不可用时业务运行不受影响。"
-            actions={<ClipboardList className="h-5 w-5 text-sky-400" />}
-          >
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className={activeView === "events" ? "border-sky-800 bg-sky-950/40 text-sky-200" : "border-zinc-800 bg-zinc-950 text-zinc-400"} onClick={() => setActiveView("events")}>
-                  运维事件
-                </Button>
-                <Button size="sm" variant="outline" className={activeView === "audit" ? "border-sky-800 bg-sky-950/40 text-sky-200" : "border-zinc-800 bg-zinc-950 text-zinc-400"} onClick={() => setActiveView("audit")}>
-                  操作审计
-                </Button>
-              </div>
-              {!visibleRecords?.available ? (
-                <AdminEmptyState title="记录检索不可用" description={visibleRecords?.message || "Elasticsearch 未配置或暂不可达。"} />
-              ) : visibleRecords.items?.length ? (
-                <div className="space-y-2">
-                  {visibleRecords.items.map((item, index) => (
-                    <div key={`${fmt(item.recordId)}-${index}`} className="rounded-md border border-zinc-800 bg-zinc-950/50 p-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className={severityClass(String(item.severity || "INFO"))}>{fmt(item.severity || "INFO")}</Badge>
-                        <span className="font-medium text-zinc-100">{fmt(item.action || item.dependencyName || item.category)}</span>
-                        <span className="text-xs text-zinc-600">{fmt(item.createdAt)}</span>
-                      </div>
-                      <div className="mt-2 grid gap-2 text-xs text-zinc-500 md:grid-cols-3">
-                        <span>actor: {fmt(item.actor)}</span>
-                        <span>target: {fmt(item.targetType)} / {fmt(item.targetId)}</span>
-                        <span>result: {fmt(item.result || item.status)}</span>
-                      </div>
-                      {item.message ? <div className="mt-2 text-sm text-zinc-500">{fmt(item.message)}</div> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <AdminEmptyState title="暂无结构化记录" />
-              )}
+          <AdminPanel title="运行日志" description="运行日志统一通过控制平台的 Loki 查询。" actions={<ClipboardList className="h-5 w-5 text-sky-400" />}>
+            <div className="space-y-3">
+              <p className="text-sm text-zinc-400">独立运维、审计记录文件保留原策略，本页已停止通过 ES 检索。</p>
+              <Button asChild variant="outline"><a href={logsUrl} target="_blank" rel="noopener noreferrer">在控制平台查看日志</a></Button>
             </div>
           </AdminPanel>
 
-          <AdminPanel title="脱敏诊断" description="用于确认记录目录、ES 查询开关和运行状态，不返回任何密钥明文。" actions={<ShieldCheck className="h-5 w-5 text-emerald-400" />}>
+          <AdminPanel title="脱敏诊断" description="展示记录目录、集中日志入口和运行状态，不返回密钥明文。" actions={<ShieldCheck className="h-5 w-5 text-emerald-400" />}>
             <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
               {Object.entries(diagnostics || {}).map(([key, value]) => (
                 <div key={key} className="rounded-md border border-zinc-800 bg-zinc-950/50 p-3">

@@ -61,6 +61,7 @@ public class AdminOpsController {
         result.put("dependencyIssues", down);
         result.put("maintenanceMode", settingsService.getGlobalSettings().isMaintenanceMode());
         result.put("es", recordSearchService.status());
+        result.put("logsUrl", recordSearchService.consoleUrl());
         result.put("alerts", deriveAlerts(snapshot, dependencies));
         result.put("generatedAt", Instant.now());
         return result;
@@ -125,7 +126,7 @@ public class AdminOpsController {
         result.put("uptimeMs", ManagementFactory.getRuntimeMXBean().getUptime());
         result.put("recordDir", recordDir);
         result.put("filebeatIndexPrefix", indexPrefix);
-        result.put("elasticsearch", recordSearchService.status());
+        result.put("logs", recordSearchService.status());
         result.put("maintenanceMode", settingsService.getGlobalSettings().isMaintenanceMode());
         result.put("generatedAt", Instant.now());
         return result;
@@ -148,10 +149,6 @@ public class AdminOpsController {
                 )));
         if (settingsService.getGlobalSettings().isMaintenanceMode()) {
             alerts.add(alert("maintenance-mode", "INFO", "AINovel maintenance mode is enabled", true));
-        }
-        Map<String, Object> es = recordSearchService.status();
-        if (!Boolean.TRUE.equals(es.get("ready"))) {
-            alerts.add(alert("elasticsearch-query-unavailable", "WARN", "Elasticsearch record query is unavailable", es));
         }
         alerts.sort(Comparator.comparing(item -> String.valueOf(item.get("severity"))));
         return alerts;
