@@ -159,7 +159,7 @@ const OpsObservability = () => {
           <AdminPanel title="运行日志" description="运行日志统一通过控制平台的 Loki 查询。" actions={<ClipboardList className="h-5 w-5 text-sky-400" />}>
             <div className="space-y-3">
               <p className="text-sm text-zinc-400">独立运维、审计记录文件保留原策略，本页已停止通过 ES 检索。</p>
-              <Button asChild variant="outline" className="border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"><a href={logsUrl} target="_blank" rel="noopener noreferrer">在控制平台查看日志</a></Button>
+              <Button asChild variant="outline" className="border-zinc-800 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 hover:text-zinc-100"><a href={logsUrl} target="_blank" rel="noopener noreferrer">在控制平台查看日志</a></Button>
             </div>
           </AdminPanel>
 
