@@ -96,7 +96,7 @@ app:
   time-zone: Asia/Shanghai
   records:
     dir: ./var/records
-    elasticsearch-query-enabled: true
+    elasticsearch-query-enabled: false
     max-file-size-bytes: 10485760
     max-history-days: 14
     max-total-size-bytes: 1073741824
