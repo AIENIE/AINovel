@@ -3,10 +3,10 @@ package com.ainovel.app.security.remote;
 import com.ainovel.app.common.SafeLogThrowable;
 import fireflychat.user.v1.UserAuthServiceGrpc;
 import fireflychat.user.v1.ValidateSessionRequest;
-import com.ainovel.app.integration.ExternalServiceProperties;
 import com.ainovel.app.integration.GrpcChannelFactory;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
+import io.grpc.Status;
 import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -32,7 +32,6 @@ public class UserSessionValidator {
 
     private final ConsulUserGrpcEndpointResolver consulResolver;
     private final UserSessionValidationProperties properties;
-    private final ExternalServiceProperties externalServiceProperties;
     private final GrpcChannelFactory channelFactory;
     private final UserServiceJwtProvider userServiceJwtProvider;
 
@@ -47,13 +46,11 @@ public class UserSessionValidator {
     public UserSessionValidator(
             ConsulUserGrpcEndpointResolver consulResolver,
             UserSessionValidationProperties properties,
-            ExternalServiceProperties externalServiceProperties,
             GrpcChannelFactory channelFactory,
             UserServiceJwtProvider userServiceJwtProvider
     ) {
         this.consulResolver = consulResolver;
         this.properties = properties;
-        this.externalServiceProperties = externalServiceProperties;
         this.channelFactory = channelFactory;
         this.userServiceJwtProvider = userServiceJwtProvider;
     }
@@ -79,6 +76,7 @@ public class UserSessionValidator {
         Exception terminalFailure = null;
         String failureStage = null;
         boolean rpcCompleted = false;
+        long timeoutMs = Math.max(500L, properties.getTimeoutMs());
         for (ConsulUserGrpcEndpointResolver.Endpoint endpoint : resolveCandidates()) {
             EndpointClient client;
             try {
@@ -97,7 +95,7 @@ public class UserSessionValidator {
                 );
                 var validation = client.stub()
                         .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata))
-                        .withDeadlineAfter(Math.max(500L, externalServiceProperties.getSessionTimeoutMs()), TimeUnit.MILLISECONDS)
+                        .withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS)
                         .validateSession(ValidateSessionRequest.newBuilder()
                                 .setUserId(userId)
                                 .setSessionId(sessionId)
@@ -119,8 +117,9 @@ public class UserSessionValidator {
             }
         }
         if (!rpcCompleted && terminalFailure != null) {
-            log.warn("Userservice session validation failed stage={} errorType={}",
-                    failureStage, terminalFailure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(terminalFailure));
+            log.warn("Userservice session validation failed stage={} grpcStatus={} timeoutMs={} errorType={}",
+                    failureStage, Status.fromThrowable(terminalFailure).getCode().name(), timeoutMs,
+                    terminalFailure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(terminalFailure));
         }
         return ValidationResult.UNAVAILABLE;
     }

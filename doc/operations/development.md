@@ -26,6 +26,16 @@ corepack pnpm@11.22.0 run build
 
 标准本地运行入口是 [`windows-native.md`](windows-native.md) 的 `scripts/windows/` 契约，其私有环境文件位于仓库外。如需宿主机 IDE 调试，可从 `env.example` 复制出本地、Git 忽略的 `env.txt` 作为键清单对照；该文件包含运行秘密，不得提交。
 
+## 会话校验超时
+
+会话 gRPC 校验统一使用 `sso.session-validation.timeout-ms`，默认 5000ms，沿用最小 500ms 的实际调用时限。
+显式新属性优先；未配置时依次读取新别名 `runtime.configuration.USER_SESSION_GRPC_TIMEOUT_MS` / `USER_SESSION_GRPC_TIMEOUT_MS`、
+旧属性 `app.external.session-timeout-ms`、旧别名 `runtime.configuration.EXTERNAL_SESSION_TIMEOUT_MS` / `EXTERNAL_SESSION_TIMEOUT_MS`，最后使用 5000ms。
+同一 canonical 属性仍按 Spring ConfigData 优先级解析。旧键保留兼容，不再另设 3000ms 默认或作为第二个运行权威。
+
+RPC 失败日志只记录固定 `stage`、gRPC 状态枚举、实际 `timeoutMs` 与异常类型，保留已脱敏调用栈；不记录原始异常消息、令牌、会话 ID 或目标地址。
+时限耗尽或依赖暂不可用仍返回 `503 SESSION_VALIDATION_UNAVAILABLE`，远端明确否定会话才返回 `401 SESSION_INVALID`；10 秒有效结果缓存不变，不以延长缓存或绕过校验恢复登录。
+
 ## 修改约束
 
 - 新数据库变更新增 `backend/src/main/resources/db/migration/V{n}__*.sql`。

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class UserSessionValidationProperties {
 
     private boolean enabled = true;
-    private long timeoutMs = 2000;
+    private long timeoutMs = 5000;
     private String grpcAddress = "static://userservice.seekerhut.com:443";
 
     public boolean isEnabled() {

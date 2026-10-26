@@ -142,7 +142,6 @@ app:
     timeout-ms: 120000
     ai-timeout-ms: 180000
     billing-timeout-ms: 5000
-    session-timeout-ms: 3000
     grpc:
       tls-enabled: true
       plaintext-enabled: false
@@ -178,7 +177,7 @@ sso:
   callback-origin: https://localainovel.testhut.top
   session-validation:
     enabled: true
-    timeout-ms: 5000
+    timeout-ms: ${runtime.configuration.USER_SESSION_GRPC_TIMEOUT_MS:${USER_SESSION_GRPC_TIMEOUT_MS:${app.external.session-timeout-ms:${runtime.configuration.EXTERNAL_SESSION_TIMEOUT_MS:${EXTERNAL_SESSION_TIMEOUT_MS:5000}}}}}
     grpc-address: static://localuserservice.testhut.top:22001
 qdrant:
   host: http://localqdrant.testhut.top
