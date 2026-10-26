@@ -118,15 +118,20 @@ describe("OutlineWorkbench", () => {
   });
 
   it("opens the URL-selected outline and scene and reports the matching top-level context", async () => {
+    const chapterTitle = "需要保留完整内容的长章节标题".repeat(4);
+    const sceneTitle = "UnbrokenLongSceneTitleForNarrowWorkbench".repeat(4);
     vi.spyOn(api.worlds, "list").mockResolvedValue([] as never);
     vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-1", title: "故事" }] as never);
     vi.spyOn(api.outlines, "listByStory").mockResolvedValue([
       { id: "outline-first", storyId: "story-1", title: "默认大纲", chapters: [] },
-      { id: "outline-selected", storyId: "story-1", title: "目标大纲", chapters: [{ id: "chapter-1", title: "目标章节", summary: "", scenes: [{ id: "scene-1", title: "目标场景", summary: "场景内容" }] }] },
+      { id: "outline-selected", storyId: "story-1", title: "目标大纲", chapters: [{ id: "chapter-1", title: chapterTitle, summary: "", scenes: [{ id: "scene-1", title: sceneTitle, summary: "场景内容" }] }] },
     ] as never);
     const selection = vi.fn();
     render(<RouterProvider router={createMemoryRouter([{ path: "*", element: <OutlineWorkbench initialStoryId="story-1" initialOutlineId="outline-selected" initialSceneId="scene-1" onSelectionChange={selection} /> }])} />);
     expect(await screen.findByDisplayValue("场景内容")).toBeTruthy();
+    expect(screen.getByTitle(chapterTitle).textContent).toBe(chapterTitle);
+    expect(screen.getByTitle(sceneTitle).textContent).toBe(sceneTitle);
+    expect(screen.getByDisplayValue(sceneTitle)).toBeTruthy();
     await waitFor(() => expect(selection).toHaveBeenLastCalledWith({ storyId: "story-1", outlineId: "outline-selected", sceneId: "scene-1", chapterId: "" }));
     expect(selection.mock.calls.some(([value]) => value.outlineId === "outline-first")).toBe(false);
   });

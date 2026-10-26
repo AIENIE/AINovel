@@ -320,7 +320,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
   const renderOverview = () => {
     if (!planning) return null;
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
         <Card>
           <CardHeader>
             <CardTitle>{t("outline.structureOverview")}</CardTitle>
@@ -356,8 +356,8 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
               const selected = twist.id === activeTwistId;
               return (
                 <div key={twist.id} className={`rounded-xl border p-4 ${selected ? "border-primary bg-primary/5" : ""}`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="font-medium">{twist.label}</div>
                       <div className="text-xs text-muted-foreground">{twist.track === "structure" ? t("outline.trackStructure") : t("outline.trackInspiration")}</div>
                     </div>
@@ -431,7 +431,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
     }
 
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="w-full min-w-0 max-w-3xl space-y-6 [overflow-wrap:anywhere]">
         <div className="space-y-2">
           <Label>{t("outline.title")}</Label>
           <Input value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -547,7 +547,7 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
           </Card>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {selectedNode.type === "chapter" ? (
             <Button variant="outline" onClick={handleAddScene}>
               <Plus className="mr-2 h-4 w-4" />
@@ -601,15 +601,15 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
 
         {selectedOutline && <details className="text-sm"><summary className="cursor-pointer">{t("world2.binding")}</summary><div className="mt-3"><WorldBindingPanel key={selectedOutline.id} scope="OUTLINE" resourceId={selectedOutline.id} storyId={selectedOutline.storyId} onChanged={() => { if (!dirty) void api.outlines.get(selectedOutline.id).then(next => { setSelectedOutline(next); setSavedSnapshot(JSON.stringify(next)); }); }} /></div></details>}
 
-        <div className="rounded-lg border bg-muted/30 p-3">
+        <div className="min-w-0 rounded-lg border bg-muted/30 p-3 [overflow-wrap:anywhere]">
           <div className="text-xs text-muted-foreground">{t("outline.currentPlan")}</div>
           <div className="mt-1 font-medium">{activeTwist?.label || t("outline.notSelected")}</div>
           <div className="mt-1 text-sm text-muted-foreground">{activeTwist?.payoff || t("outline.applyStructureHint")}</div>
         </div>
 
-        <div className="flex items-center justify-between mt-2">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-medium text-muted-foreground">{t("outline.outlineStructure")}</span>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setCreatingOutline(true)} disabled={!selectedStoryId}>
               <Plus className="mr-1 h-4 w-4" />
               {t("outline.newOutline")}
@@ -620,10 +620,10 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
             </Button>
           </div>
         </div>
-        {creatingOutline ? <div className="flex gap-1"><Input value={newOutlineName} onChange={(e) => setNewOutlineName(e.target.value)} placeholder={t("outline.outlineName")} /><Button size="sm" onClick={() => void handleCreateOutline()} disabled={!newOutlineName.trim()}>{t("common.create")}</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div> : null}
-        <div className="flex items-center gap-2">
+        {creatingOutline ? <div className="flex min-w-0 flex-wrap gap-1"><Input className="min-w-0 flex-1 basis-40" value={newOutlineName} onChange={(e) => setNewOutlineName(e.target.value)} placeholder={t("outline.outlineName")} /><Button size="sm" onClick={() => void handleCreateOutline()} disabled={!newOutlineName.trim()}>{t("common.create")}</Button><Button size="icon" variant="ghost" onClick={() => setCreatingOutline(false)}><X className="h-4 w-4" /></Button></div> : null}
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => void handleSave()} disabled={!selectedOutline || isSaving}><Save className="mr-1 h-4 w-4" />{isSaving ? t("common.saving") : t("outline.saveOutline")}</Button>
-          {saveStatus ? <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{saveStatus}</span> : null}
+          {saveStatus ? <span role="status" aria-live="polite" className="min-w-0 break-words text-xs text-muted-foreground">{saveStatus}</span> : null}
         </div>
         <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline||aiBusy}><Sparkles className="mr-1 h-4 w-4" />{t("outline.generateNextChapter")}</Button>
 
@@ -641,21 +641,21 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
               {selectedOutline.chapters.map((chapter) => (
                 <div key={chapter.id} className="space-y-1">
                   <div
-                    className={`flex items-center gap-1 p-2 rounded-md cursor-pointer hover:bg-accent ${selectedNode?.id === chapter.id ? "bg-accent" : ""}`}
+                    className={`flex min-w-0 items-center gap-1 p-2 rounded-md cursor-pointer hover:bg-accent ${selectedNode?.id === chapter.id ? "bg-accent" : ""}`}
                     onClick={() => setSelectedNode({ type: "chapter", id: chapter.id })}
                   >
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium truncate">{chapter.title}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium" title={chapter.title}>{chapter.title}</span>
                   </div>
                   <div className="pl-6 space-y-1">
                     {chapter.scenes.map((scene) => (
                       <div
                         key={scene.id}
-                        className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent text-sm ${selectedNode?.id === scene.id ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}
+                        className={`flex min-w-0 items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent text-sm ${selectedNode?.id === scene.id ? "bg-accent text-accent-foreground" : "text-muted-foreground"}`}
                         onClick={() => setSelectedNode({ type: "scene", id: scene.id })}
                       >
-                        <FileText className="h-3 w-3" />
-                        <span className="truncate">{scene.title}</span>
+                        <FileText className="h-3 w-3 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate" title={scene.title}>{scene.title}</span>
                       </div>
                     ))}
                   </div>

@@ -102,9 +102,9 @@ const Workbench = () => {
   const changeStory = useCallback((id: string) => updateContext({ storyId: id }), [updateContext]);
 
   return (
-    <StoryDiscussionWorkspaceContext.Provider value={discussionWorkspace}><div className="relative h-full flex flex-col space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">{t("workbench.title")}</h1>
+    <StoryDiscussionWorkspaceContext.Provider value={discussionWorkspace}><div className="relative h-full w-full min-w-0 max-w-full flex flex-col space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="min-w-0 max-w-full break-words text-3xl font-bold tracking-tight">{t("workbench.title")}</h1>
         <Button variant="outline" aria-expanded={discussionOpen} onClick={() => { setDiscussionMounted(true); setDiscussionOpen(value => !value); }}>{t("storyAssistant.title")}</Button>
       </div>
 
@@ -112,7 +112,7 @@ const Workbench = () => {
         <div className="space-y-3 border-b pb-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.mainFlow")}</span>
-            <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
+            <TabsList aria-label={t("workbench.mainFlow")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="conception" className="gap-2 shrink-0">
             <Sparkles className="h-4 w-4" /> {t("workbench.conception")}
           </TabsTrigger>
@@ -129,7 +129,7 @@ const Workbench = () => {
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.tools")}</span>
-            <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
+            <TabsList aria-label={t("workbench.tools")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="search" className="gap-2 shrink-0">
             <Search className="h-4 w-4" /> {t("workbench.materialSearch")}
           </TabsTrigger>
@@ -146,7 +146,7 @@ const Workbench = () => {
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.advanced")}</span>
-            <TabsList className="h-auto justify-start bg-transparent p-0">
+            <TabsList aria-label={t("workbench.advanced")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="v2" className="gap-2 shrink-0">
             <Rocket className="h-4 w-4" /> {t("workbench.advancedWorkbench")}
           </TabsTrigger>
