@@ -132,6 +132,11 @@ describe("OutlineWorkbench", () => {
     expect(screen.getByTitle(chapterTitle).textContent).toBe(chapterTitle);
     expect(screen.getByTitle(sceneTitle).textContent).toBe(sceneTitle);
     expect(screen.getByDisplayValue(sceneTitle)).toBeTruthy();
+    fireEvent.click(screen.getByTitle(chapterTitle));
+    expect(screen.getByDisplayValue(chapterTitle)).toBeTruthy();
+    fireEvent.click(screen.getByTitle(sceneTitle));
+    expect(screen.getByDisplayValue(sceneTitle)).toBeTruthy();
+    expect(screen.getByDisplayValue("场景内容")).toBeTruthy();
     await waitFor(() => expect(selection).toHaveBeenLastCalledWith({ storyId: "story-1", outlineId: "outline-selected", sceneId: "scene-1", chapterId: "" }));
     expect(selection.mock.calls.some(([value]) => value.outlineId === "outline-first")).toBe(false);
   });

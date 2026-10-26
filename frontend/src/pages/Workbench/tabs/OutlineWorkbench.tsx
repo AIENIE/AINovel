@@ -627,7 +627,8 @@ const OutlineWorkbench = ({ initialStoryId, initialOutlineId, initialSceneId, in
         </div>
         <Button size="sm" variant="outline" onClick={() => void handleGenerateNextChapter()} disabled={!selectedOutline||aiBusy}><Sparkles className="mr-1 h-4 w-4" />{t("outline.generateNextChapter")}</Button>
 
-        <ScrollArea className="flex-1">
+        {/* This vertical tree must not inherit Radix's intrinsic-width measuring table. */}
+        <ScrollArea className="min-w-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
           {selectedOutline ? (
             <div className="space-y-1">
               <button
