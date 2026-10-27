@@ -18,7 +18,7 @@ const selectClass="h-10 min-w-0 max-w-full rounded-md border border-input bg-bac
 export function WorldAssistantPanel({world,editor,single,onSingleClose,onDirty}:{world:string;editor:WorldEditorState;single:SingleWorldAction|null;onSingleClose:()=>void;onDirty:(dirty:boolean)=>void}) {
   const {t,i18n}=useTranslation();const discussion=useWorldDiscussion(world,editor);
   const topicLabels=useMemo(()=>worldTopicLabels(discussion.sessions.data||[],i18n.resolvedLanguage||i18n.language),[discussion.sessions.data,i18n.resolvedLanguage,i18n.language]);
-  const topicDetail=(id:string)=>{const label=topicLabels.get(id);return [label?.created?t("world3.topicCreated",{date:label.created}):"",label?.reference?t("world3.topicReference",{id:label.reference}):""].filter(Boolean).join(" · ");};
+  const topicDetail=(id:string)=>{const label=topicLabels.get(id);return [label?.created?t("world3.topicCreated",{date:label.created,interpolation:{escapeValue:false}}):"",label?.reference?t("world3.topicReference",{id:label.reference}):""].filter(Boolean).join(" · ");};
   const [view,setView]=useState("discussion"),[topic,setTopic]=useState<{mode:"create"|"rename";title:string}|null>(null);
   const [singleInstruction,setSingleInstruction]=useState("");const drafts=useRef(new Map<string,ProposalDraft>());
   const dirty=useCallback(()=>onDirty([...drafts.current.values()].some(d=>d.changed||!!d.pending)),[onDirty]);

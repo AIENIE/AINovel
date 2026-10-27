@@ -30,7 +30,7 @@ public class AiStoredResponseMetadata {
     @Transactional(readOnly=true)
     public AiResponseMetadata find(User user,String requestId) {
         if(user==null||requestId==null||requestId.isBlank())return null;
-        var reservation=reservations.findByUserAndIdempotencyKey(user,requestId).orElse(null);
+        var reservation=reservations.findResultByUserAndIdempotencyKey(user,requestId).orElse(null);
         if(reservation==null||!Objects.equals(user.getId(),reservation.getUser().getId())
                 ||!java.util.Set.of(AiCreditReservation.Status.RESULT_READY,AiCreditReservation.Status.COMPLETED).contains(reservation.getStatus()))return null;
         if(reservation.getResultMetadataJson()!=null) {

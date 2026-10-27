@@ -17,4 +17,8 @@ public interface AiCreditReservationRepository extends JpaRepository<AiCreditRes
                                  @org.springframework.data.repository.query.Param("requestId") String requestId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<AiCreditReservation> findByUserAndIdempotencyKey(User user, String idempotencyKey);
+    @org.springframework.data.jpa.repository.Query("select r from AiCreditReservation r where r.user = :user and r.idempotencyKey = :key")
+    Optional<AiCreditReservation> findResultByUserAndIdempotencyKey(
+            @org.springframework.data.repository.query.Param("user") User user,
+            @org.springframework.data.repository.query.Param("key") String idempotencyKey);
 }

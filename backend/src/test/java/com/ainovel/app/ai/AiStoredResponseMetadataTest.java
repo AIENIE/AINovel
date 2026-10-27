@@ -24,7 +24,7 @@ class AiStoredResponseMetadataTest {
         reservation.setStatus(AiCreditReservation.Status.COMPLETED);reservation.setResultContent("");
         reservation.setPromptTokens(100);reservation.setCompletionTokens(8192);reservation.setCacheTokens(20);
         reservation.setActualModelKey("test-model");
-        when(reservations.findByUserAndIdempotencyKey(user,"original")).thenReturn(Optional.of(reservation));
+        when(reservations.findResultByUserAndIdempotencyKey(user,"original")).thenReturn(Optional.of(reservation));
     }
 
     @Test void readsNewMetadataWithoutConsultingValidationHistory() throws Exception {
@@ -43,7 +43,7 @@ class AiStoredResponseMetadataTest {
 
     @Test void rejectsUnownedUnknownAmbiguousOrMismatchedEvidence() throws Exception {
         var other=new User();other.setId(UUID.randomUUID());other.setRemoteUid(123L);
-        when(reservations.findByUserAndIdempotencyKey(other,"original")).thenReturn(Optional.empty());
+        when(reservations.findResultByUserAndIdempotencyKey(other,"original")).thenReturn(Optional.empty());
         assertNull(reader.find(other,"original"));verifyNoInteractions(calls);
         for(var bad:List.of(receipt(999,"ainovel","original","",8192),receipt(123,"another-project","original","",8192),
                 receipt(123,"ainovel","another-request","",8192),receipt(123,"ainovel","original","different",8192),

@@ -24,6 +24,7 @@ it("uses each real topic identity for navigation and filters while retaining per
   const nav = await screen.findByRole("navigation", { name: "讨论话题" });
   const first = await within(nav).findByRole("button", { name: /世界概览整合.*创建于.*编号 a1111111/ });
   const second = within(nav).getByRole("button", { name: /世界概览整合.*创建于.*编号 b2222222/ });
+  expect(first.textContent).toContain("2026/10/27");expect(first.textContent).not.toMatch(/&#(?:x2F|47);/i);
   await waitFor(() => expect(first.getAttribute("aria-current")).toBe("true"));
   fireEvent.change(screen.getByLabelText("你的要求"), { target: { value: "话题一还没有发送的要求" } });
   fireEvent.click(second);await waitFor(() => expect(second.getAttribute("aria-current")).toBe("true"));
@@ -35,7 +36,8 @@ it("uses each real topic identity for navigation and filters while retaining per
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "取消" }));
   await act(async () => { fireEvent.mouseDown(screen.getByRole("tab", { name: "提案库" }), { button: 0, ctrlKey: false }); });
   const filter = await screen.findByRole("combobox", { name: "筛选来源话题" });
-  expect(within(filter).getByRole("option", { name: /编号 b2222222/ }).getAttribute("value")).toBe(topics[1].id);
+  const secondOption=within(filter).getByRole("option", { name: /编号 b2222222/ });
+  expect(secondOption.getAttribute("value")).toBe(topics[1].id);expect(secondOption.textContent).toContain("2026/10/27");expect(secondOption.textContent).not.toMatch(/&#(?:x2F|47);/i);
   fireEvent.change(filter, { target: { value: topics[1].id } });
   await waitFor(() => expect(proposals).toHaveBeenLastCalledWith("world", expect.objectContaining({ sessionId: topics[1].id }), expect.any(AbortSignal)));
 });
