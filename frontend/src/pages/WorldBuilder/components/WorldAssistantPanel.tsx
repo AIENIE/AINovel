@@ -1,9 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
 import type { WorldProposal } from "@/lib/api/domains/world-assistant";
-import { localizedErrorMessage } from "@/lib/error-messages";
+import { localizedErrorMessage, localizedOperationFailure } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,10 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { StoryDiscussionSources } from "@/components/ai/StoryDiscussionSources";
 import { WorldProposalCard, WorldConflictHints, type ProposalDraft } from "./WorldProposalCard";
 import { useWorldDiscussion, type WorldEditorState } from "../useWorldDiscussion";
+import { worldTopicLabels } from "../world-topic-labels";
 export type SingleWorldAction={entryId:string|null;label:string};
-const selectClass="h-10 rounded-md border border-input bg-background px-3 text-sm";
+const selectClass="h-10 min-w-0 max-w-full rounded-md border border-input bg-background px-3 text-sm";
 export function WorldAssistantPanel({world,editor,single,onSingleClose,onDirty}:{world:string;editor:WorldEditorState;single:SingleWorldAction|null;onSingleClose:()=>void;onDirty:(dirty:boolean)=>void}) {
-  const {t}=useTranslation();const discussion=useWorldDiscussion(world,editor);
+  const {t,i18n}=useTranslation();const discussion=useWorldDiscussion(world,editor);
+  const topicLabels=useMemo(()=>worldTopicLabels(discussion.sessions.data||[],i18n.resolvedLanguage||i18n.language),[discussion.sessions.data,i18n.resolvedLanguage,i18n.language]);
+  const topicDetail=(id:string)=>{const label=topicLabels.get(id);return [label?.created?t("world3.topicCreated",{date:label.created}):"",label?.reference?t("world3.topicReference",{id:label.reference}):""].filter(Boolean).join(" · ");};
   const [view,setView]=useState("discussion"),[topic,setTopic]=useState<{mode:"create"|"rename";title:string}|null>(null);
   const [singleInstruction,setSingleInstruction]=useState("");const drafts=useRef(new Map<string,ProposalDraft>());
   const dirty=useCallback(()=>onDirty([...drafts.current.values()].some(d=>d.changed||!!d.pending)),[onDirty]);
@@ -30,15 +33,22 @@ export function WorldAssistantPanel({world,editor,single,onSingleClose,onDirty}:
     <Tabs value={view} onValueChange={setView} className="space-y-5"><TabsList><TabsTrigger value="discussion">{t("world3.discuss")}</TabsTrigger><TabsTrigger value="library">{t("world3.library")}</TabsTrigger></TabsList>
       <TabsContent value="discussion">
         <div className="grid gap-6 lg:grid-cols-[230px_minmax(0,1fr)]">
-          <aside className="space-y-3 lg:border-r lg:pr-5"><div className="flex items-center justify-between"><h3 className="text-sm font-medium">{t("world3.topics")}</h3><Button size="sm" variant="ghost" onClick={()=>setTopic({mode:"create",title:""})} disabled={discussion.working}>{t("world3.newTopic")}</Button></div>
-            <nav aria-label={t("world3.topics")} className="flex gap-1 overflow-x-auto lg:block lg:space-y-1">{discussion.sessions.data?.map(s=><button key={s.id} className={`shrink-0 rounded-md px-3 py-2 text-left text-sm lg:w-full ${discussion.selected===s.id?"bg-primary/10 font-medium text-primary":"text-muted-foreground hover:bg-muted"}`} onClick={()=>discussion.chooseSession(s.id)}>{s.title}</button>)}</nav>
+          <aside className="min-w-0 space-y-3 lg:border-r lg:pr-5"><div className="flex items-center justify-between"><h3 className="text-sm font-medium">{t("world3.topics")}</h3><Button size="sm" variant="ghost" onClick={()=>setTopic({mode:"create",title:""})} disabled={discussion.working}>{t("world3.newTopic")}</Button></div>
+            <nav aria-label={t("world3.topics")} className="flex min-w-0 gap-1 overflow-x-auto lg:block lg:space-y-1">{discussion.sessions.data?.map(s=><button key={s.id} aria-current={discussion.selected===s.id?"true":undefined} className={`w-64 max-w-full shrink-0 rounded-md px-3 py-2 text-left text-sm lg:w-full ${discussion.selected===s.id?"bg-primary/10 font-medium text-primary":"text-muted-foreground hover:bg-muted"}`} onClick={()=>discussion.chooseSession(s.id)}><span className="block break-words [overflow-wrap:anywhere]">{s.title}</span><span className="mt-1 block text-xs font-normal leading-5 text-muted-foreground">{topicDetail(s.id)}</span></button>)}</nav>
             {discussion.selected&&<Button variant="outline" size="sm" onClick={()=>setTopic({mode:"rename",title:discussion.session.data?.title||""})}>{t("world3.renameTopic")}</Button>}
           </aside>
           <div className="min-w-0 space-y-6">
             {discussion.hasOlder&&<Button variant="outline" disabled={discussion.loadingOlder} onClick={()=>void discussion.loadOlder()}>{t("world3.older")}</Button>}
             {!discussion.turns.length&&<p className="py-8 text-sm leading-7 text-muted-foreground">{t(discussion.selected?"world3.emptyDiscussion":"world3.createFirst")}</p>}
-            {discussion.turns.map(turn=><article key={turn.id} className="space-y-4 border-b pb-6"><header className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="whitespace-pre-wrap font-medium">{turn.instruction}</h3><time className="text-xs text-muted-foreground">{new Date(turn.createdAt).toLocaleString()}</time></header>
+            {discussion.turns.map(turn=><article key={turn.id} className="space-y-4 border-b pb-6"><header className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="min-w-0 whitespace-pre-wrap break-words font-medium [overflow-wrap:anywhere]">{turn.instruction}</h3><time className="text-xs text-muted-foreground">{new Date(turn.createdAt).toLocaleString()}</time></header>
               <div className="space-y-3 border-l-2 border-primary/30 pl-4"><span className="text-xs text-muted-foreground">{t("world3.unconfirmed")}</span><p className="whitespace-pre-wrap break-words text-sm leading-7">{turn.answer||t(`worlds.taskStatus.${turn.status}`,{defaultValue:t("common.loading")})}</p><WorldConflictHints proposal={turn}/><StoryDiscussionSources sources={turn.sources}/>
+              {turn.failure&&<div role="status" className="space-y-2 rounded-md border border-amber-300/60 p-3 text-sm"><p>{localizedOperationFailure(turn.failure.code)}</p><details><summary className="cursor-pointer text-xs">{t("world3.failureDetails")}</summary><dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+                <dt>{t("world3.failurePhase")}</dt><dd>{t(`world3.phase.${turn.failure.phase}`)}</dd>
+                <dt>{t("world3.finishReason")}</dt><dd>{turn.failure.finishReason||t("world3.notRecorded")}</dd>
+                <dt>{t("world3.reasoningTokens")}</dt><dd>{turn.failure.reasoningTokens?.toLocaleString()??t("world3.notRecorded")}</dd>
+                <dt>{t("world3.completionTokens")}</dt><dd>{turn.failure.completionTokens?.toLocaleString()??t("world3.notRecorded")}</dd>
+              </dl><p className="mt-2 text-xs text-muted-foreground">{t(turn.failure.usageAuthoritative===true?"world3.usageAuthoritativeYes":"world3.usageAuthoritativeUnknown")}</p></details></div>}
+              {turn.status==="RECOVERY_REQUIRED"&&turn.failure?.code!=="AI_RESULT_RECONCILIATION_REQUIRED"&&<p role="status" className="text-sm text-amber-800 dark:text-amber-200">{localizedOperationFailure("AI_RESULT_RECONCILIATION_REQUIRED")}</p>}
               {turn.warnings.some(w=>w.startsWith("WORLD_UNREAD_RESOURCES"))&&<p className="text-xs text-muted-foreground">{t("world3.partialRead")}</p>}
               {turn.usage.modelCalls>0&&<p className="text-xs text-muted-foreground">{t("world3.usage",{calls:turn.usage.modelCalls,cost:turn.usage.cost.toLocaleString()})}</p>}
               {turn.answer&&<div className="flex flex-wrap gap-2">{turn.suggestions.map(s=><Button key={s.id} variant="outline" size="sm" disabled={discussion.working||!editor.canAct()} title={s.reason} onClick={()=>void discussion.propose(turn,s)}>{t("world3.proposeSuggestion",{title:s.title})}</Button>)}{turn.intent==="DISCUSS"&&<Button size="sm" variant="outline" disabled={discussion.working||!editor.canAct()} onClick={()=>void discussion.propose(turn)}>{t("world3.propose")}</Button>}</div>}
@@ -56,7 +66,7 @@ export function WorldAssistantPanel({world,editor,single,onSingleClose,onDirty}:
       <TabsContent value="library" className="space-y-4">
         <div className="flex flex-wrap gap-3"><select aria-label={t("world3.statusFilter")} className={selectClass} value={filters.status} onChange={e=>setFilter("status",e.target.value)}><option value="">{t("world3.allStatuses")}</option>{["READY","ACCEPTED","REJECTED"].map(s=><option key={s} value={s}>{t(`assistant.proposal.${s}`)}</option>)}</select>
           <select aria-label={t("world3.typeFilter")} className={selectClass} value={filters.type} onChange={e=>setFilter("type",e.target.value)}><option value="">{t("world3.allTypes")}</option>{["METADATA","ENTRY","RELATION","OVERVIEW","ERA","EVENT"].map(s=><option key={s} value={s}>{t(`world3.type.${s}`)}</option>)}</select>
-          <select aria-label={t("world3.topicFilter")} className={selectClass} value={filters.sessionId} onChange={e=>setFilter("sessionId",e.target.value)}><option value="">{t("world3.allTopics")}</option>{discussion.sessions.data?.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select><Button variant="ghost" onClick={()=>void library.refetch()}>{t("worlds.refreshTask")}</Button></div>
+          <select aria-label={t("world3.topicFilter")} className={selectClass} value={filters.sessionId} onChange={e=>setFilter("sessionId",e.target.value)}><option value="">{t("world3.allTopics")}</option>{discussion.sessions.data?.map(s=><option key={s.id} value={s.id}>{s.title} · {topicDetail(s.id)}</option>)}</select><Button variant="ghost" onClick={()=>void library.refetch()}>{t("worlds.refreshTask")}</Button></div>
         {library.isLoading&&<p>{t("common.loading")}</p>}{library.error&&<p role="alert" className="text-sm text-destructive">{localizedErrorMessage(library.error)}</p>}
         {!library.isLoading&&!library.data?.items.length&&<p className="py-8 text-sm text-muted-foreground">{t("world3.noProposals")}</p>}
         {library.data?.items.map(p=>card(p.id))}<div className="flex gap-3">{before&&<Button variant="outline" onClick={()=>setBefore(undefined)}>{t("world3.firstPage")}</Button>}{library.data?.nextBefore&&<Button variant="outline" onClick={()=>setBefore(library.data!.nextBefore!)}>{t("world3.nextPage")}</Button>}</div>

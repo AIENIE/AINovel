@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api-client";
@@ -6,11 +6,13 @@ import type { WorldProposal } from "@/lib/api/domains/world-assistant";
 import { WorldProposalCard, type ProposalDraft } from "./WorldProposalCard";
 import type { WorldEditorState } from "../useWorldDiscussion";
 import { useWorldDraft } from "../useWorldDraft";
+import * as assistantEditor from "@/lib/assistant-editor";
+import i18n from "@/i18n";
 const original={title:"潮汐塔",type:"LOCATION",summary:"",content:"作者原文",aliases:[],tags:[]};
 const proposal=(extra:Partial<WorldProposal>={}):WorldProposal=>({id:"p",turnId:"t",sessionId:"s",parentProposalId:null,action:"UPDATE",resourceType:"ENTRY",targetId:"e",fieldKey:null,status:"READY",revision:0,draftRevision:1,before:original,candidate:{...original,content:"模型候选"},modelCandidate:{...original,content:"模型候选"},current:original,rationale:"让约束更清晰",sources:[],sourceTurnIds:[],conflicts:[],contextChanges:[],candidateEdited:false,contextChanged:false,applicable:true,staleReason:null,createdAt:"2026-10-23",...extra});
 let editor:WorldEditorState;let current:WorldProposal;
 beforeEach(()=>{current=proposal();vi.spyOn(api.worldAssistant,"proposal").mockImplementation(async()=>current);editor={draft:{id:"world",revision:1,name:"潮汐城",tagline:"",themes:[],creativeIntent:"",notes:"",status:"draft",version:"v1",updatedAt:"",modules:[]},baseline:null,remote:null,loading:false,saving:false,error:null,conflict:false,dirty:false,id:"world",edit:vi.fn(),save:vi.fn(async()=>true),refresh:vi.fn(async()=>{}),resolveRemote:vi.fn(),canAct:()=>true};});
-afterEach(()=>{cleanup();vi.restoreAllMocks();});
+afterEach(async()=>{cleanup();vi.restoreAllMocks();await i18n.changeLanguage("zh-CN");});
 function mount(drafts=new Map<string,ProposalDraft>()) {const client=new QueryClient({defaultOptions:{queries:{retry:false}}});return {client,...render(<QueryClientProvider client={client}><WorldProposalCard world="world" proposalId="p" editor={editor} working={false} drafts={drafts} onDirty={vi.fn()} onRefine={vi.fn()} onReorganize={vi.fn()}/></QueryClientProvider>)};}
 it("retains the edited candidate across unmounts and requires saving it before acceptance",async()=>{
   const drafts=new Map<string,ProposalDraft>();const first=mount(drafts);await screen.findByRole("button",{name:"采纳并保存"});
@@ -47,4 +49,41 @@ it("edits event dates and dependency arrays without converting structured candid
   fireEvent.change(screen.getByLabelText("日期 开始 年"),{target:{value:"0"}});fireEvent.click(screen.getByRole("checkbox",{name:/pending-port/}));
   expect(drafts.get("p")?.candidate).toMatchObject({date:{start:{year:0},end:{year:0}},entryIds:[],eraIds:["era"]});
   expect(screen.getByRole("button",{name:"采纳并保存"}).hasAttribute("disabled")).toBe(true);expect(screen.getByRole("button",{name:"保存候选"})).toBeTruthy();
+});
+it("defaults to complete separate originals and candidates, computes character diffs only on demand and preserves edits",async()=>{
+  const before="首段原文\n\n"+"保留中文与LongUnbrokenEnglish".repeat(1000)+"\n原文结尾";
+  const after="首段候选\n\n"+"完整候选内容".repeat(3500)+"\n候选结尾";
+  current=proposal({before:{...original,content:before},current:{...original,content:"保存后的当前稿"},candidate:{...original,content:after},modelCandidate:{...original,content:after}});
+  const diff=vi.spyOn(assistantEditor,"assistantTextDiff");const {container}=mount();await screen.findByRole("button",{name:"采纳并保存"});
+  const comparison=screen.getByRole("region",{name:"原文与候选的完整差异"});
+  expect(within(comparison).getByRole("button",{name:"并排对照"}).getAttribute("aria-pressed")).toBe("true");
+  expect(within(comparison).getByRole("region",{name:"正文 · 提案生成前原文"}).textContent).toContain(before);
+  expect(within(comparison).getByRole("region",{name:"正文 · 当前候选"}).textContent).toContain(after);
+  expect(diff).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText("查看完整候选并手动修改"));fireEvent.change(screen.getByLabelText("正文"),{target:{value:"手动改好的候选\n\n保留末段"}});
+  fireEvent.click(within(comparison).getByRole("button",{name:"逐字差异"}));
+  expect(diff).toHaveBeenLastCalledWith(before,"手动改好的候选\n\n保留末段");
+  fireEvent.click(within(comparison).getByRole("button",{name:"并排对照"}));
+  expect((screen.getByLabelText("正文") as HTMLTextAreaElement).value).toBe("手动改好的候选\n\n保留末段");
+  expect(screen.getByRole("button",{name:"采纳并保存"}).hasAttribute("disabled")).toBe(true);
+  fireEvent.click(screen.getByText("查看原文、当前稿与模型原候选"));
+  expect(screen.getByText("保存后的当前稿")).toBeTruthy();expect([...container.querySelectorAll("p")].some(p=>p.textContent===after)).toBe(true);
+});
+it.each([
+  ["zh-CN","世界人物","规则限制","社会文化"],
+  ["zh-TW","世界人物","規則限制","社會文化"],
+  ["en","World character","Rules and limits","Society and culture"],
+])("localizes entry type values in every review view for %s",async(language,person,rule,society)=>{
+  await i18n.changeLanguage(language);current=proposal({before:{...original,type:"RULE"},current:{...original,type:"SOCIETY"},candidate:{...original,type:"PERSON"},modelCandidate:{...original,type:"PERSON"}});
+  const {container}=mount();await screen.findByRole("button",{name:i18n.t("world3.acceptSave")});
+  const comparison=screen.getByRole("region",{name:i18n.t("world3.diff")});expect(within(comparison).getByText(person)).toBeTruthy();expect(within(comparison).getByText(rule)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button",{name:i18n.t("world3.inlineDiff")}));expect(comparison.querySelector("del")).toBeTruthy();expect(comparison.querySelector("ins")).toBeTruthy();
+  fireEvent.click(screen.getByText(i18n.t("world3.compare")));expect(screen.getAllByText(society).length).toBeGreaterThan(0);
+  expect(container.textContent).not.toMatch(/\b(?:PERSON|RULE|SOCIETY)\b/);
+});
+it("keeps free relation types and unknown historical entry types readable without translating them",async()=>{
+  current=proposal({resourceType:"RELATION",before:{sourceId:"a",targetId:"b",type:"SOCIETY",description:""},candidate:{sourceId:"a",targetId:"b",type:"RULE",description:""},modelCandidate:{sourceId:"a",targetId:"b",type:"RULE",description:""}});
+  const first=mount();await screen.findByRole("button",{name:"采纳并保存"});expect(screen.getAllByText("SOCIETY").length).toBeGreaterThan(0);expect(screen.getAllByText("RULE").length).toBeGreaterThan(0);first.unmount();
+  current=proposal({action:"CREATE",before:null,current:null,candidate:{...original,type:"LEGACY_UNKNOWN"},modelCandidate:{...original,type:"LEGACY_UNKNOWN"}});mount();await screen.findByRole("button",{name:"采纳并保存"});
+  const comparison=screen.getByRole("region",{name:"原文与候选的完整差异"});expect(within(comparison).getByText("LEGACY_UNKNOWN")).toBeTruthy();expect(within(comparison).getAllByText("不存在").length).toBeGreaterThan(0);
 });
