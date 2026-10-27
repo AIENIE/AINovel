@@ -42,7 +42,7 @@ message ModelOption {
   string model_key = 9;
   // Always present on updated servers; absent on older servers.
   ModelThinkingCapabilities thinking = 10;
-  // Canonical caller-visible route limits; absence means unknown.
+  // Absent on older servers. Describes eligible routes, not user/project authorization.
   ModelChatCapabilities chat_capabilities = 11;
 }
 
@@ -94,6 +94,9 @@ message ChatMessage {
   optional string tool_call_id = 3;
   optional string tool_calls_json = 4;
   optional string reasoning_content = 5;
+  // Opaque adapter continuation, returned in native_response_json.message.provider_state.
+  // Echo on the corresponding assistant message; never expose as user-facing content.
+  optional string provider_state = 6;
 }
 
 message ChatCompletionsRequest {
@@ -109,7 +112,7 @@ message ChatCompletionsRequest {
   // 超限返回 INVALID_ARGUMENT，调用方应缩短历史后再请求，不得原样重试。
   repeated ChatMessage messages = 6;
 
-  // 可选图片输入（URL 或 data URI）。仅在模型支持识图时生效。
+  // 可选图片输入（URL 或 data URI）。不支持识图时外发前拒绝。
   string img = 7;
 
   // 可选：覆盖模型默认思考开关。true 启用；false 显式关闭；
@@ -128,8 +131,13 @@ message ChatCompletionsRequest {
   optional string budget_credential = 12;
   // Opt-in structured unary generation on an explicitly verified route.
   optional string json_schema = 13;
+  // Optional total output bound, including reasoning, for unary and streaming chat.
+  // A budgeted request must use the same bound as PrepareCallBudget.
   optional int32 max_output_tokens = 14;
   optional string evaluation_run_id = 15;
+  // Unary only, ENV=local and existing authenticated/authorized callers; no project-specific debug allowlist.
+  // Observes the existing response; does not enable thinking or change generation.
+  optional bool include_debug = 16;
 }
 
 message ChatCompletionsResponse {
@@ -146,8 +154,26 @@ message ChatCompletionsResponse {
   // Optional provider metadata; absent means unknown. Reasoning is included in completion_tokens.
   optional string finish_reason = 8;
   optional int64 reasoning_tokens = 9;
+  // False means legacy unary token estimates; explicit zero may be authoritative.
   optional bool usage_authoritative = 10;
+  // Present only for an explicitly requested CNY budget; persisted with the original result.
   optional BudgetCharge budget_charge = 11;
+  optional ChatDebugInfo debug_info = 12;
+}
+
+// Local diagnostics only. Never echo into conversation history or business memory.
+message ChatDebugInfo {
+  enum ReasoningKind {
+    REASONING_KIND_UNSPECIFIED = 0;
+    NOT_PROVIDED = 1;
+    TEXT = 2;
+    SUMMARY = 3;
+  }
+  string reasoning_text = 1;
+  ReasoningKind reasoning_kind = 2;
+  // Missing is unknown; reported zero is preserved. Both are subsets of prompt_tokens.
+  optional int64 cache_read_tokens = 3;
+  optional int64 cache_write_tokens = 4;
 }
 
 enum ChatStreamEventType {
@@ -181,6 +207,8 @@ message ChatCompletionsStreamEvent {
   optional bool reasoning_prefix_applied = 12;
   // Only COMPLETED; assembled, bounded native response. Never execute partial arguments.
   optional string native_response_json = 13;
+  optional int64 reasoning_tokens = 14;
+  optional bool usage_authoritative = 15;
 }
 
 message EmbeddingsRequest {

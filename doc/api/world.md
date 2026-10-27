@@ -1,4 +1,7 @@
 # World API
+
+世界助手话题与轮次接口保持原路径。轮次可选 `failure` 为 `{phase,code,finishReason,reasoningTokens,completionTokens,usageAuthoritative}`，只在失败/待对账时返回安全诊断；旧数据缺失字段按未知处理。`phase` 为 plan/final，结束原因标准化为 STOP/LENGTH/CONTENT_FILTER/TOOL_CALLS/OTHER/UNKNOWN，token 数与用量权威性可空。空结果、输出限制、思考占满输出、截断结果分别使用 `WORLD_ASSISTANT_EMPTY_RESULT`、`WORLD_ASSISTANT_OUTPUT_LIMIT`、`WORLD_ASSISTANT_REASONING_OUTPUT_LIMIT`、`WORLD_ASSISTANT_TRUNCATED_RESULT`；普通格式错误保留原代码。轮次 usage.cost 沿用项目积分，不能解释成供应商人民币成本；待对账不是零费用。读取历史不触发推理、回填或结算。话题列表已有 id/title/createdAt/updatedAt，不增加持久字段。
+
 - `GET /api/v1/worlds/entry-types`：内置条目类型及自由条目。
 - `GET /api/v1/worlds/{id}/draft`：返回 `{world,entries,relations,latestPublished,unpublishedChanges}`。world 沿用世界详情字段。
 - `PUT /api/v1/worlds/{id}/draft`：Body `{metadata?,entries,relations,expectedRevision}`；entries 和 relations 为完整草稿集合，遗漏表示删除；元数据、条目、关系同事务保存。冲突返回 409，客户端不得丢弃本地输入。

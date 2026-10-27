@@ -18,9 +18,11 @@ public final class WorldAssistantDtos {
     public record Suggestion(UUID id,String title,String reason,List<UUID> sourceTurnIds) {}
     public record SemanticConflict(String title,String explanation,List<String> sourceIds) {}
     public record Usage(double inputTokens,double outputTokens,double cost,int modelCalls) {}
+    public record FailureDiagnostics(String phase,String code,String finishReason,Long reasoningTokens,
+            Long completionTokens,Boolean usageAuthoritative) {}
     public record TurnDto(UUID id,UUID operationId,String status,String resultKind,String instruction,String answer,String intent,
             List<Suggestion> suggestions,List<UUID> proposalIds,UUID parentProposalId,List<Source> sources,List<String> warnings,
-            List<SemanticConflict> conflicts,Usage usage,Instant createdAt) {}
+            List<SemanticConflict> conflicts,Usage usage,Instant createdAt,FailureDiagnostics failure) {}
     public record ProposalDto(UUID id,UUID turnId,UUID sessionId,UUID parentProposalId,String action,String resourceType,
             UUID targetId,String fieldKey,String status,long revision,long draftRevision,JsonNode before,JsonNode candidate,
             JsonNode modelCandidate,JsonNode current,String rationale,List<Source> sources,List<UUID> sourceTurnIds,

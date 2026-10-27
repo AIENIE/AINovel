@@ -7,6 +7,10 @@ import { t } from "@/i18n";
  * 未命中类别时显示本地化通用操作失败。
  */
 const AI_MODEL_ERROR_KEYS: Record<string, string> = {
+  WORLD_ASSISTANT_EMPTY_RESULT: 'world3.emptyResult',
+  WORLD_ASSISTANT_OUTPUT_LIMIT: 'world3.outputLimit',
+  WORLD_ASSISTANT_REASONING_OUTPUT_LIMIT: 'world3.reasoningOutputLimit',
+  WORLD_ASSISTANT_TRUNCATED_RESULT: 'world3.truncatedResult',
   WORLD_TIMELINE_DATE_INVALID: 'world5.dateInvalid',
   WORLD_TIMELINE_DATE_RANGE_INVALID: 'world5.reversedDate',
   WORLD_TIMELINE_VERSION_INVALID: 'world5.timelineInvalid',

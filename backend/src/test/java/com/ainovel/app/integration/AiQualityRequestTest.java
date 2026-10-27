@@ -1,7 +1,9 @@
 package com.ainovel.app.integration;
 
 import com.ainovel.app.ai.AiValidationCallBudget;
+import com.ainovel.app.ai.AiValidationMoneyGateway;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.modelconfig.AiModelSelection;
 import com.ainovel.app.modelconfig.AiSelectionContext;
 import fireflychat.ai.v1.*;
@@ -22,6 +24,32 @@ import static org.mockito.Mockito.*;
 class AiQualityRequestTest {
     private final AtomicReference<ChatCompletionsRequest> sent = new AtomicReference<>();
     private Status failure;
+    private boolean responseMetadata,emptyStream;
+
+    @ParameterizedTest
+    @ValueSource(booleans={false,true})
+    void retainsSafeProviderMetadataThroughUnaryAndStream(boolean streaming) {
+        responseMetadata=true;
+        var result=client().complete("request",1,choice("world.overview.integrate"),messages(),streaming?(tokens,estimated)->{}:null);
+        assertThat(result.metadata()).isEqualTo(AiResponseMetadata.reported("length",0L,true));
+    }
+
+    @Test void emptyCompletedStreamStillFailsRatherThanBecomingAUsableResult() {
+        emptyStream=true;responseMetadata=true;
+        assertThatThrownBy(()->client().complete("request",1,choice("world.overview.integrate"),messages(),(tokens,estimated)->{}))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("invalid COMPLETED");
+    }
+
+    @Test void moneyTransportPreservesTheSameSafeMetadata() {
+        var client=client();var validation=mock(AiValidationCallBudget.class);var money=mock(AiValidationMoneyGateway.class);
+        when(validation.monetaryEnabled()).thenReturn(true);
+        when(money.call(any(),any())).thenReturn(ChatCompletionsResponse.newBuilder().setContent("").setCompletionTokens(8192)
+                .setFinishReason("length").setReasoningTokens(8192).setUsageAuthoritative(true).build());
+        ReflectionTestUtils.setField(client,"validationBudget",validation);ReflectionTestUtils.setField(client,"moneyGateway",money);
+        assertThat(client.complete("request",1,choice("world.overview.integrate"),messages(),null).metadata())
+                .isEqualTo(AiResponseMetadata.reported("length",8192L,true));
+        assertThat(sent.get()).isNull();
+    }
 
     @ParameterizedTest
     @CsvSource({"slop.judge,false", "slop.judge,true", "slop.diagnose,false", "slop.diagnose,true", "plot.diagnose,false", "plot.diagnose,true"})
@@ -32,6 +60,7 @@ class AiQualityRequestTest {
             var result = client().complete("request", 1, choice, messages(), streaming ? (tokens, estimated) -> {} : null);
             assertThat(result.content()).isEqualTo("{}");
             assertThat(result.completionTokens()).isEqualTo(2);
+            assertThat(result.metadata()).isNull();
         }
         var wire = ChatCompletionsRequest.parseFrom(sent.get().toByteArray());
         assertThat(wire.getRequestId()).isEqualTo("request");
@@ -104,9 +133,15 @@ class AiQualityRequestTest {
             if (failure != null) { closed = true; listener.onClose(failure, new Metadata()); return; }
             if (streaming) {
                 replies.add(event(1, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_STARTED).build());
-                replies.add(event(2, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA).setContentDelta("{}").setOutputTokensSoFar(2).build());
-                replies.add(event(3, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_COMPLETED).setPromptTokens(3).setCompletionTokens(2).build());
-            } else replies.add(ChatCompletionsResponse.newBuilder().setContent("{}").setModelKey("test-model").setPromptTokens(3).setCompletionTokens(2).build());
+                if(!emptyStream)replies.add(event(2, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA).setContentDelta("{}").setOutputTokensSoFar(2).build());
+                var completed=event(emptyStream?2:3, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_COMPLETED).setPromptTokens(3).setCompletionTokens(2);
+                if(responseMetadata)completed.setFinishReason("length").setReasoningTokens(0).setUsageAuthoritative(true);
+                replies.add(completed.build());
+            } else {
+                var response=ChatCompletionsResponse.newBuilder().setContent("{}").setModelKey("test-model").setPromptTokens(3).setCompletionTokens(2);
+                if(responseMetadata)response.setFinishReason("length").setReasoningTokens(0).setUsageAuthoritative(true);
+                replies.add(response.build());
+            }
             ready = true;
             drain();
         }

@@ -184,7 +184,7 @@ public class WorldAssistantService {
         if(!session.userId().equals(execution.user().getId())||!execution.operationId().equals(row.operationId()))throw missing();
         if(row.resultJson()!=null)return result(turnId,outcome(row));
         var frozen=frozen(row);var reads=context.read(frozen,List.of());var exposed=new LinkedHashMap<String,Source>();reads.sources().forEach(s->exposed.put(s.id(),s));
-        var response=call(execution,turnId,"plan",()->context.prompt(frozen,context.read(frozen,List.of()),frozen.singleFeature()!=null));var parsed=parse(response.content());
+        var response=call(execution,turnId,"plan",()->context.prompt(frozen,context.read(frozen,List.of()),frozen.singleFeature()!=null));var parsed=parse(response);
         if(parsed.path("kind").asText().equals("READ_BATCH")) {
             if(frozen.singleFeature()!=null)throw invalid("WORLD_ASSISTANT_READ_INVALID");
             // A historic first-stage result does not authorize rebuilding its missing second request with new rules.
@@ -197,7 +197,7 @@ public class WorldAssistantService {
                 AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,"reads_json",selected);return null;});
             }
             reads=store.read(store.turn(turnId).readsJson(),WorldAssistantContext.Reads.class);reads.sources().forEach(s->exposed.put(s.id(),s));
-            var finalReads=reads;response=call(execution,turnId,"final",()->context.prompt(frozen,finalReads,true));parsed=parse(response.content());
+            var finalReads=reads;response=call(execution,turnId,"final",()->context.prompt(frozen,finalReads,true));parsed=parse(response);
         }
         String kind=parsed.path("kind").asText(),answer=parsed.path("answer").asText("").strip();
         if(!Set.of("ANSWER","NEEDS_INPUT","PROPOSALS").contains(kind)||answer.isBlank()||frozen.intent().equals("DISCUSS")&&kind.equals("PROPOSALS"))throw invalid("WORLD_ASSISTANT_RESULT_INVALID");
@@ -304,8 +304,25 @@ public class WorldAssistantService {
     private TurnDto dto(User user,WorldAssistantStore.Turn turn) {
         var frozen=frozen(turn);var out=turn.resultJson()==null?null:outcome(turn);double input=0,output=0,cost=0;int calls=0;
         for(String raw:new String[]{turn.planResultJson(),turn.finalResultJson()})if(raw!=null){calls++;var usage=store.read(raw,AiChatResponse.class).usage();if(usage!=null){input+=usage.inputTokens();output+=usage.outputTokens();cost+=usage.cost();}}
-        String status=turn.operationId()==null?"QUEUED":operations.get(user,turn.operationId()).status().name();
-        return new TurnDto(turn.id(),turn.operationId(),status,out==null?null:out.kind(),frozen.instruction(),out==null?null:out.answer(),frozen.intent(),out==null?List.of():out.suggestions(),out==null?List.of():out.proposalIds(),frozen.parentProposalId(),out==null?List.of():out.sources(),out==null?List.of():out.warnings(),out==null?List.of():out.conflicts(),new Usage(input,output,cost,calls),turn.createdAt());
+        var operation=turn.operationId()==null?null:operations.get(user,turn.operationId());
+        String status=operation==null?"QUEUED":operation.status().name();
+        FailureDiagnostics failure=null;
+        if(operation!=null&&Set.of("FAILED","RECOVERY_REQUIRED").contains(status)) {
+            String phase=turn.finalRequestJson()!=null?"final":"plan";
+            String raw=phase.equals("final")?turn.finalResultJson():turn.planResultJson();
+            var response=raw==null?null:store.read(raw,AiChatResponse.class);
+            var metadata=response==null?null:response.metadata();
+            if(response!=null&&metadata==null)metadata=ai.storedResultMetadata(user,turn.operationId()+":world-assistant:"+phase);
+            String code=operation.errorCode()==null?"AI_OPERATION_FAILED":operation.errorCode();
+            if(response!=null&&WorldAssistantResultFailure.classifiable(code)) {
+                var reported=new AiChatResponse(response.role(),response.content(),response.usage(),response.remainingCredits(),response.selection(),response.actualModelKey(),metadata);
+                code=WorldAssistantResultFailure.code(reported);
+            }
+            failure=new FailureDiagnostics(phase,code,metadata==null?null:metadata.finishReason().name(),
+                    metadata==null?null:metadata.reasoningTokens(),response==null||response.usage()==null?null:(long)response.usage().outputTokens(),
+                    metadata==null?null:metadata.usageAuthoritative());
+        }
+        return new TurnDto(turn.id(),turn.operationId(),status,out==null?null:out.kind(),frozen.instruction(),out==null?null:out.answer(),frozen.intent(),out==null?List.of():out.suggestions(),out==null?List.of():out.proposalIds(),frozen.parentProposalId(),out==null?List.of():out.sources(),out==null?List.of():out.warnings(),out==null?List.of():out.conflicts(),new Usage(input,output,cost,calls),turn.createdAt(),failure);
     }
     private record Cursor(java.time.Instant time,UUID id) {}
     private Cursor cursor(String before){if(before==null)return new Cursor(null,null);try{var parts=before.split("\\|",2);return new Cursor(java.time.Instant.parse(parts[0]),UUID.fromString(parts[1]));}catch(Exception ex){throw invalid("WORLD_ASSISTANT_CURSOR_INVALID");}}
@@ -319,6 +336,6 @@ public class WorldAssistantService {
     private SessionSummary summary(WorldAssistantStore.Session session){return new SessionSummary(session.id(),session.worldId(),session.title(),session.createdAt(),session.updatedAt());}
     private String title(SessionRequest request){if(request==null||request.title()==null||request.title().isBlank()||request.title().strip().length()>120)throw invalid("WORLD_ASSISTANT_TITLE_INVALID");return request.title().strip();}
     private <T>T replay(UUID world,String scope,String key,String requestHash,Class<T> type){var old=store.receipt(world,scope,key);if(old==null)return null;if(!old.requestHash().equals(requestHash))throw conflict("WORLD_ASSISTANT_IDEMPOTENCY_CONFLICT");return store.read(old.responseJson(),type);}
-    private JsonNode parse(String raw){try{var value=json.readTree(raw);if(!value.isObject())throw new IllegalArgumentException();return value;}catch(Exception ex){throw invalid("WORLD_ASSISTANT_RESULT_INVALID");}}
+    private JsonNode parse(AiChatResponse response){try{var value=json.readTree(response.content()==null?"":response.content());if(value==null||!value.isObject())throw new IllegalArgumentException();return value;}catch(Exception ex){throw invalid(WorldAssistantResultFailure.code(response));}}
     private Map<String,Object> result(UUID turn,Outcome out){return Map.of("turnId",turn,"outcome",out.kind(),"proposalIds",out.proposalIds());}
 }

@@ -2,6 +2,7 @@ package com.ainovel.app.ai;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 public interface AiValidationCallRepository extends JpaRepository<AiValidationCall,UUID> {
+    java.util.List<AiValidationCall> findByRequestIdAndSettlementState(String requestId,String settlementState);
     java.util.Optional<AiValidationCall> findFirstByRunIdAndRequestIdOrderByAttemptAsc(String runId,String requestId);
     java.util.List<AiValidationCall> findByRunIdAndSettlementStateIn(String runId,java.util.Collection<String> states);
     @org.springframework.data.jpa.repository.Query("select c.runId from AiValidationCall c where c.id=:id")

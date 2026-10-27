@@ -1,6 +1,7 @@
 package com.ainovel.app.economy;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.economy.model.ConversionOrderStatus;
 import com.ainovel.app.economy.model.AiCreditReservation;
@@ -99,7 +100,10 @@ public class EconomyService {
     }
 
     public record AiReservationStart(boolean replay, String content, long promptTokens,
-                                     long completionTokens, long cacheTokens, long charged) {
+                                     long completionTokens, long cacheTokens, long charged, AiResponseMetadata metadata) {
+        public AiReservationStart(boolean replay,String content,long promptTokens,long completionTokens,long cacheTokens,long charged) {
+            this(replay,content,promptTokens,completionTokens,cacheTokens,charged,null);
+        }
         public static AiReservationStart reserved() {
             return new AiReservationStart(false, null, 0, 0, 0, 0);
         }
@@ -233,13 +237,13 @@ public class EconomyService {
             }
             if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount());
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount(), readResultMetadata(reservation));
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) {
                 AiChargeResult charge = settleAiUsage(user, idempotencyKey, reservation.getResultContent(),
                         reservation.getPromptTokens(), reservation.getCompletionTokens(), reservation.getCacheTokens());
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged());
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged(), readResultMetadata(reservation));
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
                 if (reservation.getLeaseExpiresAt() == null || reservation.getLeaseExpiresAt().isAfter(Instant.now()))
@@ -280,6 +284,7 @@ public class EconomyService {
         reservation.setStatus(AiCreditReservation.Status.RESERVED);
         reservation.setLeaseExpiresAt(Instant.now().plusSeconds(600));
         reservation.setResultContent(null);
+        reservation.setResultMetadataJson(null);
         aiReservationRepository.save(reservation);
         if(reservationCost>0) writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
                 referenceType, referenceId, selection==null?"AI 调用额度预留":"AI "+selection.featureKey()+" · "+selection.label().substring(0,selection.label().offsetByCodePoints(0,Math.min(80,selection.label().codePointCount(0,selection.label().length()))))+" · "+selection.modelKey(),
@@ -308,6 +313,12 @@ public class EconomyService {
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void recordAiResult(User user,String idempotencyKey,String content,
                                long inputTokens,long outputTokens,long cacheTokens,String actualModelKey) {
+        recordAiResult(user,idempotencyKey,content,inputTokens,outputTokens,cacheTokens,actualModelKey,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user,String idempotencyKey,String content,
+                               long inputTokens,long outputTokens,long cacheTokens,String actualModelKey,AiResponseMetadata metadata) {
         User locked = lockUser(user);
         AiCreditReservation reservation = aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).orElseThrow();
         if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED || reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) return;
@@ -316,6 +327,8 @@ public class EconomyService {
                 && reservation.getStatus() == AiCreditReservation.Status.RECONCILIATION_REQUIRED))
             throw new IllegalStateException("AI reservation lost");
         reservation.setResultContent(content);
+        try { reservation.setResultMetadataJson(metadata == null ? null : modelSelectionJson.writeValueAsString(metadata)); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException(ex); }
         reservation.setPromptTokens(inputTokens);
         reservation.setCompletionTokens(outputTokens);
         reservation.setCacheTokens(cacheTokens);
@@ -323,6 +336,12 @@ public class EconomyService {
         reservation.setStatus(AiCreditReservation.Status.RESULT_READY);
         reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
+    }
+
+    private AiResponseMetadata readResultMetadata(AiCreditReservation reservation) {
+        if (reservation.getResultMetadataJson() == null) return null;
+        try { return modelSelectionJson.readValue(reservation.getResultMetadataJson(), AiResponseMetadata.class); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException("Invalid stored AI response metadata", ex); }
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)

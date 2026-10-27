@@ -5,6 +5,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.economy.model.ProjectCreditAccount;
 import com.ainovel.app.economy.model.ProjectCreditLedger;
 import com.ainovel.app.economy.model.AiCreditReservation;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.economy.repo.AiCreditReservationRepository;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
@@ -72,6 +73,7 @@ class EconomyServiceTests {
         ReflectionTestUtils.setField(economyService, "redeemCodeRepository", redeemCodeRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeUsageRepository", usageRepository);
         ReflectionTestUtils.setField(economyService, "aiReservationRepository", aiReservationRepository);
+        ReflectionTestUtils.setField(economyService, "modelSelectionJson", new com.fasterxml.jackson.databind.ObjectMapper());
         TransactionTemplate transactions = org.mockito.Mockito.mock(TransactionTemplate.class);
         org.mockito.Mockito.lenient().when(transactions.execute(any())).thenAnswer(invocation ->
                 ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
@@ -179,10 +181,13 @@ class EconomyServiceTests {
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
         when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
         when(aiReservationRepository.findByUserAndIdempotencyKey(user,"recover")).thenReturn(Optional.of(reservation));
-        economyService.recordAiResult(user,"recover","durable",10,20,0);
+        var metadata=AiResponseMetadata.reported("length",20L,true);
+        economyService.recordAiResult(user,"recover","durable",10,20,0,"model",metadata);
         assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
         var replay = economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash");
         assertTrue(replay.replay()); assertEquals("durable",replay.content()); assertEquals(9,account.getBalance());
+        assertEquals(metadata,replay.metadata());
+        assertEquals(metadata,economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash").metadata());
         assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
         reservation.setStatus(AiCreditReservation.Status.RESERVED);
         economyService.markAiResultUncertain(user,"recover");

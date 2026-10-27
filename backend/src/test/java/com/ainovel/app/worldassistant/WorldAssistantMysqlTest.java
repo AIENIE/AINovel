@@ -115,6 +115,18 @@ class WorldAssistantMysqlTest {
     @Test void overviewReadsEverythingAndExpiresAfterSourceChange(){var f=fixture();var a=service.single(f.user(),f.world(),null,new SingleRequest(revision(f),"整合概览"),"overview");when(ai.chatWithIdempotency(any(),any(),anyString())).thenReturn(response(Map.of("kind","PROPOSALS","answer","概览候选","items",List.of(item("UPDATE","OVERVIEW",f.world(),Map.of("content","海潮统治这座城"))))));execute(f,a);
         var turn=service.turn(f.user(),f.world(),a.turnId());assertThat(turn.sources()).hasSize(8);var id=turn.proposalIds().getFirst();tx.executeWithoutResult(s->{var w=worlds.findById(f.world()).orElseThrow();w.setNotes("补充代价");worlds.saveAndFlush(w);});assertThatThrownBy(()->accept(f,id,true)).hasMessage("WORLD_OVERVIEW_STALE");
     }
+    @Test void failedEmptyResultKeepsDurableDiagnosticsAndDoesNotRetryOrMutateDraft(){var f=fixture();var a=service.single(f.user(),f.world(),null,new SingleRequest(revision(f),"整合概览"),"empty-result-test");
+        var metadata=new AiResponseMetadata(1,AiResponseMetadata.FinishReason.LENGTH,8192L,true);
+        when(ai.chatWithIdempotency(any(),any(),anyString())).thenReturn(new AiChatResponse("assistant","",new AiUsageDto(100,8192,0,0,13),20,null,"model",metadata));
+        assertThatThrownBy(()->execute(f,a)).hasMessage(WorldAssistantResultFailure.REASONING_LIMIT);
+        assertThatThrownBy(()->execute(f,a)).hasMessage(WorldAssistantResultFailure.REASONING_LIMIT);
+        verify(ai,times(1)).chatWithIdempotency(any(),any(),eq(a.operationId()+":world-assistant:plan"));
+        when(operations.get(f.user(),a.operationId())).thenReturn(new AiOperationDtos.Progress(a.operationId(),WorldAssistantService.TYPE,"WORLD_ASSISTANT_SESSION",a.sessionId(),AiOperationStatus.FAILED,"失败",1,0,1,0,false,1,null,WorldAssistantResultFailure.REASONING_LIMIT,null,null,null));
+        var turn=service.turn(f.user(),f.world(),a.turnId());assertThat(turn.failure().code()).isEqualTo(WorldAssistantResultFailure.REASONING_LIMIT);
+        assertThat(turn.failure().reasoningTokens()).isEqualTo(8192L);assertThat(turn.usage().cost()).isEqualTo(13);assertThat(turn.proposalIds()).isEmpty();
+        assertThat(store.read(store.turn(a.turnId()).planResultJson(),AiChatResponse.class).metadata()).isEqualTo(metadata);
+        assertThat(text(f)).isEqualTo("白天开放");assertThat(worlds.findById(f.world()).orElseThrow().getOverview()).isNullOrEmpty();
+    }
     @Test void refineFreezesFeatureAndKeepsOriginalCandidate(){var f=fixture();var a=service.single(f.user(),f.world(),f.entry(),new SingleRequest(revision(f),"细化退潮港"),"refine-once-test");when(ai.chatWithIdempotency(any(),any(),anyString())).thenReturn(response(Map.of("kind","PROPOSALS","answer","候选","items",List.of(item("UPDATE","ENTRY",f.entry(),Map.of("content","白天以旗号开放"))))));execute(f,a);verify(ai).chatWithIdempotency(any(),argThat(r->r.featureKey().equals("world.entry.refine")),anyString());
         clearInvocations(ai);execute(f,a);verifyNoInteractions(ai);var id=service.turn(f.user(),f.world(),a.turnId()).proposalIds().getFirst();assertThat(service.proposal(f.user(),f.world(),id).candidate().path("content").asText()).isEqualTo("白天以旗号开放");assertThat(text(f)).isEqualTo("白天开放");
     }

@@ -13,9 +13,14 @@ public record AiChatResponse(
         @Schema(description = "剩余资产", example = "1200.0")
         double remainingCredits,
         com.ainovel.app.modelconfig.AiModelSelection selection,
-        String actualModelKey
+        String actualModelKey,
+        AiResponseMetadata metadata
 ) {
+    public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits,
+                          com.ainovel.app.modelconfig.AiModelSelection selection,String actualModelKey) {
+        this(role,content,usage,remainingCredits,selection,actualModelKey,null);
+    }
     public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits) {
-        this(role,content,usage,remainingCredits,null,null);
+        this(role,content,usage,remainingCredits,null,null,null);
     }
 }

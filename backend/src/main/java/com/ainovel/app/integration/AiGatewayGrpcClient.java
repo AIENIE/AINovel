@@ -1,6 +1,7 @@
 package com.ainovel.app.integration;
 
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.ai.dto.AiModelDto;
 import fireflychat.ai.v1.AiGatewayServiceGrpc;
 import fireflychat.ai.v1.ChatCompletionsRequest;
@@ -120,7 +121,7 @@ public class AiGatewayGrpcClient {
             var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
             if(listener==null) {
                 var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
-                return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+                return chatResult(response);
             }
             return consumeStream(requestId,request,listener);
         });}catch(io.grpc.StatusRuntimeException failure) {
@@ -169,13 +170,7 @@ public class AiGatewayGrpcClient {
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
         ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .chatCompletions(request);
-        return new ChatResult(
-                response.getContent(),
-                response.getModelKey(),
-                response.getPromptTokens(),
-                response.getCompletionTokens(),
-                response.getCacheTokens()
-        );
+        return chatResult(response);
     }
 
     public ChatResult chatCompletionsStream(long remoteUserId,
@@ -212,7 +207,7 @@ public class AiGatewayGrpcClient {
     private ChatResult moneyChat(ChatCompletionsRequest request) {
         // Explicit local acceptance uses only the declared unary text budget path, even when the UI tracks progress.
         var response=moneyGateway.call(request,moneyTransport());
-        return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+        return chatResult(response);
     }
     @org.springframework.scheduling.annotation.Scheduled(fixedDelayString="${app.ai.validation.reconcile-delay-ms:30000}")
     public void reconcileValidationMoney() {
@@ -271,7 +266,9 @@ public class AiGatewayGrpcClient {
         if (completed == null) throw new IllegalStateException("ai-service stream ended without COMPLETED event");
         listener.onCompleted(completed.getCompletionTokens(), completed.getPromptTokens(), completed.getCacheTokens());
         return new ChatResult(content.toString(), completed.getModelKey(), completed.getPromptTokens(),
-                completed.getCompletionTokens(), completed.getCacheTokens());
+                completed.getCompletionTokens(), completed.getCacheTokens(), AiResponseMetadata.reported(
+                        completed.getFinishReason(), completed.hasReasoningTokens() ? completed.getReasoningTokens() : null,
+                        completed.hasUsageAuthoritative() ? completed.getUsageAuthoritative() : null));
     }
 
     private ChatCompletionsRequest buildChatRequest(String requestId,
@@ -325,7 +322,7 @@ public class AiGatewayGrpcClient {
         for(var m:messages)request.addMessages(ChatMessage.newBuilder().setRole(m.role()).setContent(m.content()));
         if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
         var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request.build());
-        return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+        return chatResult(response);
     }
 
     private EmbeddingResult embeddingTransport(String requestId, long remoteUserId, String model, List<String> input, boolean normalize) {
@@ -404,7 +401,19 @@ public class AiGatewayGrpcClient {
         endpointManager.shutdown();
     }
 
-    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens) {
+    private static ChatResult chatResult(ChatCompletionsResponse response) {
+        return new ChatResult(response.getContent(), response.getModelKey(), response.getPromptTokens(),
+                response.getCompletionTokens(), response.getCacheTokens(), AiResponseMetadata.reported(
+                        response.hasFinishReason() ? response.getFinishReason() : null,
+                        response.hasReasoningTokens() ? response.getReasoningTokens() : null,
+                        response.hasUsageAuthoritative() ? response.getUsageAuthoritative() : null));
+    }
+
+    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens,
+                             AiResponseMetadata metadata) {
+        public ChatResult(String content,String modelKey,long promptTokens,long completionTokens,long cacheTokens) {
+            this(content,modelKey,promptTokens,completionTokens,cacheTokens,null);
+        }
     }
 
     public interface StreamProgressListener {
