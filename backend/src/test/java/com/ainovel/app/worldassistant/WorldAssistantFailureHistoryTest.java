@@ -48,6 +48,19 @@ class WorldAssistantFailureHistoryTest {
         assertNull(pending.failure().completionTokens());assertNull(pending.failure().usageAuthoritative());
         verify(ai,never()).chatWithIdempotency(any(),any(),anyString());
     }
+    @Test void savedSecondStageUsesFinalReceiptAndRetainsBothStepsUsage() {
+        prepare("","WORLD_ASSISTANT_RESULT_INVALID",AiOperationStatus.FAILED);
+        var old=store.turn(turn);
+        var frozen=new WorldAssistantService.Frozen(world,session,"PROPOSE","整理提案",null,null,null,null,List.of(),null,null);
+        var plan=new AiChatResponse("assistant","{\"kind\":\"READ_BATCH\",\"reads\":[]}",new AiUsageDto(100,20,0,0,1),20);
+        doReturn(new WorldAssistantStore.Turn(turn,session,old.requestHash(),operation,store.write(frozen),old.planRequestJson(),store.write(plan),"{\"original\":true}",old.planResultJson(),"{}",null,old.createdAt())).when(store).turn(turn);
+        when(ai.storedResultMetadata(user,operation+":world-assistant:final")).thenReturn(new AiResponseMetadata(1,AiResponseMetadata.FinishReason.LENGTH,8192L,true));
+        var result=service.turn(user,world,turn);
+        assertEquals("final",result.failure().phase());assertEquals(WorldAssistantResultFailure.REASONING_LIMIT,result.failure().code());
+        assertEquals(2,result.usage().modelCalls());assertEquals(14,result.usage().cost());
+        verify(ai,never()).storedResultMetadata(user,operation+":world-assistant:plan");
+        verify(ai,never()).chatWithIdempotency(any(),any(),anyString());verify(store,never()).checkpoint(any(),any(),any());
+    }
     @Test void replayingSavedEmptyBodyDoesNotGenerateProposalsOrCallModel() {
         prepare(" \n","WORLD_ASSISTANT_RESULT_INVALID",AiOperationStatus.FAILED);
         var execution=new AiOperationExecution(operation,user,"{}",json,(a,b,c)->{});
