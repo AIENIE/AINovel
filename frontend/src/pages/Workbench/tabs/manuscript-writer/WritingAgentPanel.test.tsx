@@ -24,6 +24,32 @@ function mount(overrides: Partial<WritingAgentPanelProps> = {}) {
 beforeEach(async () => { await i18n.changeLanguage("zh-CN");vi.spyOn(api.writingAgent, "list").mockResolvedValue([run()]);vi.spyOn(api.writingAgent, "control").mockResolvedValue(run("RUNNING"));vi.spyOn(api.writingAgent, "start").mockResolvedValue({ runId: id, operationId: id });vi.spyOn(api.writingAgent, "accept").mockResolvedValue(manuscript); });
 afterEach(() => { cleanup();clients.splice(0).forEach(client => client.clear());vi.restoreAllMocks(); });
 describe("creative agent review panel", () => {
+  it("renders an identical completed status message and long author answer once", async () => {
+    const answer = "请沿用绑定版本中的灯塔通行规则。\n\n让人物通过动作逐步意识到航行代价。".repeat(30);
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run(), intent: "AUTHOR_QA", progress: { message: answer, answer }, candidates: [], steps: [] }]);
+    mount();
+    expect(await screen.findAllByText(answer, { normalizer: value => value })).toHaveLength(1);
+    expect(api.writingAgent.start).not.toHaveBeenCalled();expect(api.writingAgent.control).not.toHaveBeenCalled();expect(api.writingAgent.accept).not.toHaveBeenCalled();
+  });
+  it("preserves a distinct status message and the full author answer", async () => {
+    const progress = { message: "已核对本次获准读取的资料。", answer: "第一段是通行规则。\n\n第二段是创作建议。" };
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run(), intent: "AUTHOR_QA", progress, candidates: [], steps: [] }]);mount();
+    expect(await screen.findAllByText(progress.message, { normalizer: value => value })).toHaveLength(1);
+    expect(screen.getAllByText(progress.answer, { normalizer: value => value })).toHaveLength(1);
+  });
+  it.each([
+    { message: "", answer: "只有最终回答时仍应完整显示。" },
+    { message: "只有执行消息时仍应完整显示。", answer: "" },
+  ])("keeps the nonempty progress text when the other field is empty: $message $answer", async progress => {
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run(), intent: "AUTHOR_QA", progress, candidates: [], steps: [] }]);mount();
+    expect(await screen.findAllByText(progress.message || progress.answer)).toHaveLength(1);
+  });
+  it("only deduplicates exact strings and preserves whitespace-distinct text", async () => {
+    const progress = { message: "完整回答", answer: "完整回答\n" };
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run(), intent: "AUTHOR_QA", progress, candidates: [], steps: [] }]);mount();
+    expect(await screen.findAllByText(progress.message, { normalizer: value => value })).toHaveLength(1);
+    expect(screen.getAllByText(progress.answer, { normalizer: value => value })).toHaveLength(1);
+  });
   it("restores full comparison and actual sources without computing a character diff until requested", async () => {
     const diff = vi.spyOn(assistantEditor, "assistantTextDiff");mount();
     const review = await screen.findByRole("region", { name: "当前候选" });

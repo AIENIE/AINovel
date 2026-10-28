@@ -65,6 +65,7 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
   const [answer, setAnswer] = useState("");
   useEffect(() => { setCandidateId("");setAnswer(""); }, [run?.id]);
   const candidate = run?.candidates.find(item => item.id === candidateId) || run?.candidates.at(-1);
+  const progressMessage = text(run?.progress.message), progressAnswer = text(run?.progress.answer);
   const modelSteps = run?.steps.filter(step => step.kind === "MODEL") || [];
   const savedModelResults = modelSteps.filter(step => ["COMPLETED", "SUCCEEDED"].includes(step.status) && step.result != null).length;
   const active = !!agent.history.data?.some(item => agentActive(item.status));
@@ -106,7 +107,7 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
         </section>
         <section className="min-w-0 space-y-3 border-t pt-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{t("agent.history")}</h3><Button variant="ghost" size="sm" disabled={agent.history.isFetching} onClick={() => void agent.refresh()}>{t("agent.refresh")}</Button></div>
           {agent.history.data?.length ? <select aria-label={t("agent.history")} className="block w-full min-w-0 rounded border bg-background p-2 text-sm" value={run?.id || ""} onChange={e => agent.setSelectedRunId(e.target.value)}>{agent.history.data.map(item => <option value={item.id} key={item.id}>{new Date(item.createdAt).toLocaleString()} · {status(displayedRunStatus(item))} · {item.id.slice(0, 8)}</option>)}</select> : <p className="text-sm text-muted-foreground">{t("agent.empty")}</p>}
-          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{status(displayedRunStatus(run))}</p>{!!text(run.progress.message) && <p className="whitespace-pre-wrap">{message(text(run.progress.message))}</p>}{!!text(run.progress.answer) && <p className="whitespace-pre-wrap">{message(text(run.progress.answer))}</p>}
+          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{status(displayedRunStatus(run))}</p>{!!progressMessage && <p className="whitespace-pre-wrap">{message(progressMessage)}</p>}{!!progressAnswer && progressAnswer !== progressMessage && <p className="whitespace-pre-wrap">{message(progressAnswer)}</p>}
             <p className="text-xs text-muted-foreground">{t("agent.frozenWorld")}：{run.worldBinding ? `${run.worldBinding.name} · v${run.worldBinding.sequenceNumber} · ${t(`world4.${run.worldBinding.sourceType}`)}` : t("agent.noWorld")}</p>
             <p>{t("agent.cost", { settled: money(run.settledCny), reserved: money(run.reservedCny), credits: run.projectCredits })}</p><p className="text-xs text-muted-foreground">{t("agent.limit", { cny: run.maxCostCny, credits: run.maxProjectCredits })}</p>
             <p className="text-xs text-muted-foreground">{t("agent.usedSteps", { steps: modelSteps.length, results: savedModelResults, candidates: run.candidates.length })}</p>
