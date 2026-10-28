@@ -109,13 +109,22 @@ public class AiGatewayGrpcClient {
                     :com.ainovel.app.modelconfig.AiModelConfigurationService.Thinking.unknown();
             return new com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel(
                     Long.toString(m.getId()),m.getModelKey(),m.getDisplayName(),m.getProvider(),true,
-                    m.getSupportsStreaming(),m.getSupportsImageInput(),thinking,null);
+                    m.getSupportsStreaming(),m.getSupportsImageInput(),thinking,null,
+                    m.hasChatCapabilities()?com.ainovel.app.modelconfig.AiModelConfigurationService.ChatCapabilities.from(m.getChatCapabilities()):com.ainovel.app.modelconfig.AiModelConfigurationService.ChatCapabilities.unknown());
         }).toList();
     }
 
     public ChatResult complete(String requestId,long remoteUserId,
             com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
             StreamProgressListener listener) {
+        var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
+        if(owner!=null) {
+            var snapshot=com.ainovel.app.modelconfig.AiSelectionContext.current();
+            if(snapshot==null)throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_CONFIGURATION_REQUIRED");
+            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected).toBuilder()
+                    .setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
+            return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
+        }
         if(monetaryValidation()) return moneyChat(selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected));
         try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
             var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
@@ -130,6 +139,20 @@ public class AiGatewayGrpcClient {
                 throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_THINKING_UNSUPPORTED");
             throw failure;
         }
+    }
+
+    /** Native tool turns retain the complete wire envelope and use an explicitly bounded unary call. */
+    public ChatResult complete(String requestId,long remoteUserId,
+            com.ainovel.app.modelconfig.AiModelSelection selected,AiChatRequest input,StreamProgressListener listener) {
+        if(!input.nativeTools())return complete(requestId,remoteUserId,selected,input.messages(),listener);
+        var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),input),selected);
+        var capabilities=chatCapabilities(selected.modelKey());
+        if(!capabilities.getBudgetToolsDeclared() || !capabilities.getBudgetToolsAvailable())
+            throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE");
+        var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
+        if(owner!=null)return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
+        if(!monetaryValidation())throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_BUDGET_REQUIRED");
+        return moneyChat(request);
     }
 
     static ChatCompletionsRequest withThinking(ChatCompletionsRequest original,
@@ -190,7 +213,7 @@ public class AiGatewayGrpcClient {
     }
 
     private boolean monetaryValidation() { return validationBudget!=null && validationBudget.monetaryEnabled(); }
-    private com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
+    public com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
         return new com.ainovel.app.ai.AiValidationMoneyGateway.Transport() {
             public fireflychat.ai.v1.ModelChatCapabilities capabilities(String model) { return chatCapabilities(model); }
             public fireflychat.ai.v1.PrepareCallBudgetResponse prepare(fireflychat.ai.v1.PrepareCallBudgetRequest request) {
@@ -294,6 +317,22 @@ public class AiGatewayGrpcClient {
                         .setContent(m.content().trim())
                         .build());
             }
+        }
+        return builder.build();
+    }
+
+    private ChatCompletionsRequest buildChatRequest(String requestId,long remoteUserId,String model,AiChatRequest input) {
+        if(!input.nativeTools())return buildChatRequest(requestId,remoteUserId,model,input.messages());
+        var builder=ChatCompletionsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
+                .setUserId(remoteUserId).setSessionId("").setModel(model).setToolsJson(input.toolsJson());
+        if(input.maxOutputTokens()!=null)builder.setMaxOutputTokens(input.maxOutputTokens());
+        for(var message:input.messages()) {
+            var wire=ChatMessage.newBuilder().setRole(message.role()).setContent(message.content()==null?"":message.content());
+            if(message.toolCallId()!=null)wire.setToolCallId(message.toolCallId());
+            if(message.toolCallsJson()!=null)wire.setToolCallsJson(message.toolCallsJson());
+            if(message.reasoningContent()!=null)wire.setReasoningContent(message.reasoningContent());
+            if(message.providerState()!=null)wire.setProviderState(message.providerState());
+            builder.addMessages(wire);
         }
         return builder.build();
     }
@@ -406,11 +445,15 @@ public class AiGatewayGrpcClient {
                 response.getCompletionTokens(), response.getCacheTokens(), AiResponseMetadata.reported(
                         response.hasFinishReason() ? response.getFinishReason() : null,
                         response.hasReasoningTokens() ? response.getReasoningTokens() : null,
-                        response.hasUsageAuthoritative() ? response.getUsageAuthoritative() : null));
+                        response.hasUsageAuthoritative() ? response.getUsageAuthoritative() : null),
+                response.hasNativeResponseJson()?response.getNativeResponseJson():null);
     }
 
     public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens,
-                             AiResponseMetadata metadata) {
+                             AiResponseMetadata metadata,String nativeResponseJson) {
+        public ChatResult(String content,String modelKey,long promptTokens,long completionTokens,long cacheTokens,AiResponseMetadata metadata) {
+            this(content,modelKey,promptTokens,completionTokens,cacheTokens,metadata,null);
+        }
         public ChatResult(String content,String modelKey,long promptTokens,long completionTokens,long cacheTokens) {
             this(content,modelKey,promptTokens,completionTokens,cacheTokens,null);
         }

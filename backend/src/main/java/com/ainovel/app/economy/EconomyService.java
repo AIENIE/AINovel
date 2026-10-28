@@ -100,7 +100,10 @@ public class EconomyService {
     }
 
     public record AiReservationStart(boolean replay, String content, long promptTokens,
-                                     long completionTokens, long cacheTokens, long charged, AiResponseMetadata metadata) {
+                                     long completionTokens, long cacheTokens, long charged, AiResponseMetadata metadata,String nativeResponseJson) {
+        public AiReservationStart(boolean replay,String content,long promptTokens,long completionTokens,long cacheTokens,long charged,AiResponseMetadata metadata) {
+            this(replay,content,promptTokens,completionTokens,cacheTokens,charged,metadata,null);
+        }
         public AiReservationStart(boolean replay,String content,long promptTokens,long completionTokens,long cacheTokens,long charged) {
             this(replay,content,promptTokens,completionTokens,cacheTokens,charged,null);
         }
@@ -237,13 +240,13 @@ public class EconomyService {
             }
             if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount(), readResultMetadata(reservation));
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount(), readResultMetadata(reservation),reservation.getResultNativeResponseJson());
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) {
                 AiChargeResult charge = settleAiUsage(user, idempotencyKey, reservation.getResultContent(),
                         reservation.getPromptTokens(), reservation.getCompletionTokens(), reservation.getCacheTokens());
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged(), readResultMetadata(reservation));
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged(), readResultMetadata(reservation),reservation.getResultNativeResponseJson());
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
                 if (reservation.getLeaseExpiresAt() == null || reservation.getLeaseExpiresAt().isAfter(Instant.now()))
@@ -285,6 +288,7 @@ public class EconomyService {
         reservation.setLeaseExpiresAt(Instant.now().plusSeconds(600));
         reservation.setResultContent(null);
         reservation.setResultMetadataJson(null);
+        reservation.setResultNativeResponseJson(null);
         aiReservationRepository.save(reservation);
         if(reservationCost>0) writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
                 referenceType, referenceId, selection==null?"AI 调用额度预留":"AI "+selection.featureKey()+" · "+selection.label().substring(0,selection.label().offsetByCodePoints(0,Math.min(80,selection.label().codePointCount(0,selection.label().length()))))+" · "+selection.modelKey(),
@@ -319,14 +323,21 @@ public class EconomyService {
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void recordAiResult(User user,String idempotencyKey,String content,
                                long inputTokens,long outputTokens,long cacheTokens,String actualModelKey,AiResponseMetadata metadata) {
+        recordAiResult(user,idempotencyKey,content,inputTokens,outputTokens,cacheTokens,actualModelKey,metadata,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user,String idempotencyKey,String content,
+                               long inputTokens,long outputTokens,long cacheTokens,String actualModelKey,AiResponseMetadata metadata,String nativeResponseJson) {
         User locked = lockUser(user);
         AiCreditReservation reservation = aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).orElseThrow();
         if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED || reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) return;
         if (reservation.getStatus() != AiCreditReservation.Status.RESERVED
-                && !("EVIDENCE_TASK".equals(reservation.getReferenceType())
+                && !(("EVIDENCE_TASK".equals(reservation.getReferenceType()) || "WRITING_AGENT".equals(reservation.getReferenceType()))
                 && reservation.getStatus() == AiCreditReservation.Status.RECONCILIATION_REQUIRED))
             throw new IllegalStateException("AI reservation lost");
         reservation.setResultContent(content);
+        reservation.setResultNativeResponseJson(nativeResponseJson);
         try { reservation.setResultMetadataJson(metadata == null ? null : modelSelectionJson.writeValueAsString(metadata)); }
         catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException(ex); }
         reservation.setPromptTokens(inputTokens);

@@ -26,6 +26,7 @@ public class AiController {
     @PostMapping("/version-summary")
     public AiChatResponse summarizeVersions(@AuthenticationPrincipal UserDetails principal,
             @RequestHeader("Idempotency-Key") String key,@RequestBody AiChatRequest request) {
+        ordinaryRequest(request);
         return aiService.chatWithIdempotency(currentUserResolver.require(principal),request.forFeature("versions.summary"),key);
     }
     public record OutlineRefineInput(String text,String instruction,String kind) {}
@@ -64,6 +65,7 @@ public class AiController {
     public ResponseEntity<AiChatResponse> chat(@AuthenticationPrincipal UserDetails principal,
                                                @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                @Valid @RequestBody AiChatRequest request) {
+        ordinaryRequest(request);
         return ResponseEntity.ok(aiService.chatWithIdempotency(
                 currentUserResolver.require(principal), request.forFeature("generic.chat"), idempotencyKey));
     }
@@ -83,5 +85,9 @@ public class AiController {
                                                    @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                    @Valid @RequestBody AiRefineRequest request) {
         return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request.forFeature("generic.refine"), idempotencyKey));
+    }
+    private static void ordinaryRequest(AiChatRequest request) {
+        if(request!=null && (request.hasNativeFields() || request.maxOutputTokens()!=null))
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_NATIVE_INTERNAL_ONLY");
     }
 }

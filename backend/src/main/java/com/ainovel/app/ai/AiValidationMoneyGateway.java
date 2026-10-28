@@ -24,6 +24,14 @@ public class AiValidationMoneyGateway {
         this.ledger=ledger; this.outputTokens=outputTokens; this.modelKey=modelKey;
     }
     public ChatCompletionsResponse call(ChatCompletionsRequest original,Transport transport) {
+        return call(original,null,transport);
+    }
+    /** A run and the acceptance ledger share one exact grant; preparation is never repeated here. */
+    public ChatCompletionsResponse callPrepared(ChatCompletionsRequest original,PrepareCallBudgetResponse grant,Transport transport) {
+        if(grant==null)throw notSent("AI_VALIDATION_QUOTE_INVALID");
+        return call(original,grant,transport);
+    }
+    private ChatCompletionsResponse call(ChatCompletionsRequest original,PrepareCallBudgetResponse prepared,Transport transport) {
         var request=original.hasMaxOutputTokens()?original:original.toBuilder().setMaxOutputTokens(outputTokens).build();
         AiValidationCallBudget.Claim claim;
         boolean reservedOrPrior=false;
@@ -31,16 +39,19 @@ public class AiValidationMoneyGateway {
             var prior=ledger.existingMoney(request.getRequestId());
             if(prior.isPresent()) { reservedOrPrior=true; ledger.requireSameRequest(prior.get(),request); return recover(prior.get(),transport); }
             if(modelKey.isBlank() || !modelKey.equals(request.getModel()) || !request.getImg().isBlank()
-                    || request.hasReasoningPrefix() || request.hasToolsJson() || request.hasBudgetCredential()
-                    || request.getMessagesList().stream().anyMatch(m->m.hasToolCallsJson() || m.hasToolCallId() || m.hasReasoningContent())
+                    || request.hasReasoningPrefix() || request.hasBudgetCredential()
+                    || !request.hasToolsJson() && request.getMessagesList().stream().anyMatch(m->m.hasToolCallsJson() || m.hasToolCallId() || m.hasReasoningContent() || m.hasProviderState())
                     || request.getMaxOutputTokens()<1) throw notSent("AI_VALIDATION_UNARY_TEXT_ONLY");
             var caps=transport.capabilities(request.getModel());
+            if(request.hasToolsJson() && (!caps.getBudgetToolsDeclared() || !caps.getBudgetToolsAvailable()))
+                throw notSent("AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE");
             if(!caps.getBudgetDeclared() || !caps.getBudgetAvailable() || caps.getMaxPromptTokens()<1 || caps.getMaxOutputTokens()<request.getMaxOutputTokens())
                 throw notSent("AI_VALIDATION_CAPABILITY_UNAVAILABLE");
-            var grant=transport.prepare(PrepareCallBudgetRequest.newBuilder().setChat(request).setMaxOutputTokens(request.getMaxOutputTokens())
-                    .setMaxProviderAttempts(1).setBillingCurrency("CNY").build());
+            var grant=prepared==null?transport.prepare(PrepareCallBudgetRequest.newBuilder().setChat(request).setMaxOutputTokens(request.getMaxOutputTokens())
+                    .setMaxProviderAttempts(1).setBillingCurrency("CNY").build()):prepared;
             if(grant.getExpiresAtEpochMs()<=System.currentTimeMillis() || grant.getMaxPromptTokens()<1
-                    || grant.getMaxCompletionTokens()!=request.getMaxOutputTokens()) throw notSent("AI_VALIDATION_QUOTE_INVALID");
+                    || grant.getMaxCompletionTokens()!=request.getMaxOutputTokens()
+                    || !grant.getRequestSha256().equals(AiValidationCallBudget.hash(request))) throw notSent("AI_VALIDATION_QUOTE_INVALID");
             claim=ledger.reserveMoney(request,grant);
             reservedOrPrior=true;
             if(!claim.fresh()) return recover(claim.call(),transport);

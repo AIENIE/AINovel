@@ -54,6 +54,9 @@ message ModelChatCapabilities {
   int64 max_output_tokens = 5;
   string budget_unavailable_reason = 6;
   bool tools_declared = 7;
+  bool budget_tools_declared = 8;
+  bool budget_tools_available = 9;
+  string budget_tools_unavailable_reason = 10;
 }
 
 message ThinkingOption {

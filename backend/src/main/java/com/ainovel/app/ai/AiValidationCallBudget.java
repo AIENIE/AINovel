@@ -27,6 +27,10 @@ public class AiValidationCallBudget {
     @Value("${app.ai.validation.provider-attempts-per-rpc:0}") private int providerAttemptsPerRpc;
     @Value("${app.ai.validation.monetary-enabled:false}") private boolean monetaryEnabled;
     @Value("${app.ai.validation.maximum-cost-cny:0}") private BigDecimal maximumCostCny=BigDecimal.ZERO;
+    @Value("${app.ai.validation.phase-start-calls:}") private String phaseStartCalls="";
+    @Value("${app.ai.validation.phase-max-calls:}") private String phaseMaxCalls="";
+    @Value("${app.ai.validation.phase-start-cost-cny:}") private String phaseStartCostCny="";
+    @Value("${app.ai.validation.phase-max-cost-cny:}") private String phaseMaxCostCny="";
     public boolean monetaryEnabled() { return monetaryEnabled; }
     public boolean localQualityOnly() {
         return localQualityOnly && !runId.isBlank() && Arrays.asList(environment.getActiveProfiles()).contains("local");
@@ -95,6 +99,7 @@ public class AiValidationCallBudget {
                 || grant.getBudgetId().isBlank() || grant.getBudgetCredential().isBlank() || !hash(request).equals(grant.getRequestSha256()))
             throw denied("AI_VALIDATION_PRICE_UNAVAILABLE");
         var quote=grant.getPriceQuote(); BigDecimal ceiling=money(quote.getMaxCost());
+        requirePhaseBudget(budget,ceiling);
         if(maximumCalls<1 || maximumCalls>200 || budget.getCallLimit()<1 || budget.getCallLimit()>maximumCalls
                 || budget.getUsed()>=budget.getCallLimit() || budget.getProviderAttemptLimit()==null
                 || budget.getProviderAttemptLimit()>maximumCalls || budget.getReservedProviderAttempts()>=budget.getProviderAttemptLimit()
@@ -110,6 +115,18 @@ public class AiValidationCallBudget {
         call.setRequestJson(write(new MoneyRequest(Base64.getEncoder().encodeToString(request.toByteArray()),
                 Base64.getEncoder().encodeToString(grant.toBuilder().clearBudgetCredential().build().toByteArray()))));
         return new Claim(calls.saveAndFlush(call),true);
+    }
+    private void requirePhaseBudget(AiValidationBudget budget,BigDecimal ceiling) {
+        if(phaseStartCalls.isBlank()&&phaseMaxCalls.isBlank()&&phaseStartCostCny.isBlank()&&phaseMaxCostCny.isBlank())return;
+        final int start,limit;final BigDecimal startCost,maxCost;
+        try {
+            start=Integer.parseInt(phaseStartCalls);limit=Integer.parseInt(phaseMaxCalls);
+            startCost=money(phaseStartCostCny);maxCost=money(phaseMaxCostCny);
+            if(start<0||limit<1||limit>200||maxCost.signum()<=0||budget.getUsed()<start||budget.getSettledCost().compareTo(startCost)<0)
+                throw new IllegalArgumentException();
+        }catch(RuntimeException invalid){throw denied("AI_VALIDATION_PHASE_BASELINE_INVALID");}
+        if((long)budget.getUsed()-start>=limit||budget.getSettledCost().subtract(startCost).add(budget.getReservedCost()).add(ceiling).compareTo(maxCost)>0)
+            throw new ApiStatusException(HttpStatus.TOO_MANY_REQUESTS,"AI_VALIDATION_PHASE_BUDGET_EXHAUSTED");
     }
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public void settleMoney(UUID id,ChatCompletionsResponse result) {

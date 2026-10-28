@@ -1,6 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ainovel.app.common.JsonColumnCodec;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,24 @@ final class V2Json {
             return new ArrayList<>();
         }
         return codec.readRequired(json, LIST_TYPE);
+    }
+
+    /** The legacy model API exposes its original list, not gateway-only catalog metadata. */
+    List<Object> modelCapabilities(String json) {
+        if (json == null || json.isBlank()) {
+            return new ArrayList<>();
+        }
+        JsonNode root = codec.readRequired(json, new TypeReference<JsonNode>() { });
+        if (root.isObject() && root.has("gatewayChat")) {
+            JsonNode legacy = root.get("legacyCapabilitiesJson");
+            if (legacy == null || legacy.isNull()) {
+                return new ArrayList<>();
+            }
+            if (legacy.isTextual()) {
+                return list(legacy.textValue());
+            }
+        }
+        return list(json);
     }
 
     Map<String, Object> map(String json) {

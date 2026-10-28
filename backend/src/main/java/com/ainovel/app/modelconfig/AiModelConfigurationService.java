@@ -27,8 +27,22 @@ public class AiModelConfigurationService {
     }
     public record ThinkingOption(String effort,String label) {}
     public record Specialized(String capability,String model,String source) {}
+    public record ChatCapabilities(boolean budgetDeclared,boolean budgetAvailable,boolean toolsDeclared,boolean supportsTools,
+            long maxPromptTokens,long maxOutputTokens,String budgetUnavailableReason,
+            boolean budgetToolsDeclared,boolean budgetToolsAvailable,String budgetToolsUnavailableReason) {
+        public static ChatCapabilities unknown() {return new ChatCapabilities(false,false,false,false,0,0,null,false,false,null);}
+        public static ChatCapabilities from(fireflychat.ai.v1.ModelChatCapabilities caps) {
+            return new ChatCapabilities(caps.getBudgetDeclared(),caps.getBudgetAvailable(),caps.getToolsDeclared(),caps.getSupportsTools(),
+                    caps.getMaxPromptTokens(),caps.getMaxOutputTokens(),caps.getBudgetUnavailableReason(),caps.getBudgetToolsDeclared(),caps.getBudgetToolsAvailable(),caps.getBudgetToolsUnavailableReason());
+        }
+    }
     public record CatalogModel(String id,String modelKey,String displayName,String provider,boolean available,
-            boolean supportsStreaming,boolean supportsImageInput,Thinking thinking,Instant syncedAt) {}
+            boolean supportsStreaming,boolean supportsImageInput,Thinking thinking,Instant syncedAt,ChatCapabilities chatCapabilities) {
+        public CatalogModel(String id,String modelKey,String displayName,String provider,boolean available,
+                boolean supportsStreaming,boolean supportsImageInput,Thinking thinking,Instant syncedAt) {
+            this(id,modelKey,displayName,provider,available,supportsStreaming,supportsImageInput,thinking,syncedAt,ChatCapabilities.unknown());
+        }
+    }
     public record OptionInput(String id,String modelKey,String label,String thinkingMode,String thinkingEffort,
             String pricingMode,Long fixedCredits,BigDecimal inputPer1k,BigDecimal outputPer1k) {}
     public record FeatureUpdate(long revision,boolean billingEnabled,String defaultOptionId,List<OptionInput> options) {}
@@ -53,7 +67,7 @@ public class AiModelConfigurationService {
                 m.setSupportsStreaming(true);m.setAvailable(jdbc.queryForObject("select count(*) from ai_model_catalog_state where id=1 and last_success_at is not null",Integer.class)==0);return models.saveAndFlush(m);
             });
             for(var feature:AiFeatures.all()) {
-                if(feature.key().startsWith("world.entry.")||feature.key().startsWith("world_assistant.")||feature.key().equals("world.overview.integrate"))continue;
+                if(feature.key().startsWith("world.entry.")||feature.key().startsWith("world_assistant.")||feature.key().equals("world.overview.integrate")||feature.key().startsWith("writing_agent."))continue;
                 if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,feature.key())>0) continue;
                 String id=UUID.randomUUID().toString();
                 jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,true,0,?)",
@@ -98,6 +112,16 @@ public class AiModelConfigurationService {
                 m.setDisplayName(entry.displayName());m.setProvider(entry.provider());m.setAvailable(true);
                 m.setGatewayModelId(Long.valueOf(entry.id()));m.setSupportsStreaming(entry.supportsStreaming());
                 m.setSupportsImageInput(entry.supportsImageInput());m.setThinkingJson(write(entry.thinking()));m.setLastSyncedAt(now);
+                var capabilities=json.createObjectNode();
+                if(m.getCapabilitiesJson()!=null) {
+                    try {
+                        var old=json.readTree(m.getCapabilitiesJson());
+                        if(old.isObject())capabilities.setAll((com.fasterxml.jackson.databind.node.ObjectNode)old);
+                        else capabilities.put("legacyCapabilitiesJson",m.getCapabilitiesJson());
+                    }catch(com.fasterxml.jackson.core.JsonProcessingException invalid){capabilities.put("legacyCapabilitiesJson",m.getCapabilitiesJson());}
+                }
+                capabilities.set("gatewayChat",json.valueToTree(entry.chatCapabilities()==null?ChatCapabilities.unknown():entry.chatCapabilities()));
+                m.setCapabilitiesJson(write(capabilities));
             }
             models.saveAllAndFlush(all);
             jdbc.update("update ai_model_catalog_state set revision=revision+1,last_attempt_at=?,last_success_at=?,last_error=null where id=1",Timestamp.from(now),Timestamp.from(now));
@@ -207,8 +231,16 @@ public class AiModelConfigurationService {
                 new com.ainovel.app.ai.dto.AiModelDto(m.getModelKey(),m.getModelKey(),m.getDisplayName(),"text",0,0,m.getProvider(),true,m.getSupportsImageInput(),m.isSupportsStreaming())).toList();
     }
     public boolean available(String model) {return models.findByModelKey(model).map(V2ModelRegistry::isAvailable).orElse(false);}
+    public ChatCapabilities nativeCapabilities(String model) {
+        return models.findByModelKey(model).filter(V2ModelRegistry::isAvailable).map(m->catalogModel(m).chatCapabilities()).orElse(ChatCapabilities.unknown());
+    }
     public CatalogModel catalogModel(V2ModelRegistry m) {
-        return new CatalogModel(m.getGatewayModelId()==null?null:m.getGatewayModelId().toString(),m.getModelKey(),m.getDisplayName(),m.getProvider(),m.isAvailable(),m.isSupportsStreaming(),m.getSupportsImageInput(),m.getThinkingJson()==null?Thinking.unknown():read(m.getThinkingJson(),Thinking.class),m.getLastSyncedAt());
+        ChatCapabilities chat=ChatCapabilities.unknown();
+        if(m.getCapabilitiesJson()!=null)try {
+            var node=json.readTree(m.getCapabilitiesJson()).get("gatewayChat");
+            if(node!=null && node.isObject())chat=json.treeToValue(node,ChatCapabilities.class);
+        }catch(com.fasterxml.jackson.core.JsonProcessingException ignored){/* Legacy or absent declarations remain unknown. */}
+        return new CatalogModel(m.getGatewayModelId()==null?null:m.getGatewayModelId().toString(),m.getModelKey(),m.getDisplayName(),m.getProvider(),m.isAvailable(),m.isSupportsStreaming(),m.getSupportsImageInput(),m.getThinkingJson()==null?Thinking.unknown():read(m.getThinkingJson(),Thinking.class),m.getLastSyncedAt(),chat);
     }
     private void insertOption(AiModelSelection option,UUID modelId,int index) {jdbc.update("insert into ai_model_options(id,task_type,model_id,settings_json,active,position_index) values(?,?,?,?,true,?)",option.optionId(),option.featureKey(),bytes(modelId),write(option),index);}
     public static void validateThinking(Thinking thinking,String mode,String effort) {

@@ -26,6 +26,7 @@ class AiValidationMoneyBudgetTest {
     @Autowired AiValidationCallRepository calls;
     static final String MODEL="gemini-3.8-flash-high", PRICE="a".repeat(64);
     @BeforeEach void seed() {
+        for(String field:List.of("phaseStartCalls","phaseMaxCalls","phaseStartCostCny","phaseMaxCostCny"))org.springframework.test.util.ReflectionTestUtils.setField(ledger,field,"");
         calls.deleteAll(); budgets.deleteAll(); var b=new AiValidationBudget();b.setId("money-test");b.setCallLimit(24);b.setProviderAttemptLimit(24);
         b.setCurrency("CNY");b.setCostLimit(new BigDecimal("30"));budgets.saveAndFlush(b);
     }
@@ -39,9 +40,9 @@ class AiValidationMoneyBudgetTest {
             .setUsageAuthoritative(true).setPromptTokens(100).setCompletionTokens(40)
             .setBudgetCharge(BudgetCharge.newBuilder().setCurrency("CNY").setPriceVersionId(7).setPriceSha256(PRICE).setTotalCost("0.200000").setCreditPoints(20)).build(); }
     class Wire implements AiValidationMoneyGateway.Transport {
-        int prepares,sends,queries,capReads; boolean priceAvailable=true,capable=true,timeout,notSent,settled; ChatCompletionsRequest frozen;
+        int prepares,sends,queries,capReads; boolean priceAvailable=true,capable=true,combinedTools,timeout,notSent,settled; ChatCompletionsRequest frozen;
         ChatCompletionsResponse output=response("候选");
-        public ModelChatCapabilities capabilities(String model) { capReads++;return ModelChatCapabilities.newBuilder().setBudgetDeclared(capable).setBudgetAvailable(capable).setMaxPromptTokens(24000).setMaxOutputTokens(8192).build(); }
+        public ModelChatCapabilities capabilities(String model) { capReads++;return ModelChatCapabilities.newBuilder().setBudgetDeclared(capable).setBudgetAvailable(capable).setToolsDeclared(true).setSupportsTools(true).setBudgetToolsDeclared(combinedTools).setBudgetToolsAvailable(combinedTools).setMaxPromptTokens(24000).setMaxOutputTokens(8192).build(); }
         public PrepareCallBudgetResponse prepare(PrepareCallBudgetRequest r) {
             prepares++; assertEquals("CNY",r.getBillingCurrency()); assertEquals(1,r.getMaxProviderAttempts());frozen=r.getChat();
             var g=grant(frozen,"5.000000");return priceAvailable?g:g.toBuilder().clearPriceQuote().build();
@@ -119,5 +120,56 @@ class AiValidationMoneyBudgetTest {
         assertThrows(AiResultUncertainException.class,()->gateway().call(request("no-usage"),wire));amount("0","5");
         wire.output=response("候选").toBuilder().setBudgetCharge(response("").getBudgetCharge().toBuilder().setPriceVersionId(8)).build();wire.settled=true;
         assertThrows(AiResultUncertainException.class,()->gateway().call(request("no-usage"),wire));amount("0","5");assertEquals(1,wire.sends);
+    }
+    @Test void nativeToolsRequireExplicitCombinedRouteAndKeepOriginalEnvelopeOnReplay() {
+        var request=request("native").toBuilder().setToolsJson(AiNativeProtocolTest.TOOLS).build();
+        var wire=new Wire();
+        assertEquals("AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE",assertThrows(AiRequestNotSentException.class,()->gateway().call(request,wire)).getMessage());
+        assertEquals(0,wire.prepares);assertEquals(0,wire.sends);assertEquals(0,budget().getUsed());
+        wire.combinedTools=true;
+        String envelope="{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":"+AiNativeProtocolTest.CALLS+",\"provider_state\":\"private-opaque-state\"},\"finish_reason\":\"tool_calls\"}";
+        wire.output=response("").toBuilder().setNativeResponseJson(envelope).setFinishReason("tool_calls").setReasoningTokens(5).build();
+        var first=gateway().call(request,wire);assertEquals(envelope,first.getNativeResponseJson());
+        wire.combinedTools=false;wire.output=response("different");
+        var replay=gateway().call(request,wire);assertEquals(first,replay);assertEquals(1,wire.sends);assertEquals(1,wire.prepares);
+        amount("0.2","0");assertEquals(1,budget().getUsed());
+    }
+    @Test void runPreparedGrantIsUsedByBothLedgersWithoutASecondPrepareOrChangedRequest() {
+        var request=request("shared-grant").toBuilder().setToolsJson(AiNativeProtocolTest.TOOLS).build();
+        var wire=new Wire();wire.combinedTools=true;wire.frozen=request;
+        var prepared=grant(request,"5");
+        var response=gateway().callPrepared(request,prepared,wire);
+        assertEquals(0,wire.prepares);assertEquals(1,wire.sends);
+        var stored=calls.findAll().getFirst();assertEquals(prepared.getBudgetId(),stored.getBudgetId());
+        assertEquals(request,ledger.request(stored));assertEquals(prepared.toBuilder().clearBudgetCredential().build(),ledger.grant(stored));
+        assertEquals(response,gateway().callPrepared(request,prepared,wire));assertEquals(1,wire.sends);
+        var different=request("different");
+        assertEquals("AI_VALIDATION_QUOTE_INVALID",assertThrows(AiRequestNotSentException.class,()->gateway().callPrepared(different,prepared,wire)).getMessage());
+        assertEquals(1,wire.sends);assertEquals(1,budget().getUsed());
+    }
+    @Test void phaseCallAndMoneyCapsAreSharedAcrossRequestsAndDoNotRewriteTheMainLedger() {
+        phase("0","2","0","5");
+        var first=ledger.reserveMoney(request("phase-1"),grant(request("phase-1"),"2"));
+        ledger.reserveMoney(request("phase-2"),grant(request("phase-2"),"2"));
+        assertEquals("AI_VALIDATION_PHASE_BUDGET_EXHAUSTED",assertThrows(com.ainovel.app.common.ApiStatusException.class,()->ledger.reserveMoney(request("phase-3"),grant(request("phase-3"),"0.1"))).getMessage());
+        assertFalse(ledger.reserveMoney(request("phase-1"),grant(request("phase-1"),"2")).fresh());
+        assertEquals(24,budget().getCallLimit());assertEquals(new BigDecimal("30.000000"),budget().getCostLimit());amount("0","4");
+        phase("0","24","0","5");
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->ledger.reserveMoney(request("phase-cost"),grant(request("phase-cost"),"2")));
+        ledger.settleMoney(first.call().getId(),response("saved"));
+        assertTrue(ledger.reserveMoney(request("phase-cost"),grant(request("phase-cost"),"2")).fresh());amount("0.2","4");
+    }
+    @Test void incompleteOrStalePhaseBaselineStopsBeforeCountingAnAttempt() {
+        phase("0","24","","5");
+        assertEquals("AI_VALIDATION_PHASE_BASELINE_INVALID",assertThrows(com.ainovel.app.common.ApiStatusException.class,()->ledger.reserveMoney(request("phase-invalid"),grant(request("phase-invalid"),"1"))).getMessage());
+        phase("38","24","1.187911","5");
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->ledger.reserveMoney(request("wrong-baseline"),grant(request("wrong-baseline"),"1")));
+        assertEquals(0,budget().getUsed());amount("0","0");
+    }
+    void phase(String start,String calls,String cost,String maximum){
+        org.springframework.test.util.ReflectionTestUtils.setField(ledger,"phaseStartCalls",start);
+        org.springframework.test.util.ReflectionTestUtils.setField(ledger,"phaseMaxCalls",calls);
+        org.springframework.test.util.ReflectionTestUtils.setField(ledger,"phaseStartCostCny",cost);
+        org.springframework.test.util.ReflectionTestUtils.setField(ledger,"phaseMaxCostCny",maximum);
     }
 }

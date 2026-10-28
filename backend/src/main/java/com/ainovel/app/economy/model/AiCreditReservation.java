@@ -35,6 +35,8 @@ public class AiCreditReservation {
     private String resultContent;
     @Lob @Column(columnDefinition = "longtext")
     private String resultMetadataJson;
+    @Lob @Column(columnDefinition = "longtext")
+    private String resultNativeResponseJson;
     private long promptTokens;
     private long completionTokens;
     private long cacheTokens;
@@ -67,6 +69,8 @@ public class AiCreditReservation {
     public void setResultContent(String value) { this.resultContent = value; }
     public String getResultMetadataJson() { return resultMetadataJson; }
     public void setResultMetadataJson(String value) { resultMetadataJson = value; }
+    public String getResultNativeResponseJson() { return resultNativeResponseJson; }
+    public void setResultNativeResponseJson(String value) { resultNativeResponseJson = value; }
     public long getPromptTokens() { return promptTokens; }
     public void setPromptTokens(long value) { this.promptTokens = value; }
     public long getCompletionTokens() { return completionTokens; }

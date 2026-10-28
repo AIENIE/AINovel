@@ -46,4 +46,20 @@ class AiResultRecoveryTest {
         order.verify(economy).settleAiUsage(user,"stable","result",1,2,0);
         verify(economy,never()).releaseAiReservation(any(),anyString());
     }
+    @Test void nativeResultReadyReplayPreservesPrivateContinuationWithoutInvokingGateway() throws Exception {
+        var configuration=mock(com.ainovel.app.modelconfig.AiModelConfigurationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"modelConfiguration",configuration);
+        var selected=new com.ainovel.app.modelconfig.AiModelSelection("writing_agent.controller","option","model","Model","OFF",null,false,true,"FIXED",1L,null,null,1);
+        String envelope="{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":"+AiNativeProtocolTest.CALLS+",\"provider_state\":\"original-state\"},\"finish_reason\":\"tool_calls\"}";
+        var metadata=AiResponseMetadata.reported("tool_calls",5L,true);
+        when(configuration.write(any())).thenAnswer(i->new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(i.getArgument(0)));
+        when(economy.reserveAiUsage(eq(user),eq(1L),eq("AI_USAGE"),eq("native-replay"),eq("native-replay"),anyString(),eq(selected)))
+                .thenReturn(new EconomyService.AiReservationStart(true,"",10,20,0,1,metadata,envelope));
+        when(economy.currentBalance(user)).thenReturn(new EconomyService.BalanceSnapshot(9,0,9));
+        try(var ignored=com.ainovel.app.modelconfig.AiSelectionContext.install(new com.ainovel.app.modelconfig.AiSelectionContext.Snapshot("frozen-run",Map.of(selected.featureKey(),selected)))) {
+            var response=service.chatWithIdempotency(user,request.forFeature(selected.featureKey()).withNativeTools(AiNativeProtocolTest.TOOLS,2048),"native-replay");
+            assertEquals(envelope,response.nativeResponseJson());assertEquals("original-state",response.nativeResult().message().providerState());assertEquals(metadata,response.metadata());
+        }
+        verifyNoInteractions(gateway);
+    }
 }

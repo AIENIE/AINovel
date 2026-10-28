@@ -183,7 +183,7 @@ public class V2ModelPersistenceService {
         out.put("modelKey", model.getModelKey());
         out.put("displayName", model.getDisplayName());
         out.put("provider", model.getProvider());
-        out.put("capabilities", v2Json.list(model.getCapabilitiesJson()));
+        out.put("capabilities", v2Json.modelCapabilities(model.getCapabilitiesJson()));
         out.put("maxContextTokens", model.getMaxContextTokens());
         out.put("maxOutputTokens", model.getMaxOutputTokens());
         out.put("costPer1kInput", model.getCostPer1kInput());

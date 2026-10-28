@@ -198,6 +198,42 @@ class EconomyServiceTests {
     }
 
     @Test
+    void nativeEnvelopeAndSafeMetadataAreSavedTogetherAndReplayedAfterResultReady() {
+        User user=user();var account=account(user,8L);var reservation=new AiCreditReservation();
+        reservation.setUser(user);reservation.setRequestHash("native-hash");reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setReservedAmount(2);reservation.setReferenceType("AI_USAGE");reservation.setReferenceId("native");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"native")).thenReturn(Optional.of(reservation));
+        String envelope="{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[],\"provider_state\":\"private opaque state\"}}";
+        var metadata=AiResponseMetadata.reported("tool_calls",5L,true);
+        economyService.recordAiResult(user,"native","",10,20,0,"model",metadata,envelope);
+        assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
+        assertEquals(envelope,reservation.getResultNativeResponseJson());
+        assertFalse(reservation.getResultMetadataJson().contains("private opaque state"));
+        var replay=economyService.reserveAiUsage(user,2,"AI_USAGE","native","native","native-hash");
+        assertEquals(envelope,replay.nativeResponseJson());assertEquals(metadata,replay.metadata());assertTrue(replay.replay());
+        assertEquals(envelope,economyService.reserveAiUsage(user,2,"AI_USAGE","native","native","native-hash").nativeResponseJson());
+        assertEquals(9,account.getBalance());assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
+    }
+
+    @Test
+    void verifiedAgentReceiptCanFinishExistingUnknownHoldWithoutASecondReservation() {
+        User user=user();var reservation=new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);reservation.setReferenceType("WRITING_AGENT");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"agent-step")).thenReturn(Optional.of(reservation));
+        var metadata=AiResponseMetadata.reported("tool_calls",0L,true);
+        economyService.recordAiResult(user,"agent-step","",15,10,0,"model",metadata,"original native envelope");
+        assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
+        assertEquals("original native envelope",reservation.getResultNativeResponseJson());
+        assertEquals(0,reservation.getAttemptCount());
+        verify(accountRepository,never()).findForUpdateByUserId(any());
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);reservation.setReferenceType("AI_USAGE");
+        assertThrows(IllegalStateException.class,()->economyService.recordAiResult(user,"agent-step","unverified",15,10,0));
+    }
+
+    @Test
     void evidenceSettlementNeverChargesAboveAuthorAcceptedMaximum() {
         User user = user();
         AiCreditReservation reservation = new AiCreditReservation();
