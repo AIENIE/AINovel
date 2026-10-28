@@ -88,6 +88,7 @@ describe("ai operation tracking", () => {
   it.each([
     ["WRITING_ASSISTANT_TURN", "ainovel:writing-assistant-updated"],
     ["STORY_ASSISTANT_TURN", "ainovel:story-assistant-updated"],
+    ["WRITING_AGENT", "ainovel:writing-agent-updated"],
   ])("refreshes %s in place after recovery without reloading unsaved editor text", async (operationType, eventType) => {
     vi.useFakeTimers();
     const reload = vi.fn(), assign = vi.fn(), dispatch = vi.fn();
@@ -102,6 +103,24 @@ describe("ai operation tracking", () => {
       expect(assign).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(4000);
     } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("recovers a persisted writing-agent operation without retrying or reloading the editor", async () => {
+    vi.useFakeTimers();
+    const browser = stubBrowser();
+    setTrackedAiUser("agent-owner");
+    window.sessionStorage.setItem("ainovel.active-ai-operation:agent-owner", "agent-resumed");
+    const wait = vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...completedOperation("agent-resumed"), operationType: "WRITING_AGENT" });
+    const retry = vi.spyOn(api.aiOperations, "retry");
+
+    await resumeTrackedAiOperation();
+
+    expect(wait).toHaveBeenCalledExactlyOnceWith("agent-resumed", expect.any(Function), expect.any(AbortSignal));
+    expect(browser.dispatch).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ type: "ainovel:writing-agent-updated" }));
+    expect(retry).not.toHaveBeenCalled();
+    expect(browser.reload).not.toHaveBeenCalled();
+    expect(browser.assign).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(4000);
   });
 
   it("notifies the current world editor when a normally tracked background operation finishes", async () => {

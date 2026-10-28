@@ -98,6 +98,10 @@ function refreshRecoveredResult(final: AiOperationProgress) {
     window.dispatchEvent(new CustomEvent("ainovel:writing-assistant-updated"));
     return;
   }
+  if (final.operationType === "WRITING_AGENT") {
+    window.dispatchEvent(new CustomEvent("ainovel:writing-agent-updated"));
+    return;
+  }
   const scene = sceneGenerationOutcome(final.resultJson);
   if (scene) {
     window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: scene }));

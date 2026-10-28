@@ -29,7 +29,7 @@ export function SceneCandidatesPanel({ manuscript, sceneId, dirty, busy, revisio
   const identity = `${id}:${branch}:${sceneId}`;
   const latest = useRef({ identity, dirty }); latest.current = { identity, dirty };
   const list = useQuery({ queryKey: ["scene-candidates", identity, revision],
-    queryFn: () => api.manuscripts.listSceneCandidates(id, sceneId, branch), enabled: open && !!id && !!branch && !!sceneId, retry: false });
+    queryFn: async () => (await api.manuscripts.listSceneCandidates(id, sceneId, branch)).filter(candidate => candidate.sourceKind !== "AGENT"), enabled: open && !!id && !!branch && !!sceneId, retry: false });
   const candidate = list.data?.find(c => c.id === selected);
   const detail = useQuery({ queryKey: ["scene-candidate", identity, selected],
     queryFn: () => api.manuscripts.sceneCandidate(id, sceneId, branch, selected), enabled: open && !!candidate, retry: false });

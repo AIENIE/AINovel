@@ -50,6 +50,8 @@
 
 V49 在 `ai_credit_reservations` 追加可空 `result_metadata_json LONGTEXT`，不回填历史行。该列保存版本为 1 的安全响应元数据：规范化结束原因 `STOP/LENGTH/CONTENT_FILTER/TOOL_CALLS/OTHER/UNKNOWN`、可空 `reasoningTokens` 与可空 `usageAuthoritative`；没有字段表示未知，显式零与 false 保留。正文、用量和该元数据在结果记录事务中共同保存，`RESULT_READY` 和 `COMPLETED` 的原请求回放沿用原值，不增加推理或扣费。思考 token 已包含在输出 token 中，不重复计入用量。
 
+V50 追加私有原生回执列及 `writing_agent_runs`、`writing_agent_steps`，保存场景自主创作的冻结授权、工具步骤、候选引用和逐轮预算/结算。历史回执不回填，未知结果只按原身份对账；正文由作者独立采纳。结构与恢复边界见[自主创作](writing-agent.md)，阶段验收仍只在路线图维护。
+
 历史结果可只读查看同一用户、原请求的已保存元数据。旧列为空时，只有唯一已结算预算回执的用户、项目、请求编号、请求摘要、实际模型、完整正文及 token 均与原积分预留匹配，才提取其已持久响应中的安全字段；缺失或不匹配均保持未知，不回填、查询供应商或重建请求。诊断不包含原始上游描述、私有思考正文或原生响应信封；非法空流仍不视作成功完成。
 
 ## 文档职责

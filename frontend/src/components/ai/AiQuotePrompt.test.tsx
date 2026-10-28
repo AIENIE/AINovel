@@ -41,4 +41,16 @@ describe("AI pricing confirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Confirm and run" })); await expect(confirmed).resolves.toBe("fresh-quote");
   });
 
+  it.each([
+    ["zh-CN", "UP_TO_12", "最多 12 次调用", "取消"],
+    ["zh-TW", "UP_TO_3", "最多 3 次呼叫", "取消"],
+    ["en", "UP_TO_4", "Up to 4 calls", "Cancel"],
+  ])("shows a bounded agent call count in %s", async (locale, calls, label, cancel) => {
+    await i18n.changeLanguage(locale);render(<AiQuotePrompt />);
+    const initial = quoteFixture();initial.steps[0].step.calls = calls;
+    const pending = requestAiQuote(initial, vi.fn(), vi.fn());const rejected = expect(pending).rejects.toThrow("AI_QUOTE_CANCELLED");
+    await screen.findByText(new RegExp(label));expect(screen.queryByText(new RegExp(`aiModels.calls.${calls}`))).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: cancel }));await rejected;
+  });
+
 });

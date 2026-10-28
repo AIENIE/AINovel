@@ -22,6 +22,10 @@ export function AiQuotePrompt() {
   const [notice, setNotice] = useState("");
   const [remember, setRemember] = useState(true);
   const revision = useRef(0);
+  const callLabel = (calls: string) => {
+    const bounded = /^UP_TO_(\d+)$/.exec(calls);
+    return bounded ? t("aiModels.calls.UP_TO_N", { maxCalls: Number(bounded[1]) }) : t(`aiModels.calls.${calls}`);
+  };
   useEffect(() => { revision.current++; setQuote(pending?.quote ?? null); setError(""); setNotice(""); setBusy(false); }, [pending]);
   const select = async (feature: string, option: string) => {
     if (!pending || !quote) return;
@@ -57,7 +61,7 @@ export function AiQuotePrompt() {
           </select> : <div className="text-sm">{selected.label} · {t("aiModels.free")}</div>}
           <p className="mt-2 break-all text-xs text-muted-foreground">{selected.modelKey}</p>
           <p className="mt-2 break-words text-sm text-muted-foreground"><ModelPrice option={selected} /> · {t("aiModels.estimate", { amount: estimatedCredits })}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{t(`aiModels.calls.${step.calls}`)} · {t(`aiModels.thinking.${selected.thinkingMode}`)}{selected.thinkingEffort ? ` · ${selected.thinkingEffort}` : ""}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{callLabel(step.calls)} · {t(`aiModels.thinking.${selected.thinkingMode}`)}{selected.thinkingEffort ? ` · ${selected.thinkingEffort}` : ""}</p>
         </section>)}
       </div>
       <p className="text-sm font-medium">{t("aiModels.totalEstimate", { amount: quote?.estimatedCredits ?? 0 })}</p>

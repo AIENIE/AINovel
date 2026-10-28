@@ -7,6 +7,7 @@ import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
 import { createLanguageQualityApi } from "./api/domains/language-quality";
 import { createWritingAssistantApi } from "./api/domains/writing-assistant";
+import { createWritingAgentApi } from "./api/domains/writing-agent";
 import { createWorldAssistantApi } from "./api/domains/world-assistant";
 import { createStoryAssistantApi } from "./api/domains/story-assistant";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
@@ -823,6 +824,7 @@ export const api = {
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
+  writingAgent: createWritingAgentApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
   worldAssistant: createWorldAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   storyAssistant: createStoryAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   narrativeContext: {

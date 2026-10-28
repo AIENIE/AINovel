@@ -1,7 +1,9 @@
 import { world5En } from './world5';
+import { writingAgentEn } from './writing-agent';
 // English
 export const en = {
   ...world5En,
+  ...writingAgentEn,
   "world4.sourceChanged": "This source changed since the last confirmed version. Review its full content.",
   "world4.frozenRange": "Frozen world source pool (see actual reads per step)",
   "world4.CHAPTER_REFINE": "Chapter summary refinement",

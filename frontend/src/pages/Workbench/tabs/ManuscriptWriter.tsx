@@ -1,4 +1,5 @@
 import { SceneCandidatesPanel } from "./manuscript-writer/SceneCandidatesPanel";
+import { WritingAgentPanel } from "./manuscript-writer/WritingAgentPanel";
 import { api } from '@/lib/api-client';
 import { WorldBindingPanel } from '@/pages/WorldBuilder/components/WorldBindingPanel';
 import { Button } from '@/components/ui/button';
@@ -405,7 +406,10 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   const pagedAssistantOpen = usePagedLayout && mobilePane === "sidebar" && sidebarTab === "copilot";
   return (
     <WritingAssistantContext.Provider value={writingAssistant}><div className={cn("relative flex min-h-0 flex-col gap-2", pagedAssistantOpen ? "min-h-[calc(100vh-180px)]" : "h-[calc(100vh-180px)]")}>
-      <div className="flex shrink-0 justify-end">
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <WritingAgentPanel manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
+          busy={isSaving || isGenerating} locked={assistantWriteLocked} h2={writingAssistant.session.data?.h2Enabled ?? false}
+          target={writingAssistant.target} runWrite={runAssistantWrite} reconcileWrite={reconcileAssistantWrite} />
         <Button variant="ghost" size="sm" disabled={!selectedManuscriptId} onClick={()=>setWorldBindingOpen(true)}>{t('world2.binding')}</Button>
         <Dialog open={worldBindingOpen} onOpenChange={setWorldBindingOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.binding')}</DialogTitle><DialogDescription>{t('world2.bindingHelp')}</DialogDescription></DialogHeader>{worldBindingOpen&&selectedManuscriptId&&<WorldBindingPanel key={selectedManuscriptId} scope="MANUSCRIPT" resourceId={selectedManuscriptId} storyId={selectedStoryId} onChanged={() => { void api.manuscripts.get(selectedManuscriptId).then(replaceManuscript).catch(() => {}); }}/>}</DialogContent></Dialog>
         <SceneCandidatesPanel manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
