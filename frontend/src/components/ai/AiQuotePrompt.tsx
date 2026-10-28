@@ -7,6 +7,8 @@ import { pendingAiQuote, subscribeAiQuotes, finishAiQuote } from "@/lib/ai-quote
 import { featureName, type AiModelSelection, type AiQuote } from "@/lib/ai-model-config";
 import { Loader2 } from "lucide-react";
 
+const boundedCalls = (calls: string) => /^UP_TO_(\d+)$/.exec(calls);
+
 export function ModelPrice({ option }: { option: AiModelSelection }) {
   const { t } = useTranslation();
   if (!option.billingEnabled) return <span>{t("aiModels.free")}</span>;
@@ -23,7 +25,7 @@ export function AiQuotePrompt() {
   const [remember, setRemember] = useState(true);
   const revision = useRef(0);
   const callLabel = (calls: string) => {
-    const bounded = /^UP_TO_(\d+)$/.exec(calls);
+    const bounded = boundedCalls(calls);
     return bounded ? t("aiModels.calls.UP_TO_N", { maxCalls: Number(bounded[1]) }) : t(`aiModels.calls.${calls}`);
   };
   useEffect(() => { revision.current++; setQuote(pending?.quote ?? null); setError(""); setNotice(""); setBusy(false); }, [pending]);
@@ -60,11 +62,11 @@ export function AiQuotePrompt() {
             {feature.options.map((option) => <option key={option.optionId} value={option.optionId} disabled={feature.unavailableOptions.includes(option.optionId)}>{option.label}</option>)}
           </select> : <div className="text-sm">{selected.label} · {t("aiModels.free")}</div>}
           <p className="mt-2 break-all text-xs text-muted-foreground">{selected.modelKey}</p>
-          <p className="mt-2 break-words text-sm text-muted-foreground"><ModelPrice option={selected} /> · {t("aiModels.estimate", { amount: estimatedCredits })}</p>
+          <p className="mt-2 break-words text-sm text-muted-foreground"><ModelPrice option={selected} /> · {t(boundedCalls(step.calls) ? "aiModels.boundedEstimate" : "aiModels.estimate", { amount: estimatedCredits })}</p>
           <p className="mt-1 text-xs text-muted-foreground">{callLabel(step.calls)} · {t(`aiModels.thinking.${selected.thinkingMode}`)}{selected.thinkingEffort ? ` · ${selected.thinkingEffort}` : ""}</p>
         </section>)}
       </div>
-      <p className="text-sm font-medium">{t("aiModels.totalEstimate", { amount: quote?.estimatedCredits ?? 0 })}</p>
+      <p className="text-sm font-medium">{t(quote?.steps.some(({ step }) => boundedCalls(step.calls)) ? "aiModels.totalBoundedEstimate" : "aiModels.totalEstimate", { amount: quote?.estimatedCredits ?? 0 })}</p>
       <p className="text-xs leading-relaxed text-muted-foreground">{t("aiModels.settlementNotice")}</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />{t("aiModels.remember")}</label>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

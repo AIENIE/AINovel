@@ -1,4 +1,5 @@
 export const writingAgentZhCN = {
+  "aiModels.boundedEstimate": "该步骤估算合计 {{amount}} 积分", "aiModels.totalBoundedEstimate": "所列步骤估算合计：{{amount}} 项目积分",
   "agent.budgetPrepareGrpc": "预算准备服务返回 {{status}}，尚未向模型发送请求。请核对预算服务与模型方案，再查看原任务状态。",
   "agent.budgetPrepareUnavailable": "本步预算准备过程不可用，尚未向模型发送请求。请检查预算准备配置，再查看原任务状态。",
   "agent.budgetGrantInvalid": "本步预算授权回执未通过校验，尚未向模型发送请求。请核对价格与预算授权信息。",
@@ -38,6 +39,7 @@ export const writingAgentZhCN = {
   "agent.tool.world_search": "检索世界条目", "agent.tool.world_read": "读取世界片段", "agent.tool.world_related": "查阅关联设定", "agent.tool.candidate_draft": "起草候选", "agent.tool.candidate_refine": "打磨候选", "agent.tool.candidate_check_language": "检查候选语言", "agent.tool.candidate_check_plot": "检查候选剧情", "agent.tool.ask_author": "询问作者", "agent.tool.finish": "完成本轮",
 };
 export const writingAgentZhTW: Record<keyof typeof writingAgentZhCN, string> = {
+  "aiModels.boundedEstimate": "此步驟估算合計 {{amount}} 積分", "aiModels.totalBoundedEstimate": "所列步驟估算合計：{{amount}} 專案積分",
   "agent.budgetPrepareGrpc": "預算準備服務回傳 {{status}}，尚未向模型傳送請求。請核對預算服務與模型方案，再查看原任務狀態。",
   "agent.budgetPrepareUnavailable": "本步預算準備過程無法使用，尚未向模型傳送請求。請檢查預算準備設定，再查看原任務狀態。",
   "agent.budgetGrantInvalid": "本步預算授權回執未通過驗證，尚未向模型傳送請求。請核對價格與預算授權資訊。",
@@ -77,6 +79,7 @@ export const writingAgentZhTW: Record<keyof typeof writingAgentZhCN, string> = {
   "agent.tool.world_search": "檢索世界條目", "agent.tool.world_read": "讀取世界片段", "agent.tool.world_related": "查閱關聯設定", "agent.tool.candidate_draft": "起草候選", "agent.tool.candidate_refine": "打磨候選", "agent.tool.candidate_check_language": "檢查候選語言", "agent.tool.candidate_check_plot": "檢查候選劇情", "agent.tool.ask_author": "詢問作者", "agent.tool.finish": "完成本輪",
 };
 export const writingAgentEn: Record<keyof typeof writingAgentZhCN, string> = {
+  "aiModels.boundedEstimate": "Estimated total for this step: {{amount}} credits", "aiModels.totalBoundedEstimate": "Combined estimate for listed steps: {{amount}} project credits",
   "agent.budgetPrepareGrpc": "Budget preparation returned {{status}} before a model request was sent. Check the budget service and model option, then review the original run status.",
   "agent.budgetPrepareUnavailable": "Budget preparation is unavailable for this step, before a model request was sent. Check the preparation settings, then review the original run status.",
   "agent.budgetGrantInvalid": "The budget grant failed validation before a model request was sent. Check the price and budget authorization information.",

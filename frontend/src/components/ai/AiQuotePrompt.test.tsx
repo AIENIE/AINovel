@@ -53,4 +53,35 @@ describe("AI pricing confirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: cancel }));await rejected;
   });
 
+  it.each([
+    ["zh-CN", "该步骤估算合计 6 积分", "所列步骤估算合计：6 项目积分", "单次估算 6 积分", "最多 6 次调用", "取消"],
+    ["zh-TW", "此步驟估算合計 6 積分", "所列步驟估算合計：6 專案積分", "單次估算 6 積分", "最多 6 次呼叫", "取消"],
+    ["en", "Estimated total for this step: 6 credits", "Combined estimate for listed steps: 6 project credits", "About 6 credits per call", "Up to 6 calls", "Cancel"],
+  ])("labels the server's six-call estimate as a combined amount in %s", async (locale, stepLabel, totalLabel, oldLabel, callsLabel, cancel) => {
+    await i18n.changeLanguage(locale);render(<AiQuotePrompt />);
+    const initial = quoteFixture();initial.estimatedCredits = 6;
+    initial.steps[0].step = { ...initial.steps[0].step, calls: "UP_TO_6", estimatedInput: 24000, estimatedOutput: 4096 };
+    initial.steps[0].selected = { ...initial.steps[0].selected, pricingMode: "TOKENS", fixedCredits: null, inputPer1k: 0.01, outputPer1k: 0.01 };
+    initial.steps[0].estimatedCredits = 6;
+    const pending = requestAiQuote(initial, vi.fn(), vi.fn());const rejected = expect(pending).rejects.toThrow("AI_QUOTE_CANCELLED");
+
+    await screen.findByText(new RegExp(stepLabel));expect(screen.getByText(totalLabel)).toBeTruthy();
+    expect(screen.getByText(new RegExp(callsLabel))).toBeTruthy();expect(screen.queryByText(new RegExp(oldLabel))).toBeNull();
+    expect(initial.steps[0].estimatedCredits).toBe(6);expect(initial.estimatedCredits).toBe(6);
+    fireEvent.click(screen.getByRole("button", { name: cancel }));await rejected;
+  });
+  it.each([
+    ["zh-CN", "单次估算 1 积分", "各步骤单次估算合计：1 项目积分", "取消"],
+    ["zh-TW", "單次估算 1 積分", "各步驟單次估算合計：1 專案積分", "取消"],
+    ["en", "About 1 credits per call", "Combined estimate for one call per step: 1 project credits", "Cancel"],
+  ])("keeps existing single-call and nonnumeric legacy estimates unchanged in %s", async (locale, stepLabel, totalLabel, cancel) => {
+    await i18n.changeLanguage(locale);
+    for (const calls of ["ONE", "UP_TO_TWO"]) {
+      render(<AiQuotePrompt />);const initial = quoteFixture();initial.steps[0].step.calls = calls;
+      const pending = requestAiQuote(initial, vi.fn(), vi.fn());const rejected = expect(pending).rejects.toThrow("AI_QUOTE_CANCELLED");
+      await screen.findByText(new RegExp(stepLabel));expect(screen.getByText(totalLabel)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: cancel }));await rejected;cleanup();
+    }
+  });
+
 });
