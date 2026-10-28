@@ -15,6 +15,8 @@ import com.ainovel.app.worldcontext.WorldContextDtos.Preferences;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -211,6 +213,17 @@ class WritingAgentRunnerTest {
         assertThat(f.store.step(RUN,"control:1").sequence()).isEqualTo(1);
         assertThat(replayedWorker.sequence()).isEqualTo(3);
         assertThat(f.store.step(RUN,"control:2").sequence()).isEqualTo(4);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"WRITING_AGENT_BUDGET_PREPARE_GRPC_INTERNAL,PAUSED_INPUT","WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE,PAUSED_INPUT","WRITING_AGENT_BUDGET_GRANT_INVALID,PAUSED_INPUT","WRITING_AGENT_REQUEST_CHANGED,PAUSED_INPUT","WRITING_AGENT_BUDGET_EXHAUSTED,PAUSED_BUDGET","AI_VALIDATION_PHASE_BUDGET_EXHAUSTED,PAUSED_BUDGET","WRITING_AGENT_CALL_LIMIT,PAUSED_BUDGET"})
+    void aPreflightFailureOnlyUsesBudgetPauseForAnActualBound(String code,String expectedStatus) {
+        var f=fixture(false,"AUTHOR_QA",Limits.defaults());
+        f.service.beforeSend=request->{throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,code);};
+        new WritingAgentRunner(f.service,f.store).execute(f.operation(),RUN);
+        assertThat(f.store.current.status()).isEqualTo(expectedStatus);assertThat(f.service.sent).isEmpty();
+        assertThat(f.store.tree(f.store.current.state()).path("answer").asText()).isEqualTo(code);
+        assertThat(f.store.step(RUN,"control:1").result()).isNull();
     }
 
     @Test void cancellationDuringAModelCallPreventsFurtherToolOrModelDispatch() {

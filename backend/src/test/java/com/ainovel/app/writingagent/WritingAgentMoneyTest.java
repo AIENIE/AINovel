@@ -4,6 +4,8 @@ import com.ainovel.app.ai.*;
 import com.ainovel.app.modelconfig.AiModelSelection;
 import fireflychat.ai.v1.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,6 +30,26 @@ class WritingAgentMoneyTest {
             .setPriceQuote(BudgetPriceQuote.newBuilder().setCurrency("CNY").setPriceVersionId(1).setPriceSha256("a".repeat(64)).setMaxCost("2.000000")).build();}
     WritingAgentStore.Step step(String result){return new WritingAgentStore.Step(UUID.randomUUID(),run,0,key,"MODEL",selected.featureKey(),"request-hash","{}",null,b64(request.toByteArray()),b64(grant().toBuilder().clearBudgetCredential().build().toByteArray()),result,"RECONCILIATION_REQUIRED",new BigDecimal("2"),null,1,null);}
     GetBudgetCallStatusResponse.Builder status(){return GetBudgetCallStatusResponse.newBuilder().setBudgetId("original-budget").setRequestSha256(AiValidationCallBudget.hash(request));}
+    WritingAgentStore.Step fresh(){return new WritingAgentStore.Step(UUID.randomUUID(),run,0,key,"MODEL",selected.featureKey(),"hash","{}",null,null,null,null,null,BigDecimal.ZERO,null,0,null);}
+    @ParameterizedTest
+    @EnumSource(value=io.grpc.Status.Code.class,names={"INVALID_ARGUMENT","UNAVAILABLE","INTERNAL","DEADLINE_EXCEEDED"})
+    void prepareFailurePreservesOnlyTheFixedGrpcCodeAndNeverSends(io.grpc.Status.Code code) {
+        when(store.step(run,key)).thenReturn(fresh());
+        when(wire.prepare(any())).thenThrow(code.toStatus().withDescription("private provider details").asRuntimeException());
+        var denied=assertThrows(AiRequestNotSentException.class,()->money.owner(run,key,selected).call(request,wire,null));
+        assertEquals("WRITING_AGENT_BUDGET_PREPARE_GRPC_"+code.name(),denied.getMessage());assertNull(denied.getCause());
+        verify(wire,never()).send(any());verify(wire,never()).status(any());verifyNoInteractions(jdbc);
+    }
+    @Test void invalidGrantAndUnavailablePrepareHaveDifferentSafeReasons() {
+        when(store.step(run,key)).thenReturn(fresh());
+        when(wire.prepare(any())).thenThrow(new IllegalStateException("private transport details"))
+                .thenReturn(grant().toBuilder().setRequestSha256("different").build())
+                .thenReturn(grant().toBuilder().setPriceQuote(grant().getPriceQuote().toBuilder().setMaxCost("-1")).build());
+        assertEquals("WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE",assertThrows(AiRequestNotSentException.class,()->money.owner(run,key,selected).call(request,wire,null)).getMessage());
+        assertEquals("WRITING_AGENT_BUDGET_GRANT_INVALID",assertThrows(AiRequestNotSentException.class,()->money.owner(run,key,selected).call(request,wire,null)).getMessage());
+        assertEquals("WRITING_AGENT_BUDGET_GRANT_INVALID",assertThrows(AiRequestNotSentException.class,()->money.owner(run,key,selected).call(request,wire,null)).getMessage());
+        verify(wire,never()).send(any());verify(wire,never()).status(any());verifyNoInteractions(jdbc);
+    }
     @Test void unknownOriginalStepQueriesOnlyItsOwnIdentityAndNeverReinfers() {
         when(store.step(run,key)).thenReturn(step(null));
         when(wire.status(any())).thenAnswer(i->{

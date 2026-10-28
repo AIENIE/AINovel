@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "@/lib/api-client";
+import { api, ApiError } from "@/lib/api-client";
 import * as assistantEditor from "@/lib/assistant-editor";
 import { createQueryClientWrapper, createTestQueryClient } from "@/test/queryClient";
 import { agentLimits, type AgentRun } from "@/lib/api/domains/writing-agent";
-import { localizedOperationFailure } from "@/lib/error-messages";
+import { localizedErrorMessage, localizedOperationFailure } from "@/lib/error-messages";
 import type { Manuscript } from "@/types";
 import i18n from "@/i18n";
 import { WritingAgentPanel, type WritingAgentPanelProps } from "./WritingAgentPanel";
@@ -66,11 +66,93 @@ describe("creative agent review panel", () => {
     expect(within(step).getByText("当前场景候选")).toBeTruthy();expect(within(step).getByText("仅本步真正发送的候选正文")).toBeTruthy();
     expect(within(step).queryByText("守塔人")).toBeNull();expect(screen.getByText("守塔人")).toBeTruthy();
   });
+  it("shows a failed budget preparation as one recorded step with no saved model result", async () => {
+    const value: AgentRun = { ...run("PAUSED_BUDGET"), progress: { message: "WRITING_AGENT_BUDGET_UNAVAILABLE", modelCalls: 1, revisions: 0 }, candidates: [],
+      steps: [{ sequence: 1, kind: "MODEL", feature: "writing_agent.control", status: "PREPARED", result: {}, reservedCny: 0, settledCny: null, projectCredits: null }],
+      settledCny: 0, reservedCny: 0, projectCredits: 0 };
+    vi.mocked(api.writingAgent.list).mockResolvedValue([value]);mount();
+
+    await screen.findByText("本步预算准备失败，尚未向模型发送请求。请检查预算服务和模型方案，再查看原任务状态。");
+    expect(screen.getByText("已记录 1 个模型步骤 · 已保存 0 项模型结果 · 候选 0 份")).toBeTruthy();
+    expect(screen.getByText("1 · 模型步骤 · 准备模型步骤")).toBeTruthy();
+    expect(screen.queryByText(/已调用 1 次模型/)).toBeNull();
+    expect(screen.queryByText("WRITING_AGENT_BUDGET_UNAVAILABLE")).toBeNull();
+    expect(screen.getByText("执行已暂停，待处理")).toBeTruthy();expect(screen.queryByText(i18n.t("agent.budgetPaused"))).toBeNull();
+    expect(screen.queryByRole("button", { name: "继续原任务" })).toBeNull();expect(value.status).toBe("PAUSED_BUDGET");
+    expect(api.writingAgent.start).not.toHaveBeenCalled();expect(api.writingAgent.control).not.toHaveBeenCalled();
+  });
+  it.each(["WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE", "WRITING_AGENT_BUDGET_GRANT_INVALID", "WRITING_AGENT_BUDGET_PREPARE_GRPC_UNAVAILABLE", "AI_NATIVE_CONFIGURATION_REQUIRED", "AI_FEATURE_UNCONFIGURED", "WRITING_AGENT_CONFIRMED_NOT_SENT"])("shows a legacy budget pause from %s as preparation failure without changing actions", async code => {
+    const value = { ...run("PAUSED_BUDGET"), progress: { message: code } };
+    vi.mocked(api.writingAgent.list).mockResolvedValue([value]);mount();
+    await screen.findByText("执行已暂停，待处理");
+    expect(screen.queryByText(i18n.t("agent.budgetPaused"))).toBeNull();
+    expect(within(screen.getByRole("combobox", { name: i18n.t("agent.history") })).getByRole("option").textContent).toContain("执行已暂停，待处理");
+    expect(screen.queryByRole("button", { name: "继续原任务" })).toBeNull();
+    expect(screen.getByRole("button", { name: "结束任务" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "采纳此候选" }).hasAttribute("disabled")).toBe(false);
+    expect(value.status).toBe("PAUSED_BUDGET");expect(value.progress.message).toBe(code);expect(api.writingAgent.control).not.toHaveBeenCalled();
+  });
+  it.each(["WRITING_AGENT_BUDGET_EXHAUSTED", "WRITING_AGENT_CALL_LIMIT", "AI_VALIDATION_PHASE_BUDGET_EXHAUSTED", "WRITING_AGENT_BUDGET_PREPARE_GRPC_UNRECOGNIZED"])("retains budget exhaustion display for %s", async code => {
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run("PAUSED_BUDGET"), progress: { message: code } }]);mount();
+    const notices = await screen.findAllByText(i18n.t("agent.budgetPaused"));
+    expect(notices.some(notice => notice.classList.contains("text-amber-700"))).toBe(true);
+    expect(screen.getByText("达到预算上限")).toBeTruthy();expect(screen.queryByText("执行已暂停，待处理")).toBeNull();
+    expect(screen.queryByRole("button", { name: "继续原任务" })).toBeNull();expect(api.writingAgent.control).not.toHaveBeenCalled();
+  });
+  it("counts persisted model steps and results separately from progress attempts and tool records", async () => {
+    const value = run();value.progress = { modelCalls: 99, revisions: 99 };
+    value.steps.push(
+      { sequence: 2, kind: "MODEL", feature: "writing_agent.control", status: "COMPLETED", result: { message: "已选择下一步" }, reservedCny: 0, settledCny: 0.01, projectCredits: 1 },
+      { sequence: 3, kind: "MODEL", feature: "language.diagnose", status: "NOT_SENT", result: {}, reservedCny: 0, settledCny: null, projectCredits: null },
+    );
+    vi.mocked(api.writingAgent.list).mockResolvedValue([value]);mount();
+
+    await screen.findByText("已记录 2 个模型步骤 · 已保存 1 项模型结果 · 候选 1 份");
+    expect(screen.getByText("3 · 模型步骤 · 已确认未发送")).toBeTruthy();
+    expect(screen.queryByText(/99/)).toBeNull();
+  });
   it.each(["zh-CN", "zh-TW", "en"])("localizes new stop reasons in %s without exposing internal keys", async locale => {
     await i18n.changeLanguage(locale);
-    for (const code of ["WRITING_AGENT_SAVE_REQUIRED", "WRITING_AGENT_PROTOCOL_UNAVAILABLE", "AI_VALIDATION_PHASE_BUDGET_EXHAUSTED", "AI_VALIDATION_PHASE_BASELINE_INVALID", "WRITING_AGENT_CHECK_LIMIT", "WORLD_AGENT_REQUIRED_READ_CAPACITY", "AUTHOR_QA_READ_ONLY", "H2_WORLD_TOOL_UNAVAILABLE"]) {
+    for (const code of ["WRITING_AGENT_SAVE_REQUIRED", "WRITING_AGENT_PROTOCOL_UNAVAILABLE", "AI_VALIDATION_PHASE_BUDGET_EXHAUSTED", "AI_VALIDATION_PHASE_BASELINE_INVALID", "WRITING_AGENT_CHECK_LIMIT", "WORLD_AGENT_REQUIRED_READ_CAPACITY", "AUTHOR_QA_READ_ONLY", "H2_WORLD_TOOL_UNAVAILABLE",
+      "WRITING_AGENT_BUDGET_UNAVAILABLE", "WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE", "WRITING_AGENT_BUDGET_GRANT_INVALID", "AI_VALIDATION_PREPARE_UNAVAILABLE", "WRITING_AGENT_BUDGET_INVALID", "WRITING_AGENT_PRICE_INVALID", "AI_VALIDATION_QUOTE_INVALID", "AI_VALIDATION_PRICE_UNAVAILABLE", "AI_NATIVE_CONFIGURATION_REQUIRED", "AI_NATIVE_BUDGET_UNAVAILABLE", "AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE", "AI_VALIDATION_CAPABILITY_UNAVAILABLE", "WRITING_AGENT_TOOL_UNAVAILABLE", "WRITING_AGENT_CONFIRMED_NOT_SENT", "AI_VALIDATION_CONFIRMED_NOT_SENT", "WRITING_AGENT_RECEIPT_INVALID", "WRITING_AGENT_RECEIPT_MISMATCH", "WRITING_AGENT_GRANT_INVALID", "WRITING_AGENT_RETAIL_MISMATCH", "WRITING_AGENT_LIMIT_INVALID", "AI_NATIVE_RESPONSE_INVALID", "AI_FEATURE_UNCONFIGURED", "AI_CONFIGURATION_CHANGED", "AI_OPTION_UNAVAILABLE"]) {
       const value = localizedOperationFailure(code);expect(value).not.toBe(code);expect(value).not.toContain("agent.");expect(value).not.toBe(i18n.t("errors.operationFailed"));
+      expect(localizedErrorMessage(new ApiError(412, code))).toBe(value);
     }
+    expect(localizedOperationFailure("WRITING_AGENT_UNKNOWN_UPSTREAM_SECRET")).toBe(i18n.t("errors.operationFailed"));
+  });
+  it.each(["zh-CN", "zh-TW", "en"])("distinguishes prepare transport, unavailable and invalid grant failures safely in %s", async locale => {
+    await i18n.changeLanguage(locale);
+    const legacy = localizedOperationFailure("WRITING_AGENT_BUDGET_UNAVAILABLE");
+    const unavailable = localizedOperationFailure("WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE");
+    const invalidGrant = localizedOperationFailure("WRITING_AGENT_BUDGET_GRANT_INVALID");
+    expect(new Set([legacy, unavailable, invalidGrant]).size).toBe(3);
+    expect(invalidGrant).not.toBe(localizedOperationFailure("WRITING_AGENT_GRANT_INVALID"));
+    for (const status of ["OK", "CANCELLED", "UNKNOWN", "INVALID_ARGUMENT", "DEADLINE_EXCEEDED", "NOT_FOUND", "ALREADY_EXISTS", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION", "ABORTED", "OUT_OF_RANGE", "UNIMPLEMENTED", "INTERNAL", "UNAVAILABLE", "DATA_LOSS", "UNAUTHENTICATED"]) {
+      const code = `WRITING_AGENT_BUDGET_PREPARE_GRPC_${status}`;
+      const value = localizedOperationFailure(code);
+      expect(value).toContain(status);expect(value).not.toContain("WRITING_AGENT_");expect(value).not.toBe(legacy);expect(value).not.toBe(unavailable);expect(value).not.toBe(invalidGrant);
+      expect(localizedErrorMessage(new ApiError(412, code))).toBe(value);
+    }
+    for (const unsafe of ["WRITING_AGENT_BUDGET_PREPARE_GRPC_UNKNOWN_STATUS", "WRITING_AGENT_BUDGET_PREPARE_GRPC_UNAVAILABLE: private upstream description", "WRITING_AGENT_BUDGET_PREPARE_GRPC_INVALID_ARGUMENT\nprivate upstream description"]) {
+      expect(localizedOperationFailure(unsafe)).toBe(i18n.t("errors.operationFailed"));
+      expect(localizedErrorMessage(new ApiError(412, unsafe))).not.toContain("private upstream description");
+    }
+  });
+  it("shows a saved prepare gRPC status without treating it as an inference or retrying", async () => {
+    vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run("PAUSED_INPUT"), progress: { message: "WRITING_AGENT_BUDGET_PREPARE_GRPC_INVALID_ARGUMENT", modelCalls: 1 }, candidates: [],
+      steps: [{ sequence: 1, kind: "MODEL", feature: "writing_agent.control", status: "PREPARED", result: {}, reservedCny: 0, settledCny: null, projectCredits: null }], settledCny: 0, reservedCny: 0, projectCredits: 0 }]);
+    mount();
+    await screen.findByText("预算准备服务返回 INVALID_ARGUMENT，尚未向模型发送请求。请核对预算服务与模型方案，再查看原任务状态。");
+    expect(screen.getByText("已记录 1 个模型步骤 · 已保存 0 项模型结果 · 候选 0 份")).toBeTruthy();
+    expect(screen.getByText("执行已暂停，待处理")).toBeTruthy();expect(screen.queryByText("输入容量不足")).toBeNull();
+    expect(screen.queryByText("WRITING_AGENT_BUDGET_PREPARE_GRPC_INVALID_ARGUMENT")).toBeNull();
+    expect(api.writingAgent.start).not.toHaveBeenCalled();expect(api.writingAgent.control).not.toHaveBeenCalled();
+  });
+  it.each([["zh-CN", "执行已暂停，待处理"], ["zh-TW", "執行已暫停，待處理"], ["en", "Paused; review required"]])("keeps the paused status general and the capacity reason specific in %s", async (locale, label) => {
+    await i18n.changeLanguage(locale);
+    expect(i18n.t("agent.status.PAUSED_INPUT")).toBe(label);
+    expect(localizedOperationFailure("WRITING_AGENT_TOOL_INPUT_LIMIT")).toBe(i18n.t("agent.inputLimit"));
+    expect(localizedOperationFailure("WRITING_AGENT_BUDGET_PREPARE_GRPC_INTERNAL")).not.toBe(i18n.t("agent.inputLimit"));
   });
   it("sends an explicit author answer and does not resume a budget-limited run", async () => {
     vi.mocked(api.writingAgent.list).mockResolvedValue([{ ...run("WAITING_AUTHOR"), progress: { message: "需要确定航行代价" } }]);

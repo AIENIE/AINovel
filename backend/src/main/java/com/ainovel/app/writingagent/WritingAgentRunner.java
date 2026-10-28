@@ -95,7 +95,7 @@ public class WritingAgentRunner {
                 var state=progress(x,"继续根据工具结果自主决定下一步");AiOperationExecutionContext.apply(()->{String status=store.run(runId).status();store.state(runId,status.equals("PAUSE_REQUESTED")?status:"RUNNING",state);return null;});
             }
         }catch(AiResultUncertainException uncertain){return stop(runId,x,"RECOVERY_REQUIRED","AI_RESULT_RECONCILIATION_REQUIRED",null);}
-        catch(AiRequestNotSentException failure){return stop(runId,x,"WRITING_AGENT_PAUSED".equals(failure.getMessage())?"PAUSED_USER":"PAUSED_BUDGET",safe(failure.getMessage()),null);}
+        catch(AiRequestNotSentException failure){String code=safe(failure.getMessage());return stop(runId,x,"WRITING_AGENT_PAUSED".equals(code)?"PAUSED_USER":code.endsWith("_EXHAUSTED")||code.endsWith("_LIMIT")?"PAUSED_BUDGET":"PAUSED_INPUT",code,null);}
         catch(com.ainovel.app.modelconfig.AiPaymentRequiredException pending){return stop(runId,x,"PAUSED_BUDGET","AI_PAYMENT_REQUIRED",null);}
         catch(com.ainovel.app.common.ApiStatusException failure){String code=safe(failure.getMessage());return stop(runId,x,code.contains("BUDGET")||code.contains("LIMIT")?"PAUSED_BUDGET":"PAUSED_INPUT",code,null);}
         catch(RuntimeException failure){if(Thread.currentThread().isInterrupted())throw failure;return stop(runId,x,"FAILED",safe(failure.getMessage()),null);}

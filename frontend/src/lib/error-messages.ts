@@ -9,6 +9,28 @@ import { t } from "@/i18n";
 const AI_MODEL_ERROR_KEYS: Record<string, string> = {
   WRITING_AGENT_SAVE_REQUIRED: 'agent.saveRequired',
   WRITING_AGENT_PROTOCOL_UNAVAILABLE: 'agent.protocolUnavailable',
+  WRITING_AGENT_PROTOCOL_UNSUPPORTED: 'agent.protocolUnavailable',
+  WRITING_AGENT_BUDGET_UNAVAILABLE: 'agent.budgetUnavailable',
+  WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE: 'agent.budgetPrepareUnavailable',
+  WRITING_AGENT_BUDGET_GRANT_INVALID: 'agent.budgetGrantInvalid',
+  AI_VALIDATION_PREPARE_UNAVAILABLE: 'agent.budgetUnavailable',
+  WRITING_AGENT_BUDGET_INVALID: 'agent.budgetInvalid',
+  WRITING_AGENT_PRICE_INVALID: 'agent.budgetInvalid',
+  AI_VALIDATION_QUOTE_INVALID: 'agent.budgetInvalid',
+  AI_VALIDATION_PRICE_UNAVAILABLE: 'agent.budgetInvalid',
+  AI_NATIVE_CONFIGURATION_REQUIRED: 'agent.configurationRequired',
+  AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE: 'agent.toolsUnavailable',
+  AI_VALIDATION_CAPABILITY_UNAVAILABLE: 'agent.toolsUnavailable',
+  WRITING_AGENT_TOOL_UNAVAILABLE: 'agent.toolUnavailable',
+  WRITING_AGENT_CONFIRMED_NOT_SENT: 'agent.confirmedNotSent',
+  AI_VALIDATION_CONFIRMED_NOT_SENT: 'agent.confirmedNotSent',
+  WRITING_AGENT_RECEIPT_INVALID: 'agent.receiptInvalid',
+  WRITING_AGENT_RECEIPT_MISMATCH: 'agent.receiptInvalid',
+  WRITING_AGENT_GRANT_INVALID: 'agent.receiptInvalid',
+  WRITING_AGENT_RETAIL_MISMATCH: 'agent.receiptInvalid',
+  WRITING_AGENT_LIMIT_INVALID: 'agent.invalidBudget',
+  WRITING_AGENT_STATE_INVALID: 'agent.reload',
+  AI_NATIVE_RESPONSE_INVALID: 'agent.responseInvalid',
   AI_VALIDATION_PHASE_BUDGET_EXHAUSTED: 'agent.phaseBudget',
   AI_VALIDATION_PHASE_BASELINE_INVALID: 'agent.phaseBaselineInvalid',
   WRITING_AGENT_CHECK_LIMIT: 'agent.checkLimit',
@@ -80,7 +102,26 @@ const AI_MODEL_ERROR_KEYS: Record<string, string> = {
   AI_MODEL_UNAVAILABLE: "aiModels.preferenceUnavailable",
   AI_THINKING_UNSUPPORTED: "aiModels.preferenceUnavailable",
 };
-const modelFailure = (code?: string | null) => code && AI_MODEL_ERROR_KEYS[code] ? t(AI_MODEL_ERROR_KEYS[code]) : null;
+const GRPC_STATUS_CODES = new Set(["OK", "CANCELLED", "UNKNOWN", "INVALID_ARGUMENT", "DEADLINE_EXCEEDED", "NOT_FOUND", "ALREADY_EXISTS", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION", "ABORTED", "OUT_OF_RANGE", "UNIMPLEMENTED", "INTERNAL", "UNAVAILABLE", "DATA_LOSS", "UNAUTHENTICATED"]);
+const preparationGrpcStatus = (code?: string | null) => {
+  const status = code && /^WRITING_AGENT_BUDGET_PREPARE_GRPC_([A-Z_]+)$/.exec(code)?.[1];
+  return status && GRPC_STATUS_CODES.has(status) ? status : null;
+};
+const WRITING_AGENT_PREPARATION_FAILURES = new Set([
+  "WRITING_AGENT_BUDGET_UNAVAILABLE", "WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE", "WRITING_AGENT_BUDGET_GRANT_INVALID",
+  "WRITING_AGENT_BUDGET_INVALID", "WRITING_AGENT_PRICE_INVALID", "AI_VALIDATION_PREPARE_UNAVAILABLE", "AI_VALIDATION_QUOTE_INVALID", "AI_VALIDATION_PRICE_UNAVAILABLE",
+  "AI_NATIVE_CONFIGURATION_REQUIRED", "AI_NATIVE_BUDGET_UNAVAILABLE", "AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE", "AI_VALIDATION_CAPABILITY_UNAVAILABLE",
+  "WRITING_AGENT_CONFIRMED_NOT_SENT", "AI_VALIDATION_CONFIRMED_NOT_SENT", "AI_FEATURE_UNCONFIGURED", "AI_MODEL_UNAVAILABLE", "AI_OPTION_UNAVAILABLE", "AI_THINKING_UNSUPPORTED", "AI_CONFIGURATION_CHANGED",
+  "WRITING_AGENT_PROTOCOL_UNAVAILABLE", "WRITING_AGENT_PROTOCOL_UNSUPPORTED",
+]);
+/** Display compatibility for old runs whose preparation failure was classified as a budget pause. */
+export const isWritingAgentPreparationFailure = (code?: string | null): boolean => !!code && (WRITING_AGENT_PREPARATION_FAILURES.has(code) || preparationGrpcStatus(code) !== null);
+const modelFailure = (code?: string | null) => {
+  if (!code) return null;
+  if (AI_MODEL_ERROR_KEYS[code]) return t(AI_MODEL_ERROR_KEYS[code]);
+  const status = preparationGrpcStatus(code);
+  return status ? t("agent.budgetPrepareGrpc", { status }) : null;
+};
 const worldFailure = (code?: string | null) => {
   if(code === "WORLD_PROPOSAL_VERSION_CONFLICT" || code === "WORLD_PROPOSAL_DECIDED") return t("world3.candidateStale");
   if(code && ["WORLD_PROPOSAL_STALE","WORLD_PROPOSAL_TARGET_MISSING","WORLD_PROPOSAL_TARGET_EXISTS","WORLD_PROPOSAL_CONTEXT_CHANGED","WORLD_PROPOSAL_REVISION_CONFLICT","WORLD_DRAFT_SAVE_REQUIRED","WORLD_ASSISTANT_CONTEXT_TOO_LARGE","WORLD_TEMPLATE_VARIABLE_UNKNOWN","WORLD_TEMPLATE_FUNCTION_UNSUPPORTED","WORLD_PROPOSAL_ENDPOINT_MISSING","WORLD_OVERVIEW_STALE"].includes(code)) return t(`world3.reason.${code}`);

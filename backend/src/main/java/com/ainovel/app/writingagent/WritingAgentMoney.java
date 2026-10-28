@@ -25,11 +25,17 @@ public class WritingAgentMoney {
         try {
             grant=transport.prepare(PrepareCallBudgetRequest.newBuilder().setChat(request).setBillingCurrency("CNY")
                     .setMaxOutputTokens(request.getMaxOutputTokens()).setMaxProviderAttempts(1).build());
-            if(!grant.hasPriceQuote()||!"CNY".equals(grant.getPriceQuote().getCurrency())||grant.getExpiresAtEpochMs()<=System.currentTimeMillis()
-                    ||!grant.getRequestSha256().equals(hash(request))||grant.getMaxCompletionTokens()!=request.getMaxOutputTokens()
-                    ||grant.getMaxPromptTokens()<1||grant.getMaxProviderAttempts()!=1)throw new IllegalStateException("WRITING_AGENT_BUDGET_INVALID");
-        }catch(RuntimeException notSent){throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_BUDGET_UNAVAILABLE");}
-        BigDecimal maximum=amount(grant.getPriceQuote().getMaxCost());long creditMaximum=selected.cost(grant.getMaxPromptTokens(),grant.getMaxCompletionTokens());
+        }catch(io.grpc.StatusRuntimeException unavailable){
+            throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_BUDGET_PREPARE_GRPC_"+unavailable.getStatus().getCode().name());
+        }catch(RuntimeException unavailable){throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE");}
+        if(grant==null||!grant.hasPriceQuote()||!"CNY".equals(grant.getPriceQuote().getCurrency())||grant.getExpiresAtEpochMs()<=System.currentTimeMillis()
+                ||!grant.getRequestSha256().equals(hash(request))||grant.getMaxCompletionTokens()!=request.getMaxOutputTokens()
+                ||grant.getMaxPromptTokens()<1||grant.getMaxProviderAttempts()!=1)
+            throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_BUDGET_GRANT_INVALID");
+        final BigDecimal maximum;
+        try{maximum=amount(grant.getPriceQuote().getMaxCost());}
+        catch(IllegalStateException invalid){throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_BUDGET_GRANT_INVALID");}
+        long creditMaximum=selected.cost(grant.getMaxPromptTokens(),grant.getMaxCompletionTokens());
         boolean fresh=store.isolated(()->{
             store.lock(runId);var run=store.run(runId);var prior=store.step(runId,key);
             if(prior.gatewayRequest()!=null){requireRequest(prior,request);return false;}

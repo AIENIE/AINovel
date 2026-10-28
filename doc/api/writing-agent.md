@@ -24,4 +24,6 @@ preview 返回首步实际消息 firstInput、contextHash、selectionRevision、
 
 状态包括 QUEUED/RUNNING/PAUSE_REQUESTED、PAUSED_USER、WAITING_AUTHOR、PAUSED_BUDGET、PAUSED_INPUT、RECOVERY_REQUIRED、COMPLETED、CANCELLED、ACCEPTED、FAILED。通用异步操作结束只表示本次执行已交付状态，不表示正式正文已保存。
 
+预算准备失败尚未外发：`WRITING_AGENT_BUDGET_PREPARE_GRPC_<Code>` 只保留固定 gRPC 枚举；非 gRPC 准备失败为 `WRITING_AGENT_BUDGET_PREPARE_UNAVAILABLE`，授权校验失败为 `WRITING_AGENT_BUDGET_GRANT_INVALID`。这类新任务进入 PAUSED_INPUT，实际额度/次数耗尽才进入 PAUSED_BUDGET；不返回原异常描述。旧任务的原状态与错误码保留，界面可按已知准备失败显示通用待处理状态。模型步骤数表示持久记录数量，不等于供应商外发次数；已保存结果及用量另行展示。
+
 空结果、明确输出额度耗尽、可靠证据支持的思考占满输出、截断与协议错误分别反馈；保留原回执及费用，不自动重试/修补。无法确定模型结果时保持 RECOVERY_REQUIRED，仅查询原请求。

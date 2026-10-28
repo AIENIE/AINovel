@@ -5,12 +5,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { assistantPlainText, assistantTextDiff, sameAssistantDocument } from "@/lib/assistant-editor";
 import type { AgentCandidate, AgentRun } from "@/lib/api/domains/writing-agent";
 import { agentActive, useWritingAgent, type WritingAgentOptions } from "../../hooks/useWritingAgent";
-import { localizedOperationFailure } from "@/lib/error-messages";
+import { isWritingAgentPreparationFailure, localizedOperationFailure } from "@/lib/error-messages";
 
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const text = (value: unknown): string => typeof value === "string" ? value : "";
 const money = (value: string | number) => Number(value).toFixed(6);
 const message = (value: string) => /^(?:WRITING_AGENT_|WORLD_AGENT_|AI_[A-Z_]+$|H2_[A-Z_]+$|AUTHOR_QA_READ_ONLY$)/.test(value) ? localizedOperationFailure(value) : value;
+const displayedRunStatus = (run: AgentRun) => run.status === "PAUSED_BUDGET" && isWritingAgentPreparationFailure(text(run.progress.message)) ? "PAUSED_INPUT" : run.status;
 function InlineDiff({ before, after }: { before: string; after: string }) {
   const diff = useMemo(() => assistantTextDiff(before, after), [before, after]);
   return <div className="whitespace-pre-wrap break-words leading-7 [overflow-wrap:anywhere]">{diff.map((part, index) => part.kind === "removed" ? <del className="bg-red-100 text-red-900" key={index}>{part.text}</del> : part.kind === "added" ? <ins className="bg-green-100 text-green-900 no-underline" key={index}>{part.text}</ins> : <span key={index}>{part.text}</span>)}</div>;
@@ -64,6 +65,8 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
   const [answer, setAnswer] = useState("");
   useEffect(() => { setCandidateId("");setAnswer(""); }, [run?.id]);
   const candidate = run?.candidates.find(item => item.id === candidateId) || run?.candidates.at(-1);
+  const modelSteps = run?.steps.filter(step => step.kind === "MODEL") || [];
+  const savedModelResults = modelSteps.filter(step => ["COMPLETED", "SUCCEEDED"].includes(step.status) && step.result != null).length;
   const active = !!agent.history.data?.some(item => agentActive(item.status));
   const locked = agent.working || props.busy || props.locked;
   const startDisabled = locked || active || !!agent.pending || !props.manuscript?.currentBranchId || !props.sceneId || !agent.input.trim() || agent.intent === "EDIT" && props.dirty;
@@ -102,13 +105,13 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
           {!!agent.error && <p role="alert" className="text-sm text-destructive">{agent.error}</p>}{!!agent.notice && <p role="status" className="text-sm">{agent.notice}</p>}
         </section>
         <section className="min-w-0 space-y-3 border-t pt-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{t("agent.history")}</h3><Button variant="ghost" size="sm" disabled={agent.history.isFetching} onClick={() => void agent.refresh()}>{t("agent.refresh")}</Button></div>
-          {agent.history.data?.length ? <select aria-label={t("agent.history")} className="block w-full min-w-0 rounded border bg-background p-2 text-sm" value={run?.id || ""} onChange={e => agent.setSelectedRunId(e.target.value)}>{agent.history.data.map(item => <option value={item.id} key={item.id}>{new Date(item.createdAt).toLocaleString()} · {status(item.status)} · {item.id.slice(0, 8)}</option>)}</select> : <p className="text-sm text-muted-foreground">{t("agent.empty")}</p>}
-          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{status(run.status)}</p>{!!text(run.progress.message) && <p className="whitespace-pre-wrap">{message(text(run.progress.message))}</p>}{!!text(run.progress.answer) && <p className="whitespace-pre-wrap">{message(text(run.progress.answer))}</p>}
+          {agent.history.data?.length ? <select aria-label={t("agent.history")} className="block w-full min-w-0 rounded border bg-background p-2 text-sm" value={run?.id || ""} onChange={e => agent.setSelectedRunId(e.target.value)}>{agent.history.data.map(item => <option value={item.id} key={item.id}>{new Date(item.createdAt).toLocaleString()} · {status(displayedRunStatus(item))} · {item.id.slice(0, 8)}</option>)}</select> : <p className="text-sm text-muted-foreground">{t("agent.empty")}</p>}
+          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{status(displayedRunStatus(run))}</p>{!!text(run.progress.message) && <p className="whitespace-pre-wrap">{message(text(run.progress.message))}</p>}{!!text(run.progress.answer) && <p className="whitespace-pre-wrap">{message(text(run.progress.answer))}</p>}
             <p className="text-xs text-muted-foreground">{t("agent.frozenWorld")}：{run.worldBinding ? `${run.worldBinding.name} · v${run.worldBinding.sequenceNumber} · ${t(`world4.${run.worldBinding.sourceType}`)}` : t("agent.noWorld")}</p>
             <p>{t("agent.cost", { settled: money(run.settledCny), reserved: money(run.reservedCny), credits: run.projectCredits })}</p><p className="text-xs text-muted-foreground">{t("agent.limit", { cny: run.maxCostCny, credits: run.maxProjectCredits })}</p>
-            {typeof run.progress.modelCalls === "number" && typeof run.progress.revisions === "number" && <p className="text-xs text-muted-foreground">{t("agent.usedCalls", { calls: run.progress.modelCalls, revisions: run.progress.revisions })}</p>}
+            <p className="text-xs text-muted-foreground">{t("agent.usedSteps", { steps: modelSteps.length, results: savedModelResults, candidates: run.candidates.length })}</p>
             {run.status === "WAITING_AUTHOR" && <label className="block space-y-1">{t("agent.authorAnswer")}<textarea className="block min-h-24 w-full min-w-0 rounded border bg-background p-2" value={answer} onChange={e => setAnswer(e.target.value)} maxLength={8000} /></label>}
-            {run.status === "PAUSED_BUDGET" && <p className="text-amber-700">{t("agent.budgetPaused")}</p>}
+            {displayedRunStatus(run) === "PAUSED_BUDGET" && <p className="text-amber-700">{t("agent.budgetPaused")}</p>}
             <div className="flex flex-wrap gap-2">{agentActive(run.status) && <Button size="sm" variant="outline" disabled={locked || run.status === "PAUSE_REQUESTED"} onClick={() => void agent.control(run, "pause")}>{t("agent.pause")}</Button>}{["PAUSED_USER", "WAITING_AUTHOR", "RECOVERY_REQUIRED"].includes(run.status) && <Button size="sm" variant="outline" disabled={locked || run.status === "WAITING_AUTHOR" && !answer.trim()} onClick={() => void agent.control(run, "resume", run.status === "WAITING_AUTHOR" ? answer.trim() : undefined)}>{t("agent.resume")}</Button>}{!["ACCEPTED", "CANCELLED"].includes(run.status) && <Button size="sm" variant="outline" disabled={locked} onClick={() => void agent.control(run, "cancel")}>{t("agent.cancel")}</Button>}</div><p className="text-xs text-muted-foreground">{t("agent.pauseHelp")}</p>
           </div>
             {!!run.candidates.length && <label className="block space-y-1 text-sm">{t("agent.candidates")}<select className="block w-full min-w-0 rounded border bg-background p-2" value={candidate?.id || ""} onChange={e => setCandidateId(e.target.value)}>{run.candidates.map(item => <option value={item.id} key={item.id}>{t("agent.candidate", { number: item.sequence, han: item.actualHan })}</option>)}</select></label>}

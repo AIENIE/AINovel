@@ -100,12 +100,12 @@ public class WritingAgentService {
     private List<String> toolNames(Frozen f){var names=new ArrayList<String>();for(var t:store.tree(f.toolsJson()))names.add(t.path("function").path("name").asText());return names;}
     public AiActionPlanner.Plan quote(User user,UUID m,UUID scene,JsonNode body){
         var f=prepare(user,m,scene,store.mapper().convertValue(body,Request.class));var steps=new ArrayList<AiActionPlanner.Step>();
-        steps.add(step("writing_agent.control",false,f.limits().controlCalls(),4096));
+        steps.add(step("writing_agent.control",false,Math.min(f.limits().controlCalls(),f.limits().modelCalls()),4096));
         if(!"AUTHOR_QA".equals(f.intent())){
             steps.add(step("scene."+f.mode()+".draft",true,1,8192));
-            if(f.limits().revisions()>0)steps.add(step("writing_agent.refine",true,f.limits().revisions(),8192));
-            if(f.languageCheck())steps.add(step("language.diagnose",true,4,4096));
-            if(f.plotCheck())steps.add(step("plot.diagnose",true,4,4096));
+            if(f.limits().revisions()>0)steps.add(step("writing_agent.refine",true,Math.min(f.limits().revisions(),f.limits().modelCalls()),8192));
+            if(f.languageCheck())steps.add(step("language.diagnose",true,Math.min(4,f.limits().modelCalls()),4096));
+            if(f.plotCheck())steps.add(step("plot.diagnose",true,Math.min(4,f.limits().modelCalls()),4096));
         }
         return new AiActionPlanner.Plan("/v1/manuscripts/"+m+"/scenes/"+scene+"/agent-runs",steps,fingerprint(f),m.toString(),null,null,new com.ainovel.app.worldcontext.WorldWritingInput("AGENT",fingerprint(f),f.world().selectionRevision(),store.mapper().valueToTree(f)));
     }
