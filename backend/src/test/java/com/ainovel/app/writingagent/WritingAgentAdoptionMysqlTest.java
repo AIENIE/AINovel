@@ -59,7 +59,12 @@ import static org.mockito.ArgumentMatchers.*;
         WorldBindingService.class,WorldEntryStore.class,WorldContextSelector.class,WorldContextPreferences.class,ManuscriptContentService.class,JsonColumnCodec.class,WritingAgentAdoptionMysqlTest.Beans.class})
 class WritingAgentAdoptionMysqlTest {
     @DynamicPropertySource static void database(DynamicPropertyRegistry p){String url=System.getenv("AIENIE_AUDIT_MYSQL_URL");if(url==null||!url.matches("jdbc:mysql://[^/]+/aienie_novel_audit_test_[A-Za-z0-9_]+(?:\\?.*)?"))throw new IllegalArgumentException("Isolated schema required");p.add("spring.datasource.url",()->url);p.add("spring.datasource.username",()->System.getenv("AIENIE_AUDIT_MYSQL_USERNAME"));p.add("spring.datasource.password",()->System.getenv("AIENIE_AUDIT_MYSQL_PASSWORD"));p.add("spring.datasource.driver-class-name",()->"com.mysql.cj.jdbc.Driver");p.add("spring.jpa.properties.hibernate.dialect",()->"org.hibernate.dialect.MySQLDialect");}
-    @TestConfiguration static class Beans {@Bean ObjectMapper json(){return new ObjectMapper().findAndRegisterModules();}}
+    @TestConfiguration static class Beans {
+        @Bean ObjectMapper json(){return new ObjectMapper().findAndRegisterModules();}
+        @Bean static org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor repositoryProxies(){
+            var processor=new org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor();processor.setProxyTargetClass(true);return processor;
+        }
+    }
     @MockitoBean ResourceAccessGuard access;@MockitoBean WorldVersionService versionService;@MockitoBean AssistantContext contexts;
     @MockitoBean NarrativeContextService narrative;@MockitoBean SceneGenerationService generation;@MockitoBean PromptAssemblyService assembly;
     @MockitoBean SlopPatternSamplingService slop;@MockitoBean AiService ai;@MockitoBean AiGatewayGrpcClient gateway;@MockitoBean EconomyService economy;
@@ -96,6 +101,20 @@ class WritingAgentAdoptionMysqlTest {
     UUID version(World world,int seq,WorldDraftDtos.Content content){var v=new WorldVersion();v.setId(UUID.randomUUID());v.setWorldId(world.getId());v.setSequenceNumber(seq);v.setOrigin("PUBLISHED");v.setDraftRevision(seq);v.setSnapshotJson(store.write(content));v.setContentHash(WritingAgentStore.hash(v.getSnapshotJson()));v.setCreatedAt(Instant.now());em.persist(v);return v.getId();}
     Decision decision(){return new Decision(store.run(fixture.run()).revision(),fixture.version(),fixture.branch(),fixture.candidate());}
     void await(CountDownLatch latch){try{if(!latch.await(20,TimeUnit.SECONDS))throw new IllegalStateException("test barrier timeout");}catch(InterruptedException e){throw new IllegalStateException(e);}}
+    @Test void springProxiesCanPreviewAndReloadCandidateDetailsWithoutReadingProxyFields() {
+        assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(service));
+        assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(store));
+        assertNotNull(store.mapper());assertNotNull(store.jdbc());
+        assertNotNull(service.worlds());assertNotNull(service.candidates());
+        var request=new Request(fixture.branch(),fixture.version(),"<p>原稿</p>",null,"完善动作","EDIT","fast",false,false,new BigDecimal("5"),100L,Limits.defaults(),null,null);
+
+        var preview=service.preview(fixture.user(),fixture.manuscript(),fixture.scene(),request);
+        assertNotNull(preview.contextHash());assertFalse(preview.contextHash().isBlank());
+        var detail=service.get(fixture.user(),fixture.manuscript(),fixture.scene(),fixture.run());
+        assertEquals(fixture.run(),detail.id());assertEquals(fixture.candidate(),detail.candidates().getFirst().id());
+        assertEquals(fixture.run(),service.list(fixture.user(),fixture.manuscript(),fixture.scene(),fixture.branch()).getFirst().id());
+        verifyNoInteractions(ai,gateway,economy);
+    }
     @Test void worldUpgradeThatCommitsFirstMakesWaitingOldCandidateInapplicable() throws Exception {
         var locked=new CountDownLatch(1);var release=new CountDownLatch(1);
         try(var pool=Executors.newFixedThreadPool(2)){

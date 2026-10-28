@@ -38,7 +38,7 @@ public class WritingAgentMoney {
             for(var s:all){committed=committed.add(s.settledCny()==null?s.reservedCny():s.settledCny());credits=Math.addExact(credits,s.settledCredits()==null?s.reservedCredits():s.settledCredits());}
             if(committed.add(maximum).compareTo(run.maxCny())>0||Math.addExact(credits,creditMaximum)>run.maxCredits())
                 throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_REQUIRED,"WRITING_AGENT_BUDGET_EXHAUSTED");
-            store.jdbc.update("update writing_agent_steps set gateway_request_base64=?,budget_json=?,settlement_state='RESERVED',reserved_cny=?,reserved_project_credits=? where run_id=? and call_key=?",
+            store.jdbc().update("update writing_agent_steps set gateway_request_base64=?,budget_json=?,settlement_state='RESERVED',reserved_cny=?,reserved_project_credits=? where run_id=? and call_key=?",
                     encode(request.toByteArray()),encode(grant.toBuilder().clearBudgetCredential().build().toByteArray()),maximum,creditMaximum,bytes(runId),key);return true;
         });
         if(!fresh)return recover(store.step(runId,key),transport);
@@ -46,10 +46,10 @@ public class WritingAgentMoney {
             var result=validation==null?transport.send(request.toBuilder().setBudgetCredential(grant.getBudgetCredential()).build()):validation.apply(grant);
             settled(store.step(runId,key),result);return result;
         }catch(AiRequestNotSentException notSent){
-            store.isolated(()->{store.jdbc.update("update writing_agent_steps set settlement_state='NOT_SENT',reserved_cny=0,reserved_project_credits=0 where run_id=? and call_key=? and gateway_result_base64 is null",bytes(runId),key);return null;});
+            store.isolated(()->{store.jdbc().update("update writing_agent_steps set settlement_state='NOT_SENT',reserved_cny=0,reserved_project_credits=0 where run_id=? and call_key=? and gateway_result_base64 is null",bytes(runId),key);return null;});
             throw notSent;
         }catch(RuntimeException uncertain){
-            store.isolated(()->{store.jdbc.update("update writing_agent_steps set settlement_state='RECONCILIATION_REQUIRED' where run_id=? and call_key=? and settlement_state<>'SETTLED'",bytes(runId),key);return null;});
+            store.isolated(()->{store.jdbc().update("update writing_agent_steps set settlement_state='RECONCILIATION_REQUIRED' where run_id=? and call_key=? and settlement_state<>'SETTLED'",bytes(runId),key);return null;});
             return recover(store.step(runId,key),transport);
         }
     }
@@ -64,7 +64,7 @@ public class WritingAgentMoney {
                     .setProjectKey(request.getProjectKey()).setUserId(request.getUserId()).setOperation(BudgetOperation.BUDGET_OPERATION_CHAT).build());
             if(!grant.getBudgetId().equals(status.getBudgetId())||!hash(request).equals(status.getRequestSha256()))throw new IllegalStateException("WRITING_AGENT_RECEIPT_MISMATCH");
             if(status.getState()==BudgetCallState.BUDGET_CALL_STATE_FAILED_NOT_SENT){
-                store.isolated(()->{store.jdbc.update("update writing_agent_steps set settlement_state='NOT_SENT',reserved_cny=0,reserved_project_credits=0 where id=?",bytes(step.id()));return null;});
+                store.isolated(()->{store.jdbc().update("update writing_agent_steps set settlement_state='NOT_SENT',reserved_cny=0,reserved_project_credits=0 where id=?",bytes(step.id()));return null;});
                 throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"WRITING_AGENT_CONFIRMED_NOT_SENT");
             }
             if(status.getState()==BudgetCallState.BUDGET_CALL_STATE_SUCCEEDED&&status.getUsageAuthoritative()&&status.hasChat()&&status.hasCharge()
@@ -82,9 +82,9 @@ public class WritingAgentMoney {
         var charge=response.getBudgetCharge();var price=grant.getPriceQuote();BigDecimal cost=amount(charge.getTotalCost());
         if(!"CNY".equals(charge.getCurrency())||charge.getPriceVersionId()!=price.getPriceVersionId()||!charge.getPriceSha256().equals(price.getPriceSha256())
                 ||cost.compareTo(step.reservedCny())>0||response.getPromptTokens()>grant.getMaxPromptTokens()||response.getCompletionTokens()>grant.getMaxCompletionTokens())throw new AiResultUncertainException();
-        store.isolated(()->{store.jdbc.update("update writing_agent_steps set gateway_result_base64=?,settlement_state='SETTLED',settled_cny=? where id=? and gateway_result_base64 is null",encode(response.toByteArray()),cost,bytes(step.id()));return null;});
+        store.isolated(()->{store.jdbc().update("update writing_agent_steps set gateway_result_base64=?,settlement_state='SETTLED',settled_cny=? where id=? and gateway_result_base64 is null",encode(response.toByteArray()),cost,bytes(step.id()));return null;});
     }
-    public void retail(UUID run,String key,long credits){store.isolated(()->{store.lock(run);var s=store.step(run,key);if(credits<0||credits>s.reservedCredits()||s.settledCredits()!=null&&s.settledCredits()!=credits)throw new IllegalStateException("WRITING_AGENT_RETAIL_MISMATCH");store.jdbc.update("update writing_agent_steps set settled_project_credits=? where run_id=? and call_key=?",credits,bytes(run),key);return null;});}
+    public void retail(UUID run,String key,long credits){store.isolated(()->{store.lock(run);var s=store.step(run,key);if(credits<0||credits>s.reservedCredits()||s.settledCredits()!=null&&s.settledCredits()!=credits)throw new IllegalStateException("WRITING_AGENT_RETAIL_MISMATCH");store.jdbc().update("update writing_agent_steps set settled_project_credits=? where run_id=? and call_key=?",credits,bytes(run),key);return null;});}
     private static void requireRequest(WritingAgentStore.Step prior,ChatCompletionsRequest request){if(!prior.gatewayRequest().equals(encode(request.toByteArray())))throw new AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"WRITING_AGENT_REQUEST_CHANGED");}
     private static String encode(byte[] bytes){return Base64.getEncoder().encodeToString(bytes);}
     private static byte[] decode(String value){return Base64.getDecoder().decode(value);}

@@ -16,12 +16,14 @@ import static com.ainovel.app.writingagent.WritingAgentDtos.error;
 /** Journal, not chat history, is the replay authority. Private requests never leave this store. */
 @Repository
 public class WritingAgentStore {
-    final JdbcTemplate jdbc;
-    final ObjectMapper json;
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper json;
     private final TransactionTemplate isolated;
     public WritingAgentStore(JdbcTemplate jdbc,ObjectMapper json,PlatformTransactionManager manager){
         this.jdbc=jdbc;this.json=json;isolated=new TransactionTemplate(manager);isolated.setPropagationBehavior(3);
     }
+    public JdbcTemplate jdbc(){return jdbc;}
+    public ObjectMapper mapper(){return json;}
     public record Run(UUID id,UUID userId,UUID manuscriptId,UUID branchId,UUID sceneId,String requestKey,
             String requestHash,String status,long revision,UUID operationId,String frozen,String state,
             BigDecimal maxCny,long maxCredits,String decision,Instant createdAt) {}

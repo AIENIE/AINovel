@@ -15,6 +15,8 @@ import com.ainovel.app.worldcontext.WorldContextDtos.Preferences;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -71,6 +73,25 @@ class WritingAgentRunnerTest {
 
     @Test void replaysToolCheckpointAfterWorkerModelWithoutReusingItsSequenceOrCallingAgain() {
         recoveryAt("tool:draft");
+    }
+
+    @Test void cglibServiceProxyRunsWorldAndCandidateToolsThroughTargetAccessors() throws Exception {
+        var f=fixture(false,"EDIT",Limits.defaults());String run=f.frozen.document().runs().getFirst().runId();
+        f.service.script.addAll(List.of(call("read","world_read",Map.of("sourceId","entry:"+ENTRY)),
+                call("draft","candidate_draft",Map.of()),candidate(run,"经代理读取航行规则后的候选。"),call("finish","finish",Map.of("answer","交付作者"))));
+        var invoked=new ArrayList<String>();var factory=new ProxyFactory(f.service);factory.setProxyTargetClass(true);
+        factory.addAdvice((org.aopalliance.intercept.MethodInterceptor)invocation->{invoked.add(invocation.getMethod().getName());return invocation.proceed();});
+        var proxied=(WritingAgentService)factory.getProxy();
+        assertThat(AopUtils.isCglibProxy(proxied)).isTrue();
+        var proxyField=WritingAgentService.class.getDeclaredField("candidates");proxyField.setAccessible(true);
+        assertThat(proxyField.get(proxied)).isNull();
+
+        new WritingAgentRunner(proxied,f.store).execute(f.operation(),RUN);
+
+        assertThat(f.store.current.status()).isEqualTo("COMPLETED");
+        assertThat(f.service.sent).hasSize(4);
+        assertThat(invoked).contains("worlds","candidates","model");
+        assertThat(f.service.sent.stream().filter(r->"scene.fast.draft".equals(r.featureKey())).findFirst().orElseThrow().messages().toString()).contains(RULE);
     }
     @Test void replaysAStoredWorkerResponseWhenBusinessCheckpointWasNeverWritten() {
         recoveryAt("worker:1");
@@ -240,7 +261,7 @@ class WritingAgentRunnerTest {
         return new Fixture(store,service,user,frozen);
     }
     private record Fixture(MemoryStore store,ScriptedService service,User user,Frozen frozen) {
-        AiOperationExecution operation(){return new AiOperationExecution(store.current.operationId(),user,"{}",store.json,(label,completed,total)->{});}
+        AiOperationExecution operation(){return new AiOperationExecution(store.current.operationId(),user,"{}",store.mapper(),(label,completed,total)->{});}
     }
     private AiChatResponse call(String id,String name,Map<String,Object> args) {
         var message=json.createObjectNode().put("role","assistant");message.putNull("content");message.put("reasoning_content",PRIVATE);message.put("provider_state","opaque-provider-state");
@@ -252,23 +273,25 @@ class WritingAgentRunnerTest {
     private static AiChatResponse plain(String value){return new AiChatResponse("assistant",value,new AiUsageDto(10,5,0,0,1),100);}
     private String write(Object value){try{return json.writeValueAsString(value);}catch(Exception e){throw new IllegalStateException(e);}}
     private static final class SimulatedRestart extends Error {}
-    private static final class ScriptedService extends WritingAgentService {
+    static class ScriptedService extends WritingAgentService {
+        private final MemoryStore memory;
         final Deque<AiChatResponse> script=new ArrayDeque<>();final List<AiChatRequest> sent=new ArrayList<>();Consumer<AiChatRequest> beforeSend,afterSend;
         ScriptedService(MemoryStore store,WorldAgentTools worlds,CandidateAgentTools candidates,WritingAgentPrompts prompts,ResourceAccessGuard access,AiOperationService operations) {
             super(store,worlds,candidates,prompts,access,null,null,null,null,null,null,null,null,null,null,null,null,operations,null,null,null);
+            this.memory=store;
         }
-        @Override AiChatResponse model(User user,UUID runId,int sequence,String key,AiChatRequest request) {
-            var step=store.request(runId,sequence,key,"MODEL",request.featureKey(),new ModelRecord(request,request.featureKey()));
-            if(step.result()!=null)return store.read(step.result(),AiChatResponse.class);
+        @Override public AiChatResponse model(User user,UUID runId,int sequence,String key,AiChatRequest request) {
+            var step=memory.request(runId,sequence,key,"MODEL",request.featureKey(),new ModelRecord(request,request.featureKey()));
+            if(step.result()!=null)return memory.read(step.result(),AiChatResponse.class);
             if(beforeSend!=null)beforeSend.accept(request);
             if(script.isEmpty())throw new AssertionError("Unexpected new model call "+key+" at sequence "+sequence);
-            sent.add(request);var result=script.removeFirst();store.result(runId,key,result);if(afterSend!=null)afterSend.accept(request);return result;
+            sent.add(request);var result=script.removeFirst();memory.result(runId,key,result);if(afterSend!=null)afterSend.accept(request);return result;
         }
     }
     private static final class MemoryStore extends WritingAgentStore {
         Run current;final Map<String,Step> journal=new LinkedHashMap<>();final List<String> sql=new ArrayList<>();String crashAfterResult;
         MemoryStore(ObjectMapper mapper){super(mock(JdbcTemplate.class),mapper,mock(PlatformTransactionManager.class));
-            when(jdbc.update(anyString(),any(Object[].class))).thenAnswer(invocation->{String statement=invocation.getArgument(0);Object[] values=(Object[])invocation.getRawArguments()[1];sql.add(statement);
+            when(jdbc().update(anyString(),any(Object[].class))).thenAnswer(invocation->{String statement=invocation.getArgument(0);Object[] values=(Object[])invocation.getRawArguments()[1];sql.add(statement);
                 if(statement.startsWith("update writing_agent_runs set status=")&&!current.status().equals("CANCELLED"))replace((String)values[0],current.operationId(),(String)values[1],current.decision());
                 else if(statement.startsWith("update writing_agent_runs set operation_id="))replace("QUEUED",uuid((byte[])values[0]),current.state(),current.decision());
                 else if(statement.startsWith("update writing_agent_runs set decision_json="))replace(current.status(),current.operationId(),current.state(),(String)values[0]);

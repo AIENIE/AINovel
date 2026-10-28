@@ -32,7 +32,7 @@ public class WritingAgentRunner {
         var f=store.read(run.frozen(),Frozen.class);if(!PROTOCOL.equals(f.protocol())||f.selections()==null)throw error("WRITING_AGENT_PROTOCOL_UNSUPPORTED");
         if(run.status().equals("CANCELLED"))return Map.of("runId",runId,"status","CANCELLED");
         var x=new Execution();
-        if(f.toolsJson()==null||f.controlMessages()==null||f.controlMessages().isEmpty()||!Objects.equals(f.candidateTemplateHash(),service.candidates.templateHash()))return stop(runId,x,"PAUSED_INPUT","WRITING_AGENT_PROTOCOL_UNAVAILABLE",null);
+        if(f.toolsJson()==null||f.controlMessages()==null||f.controlMessages().isEmpty()||!Objects.equals(f.candidateTemplateHash(),service.candidates().templateHash()))return stop(runId,x,"PAUSED_INPUT","WRITING_AGENT_PROTOCOL_UNAVAILABLE",null);
         List<AiChatRequest.Message> messages=new ArrayList<>(f.controlMessages());
         var names=new HashSet<String>();for(var t:store.tree(f.toolsJson()))names.add(t.path("function").path("name").asText());
         try(var selection=AiSelectionContext.install(f.selections())){
@@ -44,7 +44,7 @@ public class WritingAgentRunner {
                 x.controls++;x.modelCalls++;int ordinal=++x.sequence;String modelKey="control:"+x.controls;
                 var controlSources=retrievedSources(f,x);String editable=store.write(f.document().runs());
                 controlSources.add(new Source("scene:"+f.sceneId()+":editable","CANDIDATE","本次可编辑原文",editable,f.sceneId(),hash(editable),true,"initial-input"));
-                var controlManifest=store.json.createObjectNode();controlManifest.set("writingAgentSources",store.json.valueToTree(controlSources));
+                var controlManifest=store.mapper().createObjectNode();controlManifest.set("writingAgentSources",store.mapper().valueToTree(controlSources));
                 var request=new AiChatRequest(List.copyOf(messages),null,controlManifest).forFeature("writing_agent.control").withNativeTools(f.toolsJson(),f.selections().outputBudget("writing_agent.control"));
                 operation.progress().step("自主决策 "+x.controls,x.modelCalls-1,f.limits().modelCalls());
                 var response=service.model(operation.user(),runId,ordinal,modelKey,request);
@@ -57,7 +57,7 @@ public class WritingAgentRunner {
                 if("AUTHOR_QA".equals(f.intent())&&nativeResult.toolCalls().stream().anyMatch(t->t.name().startsWith("candidate_")))return stop(runId,x,"PAUSED_INPUT","AUTHOR_QA_READ_ONLY",null);
                 messages.add(nativeResult.message());
                 if(nativeResult.toolCalls().isEmpty()){
-                    String status="AUTHOR_QA".equals(f.intent())||x.candidate!=null&&service.worlds.requiredComplete(f.world(),x.world)?"COMPLETED":"WAITING_AUTHOR";
+                    String status="AUTHOR_QA".equals(f.intent())||x.candidate!=null&&service.worlds().requiredComplete(f.world(),x.world)?"COMPLETED":"WAITING_AUTHOR";
                     if(status.equals("WAITING_AUTHOR")){
                         String answer=authorAnswer(runId,modelKey);
                         if(!answer.isBlank()){messages.add(new AiChatRequest.Message("user","作者补充的创作要求：\n"+answer));continue;}
@@ -104,13 +104,13 @@ public class WritingAgentRunner {
     private ToolCheckpoint tool(AiOperationExecution op,UUID runId,Frozen f,Execution x,String name,JsonNode args){
         if(name.equals("ask_author"))return checkpoint(x,Map.of("question",args.path("question").asText("请补充关键设定")),"WAITING_AUTHOR");
         if(name.equals("finish")){
-            if(!service.worlds.requiredComplete(f.world(),x.world))return checkpoint(x,Map.of("error","WRITING_AGENT_REQUIRED_READS","mustRead",service.worlds.requiredReads(f.world(),x.world)),null);
+            if(!service.worlds().requiredComplete(f.world(),x.world))return checkpoint(x,Map.of("error","WRITING_AGENT_REQUIRED_READS","mustRead",service.worlds().requiredReads(f.world(),x.world)),null);
             if(!"AUTHOR_QA".equals(f.intent())&&x.candidate==null)return checkpoint(x,Map.of("error","WRITING_AGENT_CANDIDATE_REQUIRED"),null);
             return checkpoint(x,Map.of("answer",args.path("answer").asText("候选已交付作者审阅")),"COMPLETED");
         }
         if(name.startsWith("world_")||name.startsWith("context_")){
             if(++x.local>f.limits().localTools())return checkpoint(x,Map.of("error","WRITING_AGENT_TOOL_LIMIT"),"PAUSED_BUDGET");
-            if(name.startsWith("world_")){var out=service.worlds.invoke(f.world(),name,args,x.world);x.world=out.state();return checkpoint(x,out.output(),null);}
+            if(name.startsWith("world_")){var out=service.worlds().invoke(f.world(),name,args,x.world);x.world=out.state();return checkpoint(x,out.output(),null);}
             return context(f,x,name,args);
         }
         if("AUTHOR_QA".equals(f.intent()))return checkpoint(x,Map.of("error","AUTHOR_QA_READ_ONLY"),null);
@@ -118,40 +118,40 @@ public class WritingAgentRunner {
         if(drafting&&x.drafts>=1)return checkpoint(x,Map.of("error","WRITING_AGENT_DRAFT_LIMIT"),null);
         if(!drafting&&x.candidate==null)return checkpoint(x,Map.of("error","WRITING_AGENT_CANDIDATE_REQUIRED"),null);
         if(refining&&x.revisions>=f.limits().revisions())return checkpoint(x,Map.of("error","WRITING_AGENT_REVISION_LIMIT"),"PAUSED_BUDGET");
-        if((drafting||refining)&&!service.worlds.requiredComplete(f.world(),x.world))return checkpoint(x,Map.of("error","WRITING_AGENT_REQUIRED_READS","mustRead",service.worlds.requiredReads(f.world(),x.world)),null);
+        if((drafting||refining)&&!service.worlds().requiredComplete(f.world(),x.world))return checkpoint(x,Map.of("error","WRITING_AGENT_REQUIRED_READS","mustRead",service.worlds().requiredReads(f.world(),x.world)),null);
         var reads=retrievedSources(f,x);
         String instruction=f.instruction()+(refining?"\n本次修订要求："+args.path("instruction").asText():"");
         var input=new CandidateAgentTools.Input(instruction,x.candidate==null?f.document().sourceHtml():x.candidate.html(),f.generationRules(),reads,f.context().minHan(),f.context().maxHan(),f.context().h2()&&!"AUTHOR_QA".equals(f.intent()),f.document(),x.candidate==null?List.of():x.candidate.replacements());
         String cacheKey=null;AiChatResponse generated=null;
         try {
-            AiChatRequest request=switch(name){case "candidate_draft"->service.candidates.draftRequest(input,f.mode());case "candidate_refine"->service.candidates.refineRequest(input);case "candidate_check_language"->service.candidates.languageRequest(input);case "candidate_check_plot"->service.candidates.plotRequest(input);default->throw error("WRITING_AGENT_TOOL_UNAVAILABLE");};
+            AiChatRequest request=switch(name){case "candidate_draft"->service.candidates().draftRequest(input,f.mode());case "candidate_refine"->service.candidates().refineRequest(input);case "candidate_check_language"->service.candidates().languageRequest(input);case "candidate_check_plot"->service.candidates().plotRequest(input);default->throw error("WRITING_AGENT_TOOL_UNAVAILABLE");};
             var actualSources=new ArrayList<Source>();if(!name.equals("candidate_check_language"))actualSources.addAll(reads);
             String sentBody=name.equals("candidate_check_language")||name.equals("candidate_check_plot")?com.ainovel.app.quality.language.LanguageProjection.of(input.candidateHtml()).text():input.candidateHtml();
             actualSources.add(new Source(x.candidate==null?"scene:"+f.sceneId():"candidate:"+x.candidate.id(),"CANDIDATE","当前场景候选",sentBody,f.sceneId(),hash(sentBody),false,"current-target"));
-            var manifest=store.json.createObjectNode();manifest.set("writingAgentSources",store.json.valueToTree(actualSources));
+            var manifest=store.mapper().createObjectNode();manifest.set("writingAgentSources",store.mapper().valueToTree(actualSources));
             request=new AiChatRequest(request.messages(),request.modelId(),manifest,request.featureKey(),request.toolsJson(),request.maxOutputTokens());
             String cache=hash(store.write(request));cacheKey=cache;if(!drafting&&!refining&&x.checks.containsKey(cache))return checkpoint(x,x.checks.get(cache),null);
             if(x.paid>=f.limits().paidTools()||x.modelCalls>=f.limits().modelCalls())return checkpoint(x,Map.of("error","WRITING_AGENT_CALL_LIMIT"),"PAUSED_BUDGET");
             if(name.equals("candidate_check_language")&&x.languageChecks>=4||name.equals("candidate_check_plot")&&x.plotChecks>=4)return checkpoint(x,Map.of("error","WRITING_AGENT_CHECK_LIMIT"),"PAUSED_BUDGET");
             recount(x,name);x.modelCalls++;var response=service.model(op.user(),runId,++x.sequence,"worker:"+x.paid,request);generated=response;
-            if(response.content()==null||response.content().isBlank()){var failure=store.json.valueToTree(Map.of("error","WRITING_AGENT_"+AiResultDiagnostics.unusable(response).name()));x.checks.put(cache,failure);return checkpoint(x,failure,null);}
+            if(response.content()==null||response.content().isBlank()){var failure=store.mapper().valueToTree(Map.of("error","WRITING_AGENT_"+AiResultDiagnostics.unusable(response).name()));x.checks.put(cache,failure);return checkpoint(x,failure,null);}
             if(drafting||refining){
-                var parsed=service.candidates.parseCandidate(response.content(),input);int sequence=(x.candidate==null?0:x.candidate.sequence())+1;
+                var parsed=service.candidates().parseCandidate(response.content(),input);int sequence=(x.candidate==null?0:x.candidate.sequence())+1;
                 UUID id=UUID.nameUUIDFromBytes((runId+":candidate:"+x.paid).getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                var sourceNodes=actualSources.stream().map(s->store.json.<JsonNode>valueToTree(s)).toList();
+                var sourceNodes=actualSources.stream().map(s->store.mapper().<JsonNode>valueToTree(s)).toList();
                 var c=new Candidate(id,sequence,x.candidate==null?null:x.candidate.id(),parsed.html(),parsed.contentHash(),parsed.actualHan(),parsed.replacements(),sourceNodes);
                 // The candidate's deterministic key handles replay. Do not hold the run lock while
                 // InnoDB checks manuscript/branch foreign keys; adoption locks manuscript before run.
-                store.isolated(()->{store.jdbc.update("insert into narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at,operation_id,generation_sequence,manuscript_version,min_han,max_han,actual_han,quality_status,source_kind,metadata_json) values(?,?,?,?,?,?,'READY',current_timestamp(6),?,?,?,?,?,?,'NOT_PROCESSED','AGENT',?) on duplicate key update id=id",
+                store.isolated(()->{store.jdbc().update("insert into narrative_generation_candidates(id,manuscript_id,branch_id,scene_id,content,stamp_json,status,created_at,operation_id,generation_sequence,manuscript_version,min_han,max_han,actual_han,quality_status,source_kind,metadata_json) values(?,?,?,?,?,?,'READY',current_timestamp(6),?,?,?,?,?,?,'NOT_PROCESSED','AGENT',?) on duplicate key update id=id",
                         bytes(c.id()),bytes(f.manuscriptId()),bytes(f.branchId()),bytes(f.sceneId()),c.html(),"{}",bytes(runId),c.sequence(),f.sourceVersion(),f.context().minHan(),f.context().maxHan(),c.actualHan(),store.write(c));return null;});
                 x.candidate=c;x.noProgress=0;return checkpoint(x,Map.of("candidateId",id,"candidateHash",c.hash(),"actualHan",c.actualHan(),"minHan",f.context().minHan(),"maxHan",f.context().maxHan(),"message","候选已保留，尚未修改正文"),null);
             }
-            var report=name.equals("candidate_check_language")?service.candidates.parseLanguage(response.content(),input):service.candidates.parsePlot(response.content(),input);
-            var output=store.json.valueToTree(Map.of("candidateId",x.candidate.id(),"candidateHash",x.candidate.hash(),"kind",report.kind(),"report",report.data()));x.checks.put(cache,output);return checkpoint(x,output,null);
+            var report=name.equals("candidate_check_language")?service.candidates().parseLanguage(response.content(),input):service.candidates().parsePlot(response.content(),input);
+            var output=store.mapper().valueToTree(Map.of("candidateId",x.candidate.id(),"candidateHash",x.candidate.hash(),"kind",report.kind(),"report",report.data()));x.checks.put(cache,output);return checkpoint(x,output,null);
         }catch(AiRequestNotSentException notSent){throw notSent;}
         catch(com.ainovel.app.modelconfig.AiPaymentRequiredException pending){throw pending;}
-        catch(com.ainovel.app.common.ApiStatusException business){String code=safe(business.getMessage());if(code.equals("WRITING_AGENT_NO_CHANGE"))x.noProgress++;else if(generated!=null&&!code.contains("INPUT_LIMIT"))code="WRITING_AGENT_"+AiResultDiagnostics.unusable(generated).name();var failure=store.json.valueToTree(Map.of("error",code));if(cacheKey!=null&&!drafting&&!refining)x.checks.put(cacheKey,failure);return checkpoint(x,failure,code.contains("INPUT_LIMIT")?"PAUSED_INPUT":null);}
-        catch(IllegalArgumentException invalid){String code=generated==null?"WRITING_AGENT_TOOL_INPUT_INVALID":"WRITING_AGENT_"+AiResultDiagnostics.unusable(generated).name();var failure=store.json.valueToTree(Map.of("error",code));if(cacheKey!=null&&!drafting&&!refining)x.checks.put(cacheKey,failure);return checkpoint(x,failure,generated==null?"PAUSED_INPUT":null);}
+        catch(com.ainovel.app.common.ApiStatusException business){String code=safe(business.getMessage());if(code.equals("WRITING_AGENT_NO_CHANGE"))x.noProgress++;else if(generated!=null&&!code.contains("INPUT_LIMIT"))code="WRITING_AGENT_"+AiResultDiagnostics.unusable(generated).name();var failure=store.mapper().valueToTree(Map.of("error",code));if(cacheKey!=null&&!drafting&&!refining)x.checks.put(cacheKey,failure);return checkpoint(x,failure,code.contains("INPUT_LIMIT")?"PAUSED_INPUT":null);}
+        catch(IllegalArgumentException invalid){String code=generated==null?"WRITING_AGENT_TOOL_INPUT_INVALID":"WRITING_AGENT_"+AiResultDiagnostics.unusable(generated).name();var failure=store.mapper().valueToTree(Map.of("error",code));if(cacheKey!=null&&!drafting&&!refining)x.checks.put(cacheKey,failure);return checkpoint(x,failure,generated==null?"PAUSED_INPUT":null);}
     }
     private ArrayList<Source> retrievedSources(Frozen f,Execution x){
         var sources=new ArrayList<>(f.base());sources.addAll(x.reads);
@@ -182,9 +182,9 @@ public class WritingAgentRunner {
     }
     private void addRead(Execution x,Source source){if(x.reads.stream().noneMatch(s->s.id().equals(source.id()))){if(com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(store.write(x.reads)+store.write(source))>3500)throw error("WRITING_AGENT_CONTEXT_LIMIT");x.reads.add(source);}}
     private static void recount(Execution x,String name){if(name.startsWith("world_")||name.startsWith("context_"))x.local++;else if(name.startsWith("candidate_")){x.paid++;if(name.equals("candidate_draft"))x.drafts++;if(name.equals("candidate_refine"))x.revisions++;if(name.equals("candidate_check_language"))x.languageChecks++;if(name.equals("candidate_check_plot"))x.plotChecks++;}}
-    private ToolCheckpoint checkpoint(Execution x,Object output,String pause){return new ToolCheckpoint(store.json.valueToTree(output),x.world,List.copyOf(x.reads),x.candidate,Map.copyOf(x.checks),pause,x.sequence,x.modelCalls,x.controls,x.paid,x.local,x.revisions,x.drafts,x.noProgress,x.languageChecks,x.plotChecks);}
+    private ToolCheckpoint checkpoint(Execution x,Object output,String pause){return new ToolCheckpoint(store.mapper().valueToTree(output),x.world,List.copyOf(x.reads),x.candidate,Map.copyOf(x.checks),pause,x.sequence,x.modelCalls,x.controls,x.paid,x.local,x.revisions,x.drafts,x.noProgress,x.languageChecks,x.plotChecks);}
     private Object stop(UUID id,Execution x,String status,String answer,String questionKey){var progress=progress(x,answer);progress.put("answer",answer);if(questionKey!=null)progress.put("questionKey",questionKey);return AiOperationExecutionContext.complete(()->{store.state(id,status,progress);return Map.of("runId",id,"status",status);});}
     private Map<String,Object> progress(Execution x,String message){var state=new LinkedHashMap<String,Object>();state.put("message",message);state.put("modelCalls",x.modelCalls);state.put("controlCalls",x.controls);state.put("paidTools",x.paid);state.put("localTools",x.local);state.put("revisions",x.revisions);if(x.candidate!=null)state.put("candidateId",x.candidate.id());return state;}
-    private JsonNode parseArguments(String text){try{var args=store.json.readTree(text);if(args==null||!args.isObject()||text.length()>16000)throw error("WRITING_AGENT_ARGUMENTS_INVALID");return args;}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw error("WRITING_AGENT_ARGUMENTS_INVALID");}}
+    private JsonNode parseArguments(String text){try{var args=store.mapper().readTree(text);if(args==null||!args.isObject()||text.length()>16000)throw error("WRITING_AGENT_ARGUMENTS_INVALID");return args;}catch(com.fasterxml.jackson.core.JsonProcessingException e){throw error("WRITING_AGENT_ARGUMENTS_INVALID");}}
     private static String safe(String value){return value!=null&&value.matches("[A-Z][A-Z0-9_]{1,100}")?value:"WRITING_AGENT_STEP_FAILED";}
 }

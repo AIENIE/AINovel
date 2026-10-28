@@ -5,7 +5,6 @@ import com.ainovel.app.modelconfig.AiModelSelection;
 import fireflychat.ai.v1.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
@@ -23,7 +22,7 @@ class WritingAgentMoneyTest {
     final AiModelSelection selected=new AiModelSelection("writing_agent.controller","option","model","Model","OFF",null,false,true,"FIXED",1L,null,null,1);
     final ChatCompletionsRequest request=ChatCompletionsRequest.newBuilder().setRequestId("original-request").setProjectKey("ainovel").setUserId(7).setModel("model").setMaxOutputTokens(4096)
             .addMessages(ChatMessage.newBuilder().setRole("user").setContent("original input")).build();
-    WritingAgentMoneyTest(){ReflectionTestUtils.setField(store,"jdbc",jdbc);lenient().when(store.isolated(any())).thenAnswer(i->((Supplier<?>)i.getArgument(0)).get());}
+    WritingAgentMoneyTest(){lenient().when(store.jdbc()).thenReturn(jdbc);lenient().when(store.isolated(any())).thenAnswer(i->((Supplier<?>)i.getArgument(0)).get());}
     PrepareCallBudgetResponse grant(){return PrepareCallBudgetResponse.newBuilder().setBudgetId("original-budget").setRequestSha256(AiValidationCallBudget.hash(request)).setMaxPromptTokens(10000).setMaxCompletionTokens(4096).setMaxProviderAttempts(1)
             .setBudgetCredential("first-send-only").setExpiresAtEpochMs(System.currentTimeMillis()+60000)
             .setPriceQuote(BudgetPriceQuote.newBuilder().setCurrency("CNY").setPriceVersionId(1).setPriceSha256("a".repeat(64)).setMaxCost("2.000000")).build();}
