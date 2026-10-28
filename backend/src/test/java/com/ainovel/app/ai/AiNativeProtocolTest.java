@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.*;
 
 class AiNativeProtocolTest {
     static final String TOOLS="[{\"type\":\"function\",\"function\":{\"name\":\"world_search\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}}]";
@@ -58,6 +58,20 @@ class AiNativeProtocolTest {
             try(var executor=java.util.concurrent.Executors.newSingleThreadExecutor()) {assertNull(executor.submit(AiNativeBudgetContext::current).get());}
         }
         assertNull(AiNativeBudgetContext.current());
+    }
+    @Test void ordinaryHttpResponsesNeverExposePrivateNativeReceipts() throws Exception {
+        var ai=mock(AiService.class);var users=mock(com.ainovel.app.common.CurrentUserResolver.class);
+        var user=new com.ainovel.app.user.User();var principal=mock(org.springframework.security.core.userdetails.UserDetails.class);
+        when(users.require(principal)).thenReturn(user);
+        var internal=new AiChatResponse("assistant","可见正文",new AiUsageDto(10,20,0,0,1),99,null,"model",AiResponseMetadata.reported("stop",3L,true),"{\"reasoning_content\":\"private-continuation\"}");
+        when(ai.chatWithIdempotency(eq(user),any(),anyString())).thenReturn(internal);
+        var controller=new AiController();org.springframework.test.util.ReflectionTestUtils.setField(controller,"aiService",ai);org.springframework.test.util.ReflectionTestUtils.setField(controller,"currentUserResolver",users);
+        var request=new AiChatRequest(List.of(new AiChatRequest.Message("user","请解释正文")),null,null);
+        for(var result:List.of(controller.chat(principal,"chat",request).getBody(),controller.summarizeVersions(principal,"summary",request))){
+            assertNull(result.nativeResponseJson());assertEquals(internal.content(),result.content());assertEquals(internal.metadata(),result.metadata());
+            assertFalse(json.writeValueAsString(result).contains("private-continuation"));
+        }
+        assertEquals("{\"reasoning_content\":\"private-continuation\"}",internal.nativeResponseJson());
     }
     static AiChatRequest nativeRequest() {
         return new AiChatRequest(List.of(new AiChatRequest.Message("user","世界的规则"),

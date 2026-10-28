@@ -421,6 +421,28 @@ public class EconomyService {
         if (reservation == null || reservation.getStatus() != AiCreditReservation.Status.RESERVED) {
             return;
         }
+        releaseAiReservation(user, idempotencyKey, reservation);
+    }
+
+    /** Internal recovery only: the caller has verified the original budget/hash as FAILED_NOT_SENT. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void releaseConfirmedNotSentWritingAgentReservation(User user, com.ainovel.app.ai.AiUsageContext usage) {
+        if (usage == null || !"WRITING_AGENT".equals(usage.referenceType())) {
+            throw new IllegalArgumentException("Writing-agent recovery identity required");
+        }
+        user = lockUser(user);
+        AiCreditReservation reservation = aiReservationRepository
+                .findByUserAndIdempotencyKey(user, usage.idempotencyKey()).orElse(null);
+        if (reservation == null || !"WRITING_AGENT".equals(reservation.getReferenceType())
+                || !usage.referenceId().equals(reservation.getReferenceId())
+                || (reservation.getStatus() != AiCreditReservation.Status.RESERVED
+                && reservation.getStatus() != AiCreditReservation.Status.RECONCILIATION_REQUIRED)) {
+            return;
+        }
+        releaseAiReservation(user, usage.idempotencyKey(), reservation);
+    }
+
+    private void releaseAiReservation(User user, String idempotencyKey, AiCreditReservation reservation) {
         ProjectCreditAccount account = accountForUpdate(user);
         long nextBalance = account.getBalance() + reservation.getReservedAmount();
         account.setBalance(nextBalance);

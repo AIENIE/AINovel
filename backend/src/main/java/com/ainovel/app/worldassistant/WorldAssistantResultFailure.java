@@ -1,7 +1,6 @@
 package com.ainovel.app.worldassistant;
 
 import com.ainovel.app.ai.dto.AiChatResponse;
-import com.ainovel.app.ai.dto.AiResponseMetadata;
 
 /** Classifies unusable setting results using reported response facts, never a model-name guess. */
 final class WorldAssistantResultFailure {
@@ -14,15 +13,7 @@ final class WorldAssistantResultFailure {
     private WorldAssistantResultFailure() {}
 
     static String code(AiChatResponse response) {
-        boolean empty = response.content() == null || response.content().isBlank();
-        var metadata = response.metadata();
-        boolean length = metadata != null && metadata.finishReason() == AiResponseMetadata.FinishReason.LENGTH;
-        if (!empty) return length ? TRUNCATED : INVALID;
-        if (!length) return EMPTY;
-        if (Boolean.TRUE.equals(metadata.usageAuthoritative()) && metadata.reasoningTokens() != null
-                && metadata.reasoningTokens() > 0 && response.usage() != null
-                && Double.compare(metadata.reasoningTokens().doubleValue(),response.usage().outputTokens()) == 0) return REASONING_LIMIT;
-        return OUTPUT_LIMIT;
+        return "WORLD_ASSISTANT_"+com.ainovel.app.ai.AiResultDiagnostics.unusable(response).name();
     }
 
     static boolean classifiable(String code) {

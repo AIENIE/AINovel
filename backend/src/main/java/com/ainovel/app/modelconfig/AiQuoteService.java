@@ -50,7 +50,7 @@ public class AiQuoteService {
                 var selected=feature.options().stream().filter(o->o.optionId().equals(id)).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
                 if(feature.unavailableOptions().contains(id))throw AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE");
                 selections.put(step.featureKey(),selected);
-                steps.add(new QuoteStep(step,feature,selected,selected.cost(step.estimatedInput(),step.estimatedOutput())));
+                steps.add(new QuoteStep(step,feature,selected,Math.multiplyExact(selected.cost(step.estimatedInput(),step.estimatedOutput()),maximumCalls(step.calls()))));
             }
             String id=UUID.randomUUID().toString();Instant expires=Instant.now().plusSeconds(600);
             jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,expires_at) values(?,?,?,?,?,?,?,?,?)",
@@ -124,6 +124,7 @@ public class AiQuoteService {
     private Map<String,Integer> budgets(AiActionPlanner.Plan plan) {
         Map<String,Integer> values=new LinkedHashMap<>();for(var step:plan.steps())values.put(step.featureKey(),step.estimatedOutput());return values;
     }
+    private static int maximumCalls(String value){if(value!=null&&value.matches("UP_TO_[0-9]+"))return Integer.parseInt(value.substring(6));return 1;}
     /** A durable receipt uses the existing quote snapshot store for G2's independently scheduled task. */
     public void freezeTaskSnapshot(User user,UUID taskId) {
         var snapshot=AiSelectionContext.current();if(snapshot==null)return;

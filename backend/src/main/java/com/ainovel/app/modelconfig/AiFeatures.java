@@ -50,6 +50,8 @@ public final class AiFeatures {
                 {"language.review","语言复核","語言複核","Language review"},{"narrative.extract","叙事状态提取","敘事狀態提取","Narrative extraction"}};
         for(var q:quality) add(q[0],"quality",q[1],q[2],q[3]);
         add("generic.chat","tools","通用对话","通用對話","General chat");
+        add("writing_agent.control","assistant","自主创作·协调","自主創作·協調","Writing agent · coordination");
+        add("writing_agent.refine","writing","自主创作·候选修订","自主創作·候選修訂","Writing agent · candidate revision");
         add("generic.refine","tools","通用润色","通用潤色","General refinement");
         add("versions.summary","tools","版本差异摘要","版本差異摘要","Version difference summary");
     }

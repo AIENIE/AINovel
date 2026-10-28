@@ -41,10 +41,22 @@ public class AiActionPlanner {
     @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy
+    private com.ainovel.app.writingagent.WritingAgentService writingAgent;
     public AiActionPlanner(JdbcTemplate jdbc,ObjectMapper json) {this.jdbc=jdbc;this.json=json;}
     public List<String> features(String target,JsonNode body) {
         String path=target.split("\\?",2)[0]; if(path.startsWith("/api/"))path=path.substring(4);
         var keys=new LinkedHashSet<String>();
+        if(path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/agent-runs")) {
+            keys.add("writing_agent.control");
+            if(!"AUTHOR_QA".equals(body.path("intent").asText("EDIT"))) {
+                keys.add("scene."+("crafted".equals(body.path("mode").asText())?"crafted":"fast")+".draft");
+                if(!body.has("limits")||body.path("limits").path("revisions").asInt(3)>0)keys.add("writing_agent.refine");
+                if(body.path("languageCheck").asBoolean())keys.add("language.diagnose");
+                if(body.path("plotCheck").asBoolean())keys.add("plot.diagnose");
+            }
+            return List.copyOf(keys);
+        }
         if(path.equals("/v1/creation-workflows")&&body.path("autoRun").asBoolean()) {
             keys.addAll(List.of("guided.premise","guided.world","guided.json_repair"));
         } else if(path.equals("/v1/conception")||path.equals("/v1/conception/operations"))keys.add("story.conception");
@@ -106,6 +118,9 @@ public class AiActionPlanner {
     }
     @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public Plan plan(User user,String target,JsonNode body) {
+        if(target.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/agent-runs")) {
+            var parts=target.split("/");return writingAgent.quote(user,UUID.fromString(parts[3]),UUID.fromString(parts[5]),body);
+        }
         var keys=new ArrayList<>(features(target,body));
         if(keys.isEmpty())throw AiModelConfigurationService.error("AI_ACTION_INVALID");
         String state=businessState(user,target,body);
