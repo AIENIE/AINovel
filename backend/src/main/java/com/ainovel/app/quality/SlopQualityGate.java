@@ -8,7 +8,7 @@ import java.util.*;
 /** A read-only check: even a model-confirmed problem cannot replace the input candidate. */
 @Service
 public class SlopQualityGate {
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
     private final LocalSlopHeuristics heuristics;
     private final SlopJudgeClient judgeClient;
@@ -24,7 +24,7 @@ public class SlopQualityGate {
         var review=new SlopEvidence.ReviewData(); review.localSignals=local.issues(); review.localRisk=local.overallRiskScore();
         review.coverage="LOCAL_ONLY"; review.reason="仅记录本地线索，正文未进行语义检查。";
         int risk=0; List<SlopIssueDraft> issues=List.of(); SlopQualitySignals signals=SlopQualitySignals.empty();
-        boolean localOnly=languageWorkflow || validationBudget!=null && validationBudget.localQualityOnly();
+        boolean localOnly=languageWorkflow || validationBudget.localQualityOnly();
         if(local.requiresAiReview() && !localOnly) {
             try {
                 var judge=judgeClient.judge(user,request,local,usage==null?null:usage.forOperation("quality-judge"));

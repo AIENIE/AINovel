@@ -19,8 +19,8 @@ import java.util.*;
 @Service
 public class MaterialRetrievalService {
     @org.springframework.beans.factory.annotation.Value("${app.material-evidence.legacy-semantic-enabled:false}")
-    private boolean legacySemanticEnabled=true;
-    @Autowired(required=false)
+    private boolean legacySemanticEnabled;
+    @Autowired
     private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(MaterialRetrievalService.class);
     private final MaterialRepository materials;
@@ -40,11 +40,6 @@ public class MaterialRetrievalService {
     @org.springframework.beans.factory.annotation.Value("${app.material.index.max-duration-seconds:600}")
     private long maxDurationSeconds = 600;
 
-    public MaterialRetrievalService(MaterialRepository materials, MaterialChunker chunker,
-                                    TextEmbeddingClient embeddings, MaterialVectorIndex vectors) {
-        this(materials, chunker, embeddings, vectors, null, null, null);
-    }
-
     @Autowired
     public MaterialRetrievalService(MaterialRepository materials, MaterialChunker chunker,
                                     TextEmbeddingClient embeddings, MaterialVectorIndex vectors,
@@ -56,13 +51,7 @@ public class MaterialRetrievalService {
 
     @Transactional
     public void indexMaterial(User user, Material material) {
-        if(materialEvidence!=null&&material!=null&&material.getId()!=null){materialEvidence.capture(material);return;}
-        if (jobs == null || material == null || material.getId() == null) return;
-        MaterialIndexJob job = jobs.findByMaterialIdForUpdate(material.getId()).orElseGet(MaterialIndexJob::new);
-        if (job.getMaterial() == null) job.setMaterial(material);
-        job.setStatus("queued"); job.setNextAttemptAt(Instant.now()); job.setErrorCode(null);
-        job.setLeaseOwner(null); job.setLeaseExpiresAt(null); jobs.save(job);
-        job.setAttemptCount(0);
+        materialEvidence.capture(material);
     }
 
     public void deleteIndexAfterCommit(UUID materialId) {
@@ -84,7 +73,6 @@ public class MaterialRetrievalService {
     @Scheduled(fixedDelayString="${app.material-index.dispatch-delay-ms:5000}")
     public void dispatchIndexJobs() {
         if(!legacySemanticEnabled)return;
-        if (jobs == null) return;
         recoverExpired();
         jobs.findByStatusAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc("queued", Instant.now(), PageRequest.of(0,20))
                 .forEach(job -> dispatch(job.getId()));
@@ -167,62 +155,11 @@ public class MaterialRetrievalService {
     public List<MaterialSearchResultDto> search(User user, MaterialSearchRequest request) {
         String query=request==null||request.query()==null?"":request.query().trim();
         int limit=Math.max(1,Math.min(request!=null&&request.limit()!=null?request.limit():10,30));
-        if(materialEvidence!=null)return materialEvidence.legacySearch(user,query,limit);
-        if(chunks==null)return legacySearch(user,query,limit);
-        Map<String,MaterialSearchResultDto> merged=new LinkedHashMap<>();
-        UUID owner=user==null?null:user.getId();
-        for(MaterialChunkProjection chunk:chunks.searchVisible(owner,query,limit*2)){
-            double score=keywordScore(chunk,query); if(score<=0&&!query.isBlank())continue;
-            merged.put(chunk.getChunkId(),new MaterialSearchResultDto(chunk.getMaterial().getId(),chunk.getChunkId(),chunk.getTitle(),snippet(chunk.getText()),score,chunk.getChunkSeq(),"keyword",List.of("database")));
-        }
-        if(legacySemanticEnabled && !query.isBlank() && chunks.existsVisible(owner))try{
-            float[] vector=embeddings.embed(user,query);
-            for(VectorMatch match:vectors.search(vector,limit*2,owner)){
-                MaterialChunkProjection current = chunks.findById(match.chunkId()).orElse(null);
-                if (current == null || !"approved".equalsIgnoreCase(current.getStatus())
-                        || (current.getOwnerUserId() != null && !current.getOwnerUserId().equals(owner))) continue;
-                Material live = materials.findById(current.getMaterial().getId()).orElse(null);
-                if (live == null || live.getContentVersion() != current.getContentVersion() || !"approved".equalsIgnoreCase(live.getStatus())) continue;
-                MaterialSearchResultDto value=new MaterialSearchResultDto(live.getId(),current.getChunkId(),current.getTitle(),snippet(current.getText()),match.score(),current.getChunkSeq(),"vector",List.of("semantic"));
-                merged.merge(match.chunkId(),value,(a,b)->a.score()>=b.score()?a:b);
-            }
-        }catch(RuntimeException failure){
-            String grpcCode = "none";
-            String upstreamStatus = "none";
-            if (failure instanceof io.grpc.StatusRuntimeException grpcFailure) {
-                grpcCode = grpcFailure.getStatus().getCode().name();
-                io.grpc.Metadata trailers = grpcFailure.getTrailers();
-                String status = trailers == null ? null : trailers.get(io.grpc.Metadata.Key.of(
-                        "x-aienie-upstream-http-status", io.grpc.Metadata.ASCII_STRING_MARSHALLER));
-                if (status != null && status.matches("[1-5][0-9]{2}")) upstreamStatus = status;
-            }
-            log.warn("event=material_semantic_search_failed fallback=keyword errorType={} grpcCode={} upstreamStatus={}",
-                    failure.getClass().getSimpleName(), grpcCode, upstreamStatus);
-        }
-        return merged.values().stream().sorted(Comparator.comparingDouble(MaterialSearchResultDto::score).reversed()).limit(limit).toList();
-    }
-
-    private List<MaterialSearchResultDto> legacySearch(User user,String query,int limit){
-        List<MaterialSearchResultDto> result=new ArrayList<>();
-        for(Material material:materials.findAll()){
-            if(!"approved".equalsIgnoreCase(material.getStatus()))continue;
-            if(user!=null&&material.getUser()!=null&&!user.getId().equals(material.getUser().getId()))continue;
-            for(MaterialChunk chunk:chunker.chunks(material)){
-                String haystack=(chunk.title()+" "+chunk.tags()+" "+chunk.text()).toLowerCase(Locale.ROOT);
-                boolean matches=Arrays.stream(query.toLowerCase(Locale.ROOT).split("\\s+"))
-                        .filter(term->!term.isBlank()).allMatch(haystack::contains);
-                double score=matches?1:0;
-                if(score>0)result.add(new MaterialSearchResultDto(chunk.materialId(),chunk.chunkId(),chunk.title(),snippet(chunk.text()),score,chunk.chunkSeq(),"keyword",List.of("content")));
-            }
-        }
-        return result.stream().limit(limit).toList();
+        return materialEvidence.legacySearch(user,query,limit);
     }
 
     private MaterialChunkProjection projection(Material material,MaterialChunk chunk){MaterialChunkProjection p=new MaterialChunkProjection();p.setChunkId(chunk.chunkId());p.setMaterial(material);p.setOwnerUserId(chunk.ownerUserId());p.setStatus(chunk.status());p.setTitle(chunk.title());p.setText(chunk.text());p.setTags(chunk.tags());p.setChunkSeq(chunk.chunkSeq());return p;}
-    private double keywordScore(MaterialChunkProjection chunk,String query){if(query.isBlank())return .1;String q=query.toLowerCase(Locale.ROOT);double score=0;if(safe(chunk.getTitle()).toLowerCase(Locale.ROOT).contains(q))score+=3;if(safe(chunk.getTags()).toLowerCase(Locale.ROOT).contains(q))score+=2;if(safe(chunk.getText()).toLowerCase(Locale.ROOT).contains(q))score+=1;return score;}
     private void recoverExpired(){Instant now=Instant.now();jobs.findByStatus("processing").stream().map(MaterialIndexJob::getId).forEach(id -> transactions.executeWithoutResult(status -> jobs.findByIdForUpdate(id).ifPresent(job -> { if ("processing".equals(job.getStatus()) && job.getLeaseExpiresAt()!=null&&job.getLeaseExpiresAt().isBefore(now)) { job.setStatus(job.getAttemptCount() >= Math.max(1, maxAttempts) ? "failed" : "queued");job.setNextAttemptAt(now);clearLease(job); } })));}
     private void clearLease(MaterialIndexJob job){job.setLeaseOwner(null);job.setLeaseExpiresAt(null);}
-    private String snippet(String text){return text==null?"":text.length()<=180?text:text.substring(0,180)+"...";}
-    private String safe(String value){return value==null?"":value;}
     private record IndexClaim(UUID jobId,Material material,int attempt,long version,String token,Instant deadline){}
 }

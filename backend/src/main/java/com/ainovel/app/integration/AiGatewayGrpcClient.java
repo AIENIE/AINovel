@@ -212,7 +212,7 @@ public class AiGatewayGrpcClient {
         return validated("CHAT_STREAM", requestId, model, messages, () -> streamTransport(requestId, remoteUserId, model, messages, listener));
     }
 
-    private boolean monetaryValidation() { return validationBudget!=null && validationBudget.monetaryEnabled(); }
+    private boolean monetaryValidation() { return validationBudget.monetaryEnabled(); }
     public com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
         return new com.ainovel.app.ai.AiValidationMoneyGateway.Transport() {
             public fireflychat.ai.v1.ModelChatCapabilities capabilities(String model) { return chatCapabilities(model); }
@@ -396,16 +396,16 @@ public class AiGatewayGrpcClient {
     private <T> T validated(String kind, String requestId, String model, Object input, java.util.function.Supplier<T> call) {
         if (requestId == null || requestId.length() > 160) throw new IllegalArgumentException("AI_REQUEST_ID_TOO_LONG");
         UUID validationId;
-        try { validationId = validationBudget == null ? null : validationBudget.claimGateway(kind, input, requestId, model); }
+        try { validationId = validationBudget.claimGateway(kind, input, requestId, model); }
         catch (com.ainovel.app.common.ApiStatusException denied) {
             throw new com.ainovel.app.ai.AiRequestNotSentException(denied.getStatus(), denied.getMessage());
         }
         try {
             T result = call.get();
-            if (validationBudget != null) validationBudget.complete(validationId, result, true);
+            validationBudget.complete(validationId, result, true);
             return result;
         } catch (RuntimeException failure) {
-            if (validationBudget != null) {
+            {
                 Map<String, String> failureMetadata = new java.util.LinkedHashMap<>();
                 failureMetadata.put("errorType", failure.getClass().getSimpleName());
                 if (failure instanceof io.grpc.StatusRuntimeException status) {

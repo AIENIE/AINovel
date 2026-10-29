@@ -108,7 +108,7 @@ public class SceneDraftContextCompiler {
     public CompiledSceneDraftContext compile(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,
             int requestedTokenBudget,WorldBindingService.Frozen frozenWorld) {
         RequiredContext required = requireContext(manuscript, sceneId);
-        if (isolation != null && isolation.enabled(manuscript)) {
+        if (isolation.enabled(manuscript)) {
             var p=isolation.preview(required.story().getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
                     com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,requestedTokenBudget);
             if (p.included().stream().noneMatch(f -> "PLAN".equals(f.category())))
@@ -142,8 +142,6 @@ public class SceneDraftContextCompiler {
         addCharacterCandidates(candidates, required.story(), baseQueryText);
         var world=worldBindings.requireUsable((frozenWorld==null?worldBindings.input(manuscript):frozenWorld).binding());
         UUID boundWorldId=world==null?null:world.worldId();
-        // Legacy standalone consumers have no W4 services; production always uses the selector below.
-        if(world!=null&&worldSelector==null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
         List<SceneSlot> recentScenes = recentScenes(required.position().priorScenes(), sections);
@@ -162,7 +160,7 @@ public class SceneDraftContextCompiler {
         addAnchorCandidates(candidates, anchors, sections, anchorTerms);
 
         com.ainovel.app.worldcontext.WorldContextDtos.Selection worldContext=null;
-        if(worldSelector!=null) {
+        {
             var requiredCandidates=candidates.stream().filter(c->c.priority()>=980).toList();
             var requiredRender=render(new ArrayList<>(requiredCandidates),tokenBudget);
             String nearby=recentScenes.stream().map(s->plainSection(sections.get(id(s.id())))).reduce("",(a,b)->a+"\n"+b);

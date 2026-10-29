@@ -37,7 +37,7 @@ class SceneDraftContextCompilerTest {
         var world=mock(WorldBindingService.class);var cards=mock(CharacterCardRepository.class);
         var style=mock(StyleProfileRepository.class);var voices=mock(CharacterVoiceRepository.class);var lore=mock(V2ContextPersistenceService.class);
         var compiler=new SceneDraftContextCompiler(objectMapper,world,cards,style,voices,lore);
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, world);
         var isolation=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(compiler,"isolation",isolation);
         var owner=new User();owner.setId(UUID.randomUUID());var story=new Story();story.setId(UUID.randomUUID());story.setUser(owner);story.setSynopsis("SECRET_SYNOPSIS");
@@ -73,7 +73,7 @@ class SceneDraftContextCompilerTest {
                 characterVoiceRepository,
                 contextPersistenceService
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, worldRepository);
 
         User owner = new User();
         owner.setId(UUID.randomUUID());
@@ -270,7 +270,7 @@ class SceneDraftContextCompilerTest {
                 characterVoiceRepository,
                 contextPersistenceService
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, worldRepository);
 
         User owner = new User();
         owner.setId(UUID.randomUUID());

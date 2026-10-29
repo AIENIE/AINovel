@@ -16,6 +16,7 @@ class AiNativeGatewayMappingTest {
     @Test void nativeMappingPreservesContinuationAndToolOnlyResponseWhileTextOwnerAlsoUsesBudget() {
         var channels=mock(GrpcChannelFactory.class);
         var client=spy(new AiGatewayGrpcClient(new ExternalServiceProperties(),channels));
+        org.springframework.test.util.ReflectionTestUtils.setField(client,"validationBudget",mock(AiValidationCallBudget.class));
         doReturn(ModelChatCapabilities.newBuilder().setBudgetToolsDeclared(true).setBudgetToolsAvailable(true).build()).when(client).chatCapabilities("model");
         String calls="[{\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"world_search\",\"arguments\":\"{}\"}}]";
         var original=new AiChatRequest(List.of(new AiChatRequest.Message("user","保留空格  "),

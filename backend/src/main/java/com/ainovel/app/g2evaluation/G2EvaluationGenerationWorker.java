@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @Service
 public class G2EvaluationGenerationWorker {
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.modelconfig.AiQuoteService quotes;
     private static final Logger log = LoggerFactory.getLogger(G2EvaluationGenerationWorker.class);
 
@@ -59,7 +59,7 @@ public class G2EvaluationGenerationWorker {
         });
         if (claim == null) return;
         activeExecutions.put(sampleId, leaseOwner);
-        try(var selection=com.ainovel.app.modelconfig.AiSelectionContext.install(quotes==null?null:quotes.taskSnapshot(sampleId))) {
+        try(var selection=com.ainovel.app.modelconfig.AiSelectionContext.install(quotes.taskSnapshot(sampleId))) {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(claim.manuscriptId())
                     .orElseThrow(() -> new BusinessException("盲测稿件不存在"));
             if (manuscript.getOutline() == null || manuscript.getOutline().getStory() == null

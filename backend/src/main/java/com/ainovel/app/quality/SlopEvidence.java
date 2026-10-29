@@ -73,7 +73,7 @@ public final class SlopEvidence {
             助手前言、自我介绍、纠错措辞须区分角色对白；协议标记须区分实际输出残留与作品引用或日志。
             分类 LANGUAGE（明确语言问题）、OUTPUT_ARTIFACT（输出残留）、STYLE（可选文风）、OBSERVATION（观察或证据不足）。
             LANGUAGE 的 category 只能是 OMISSION（行动者不明等缺省）、COMPRESSION（过度压缩）、CHOPPY（句子碎裂）、AWKWARD（生硬表达）、PARAGRAPH（段落组织）。
-            文风、剧情、输出残留只能给建议。不要根据写法推断作者身份、亲历经验、输入方式或是否使用 AI；不输出 AI 概率。
+            文风、剧情、输出残留只能给建议。
             无法确定行动者时说明缺少什么上下文，不猜主体。只给确切原文引文；偏移是 text 的 UTF-16 单元、左闭右开。
             全文扫描；如果没有完成必须 complete=false。不凑问题，不把低本地分当作质量证明。
             只输出 JSON：{"complete":true,"summary":"覆盖情况","evidence_items":[

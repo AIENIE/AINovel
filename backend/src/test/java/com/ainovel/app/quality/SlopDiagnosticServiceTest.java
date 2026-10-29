@@ -18,7 +18,7 @@ class SlopDiagnosticServiceTest {
     final ObjectMapper json=new ObjectMapper(); final AiService ai=mock(AiService.class);
     final SlopQualityRunRepository repository=mock(SlopQualityRunRepository.class);
     final SlopDiagnosticService service=new SlopDiagnosticService(ai,json,new LocalSlopHeuristics(),mock(CharacterCardRepository.class),mock(StyleContextProvider.class),repository,new JsonColumnCodec(json));
-    SlopDiagnosticServiceTest() { when(repository.save(any())).thenAnswer(i->{SlopQualityRun r=i.getArgument(0);r.setId(UUID.randomUUID());return r;}); }
+    SlopDiagnosticServiceTest() { org.springframework.test.util.ReflectionTestUtils.setField(service,"admission",SlopInputAdmissionTestSupport.create()); when(repository.save(any())).thenAnswer(i->{SlopQualityRun r=i.getArgument(0);r.setId(UUID.randomUUID());return r;}); }
     @Test void persistsFullInputConfirmedEvidenceAndSeparateLocalSignals() throws Exception {
         String text=new java.util.Random(42).ints(7200,97,123).mapToObj(i->String.valueOf((char)i)).collect(java.util.stream.Collectors.joining())+"\n\n当然可以，动作还在。";
         when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","""

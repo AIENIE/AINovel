@@ -12,9 +12,8 @@ import org.springframework.stereotype.Component;
 public class AiSlopJudgeClient implements SlopJudgeClient {
     private final AiService aiService;
     private final ObjectMapper objectMapper;
-    @org.springframework.beans.factory.annotation.Autowired
-    private SlopInputAdmission admission=new SlopInputAdmission(20000,100000,24000);
-    public AiSlopJudgeClient(AiService aiService,ObjectMapper objectMapper) { this.aiService=aiService; this.objectMapper=objectMapper; }
+    private final SlopInputAdmission admission;
+    public AiSlopJudgeClient(AiService aiService,ObjectMapper objectMapper,SlopInputAdmission admission) { this.aiService=aiService; this.objectMapper=objectMapper; this.admission=admission; }
     @Override public SlopJudgeResult judge(User user,SlopQualityRequest request,SlopHeuristicResult local) { return judge(user,request,local,null); }
     @Override public SlopJudgeResult judge(User user,SlopQualityRequest request,SlopHeuristicResult local,AiUsageContext usage) {
         AiChatRequest chat=SlopEvidence.request(request,local,"slop.judge",objectMapper);

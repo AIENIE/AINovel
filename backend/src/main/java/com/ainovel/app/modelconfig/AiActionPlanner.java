@@ -19,17 +19,17 @@ public class AiActionPlanner {
         public Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput){this(target,steps,businessHash,businessScope,worldInput,worldAssistantInput,null);}
         public Plan(String target,List<Step> steps,String hash,String scope){this(target,steps,hash,scope,null,null);}
     }
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.world.WorldBindingService worldBindings;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.quality.language.LanguageFeature language;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.context.SceneDraftContextCompiler compiler;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.repo.ManuscriptRepository manuscripts;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.ainovel.app.worldassistant.WorldAssistantService worldAssistant;
     @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy
@@ -169,12 +169,12 @@ public class AiActionPlanner {
                     var found=jdbc.query("select o.story_id from manuscripts m join outlines o on m.outline_id=o.id where m.id=?",(rs,i)->uuid(rs.getBytes(1)),AiModelConfigurationService.bytes(manuscript));
                     if(!found.isEmpty())story=found.getFirst();
                 }
-                if(language==null||story==null||!language.checkAfterGeneration(story)||target.contains("/g2-evaluations/"))keys.remove("language.diagnose");
-                if(language!=null&&story!=null&&language.replacesLegacy(story)&&!target.contains("/g2-evaluations/")){keys.remove("slop.judge");}
+                if(story==null||!language.checkAfterGeneration(story)||target.contains("/g2-evaluations/"))keys.remove("language.diagnose");
+                if(story!=null&&language.replacesLegacy(story)&&!target.contains("/g2-evaluations/")){keys.remove("slop.judge");}
             }
         } catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException(e);}
         com.ainovel.app.worldassistant.WorldAssistantService.Frozen assistantInput=null;
-        if(worldAssistant!=null&&target.matches("/v1/worlds/[^/]+/(assistant/turns|entries/[^/]+/refine/operations|overview/integrate/operations)")) {
+        if(target.matches("/v1/worlds/[^/]+/(assistant/turns|entries/[^/]+/refine/operations|overview/integrate/operations)")) {
             String[] parts=target.split("/");boolean single=!target.endsWith("/assistant/turns");
             assistantInput=worldAssistant.validateQuote(user,UUID.fromString(parts[3]),target.contains("/entries/")?UUID.fromString(parts[5]):null,body,single);
         }
@@ -192,7 +192,7 @@ public class AiActionPlanner {
         String compiledHash="";
         com.ainovel.app.worldcontext.WorldWritingInput writingInput=null;
         com.ainovel.app.world.WorldBindingService.Frozen worldInput=null;
-        if(compiler!=null&&manuscripts!=null&&contents!=null) {
+        {
             var scene=Pattern.compile("/manuscripts/([0-9a-fA-F-]{36})/scenes/([0-9a-fA-F-]{36})/(generate|assistant)").matcher(target);
             var legacyScene=Pattern.compile("/manuscript/scenes/([0-9a-fA-F-]{36})/generate").matcher(target);
             UUID manuscriptId=null,sceneId=null;
@@ -200,11 +200,11 @@ public class AiActionPlanner {
             else if(scope!=null&&legacyScene.find()){manuscriptId=UUID.fromString(scope);sceneId=UUID.fromString(legacyScene.group(1));}
             if(manuscriptId!=null) {
                 var manuscript=manuscripts.findById(manuscriptId).orElseThrow();
-                if(worldBindings!=null)worldInput=worldBindings.freeze(manuscript);
-                var compiled=target.contains("/assistant")&&writingAssistant!=null?null:compiler.compile(manuscript,sceneId,contents.readAll(manuscript),
+                worldInput=worldBindings.freeze(manuscript);
+                var compiled=target.contains("/assistant")?null:compiler.compile(manuscript,sceneId,contents.readAll(manuscript),
                     com.ainovel.app.manuscript.context.SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,worldInput);
                 compiledHash=compiled==null?"":compiled.manifest().contextHash();
-                if(writingAssistant!=null&&target.contains("/assistant")) {
+                if(target.contains("/assistant")) {
                     var request=json.convertValue(body,com.ainovel.app.assistant.AssistantDtos.TurnRequest.class);
                     var prepared=writingAssistant.prepare(user,manuscriptId,sceneId,request);
                     var selected=prepared.context().worldContext();
@@ -213,7 +213,7 @@ public class AiActionPlanner {
                     int actualInput=writingAssistant.estimatedInput(prepared);
                     steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
                 }
-                if(sceneGeneration!=null&&!target.contains("/assistant")) {
+                if(!target.contains("/assistant")) {
                     var mode=target.contains("mode=crafted")?com.ainovel.app.manuscript.GenerationMode.CRAFTED:com.ainovel.app.manuscript.GenerationMode.FAST;
                     var prepared=sceneGeneration.prepare(manuscript,sceneId,mode,worldInput);
                     var selected=prepared.compiled().manifest().worldContext();
@@ -221,7 +221,7 @@ public class AiActionPlanner {
                     if(body.hasNonNull("contextHash")&&!body.path("contextHash").asText().equals(compiledHash))throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("WORLD_CONTEXT_CHANGED");
                     if(selected!=null)com.ainovel.app.worldcontext.WorldContextPreferences.check(selected,null,
                             body.hasNonNull("expectedSelectionRevision")?body.path("expectedSelectionRevision").asLong():null);
-                    long selectionRevision=selected==null?(worldPreferences==null?0:worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(manuscript,sceneId),worldInput.binding()).revision()):selected.selectionRevision();
+                    long selectionRevision=selected==null?(worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(manuscript,sceneId),worldInput.binding()).revision()):selected.selectionRevision();
                     if(body.hasNonNull("expectedSelectionRevision")&&body.path("expectedSelectionRevision").asLong()!=selectionRevision)throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("WORLD_CONTEXT_SELECTION_CHANGED");
                     writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("SCENE",compiledHash,selectionRevision,json.valueToTree(prepared));
                     int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
@@ -229,7 +229,7 @@ public class AiActionPlanner {
                 }
             }
         }
-        if(outlineAi!=null&&target.matches("/v1/outlines/scenes/[^/]+/refine")) {
+        if(target.matches("/v1/outlines/scenes/[^/]+/refine")) {
             var node=UUID.fromString(target.split("/")[4]);var id=outlineAi.sceneOutline(user,node);
             var request=new com.ainovel.app.story.OutlineAiService.Request("SCENE_REFINE",node,body.path("instruction").asText(""),body.path("text").asText(""),null,null,null,null,null);
             var prepared=outlineAi.prepare(user,id,request);com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(prepared.worldContext());
@@ -237,7 +237,7 @@ public class AiActionPlanner {
             int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
             steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
         }
-        if(outlineAi!=null&&target.matches("/v1/outlines/[^/]+/(ai-operations|chapters(/operations)?)")) {
+        if(target.matches("/v1/outlines/[^/]+/(ai-operations|chapters(/operations)?)")) {
             UUID id=UUID.fromString(target.split("/")[3]);var request=target.endsWith("/ai-operations")?json.convertValue(body,com.ainovel.app.story.OutlineAiService.Request.class):com.ainovel.app.story.OutlineAiService.chapterRequest(json.convertValue(body,com.ainovel.app.story.dto.OutlineChapterGenerateRequest.class));
             var prepared=outlineAi.prepare(user,id,request);com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(prepared.worldContext());
             compiledHash=outlineAi.fingerprint(prepared);writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("OUTLINE",compiledHash,prepared.worldContext().selectionRevision(),json.valueToTree(prepared));

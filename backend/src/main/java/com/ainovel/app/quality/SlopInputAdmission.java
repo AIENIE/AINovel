@@ -19,7 +19,7 @@ public class SlopInputAdmission {
     }
     public void requireFits(AiChatRequest request) {
         if(!LanguageAnalysis.fits(request,maxMessage,maxTotal,inputTokens)) throw new InputLimit();
-        if(gateway!=null) {
+        {
             var selected=com.ainovel.app.modelconfig.AiSelectionContext.current()==null?null:com.ainovel.app.modelconfig.AiSelectionContext.selection(request.featureKey());
             var caps=gateway.chatCapabilities(selected==null?modelPolicy.modelKey():selected.modelKey());
             if(caps.getMaxPromptTokens()>0 && !LanguageAnalysis.fits(request,maxMessage,maxTotal,(int)Math.min(Integer.MAX_VALUE,caps.getMaxPromptTokens()))) throw new InputLimit();

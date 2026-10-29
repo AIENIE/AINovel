@@ -70,7 +70,7 @@ public class ManuscriptController {
         return manuscriptService.generateForScene(id, sceneId, generationMode);
     }
 
-    @PutMapping("/manuscripts/{id}/sections/{sceneId}")
+    @PutMapping("/manuscripts/{id}/sections/{sceneId:[0-9a-fA-F-]{36}}")
     @Operation(summary = "保存场景正文（指定稿件）", description = "更新指定稿件中场景对应的正文内容。")
     public ManuscriptDto saveSectionForManuscript(@PathVariable UUID id, @PathVariable UUID sceneId, @Valid @RequestBody SectionUpdateRequest request) {
         return manuscriptService.updateSection(id, sceneId, request);
@@ -125,10 +125,6 @@ public class ManuscriptController {
     @PutMapping("/manuscript/sections/{sectionId}")
     @Operation(summary = "保存场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件更新正文。")
     public ManuscriptDto saveSection(@PathVariable UUID sectionId, @Valid @RequestBody SectionUpdateRequest request) { return manuscriptService.updateSection(sectionId, request); }
-
-    @PostMapping("/manuscripts/{id}/sections/analyze-character-changes")
-    @Operation(summary = "分析角色变化", description = "基于当前段落内容生成角色变化日志。")
-    public List<CharacterChangeLogDto> analyze(@PathVariable UUID id, @RequestBody AnalyzeCharacterChangeRequest request) { return manuscriptService.analyzeCharacterChanges(id, request); }
 
     @GetMapping("/manuscripts/{id}/character-change-logs")
     @Operation(summary = "查询角色变化日志", description = "查询稿件全部角色变化记录。")

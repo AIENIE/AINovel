@@ -18,7 +18,7 @@ class AiResultRecoveryTest {
     final AiService service = new AiService(gateway,economy,admission,2);
     final User user = new User();
     final AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user","测试")),null,null);
-    AiResultRecoveryTest() { user.setId(UUID.randomUUID()); user.setRemoteUid(123L); when(admission.requestHash(any())).thenReturn("hash"); }
+    AiResultRecoveryTest() { org.springframework.test.util.ReflectionTestUtils.setField(service,"modelPolicy",new AiModelPolicy()); user.setId(UUID.randomUUID()); user.setRemoteUid(123L); when(admission.requestHash(any())).thenReturn("hash"); }
     @Test void recordedResultReplaysWithoutModelInvocation() {
         var metadata=AiResponseMetadata.reported("length",2L,true);
         when(economy.reserveAiUsage(any(),anyLong(),anyString(),anyString(),eq("stable"),eq("hash")))

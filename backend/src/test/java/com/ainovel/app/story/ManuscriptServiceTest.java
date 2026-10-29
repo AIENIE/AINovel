@@ -336,7 +336,14 @@ class ManuscriptServiceTest {
         when(transactions.execute(any())).thenAnswer(invocation ->
                 ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
         ReflectionTestUtils.setField(service, "transactionTemplate", transactions);
-        ReflectionTestUtils.setField(service, "worldBindings", mock(com.ainovel.app.world.WorldBindingService.class));
+        var worldBindings=mock(com.ainovel.app.world.WorldBindingService.class);
+        when(worldBindings.same(org.mockito.ArgumentMatchers.isNull(),org.mockito.ArgumentMatchers.isNull())).thenReturn(true);
+        ReflectionTestUtils.setField(service,"worldBindings",worldBindings);
+        var preferences=mock(com.ainovel.app.worldcontext.WorldContextPreferences.class);
+        when(preferences.read(any(),any())).thenReturn(com.ainovel.app.worldcontext.WorldContextDtos.Preferences.defaults(null));
+        ReflectionTestUtils.setField(service,"worldPreferences",preferences);
+        ReflectionTestUtils.setField(service, "languageQuality", mock(com.ainovel.app.quality.language.LanguageQualityService.class));
+        ReflectionTestUtils.setField(service, "materialEvidence", mock(com.ainovel.app.material.evidence.MaterialEvidenceService.class));
         return service;
     }
 
@@ -350,7 +357,7 @@ class ManuscriptServiceTest {
             StyleContextProvider styleContextProvider
     ) {
         SceneGenerationService service = new SceneGenerationService();
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.install(service, objectMapper, characterCardRepository);
         SceneGenerationPromptBuilder promptBuilder = new SceneGenerationPromptBuilder();
         ScenePlotQualitySupport plotQualitySupport = new ScenePlotQualitySupport();
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);

@@ -70,7 +70,7 @@ public class SlopDiagnosticService {
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    private SlopInputAdmission admission=new SlopInputAdmission(20000,100000,24000);
+    private SlopInputAdmission admission;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.v2.V2VersionPersistenceService versions;
     @org.springframework.beans.factory.annotation.Autowired
@@ -79,14 +79,13 @@ public class SlopDiagnosticService {
     private com.ainovel.app.quality.language.LanguageQualityService language;
 
     public SlopEvidence.ReviewData freeze(User user,Manuscript manuscript,UUID sceneId) {
-        if(boundary!=null) return boundary.snapshot(manuscript,current->freezeCurrent(user,current,sceneId)).data();
-        return freezeCurrent(user,manuscript,sceneId);
+        return boundary.snapshot(manuscript,current->freezeCurrent(user,current,sceneId)).data();
     }
     private SlopEvidence.ReviewData freezeCurrent(User user,Manuscript m,UUID sceneId) {
-        if(versions!=null) { versions.ensureGenerationBaseline(m,user); manuscripts.flush(); }
+        versions.ensureGenerationBaseline(m,user); manuscripts.flush();
         var p=com.ainovel.app.quality.language.LanguageProjection.of(contents.readScene(m,sceneId));
         var d=material(buildRequest(m,sceneId),p);
-        UUID snapshot=versions==null?null:UUID.fromString(versions.createVersion(m,user,Map.of("snapshotType","slop_check","label","Slop 检查来源")).get("id").toString());
+        UUID snapshot=UUID.fromString(versions.createVersion(m,user,Map.of("snapshotType","slop_check","label","Slop 检查来源")).get("id").toString());
         d.source=new com.ainovel.app.quality.language.LanguageDtos.Source(m.getCurrentBranchId(),m.getVersion(),snapshot,p.version(),p.htmlHash(),p.textHash(),
                 com.ainovel.app.quality.language.LanguageProjection.hash(writeJson(d.request)),com.ainovel.app.quality.language.LanguageStandard.VERSION);
         return d;
@@ -154,7 +153,7 @@ public class SlopDiagnosticService {
         Story story = outline.getStory();
         Map<String, String> sections = contents.readAll(manuscript);
         SceneContext scene = resolveScene(outline, sceneId);
-        if(isolation!=null && isolation.enabled(manuscript)) {
+        if(isolation.enabled(manuscript)) {
             var p=isolation.preview(story.getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
                     com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500);
             return new SlopQualityRequest(story.getId(),manuscript.getId(),sceneId,"当前作品","未指定","沉浸、连贯","当前章节","当前场景","",
@@ -268,17 +267,6 @@ public class SlopDiagnosticService {
         return com.ainovel.app.quality.language.LanguageProjection.of(html).text();
     }
 
-    private String stripWrapper(String raw) {
-        String text = raw == null ? "" : raw.trim();
-        if (text.startsWith("```")) {
-            int firstLineEnd = text.indexOf('\n');
-            int lastFence = text.lastIndexOf("```");
-            if (firstLineEnd >= 0 && lastFence > firstLineEnd) {
-                text = text.substring(firstLineEnd + 1, lastFence).trim();
-            }
-        }
-        return text;
-    }
 
     private UUID uuid(Object value) {
         if (value == null) {

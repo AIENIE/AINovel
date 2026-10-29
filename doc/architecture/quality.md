@@ -7,7 +7,7 @@
 - `SlopDriftService`：长稿多窗口巡检，定位中后段模板化、角色漂移和叙事断层。
 - `PlotQualityService`：剧情维度诊断、趋势和候选修订。
 
-这些能力评价文本风险，不输出 AI 概率或作者归因。新 Slop 报告分开保存本地线索与语义确认，使用 `slop-evidence-v2`；文风、剧情及输出残留不能生成语言候选。历史 E1–E4 记录保留可读。
+新 Slop 报告分开保存本地线索与语义确认，使用 `slop-evidence-v2`；文风、剧情及输出残留不能生成语言候选。历史 E1–E4 记录保留可读。
 
 Beta Reader 与通用连续性分析的两个占位触发接口已删除，旧路径返回 HTTP 404；历史任务和报告继续读取，不创建固定分数或固定风险的伪报告。
 
@@ -15,7 +15,6 @@ Beta Reader 与通用连续性分析的两个占位触发接口已删除，旧�
 
 - `backend/src/test/resources/quality/novel-quality-regression-fixtures.json` 冻结 36 个仓库自有中文样本，包含 12 个无缺陷基线和六类各 4 个单缺陷变体；6 个 holdout 不参与日常调参。
 - 默认测试只校验 fixture 数量、类型分布、逐字证据和上下文引用，不访问模型或网络。
-- 手动模型回归只报告缺陷类型 precision、recall、F1 和证据命中率，不给小说总体文学分，也不能替代 G2 真人盲测。
 
 ## 本地规则注册表
 

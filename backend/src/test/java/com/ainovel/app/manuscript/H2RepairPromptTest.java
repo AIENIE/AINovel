@@ -23,7 +23,7 @@ class H2RepairPromptTest {
         String controlled="合同".repeat(1100)+"END_KNOWLEDGE_BOUNDARY";
         var request=new ScenePlotQualitySupport().buildIsolatedQualityRequest(manuscript,scene,controlled,"候选正文");
         var heuristics=new LocalSlopHeuristics().evaluate(SlopHeuristicInput.from(request,request.candidateText()));
-        new AiSlopJudgeClient(ai,new ObjectMapper()).judge(owner,request,heuristics);
+        new AiSlopJudgeClient(ai,new ObjectMapper(),com.ainovel.app.quality.SlopInputAdmissionTestSupport.create()).judge(owner,request,heuristics);
         var captured=ArgumentCaptor.forClass(AiChatRequest.class);verify(ai,times(1)).chat(any(),captured.capture());
         captured.getAllValues().forEach(r->{String sent=r.messages().toString();assertTrue(sent.contains(controlled));assertFalse(sent.contains("FORBIDDEN_"));});
     }

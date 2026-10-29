@@ -85,7 +85,7 @@ public class OutlineService {
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
         outlineRepository.flush();
-        if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
+        eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
         return toDto(outline);
     }
 

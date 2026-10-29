@@ -36,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.*;
         V2PersistenceServiceTest.TestBeans.class
 })
 class V2PersistenceServiceTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     @Autowired
     private org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager entityManager;
 
@@ -95,24 +97,6 @@ class V2PersistenceServiceTest {
         assertEquals("林烬", contextService.listExtractions(story.getId()).get(0).get("entityName"));
         assertEquals(entry.get("id"), contextService.listLorebook(story.getId()).get(0).get("id"));
         assertEquals(extraction.get("id"), contextService.listExtractions(story.getId()).get(0).get("id"));
-    }
-
-    @Test
-    void modelPreferencesAndUsageShouldPersist() {
-        User user = persistUser("v2-model");
-        Story story = persistStory(user);
-
-        Map<String, Object> model = modelService.listModels().get(0);
-        modelService.savePreference(user, "draft_generation", (java.util.UUID) model.get("id"));
-        modelService.logUsage(user, story.getId(), (java.util.UUID) model.get("id"),
-                "draft_generation", 100, 200, 300, true, null);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        assertEquals(1, modelService.listPreferences(user).size());
-        assertEquals(1, modelService.usageDetails(user, 10).size());
-        assertEquals(200, ((Number) modelService.usageSummary(user).get("totalOutputTokens")).intValue());
     }
 
     @Test

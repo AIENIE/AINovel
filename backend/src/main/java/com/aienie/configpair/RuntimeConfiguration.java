@@ -59,41 +59,6 @@ public final class RuntimeConfiguration {
         configured = environment;
     }
 
-    /** Resolve a Spring-managed context without sharing mutable test/application state. */
-    public static Map<String, String> fromEnvironment(Environment environment) {
-        Properties aliases = new Properties();
-        try (InputStream stream = RuntimeConfiguration.class.getResourceAsStream("/config-pair-aliases.properties")) {
-            if (stream == null) throw new IllegalStateException("runtime configuration mapping is unavailable");
-            aliases.load(stream);
-        } catch (IOException exception) {
-            throw new IllegalStateException("cannot load runtime configuration mapping");
-        }
-        Map<String, String> original = new LinkedHashMap<>(System.getenv());
-        for (String key : aliases.stringPropertyNames()) {
-            String value = environment.getProperty(key);
-            if (value != null) original.put(key, value);
-        }
-        Map<String, String> result = new LinkedHashMap<>(resolve(environment, original, aliases));
-        if (environment instanceof ConfigurableEnvironment configurable) {
-            var explicitKeys = new java.util.HashSet<String>();
-            for (var source : configurable.getPropertySources()) {
-                if (source.getName().equals(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)
-                        || source.getName().startsWith("Config resource") || source.getName().equals("configPairAliases")) continue;
-                var keys = new java.util.HashSet<String>(aliases.stringPropertyNames());
-                if (source instanceof EnumerablePropertySource<?> enumerable) {
-                    for (String property : enumerable.getPropertyNames()) {
-                        if (property.matches("[A-Z][A-Z0-9_]*")) keys.add(property);
-                    }
-                }
-                for (String key : keys) {
-                    Object explicit = source.getProperty(key);
-                    if (explicit != null && explicitKeys.add(key)) result.put(key, explicit.toString());
-                }
-            }
-        }
-        return Collections.unmodifiableMap(result);
-    }
-
     static Map<String, String> resolve(Environment environment, Map<String, String> original, Properties aliases) {
         Map<String, String> result = new LinkedHashMap<>(original);
         if (environment instanceof ConfigurableEnvironment configurable) {

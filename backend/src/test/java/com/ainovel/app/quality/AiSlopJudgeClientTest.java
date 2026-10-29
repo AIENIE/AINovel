@@ -18,7 +18,7 @@ class AiSlopJudgeClientTest {
             {"complete":true,"evidence_items":[{"judgment":"DISMISSED","kind":"OUTPUT_ARTIFACT","quote":"当然可以","risk_score":88,"risk_explanation":"正常对白"}]}
             """,null,0));
         var local=new LocalSlopHeuristics().evaluate(text);
-        var result=new AiSlopJudgeClient(ai,json).judge(new User(),request(text),local);
+        var result=new AiSlopJudgeClient(ai,json,com.ainovel.app.quality.SlopInputAdmissionTestSupport.create()).judge(new User(),request(text),local);
         assertEquals(0,result.riskScore()); assertTrue(result.issues().isEmpty());
         var capture=ArgumentCaptor.forClass(AiChatRequest.class); verify(ai).chat(any(),capture.capture());
         assertEquals(text,json.readTree(capture.getValue().messages().get(1).content()).path("text").asText());
@@ -26,7 +26,7 @@ class AiSlopJudgeClientTest {
     }
     @Test void oversizedFullyBuiltRequestNeverCallsAi() {
         var ai=mock(AiService.class); var request=request("雨".repeat(22000));
-        assertThrows(SlopInputAdmission.InputLimit.class,()->new AiSlopJudgeClient(ai,new ObjectMapper()).judge(new User(),request,new LocalSlopHeuristics().evaluate(request.candidateText())));
+        assertThrows(SlopInputAdmission.InputLimit.class,()->new AiSlopJudgeClient(ai,new ObjectMapper(),com.ainovel.app.quality.SlopInputAdmissionTestSupport.create()).judge(new User(),request,new LocalSlopHeuristics().evaluate(request.candidateText())));
         verifyNoInteractions(ai);
     }
 }

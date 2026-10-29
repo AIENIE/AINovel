@@ -26,7 +26,7 @@ import static com.ainovel.app.narrative.NarrativeText.*;
 public class NarrativeService {
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private NarrativeContextSettingsRepository contextSettings;
     public static final String PROMPT_VERSION = "narrative-state-p11-v1";
     private final ManuscriptRepository manuscripts;
@@ -91,7 +91,7 @@ public class NarrativeService {
         NarrativeExtraction extraction = new NarrativeExtraction();
         extraction.setTextConversionVersion(approval.getTextConversionVersion());
         extraction.setApproval(approval); extraction.setBaseCanonRevision(scope.ledger().getRevision());
-        boolean knowledgeEnabled = contextSettings != null && contextSettings.findById(scope.manuscript().getOutline().getStory().getId())
+        boolean knowledgeEnabled = contextSettings.findById(scope.manuscript().getOutline().getStory().getId())
                 .map(NarrativeContextSettings::isEnabled).orElse(false);
         extraction.setPromptVersion(knowledgeEnabled ? "narrative-state-p11-v4" : PROMPT_VERSION); extraction.setCreatedAt(Instant.now());
         List<InputRecord> prior = branchRecords(branchId).stream()

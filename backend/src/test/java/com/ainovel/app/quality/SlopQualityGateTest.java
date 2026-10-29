@@ -42,6 +42,7 @@ class SlopQualityGateTest {
         );
         InMemorySlopQualityRecorder recorder = new InMemorySlopQualityRecorder();
         SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, recorder);
+        org.springframework.test.util.ReflectionTestUtils.setField(gate,"validationBudget",org.mockito.Mockito.mock(com.ainovel.app.ai.AiValidationCallBudget.class));
 
         SlopQualityResult result = gate.evaluate(UserForTest.create(), new SlopQualityRequest(
                 UUID.randomUUID(),
@@ -72,7 +73,7 @@ class SlopQualityGateTest {
         SlopQualitySignals signals = new SlopQualitySignals(
                 "high",
                 "E2",
-                "该文本呈现 high 级模板化/slop风险；这不能证明作者使用AI。",
+                "该文本呈现 high 级模板化/slop风险",
                 java.util.Map.of("surface_template", java.util.Map.of("score", 78, "evidence_count", 2)),
                 List.of("传统网文俗套", "作者个人文风"),
                 List.of("先处理密度共振片段"),
@@ -108,6 +109,7 @@ class SlopQualityGateTest {
         );
         InMemorySlopQualityRecorder recorder = new InMemorySlopQualityRecorder();
         SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, recorder);
+        org.springframework.test.util.ReflectionTestUtils.setField(gate,"validationBudget",org.mockito.Mockito.mock(com.ainovel.app.ai.AiValidationCallBudget.class));
 
         gate.evaluate(UserForTest.create(), new SlopQualityRequest(
                 UUID.randomUUID(),

@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 
 @Service
 public class MaterialService {
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
@@ -145,7 +145,7 @@ public class MaterialService {
         materialRepository.saveAndFlush(material);
         fingerprints.update(material);
         job.setResultMaterialId(material.getId());
-        if(materialEvidence!=null)materialEvidence.capture(material);
+        materialEvidence.capture(material);
         uploadJobRepository.save(job);
         return new FileImportJobDto(job.getId(), job.getFileName(), job.getStatus(), job.getProgress(), job.getMessage(), job.getResultMaterialId());
     }

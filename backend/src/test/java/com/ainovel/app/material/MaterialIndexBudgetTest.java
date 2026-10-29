@@ -32,6 +32,7 @@ class MaterialIndexBudgetTest {
         when(tx.execute(any())).thenAnswer(i -> ((TransactionCallback<?>) i.getArgument(0)).doInTransaction(mock(TransactionStatus.class)));
         doAnswer(i -> { ((Consumer<TransactionStatus>) i.getArgument(0)).accept(mock(TransactionStatus.class)); return null; }).when(tx).executeWithoutResult(any());
         service = new MaterialRetrievalService(materials,new MaterialChunker(),embeddings,vectors,chunks,jobs,tx);
+        ReflectionTestUtils.setField(service,"legacySemanticEnabled",true);
     }
     @Test void oversizedMaterialFailsBeforeRemoteCallOrProjectionDeletion() {
         material.setContent("中".repeat(512*780+121));

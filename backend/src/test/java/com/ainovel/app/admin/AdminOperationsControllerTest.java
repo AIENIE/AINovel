@@ -15,7 +15,7 @@ class AdminOperationsControllerTest {
     @Test
     void defaultsTo20AndForwardsPaginationSearchAndFilter() throws Exception {
         AdminOperationsQueryService service = mock(AdminOperationsQueryService.class);
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class), service, mock(OpsRecordFileSink.class))).build();
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class), service)).build();
         when(service.assets("stories", 0, 20, "")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 0, 20, 0, 0));
         mvc.perform(get("/v1/admin/assets/stories")).andExpect(status().isOk()).andExpect(jsonPath("$.size").value(20)).andExpect(jsonPath("$.items").isArray());
         verify(service).assets("stories", 0, 20, "");
@@ -35,7 +35,7 @@ class AdminOperationsControllerTest {
     void pendingMaterialsUsePaginatedProjection() throws Exception {
         MaterialAdminService materials = mock(MaterialAdminService.class);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(materials,
-                mock(AdminOperationsQueryService.class), mock(OpsRecordFileSink.class))).build();
+                mock(AdminOperationsQueryService.class))).build();
         when(materials.pending(2, 20)).thenReturn(new MaterialAdminReadRepository.Page(List.of(), 2, 20, 45, 3));
         mvc.perform(get("/v1/admin/materials/pending").param("page", "2"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(45))

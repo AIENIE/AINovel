@@ -10,32 +10,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.time.Instant;
 
 @Service
 public class AiService {
-    @Autowired(required=false) private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
-    @Autowired(required=false) private AiStoredResponseMetadata storedResponseMetadata;
+    @Autowired private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
+    @Autowired private AiStoredResponseMetadata storedResponseMetadata;
     @org.springframework.beans.factory.annotation.Autowired
-    private AiModelPolicy modelPolicy = new AiModelPolicy();
+    private AiModelPolicy modelPolicy;
 
     private final AiGatewayGrpcClient aiGatewayGrpcClient;
     private final EconomyService economyService;
     private final AiAdmissionGuard admissionGuard;
     private final long reservationCredits;
-    private final boolean reservationEnabled;
     private volatile Instant streamingCapabilityCheckedAt = Instant.EPOCH;
     private volatile boolean streamingCapabilityAvailable;
-
-    public AiService(AiGatewayGrpcClient aiGatewayGrpcClient, EconomyService economyService) {
-        this.aiGatewayGrpcClient = aiGatewayGrpcClient;
-        this.economyService = economyService;
-        this.admissionGuard = null;
-        this.reservationCredits = 2L;
-        this.reservationEnabled = false;
-    }
 
     @Autowired
     public AiService(AiGatewayGrpcClient aiGatewayGrpcClient, EconomyService economyService,
@@ -45,13 +35,11 @@ public class AiService {
         this.economyService = economyService;
         this.admissionGuard = admissionGuard;
         this.reservationCredits = Math.max(1L, reservationCredits);
-        this.reservationEnabled = true;
     }
 
     public List<AiModelDto> listModels(User user) {
         resolveGatewayUserId(user);
-        if(modelConfiguration!=null)return modelConfiguration.publicModels();
-        return List.of(modelPolicy.configuredTextModel());
+        return modelConfiguration.publicModels();
     }
 
     public AiChatResponse chat(User user, AiChatRequest request) {
@@ -62,7 +50,7 @@ public class AiService {
         String contextKey=usageContext==null&&com.ainovel.app.modelconfig.AiSelectionContext.current()!=null
                 ?com.ainovel.app.modelconfig.AiSelectionContext.callKey(request.featureKey()==null?"generic.chat":request.featureKey()):null;
         String key = usageContext == null ? contextKey!=null?contextKey:com.ainovel.app.aioperation.AiOperationExecutionContext.callKey(
-                admissionGuard == null ? "legacy" : admissionGuard.requestHash(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?request.forFeature(null):request)) : usageContext.idempotencyKey();
+                admissionGuard.requestHash(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?request.forFeature(null):request)) : usageContext.idempotencyKey();
         return executeChat(user, request, usageContext, key);
     }
 
@@ -73,22 +61,14 @@ public class AiService {
     private AiChatResponse executeChat(User user, AiChatRequest request, AiUsageContext usageContext,
                                        String idempotencyKey) {
         var selected=com.ainovel.app.modelconfig.AiSelectionContext.selection(request.featureKey()==null?"generic.chat":request.featureKey());
-        if(request.nativeTools() && (selected==null || !reservationEnabled))
+        if(request.nativeTools() && selected==null)
             throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_CONFIGURATION_REQUIRED");
-        EconomyService.StoredAiRequest stored=selected!=null&&reservationEnabled?economyService.frozenAiRequest(user,idempotencyKey):null;
+        EconomyService.StoredAiRequest stored=selected!=null?economyService.frozenAiRequest(user,idempotencyKey):null;
         if(stored!=null&&stored.requestJson()!=null&&java.util.Objects.equals(stored.identity(),com.ainovel.app.modelconfig.AiSelectionContext.current().identity())) {
             request=modelConfiguration.read(stored.requestJson(),AiChatRequest.class);
         }
         Long remoteUid = resolveGatewayUserId(user);
-        if (admissionGuard == null) {
-            if(request.nativeTools())AiNativeRequestValidator.validate(request,new com.fasterxml.jackson.databind.ObjectMapper(),20000,100000);
-            else validateChatMessages(request.messages());
-        }
-        final AiAdmissionGuard.Lease lease = admissionGuard == null ? null : admissionGuard.acquire(user, request);
-        try (lease) {
-            if (!reservationEnabled) {
-                return executeLegacyChat(user, request, usageContext, remoteUid);
-            }
+        try (var lease = admissionGuard.acquire(user, request)) {
             String referenceType = usageContext == null ? "AI_USAGE" : usageContext.referenceType();
             String referenceId = usageContext == null ? idempotencyKey : usageContext.referenceId();
             String requestHash = admissionGuard.requestHash(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?request.forFeature(null):request);
@@ -134,20 +114,11 @@ public class AiService {
         }
     }
 
-    private AiChatResponse executeLegacyChat(User user, AiChatRequest request, AiUsageContext usageContext, Long remoteUid) {
-        AiGatewayGrpcClient.ChatResult result = invokeGateway(remoteUid, request, null);
-        EconomyService.AiChargeResult charge = usageContext == null
-                ? economyService.chargeAiUsage(user, result.promptTokens(), result.completionTokens(), UUID.randomUUID().toString())
-                : economyService.chargeAiUsage(user, result.promptTokens(), result.completionTokens(),
-                        usageContext.referenceType(), usageContext.referenceId(), usageContext.idempotencyKey());
-        return response(user, result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens(), charge.charged(), result.metadata());
-    }
-
     private AiGatewayGrpcClient.ChatResult invokeGateway(Long remoteUid, AiChatRequest request, String requestId) {
         var progressListener = AiProgressContext.current();
         var selected=com.ainovel.app.modelconfig.AiSelectionContext.selection(request.featureKey()==null?"generic.chat":request.featureKey());
         if(selected!=null) {
-            if(modelConfiguration!=null&&!modelConfiguration.available(selected.modelKey()))throw new AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_MODEL_UNAVAILABLE");
+            if(!modelConfiguration.available(selected.modelKey()))throw new AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_MODEL_UNAVAILABLE");
             if(request.nativeTools())return aiGatewayGrpcClient.complete(requestId==null?UUID.randomUUID().toString():requestId,remoteUid,selected,request,progressListener);
             return aiGatewayGrpcClient.complete(requestId==null?UUID.randomUUID().toString():requestId,remoteUid,selected,request.messages(),selected.streaming()?progressListener:null);
         }
@@ -184,7 +155,7 @@ public class AiService {
 
     /** A read-only lookup of owned durable receipts; never sends an inference or rewrites historical results. */
     public AiResponseMetadata storedResultMetadata(User user,String requestId) {
-        return storedResponseMetadata == null ? null : storedResponseMetadata.find(user,requestId);
+        return storedResponseMetadata.find(user,requestId);
     }
 
     public AiRefineResponse refine(User user, AiRefineRequest request) {
@@ -219,27 +190,6 @@ public class AiService {
             return remoteUid;
         }
         throw new BusinessException("当前账号未绑定统一用户，无法调用 AI 服务");
-    }
-
-    private void validateChatMessages(List<AiChatRequest.Message> messages) {
-        if (messages == null || messages.isEmpty()) {
-            throw new BusinessException("messages 至少需要一条非空 user 消息");
-        }
-        boolean hasUserMessage = false;
-        for (AiChatRequest.Message message : messages) {
-            if (message == null) {
-                continue;
-            }
-            String role = message.role() == null ? "" : message.role().trim().toLowerCase(Locale.ROOT);
-            String content = message.content() == null ? "" : message.content().trim();
-            if ("user".equals(role) && !content.isBlank()) {
-                hasUserMessage = true;
-                break;
-            }
-        }
-        if (!hasUserMessage) {
-            throw new BusinessException("messages 至少需要一条非空 user 消息");
-        }
     }
 
     private double cacheHitRate(long promptTokens, long cacheTokens) {

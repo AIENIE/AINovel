@@ -44,7 +44,8 @@ class JsonColumnCodecTest {
         var type = new TypeReference<Map<String, Object>>() {};
         assertSame(fallback, codec.read(null, type, fallback));
         assertSame(fallback, codec.read("   ", type, fallback));
-        for (String invalid : new String[]{"{bad}", "null", "[]", "{} {}"}) {
+        assertSame(fallback, codec.read("null", type, fallback));
+        for (String invalid : new String[]{"{bad}", "[]", "{} {}"}) {
             org.junit.jupiter.api.Assertions.assertThrows(ApiStatusException.class,
                     () -> codec.read(invalid, type, fallback));
         }

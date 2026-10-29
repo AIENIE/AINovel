@@ -1,7 +1,6 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.common.BusinessException;
-import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.user.User;
@@ -23,10 +22,8 @@ import java.util.*;
 
 @Service
 public class V2ModelPersistenceService {
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
-    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     @org.springframework.beans.factory.annotation.Autowired
-    private AiModelPolicy modelPolicy = new AiModelPolicy();
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     private final V2ModelRegistryRepository modelRepository;
     private final V2TaskModelRoutingRepository routingRepository;
     private final V2UserModelPreferenceRepository preferenceRepository;
@@ -98,83 +95,19 @@ public class V2ModelPersistenceService {
         preferenceRepository.deleteByUserIdAndTaskType(user.getId(), taskType);
     }
 
-    @Transactional
-    public void logUsage(User user, UUID storyId, UUID modelId, String taskType, int inputTokens, int outputTokens,
-                         int latencyMs, boolean success, String errorMessage) {
-        ensureSeeded();
-        V2ModelRegistry model = modelRepository.findById(modelId).orElseThrow(() -> new BusinessException("模型不存在"));
-        V2ModelUsageLog log = new V2ModelUsageLog();
-        log.setUser(user);
-        Story story = storyId == null ? null : storyRepository.findById(storyId).orElse(null);
-        log.setStory(story);
-        log.setModel(model);
-        log.setTaskType(taskType);
-        log.setInputTokens(inputTokens);
-        log.setOutputTokens(outputTokens);
-        log.setLatencyMs(latencyMs);
-        BigDecimal cost = model.getCostPer1kInput().multiply(BigDecimal.valueOf(inputTokens))
-                .add(model.getCostPer1kOutput().multiply(BigDecimal.valueOf(outputTokens)))
-                .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
-        log.setCostEstimate(cost);
-        log.setSuccess(success);
-        log.setErrorMessage(errorMessage);
-        usageRepository.save(log);
-    }
-
     @Transactional(readOnly = true)
     public Map<String, Object> usageSummary(User user) {
-        if(modelConfiguration!=null)return modelConfiguration.usageSummary(user);
-        List<V2ModelUsageLog> logs = usageRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
-        int input = 0;
-        int output = 0;
-        BigDecimal cost = BigDecimal.ZERO;
-        for (V2ModelUsageLog log : logs) {
-            input += log.getInputTokens();
-            output += log.getOutputTokens();
-            cost = cost.add(log.getCostEstimate());
-        }
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("totalCalls", logs.size());
-        out.put("totalInputTokens", input);
-        out.put("totalOutputTokens", output);
-        out.put("totalCost", cost.setScale(6, RoundingMode.HALF_UP));
-        return out;
+        return modelConfiguration.usageSummary(user);
     }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> usageDetails(User user, int limit) {
-        if(modelConfiguration!=null)return modelConfiguration.usageDetails(user,limit);
-        return usageRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, Math.max(limit, 1)))
-                .stream().map(this::usageMap).toList();
+        return modelConfiguration.usageDetails(user,limit);
     }
 
     @Transactional
     public void ensureSeeded() {
-        if(modelConfiguration!=null){modelConfiguration.ensureInitialized();return;}
-        V2ModelRegistry model = modelRepository.findByModelKey(modelPolicy.modelKey()).orElseGet(() -> {
-            V2ModelRegistry created = new V2ModelRegistry();
-            created.setModelKey(modelPolicy.modelKey());
-            created.setDisplayName(modelPolicy.displayName());
-            created.setProvider("deepseek");
-            created.setCapabilitiesJson(v2Json.write(List.of("chat", "draft_generation", "analysis", "style")));
-            created.setMaxContextTokens(64000);
-            created.setMaxOutputTokens(8192);
-            created.setCostPer1kInput(BigDecimal.valueOf(0.001));
-            created.setCostPer1kOutput(BigDecimal.valueOf(0.002));
-            created.setSupportsStreaming(true);
-            created.setAvailable(true);
-            created.setPriority(100);
-            return modelRepository.save(created);
-        });
-        if (routingRepository.findByTaskType("draft_generation").isEmpty()) {
-            V2TaskModelRouting routing = new V2TaskModelRouting();
-            routing.setTaskType("draft_generation");
-            routing.setRecommendedModel(model);
-            routing.setFallbackModel(model);
-            routing.setRoutingStrategy("fixed");
-            routing.setConfigJson("{}");
-            routingRepository.save(routing);
-        }
+        modelConfiguration.ensureInitialized();
     }
 
     private Map<String, Object> modelMap(V2ModelRegistry model) {
@@ -221,22 +154,6 @@ public class V2ModelPersistenceService {
         return out;
     }
 
-    private Map<String, Object> usageMap(V2ModelUsageLog log) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", log.getId());
-        out.put("userId", log.getUser().getId());
-        out.put("storyId", log.getStory() == null ? null : log.getStory().getId());
-        out.put("modelId", log.getModel().getId());
-        out.put("taskType", log.getTaskType());
-        out.put("inputTokens", log.getInputTokens());
-        out.put("outputTokens", log.getOutputTokens());
-        out.put("latencyMs", log.getLatencyMs());
-        out.put("costEstimate", log.getCostEstimate());
-        out.put("success", log.isSuccess());
-        out.put("errorMessage", log.getErrorMessage());
-        out.put("createdAt", log.getCreatedAt());
-        return out;
-    }
 
     private static String blank(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;

@@ -37,9 +37,9 @@ import java.util.UUID;
 public class ManuscriptService {
     @Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
     @Autowired private com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.quality.language.LanguageQualityService languageQuality;
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     @Autowired private com.ainovel.app.manuscript.repo.ManuscriptCreationReceiptRepository creationReceipts;
     @Autowired private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -202,7 +202,7 @@ public class ManuscriptService {
                 var manifest=generation.metadata()==null?null:generation.metadata().contextManifest();
                 boolean outdated=manifest!=null&&manifest.isolationStamp()==null&&
                     (!worldBindings.same(manifest.worldBinding(),binding)||manifest.boundWorldId()!=null&&manifest.worldBinding()==null);
-                if(manifest!=null&&manifest.worldContext()!=null&&worldPreferences!=null)
+                if(manifest!=null&&manifest.worldContext()!=null)
                     outdated|=worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(current,sceneId),binding).revision()!=manifest.worldContext().selectionRevision();
                 boolean inputChanged=current.getVersion()!=snapshot.version()||!Objects.equals(current.getCurrentBranchId(),snapshot.branchId())
                     ||!Objects.equals(snapshot.planningHash(),sceneGenerationService.planningHash(current));
@@ -234,8 +234,8 @@ public class ManuscriptService {
         manifest.put("lengthOutOfRange",generation.needsReview());
         if(generation.actualHan()!=null) {manifest.put("actualHan",generation.actualHan());manifest.put("minHan",generation.minHan());manifest.put("maxHan",generation.maxHan());}
         UUID versionId=sceneGenerationSnapshotStore.createGenerationSnapshot(manuscript,ownerOf(manuscript),sceneId,manifest);
-        if(automatic&&languageQuality!=null) languageQuality.afterGeneration(ownerOf(manuscript),manuscript,sceneId,versionId,languageSelection);
-        if(materialEvidence!=null&&generation.metadata()!=null) materialEvidence.recordReferences(ownerOf(manuscript),manuscriptId,sceneId,manuscript.getCurrentBranchId(),versionId,generation.metadata().references());
+        if(automatic) languageQuality.afterGeneration(ownerOf(manuscript),manuscript,sceneId,versionId,languageSelection);
+        if(generation.metadata()!=null) materialEvidence.recordReferences(ownerOf(manuscript),manuscriptId,sceneId,manuscript.getCurrentBranchId(),versionId,generation.metadata().references());
         var run=sceneGenerationAttributionService.recordGeneration(manuscript,sceneId,versionId,mode,manifest,generation.html());
         if(generation.metadata()!=null&&generation.metadata().selection()!=null)
             sceneGenerationAttributionService.recordModelSelection(run.id(),generation.metadata().selection());
@@ -380,13 +380,6 @@ public class ManuscriptService {
         return updateSection(manuscript.getId(), sectionId, request);
     }
 
-    @Transactional
-    public List<CharacterChangeLogDto> analyzeCharacterChanges(UUID manuscriptId, AnalyzeCharacterChangeRequest request) {
-        Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
-        accessGuard.assertOwner(ownerOf(manuscript));
-        throw new ApiStatusException(HttpStatus.NOT_IMPLEMENTED, "ANALYSIS_NOT_IMPLEMENTED");
-    }
-
     public List<CharacterChangeLogDto> listCharacterLogs(UUID manuscriptId) {
         Manuscript manuscript = manuscriptRepository.findWithStoryById(manuscriptId).orElseThrow();
         accessGuard.assertOwner(ownerOf(manuscript));
@@ -475,9 +468,6 @@ public class ManuscriptService {
         return metadata;
     }
 
-    private Map<String, String> readSectionMap(String json) {
-        return jsonColumnCodec.readSections(json);
-    }
 
     private List<Map<String, Object>> readLogs(String json) {
         return jsonColumnCodec.read(json, new TypeReference<>() {}, new ArrayList<>());
@@ -492,8 +482,8 @@ public class ManuscriptService {
                 String summary = String.valueOf(log.get("summary"));
                 Instant createdAt = Instant.parse(String.valueOf(log.get("createdAt")));
                 result.add(new CharacterChangeLogDto(id, characterId, summary, createdAt));
-            } catch (Exception ignored) {
-                // Skip malformed historical data.
+            } catch (Exception invalid) {
+                throw new ApiStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "STORED_DATA_INVALID");
             }
         }
         return result;

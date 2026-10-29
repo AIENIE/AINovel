@@ -30,6 +30,7 @@ class SceneLengthRevisionTest {
     final UUID scene=UUID.randomUUID();
     @BeforeEach void setup() throws Exception {
         var json=new ObjectMapper().findAndRegisterModules();
+        SceneGenerationTestSupport.install(service,json,mock(CharacterCardRepository.class));
         var user=new User();user.setId(UUID.randomUUID());
         var story=new Story();story.setId(UUID.randomUUID());story.setUser(user);
         var outline=new Outline();outline.setStory(story);
@@ -44,7 +45,7 @@ class SceneLengthRevisionTest {
         ReflectionTestUtils.setField(service,"scenePlotQualitySupport",mock(ScenePlotQualitySupport.class));
         ReflectionTestUtils.setField(service,"characterCardRepository",mock(CharacterCardRepository.class));
         ManuscriptContentTestSupport.injectLegacy(service);
-        when(builder.build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any()))
+        when(builder.build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any(),anyList()))
                 .thenReturn(new AssembledPrompt(List.of(new AiChatRequest.Message("user","冻结大纲：归还钥匙，不打开门。")),128000));
         when(archive.retainDraft(any(),any(),any(),anyString(),anyInt(),anyInt(),anyInt(),anyInt(),any())).thenAnswer(i->UUID.randomUUID());
     }
@@ -57,7 +58,7 @@ class SceneLengthRevisionTest {
         when(ai.chat(any(),any())).thenReturn(response(first),response(second));quality(expected);
         var result=generate();assertEquals(review,result.needsReview());assertEquals(expected,result.actualHan());
         assertEquals(calls,result.candidateIds().size());verify(ai,times(calls)).chat(any(),any());
-        verify(builder,times(1)).build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any());
+        verify(builder,times(1)).build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any(),anyList());
     }
     @Test void persistsInitialBeforeFailedSecondCallAndPreservesFailure() {
         when(ai.chat(any(),any())).thenReturn(response(2719)).thenThrow(new IllegalStateException("network failure"));
@@ -121,7 +122,7 @@ class SceneLengthRevisionTest {
         assertEquals(wireJson.writeValueAsString(requests.getAllValues().get(1)),
                 wireJson.writeValueAsString(requests.getAllValues().get(2)));
         assertTrue(requests.getAllValues().get(2).messages().getFirst().content().contains(initial));
-        verify(builder,times(1)).build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any());
+        verify(builder,times(1)).build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any(),anyList());
         assertEquals(2,rows.size());
     }
 }

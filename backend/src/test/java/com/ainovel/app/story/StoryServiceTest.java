@@ -190,64 +190,19 @@ class StoryServiceTest {
     }
 
     @Test
-    void conceptionShouldPersistGeneratedStoryFieldsAndFallbackCharacter() {
-        StoryRepository storyRepository = mock(StoryRepository.class);
-        CharacterCardRepository characterCardRepository = mock(CharacterCardRepository.class);
-        ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
-        AiService aiService = mock(AiService.class);
-        StoryService service = service(storyRepository, characterCardRepository, accessGuard, aiService);
-        User owner = user("concept_author");
-        UUID storyId = UUID.randomUUID();
-        Story persistedStory = story(owner);
-        persistedStory.setId(storyId);
-
-        when(storyRepository.save(any(Story.class))).thenAnswer(invocation -> {
-            Story story = invocation.getArgument(0);
-            if (story.getId() == null) {
-                story.setId(storyId);
-            }
-            return story;
-        });
-        when(storyRepository.findByIdWithUser(any(UUID.class))).thenReturn(Optional.of(persistedStory));
-        when(characterCardRepository.save(any(CharacterCard.class))).thenAnswer(invocation -> {
-            CharacterCard card = invocation.getArgument(0);
-            if (card.getId() == null) {
-                card.setId(UUID.randomUUID());
-            }
-            return card;
-        });
-        when(aiService.chat(eq(owner), any())).thenReturn(new com.ainovel.app.ai.dto.AiChatResponse(
-                "assistant",
-                """
-                {"title":"AI 雨城疑案","synopsis":"更新后的梗概","genre":"悬疑","tone":"冷峻","characters":[]}
-                """,
-                null,
-                0
-        ));
-
-        Map<String, Object> result = service.conception(owner, new StoryCreateRequest(
-                "旧标题",
-                "旧梗概",
-                "都市悬疑",
-                "克制",
-                null,
-                Map.of("corePromise", "错位真相")
-        ));
-
-        StoryDto storyCard = (StoryDto) result.get("storyCard");
-        @SuppressWarnings("unchecked")
-        List<CharacterDto> characters = (List<CharacterDto>) result.get("characterCards");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> generated = (Map<String, Object>) result.get("generated");
-
-        assertEquals("AI 雨城疑案", storyCard.title());
-        assertEquals("更新后的梗概", storyCard.synopsis());
-        assertEquals(true, result.get("degraded"));
-        assertEquals(2, characters.size());
-        assertEquals("主角", characters.get(0).name());
-        assertEquals("镜像角色", characters.get(1).name());
-        assertTrue(generated.containsKey("plotPlanning"));
-        assertTrue(generated.containsKey("outlineSeed"));
+    void incompleteAiOutputDoesNotInventCharactersOrWriteAStory() {
+        var stories = mock(StoryRepository.class);
+        var cards = mock(CharacterCardRepository.class);
+        var ai = mock(AiService.class);
+        var service = service(stories, cards, mock(ResourceAccessGuard.class), ai);
+        var owner = user("concept_author");
+        when(ai.chat(eq(owner), any())).thenReturn(new com.ainovel.app.ai.dto.AiChatResponse(
+                "assistant", "{\"title\":\"AI title\",\"synopsis\":\"summary\",\"characters\":[]}", null, 0));
+        var error = org.junit.jupiter.api.Assertions.assertThrows(com.ainovel.app.common.BusinessException.class,
+                () -> service.conception(owner, new StoryCreateRequest("title", "idea", "genre", "tone", null, Map.of())));
+        assertEquals("AI_INITIALIZATION_INVALID_RESULT", error.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(stories, cards);
+        verify(ai, org.mockito.Mockito.times(1)).chat(eq(owner), any());
     }
 
     @Test void conceptionFailureDoesNotCreateFallbackStoryOrCharacters() {
@@ -283,7 +238,6 @@ class StoryServiceTest {
         ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
         ReflectionTestUtils.setField(service, "promptFactory", new StoryConceptionPromptFactory());
         ReflectionTestUtils.setField(service, "projectionBuilder", new StoryConceptionProjectionBuilder());
-        ReflectionTestUtils.setField(service, "draftNormalizer", new StoryConceptionDraftNormalizer());
         return service;
     }
 

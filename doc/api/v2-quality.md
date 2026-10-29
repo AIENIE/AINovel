@@ -90,9 +90,9 @@ V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史�
 - `analysisMode`：`manual_scene` 表示工作台手动诊断；`generation_gate` 表示生成链路门禁记录。
 - `riskLabel`：`low` / `medium` / `high` / `critical`。
 - `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
-- `safeClaim`：安全结论，只评价文本 slop 风险，不推断作者是否使用 AI。
+- `safeClaim`：报告结论。
 - `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`；保留键 `_shadow_pattern_hits` 记录不参与评分的影子规则命中摘要。
-- `alternativeExplanationsJson`：历史替代解释；新报告不推断作者身份、亲历经验或输入方式。
+- `alternativeExplanationsJson`：模型返回的替代解释，可为空。
 - `revisionPrioritiesJson`：修改优先级。
 - `rewriteTasksJson`：证据驱动改写任务。
 
@@ -128,7 +128,7 @@ V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史�
 - `alternativeExplanationsJson`：替代解释，例如赶稿、换写手、剧情高潮、平台节奏、作者疲劳、题材/平台惯例。
 - `rewriteTasksJson`：面向作者的修复任务。
 
-短稿或无法形成至少 3 个有效窗口时，服务端保存 `INSUFFICIENT_TEXT`，不会调用 AI。巡检不修改正文，不生成自动修订，不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
+短稿或无法形成至少 3 个有效窗口时，服务端保存 `INSUFFICIENT_TEXT`，不会调用 AI。巡检不修改正文，不生成自动修订。
 
 ## 生成链路行为
 
@@ -175,7 +175,6 @@ V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史�
 
 ## 文本诊断安全规则
 
-- 文本诊断不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
 - 本地线索保留旧 `E1/E2` 密度口径，但不直接成为语义确认的问题。
 - 本地密度窗口固定为 500 字：同类 3 次或 3 类共现为 58/E2；同类 5 次或 4 类共现为 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1；新报告风险不与这些本地分取最大值。
 - 旧 `E3/E4` 记录保留可读。新报告按 `review` 的判断、类别和有效引文解释；作品中的引语和日志不能仅凭协议字样判为残留。

@@ -61,6 +61,12 @@ public class JsonColumnCodec {
         if (json == null || json.isBlank()) {
             return fallback;
         }
-        return readRequired(json, type);
+        try {
+            T value = objectMapper.readerFor(type)
+                    .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(json);
+            return value == null ? fallback : value;
+        } catch (Exception ex) {
+            throw invalidStoredData();
+        }
     }
 }

@@ -17,7 +17,7 @@ public class AiServiceTextEmbeddingClient implements TextEmbeddingClient {
     @Override
     public float[] embed(User user, String text) {
         if (user == null || user.getRemoteUid() == null || user.getRemoteUid() <= 0 || text == null || text.isBlank()) {
-            return new float[0];
+            throw new IllegalStateException("EMBEDDING_INPUT_INVALID");
         }
         AiGatewayGrpcClient.EmbeddingResult result = aiGatewayGrpcClient.embeddings(
                 user.getRemoteUid(),
@@ -26,7 +26,7 @@ public class AiServiceTextEmbeddingClient implements TextEmbeddingClient {
                 true
         );
         if (result.vectors().isEmpty()) {
-            return new float[0];
+            throw new IllegalStateException("EMBEDDING_RESULT_EMPTY");
         }
         return result.vectors().get(0);
     }

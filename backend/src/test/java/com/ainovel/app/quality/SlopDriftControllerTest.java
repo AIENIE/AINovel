@@ -95,7 +95,7 @@ class SlopDriftControllerTest {
         run.setStatus(SlopDriftStatus.COMPLETED);
         run.setOverallRiskScore(76);
         run.setRiskLabel("high");
-        run.setSafeClaim("该稿件呈现叙事机制断层风险；这不能证明作者使用 AI。");
+        run.setSafeClaim("该稿件呈现叙事机制断层风险");
         run.setSummary("中后段模板化和事件传送带风险升高。");
         run.setTotalCharacters(25000);
         run.setWindowCount(3);

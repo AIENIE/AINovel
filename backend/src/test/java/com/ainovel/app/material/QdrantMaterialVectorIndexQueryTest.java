@@ -32,7 +32,7 @@ class QdrantMaterialVectorIndexQueryTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/collections/materials", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                respond(exchange, 200, "{}");
+                respond(exchange, 200, "{\"result\":{\"config\":{\"params\":{\"vectors\":{\"size\":2}}}}}");
                 return;
             }
             requestPath.set(exchange.getRequestURI().getPath());

@@ -26,7 +26,6 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
     private final String apiKey;
     private final Duration requestTimeout;
     private final AtomicInteger ensuredDimensions = new AtomicInteger(0);
-    private boolean strict;
 
     @org.springframework.beans.factory.annotation.Autowired
     public QdrantMaterialVectorIndex(
@@ -54,14 +53,11 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
                 .connectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
                 .build();
     }
-    public QdrantMaterialVectorIndex(ObjectMapper mapper,String host,int port,String collection,String key,long connect,long timeout,boolean strict){
-        this(mapper,host,port,collection,key,connect,timeout);this.strict=strict;
-    }
 
     @Override
     public void upsert(MaterialChunk chunk, float[] vector) {
         if (chunk == null || vector == null || vector.length == 0) {
-            return;
+            throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
         }
         ensureCollection(vector.length);
         Map<String, Object> body = Map.of(
@@ -109,10 +105,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
     public List<VectorMatch> searchWithin(float[] vector,int limit,java.util.UUID ownerUserId,List<java.util.UUID> allowedMaterials){
         if(allowedMaterials!=null&&allowedMaterials.isEmpty())return List.of();
         if (vector == null || vector.length == 0) {
-            return List.of();
+            throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
         }
         ensureCollection(vector.length);
-        try {
             Map<String, Object> body = new java.util.LinkedHashMap<>();
             body.put("query", floats(vector));
             body.put("limit", Math.max(1, Math.min(limit, 50)));
@@ -125,7 +120,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             body.put("filter", Map.of("must",must,"should",should));
             JsonNode root = send("POST", "/collections/" + collection + "/points/query", body);
             List<VectorMatch> matches = new ArrayList<>();
-            for (JsonNode item : root.path("result").path("points")) {
+            JsonNode points = root.path("result").path("points");
+            if (!points.isArray()) throw new IllegalStateException("VECTOR_RESULT_INVALID");
+            for (JsonNode item : points) {
                 String chunkId = item.path("payload").path("chunkId").asText("");
                 double score = item.path("score").asDouble(0d);
                 if (!chunkId.isBlank()) {
@@ -136,10 +133,6 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
                 }
             }
             return matches;
-        } catch (RuntimeException ignored) {
-            if(strict)throw ignored;
-            return List.of();
-        }
     }
 
     private void ensureCollection(int dimensions) {
@@ -147,8 +140,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             return;
         }
         if (collectionExists()) {
-            if(strict){var root=send("GET","/collections/"+collection,null);int actual=root.path("result").path("config").path("params").path("vectors").path("size").asInt(-1);
-                if(actual!=dimensions)throw new IllegalStateException("VECTOR_INDEX_DIMENSIONS_MISMATCH");}
+            var root=send("GET","/collections/"+collection,null);
+            int actual=root.path("result").path("config").path("params").path("vectors").path("size").asInt(-1);
+            if(actual!=dimensions)throw new IllegalStateException("VECTOR_INDEX_DIMENSIONS_MISMATCH");
             ensuredDimensions.set(dimensions);
             return;
         }

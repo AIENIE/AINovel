@@ -1,9 +1,7 @@
 package com.ainovel.app.v2;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
-import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.security.ResourceAccessGuard;
-import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,14 +14,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.*;
 
 @Tag(name = "V2", description = "AINovel v2 and quality APIs")
 @RestController
 @RequestMapping("/v2")
 public class V2ModelController {
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     private final ResourceAccessGuard accessGuard;
     private final V2ModelPersistenceService persistenceService;
@@ -61,8 +58,7 @@ public class V2ModelController {
     @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     @SecurityRequirement(name = "adminSessionCookie")
     public List<Map<String, Object>> listRouting() {
-        if(modelConfiguration!=null)return modelConfiguration.features(null).stream().map(modelConfiguration::asMap).toList();
-        return persistenceService.listRouting();
+        return modelConfiguration.features(null).stream().map(modelConfiguration::asMap).toList();
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -73,15 +69,8 @@ public class V2ModelController {
     public Map<String, Object> updateRouting(Authentication authentication,
                                              @PathVariable String taskType,
                                              @RequestBody V2RequestPayload payload) {
-        if(modelConfiguration!=null&&!payload.value().has("options"))throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"AI_ROUTING_PAYLOAD_UPGRADE_REQUIRED");
-        Map<String, Object> updated = modelConfiguration!=null?modelConfiguration.asMap(modelConfiguration.update(taskType,
-                modelConfiguration.parseUpdate(payload.value()))):persistenceService.updateRouting(
-                taskType,
-                uuid(payload.get("recommendedModelId")),
-                uuid(payload.get("fallbackModelId")),
-                str(payload.get("routingStrategy"), "fixed"),
-                payload.getOrDefault("config", Map.of())
-        );
+        if(!payload.value().has("options"))throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"AI_ROUTING_PAYLOAD_UPGRADE_REQUIRED");
+        Map<String,Object> updated = modelConfiguration.asMap(modelConfiguration.update(taskType, modelConfiguration.parseUpdate(payload.value())));
         recordFileSink.appendAudit(Map.of(
                 "category", "admin",
                 "action", "model-routing.update",
@@ -109,7 +98,7 @@ public class V2ModelController {
                                              @PathVariable String taskType,
                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        if(modelConfiguration!=null&&payload.value().has("preferredOptionId")) {
+        if(payload.value().has("preferredOptionId")) {
             modelConfiguration.preference(user,taskType,(String)payload.get("preferredOptionId"));
             return modelConfiguration.asMap(modelConfiguration.feature(taskType,user));
         }
@@ -143,61 +132,6 @@ public class V2ModelController {
         return persistenceService.usageDetails(user, limit);
     }
 
-    @Operation(summary = "v2 API endpoint")
-
-    @PostMapping("/stories/{storyId}/compare-models")
-    public Map<String, Object> compareModels(@AuthenticationPrincipal UserDetails principal,
-                                             @PathVariable UUID storyId,
-                                             @RequestBody V2RequestPayload payload) {
-        User user = accessGuard.currentUser(principal);
-        Story story = accessGuard.requireOwnedStory(storyId, user);
-
-        List<Map<String, Object>> models = persistenceService.listModels();
-        if (models.isEmpty()) {
-            throw new BusinessException("缺少可用模型");
-        }
-        Map<String, Object> modelA = models.get(0);
-        Map<String, Object> modelB = models.size() > 1 ? models.get(1) : models.get(0);
-        UUID modelAId = uuid(payload.get("modelAId"));
-        UUID modelBId = uuid(payload.get("modelBId"));
-        if (modelAId != null) {
-            modelA = models.stream().filter(model -> modelAId.equals(model.get("id"))).findFirst()
-                    .orElseThrow(() -> new BusinessException("模型不存在"));
-        }
-        if (modelBId != null) {
-            modelB = models.stream().filter(model -> modelBId.equals(model.get("id"))).findFirst()
-                    .orElseThrow(() -> new BusinessException("模型不存在"));
-        }
-
-        String taskType = str(payload.get("taskType"), "draft_generation");
-        String prompt = str(payload.get("prompt"), "请生成一段小说正文");
-        Map<String, Object> outputA = buildComparisonOutput(story, modelA, prompt, "A");
-        Map<String, Object> outputB = buildComparisonOutput(story, modelB, prompt, "B");
-        persistenceService.logUsage(user, story.getId(), (UUID) modelA.get("id"), taskType, 220, 340, 580, true, null);
-        persistenceService.logUsage(user, story.getId(), (UUID) modelB.get("id"), taskType, 210, 330, 560, true, null);
-
-        return Map.of(
-                "storyId", storyId,
-                "taskType", taskType,
-                "prompt", prompt,
-                "candidates", List.of(outputA, outputB),
-                "generatedAt", Instant.now()
-            );
-    }
-
-    private Map<String, Object> buildComparisonOutput(Story story,
-                                                      Map<String, Object> model,
-                                                      String prompt,
-                                                      String slot) {
-        return Map.of(
-                "slot", slot,
-                "modelId", model.get("id"),
-                "modelKey", model.get("modelKey"),
-                "text", "[" + model.get("displayName") + "] 针对《" + story.getTitle() + "》生成结果：" + prompt,
-                "score", 80 + ("A".equals(slot) ? 3 : 1)
-        );
-    }
-
     private UUID uuid(Object value) {
         if (value == null) {
             return null;
@@ -212,11 +146,4 @@ public class V2ModelController {
         }
     }
 
-    private String str(Object value, String fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        String text = value.toString().trim();
-        return text.isEmpty() ? fallback : text;
-    }
 }

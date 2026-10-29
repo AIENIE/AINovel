@@ -257,6 +257,7 @@ class OutlineServiceTest {
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
         ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
+        ReflectionTestUtils.setField(service,"eventPublisher",mock(org.springframework.context.ApplicationEventPublisher.class));
         return service;
     }
 

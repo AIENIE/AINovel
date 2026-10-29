@@ -16,7 +16,7 @@ import java.util.UUID;
 public class GuidedCreationJobWorker {
     private static final Logger log = LoggerFactory.getLogger(GuidedCreationJobWorker.class);
 
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     private final GuidedCreationJobService jobService;
     private final GuidedCreationGenerationService generationService;
@@ -38,7 +38,7 @@ public class GuidedCreationJobWorker {
         boolean generationCompleted = false;
         try {
             GuidedCreationJobService.GenerationContext context = jobService.markCallingAi(jobId);
-            try(var selections=com.ainovel.app.modelconfig.AiSelectionContext.install(modelConfiguration==null?null:modelConfiguration.readSnapshot(context.job().getModelSelectionsJson()))) {
+            try(var selections=com.ainovel.app.modelconfig.AiSelectionContext.install(modelConfiguration.readSnapshot(context.job().getModelSelectionsJson()))) {
             GuidedCreationGenerationService.GenerationResult result = AiProgressContext.withListener(
                     progressListener(jobId, System::nanoTime),
                     () -> generationService.generate(context.run(), context.job(), context.payload()));

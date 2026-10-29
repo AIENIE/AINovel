@@ -33,7 +33,7 @@ class PlotQualityServiceTest {
         var ai=mock(AiService.class);var manuscripts=mock(ManuscriptRepository.class);var cards=mock(CharacterCardRepository.class);
         var runs=mock(PlotQualityRunRepository.class);var gate=mock(SlopQualityGate.class);var mapper=new ObjectMapper();
         var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,new JsonColumnCodec(mapper));
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(service,"isolation",context);
         UUID scene=UUID.randomUUID();var m=manuscriptWithSceneContext(scene,UUID.randomUUID(),"SECRET_PREVIOUS","当前正文");
@@ -73,7 +73,7 @@ class PlotQualityServiceTest {
                 repository,
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         User user = user();
         UUID sceneId = UUID.randomUUID();
         UUID previousSceneId = UUID.randomUUID();
@@ -140,7 +140,7 @@ class PlotQualityServiceTest {
 
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneA = UUID.randomUUID();
         UUID sceneB = UUID.randomUUID();
@@ -194,7 +194,7 @@ class PlotQualityServiceTest {
 
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID runId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();
         run.setId(runId);
@@ -225,7 +225,7 @@ class PlotQualityServiceTest {
                 repository,
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID runId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();

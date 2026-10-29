@@ -50,6 +50,7 @@ import java.util.*;
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({
     MaterialEvidenceService.class,
+    com.ainovel.app.ai.AiValidationCallBudget.class,
     ManuscriptContentService.class,
     ResourceAccessGuard.class,
     JsonColumnCodec.class,
@@ -93,6 +94,7 @@ class MaterialSelectionMysqlTest {
     @Autowired MaterialEvidenceService sources;
     @Autowired ObjectMapper json;
     @Autowired Environment environment;
+    @Autowired com.ainovel.app.ai.AiValidationCallBudget validationBudget;
     @MockitoBean com.ainovel.app.common.CurrentUserResolver userResolver;
 
     record Fixture(
@@ -363,6 +365,7 @@ class MaterialSelectionMysqlTest {
                 throw new IllegalStateException(
                         "Matrix develop TLS gateway and credentials required");
             gateway = new AiGatewayGrpcClient(properties, new GrpcChannelFactory(properties));
+            org.springframework.test.util.ReflectionTestUtils.setField(gateway,"validationBudget",validationBudget);
             nativeClient = new MaterialNativeClient(gateway, run);
             String host = environment.getProperty("qdrant.host"),
                     key = environment.getProperty("qdrant.api-key", "");
@@ -381,7 +384,7 @@ class MaterialSelectionMysqlTest {
                 indexes.put(
                         id,
                         new QdrantMaterialVectorIndex(
-                                json, host, port, collection, key, 2000, 5000, true));
+                                json, host, port, collection, key, 2000, 5000));
             }
         }
 

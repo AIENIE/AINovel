@@ -106,7 +106,9 @@ class AiQualityRequestTest {
         when(factory.create("localhost", 9999)).thenReturn(channel);
         when(channel.newCall(any(), any())).thenAnswer(invocation ->
                 new ReplyCall(((MethodDescriptor<?, ?>) invocation.getArgument(0)).getType() == MethodDescriptor.MethodType.SERVER_STREAMING));
-        return new AiGatewayGrpcClient(properties, factory);
+        var client = new AiGatewayGrpcClient(properties, factory);
+        org.springframework.test.util.ReflectionTestUtils.setField(client,"validationBudget",mock(com.ainovel.app.ai.AiValidationCallBudget.class));
+        return client;
     }
 
     private static AiModelSelection choice(String feature) {

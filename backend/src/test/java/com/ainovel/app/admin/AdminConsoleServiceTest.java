@@ -145,6 +145,7 @@ class AdminConsoleServiceTest {
                 new ApiRequestMetrics()
         );
 
+        org.springframework.test.util.ReflectionTestUtils.setField(service,"maintenanceModeCache",mock(com.ainovel.app.security.MaintenanceModeCache.class));
         AdminSystemConfigResponse response = service.updateSystemConfig(true);
 
         assertTrue(response.maintenanceMode());

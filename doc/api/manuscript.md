@@ -13,7 +13,6 @@
 - `GET /api/v1/manuscripts/{id}/scenes/{sceneId}/generation-runs?limit=10`：按时间倒序返回生成历史；`limit` 默认 10，并在服务端限制为 `1..50`。重新生成会将旧记录标记为 `SUPERSEDED`，版本回滚只更新实际受影响场景的记录。
 - `PATCH /api/v1/manuscripts/{id}/scenes/{sceneId}/generation-runs/{runId}/feedback`：更新 `{tags, note, preferenceConfirmed}`。备注按 Unicode code point 最长 500 字；标签固定为 `PLOT_CAUSALITY`、`CHARACTER_MOTIVATION`、`CONTINUITY_SETTING`、`VOICE_DIALOGUE`、`PACING`、`STYLE_SPECIFICITY`、`AI_CLICHE`、`OTHER`。将 `preferenceConfirmed` 设为 `true` 时必须至少保留一个标签或一条备注。
 - （兼容旧接口）`POST /api/v1/manuscript/scenes/{sceneId}/generate` / `PUT /api/v1/manuscript/sections/{sectionId}`：仍可用，但会默认使用第一份稿件且生成固定为 `fast`（不建议）。
-- `POST /api/v1/manuscripts/{id}/sections/analyze-character-changes`：旧拼接式占位触发器已停用，校验所有权后返回 `501 ANALYSIS_NOT_IMPLEMENTED`。使用 [证据与状态](v2-narrative.md)完成真实抽取与作者确认。
 - `GET /api/v1/manuscripts/{id}/character-change-logs`：历史角色变化日志只读列表，每项 `verificationStatus: "UNVERIFIED_LEGACY"`，不作为已确认事实。
 - `GET /api/v1/manuscripts/{id}/character-change-logs/{characterId}`：指定角色的变化日志列表。
 - `POST /api/v1/ai/generate-dialogue`：对话生成，Body `{text, instruction?, contextType?}`，返回文本。
@@ -70,3 +69,5 @@
 “恢复原任务”保留任务、请求和计费身份；新生成使用新任务。缺少新流程输入的旧任务返回 `SCENE_LEGACY_RECOVERY_REQUIRED`，不套用新提示重发。历史事故 `a9917c9d-919b-44b1-986b-5afd7cd68cb3` 仅从三条完成调用恢复，恢复工具不更新原任务、正文或计费记录。
 
 上述事故的一次性恢复入口已退役。已恢复候选继续通过标准候选接口读取；旧工具及操作记录可从 Git 历史查询。
+
+旧角色变化占位触发入口已删除，返回 404。现有角色变化日志读取及证据与状态的真实抽取流程继续提供。

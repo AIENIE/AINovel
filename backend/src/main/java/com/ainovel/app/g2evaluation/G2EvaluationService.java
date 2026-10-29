@@ -39,7 +39,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class G2EvaluationService {
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.modelconfig.AiQuoteService quotes;
     private final G2EvaluationExperimentRepository experimentRepository;
     private final G2EvaluationInviteRepository inviteRepository;
@@ -173,7 +173,7 @@ public class G2EvaluationService {
         sample.setStatus(G2EvaluationSampleStatus.PENDING);
         sampleRepository.save(sample);
         UUID sampleId = sample.getId();
-        if(quotes!=null)quotes.freezeTaskSnapshot(author,sampleId);
+        quotes.freezeTaskSnapshot(author,sampleId);
         scheduleGenerationAfterCommit(sampleId);
         return new G2EvaluationDtos.SampleSubmissionResponse(sampleId, sample.getStatus().name());
     }

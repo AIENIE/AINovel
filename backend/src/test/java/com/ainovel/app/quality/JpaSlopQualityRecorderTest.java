@@ -30,7 +30,7 @@ class JpaSlopQualityRecorderTest {
         SlopQualitySignals signals = new SlopQualitySignals(
                 "high",
                 "E2",
-                "该文本呈现 high 级模板化/slop风险；这不能证明作者使用AI。",
+                "该文本呈现 high 级模板化/slop风险",
                 Map.of("surface_template", Map.of("score", 78, "evidence_count", 2)),
                 List.of("传统网文俗套"),
                 List.of("先处理共振片段"),

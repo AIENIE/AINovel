@@ -18,7 +18,7 @@ public class NarrativeInvalidationListener {
     }
     private void reconcile(java.util.UUID id) {
         narrative.reconcileManuscript(id);
-        if (context != null) context.reconcileManuscript(id);
+        context.reconcileManuscript(id);
     }
     @EventListener public void edited(SceneContentEditedEvent event) { reconcile(event.manuscriptId()); }
     @EventListener public void rollback(ManuscriptRollbackEvent event) { reconcile(event.manuscriptId()); }

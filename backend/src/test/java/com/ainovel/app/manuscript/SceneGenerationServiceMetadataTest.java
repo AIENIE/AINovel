@@ -52,7 +52,7 @@ class SceneGenerationServiceMetadataTest {
         SceneDraftContextCompiler contextCompiler = mock(SceneDraftContextCompiler.class);
 
         SceneGenerationService service = new SceneGenerationService();
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        SceneGenerationTestSupport.install(service,objectMapper,characterCardRepository);
         ReflectionTestUtils.setField(service, "characterCardRepository", characterCardRepository);
         ReflectionTestUtils.setField(service, "aiService", aiService);
         ReflectionTestUtils.setField(service, "slopQualityGate", qualityGate);
@@ -134,7 +134,7 @@ class SceneGenerationServiceMetadataTest {
         when(promptBuilder.build(
                 eq(owner), eq(story), any(SceneGenerationContext.class), any(), any(), any(),
                 anyInt(), anyInt(), eq(min), eq(max),
-                eq(mode), eq(compiled)
+                eq(mode), eq(compiled), org.mockito.ArgumentMatchers.anyList()
         )).thenReturn(
                 new AssembledPrompt(failedMessages, 128000),
                 new AssembledPrompt(successfulMessages, 128000)
@@ -162,7 +162,7 @@ class SceneGenerationServiceMetadataTest {
         );
 
         assertEquals(2, result.metadata().attemptCount());
-        assertEquals(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, result.metadata().modelKey());
+        org.junit.jupiter.api.Assertions.assertNull(result.metadata().modelKey(), "Unknown model identity is never guessed from configuration");
         assertEquals(SceneDraftContextCompiler.COMPILER_VERSION, result.metadata().promptVersion());
         var calls=org.mockito.ArgumentCaptor.forClass(AiChatRequest.class);
         org.mockito.Mockito.verify(aiService,org.mockito.Mockito.times(2)).chat(eq(owner),calls.capture());
