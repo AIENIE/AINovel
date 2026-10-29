@@ -22,7 +22,7 @@ import static com.ainovel.app.quality.language.LanguageDtos.*;
 public class LanguageQualityService {
     private final ManuscriptRepository manuscripts;
     private final ManuscriptContentService contents;
-    
+
     private final V2VersionPersistenceService versions;
     private final LanguageReportRepository reports;
     private final LanguagePatchRepository patches;

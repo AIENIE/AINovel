@@ -106,6 +106,7 @@ class AssistantMysqlTest {
     @MockitoBean com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
     @BeforeEach void noWorldBindingFixture() {
         when(worldBindings.input(any())).thenReturn(new com.ainovel.app.world.WorldBindingService.Frozen(null));
+        when(worldBindings.freeze(any())).thenReturn(new com.ainovel.app.world.WorldBindingService.Frozen(null));
         when(worldBindings.same(any(), any())).thenCallRealMethod();
         when(worldPreferences.read(anyString(), any())).thenReturn(com.ainovel.app.worldcontext.WorldContextDtos.Preferences.defaults(null));
     }

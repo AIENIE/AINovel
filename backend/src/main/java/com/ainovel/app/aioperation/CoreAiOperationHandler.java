@@ -20,7 +20,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
     public static final String TYPE = "AINOVEL_LONG_TASK";
 
     private final StoryService stories;
-    
+
     private final WorldTaskService worldTasks;
     private final ManuscriptService manuscripts;
     private final ResourceAccessGuard accessGuard;
@@ -32,7 +32,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
                                   ManuscriptService manuscripts, ResourceAccessGuard accessGuard,
                                   SlopDiagnosticService slop, SlopDriftService drift, PlotQualityService plot) {
         this.stories = stories;
-        
+
         this.worldTasks = worldTasks;
         this.manuscripts = manuscripts;
         this.accessGuard = accessGuard;

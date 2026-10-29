@@ -34,7 +34,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     private final V2VersionDiffRepository diffRepository;
     private final V2AutoSaveConfigRepository autoSaveRepository;
     private final ManuscriptRepository manuscriptRepository;
-    
+
     private final V2Json v2Json;
     private final JsonColumnCodec jsonColumnCodec;
     private final ApplicationEventPublisher eventPublisher;
@@ -52,7 +52,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         this.diffRepository = diffRepository;
         this.autoSaveRepository = autoSaveRepository;
         this.manuscriptRepository = manuscriptRepository;
-        
+
         this.v2Json = v2Json;
         this.jsonColumnCodec = jsonColumnCodec;
         this.eventPublisher = eventPublisher;

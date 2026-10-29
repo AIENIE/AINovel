@@ -29,7 +29,7 @@ public class StyleService {
     private final CharacterVoiceRepository characterVoiceRepository;
     private final StyleAnalysisJobRepository styleAnalysisJobRepository;
     private final CharacterCardRepository characterCardRepository;
-    
+
     private final JsonColumnCodec jsonColumnCodec;
 
     public StyleService(StyleProfileRepository styleProfileRepository,
@@ -41,7 +41,7 @@ public class StyleService {
         this.characterVoiceRepository = characterVoiceRepository;
         this.styleAnalysisJobRepository = styleAnalysisJobRepository;
         this.characterCardRepository = characterCardRepository;
-        
+
         this.jsonColumnCodec = jsonColumnCodec;
     }
 

@@ -31,7 +31,7 @@ public class MaterialService {
     private final ResourceAccessGuard accessGuard;
     private final MaterialRetrievalService materialRetrievalService;
     private final ManuscriptRepository manuscriptRepository;
-    
+
     private final JsonColumnCodec jsonColumnCodec;
     private final MaterialFingerprintService fingerprints;
 
@@ -50,7 +50,7 @@ public class MaterialService {
         this.accessGuard = accessGuard;
         this.materialRetrievalService = materialRetrievalService;
         this.manuscriptRepository = manuscriptRepository;
-        
+
         this.jsonColumnCodec = jsonColumnCodec;
         this.fingerprints = fingerprints;
     }

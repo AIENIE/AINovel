@@ -25,7 +25,7 @@ import java.util.UUID;
 public class StoryController {
     private final StoryService storyService;
     private final OutlineService outlineService;
-    
+
     private final CurrentUserResolver currentUserResolver;
     @Autowired private OutlineAiService outlineAi;
 
@@ -35,7 +35,7 @@ public class StoryController {
                            CurrentUserResolver currentUserResolver) {
         this.storyService = storyService;
         this.outlineService = outlineService;
-        
+
         this.currentUserResolver = currentUserResolver;
     }
 

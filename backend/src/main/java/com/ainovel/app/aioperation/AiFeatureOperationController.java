@@ -23,7 +23,7 @@ public class AiFeatureOperationController {
     private final OutlineService outlines;
     private final WorldTaskService worldTasks;
     private final ObjectMapper objectMapper;
-    
+
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.quality.SlopDiagnosticService slopDiagnostic;
     @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
@@ -39,7 +39,7 @@ public class AiFeatureOperationController {
         this.outlines = outlines;
         this.worldTasks = worldTasks;
         this.objectMapper = objectMapper;
-        
+
     }
 
     @PostMapping("/v1/conception/operations")
