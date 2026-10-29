@@ -1,73 +1,43 @@
 import { featureName } from "@/lib/ai-model-config";
 import AiFeaturePreferences from "./AiFeaturePreferences";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type NetworkObject } from "@/lib/api-client";
-import { Story } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
-import { Textarea } from "@/components/ui/textarea";
 import { localizedErrorMessage } from "@/lib/error-messages";
 
-const TASKS = [
-  { key: "draft_generation", labelKey: "models.taskDraft" },
-  { key: "entity_extraction", labelKey: "models.taskEntity" },
-  { key: "style_analysis", labelKey: "models.taskStyle" },
-  { key: "beta_reader", labelKey: "models.taskBetaReader", unavailable: true },
-  { key: "continuity_check", labelKey: "models.taskContinuity", unavailable: true },
-  { key: "refine", labelKey: "models.taskRefine" },
-] as const;
-
-const toNumber = (value: NetworkObject) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+const toNumber = (value: unknown) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error("MODEL_USAGE_INVALID");
+  return value;
 };
 
 const ModelPreferences = () => {
-  const { toast } = useToast();
   const { t, i18n } = useTranslation();
   const [models, setModels] = useState<NetworkObject[]>([]);
   const [usageSummary, setUsageSummary] = useState<NetworkObject | null>(null);
   const [usageDetails, setUsageDetails] = useState<NetworkObject[]>([]);
-  const [stories, setStories] = useState<Story[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-
-  const [storyId, setStoryId] = useState("");
-  const [compareTaskType, setCompareTaskType] = useState("draft_generation");
-  const [comparePrompt, setComparePrompt] = useState(t("models.comparePromptDefault"));
-  const [compareModelAId, setCompareModelAId] = useState("");
-  const [compareModelBId, setCompareModelBId] = useState("");
-  const [compareResult, setCompareResult] = useState<NetworkObject | null>(null);
-  const [adoptedCandidate, setAdoptedCandidate] = useState<{ slot: string; text: string; modelKey: string } | null>(null);
-
-
-  const loadData = async () => {
-    const [modelList, summary, details, storyList] = await Promise.all([
+  const loadData = useCallback(async () => {
+    const [modelList, summary, details] = await Promise.all([
       api.v2.models.list(),
       api.v2.models.usageSummary(),
       api.v2.models.usageDetails(),
-      api.stories.list(),
     ]);
+    if (!Array.isArray(modelList) || !Array.isArray(details) || !summary || typeof summary !== "object") throw new Error("MODEL_USAGE_INVALID");
+    for (const key of ["totalCalls", "totalCost", "totalInputTokens", "totalOutputTokens"]) toNumber(summary[key]);
+    for (const item of details) for (const key of ["inputTokens", "outputTokens", "costEstimate"]) toNumber(item[key]);
     setModels(modelList);
     setUsageSummary(summary);
     setUsageDetails(details);
-    setStories(storyList);
 
-    if (!storyId && storyList.length > 0) setStoryId(storyList[0].id);
-    if (!compareModelAId && modelList.length > 0) setCompareModelAId(String(modelList[0].id));
-    if (!compareModelBId && modelList.length > 1) setCompareModelBId(String(modelList[1].id));
-  };
-
-  useEffect(() => {
-    loadData().catch((error: NetworkObject) => toast({ variant: "destructive", title: t("models.loadFailed"), description: localizedErrorMessage(error, "models.loadFailed") }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setLoadError(null);
   }, []);
 
-  const compareTaskUnavailable = Boolean(TASKS.find((task) => task.key === compareTaskType && "unavailable" in task));
+  const refresh = useCallback(() => loadData().catch((error: unknown) => setLoadError(localizedErrorMessage(error, "models.loadFailed"))), [loadData]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const usageByModel = useMemo(() => {
     const summary = new Map<string, { key: string; label: string; calls: number; input: number; output: number; cost: number }>();
@@ -120,47 +90,9 @@ const ModelPreferences = () => {
       .slice(0, 7);
   }, [usageDetails]);
 
-  const compareModels = async () => {
-    if (!storyId) {
-      toast({ variant: "destructive", title: t("models.selectStoryFirst") });
-      return;
-    }
-    try {
-      const result = await api.v2.models.compare(storyId, {
-        taskType: compareTaskType,
-        prompt: comparePrompt,
-        modelAId: compareModelAId || undefined,
-        modelBId: compareModelBId || undefined,
-      });
-      setCompareResult(result);
-      setAdoptedCandidate(null);
-      await loadData();
-      toast({ title: t("models.compareDone") });
-    } catch (error: unknown) {
-      toast({ variant: "destructive", title: t("models.compareFailed"), description: localizedErrorMessage(error, "models.compareFailed") });
-    }
-  };
-
-  const pickCandidate = (candidate: NetworkObject) => {
-    const slot = String(candidate?.slot || "");
-    const text = String(candidate?.text || "");
-    const modelKey = String(candidate?.modelKey || candidate?.modelId || "-");
-    setAdoptedCandidate({ slot, text, modelKey });
-    toast({ title: t("models.adoptedResult", { slot }) });
-  };
-
-  const copyAdopted = async () => {
-    if (!adoptedCandidate?.text) return;
-    try {
-      await navigator.clipboard.writeText(adoptedCandidate.text);
-      toast({ title: t("models.copiedResult") });
-    } catch {
-      toast({ variant: "destructive", title: t("models.copyFailed") });
-    }
-  };
-
   return (
     <div className="space-y-4">
+      {loadError && <div role="alert" className="text-sm text-destructive">{loadError}<Button variant="link" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
       <div className="grid gap-4 lg:grid-cols-2">
         <AiFeaturePreferences />
 
@@ -173,19 +105,19 @@ const ModelPreferences = () => {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded border p-2">
                 <div className="text-muted-foreground">{t("models.totalCalls")}</div>
-                <div className="font-semibold">{usageSummary?.totalCalls ?? 0}</div>
+                <div className="font-semibold">{usageSummary?.totalCalls ?? "—"}</div>
               </div>
               <div className="rounded border p-2">
                 <div className="text-muted-foreground">{t("aiModels.actualCharges")}</div>
-                <div className="font-semibold">{String(usageSummary?.totalCost ?? 0)}</div>
+                <div className="font-semibold">{String(usageSummary?.totalCost ?? "—")}</div>
               </div>
               <div className="rounded border p-2">
                 <div className="text-muted-foreground">{t("models.inputTokens")}</div>
-                <div className="font-semibold">{usageSummary?.totalInputTokens ?? 0}</div>
+                <div className="font-semibold">{usageSummary?.totalInputTokens ?? "—"}</div>
               </div>
               <div className="rounded border p-2">
                 <div className="text-muted-foreground">{t("models.outputTokens")}</div>
-                <div className="font-semibold">{usageSummary?.totalOutputTokens ?? 0}</div>
+                <div className="font-semibold">{usageSummary?.totalOutputTokens ?? "—"}</div>
               </div>
             </div>
             <div className="space-y-2">
@@ -200,7 +132,7 @@ const ModelPreferences = () => {
                   </div>
                 </div>
               ))}
-              {!usageDetails.length && <p className="text-sm text-muted-foreground">{t("models.noUsage")}</p>}
+              {usageSummary && !usageDetails.length && <p className="text-sm text-muted-foreground">{t("models.noUsage")}</p>}
             </div>
             {!!usageDetails.length && (
               <div className="grid gap-2 xl:grid-cols-3">
@@ -237,123 +169,6 @@ const ModelPreferences = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("models.compareTitle")}</CardTitle>
-          <CardDescription>{t("models.compareDesc")} · {t("aiModels.localComparison")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="space-y-2">
-              <Label>{t("models.story")}</Label>
-              <Select value={storyId} onValueChange={setStoryId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("models.selectStory")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {stories.map((story) => (
-                    <SelectItem key={story.id} value={story.id}>
-                      {story.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("models.taskType")}</Label>
-              <Select value={compareTaskType} onValueChange={setCompareTaskType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TASKS.map((task) => (
-                    <SelectItem key={task.key} value={task.key} disabled={"unavailable" in task}>
-                      {t(task.labelKey)}{"unavailable" in task ? ` · ${t("common.notImplemented")}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("models.modelA")}</Label>
-              <Select value={compareModelAId} onValueChange={setCompareModelAId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("models.autoRoute")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((model) => (
-                    <SelectItem key={`a-${model.id}`} value={String(model.id)}>
-                      {model.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("models.modelB")}</Label>
-              <Select value={compareModelBId} onValueChange={setCompareModelBId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("models.autoFallback")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((model) => (
-                    <SelectItem key={`b-${model.id}`} value={String(model.id)}>
-                      {model.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Prompt</Label>
-            <Textarea className="min-h-[120px]" value={comparePrompt} onChange={(event) => setComparePrompt(event.target.value)} />
-          </div>
-
-          <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {t("models.compareNotice")}
-          </div>
-          <Button onClick={compareModels} disabled={compareTaskUnavailable}>{t("models.runCompare")}</Button>
-
-          {!!compareResult?.candidates?.length && (
-            <div className="grid gap-3 md:grid-cols-2">
-              {compareResult.candidates.map((item: NetworkObject) => (
-                <div
-                  key={item.slot}
-                  className={`rounded border p-3 space-y-2 ${adoptedCandidate?.slot === String(item.slot) ? "border-primary bg-primary/5" : ""}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <Badge>{item.slot}</Badge>
-                    <Badge variant="outline">score {item.score ?? "-"}</Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{t("models.modelLabel")}：{String(item.modelKey || item.modelId || "-")}</div>
-                  <p className="text-sm whitespace-pre-wrap">{item.text || t("models.noResult")}</p>
-                  <Button
-                    size="sm"
-                    variant={adoptedCandidate?.slot === String(item.slot) ? "default" : "secondary"}
-                    onClick={() => pickCandidate(item)}
-                  >
-                    {adoptedCandidate?.slot === String(item.slot) ? t("models.adopted") : t("models.adoptThis")}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!!adoptedCandidate && (
-            <div className="rounded border p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{t("models.adoptedResult", { slot: adoptedCandidate.slot })} · {adoptedCandidate.modelKey}</div>
-                <Button size="sm" variant="outline" onClick={copyAdopted}>
-                  {t("models.copyResult")}
-                </Button>
-              </div>
-              <p className="text-sm whitespace-pre-wrap text-muted-foreground">{adoptedCandidate.text}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

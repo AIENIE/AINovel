@@ -98,13 +98,13 @@ export const versionWordCount = (version: NetworkObject) => {
   if (Number.isFinite(fromMeta) && fromMeta >= 0) return Math.round(fromMeta);
   try {
     const sections = typeof version?.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version?.sectionsJson;
-    if (!sections || typeof sections !== "object") return 0;
+    if (!sections || typeof sections !== "object" || Array.isArray(sections)) return null;
     return Object.values(sections as Record<string, NetworkObject>).reduce<number>(
       (total, scene) => total + countWords(stripHtml(String(scene || ""))),
       0,
     );
   } catch {
-    return 0;
+    return null;
   }
 };
 

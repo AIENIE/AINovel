@@ -30,7 +30,6 @@ export type LanguageReport = z.infer<typeof languageReportSchema>;
 export type LanguagePatch = z.infer<typeof languagePatchSchema>;
 export type LanguageIssue = z.infer<typeof languageIssueSchema>;
 export type LanguageSettings = z.infer<typeof languageSettingsSchema>;
-export type LanguageDecision = z.infer<typeof decisionSchema>;
 export type LanguageVersion = { expectedBranchId: string | null; expectedVersion: number };
 
 export function createLanguageQualityApi(http: DomainTransport) {

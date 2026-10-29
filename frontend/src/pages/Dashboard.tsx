@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -12,12 +12,15 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<UserSummary | null>(null);
 
-  useEffect(() => {
-    api.user.summary().then(setStats).catch(() => setStats({ novelCount: 0, worldCount: 0, totalWords: 0, totalEntries: 0 }));
+  const [loadFailed, setLoadFailed] = useState(false);
+  const refresh = useCallback(async () => {
+    setLoadFailed(false);
+    try { setStats(await api.user.summary()); }
+    catch { setLoadFailed(true); }
   }, []);
-
-  const novelCount = stats?.novelCount ?? 0;
-  const worldCount = stats?.worldCount ?? 0;
+  useEffect(() => { void refresh(); }, [refresh]);
+  const novelCount = stats?.novelCount;
+  const worldCount = stats?.worldCount;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -32,6 +35,7 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {loadFailed && <div role="alert" className="fixed top-16 right-4 z-50 rounded border bg-background p-2 text-sm text-destructive">{t("errors.loadFailed")}<Button variant="link" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
       <main className="flex-1 flex flex-col md:flex-row pt-16 h-screen">
         <Link
           to="/novels"
@@ -50,10 +54,10 @@ const Dashboard = () => {
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4" />
-                <span>{novelCount === 0 ? t("dashboard.startFirstNovel") : t("dashboard.novelCount", { count: novelCount, value: novelCount })}</span>
+                <span>{novelCount == null ? "—" : novelCount === 0 ? t("dashboard.startFirstNovel") : t("dashboard.novelCount", { count: novelCount, value: novelCount })}</span>
               </div>
               <div className="w-px h-4 bg-border" />
-              <div>{t("dashboard.wordCount", { count: (stats?.totalWords ?? 0), value: (stats?.totalWords ?? 0).toLocaleString() })}</div>
+              <div>{stats ? t("dashboard.wordCount", { count: stats.totalWords, value: stats.totalWords.toLocaleString() }) : "—"}</div>
             </div>
 
             <Button className="rounded-full px-8 h-12 text-base shadow-lg shadow-purple-500/20 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
@@ -76,10 +80,10 @@ const Dashboard = () => {
             <div className="flex items-center gap-6 text-sm text-muted-foreground mb-8">
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
-                <span>{worldCount === 0 ? t("dashboard.startFirstWorld") : t("dashboard.worldCount", { count: worldCount, value: worldCount })}</span>
+                <span>{worldCount == null ? "—" : worldCount === 0 ? t("dashboard.startFirstWorld") : t("dashboard.worldCount", { count: worldCount, value: worldCount })}</span>
               </div>
               <div className="w-px h-4 bg-border" />
-              <div>{t("dashboard.entryCount", { count: (stats?.totalEntries ?? 0), value: (stats?.totalEntries ?? 0).toLocaleString() })}</div>
+              <div>{stats ? t("dashboard.entryCount", { count: stats.totalEntries, value: stats.totalEntries.toLocaleString() }) : "—"}</div>
             </div>
 
             <Button variant="outline" className="rounded-full px-8 h-12 text-base border-blue-200 hover:bg-blue-50 hover:text-blue-600 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">

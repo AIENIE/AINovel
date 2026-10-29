@@ -166,11 +166,23 @@ describe("ai operation tracking", () => {
     expect(browser.assign).not.toHaveBeenCalled();
   });
 
+  it("retains tracking and reports corrupt completed results without refreshing or inferring again", async () => {
+    vi.useFakeTimers();
+    const browser = stubBrowser();
+    const wait = vi.spyOn(api.aiOperations, "wait").mockResolvedValue({ ...worldOperation("corrupt", "world-a"), resultJson: "invalid-json" });
+    const retry = vi.spyOn(api.aiOperations, "retry");
+    await expect(runTrackedAiOperation(Promise.resolve({ operationId: "corrupt" }))).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(retry).not.toHaveBeenCalled();
+    expect(browser.dispatch).not.toHaveBeenCalled();
+    expect(browser.reload).not.toHaveBeenCalled();
+    expect(browser.assign).not.toHaveBeenCalled();
+  });
+
   it.each([
     { scopeId: "world-a", resultJson: '{"id":"world-b"}', expectedWorldId: "world-a" },
     { scopeId: null, resultJson: '{"id":"world-b"}', expectedWorldId: "world-b" },
-    { scopeId: "world-a", resultJson: "invalid-json", expectedWorldId: "world-a" },
-    { scopeId: null, resultJson: "invalid-json", expectedWorldId: null },
     { scopeId: null, resultJson: '{"id":42}', expectedWorldId: null },
   ])("recovers a world result without navigation: $scopeId / $resultJson", async ({ scopeId, resultJson, expectedWorldId }) => {
     vi.useFakeTimers();

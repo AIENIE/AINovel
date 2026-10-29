@@ -174,6 +174,7 @@ async function watch(operationId: string): Promise<AiOperationProgress> {
     throw new AiOperationCancelledError(final.errorMessage || t("aiOperation.cancelled"));
   }
   if (final.status === "SUCCEEDED" && isCurrentWatch()) {
+    if (final.resultJson?.trim()) JSON.parse(final.resultJson);
     notifyWorldUpdated(final);
     window.setTimeout(() => {
       if (isCurrentWatch()) clearTracked(operationId);

@@ -41,7 +41,10 @@ export function AiOperationProgressPanel() {
   const percent = operation.totalSteps > 0
     ? Math.min(100, Math.round((operation.completedSteps / operation.totalSteps) * 100))
     : 0;
-  const sceneResult = sceneGenerationOutcome(operation.resultJson);
+  let sceneResult: ReturnType<typeof sceneGenerationOutcome> = null;
+  let resultError = false;
+  try { sceneResult = sceneGenerationOutcome(operation.resultJson); }
+  catch { resultError = true; }
   const retryable = operation.status === "FAILED" || operation.status === "RECOVERY_REQUIRED";
   const running = ["QUEUED", "RUNNING", "STREAMING"].includes(operation.status);
 
@@ -68,7 +71,8 @@ export function AiOperationProgressPanel() {
             </span>
             <span>{operation.completedSteps}/{operation.totalSteps}</span>
           </div>
-          {sceneResult && <div className="space-y-2 text-xs"><p>{t("sceneCandidates.count", { actual: sceneResult.actualHan, min: sceneResult.minHan, max: sceneResult.maxHan })}</p>
+          {resultError && <p role="alert" className="text-sm text-destructive">{t("errors.loadFailed")}</p>}
+      {sceneResult && <div className="space-y-2 text-xs"><p>{t("sceneCandidates.count", { actual: sceneResult.actualHan, min: sceneResult.minHan, max: sceneResult.maxHan })}</p>
             <Button size="sm" variant="outline" onClick={() => window.dispatchEvent(new CustomEvent(SCENE_CANDIDATES_EVENT, { detail: sceneResult }))}>{t("sceneCandidates.title")}</Button></div>}
           {operation.errorMessage ? <p className="text-xs text-destructive"><span>{localizedOperationFailure(operation.errorCode)}</span> · 阶段：{operation.currentStep || operation.completedSteps}。任务编号：{operation.id}</p> : null}
           {operation.status === "RECOVERY_REQUIRED" && <p className="text-xs">任务结果需要核对。恢复原任务不会绕过积分对账；关闭面板不影响任务记录。</p>}

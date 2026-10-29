@@ -12,7 +12,6 @@ export const manuscriptSchema = manuscriptSummarySchema.extend({
 });
 export const sceneContentSchema = z.object({ manuscriptId: id, branchId: id.nullable(), sceneId: id,
   content: z.string(), version, updatedAt: z.string() });
-export type SceneContent = z.infer<typeof sceneContentSchema>;
 export type ManuscriptSectionUpdate = { id: string; currentBranchId?: string | null; version: number;
   updatedAt: string; sections: Record<string, string> };
 
@@ -59,10 +58,7 @@ export const aiOperationProgressSchema = z.object({ id, operationType: z.string(
   currentStep: z.string().nullish(), totalSteps: version, completedSteps: version, remainingSteps: version, currentStepOutputTokens: version,
   outputTokensEstimated: z.boolean(), attemptCount: version, resultJson: z.string().nullish(), errorMessage: z.string().nullish(), errorCode: z.string().nullish(),
   createdAt: z.string().nullish(), updatedAt: z.string().nullish(), completedAt: z.string().nullish() });
-export type Branch = z.infer<typeof branchSchema>;
 export type BranchUpdate = z.infer<typeof updateBranchSchema>;
 export type MergeConflict = z.infer<typeof conflictSchema>;
 export type VersionDiff = z.infer<typeof diffSchema>;
 export type AutoSaveConfig = z.infer<typeof autoSaveSchema>;
-export type ExportTemplate = z.infer<typeof exportTemplateSchema>;
-export type ExportFormat = z.infer<typeof exportFormatSchema>;

@@ -397,7 +397,11 @@ function normalizeList(value: unknown): string[] {
 }
 
 export function toPlotPlanning(dto: NetworkObject): PlotPlanning | undefined {
-  if (!dto || typeof dto !== "object") return undefined;
+  if (dto == null) return undefined;
+  parseNetworkObject(dto);
+  for (const key of ["twistOptions", "foreshadowPlans", "beats", "lorebookSeeds", "graphSeeds", "warnings"]) {
+    if (dto[key] != null) z.array(z.unknown()).parse(dto[key]);
+  }
   const twistOptions = Array.isArray(dto.twistOptions)
     ? dto.twistOptions
         .map((item: NetworkObject, index: number) => ({
@@ -475,7 +479,7 @@ export function normalizeConceptionResult(dto: NetworkObject): NetworkObject & {
   plotPlanning: PlotPlanning | undefined;
   outlineSeed?: NetworkObject;
 } {
-  const result = dto && typeof dto === "object" ? dto : {};
+  const result = parseNetworkObject(dto);
   const generated = result.generated && typeof result.generated === "object" ? result.generated : undefined;
   const plotPlanning =
     toPlotPlanning(result.plotPlanning) ||
@@ -1526,8 +1530,6 @@ export const api = {
 
       usageSummary: async () => requestJson<NetworkObject>("/v2/users/me/model-usage", { method: "GET" }),
       usageDetails: async () => requestJson<NetworkObject[]>("/v2/users/me/model-usage/details", { method: "GET" }),
-      compare: async (storyId: string, payload: NetworkObject) =>
-        requestJson<NetworkObject>(`/v2/stories/${storyId}/compare-models`, { method: "POST", body: JSON.stringify(payload) }),
     },
 
     workspace: {

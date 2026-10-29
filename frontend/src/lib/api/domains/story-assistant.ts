@@ -9,7 +9,6 @@ export type StoryAssistantSuggestion = z.infer<typeof suggestionSchema>;
 export const storyAssistantTurnSchema = z.object({ id, operationId: id.nullable(), status: z.string(), resultKind: z.string().nullable(), instruction: z.string(), answer: z.string().nullable(), intent: z.enum(["DISCUSS", "PROPOSE", "REFINE"]), outlineId: id.nullable().optional(), suggestions: suggestionSchema.array(), proposalIds: id.array(), parentProposalId: id.nullable().optional(), sources: storyAssistantSourceSchema.array(), warnings: z.string().array(), usage: z.object({ inputTokens: z.number(), outputTokens: z.number(), cost: z.number(), modelCalls: z.number() }), createdAt: z.string() });
 export type StoryAssistantTurn = z.infer<typeof storyAssistantTurnSchema>;
 const summarySchema = z.object({ id, storyId: id, title: z.string(), createdAt: z.string(), updatedAt: z.string() });
-export type StoryAssistantSessionSummary = z.infer<typeof summarySchema>;
 const sessionSchema = z.object({ id: id.nullable(), storyId: id, title: z.string().nullable(), turns: storyAssistantTurnSchema.array(), hasMore: z.boolean(), nextBefore: z.string().nullable() });
 export type StoryAssistantSession = z.infer<typeof sessionSchema>;
 export type StoryAssistantCandidate = Record<string, unknown>;
