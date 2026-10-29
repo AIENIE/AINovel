@@ -30,7 +30,7 @@
 
 ## 部署约束
 
-- Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-release.sh`；仓库不再提供本地 Compose 部署脚本。
+- Linux 服务器发布通过发版中心的 catalog 镜像构建及控制面部署执行；运行模板与入口见 `scripts/ci/README.md`。本地使用 Windows 原生入口。
 - `env.txt` 由 config-center 提供、发版中心以 `0600` 普通文件只读挂载进后端容器加载完整运行时配置。
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
 - user-service caller JWT 使用 `EXTERNAL_USER_SERVICE_JWT_{CALLER_ID,ISSUER,SECRET,AUDIENCE,TTL_SECONDS,SCOPES}`；其中 secret 只进入受保护配置，audience 和 scope 必须保持规范值。

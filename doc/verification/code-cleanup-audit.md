@@ -34,12 +34,20 @@
 | C05 测试记录器 | `InMemorySlopQualityRecorder` 只由同包 `SlopQualityGateTest` 消费 | 移入 test 目录，不进入生产 JAR | 待后端编译 |
 | C06 前端残留包装 | `AdminEntry` 未使用，真正动态入口为 bootstrap 的 `mountAdmin`；本地分页工具只剩自身测试；Tooltip 只挂空 Provider，没有 Tooltip 消费者 | 删除重复入口、旧分页及对应测试、空 Provider 和直接依赖 | 待前端验证 |
 | C07 UI 组件未用变体 | TypeScript 符号引用覆盖全部前端源码及测试，排除导出列表与 displayName 元数据后，sheet/dialog/table/select/dropdown-menu/context-menu 中 28 个组件无消费者 | 删除未用变体、导出和孤立图标导入；保留内部使用的滚动按钮、Portal 等 | 待类型检查和构建 |
+| C08 部署预检 S4 | RuntimeEnvironmentPreflight 的预生产固定域名/端口、Redis/Qdrant 明文及空凭据要求和 root/ainovel 名称限制；旧迁移器另有固定地址 | 删除固定值限制；保留 MySQL TLS 参数、生产 TLS/凭据、必填项及认证规则 | 启动预检及证书/认证定向测试通过 |
+| C09 环境变量 S5 | PowerShell 函数及读文件黑名单、Python parse_env 黑名单、Shell 名称拒绝和 unset、固定覆盖继承 PATH | 删除黑名单及清洗；配置格式和旧认证凭据拒绝仍按 S1/S3 沿用 | Windows 契约、Python 字面值/重复键测试及唯一 Shell 加载路径核对通过 |
+| C10 旧发布/迁移 S6 | 当前平台 catalog 指向镜像及 ainovel-runtime-compose；两阶段脚本无平台调用；旧迁移器固定 V35，当前 SQL 至 V50 | 删除独有执行器、封包/扫描/恢复契约及专用测试；保留现行运行模板与 SQL | 引用复查、后端编译通过；未执行 Linux 发布 |
+| C11 工具链 S7 | Windows Build/Test/Start 的精确版本与 package engines 重复限制 | 放宽为已批准范围，默认 Corepack pnpm 11.22.0 不变 | Windows 契约覆盖上下界及范围内版本通过 |
 
 保留证据：React Query 被提案卡、讨论面板及治理界面的查询使用；Sonner 被 SSO 回调使用；Tiptap BubbleMenu 通过 `@tiptap/react/menus` 使用其 optional dependency。这些依赖不按缺少直接导入删除。
 
 ## 批次验证
 
 第一批：在既有 Node 22.23.2 / pnpm 11.22.0 下，前端类型检查、lint、生产构建及编辑器/管理员搜索定向 2 文件 3 测试通过。后端全源码编译及 PromptAssemblyServiceTest、SlopQualityGateTest、ManuscriptServiceTest 合计 12 项通过。此次移除均为无调用实现或测试位置调整；完整 L2 和运行验收继续待办。
+
+第二批：Windows 本地启动契约通过；Python 配置字面值、重复键、普通文件及唯一加载路径检查通过。后端 AiNovelApplicationPreflightTest、RuntimeConfigurationTest、AdminAuthPolicyValidatorTest、StagingTrustPolicyTest、StrictHttpHealthProbeTest 合计 21 项通过。生产仍为 flyway.enabled=false / ddl-auto=none，V1–V50 SQL 未修改。Shell 的 Linux 运行和服务器发布本批未执行。
+
+待作者决定：报告中的“不能证明作者使用 AI”固定声明及对应提示词用途，尚未变更。
 
 ## 验证与交付
 

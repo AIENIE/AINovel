@@ -19,8 +19,6 @@ import urllib.request
 import yaml
 
 FORMAT = "application-yaml-env-v1"
-BLOCKED = {"JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS", "PATH",
-           "LD_PRELOAD", "BASH_ENV", "SPRING_APPLICATION_JSON", "PYTHONPATH"}
 OBSOLETE = {"ADMIN_CONFIG_FILE", "APP_ADMIN_CONFIG_FILE", "ADMIN_AUTH_CREDENTIAL_PATH",
             "ADMIN_AUTH_ENV_PATH", "ADMIN_ALLOW_NON_POSIX_LOCAL"}
 SECRET = re.compile(r"(?:PASSWORD|SECRET|TOKEN|API_KEY|AES_KEY|ENCRYPTION_KEY|PRIVATE_KEY|SIGNING_KEY|TOTP_KEY|KEYRING|CREDENTIALS|WEBHOOK_URL|AUTHORIZATION|AUTH_HEADER|_JWT$|_ACCESS_KEY$)")
@@ -47,8 +45,6 @@ def parse_env(text: str) -> dict[str, str]:
         key, value = match.groups()
         if key in values:
             raise ConfigError(f"duplicate env key: {key}")
-        if key in BLOCKED or key.startswith("SPRING_CONFIG_"):
-            raise ConfigError(f"blocked process key: {key}")
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
         values[key] = value

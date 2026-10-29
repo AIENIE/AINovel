@@ -48,7 +48,7 @@ Windows 本地开发与静态验证使用 PowerShell 7，不调用 WSL 或 Docke
 
 ## 发版中心部署（Linux Docker）
 
-Linux 服务器发布只通过发版中心执行仓库入口 `scripts/ci/build-release.sh`：Resolve 节点解析并缓存依赖，断网 Build 节点完成 L2 编译测试并按 `AIENIE_RELEASE_ENVIRONMENT` 组装 staging/production 运行时包，契约见 [`scripts/ci/README.md`](scripts/ci/README.md)。
+Linux 服务器发布只通过发版中心执行 catalog 镜像构建与部署；当前仓库运行入口见 [`scripts/ci/README.md`](scripts/ci/README.md)。未接入的两阶段构建与旧生产迁移执行器已退役，生产保持不自动迁移。
 
 运行时配置由 config-center 提供：发版中心把对应环境的 `env.txt` 以 `0600` 普通文件只读挂载进后端容器，仓库与发布产物不携带任何运行时配置、密钥或证书。MySQL、Redis、Qdrant、三服务、域名、证书和反向代理必须由目标环境提前提供。
 

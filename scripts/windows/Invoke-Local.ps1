@@ -75,11 +75,17 @@ function Get-SelectedComponents {
 
 function Assert-FrontendToolchainVersions {
     param([string]$NodeVersion, [string]$PnpmVersion)
-    if ($NodeVersion.Trim() -cne 'v22.23.2') {
-        throw "AINovel requires Node.js exactly 22.23.2; found $NodeVersion. Select the pinned Node executable in PATH."
+    $nodeParsed = $null
+    if ($NodeVersion.Trim() -notmatch '^v?\d+\.\d+\.\d+$' -or
+        -not [Version]::TryParse($NodeVersion.Trim().TrimStart('v'), [ref]$nodeParsed) -or
+        $nodeParsed -lt [Version]'22.23.2' -or $nodeParsed -ge [Version]'23.0.0') {
+        throw "AINovel requires Node.js >=22.23.2 <23; found $NodeVersion."
     }
-    if ($PnpmVersion.Trim() -cne '11.22.0') {
-        throw "AINovel requires pnpm exactly 11.22.0; found $PnpmVersion."
+    $pnpmParsed = $null
+    if ($PnpmVersion.Trim() -notmatch '^\d+\.\d+\.\d+$' -or
+        -not [Version]::TryParse($PnpmVersion.Trim(), [ref]$pnpmParsed) -or
+        $pnpmParsed -lt [Version]'11.22.0' -or $pnpmParsed -ge [Version]'12.0.0') {
+        throw "AINovel requires pnpm >=11.22.0 <12; found $PnpmVersion."
     }
 }
 
@@ -87,10 +93,8 @@ function Assert-FrontendToolchain {
     $nodeCommand = Get-NativeCommand -Name 'node.exe'
     $nodeVersion = (& $nodeCommand --version | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the Node.js version.' }
-    # Reject Node drift before Corepack can resolve packages or mutate dependencies.
-    if ($nodeVersion -cne 'v22.23.2') {
-        Assert-FrontendToolchainVersions -NodeVersion $nodeVersion -PnpmVersion ''
-    }
+    # Check Node before Corepack resolves packages; the default package manager stays pinned.
+    Assert-FrontendToolchainVersions -NodeVersion $nodeVersion -PnpmVersion '11.22.0'
     $corepackCommand = Get-NativeCommand -Name 'corepack.cmd'
     $pnpmVersion = (& $corepackCommand $frontendPackageManager --version | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) { throw 'Unable to determine the pinned pnpm version.' }
@@ -131,7 +135,6 @@ function Get-NativeEnvironment {
 
     $item = Get-Item -LiteralPath (Resolve-AienieLocalPrivateFile -Path $Path -Label 'Environment file') -Force -ErrorAction Stop
 
-    $blocked = @('PATH', 'PATHEXT', 'COMSPEC', 'SYSTEMROOT', 'WINDIR', 'PSMODULEPATH', 'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'MAVEN_OPTS', 'NODE_OPTIONS')
     $values = @{}
     $lineNumber = 0
     foreach ($line in [IO.File]::ReadLines($item.FullName)) {
@@ -145,10 +148,6 @@ function Get-NativeEnvironment {
             throw "Environment file has an unsupported line at $lineNumber. Use literal NAME=value entries only."
         }
         $name = $match.Groups['name'].Value
-        if ($blocked -contains $name.ToUpperInvariant() -or
-            (Test-AienieProtectedProcessVariable -Name $name)) {
-            throw "Environment file cannot set protected process variable '$name'."
-        }
         if ($values.ContainsKey($name)) {
             throw "Environment file defines '$name' more than once."
         }
@@ -174,7 +173,6 @@ function Get-ChildEnvironment {
         $child[[string]$entry.Key] = [string]$entry.Value
     }
     Assert-AienieLocalOnlyEnvironment -Values $child
-    Remove-AienieProcessInjectionEnvironment -Values $child
     . (Join-Path $repoRoot 'scripts\config-pair\ConfigurationPair.ps1')
     $yamlValues = Read-ConfigPairValues -ProjectRoot $repoRoot -EnvironmentFile $EnvironmentFile
     foreach ($key in $yamlValues.Keys) { $child[$key] = $yamlValues[$key] }

@@ -2,8 +2,8 @@
 
 ## 环境要求
 
-- Node.js 22.23.2
-- pnpm 11.22.0（通过 Corepack 调用）
+- Node.js >=22.23.2 <23
+- pnpm >=11.22.0 <12（默认通过 Corepack 调用 11.22.0）
 - JDK 25
 - Maven 3.9+
 

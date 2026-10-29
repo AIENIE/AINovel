@@ -45,9 +45,6 @@ public final class RuntimeEnvironmentPreflight {
     private static final List<String> PRODUCTION_DATA_CREDENTIALS_REQUIRED = List.of(
             "REDIS_USERNAME", "REDIS_PASSWORD", "QDRANT_API_KEY"
     );
-    private static final String STAGING_MYSQL_HOST = "mysql.testhut.top";
-    private static final String STAGING_REDIS_HOST = "redis.testhut.top";
-    private static final String STAGING_QDRANT_HOST = "qdrant.testhut.top";
     private static final String TEMPLATE_PLACEHOLDER_RESOURCE = "env-template-placeholders.properties";
     private static final Map<String, String> TEMPLATE_PLACEHOLDERS = loadTemplatePlaceholders();
 
@@ -91,30 +88,13 @@ public final class RuntimeEnvironmentPreflight {
         validateUserServiceJwtConfiguration(environment);
         validatePayServiceJwtConfiguration(environment);
 
-        if ("local".equals(env)) {
-            System.getLogger(RuntimeEnvironmentPreflight.class.getName()).log(
-                    System.Logger.Level.WARNING,
-                    "Local profile permits unrestricted plaintext data services for development only; test allows only the rebaselined canonical endpoints"
-            );
-            return;
-        }
-
-        String dbUsername = environment.get("DB_USERNAME");
-        if ("root".equalsIgnoreCase(dbUsername) || "ainovel".equalsIgnoreCase(dbUsername)) {
-            throw new IllegalStateException("DB_USERNAME must be a non-template least-privilege account outside local");
-        }
         if ("test".equals(env)) {
-            validateStagingDataServices(environment);
+            validateMysql(environment.get("DB_URL"), "REQUIRED", "test");
             return;
         }
+        if (!"production".equals(env)) return;
 
-        String dbUrl = environment.get("DB_URL");
-        if (!hasMysqlEndpoint(dbUrl, null, -1)
-                || !hasOnlyQueryValue(dbUrl, "sslMode", "VERIFY_IDENTITY")
-                || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
-            throw new IllegalStateException(
-                    "production DB_URL must use MySQL sslMode=VERIFY_IDENTITY and disable allowPublicKeyRetrieval");
-        }
+        validateMysql(environment.get("DB_URL"), "VERIFY_IDENTITY", "production");
         if (!"true".equals(environment.get("REDIS_SSL_ENABLED"))) {
             throw new IllegalStateException("production REDIS_SSL_ENABLED must be exactly true");
         }
@@ -124,29 +104,12 @@ public final class RuntimeEnvironmentPreflight {
         }
     }
 
-    private static void validateStagingDataServices(Map<String, String> environment) {
-        String dbUrl = environment.get("DB_URL");
-        if (!hasMysqlEndpoint(dbUrl, STAGING_MYSQL_HOST, 13306)
-                || !hasOnlyQueryValue(dbUrl, "sslMode", "REQUIRED")
-                || !hasOnlyQueryValue(dbUrl, "allowPublicKeyRetrieval", "false")) {
-            throw new IllegalStateException(
-                    "test DB_URL must use mysql.testhut.top:13306, sslMode=REQUIRED, and allowPublicKeyRetrieval=false");
-        }
-        if (!STAGING_REDIS_HOST.equalsIgnoreCase(environment.get("REDIS_HOST"))
-                || !"16379".equals(environment.get("REDIS_PORT"))
-                || !"false".equals(environment.get("REDIS_SSL_ENABLED"))) {
-            throw new IllegalStateException(
-                    "test Redis must use plaintext redis.testhut.top:16379 exactly as rebaselined");
-        }
-        if (!("http://" + STAGING_QDRANT_HOST).equalsIgnoreCase(environment.get("QDRANT_HOST"))
-                || !"16333".equals(environment.get("QDRANT_PORT"))) {
-            throw new IllegalStateException(
-                    "test Qdrant must use http://qdrant.testhut.top:16333 exactly as rebaselined");
-        }
-        if (hasText(environment.get("REDIS_USERNAME")) || hasText(environment.get("REDIS_PASSWORD"))
-                || hasText(environment.get("QDRANT_API_KEY"))) {
-            throw new IllegalStateException(
-                    "test Redis and Qdrant credentials must stay empty because the rebaselined listeners are unauthenticated");
+    private static void validateMysql(String url, String sslMode, String environment) {
+        if (!hasMysqlEndpoint(url)
+                || !hasOnlyQueryValue(url, "sslMode", sslMode)
+                || !hasOnlyQueryValue(url, "allowPublicKeyRetrieval", "false")) {
+            throw new IllegalStateException(environment + " DB_URL must use MySQL sslMode=" + sslMode
+                    + " and disable allowPublicKeyRetrieval");
         }
     }
 
@@ -197,7 +160,7 @@ public final class RuntimeEnvironmentPreflight {
         }
     }
 
-    private static boolean hasMysqlEndpoint(String jdbcUrl, String expectedHost, int expectedPort) {
+    private static boolean hasMysqlEndpoint(String jdbcUrl) {
         if (jdbcUrl == null || !jdbcUrl.regionMatches(true, 0, "jdbc:mysql://", 0, 13)) {
             return false;
         }
@@ -207,8 +170,7 @@ public final class RuntimeEnvironmentPreflight {
                     || uri.getPath() == null || uri.getPath().length() <= 1) {
                 return false;
             }
-            return expectedHost == null
-                    || (expectedHost.equalsIgnoreCase(uri.getHost()) && expectedPort == uri.getPort());
+            return true;
         } catch (IllegalArgumentException ignored) {
             return false;
         }

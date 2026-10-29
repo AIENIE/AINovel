@@ -41,3 +41,5 @@ and public AI/User/Pay dependencies are different instances hosted on `aienie-6`
 the three `local*.testhut.top` TLS services. The Java clients use the active
 JDK/JVM trust store; the launcher does not inject a CA file, trust-all mode,
 or plaintext public-service fallback.
+
+Node 范围为 `>=22.23.2 <23`，pnpm 为 `>=11.22.0 <12`，默认安装保持 pnpm 11.22.0。启动器保留 local 环境与进程归属检查，取消进程控制变量名称黑名单及继承环境清洗。非秘密配置仍放 YAML，env 仅放秘密；字面值读取、普通文件和重复键检查保留。

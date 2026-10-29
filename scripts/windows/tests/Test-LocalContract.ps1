@@ -28,7 +28,8 @@ $versionPolicy = $launcherAst.Find({ param($node)
 if ($null -eq $versionPolicy) { throw 'The launcher has no enforced frontend version policy.' }
 . ([scriptblock]::Create($versionPolicy.Extent.Text))
 Assert-FrontendToolchainVersions -NodeVersion 'v22.23.2' -PnpmVersion '11.22.0'
-foreach ($versions in @(@('v24.13.0', '11.22.0'), @('v22.23.2', '11.21.0'), @('', ''))) {
+Assert-FrontendToolchainVersions -NodeVersion 'v22.24.0' -PnpmVersion '11.23.0'
+foreach ($versions in @(@('v24.13.0', '11.22.0'), @('v23.0.0', '11.22.0'), @('v22.23.1', '11.22.0'), @('v22.23.2', '11.21.0'), @('v22.23.2', '12.0.0'), @('', ''))) {
     $rejected = $false
     try { Assert-FrontendToolchainVersions -NodeVersion $versions[0] -PnpmVersion $versions[1] }
     catch { $rejected = $_.Exception.Message -match 'requires' }
@@ -58,7 +59,6 @@ foreach ($domain in @('localmysql.testhut.top', 'localredis.testhut.top', 'local
 foreach ($required in @(
         '[''SPRING_PROFILES_ACTIVE''] = ''local''',
         '[''AIENIE_RUNTIME_PLANE''] = ''windows-local''',
-        'Remove-AienieProcessInjectionEnvironment',
         'Complete-AienieManagedProcessRecord',
         '''backend\pom.xml''',
         'Directory = Join-Path $repoRoot ''frontend''',
@@ -100,27 +100,6 @@ foreach ($selector in @(
     try { Assert-AienieLocalOnlyEnvironment -Values $selector } catch { $rejected = $_.Exception.Message -match 'rejects' }
     if (-not $rejected) { throw 'AINovel accepted a non-local runtime selector.' }
 }
-foreach ($name in @(
-        'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS',
-        'MAVEN_OPTS', 'SPRING_APPLICATION_JSON', 'SPRING_CONFIG_IMPORT')) {
-    $rejected = $false
-    try { Assert-AieniePrivateEnvironmentKeyAllowed -Name $name } catch { $rejected = $_.Exception.Message -match 'protected process variable' }
-    if (-not $rejected) { throw "AINovel private environment accepted process injection key: $name" }
-}
-$poisoned = @{
-    SAFE_VALUE = 'kept'
-    JAVA_TOOL_OPTIONS = '-javaagent:untrusted.jar'
-    JDK_JAVA_OPTIONS = '--add-opens=all'
-    _JAVA_OPTIONS = '-Doverride=true'
-    MAVEN_OPTS = '-Dmaven.ext.class.path=untrusted.jar'
-    SPRING_APPLICATION_JSON = '{"spring":{"profiles":{"active":"production"}}}'
-    SPRING_CONFIG_IMPORT = 'file:C:\untrusted.yml'
-}
-Remove-AienieProcessInjectionEnvironment -Values $poisoned
-if ($poisoned.Count -ne 1 -or $poisoned['SAFE_VALUE'] -cne 'kept') {
-    throw 'AINovel ambient process injection sanitization is incomplete.'
-}
-
 $started = [DateTime]::UtcNow
 $expected = [pscustomobject]@{
     ProcessId = 4242

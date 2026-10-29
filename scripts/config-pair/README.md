@@ -2,7 +2,7 @@
 
 配置格式为 `application-yaml-env-v1`。`application.yml` 存放数据库地址、用户名、连接参数、端点、ENV/AUTH_MODE、模型及目录；`env.txt` 仅存放密码、哈希、令牌和密钥。管理员用户名在 YAML，密码或哈希在 env.txt。管理员凭据仍执行原校验，test/production 强制 TOTP。
 
-本地使用仓库现有 `application-local.yml`。启动脚本保留 `-EnvFile` 或 `-EnvironmentFile` 自定义路径；私密文件放在仓库外。需要独立配置时，在该私密文件旁保存 `<私密文件名>.application.yml`；启动器将它作为 Spring 外部配置加载。临时覆盖继续使用 Spring 原生属性参数。秘密按字面值读取，不执行 shell 展开；不要在秘密文件中保存进程控制选项。
+本地使用仓库现有 `application-local.yml`。启动脚本保留 `-EnvFile` 或 `-EnvironmentFile` 自定义路径；私密文件放在仓库外。需要独立配置时，在该私密文件旁保存 `<私密文件名>.application.yml`；启动器将它作为 Spring 外部配置加载。临时覆盖继续使用 Spring 原生属性参数。秘密按字面值读取，不执行 shell 展开。运行选项由 YAML 或启动进程环境提供；本仓库不再按进程变量名称拒绝或清洗继承环境。
 
 服务器由控制台按项目和环境保存、编辑、上传及下载 `application.yml` 和 `env.txt`。FireflyChat 主站与 Studio 使用各自配置对，根目录中的 Studio 配置名为 `studio.application.yml` 和 `studio.env.txt`。配置以只读方式挂载；env.txt 必须为 owner-only（0600/0400）。外部 YAML 优先于仓库 profile。不要使用 Compose 的 `env_file` 解析秘密，或将完整秘密文件复制到 Compose 插值文件。
 

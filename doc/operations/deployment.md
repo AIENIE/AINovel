@@ -30,7 +30,7 @@
 
 ## 发版中心部署
 
-Linux 服务器发布唯一入口是发版中心。当前 Jenkins 按 catalog 检出固定 SHA、构建和推送镜像、上传 runtime bundle，控制面负责部署与健康检查；Job 名称不能用来判断目标环境，必须核对发布记录的 environment、目标服务器和 remote root。当前平台不调用本仓库的两阶段 `scripts/ci/build-release.sh`，AINovel 的 L2 与隔离迁移验证需单独完成；本轮已确认使用现有平台恢复 stag。仓库保留的两阶段契约、运行时契约及 Flyway ledger 说明见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。
+Linux 服务器发布通过发版中心执行。当前 Jenkins 按 catalog 检出固定 SHA、构建和推送镜像、上传 runtime bundle，控制面负责部署与健康检查；实际环境、目标服务器和 remote root 以发布记录为准。当前入口见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。旧两阶段构建、专有扫描和 V35 生产迁移执行器已退役；生产继续关闭自动迁移，已执行 SQL 与历史数据保持。L2、隔离 MySQL 及发布验证按当前任务分别执行。
 
 运行时配置、密钥和证书都不是构建输入：生产包只允许 config-center 提供的 `env.txt` 以 `0600` 只读挂载进后端容器，`backend/`、`frontend/`、`release/` 前缀的文件覆盖一律拒绝。仓库不再提供本地 Compose 部署脚本；本地开发使用 Windows 原生入口（见 [`windows-native.md`](windows-native.md)）。
 
@@ -90,7 +90,7 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 命令会撤销全部管理员会话、恢复码和旧验证器凭据，写入审计记录后退出；下一次访问将回到首次绑定流程。审批编号不可包含密钥、验证码或恢复码。
 # v1.0 审计整改补充（2026-08-17）
 
-- 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
+- 生产保留 MySQL 身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key。预生产保留 MySQL TLS 和现行公共服务证书边界，数据服务主机、端口与凭据由配置决定，不再强制 Redis/Qdrant 明文或空凭据，也不按数据库账号名称拒绝启动。
 - 后端 healthcheck 使用 readiness；前端容器通过 `depends_on: condition: service_healthy` 等待后端就绪，compose healthcheck 的 `start_period` 提供启动宽限，任一服务未就绪不会进入健康状态。
 - 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
 
