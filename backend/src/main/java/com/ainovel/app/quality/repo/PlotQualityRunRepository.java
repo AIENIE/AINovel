@@ -22,5 +22,4 @@ public interface PlotQualityRunRepository extends JpaRepository<PlotQualityRun, 
 
     List<PlotQualityRun> findTop100ByOrderByCreatedAtDesc();
 
-    long countByOverallRiskScoreGreaterThanEqual(int riskScore);
 }

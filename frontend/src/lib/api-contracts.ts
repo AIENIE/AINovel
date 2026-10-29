@@ -62,3 +62,11 @@ export type BranchUpdate = z.infer<typeof updateBranchSchema>;
 export type MergeConflict = z.infer<typeof conflictSchema>;
 export type VersionDiff = z.infer<typeof diffSchema>;
 export type AutoSaveConfig = z.infer<typeof autoSaveSchema>;
+
+const adminQualityRunSchema = z.object({
+  kind: z.string(), id: z.string(), storyId: z.string().nullable(), manuscriptId: z.string().nullable(), sceneId: z.string().nullable(),
+  chapterTitle: z.string().nullable(), sceneTitle: z.string().nullable(), status: z.string(), summary: z.string().nullable(),
+  maxSeverity: z.string().nullable(), overallRiskScore: z.number().min(0).max(100).nullable(), resolved: z.boolean(), createdAt: z.string().nullable(),
+});
+export type AdminQualityRun = z.infer<typeof adminQualityRunSchema>;
+export const adminQualityPageSchema = z.object({ items: adminQualityRunSchema.array(), page: z.number(), size: z.number(), totalElements: z.number(), totalPages: z.number() });

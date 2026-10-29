@@ -63,6 +63,7 @@ class LanguageQualityMysqlTest {
     @Autowired LanguageDecisionRepository decisions;
     @Autowired TransactionTemplate transactions;
     @Autowired ObjectMapper json;
+    @Autowired javax.sql.DataSource dataSource;
     @PersistenceContext EntityManager em;
     @BeforeEach void tasks() {
         when(operations.submit(any(),anyString(),anyString(),any(),any(),anyInt(),anyString(),anyString())).thenAnswer(i->new AiOperationDtos.Accepted(UUID.randomUUID()));
@@ -121,6 +122,43 @@ class LanguageQualityMysqlTest {
         var extra=transactions.execute(s->versions.createLanguageVersion(current(f),f.user,false));
         assertNotEquals(accepted.patch().appliedSnapshotId().toString(),extra.get("id").toString(),"Language decisions must not deduplicate their history entry");
         var p=patches.findById(id).orElseThrow();var current=current(f);quality.decide(f.user,f.manuscript,p.reportId,id,"undo",new DecisionRequest(current.getCurrentBranchId(),current.getVersion()),"undo-persisted");assertEquals(body,html(f));
+    }
+    @Test void adminReadsExcludeFailedAndIncompleteScoresBeforeFilteringAndPaging() {
+        var f=fixture();String marker="admin-quality-"+UUID.randomUUID();
+        var invalid=new HashSet<UUID>();
+        transactions.executeWithoutResult(s->{
+            UUID story=current(f).getOutline().getStory().getId();
+            String[] snapshots={null,"{\"coverage\":\"PENDING\"}","{\"coverage\":\"COMPLETE\"","[]","{\"coverage\":\"FAILED\"}","{\"coverage\":\"COMPLETE\"}",null,null};
+            for(int i=0;i<snapshots.length;i++) {
+                var run=new com.ainovel.app.quality.model.SlopQualityRun();
+                run.setStoryId(story);run.setManuscriptId(f.manuscript);run.setSceneId(f.scene);
+                run.setStatus(i==0?com.ainovel.app.quality.SlopQualityStatus.DEGRADED:com.ainovel.app.quality.SlopQualityStatus.ACCEPTED);
+                run.setMaxSeverity(i==6?com.ainovel.app.quality.SlopSeverity.LOW:com.ainovel.app.quality.SlopSeverity.HIGH);
+                run.setOverallRiskScore(i==6?0:i==7?76:95);run.setSummary(marker);run.setReviewContextJson(snapshots[i]);
+                em.persist(run);if(i<5)invalid.add(run.getId());
+            }
+            for(int i=0;i<3;i++) {
+                var run=new com.ainovel.app.quality.model.PlotQualityRun();
+                run.setStoryId(story);run.setManuscriptId(f.manuscript);run.setSceneId(f.scene);
+                run.setStatus(i==0?com.ainovel.app.quality.PlotQualityStatus.DEGRADED:com.ainovel.app.quality.PlotQualityStatus.ACCEPTED);
+                run.setMaxSeverity(i==2?com.ainovel.app.quality.PlotQualitySeverity.LOW:com.ainovel.app.quality.PlotQualitySeverity.HIGH);
+                run.setOverallRiskScore(i==0?95:i==1?80:0);run.setSummary(marker);
+                em.persist(run);if(i==0)invalid.add(run.getId());
+            }
+        });
+        var jdbc=new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(dataSource);
+        var read=new com.ainovel.app.admin.AdminOperationsReadRepository(jdbc);
+        var all=read.quality(0,20,marker,"all");assertEquals(11,all.total());
+        for(var row:all.items()) {
+            if(invalid.contains(row.id())) { assertNull(row.overallRiskScore());assertNull(row.maxSeverity()); }
+            else assertNotNull(row.overallRiskScore());
+        }
+        assertEquals(2,all.items().stream().filter(r->Integer.valueOf(0).equals(r.overallRiskScore())).count());
+        var high=read.quality(0,2,marker,"high");assertEquals(3,high.total());assertEquals(2,high.items().size());
+        assertEquals(1,read.quality(2,2,marker,"high").items().size());
+        assertTrue(high.items().stream().noneMatch(r->invalid.contains(r.id())));
+        assertEquals(3,read.highRiskQualityRuns());
+        assertEquals(7,jdbc.getJdbcTemplate().queryForObject("select count(*) from (select overall_risk_score from slop_quality_runs union all select overall_risk_score from plot_quality_runs) q where overall_risk_score=95",Integer.class));
     }
     @Test void concurrentAcceptHasOneWriterAndSourceVersionRemainsHistorical() throws Exception {
         var f=fixture();var id=prepare(f);var m=current(f);var start=new CountDownLatch(1);

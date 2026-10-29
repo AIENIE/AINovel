@@ -48,6 +48,7 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
   - 返回用户数、今日新增、项目积分消耗、API 错误率、待审素材数。
 - `GET /api/v1/admin/assets/summary`
   - 返回故事、世界观、稿件、素材、待审素材、高风险质量记录数量。
+  - 高风险数量只统计有效完成检查的风险分 >= 70；失败或覆盖未完成的占位分不计入。
 
 ## 项目用户
 
@@ -75,6 +76,7 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 
 - `GET /api/v1/admin/quality/runs`
   - 聚合 `slop_quality_runs` 与 `plot_quality_runs`。
+  - 失败、语义覆盖未完成或无法读取覆盖标记的检查，其 `overallRiskScore`、`maxSeverity` 返回 `null`，界面显示未知。历史无快照记录保持可读；数据库占位值不回写。高风险筛选及分页总数使用同一有效结果范围。
 
 ## 项目专属积分
 

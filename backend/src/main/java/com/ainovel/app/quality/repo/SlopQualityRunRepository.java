@@ -16,5 +16,4 @@ public interface SlopQualityRunRepository extends JpaRepository<SlopQualityRun, 
 
     List<SlopQualityRun> findTop100ByOrderByCreatedAtDesc();
 
-    long countByOverallRiskScoreGreaterThanEqual(int riskScore);
 }

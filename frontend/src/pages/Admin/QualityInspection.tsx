@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
+import type { AdminQualityRun } from "@/lib/api-contracts";
 import { Badge } from "@/components/ui/badge";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,22 +13,8 @@ const severityClass = (severity: string) => {
   return "border-zinc-700 text-zinc-400";
 };
 
-type QualityRun = {
-  kind: string;
-  id: string;
-  manuscriptId?: string;
-  sceneId?: string;
-  chapterTitle?: string;
-  sceneTitle?: string;
-  summary?: string;
-  maxSeverity?: string;
-  overallRiskScore?: number;
-  resolved?: boolean;
-  createdAt?: string | null;
-};
-
 const QualityInspection = () => {
-  const [runs, setRuns] = useState<QualityRun[]>([]);
+  const [runs, setRuns] = useState<AdminQualityRun[]>([]);
   const [total, setTotal] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [retry, setRetry] = useState(0);
@@ -43,7 +30,7 @@ const QualityInspection = () => {
     setError("");
     void api.admin.listQualityRuns(page, search, filter).then((result) => {
       if (cancelled) return;
-      setRuns(result.items as unknown as QualityRun[]);
+      setRuns(result.items);
       setTotal(result.totalElements);
       setPageCount(Math.max(1, result.totalPages));
     }).catch((err: unknown) => {
@@ -91,8 +78,8 @@ const QualityInspection = () => {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className="border-zinc-700 text-zinc-400">{run.kind}</Badge>
-                      <Badge variant="outline" className={severityClass(run.maxSeverity ?? "UNKNOWN")}>{run.maxSeverity || "UNKNOWN"}</Badge>
-                      <span className="text-sm text-zinc-500">风险分 {run.overallRiskScore}</span>
+                      <Badge variant="outline" className={severityClass(run.maxSeverity ?? "")}>{run.maxSeverity ?? "—"}</Badge>
+                      <span className="text-sm text-zinc-500">风险分 {run.overallRiskScore ?? "—"}</span>
                     </div>
                     <div className="font-medium mt-2">{run.sceneTitle || run.chapterTitle || run.summary || run.id}</div>
                     <div className="text-xs text-zinc-500 mt-1">稿件 {run.manuscriptId} · 场景 {run.sceneId}</div>

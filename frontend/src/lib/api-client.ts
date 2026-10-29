@@ -10,7 +10,7 @@ import { createWritingAssistantApi } from "./api/domains/writing-assistant";
 import { createWritingAgentApi } from "./api/domains/writing-agent";
 import { createWorldAssistantApi } from "./api/domains/world-assistant";
 import { createStoryAssistantApi } from "./api/domains/story-assistant";
-import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
+import { adminQualityPageSchema, manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
   CharacterCard,
@@ -982,7 +982,7 @@ export const api = {
     },
     listQualityRuns: async (page = 0, search = "", filter: "all" | "open" | "high" = "all") => {
       const query = new URLSearchParams({ page: String(page), size: "20", search, filter });
-      return await requestJson<{ items: NetworkObject[]; page: number; size: number; totalElements: number; totalPages: number }>(`/v1/admin/quality/runs?${query}`, { method: "GET" }, adminCookieAuth());
+      return adminQualityPageSchema.parse(await requestJson<unknown>(`/v1/admin/quality/runs?${query}`, { method: "GET" }, adminCookieAuth()));
     },
     listG2Evaluations: async (): Promise<G2EvaluationExperiment[]> => {
       return await requestJson<G2EvaluationExperiment[]>("/v1/admin/g2-evaluations", { method: "GET" }, adminCookieAuth());
