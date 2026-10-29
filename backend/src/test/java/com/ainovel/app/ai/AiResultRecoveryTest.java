@@ -42,7 +42,7 @@ class AiResultRecoveryTest {
         assertThrows(AiResultUncertainException.class,() -> service.chatWithIdempotency(user,request,"stable"));
         var order = inOrder(economy);
         order.verify(economy).reserveAiUsage(any(),anyLong(),anyString(),anyString(),eq("stable"),eq("hash"));
-        order.verify(economy).recordAiResult(user,"stable","result",1,2,0,null,metadata);
+        order.verify(economy).recordAiResult(user,"stable","result",1,2,0,"model",metadata);
         order.verify(economy).settleAiUsage(user,"stable","result",1,2,0);
         verify(economy,never()).releaseAiReservation(any(),anyString());
     }

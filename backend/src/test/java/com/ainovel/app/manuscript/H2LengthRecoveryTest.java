@@ -2,7 +2,6 @@ package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
-import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.manuscript.context.*;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.narrative.*;

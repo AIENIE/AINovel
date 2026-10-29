@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
@@ -68,12 +67,6 @@ public class PlotQualityService {
         var snapshot = boundary.snapshot(manuscript, current -> buildRequest(current, sceneId));
         PlotQualityRun result = evaluate(user, snapshot.data());
         return boundary.save(snapshot, current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
-    }
-
-    public PlotQualityRun analyze(User user, PlotQualityRequest request) {
-        PlotQualityRun result = evaluate(user, request);
-        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(
-                () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
     public PlotQualityRun analyzeDuringGeneration(User user,PlotQualityRequest request) {
@@ -408,9 +401,9 @@ public class PlotQualityService {
                 if (id != null && id.equals(sceneId)) {
                     return new SceneContext(
                             safe(str(chapter.get("title"), ""), "未命名章节"),
-                            intVal(chapter.get("order"), chapterIndex + 1),
+                            com.ainovel.app.common.JsonValues.integer(chapter.get("order"), chapterIndex + 1),
                             safe(str(scene.get("title"), ""), "未命名场景"),
-                            intVal(scene.get("order"), sceneIndex + 1),
+                            com.ainovel.app.common.JsonValues.integer(scene.get("order"), sceneIndex + 1),
                             safe(str(scene.get("summary"), ""), ""),
                             previousSceneIds
                     );
@@ -432,7 +425,7 @@ public class PlotQualityService {
         try {
             return objectMapper.writeValueAsString(planning);
         } catch (Exception ex) {
-            return String.valueOf(planning);
+            throw new BusinessException("结构规划无法序列化", ex);
         }
     }
 
@@ -505,14 +498,13 @@ public class PlotQualityService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("数据结构应为数组");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 out.add(new HashMap<>((Map<String, Object>) map));
-            }
+            } else throw new BusinessException("数组项目应为对象");
         }
         return out;
     }
@@ -579,17 +571,6 @@ public class PlotQualityService {
         if (!(value instanceof Number n) || n.doubleValue() != n.intValue() || n.intValue() < 0 || n.intValue() > 100)
             throw new IllegalArgumentException("PLOT_INVALID_RISK_SCORE");
         return n.intValue();
-    }
-
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return Math.max(0, Math.min(100, number.intValue()));
-        }
-        try {
-            return Math.max(0, Math.min(100, Integer.parseInt(String.valueOf(value))));
-        } catch (Exception ex) {
-            return fallback;
-        }
     }
 
     private String str(Object value, String fallback) {

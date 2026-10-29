@@ -3,9 +3,7 @@ package com.ainovel.app.integration;
 import com.google.protobuf.Timestamp;
 import fireflychat.billing.v1.BillingBalanceServiceGrpc;
 import fireflychat.billing.v1.BillingConversionServiceGrpc;
-import fireflychat.billing.v1.BillingGrantServiceGrpc;
 import fireflychat.billing.v1.BillingQueryServiceGrpc;
-import fireflychat.billing.v1.BillingRedeemCodeServiceGrpc;
 import fireflychat.billing.v1.BillingUsageServiceGrpc;
 import fireflychat.billing.v1.ConvertPublicToProjectRequest;
 import fireflychat.billing.v1.ConvertPublicToProjectResponse;
@@ -13,14 +11,10 @@ import fireflychat.billing.v1.DeductUsageRequest;
 import fireflychat.billing.v1.DeductUsageResponse;
 import fireflychat.billing.v1.GetProjectBalanceRequest;
 import fireflychat.billing.v1.GetPublicBalanceRequest;
-import fireflychat.billing.v1.GrantProjectPermanentTokensRequest;
-import fireflychat.billing.v1.GrantPublicTokensRequest;
 import fireflychat.billing.v1.LedgerEntry;
 import fireflychat.billing.v1.ListLedgerEntriesRequest;
 import fireflychat.billing.v1.ListLedgerEntriesResponse;
 import fireflychat.billing.v1.ProjectBalance;
-import fireflychat.billing.v1.RedeemCodeRequest;
-import fireflychat.billing.v1.RedeemCodeResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.PreDestroy;
@@ -50,42 +44,6 @@ public class BillingGrpcClient {
                 "payservice-grpc",
                 channelFactory
         );
-    }
-
-    public RedeemResult redeem(long remoteUserId, String code) {
-        RedeemCodeResponse response = stubs().redeemStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .redeemCode(RedeemCodeRequest.newBuilder()
-                        .setRequestId(UUID.randomUUID().toString())
-                        .setUserId(remoteUserId)
-                        .setProjectKey(properties.getProjectKey())
-                        .setCode(code == null ? "" : code)
-                        .build());
-        long total = balanceFromProject(response.getProjectBalance())
-                + firstPositive(response.getPublicPermanentCredits(), response.getPublicPermanentTokens());
-        return new RedeemResult(
-                response.getSuccess(),
-                firstPositive(response.getCreditsGranted(), response.getTokensGranted()),
-                total,
-                response.getErrorMessage()
-        );
-    }
-
-    public long totalBalance(long remoteUserId) {
-        var balanceStub = stubs().balanceStub().withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS);
-        var publicBalance = balanceStub.getPublicBalance(GetPublicBalanceRequest.newBuilder()
-                        .setUserId(remoteUserId)
-                        .build());
-        long publicTokens = firstPositive(
-                publicBalance.getPublicPermanentCredits(),
-                publicBalance.getPublicPermanentTokens()
-        );
-        var project = balanceStub.getProjectBalance(GetProjectBalanceRequest.newBuilder()
-                        .setProjectKey(properties.getProjectKey())
-                        .setUserId(remoteUserId)
-                        .build())
-                .getBalance();
-        return publicTokens + balanceFromProject(project);
     }
 
     public long projectBalance(long remoteUserId) {
@@ -136,38 +94,6 @@ public class BillingGrpcClient {
             }
             return new ConversionResult(false, 0, 0, 0, message == null ? "GRPC_ERROR" : message);
         }
-    }
-
-    public boolean grantPublicTokens(long remoteUserId, long amount, String reason) {
-        try {
-            stubs().grantStub()
-                    .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                    .grantPublicTokens(GrantPublicTokensRequest.newBuilder()
-                            .setRequestId(UUID.randomUUID().toString())
-                            .setProjectKey(properties.getProjectKey())
-                            .setUserId(remoteUserId)
-                            .setCredits(amount)
-                            .setTokens(amount)
-                            .setReason(reason == null ? "" : reason)
-                            .build());
-            return true;
-        } catch (StatusRuntimeException ignored) {
-            return false;
-        }
-    }
-
-    public ProjectGrantResult grantProjectCredits(long remoteUserId, long amount, String reason) {
-        var response = stubs().grantStub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .grantProjectPermanentTokens(GrantProjectPermanentTokensRequest.newBuilder()
-                        .setRequestId(UUID.randomUUID().toString())
-                        .setProjectKey(properties.getProjectKey())
-                        .setUserId(remoteUserId)
-                        .setCredits(amount)
-                        .setTokens(amount)
-                        .setReason(reason == null ? "" : reason)
-                        .build());
-        return new ProjectGrantResult(balanceFromProject(response.getProjectBalance()));
     }
 
     public UsageDeductionResult deductUsage(long remoteUserId, long inputCredits, long outputCredits, String referenceId) {
@@ -263,13 +189,9 @@ public class BillingGrpcClient {
                 endpoint.host(),
                 endpoint.port(),
                 channel,
-                BillingRedeemCodeServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(jwtInterceptor),
                 BillingBalanceServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(jwtInterceptor),
                 BillingConversionServiceGrpc.newBlockingStub(channel)
-                        .withInterceptors(jwtInterceptor),
-                BillingGrantServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(jwtInterceptor),
                 BillingUsageServiceGrpc.newBlockingStub(channel)
                         .withInterceptors(jwtInterceptor),
@@ -287,14 +209,6 @@ public class BillingGrpcClient {
         endpointManager.shutdown();
     }
 
-    public record RedeemResult(
-            boolean success,
-            long tokensGranted,
-            long totalTokens,
-            String errorMessage
-    ) {
-    }
-
     public record ConversionResult(
             boolean success,
             long convertedPublicTokens,
@@ -302,9 +216,6 @@ public class BillingGrpcClient {
             long publicRemainingTokens,
             String errorMessage
     ) {
-    }
-
-    public record ProjectGrantResult(long projectCredits) {
     }
 
     public record UsageDeductionResult(long chargedCredits, long remainingProjectCredits) {
@@ -329,10 +240,8 @@ public class BillingGrpcClient {
             String host,
             int port,
             ManagedChannel channel,
-            BillingRedeemCodeServiceGrpc.BillingRedeemCodeServiceBlockingStub redeemStub,
             BillingBalanceServiceGrpc.BillingBalanceServiceBlockingStub balanceStub,
             BillingConversionServiceGrpc.BillingConversionServiceBlockingStub conversionStub,
-            BillingGrantServiceGrpc.BillingGrantServiceBlockingStub grantStub,
             BillingUsageServiceGrpc.BillingUsageServiceBlockingStub usageStub,
             BillingQueryServiceGrpc.BillingQueryServiceBlockingStub queryStub
     ) implements GrpcEndpointManager.ManagedClient {

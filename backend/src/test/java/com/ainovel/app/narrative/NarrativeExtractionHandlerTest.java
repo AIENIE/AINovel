@@ -36,7 +36,7 @@ class NarrativeExtractionHandlerTest {
         var handler = new NarrativeExtractionHandler(service, ai, mock(EconomyService.class));
         handler.execute(execution);
         verify(ai).chat(eq(user), argThat(request -> request.messages().size() == 2 && request.messages().get(1).content().contains("并未动手")), eq(new AiUsageContext("NARRATIVE_EXTRACTION", id.toString(), "p11-v1")));
-        verify(service).storeResult(eq(user), eq(id), eq(operation), eq("bad format"), eq(usage), anyString());
+        verify(service).storeResult(eq(user), eq(id), eq(operation), eq("bad format"), eq(usage), isNull());
         when(service.hasResult(user, id, operation)).thenReturn(true);
         handler.execute(execution);
         verifyNoMoreInteractions(ai);

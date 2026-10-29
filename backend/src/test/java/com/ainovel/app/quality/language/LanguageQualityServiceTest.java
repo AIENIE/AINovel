@@ -4,7 +4,6 @@ import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.manuscript.*;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
-import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.*;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2VersionPersistenceService;
@@ -55,7 +54,7 @@ class LanguageQualityServiceTest {
         when(decisions.save(any())).thenAnswer(i->{LanguageDecision d=i.getArgument(0);receipts.put(d.patchId+":"+d.requestKey,d);return d;});
         when(operations.submit(any(),anyString(),anyString(),any(),any(),anyInt(),anyString(),anyString())).thenAnswer(i->new AiOperationDtos.Accepted(UUID.randomUUID()));
         when(operations.get(any(),any())).thenAnswer(i->new AiOperationDtos.Progress(i.getArgument(1),"LANGUAGE_DIAGNOSIS","LANGUAGE_REPORT",null,AiOperationStatus.SUCCEEDED,"完成",1,1,0,0,false,1,null,null,null,null,null));
-        service=new LanguageQualityService(manuscripts,contents,mock(ResourceAccessGuard.class),versions,reports,patches,decisions,flags,operations,json,mock(ApplicationEventPublisher.class),20000,100000,24000);
+        service=new LanguageQualityService(manuscripts,contents,versions,reports,patches,decisions,flags,operations,json,mock(ApplicationEventPublisher.class),20000,100000,24000);
     }
     UUID report() {
         service.start(user,m.getId(),scene,new CheckRequest(m.getCurrentBranchId(),m.getVersion())); return savedReports.keySet().iterator().next();

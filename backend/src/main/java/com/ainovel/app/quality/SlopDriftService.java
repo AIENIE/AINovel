@@ -13,7 +13,6 @@ import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -119,7 +118,7 @@ public class SlopDriftService {
         List<OrderedScene> scenes = new ArrayList<>();
         for (int chapterIndex = 0; chapterIndex < chapters.size(); chapterIndex++) {
             Map<String, Object> chapter = chapters.get(chapterIndex);
-            int chapterOrder = intVal(chapter.get("order"), chapterIndex + 1);
+            int chapterOrder = com.ainovel.app.common.JsonValues.integer(chapter.get("order"), chapterIndex + 1);
             String chapterTitle = safe(str(chapter.get("title"), ""), "未命名章节");
             List<Map<String, Object>> sceneList = listOfMap(chapter.get("scenes"));
             for (int sceneIndex = 0; sceneIndex < sceneList.size(); sceneIndex++) {
@@ -133,7 +132,7 @@ public class SlopDriftService {
                         chapterTitle,
                         chapterOrder,
                         safe(str(scene.get("title"), ""), "未命名场景"),
-                        intVal(scene.get("order"), sceneIndex + 1)
+                        com.ainovel.app.common.JsonValues.integer(scene.get("order"), sceneIndex + 1)
                 ));
             }
         }
@@ -352,14 +351,13 @@ public class SlopDriftService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("数据结构应为数组");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 out.add(new LinkedHashMap<>((Map<String, Object>) map));
-            }
+            } else throw new BusinessException("数组项目应为对象");
         }
         return out;
     }
@@ -386,17 +384,6 @@ public class SlopDriftService {
             return UUID.fromString(value.toString());
         } catch (Exception ex) {
             return null;
-        }
-    }
-
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(String.valueOf(value));
-        } catch (Exception ex) {
-            return fallback;
         }
     }
 
@@ -441,8 +428,8 @@ public class SlopDriftService {
                 builder.append(String.format("%02x", b));
             }
             return builder.toString();
-        } catch (Exception ex) {
-            return "";
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 

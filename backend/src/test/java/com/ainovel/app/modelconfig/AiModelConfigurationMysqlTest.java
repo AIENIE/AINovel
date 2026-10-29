@@ -4,7 +4,6 @@ import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.economy.model.AiCreditReservation;
-import com.ainovel.app.economy.model.ProjectCreditAccount;
 import com.ainovel.app.economy.repo.*;
 import com.ainovel.app.integration.*;
 import com.ainovel.app.user.*;
@@ -42,7 +41,8 @@ import static org.mockito.Mockito.*;
         "app.ai.text-model-key=model-a","app.ai.text-model-display-name=Model A"})
 @AutoConfigureTestDatabase(replace=AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation=Propagation.NOT_SUPPORTED)
-@Import({AiModelConfigurationService.class,AiQuoteService.class,AiActionPlanner.class,AiModelPolicy.class,
+@Import({com.ainovel.app.ai.AiStoredResponseMetadata.class,com.ainovel.app.integration.ExternalServiceProperties.class,
+        com.ainovel.app.manuscript.ManuscriptContentService.class,com.ainovel.app.common.JsonColumnCodec.class, AiModelConfigurationService.class,AiQuoteService.class,AiActionPlanner.class,AiModelPolicy.class,
         EconomyService.class,AiService.class,AiModelConfigurationMysqlTest.Beans.class})
 class AiModelConfigurationMysqlTest {
     @DynamicPropertySource static void database(DynamicPropertyRegistry properties) {
@@ -56,6 +56,15 @@ class AiModelConfigurationMysqlTest {
         @Bean ObjectMapper mapper(){return new ObjectMapper().findAndRegisterModules();}
         @Bean TransactionTemplate transactions(PlatformTransactionManager manager){return new TransactionTemplate(manager);}
     }
+    @MockitoBean com.ainovel.app.world.WorldBindingService worldBindings;
+    @MockitoBean com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
+    @MockitoBean com.ainovel.app.quality.language.LanguageFeature languageFeature;
+    @MockitoBean com.ainovel.app.manuscript.context.SceneDraftContextCompiler compiler;
+    @MockitoBean com.ainovel.app.worldassistant.WorldAssistantService worldAssistant;
+    @MockitoBean com.ainovel.app.manuscript.SceneGenerationService sceneGeneration;
+    @MockitoBean com.ainovel.app.assistant.WritingAssistantService writingAssistant;
+    @MockitoBean com.ainovel.app.story.OutlineAiService outlineAi;
+    @MockitoBean com.ainovel.app.writingagent.WritingAgentService writingAgent;
     @MockitoBean AiGatewayGrpcClient gateway;
     @MockitoBean BillingGrpcClient billing;
     @MockitoBean AiAdmissionGuard admission;

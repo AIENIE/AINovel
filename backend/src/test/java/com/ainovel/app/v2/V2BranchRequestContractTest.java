@@ -60,7 +60,7 @@ class V2BranchRequestContractTest {
     void emptyObjectKeepsDocumentedDefault() throws Exception {
         mvc.perform(post(path() + "/" + branchId + "/merge").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk());
-        verify(versions).mergeBranch(any(), any(), eq(branchId), eq(V2BranchRequests.MergeBranch.defaults()));
+        verify(versions).mergeBranch(any(), any(), eq(branchId), eq(new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null)));
     }
 
     @ParameterizedTest

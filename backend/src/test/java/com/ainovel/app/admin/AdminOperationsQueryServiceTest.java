@@ -2,8 +2,6 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.quality.model.PlotQualityRun;
-import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.PlotQualityRunRepository;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.story.repo.StoryRepository;
@@ -12,10 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

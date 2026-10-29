@@ -1,6 +1,5 @@
 package com.ainovel.app.manuscript.attribution;
 
-import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.manuscript.GenerationMode;
@@ -24,7 +23,6 @@ import org.springframework.transaction.annotation.Propagation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -43,8 +41,6 @@ public class SceneGenerationAttributionService {
     }
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
-    @org.springframework.beans.factory.annotation.Autowired
-    private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final Logger log = LoggerFactory.getLogger(SceneGenerationAttributionService.class);
     private static final String PROMPT_VERSION = "scene-draft-v2";
     private static final Set<String> ALLOWED_FEEDBACK_TAGS = Set.of(
@@ -100,7 +96,9 @@ public class SceneGenerationAttributionService {
         run.setStatus(SceneGenerationRunStatus.GENERATED);
         run.setAttributionStatus(SceneAttributionStatus.READY);
         run.setMode(mode == null ? GenerationMode.FAST.name() : mode.name());
-        run.setModelKey(Objects.toString(sanitizedManifest.get("modelKey"),modelPolicy.modelKey()));
+        String modelKey = text(sanitizedManifest.get("modelKey"), null);
+        if (modelKey == null) throw new BusinessException("生成结果缺少实际模型标识");
+        run.setModelKey(modelKey);
         run.setPromptVersion(promptVersion(sanitizedManifest));
         run.setAttemptCount(positiveInt(sanitizedManifest.get("attemptCount"), 1));
         run.setContextHash(requiredSha256(sanitizedManifest.get("contextHash"), "生成上下文哈希"));
@@ -420,8 +418,7 @@ public class SceneGenerationAttributionService {
         try {
             return objectMapper.readValue(safeJson(json, "{}"), new TypeReference<>() {});
         } catch (Exception ex) {
-            log.warn("Unable to read scene generation manifest", ex);
-            return Map.of();
+            throw new BusinessException("生成上下文记录损坏", ex);
         }
     }
 
@@ -429,8 +426,7 @@ public class SceneGenerationAttributionService {
         try {
             return objectMapper.readValue(safeJson(json, "[]"), new TypeReference<>() {});
         } catch (Exception ex) {
-            log.warn("Unable to read scene generation feedback tags", ex);
-            return List.of();
+            throw new BusinessException("生成反馈标签损坏", ex);
         }
     }
 
@@ -462,27 +458,16 @@ public class SceneGenerationAttributionService {
         return value.toString().trim();
     }
 
-    private static int positiveInt(Object value, int fallback) {
-        if (value instanceof Number number && number.intValue() > 0) {
-            return number.intValue();
-        }
-        try {
-            int parsed = value == null ? fallback : Integer.parseInt(value.toString());
-            return parsed > 0 ? parsed : fallback;
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
+    private static int positiveInt(Object value, int defaultValue) {
+        int parsed = com.ainovel.app.common.JsonValues.integer(value, defaultValue);
+        if (parsed <= 0) throw new BusinessException("生成尝试次数格式错误");
+        return parsed;
     }
 
     private static int nonNegativeInt(Object value) {
-        if (value instanceof Number number) {
-            return Math.max(0, number.intValue());
-        }
-        try {
-            return value == null ? 0 : Math.max(0, Integer.parseInt(value.toString()));
-        } catch (NumberFormatException ex) {
-            return 0;
-        }
+        int parsed = com.ainovel.app.common.JsonValues.integer(value, 0);
+        if (parsed < 0) throw new BusinessException("生成上下文用量格式错误");
+        return parsed;
     }
 
     private static String requiredSha256(Object value, String label) {

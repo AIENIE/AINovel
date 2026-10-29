@@ -31,7 +31,6 @@ class StyleServiceTest {
                 mock(CharacterVoiceRepository.class),
                 mock(StyleAnalysisJobRepository.class),
                 mock(CharacterCardRepository.class),
-                new ObjectMapper(),
                 new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();
@@ -59,7 +58,6 @@ class StyleServiceTest {
                 voiceRepository,
                 mock(StyleAnalysisJobRepository.class),
                 cardRepository,
-                new ObjectMapper(),
                 new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();

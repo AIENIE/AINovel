@@ -2,10 +2,8 @@ package com.ainovel.app.quality;
 
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.manuscript.model.Manuscript;
-import com.ainovel.app.quality.model.SlopQualityIssue;
 import com.ainovel.app.quality.model.SlopQualityRun;
 import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.story.model.CharacterCard;
@@ -19,12 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -98,10 +91,6 @@ public class SlopDiagnosticService {
     }
     public SlopQualityRun analyzeScene(User user,Manuscript manuscript,UUID sceneId) {
         return analyzeFrozen(user,manuscript,sceneId,freeze(user,manuscript,sceneId));
-    }
-    public SlopQualityRun analyze(User user,SlopQualityRequest request) {
-        var p=com.ainovel.app.quality.language.LanguageProjection.of(org.springframework.web.util.HtmlUtils.htmlEscape(request.candidateText()));
-        var run=baseRun(request); return evaluate(user,run,material(request,p));
     }
     public SlopQualityRun analyzeFrozen(User user,Manuscript manuscript,UUID sceneId,SlopEvidence.ReviewData frozen) {
         if(frozen==null || frozen.version!=1 || !SlopEvidence.VERSION.equals(frozen.promptVersion) || frozen.source==null)
@@ -234,25 +223,10 @@ public class SlopDiagnosticService {
         return builder.toString();
     }
 
-    private SlopQualityRun baseRun(SlopQualityRequest request) {
-        SlopQualityRun run = new SlopQualityRun();
-        run.setTextConversionVersion(com.ainovel.app.quality.language.LanguageProjection.VERSION);
-        run.setStoryId(request.storyId());
-        run.setManuscriptId(request.manuscriptId());
-        run.setSceneId(request.sceneId());
-        run.setRevised(false);
-        run.setRevisionCount(0);
-        run.setCandidateTextHash(hash(request.candidateText()));
-        run.setAcceptedTextHash(hash(request.candidateText()));
-        run.setSourceTextHash(hash(request.candidateText()));
-        run.setAnalysisMode("manual_scene");
-        return run;
-    }
-
     private String writeJson(Object value) { return jsonColumnCodec.writeRequired(value); }
     private Map<String,Object> readObjectMap(String value) { return jsonColumnCodec.readRequired(value,new TypeReference<Map<String,Object>>() {}); }
     @SuppressWarnings("unchecked")
-    private List<Map<String,Object>> listOfMap(Object value) { return value instanceof List<?> list?list.stream().filter(Map.class::isInstance).map(v->(Map<String,Object>)v).toList():List.of(); }
+    private List<Map<String,Object>> listOfMap(Object value) { if(value==null)return List.of(); if(!(value instanceof List<?> list)||list.stream().anyMatch(v->!(v instanceof Map)))throw new BusinessException("数组项目应为对象"); return (List<Map<String,Object>>)(List<?>)list; }
     private String label(int risk) { return risk>=85?"critical":risk>=70?"high":risk>=40?"medium":"low"; }
 
     private String str(Object value, String fallback) {
@@ -295,15 +269,6 @@ public class SlopDiagnosticService {
             return "";
         }
         return value.length() <= limit ? value : value.substring(0, limit);
-    }
-
-    private String hash(String text) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            return null;
-        }
     }
 
     private record SceneContext(

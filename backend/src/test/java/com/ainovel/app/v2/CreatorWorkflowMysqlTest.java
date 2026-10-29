@@ -28,6 +28,9 @@ import org.springframework.transaction.support.*;
 import java.util.*;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static com.ainovel.app.material.MaterialFingerprintService.bytes;
 
 /** Uses only an explicitly provisioned disposable schema, real enhancement and no test transaction. */
@@ -60,6 +63,15 @@ class CreatorWorkflowMysqlTest {
         }
         @Bean TransactionTemplate transactionTemplate(PlatformTransactionManager tm){return new TransactionTemplate(tm);}
     }
+    @MockitoBean com.ainovel.app.world.WorldBindingService worldBindings;
+    @MockitoBean com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
+    @MockitoBean com.ainovel.app.quality.language.LanguageQualityService languageQuality;
+    @MockitoBean com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
+    @BeforeEach void noWorldBindingFixture() {
+        when(worldBindings.input(any())).thenReturn(new com.ainovel.app.world.WorldBindingService.Frozen(null));
+        when(worldBindings.same(any(), any())).thenCallRealMethod();
+        when(worldPreferences.read(anyString(), any())).thenReturn(com.ainovel.app.worldcontext.WorldContextDtos.Preferences.defaults(null));
+    }
     @MockitoBean CurrentUserResolver resolver;
     @MockitoBean SceneGenerationService generator;
     @MockitoBean com.ainovel.app.manuscript.attribution.SceneGenerationAttributionService attribution;
@@ -72,7 +84,6 @@ class CreatorWorkflowMysqlTest {
     @Autowired V2ExportPersistenceService exports;
     @Autowired V2ExportJobService exportJobs;
     @Autowired TransactionTemplate transactions;
-    @Autowired com.ainovel.app.material.repo.MaterialChunkProjectionRepository materialChunks;
     @Autowired JdbcTemplate jdbc;
     @PersistenceContext EntityManager em;
     @AfterEach void logout(){SecurityContextHolder.clearContext();}
@@ -165,37 +176,6 @@ class CreatorWorkflowMysqlTest {
         assertEquals(List.of(160L,160L),jdbc.queryForList("select character_maximum_length from information_schema.columns where table_schema=database() and table_name in ('ai_operation_runs','ai_operation_steps') and column_name='request_id' order by table_name",Long.class));
     }
 
-    @Test void materialCorpusVisibilityHonorsOwnershipStatusAndVersion() {
-        Fixture owner=fixture();Fixture other=fixture();String chunkId=UUID.randomUUID().toString();
-        UUID materialId=transactions.execute(s->{
-            var material=new com.ainovel.app.material.model.Material();material.setUser(em.find(User.class,owner.user.getId()));
-            material.setTitle("失物登记");material.setContent("领取前核对记录");material.setStatus("approved");em.persist(material);
-            var chunk=new com.ainovel.app.material.model.MaterialChunkProjection();chunk.setChunkId(chunkId);
-            chunk.setMaterial(material);chunk.setOwnerUserId(owner.user.getId());chunk.setStatus("approved");
-            chunk.setTitle(material.getTitle());chunk.setText(material.getContent());chunk.setContentVersion(material.getContentVersion());
-            em.persist(chunk);em.flush();return material.getId();
-        });
-        try {
-            assertTrue(materialChunks.existsVisible(owner.user.getId()));
-            assertFalse(materialChunks.existsVisible(other.user.getId()));
-            assertFalse(materialChunks.existsVisible(null));
-            jdbc.update("update material_chunks set content_version=0 where chunk_id=?",chunkId);
-            assertFalse(materialChunks.existsVisible(owner.user.getId()));
-            jdbc.update("update material_chunks set content_version=1 where chunk_id=?",chunkId);
-            jdbc.update("update materials set status='pending' where id=?",bytes(materialId));
-            assertFalse(materialChunks.existsVisible(owner.user.getId()));
-            jdbc.update("update materials set status='approved' where id=?",bytes(materialId));
-            jdbc.update("update material_chunks set status='pending' where chunk_id=?",chunkId);
-            assertFalse(materialChunks.existsVisible(owner.user.getId()));
-            jdbc.update("update material_chunks set status='approved',owner_user_id=null where chunk_id=?",chunkId);
-            jdbc.update("update materials set user_id=null where id=?",bytes(materialId));
-            assertTrue(materialChunks.existsVisible(other.user.getId()));
-            assertTrue(materialChunks.existsVisible(null));
-        } finally {
-            jdbc.update("delete from material_chunks where chunk_id=?",chunkId);
-            jdbc.update("delete from materials where id=?",bytes(materialId));
-        }
-    }
     @Test void sceneCandidateDuplicateWriteAndAdoptionAreIdempotentOnMysql() throws Exception {
         var f=fixture();login(f.user);
         var created=manuscripts.create(f.outline,new ManuscriptCreateRequest("候选验收",null));

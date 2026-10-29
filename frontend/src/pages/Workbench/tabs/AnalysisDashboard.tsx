@@ -8,13 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer, Line, LineChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { localizedErrorMessage } from "@/lib/error-messages";
 
-const issueStatusOptions = ["open", "acknowledged", "resolved", "false_positive"];
 const driftMetricLabelKeys: Record<string, string> = {
   template_density: "analysis.metricTemplateDensity",
   causal_coherence: "analysis.metricCausalCoherence",
@@ -39,8 +37,7 @@ const AnalysisDashboard = () => {
   const [driftRuns, setDriftRuns] = useState<SlopDriftRun[]>([]);
   const [selectedDriftRunId, setSelectedDriftRunId] = useState("");
   const [selectedReportId, setSelectedReportId] = useState("");
-  const [selectedChapter, setSelectedChapter] = useState("1");
-  const continuityText = t("analysis.continuitySampleText");
+  const [analysisLoadError, setAnalysisLoadError] = useState("");
   const [isDriftBusy, setIsDriftBusy] = useState(false);
 
   const loadStories = useCallback(async () => {
@@ -60,6 +57,7 @@ const AnalysisDashboard = () => {
     setReports(reportList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
     setIssues(issueList.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
     setSelectedReportId((current) => current || reportList[0]?.id || "");
+    setAnalysisLoadError("");
   }, []);
 
   const loadOutlines = useCallback(async (targetStoryId: string) => {
@@ -118,7 +116,7 @@ const AnalysisDashboard = () => {
   useEffect(() => {
     if (!storyId || !hasRunningJob) return;
     const timer = window.setInterval(() => {
-      loadAnalysis(storyId).catch(() => {});
+      loadAnalysis(storyId).catch(error => setAnalysisLoadError(localizedErrorMessage(error, "analysis.loadAnalysisFailed")));
     }, 3000);
     return () => window.clearInterval(timer);
   }, [storyId, hasRunningJob, loadAnalysis]);
@@ -169,7 +167,8 @@ const AnalysisDashboard = () => {
       points.forEach((point) => {
         const windowName = String(point.window || point.label || "window");
         rows[windowName] = rows[windowName] || { window: windowName };
-        rows[windowName][metric] = Number(point.score || point.value || 0);
+        const score = point.score ?? point.value;
+        if (typeof score === "number" && Number.isFinite(score)) rows[windowName][metric] = score;
       });
     });
     return Object.values(rows);
@@ -183,27 +182,17 @@ const AnalysisDashboard = () => {
   const radarData = useMemo(() => {
     if (!selectedReport) return [];
     return [
-      { metric: t("analysis.metricPacing"), score: Number(selectedReport.scorePacing ?? 0) },
-      { metric: t("analysis.metricCharacters"), score: Number(selectedReport.scoreCharacters ?? 0) },
-      { metric: t("analysis.metricDialogue"), score: Number(selectedReport.scoreDialogue ?? 0) },
-      { metric: t("analysis.metricConsistency"), score: Number(selectedReport.scoreConsistency ?? 0) },
-      { metric: t("analysis.metricEngagement"), score: Number(selectedReport.scoreEngagement ?? 0) },
-    ];
-  }, [selectedReport, t]);
-
-  const tensionLineData = useMemo(() => {
-    const base = Number(selectedReport?.scorePacing ?? 75);
-    return [
-      { point: t("analysis.tensionOpening"), value: Math.max(10, base - 12) },
-      { point: t("analysis.tensionSetup"), value: Math.max(10, base - 5) },
-      { point: t("analysis.tensionConflict"), value: Math.min(100, base + 6) },
-      { point: t("analysis.tensionClimax"), value: Math.min(100, base + 14) },
-      { point: t("analysis.tensionResolution"), value: Math.max(10, base - 2) },
-    ];
+      { metric: t("analysis.metricPacing"), score: selectedReport.scorePacing },
+      { metric: t("analysis.metricCharacters"), score: selectedReport.scoreCharacters },
+      { metric: t("analysis.metricDialogue"), score: selectedReport.scoreDialogue },
+      { metric: t("analysis.metricConsistency"), score: selectedReport.scoreConsistency },
+      { metric: t("analysis.metricEngagement"), score: selectedReport.scoreEngagement },
+    ].filter(item => typeof item.score === "number" && Number.isFinite(item.score));
   }, [selectedReport, t]);
 
   return (
     <div className="space-y-4">
+      {analysisLoadError && <p role="alert" className="text-sm text-destructive">{analysisLoadError}</p>}
       <Card>
         <CardContent className="pt-6 flex flex-wrap items-end gap-3">
           <div className="w-[300px]">
@@ -251,57 +240,20 @@ const AnalysisDashboard = () => {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-[150px]">
-            <Label>{t("analysis.chapter")}</Label>
-            <Select value={selectedChapter} onValueChange={setSelectedChapter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 20 }).map((_, index) => (
-                  <SelectItem key={index + 1} value={String(index + 1)}>
-                    {t("common.chapterShort", { count: index + 1 })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button disabled title={t("common.notImplemented")}>
-            {t("analysis.analyzeChapter")} · {t("common.notImplemented")}
-          </Button>
-          <Button variant="secondary" disabled title={t("common.notImplemented")}>
-            {t("analysis.analyzeFull")} · {t("common.notImplemented")}
-          </Button>
           <Button variant="secondary" onClick={runSlopDrift} disabled={isDriftBusy || !selectedManuscriptId}>
             {t("analysis.driftCheck")}
-          </Button>
-          <Button variant="outline" disabled title={t("common.notImplemented")}>
-            {t("analysis.continuityCheck")} · {t("common.notImplemented")}
           </Button>
           <Button
             variant="ghost"
             onClick={() => {
-              loadAnalysis(storyId);
-              loadDriftRuns(selectedManuscriptId);
+              void loadAnalysis(storyId).catch(error => setAnalysisLoadError(localizedErrorMessage(error, "analysis.loadAnalysisFailed")));
+              void loadDriftRuns(selectedManuscriptId).catch(error => toast({ variant: "destructive", title: t("analysis.loadDriftFailed"), description: localizedErrorMessage(error) }));
             }}
             disabled={!storyId}
           >
             {t("common.refresh")}
           </Button>
           {hasRunningJob ? <Badge>{t("analysis.jobRunning")}</Badge> : <Badge variant="outline">{t("analysis.idle")}</Badge>}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <CardTitle>{t("analysis.continuityInputTitle")}</CardTitle>
-            <Badge variant="secondary">{t("common.notImplemented")}</Badge>
-          </div>
-          <CardDescription>{t("analysis.continuityInputDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea disabled className="min-h-[100px]" value={continuityText} readOnly />
         </CardContent>
       </Card>
 
@@ -445,7 +397,6 @@ const AnalysisDashboard = () => {
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>{t("analysis.issueTracking")}</CardTitle>
-              <Badge variant="secondary">{t("common.notImplemented")}</Badge>
             </div>
             <CardDescription>{t("analysis.issueTrackingDesc")}</CardDescription>
           </CardHeader>
@@ -457,20 +408,7 @@ const AnalysisDashboard = () => {
                   <Badge>{issue.severity || "info"}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{issue.description}</p>
-                <div className="mt-2">
-                  <Select value={issue.status || "open"} disabled>
-                    <SelectTrigger className="h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {issueStatusOptions.map((item) => (
-                        <SelectItem key={item} value={item}>
-                          {item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Badge variant="outline">{issue.status || "open"}</Badge>
               </div>
             ))}
             {!issues.length && <p className="text-sm text-muted-foreground">{t("analysis.noIssues")}</p>}
@@ -510,21 +448,10 @@ const AnalysisDashboard = () => {
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="h-[280px] rounded border p-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={tensionLineData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="point" />
-                    <YAxis domain={[0, 100]} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="value" stroke="#8b6f4e" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
               <div className="xl:col-span-2 rounded border p-3 text-sm space-y-2">
                 <div className="flex flex-wrap gap-2">
-                  <Badge>{t("analysis.totalScore", { score: selectedReport.scoreOverall ?? 0 })}</Badge>
-                  <Badge variant="outline">{t("analysis.tokenCost", { cost: selectedReport.tokenCost ?? 0 })}</Badge>
+                  <Badge>{t("analysis.totalScore", { score: selectedReport.scoreOverall ?? "—" })}</Badge>
+                  <Badge variant="outline">{t("analysis.tokenCost", { cost: selectedReport.tokenCost ?? "—" })}</Badge>
                 </div>
                 <p className="text-muted-foreground">{selectedReport.summary || t("analysis.noSummary")}</p>
               </div>

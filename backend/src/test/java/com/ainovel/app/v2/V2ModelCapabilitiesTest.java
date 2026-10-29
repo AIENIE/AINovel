@@ -2,7 +2,6 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.modelconfig.AiModelConfigurationService;
-import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.v2.model.V2ModelRegistry;
 import com.ainovel.app.v2.repo.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,9 +22,7 @@ class V2ModelCapabilitiesTest {
     private final V2ModelRegistryRepository models = mock(V2ModelRegistryRepository.class);
 
     private V2ModelPersistenceService service(V2ModelRegistry model) {
-        var service = new V2ModelPersistenceService(models, mock(V2TaskModelRoutingRepository.class),
-                mock(V2UserModelPreferenceRepository.class), mock(V2ModelUsageLogRepository.class),
-                mock(StoryRepository.class), projection);
+        var service = new V2ModelPersistenceService(models, mock(V2UserModelPreferenceRepository.class), projection);
         ReflectionTestUtils.setField(service, "modelConfiguration", mock(AiModelConfigurationService.class));
         when(models.findByOrderByPriorityDesc()).thenReturn(List.of(model));
         when(models.findByModelKey(model.getModelKey())).thenReturn(Optional.of(model));

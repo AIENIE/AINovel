@@ -12,14 +12,11 @@ import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 @Service
@@ -34,7 +31,7 @@ public class MaterialService {
     private final ResourceAccessGuard accessGuard;
     private final MaterialRetrievalService materialRetrievalService;
     private final ManuscriptRepository manuscriptRepository;
-    private final ObjectMapper objectMapper;
+    
     private final JsonColumnCodec jsonColumnCodec;
     private final MaterialFingerprintService fingerprints;
 
@@ -45,7 +42,6 @@ public class MaterialService {
             ResourceAccessGuard accessGuard,
             MaterialRetrievalService materialRetrievalService,
             ManuscriptRepository manuscriptRepository,
-            ObjectMapper objectMapper,
             JsonColumnCodec jsonColumnCodec,
             MaterialFingerprintService fingerprints
     ) {
@@ -54,7 +50,7 @@ public class MaterialService {
         this.accessGuard = accessGuard;
         this.materialRetrievalService = materialRetrievalService;
         this.manuscriptRepository = manuscriptRepository;
-        this.objectMapper = objectMapper;
+        
         this.jsonColumnCodec = jsonColumnCodec;
         this.fingerprints = fingerprints;
     }
@@ -72,7 +68,7 @@ public class MaterialService {
         material.setSource("MANUAL");
         materialRepository.saveAndFlush(material);
         fingerprints.update(material);
-        materialRetrievalService.indexMaterial(user, material);
+        materialRetrievalService.indexMaterial(material);
         return toDto(material);
     }
 
@@ -111,7 +107,7 @@ public class MaterialService {
         if (request.entitiesJson() != null) material.setEntitiesJson(request.entitiesJson());
         materialRepository.saveAndFlush(material);
         fingerprints.update(material);
-        materialRetrievalService.indexMaterial(material.getUser(), material);
+        materialRetrievalService.indexMaterial(material);
         return toDto(material);
     }
 
@@ -183,7 +179,7 @@ public class MaterialService {
         material.setStatus("approve".equals(action) ? "approved" : "rejected");
         materialRepository.saveAndFlush(material);
         fingerprints.update(material);
-        materialRetrievalService.indexMaterial(material.getUser(), material);
+        materialRetrievalService.indexMaterial(material);
         return toDto(material);
     }
 
@@ -246,8 +242,8 @@ public class MaterialService {
         materialRepository.saveAndFlush(target);
         fingerprints.update(source);
         fingerprints.update(target);
-        materialRetrievalService.indexMaterial(source.getUser(), source);
-        materialRetrievalService.indexMaterial(target.getUser(), target);
+        materialRetrievalService.indexMaterial(source);
+        materialRetrievalService.indexMaterial(target);
         return toDto(target);
     }
 
@@ -409,14 +405,13 @@ public class MaterialService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("数据结构应为数组");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 out.add((Map<String, Object>) map);
-            }
+            } else throw new BusinessException("数组项目应为对象");
         }
         return out;
     }

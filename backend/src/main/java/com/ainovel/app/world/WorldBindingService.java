@@ -61,13 +61,6 @@ public class WorldBindingService {
         var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
         return selection!=null&&selection.worldInput()!=null?selection.worldInput():freeze(manuscript);
     }
-    public String render(Resolved value) {
-        requireUsable(value);if(value==null)return "";
-        var c=value.content();
-        return "世界="+c.name()+"\n版本="+value.versionId()+"\n来源="+value.sourceType()+"\n简介="+Objects.toString(c.tagline(),"")
-            +"\n世界概览="+Objects.toString(c.overview(),"")+"\n创作意图="+Objects.toString(c.creativeIntent(),"")+"\n主题="+store.write(c.themes())
-            +"\n条目="+store.write(c.entries())+"\n关系="+store.write(c.relations())+"\n备注="+Objects.toString(c.notes(),"");
-    }
     private Resolved resolved(Story story,String rawWorld,UUID versionId,String source,UUID sourceId,long revision) {
         UUID worldId=null;try{worldId=UUID.fromString(rawWorld);}catch(Exception ignored){/* Show the broken explicit binding; do not inherit. */}
         var world=worldId==null?Optional.<com.ainovel.app.world.model.World>empty():worlds.findById(worldId);

@@ -26,6 +26,9 @@ final class QualityTestSupport {
             return write.apply(current.get());
         });
         ReflectionTestUtils.setField(service, "boundary", boundary);
+        if (service instanceof SlopDiagnosticService) {
+            ReflectionTestUtils.setField(service, "isolation", mock(com.ainovel.app.narrative.NarrativeContextService.class));
+        }
         if (service instanceof PlotQualityService) {
             ReflectionTestUtils.setField(service, "isolation", mock(com.ainovel.app.narrative.NarrativeContextService.class));
             ReflectionTestUtils.setField(service, "eventPublisher", mock(org.springframework.context.ApplicationEventPublisher.class));

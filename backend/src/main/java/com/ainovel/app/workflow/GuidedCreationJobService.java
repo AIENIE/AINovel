@@ -409,8 +409,8 @@ public class GuidedCreationJobService {
         if (raw == null) return GuidedCreationOperation.STEP_CANDIDATES;
         try {
             return GuidedCreationOperation.valueOf(String.valueOf(raw));
-        } catch (IllegalArgumentException ignored) {
-            return GuidedCreationOperation.STEP_CANDIDATES;
+        } catch (IllegalArgumentException invalid) {
+            throw new BusinessException("引导创作任务操作无效", invalid);
         }
     }
 

@@ -84,11 +84,11 @@ class V2PersistenceServiceTest {
                 "keywords", List.of("青云", "灵山"),
                 "priority", 9
         ));
-        Map<String, Object> extraction = contextService.createExtraction(story, Map.of(
-                "text", "林烬在青云山发现石碑",
-                "entityName", "林烬",
-                "entityType", "character"
-        ));
+        var extraction = new com.ainovel.app.v2.model.V2EntityExtraction();
+        extraction.setStory(story); extraction.setEntityName("林烬"); extraction.setEntityType("character");
+        extraction.setSourceText("林烬在青云山发现石碑"); extraction.setAttributesJson("{}");
+        extraction.setConfidence(0.82d); extraction.setReviewed(false); extraction.setReviewAction("pending");
+        entityManager.persist(extraction);
 
         entityManager.flush();
         entityManager.clear();
@@ -96,7 +96,7 @@ class V2PersistenceServiceTest {
         assertEquals("青云山", contextService.listLorebook(story.getId()).get(0).get("displayName"));
         assertEquals("林烬", contextService.listExtractions(story.getId()).get(0).get("entityName"));
         assertEquals(entry.get("id"), contextService.listLorebook(story.getId()).get(0).get("id"));
-        assertEquals(extraction.get("id"), contextService.listExtractions(story.getId()).get(0).get("id"));
+        assertEquals(extraction.getId(), contextService.listExtractions(story.getId()).get(0).get("id"));
     }
 
     @Test

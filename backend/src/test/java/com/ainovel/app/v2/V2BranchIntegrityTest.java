@@ -66,7 +66,7 @@ class V2BranchIntegrityTest {
     @Test
     void mergePreservesUncheckpointedMainInSameTransaction() {
         Fixture fixture = fixture();
-        Map<String, Object> merged = versions.mergeBranch(fixture.manuscript(), fixture.user(), fixture.branchId(), V2BranchRequests.MergeBranch.defaults());
+        Map<String, Object> merged = versions.mergeBranch(fixture.manuscript(), fixture.user(), fixture.branchId(), new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null));
         inTransaction(() -> {
             assertEquals(json("branch"), em.find(Manuscript.class, fixture.manuscript().getId()).getSectionsJson());
             V2ManuscriptVersion backup = em.find(V2ManuscriptVersion.class, (UUID) merged.get("backupVersionId"));
@@ -99,7 +99,7 @@ class V2BranchIntegrityTest {
         int before = count(fixture);
         mapper.failSections = true;
         ApiStatusException error = assertThrows(ApiStatusException.class, () -> versions.mergeBranch(
-                fixture.manuscript(), fixture.user(), fixture.branchId(), V2BranchRequests.MergeBranch.defaults()));
+                fixture.manuscript(), fixture.user(), fixture.branchId(), new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null)));
         mapper.failSections = false;
         assertEquals("STORED_DATA_SERIALIZATION_FAILED", error.getMessage());
         assertEquals(before, count(fixture), "Even the already flushed pre-merge snapshot must roll back");
@@ -116,7 +116,7 @@ class V2BranchIntegrityTest {
         });
         int before = count(fixture);
         assertThrows(ApiStatusException.class, () -> versions.mergeBranch(fixture.manuscript(), fixture.user(),
-                fixture.branchId(), V2BranchRequests.MergeBranch.defaults()));
+                fixture.branchId(), new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null)));
         assertEquals(before, count(fixture));
         assertState(fixture, json("main latest saved edit"), "active");
     }

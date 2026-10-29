@@ -147,15 +147,6 @@
     "JWT_AUDIENCE": [
       "app.jwt.audience"
     ],
-    "AI_MODEL": [
-      "app.ai.model"
-    ],
-    "AI_BASE_URL": [
-      "app.ai.base-url"
-    ],
-    "AI_API_KEY": [
-      "app.ai.api-key"
-    ],
     "AI_MAX_MESSAGES": [
       "app.ai.admission.max-messages"
     ],
@@ -179,9 +170,6 @@
     ],
     "EXTERNAL_PROJECT_KEY": [
       "app.external.project-key"
-    ],
-    "EXTERNAL_TIMEOUT_MS": [
-      "app.external.timeout-ms"
     ],
     "EXTERNAL_BILLING_TIMEOUT_MS": [
       "app.external.billing-timeout-ms"

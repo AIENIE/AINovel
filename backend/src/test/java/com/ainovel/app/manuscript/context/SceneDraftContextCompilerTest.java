@@ -17,7 +17,6 @@ import com.ainovel.app.world.WorldBindingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +88,6 @@ class SceneDraftContextCompilerTest {
         when(worldRepository.input(org.mockito.ArgumentMatchers.any())).thenReturn(new WorldBindingService.Frozen(frozen));
         when(worldRepository.requireUsable(frozen)).thenReturn(frozen);
         when(worldRepository.reference(frozen)).thenReturn(frozen);
-        when(worldRepository.render(frozen)).thenReturn("名称=潮汐雨城\n创作意图=所有超自然现象都必须留下可验证代价\n规则=午夜退潮");
 
         StyleProfile profile = new StyleProfile();
         profile.setId(UUID.randomUUID());

@@ -14,10 +14,8 @@
 - `GET /graph/query?keyword=&limit=`：按关键词筛选子图。
 - `POST /graph/relationships`：创建图谱关系。
 - `DELETE /graph/relationships/{relationshipId}`：删除图谱关系。
-- `POST /graph/sync`：触发图谱同步（当前实现为即时完成，并保存关系元数据）。
 
 ## Entity Extraction
-- `POST /extract-entities`：从文本创建实体提取记录，Body 至少包含 `text`。
 - `GET /extractions`：查询提取记录列表。
 - `PUT /extractions/{id}/review`：审核提取记录，Body `{ reviewAction, linkedLorebookId? }`。
 

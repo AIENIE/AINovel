@@ -81,8 +81,8 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] bytes = digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(bytes);
-        } catch (Exception ex) {
-            return null;
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 

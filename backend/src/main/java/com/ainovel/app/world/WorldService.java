@@ -12,13 +12,11 @@ import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.ai.dto.AiRefineResponse;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
@@ -36,8 +34,6 @@ public class WorldService {
     private ResourceAccessGuard accessGuard;
     @Autowired
     private PlatformTransactionManager transactionManager;
-    @Autowired
-    private ObjectMapper objectMapper;
     @Autowired
     private JsonColumnCodec jsonColumnCodec;
 

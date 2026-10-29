@@ -78,16 +78,6 @@ public class AdminAuthController {
         return noStore(authService.getRecoveryCodes(sessionHash(authentication),body == null ? null : body.code(),source(request)));
     }
 
-    @PostMapping("/login/challenge")
-    public ResponseEntity<?> disabledPasswordlessLogin() {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .cacheControl(CacheControl.noStore())
-                .body(Map.of(
-                        "code", "PASSWORDLESS_LOGIN_DISABLED",
-                        "message", "请先提交管理员账号和密码"
-                ));
-    }
-
     @PostMapping("/enrollment/start")
     public ResponseEntity<?> startEnrollment(
             @Valid @RequestBody ChallengeRequest body,

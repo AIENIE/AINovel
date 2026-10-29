@@ -1,3 +1,4 @@
+import { localizedErrorMessage } from "@/lib/error-messages";
 import { SceneCandidatesPanel } from "./manuscript-writer/SceneCandidatesPanel";
 import { WritingAgentPanel } from "./manuscript-writer/WritingAgentPanel";
 import { api } from '@/lib/api-client';
@@ -411,7 +412,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
           busy={isSaving || isGenerating} locked={assistantWriteLocked} h2={writingAssistant.session.data?.h2Enabled ?? false}
           target={writingAssistant.target} runWrite={runAssistantWrite} reconcileWrite={reconcileAssistantWrite} />
         <Button variant="ghost" size="sm" disabled={!selectedManuscriptId} onClick={()=>setWorldBindingOpen(true)}>{t('world2.binding')}</Button>
-        <Dialog open={worldBindingOpen} onOpenChange={setWorldBindingOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.binding')}</DialogTitle><DialogDescription>{t('world2.bindingHelp')}</DialogDescription></DialogHeader>{worldBindingOpen&&selectedManuscriptId&&<WorldBindingPanel key={selectedManuscriptId} scope="MANUSCRIPT" resourceId={selectedManuscriptId} storyId={selectedStoryId} onChanged={() => { void api.manuscripts.get(selectedManuscriptId).then(replaceManuscript).catch(() => {}); }}/>}</DialogContent></Dialog>
+        <Dialog open={worldBindingOpen} onOpenChange={setWorldBindingOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.binding')}</DialogTitle><DialogDescription>{t('world2.bindingHelp')}</DialogDescription></DialogHeader>{worldBindingOpen&&selectedManuscriptId&&<WorldBindingPanel key={selectedManuscriptId} scope="MANUSCRIPT" resourceId={selectedManuscriptId} storyId={selectedStoryId} onChanged={() => { void api.manuscripts.get(selectedManuscriptId).then(replaceManuscript).catch(error => toast({ variant: "destructive", title: t("errors.loadFailed"), description: localizedErrorMessage(error) })); }}/>}</DialogContent></Dialog>
         <SceneCandidatesPanel manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
           busy={isSaving || isGenerating} revision={generationRevision} onApplied={applyServerSection}
           onLoadDraft={loadCandidateDraft} onRegenerate={generateScene} />

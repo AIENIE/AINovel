@@ -1415,7 +1415,6 @@ export const api = {
       deleteRelationship: async (storyId: string, relationshipId: string) => {
         await requestVoid(`/v2/stories/${storyId}/graph/relationships/${relationshipId}`, { method: "DELETE" });
       },
-      syncGraph: async (storyId: string) => requestJson<NetworkObject>(`/v2/stories/${storyId}/graph/sync`, { method: "POST", body: "{}" }),
 
       listExtractions: async (storyId: string) => requestJson<NetworkObject[]>(`/v2/stories/${storyId}/extractions`, { method: "GET" }),
       reviewExtraction: async (storyId: string, id: string, reviewAction: string) =>
@@ -1459,8 +1458,6 @@ export const api = {
       deleteVoice: async (storyId: string, voiceId: string) => {
         await requestVoid(`/v2/stories/${storyId}/character-voices/${voiceId}`, { method: "DELETE" });
       },
-      generateVoice: async (storyId: string, voiceId: string, payload: NetworkObject = {}) =>
-        requestJson<NetworkObject>(`/v2/stories/${storyId}/character-voices/${voiceId}/generate`, { method: "POST", body: JSON.stringify(payload) }),
     },
 
     analysis: {

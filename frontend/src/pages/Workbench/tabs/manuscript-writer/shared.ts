@@ -93,19 +93,20 @@ export const countWords = (text: string) => {
   return text.replace(/\s+/g, "").trim().length;
 };
 
-export const versionWordCount = (version: NetworkObject) => {
-  const fromMeta = Number(version?.metadata?.word_count ?? version?.metadata?.wordCount);
-  if (Number.isFinite(fromMeta) && fromMeta >= 0) return Math.round(fromMeta);
-  try {
-    const sections = typeof version?.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version?.sectionsJson;
-    if (!sections || typeof sections !== "object" || Array.isArray(sections)) return null;
-    return Object.values(sections as Record<string, NetworkObject>).reduce<number>(
-      (total, scene) => total + countWords(stripHtml(String(scene || ""))),
-      0,
-    );
-  } catch {
-    return null;
+export const versionWordCount = (version: NetworkObject): { value: number | null; invalid: boolean } => {
+  const metadata = version?.metadata?.word_count ?? version?.metadata?.wordCount;
+  if (metadata != null) {
+    const value = Number(metadata);
+    return Number.isFinite(value) && value >= 0 ? { value: Math.round(value), invalid: false } : { value: null, invalid: true };
   }
+  if (version?.sectionsJson == null) return { value: null, invalid: false };
+  try {
+    const sections: unknown = typeof version.sectionsJson === "string" ? JSON.parse(version.sectionsJson) : version.sectionsJson;
+    if (!sections || typeof sections !== "object" || Array.isArray(sections)) return { value: null, invalid: true };
+    const values = Object.values(sections);
+    if (values.some(scene => typeof scene !== "string")) return { value: null, invalid: true };
+    return { value: (values as string[]).reduce((total, scene) => total + countWords(stripHtml(scene)), 0), invalid: false };
+  } catch { return { value: null, invalid: true }; }
 };
 
 export const snapshotTypeLabel = (snapshotType: unknown) => {

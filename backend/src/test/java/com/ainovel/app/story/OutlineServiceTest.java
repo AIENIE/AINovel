@@ -1,7 +1,6 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.security.ResourceAccessGuard;

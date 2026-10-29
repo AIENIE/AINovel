@@ -26,7 +26,6 @@ import org.springframework.http.HttpStatus;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +45,7 @@ public class ManuscriptService {
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @Autowired private com.ainovel.app.narrative.NarrativeContextService narrativeContext;
-    @Autowired private com.ainovel.app.narrative.NarrativeGenerationCandidateStore retainedCandidates;
     @Autowired private com.ainovel.app.narrative.NarrativeGenerationCandidateRepository candidates;
-    private static final String SCENE_DRAFT_PROMPT_VERSION = "scene-draft-v2";
     @Autowired
     private ManuscriptRepository manuscriptRepository;
     @Autowired

@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 public class SceneGenerationService {
@@ -43,7 +42,6 @@ public class SceneGenerationService {
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     private static final int MAX_GENERATION_ATTEMPTS = 3;
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     public static final String SCENE_DRAFT_SYSTEM_RULES_VERSION = "AINOVEL_SCENE_DRAFT_RULES_V1";
 
     @Autowired
@@ -64,9 +62,6 @@ public class SceneGenerationService {
     private com.ainovel.app.narrative.NarrativeGenerationCandidateStore candidateStore;
     @Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
-
-    public record EvaluationPair(String fastText, String craftedText) {
-    }
 
     public record GenerationMetadata(
             String modelKey,
@@ -280,20 +275,9 @@ public class SceneGenerationService {
     private List<com.ainovel.app.prompt.PromptReference> promptReferences(List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references){return references.stream().map(h->new com.ainovel.app.prompt.PromptReference("material",h.materialId(),h.title(),h.text(),h.rank(),0)).toList();}
 
     /**
-     * Produces a fast/crafted pair for blind evaluation without changing manuscript sections,
-     * versions, or plot-quality records. All billable calls share the sample reference.
+     * Produces one selected candidate for blind evaluation without changing manuscript sections,
+     * versions, or plot-quality records. Billable calls use the sample and generation mode reference.
      */
-    public EvaluationPair generateEvaluationPair(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId) {
-        Map<String, String> sections = contents.readAll(manuscript);
-        CompiledSceneDraftContext compiledContext = sceneDraftContextCompiler.compile(manuscript, sceneId, sections);
-        AiUsageContext baseContext = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId), "pair");
-        String fastText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.FAST,
-                baseContext.forOperation("fast"), compiledContext);
-        String craftedText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.CRAFTED,
-                baseContext.forOperation("crafted"), compiledContext);
-        return new EvaluationPair(fastText, craftedText);
-    }
-
     public String generateEvaluationCandidate(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId,
                                               GenerationMode mode) {
         Map<String, String> sections = contents.readAll(manuscript);

@@ -1,3 +1,4 @@
+import { readSessionDraft } from "@/lib/session-draft";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -44,11 +45,7 @@ async function fetchStories() {
 }
 
 async function fetchCharacters(storyId: string) {
-  try {
-    return await api.stories.listCharacters(storyId);
-  } catch {
-    return [];
-  }
+  return await api.stories.listCharacters(storyId);
 }
 
 async function fetchOutlines(storyId: string) {
@@ -217,7 +214,12 @@ export function useManuscriptSelectionData({
     const name = title.trim() || t("selectionData.defaultManuscriptTitle");
     const storageKey = `ainovel.manuscript-create:${selectedOutlineId}`;
     let intent: { title: string; key: string } | null = null;
-    try { intent = JSON.parse(sessionStorage.getItem(storageKey) || "null"); } catch { /* Replace an invalid local intent. */ }
+    const restored = readSessionDraft(storageKey, (value): value is { title: string; key: string } => {
+      const previous = value as { title?: unknown; key?: unknown } | null;
+      return !!previous && typeof previous.title === "string" && typeof previous.key === "string" && !!previous.key;
+    });
+    if (restored.unreadable) throw new Error("MANUSCRIPT_CREATE_INTENT_INVALID");
+    intent = restored.value;
     if (!intent || intent.title !== name || !intent.key) intent = { title: name, key: crypto.randomUUID() };
     sessionStorage.setItem(storageKey, JSON.stringify(intent));
     let created: Manuscript;
@@ -335,6 +337,10 @@ export function useManuscriptSelectionData({
       return manuscripts[0]?.id || "";
     });
   }, [initialManuscriptId, manuscripts, selectedOutlineId]);
+
+  useEffect(() => {
+    if (charactersQuery.error) toast({ variant: "destructive", title: t("errors.loadFailed"), description: charactersQuery.error.message });
+  }, [charactersQuery.error, toast]);
 
   useEffect(() => {
     const error = storiesQuery.error as Error | null;

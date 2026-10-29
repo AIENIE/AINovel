@@ -1,3 +1,4 @@
+import { readSessionDraft } from "@/lib/session-draft";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -164,20 +165,19 @@ export function NarrativeSidebarPanel({ active, manuscript, sceneId, dirty, busy
 }
 
 type ReviewDraft = { decisions: Record<string, "ACCEPT" | "REJECT">; edited: Record<string, NarrativeAssertion>; additions: NarrativeAssertion[]; key: string; pendingRequest?: NarrativeReview };
-function loadDraft(key: string): ReviewDraft {
-  try {
-    const data = JSON.parse(sessionStorage.getItem(key) || "null");
-    if (data?.decisions && data?.edited && Array.isArray(data?.additions) && typeof data.key === "string") return data;
-  } catch { /* Session storage is optional; the server remains authoritative. */ }
-  return { decisions: {}, edited: {}, additions: [], key: crypto.randomUUID() };
+function validReviewDraft(value: unknown): value is ReviewDraft {
+  const d = value as ReviewDraft | null;
+  return !!d?.decisions && !!d.edited && Array.isArray(d.additions) && typeof d.key === "string";
 }
+
 function NarrativeReviewForm({ extraction, state, manuscript, characters, disabled, storageKey, refresh, openEvidence }: {
   extraction: NarrativeExtraction; state: NarrativeState; manuscript: Manuscript; characters: Characters;
   disabled: boolean; storageKey: string; refresh: () => Promise<void>;
   openEvidence: (approvalId: string, evidence: NarrativeEvidence[]) => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState(() => loadDraft(storageKey));
+  const [restored] = useState(() => readSessionDraft(storageKey, validReviewDraft));
+  const [draft, setDraft] = useState<ReviewDraft>(() => restored.value ?? { decisions: {}, edited: {}, additions: [], key: crypto.randomUUID() });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -185,10 +185,11 @@ function NarrativeReviewForm({ extraction, state, manuscript, characters, disabl
     queryFn: () => api.narrative.evidence(manuscript.id, manuscript.currentBranchId!, extraction.approvalId), retry: false });
   useEffect(() => {
     try {
+      if (restored.unreadable && !submitted) return;
       if (submitted || extraction.reviewed) sessionStorage.removeItem(storageKey);
       else sessionStorage.setItem(storageKey, JSON.stringify(draft));
     } catch { /* Private browsing may disable storage. */ }
-  }, [draft, storageKey, submitted, extraction.reviewed]);
+  }, [draft, storageKey, submitted, extraction.reviewed, restored.unreadable]);
   const update = (patch: Partial<ReviewDraft>) => setDraft(previous => ({ ...previous, ...patch, key: crypto.randomUUID(), pendingRequest: undefined }));
   const allDecided = extraction.candidates.every(c => draft.decisions[c.id]);
   const submit = async () => {
@@ -253,6 +254,7 @@ function NarrativeReviewForm({ extraction, state, manuscript, characters, disabl
     <Button size="sm" variant="outline" disabled={locked || draft.additions.length >= 100} onClick={() => update({ additions: [...draft.additions, blankAssertion()] })}>{t("narrative.addRecord")}</Button>
     <p className="text-xs text-muted-foreground">{t("narrative.reviewHint")}</p>
     <Button size="sm" disabled={locked || !allDecided || !source.data} onClick={() => void submit()}>{t("narrative.submit")}</Button>
+    {restored.unreadable && !submitted && <p role="alert" className="text-sm text-destructive">{t("narrative.browserDraftUnreadable")}</p>}
     {(error || source.error) && <p role="alert" className="text-sm text-destructive">{error || narrativeErrorMessage(source.error)}</p>}
   </div>;
 }

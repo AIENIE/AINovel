@@ -1,6 +1,5 @@
 package com.ainovel.app;
 
-import com.ainovel.app.config.RuntimeEnvironmentPreflight;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -47,7 +46,7 @@ class AiNovelApplicationPreflightTest {
     @Test
     void everyFixedEnvExamplePlaceholderFailsBeforeSpringStartup() throws IOException {
         Map<String, String> template = readEnvExample();
-        Map<String, String> placeholders = RuntimeEnvironmentPreflight.templatePlaceholders();
+        Map<String, String> placeholders = templatePlaceholders();
         Map<String, String> fixedTemplateValues = template.entrySet().stream()
                 .filter(entry -> entry.getValue().toLowerCase().contains("replace-")
                         || entry.getValue().toLowerCase().contains("replace_")
@@ -75,9 +74,9 @@ class AiNovelApplicationPreflightTest {
     }
 
     @Test
-    void failedPreflightNeverInvokesSpringLauncher() {
+    void failedPreflightNeverInvokesSpringLauncher() throws IOException {
         Map<String, String> environment = validEnvironment();
-        environment.put("JWT_SECRET", RuntimeEnvironmentPreflight.templatePlaceholders().get("JWT_SECRET"));
+        environment.put("JWT_SECRET", templatePlaceholders().get("JWT_SECRET"));
         AtomicBoolean launched = new AtomicBoolean();
 
         assertThrows(IllegalStateException.class, () ->
@@ -155,7 +154,7 @@ class AiNovelApplicationPreflightTest {
     }
 
     @Test
-    void userServiceCallerJwtContractRejectsLegacyOrOverPrivilegedConfiguration() {
+    void userServiceCallerJwtContractValidatesCurrentConfiguration() {
         Map<String, String> environment = validEnvironment();
         assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
 
@@ -175,7 +174,18 @@ class AiNovelApplicationPreflightTest {
 
         Map<String, String> legacy = new HashMap<>(environment);
         legacy.put("EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "legacy-shared-static-token");
-        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(legacy));
+        legacy.put("EXTERNAL_PAY_SERVICE_JWT", "unused-old-jwt");
+        assertDoesNotThrow(() -> AiNovelApplication.preflight(legacy));
+    }
+
+    private Map<String, String> templatePlaceholders() throws IOException {
+        var properties = new java.util.Properties();
+        try (var stream = getClass().getClassLoader().getResourceAsStream("env-template-placeholders.properties")) {
+            properties.load(new java.io.InputStreamReader(java.util.Objects.requireNonNull(stream), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        Map<String, String> result = new HashMap<>();
+        properties.forEach((key, value) -> result.put(key.toString(), value.toString()));
+        return result;
     }
 
     private Map<String, String> validEnvironment() {

@@ -1,7 +1,6 @@
 package com.ainovel.app.aioperation;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.ai.dto.AiRefineResponse;
 import com.ainovel.app.ai.dto.AiUsageDto;
 import com.ainovel.app.auth.SsoTokenExchangeService;

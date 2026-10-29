@@ -1,6 +1,5 @@
 package com.ainovel.app.admin;
 
-import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.material.MaterialAdminService;
 import com.ainovel.app.material.MaterialAdminReadRepository;
 import org.junit.jupiter.api.Test;

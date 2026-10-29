@@ -13,14 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class PayServiceJwtClientInterceptorTests {
 
     @Test
-    void shouldResolveFreshBearerTokenForEachLogicalRetryAttemptAndRemoveLegacyHeader() {
+    void shouldResolveFreshBearerTokenForEachLogicalRetryAttempt() {
         PayServiceJwtProvider provider = mock(PayServiceJwtProvider.class);
         when(provider.currentToken()).thenReturn("pay.jwt.one", "pay.jwt.two");
         PayServiceJwtClientInterceptor interceptor = new PayServiceJwtClientInterceptor(provider);
@@ -30,7 +29,6 @@ class PayServiceJwtClientInterceptorTests {
         for (int index = 0; index < 2; index++) {
             Metadata headers = new Metadata();
             headers.put(PayServiceJwtClientInterceptor.AUTHORIZATION, "Bearer stale");
-            headers.put(PayServiceJwtClientInterceptor.LEGACY_INTERNAL_TOKEN, "legacy-static-token");
             interceptor.interceptCall(method, CallOptions.DEFAULT, channel)
                     .start(new ClientCall.Listener<>() { }, headers);
         }
@@ -39,8 +37,6 @@ class PayServiceJwtClientInterceptorTests {
                 channel.observedHeaders.stream()
                         .map(headers -> headers.get(PayServiceJwtClientInterceptor.AUTHORIZATION))
                         .toList());
-        assertFalse(channel.observedHeaders.stream()
-                .anyMatch(headers -> headers.containsKey(PayServiceJwtClientInterceptor.LEGACY_INTERNAL_TOKEN)));
     }
 
     private MethodDescriptor<byte[], byte[]> method() {

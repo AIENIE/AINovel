@@ -4,7 +4,6 @@ import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
 import com.ainovel.app.common.*;
-import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.model.*;
 import com.ainovel.app.story.repo.*;

@@ -1,5 +1,4 @@
 package com.ainovel.app.ai;
-import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.ApiStatusException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,10 +36,6 @@ public class AiValidationCallBudget {
     }
     public AiValidationCallBudget(AiValidationBudgetRepository budgets,AiValidationCallRepository calls,ObjectMapper json,Environment environment){
         this.budgets=budgets;this.calls=calls;this.json=json;this.environment=environment;
-    }
-    @Transactional(propagation=Propagation.REQUIRES_NEW)
-    public UUID claim(AiChatRequest request,String requestId,String model){
-        return claimGateway("CHAT", request == null ? null : request.messages(), requestId, model);
     }
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public UUID claimGateway(String kind,Object input,String requestId,String model){

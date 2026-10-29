@@ -48,7 +48,7 @@ public class V2ExportPersistenceService {
         template.setDescription(str(payload.get("description"), ""));
         template.setFormat(str(payload.get("format"), "txt").toLowerCase(Locale.ROOT));
         template.setConfigJson(v2Json.write(payload.getOrDefault("config", defaultConfig(template.getFormat()))));
-        template.setDefaultTemplate(bool(payload.get("isDefault"), false));
+        template.setDefaultTemplate(com.ainovel.app.common.JsonValues.bool(payload.get("isDefault"), false));
         return templateMap(templateRepository.saveAndFlush(template));
     }
 
@@ -62,7 +62,7 @@ public class V2ExportPersistenceService {
         if (payload.containsKey("description")) template.setDescription(str(payload.get("description"), ""));
         if (payload.containsKey("format")) template.setFormat(str(payload.get("format"), template.getFormat()).toLowerCase(Locale.ROOT));
         if (payload.containsKey("config")) template.setConfigJson(v2Json.write(payload.get("config")));
-        if (payload.containsKey("isDefault")) template.setDefaultTemplate(bool(payload.get("isDefault"), false));
+        if (payload.containsKey("isDefault")) template.setDefaultTemplate(com.ainovel.app.common.JsonValues.bool(payload.get("isDefault"), false));
         return templateMap(templateRepository.saveAndFlush(template));
     }
 
@@ -127,29 +127,6 @@ public class V2ExportPersistenceService {
     @Transactional(readOnly = true)
     public Map<String, Object> getJob(UUID manuscriptId, UUID jobId) {
         return jobMap(requireJob(manuscriptId, jobId), null);
-    }
-
-    @Transactional
-    public Map<String, Object> updateJob(UUID manuscriptId, UUID jobId, Map<String, Object> patch) {
-        V2ExportJob job = requireJob(manuscriptId, jobId);
-        if (patch.containsKey("status")) job.setStatus(str(patch.get("status"), job.getStatus()));
-        if (patch.containsKey("progress")) job.setProgress(intVal(patch.get("progress"), job.getProgress()));
-        if (patch.containsKey("filePath")) job.setFilePath(str(patch.get("filePath"), null));
-        if (patch.containsKey("fileSizeBytes")) job.setFileSizeBytes((long) intVal(patch.get("fileSizeBytes"), 0));
-        if (patch.containsKey("errorMessage")) job.setErrorMessage(patch.get("errorMessage") == null ? null : patch.get("errorMessage").toString());
-        if (patch.containsKey("expiresAt") && patch.get("expiresAt") instanceof Instant instant) job.setExpiresAt(instant);
-        return jobMap(jobRepository.saveAndFlush(job), null);
-    }
-
-    @Transactional(readOnly = true)
-    public int countActiveJobs(UUID userId) {
-        int count = 0;
-        for (V2ExportJob job : jobRepository.findByUserId(userId)) {
-            if (!List.of("completed", "failed", "expired", "cancelled").contains(str(job.getStatus(), "").toLowerCase(Locale.ROOT))) {
-                count++;
-            }
-        }
-        return count;
     }
 
     @Transactional
@@ -247,19 +224,6 @@ public class V2ExportPersistenceService {
         };
     }
 
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number n) {
-            return n.intValue();
-        }
-        if (value != null) {
-            try {
-                return Integer.parseInt(value.toString());
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return fallback;
-    }
-
     private String str(Object value, String fallback) {
         if (value == null) {
             return fallback;
@@ -268,10 +232,4 @@ public class V2ExportPersistenceService {
         return text.isEmpty() ? fallback : text;
     }
 
-    private boolean bool(Object value, boolean fallback) {
-        if (value instanceof Boolean b) {
-            return b;
-        }
-        return value == null ? fallback : Boolean.parseBoolean(value.toString());
-    }
 }

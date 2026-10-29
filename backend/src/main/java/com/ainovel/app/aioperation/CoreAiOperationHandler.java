@@ -7,9 +7,7 @@ import com.ainovel.app.quality.PlotQualityService;
 import com.ainovel.app.quality.SlopDiagnosticService;
 import com.ainovel.app.quality.SlopDriftService;
 import com.ainovel.app.security.ResourceAccessGuard;
-import com.ainovel.app.story.OutlineService;
 import com.ainovel.app.story.StoryService;
-import com.ainovel.app.story.dto.OutlineChapterGenerateRequest;
 import com.ainovel.app.story.dto.StoryCreateRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
@@ -22,7 +20,7 @@ public class CoreAiOperationHandler implements AiOperationHandler {
     public static final String TYPE = "AINOVEL_LONG_TASK";
 
     private final StoryService stories;
-    private final OutlineService outlines;
+    
     private final WorldTaskService worldTasks;
     private final ManuscriptService manuscripts;
     private final ResourceAccessGuard accessGuard;
@@ -30,11 +28,11 @@ public class CoreAiOperationHandler implements AiOperationHandler {
     private final SlopDriftService drift;
     private final PlotQualityService plot;
 
-    public CoreAiOperationHandler(StoryService stories, OutlineService outlines, WorldTaskService worldTasks,
+    public CoreAiOperationHandler(StoryService stories, WorldTaskService worldTasks,
                                   ManuscriptService manuscripts, ResourceAccessGuard accessGuard,
                                   SlopDiagnosticService slop, SlopDriftService drift, PlotQualityService plot) {
         this.stories = stories;
-        this.outlines = outlines;
+        
         this.worldTasks = worldTasks;
         this.manuscripts = manuscripts;
         this.accessGuard = accessGuard;

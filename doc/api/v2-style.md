@@ -16,13 +16,12 @@
 ## Style Analysis
 - `POST /style-analysis`：创建风格分析任务并返回分析结果。
 
-风格分析任务持久化到 `style_analysis_jobs`，返回 `status=completed` 和 `result`。当前分析仍是轻量本地启发式结果，不调用额外模型。
+风格分析任务持久化到 `style_analysis_jobs`，返回 `status=completed` 和 `result`。当前分析是轻量本地启发式指标，不调用模型；空样本文本返回 400，不生成固定语气结论、建议或示例对白。角色声音由作者编辑，预览只格式化实际填写的内容。
 
 ## Character Voices
 - `GET /stories/{storyId}/character-voices`：角色声音列表。
 - `POST /stories/{storyId}/character-voices`：创建角色声音。
 - `PUT /stories/{storyId}/character-voices/{id}`：更新角色声音。
 - `DELETE /stories/{storyId}/character-voices/{id}`：删除角色声音。
-- `POST /stories/{storyId}/character-voices/{id}/generate`：AI 生成角色声音草案。
 
 角色声音持久化到 `character_voices`。`characterCardId` 必须属于当前故事；同一角色只能存在一份声音设定，重复创建会返回冲突。

@@ -340,34 +340,11 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     }
   };
 
-  const generateVoice = async () => {
-    if (!storyId || !voiceForm.id) return;
-    const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
-    try {
-      await api.v2.style.generateVoice(storyId, voiceForm.id, { characterName: selectedCharacter?.name || t("style.characterFallback") });
-      await loadData();
-      toast({ title: t("style.voiceGenerated") });
-    } catch (error: unknown) {
-      toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(error, "errors.generateFailed") });
-    }
-  };
-
-  const previewVoice = async () => {
-    if (!voiceForm.characterCardId) {
-      toast({ variant: "destructive", title: t("style.selectCharacterFirst") });
-      return;
-    }
-    const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
-    const characterName = selectedCharacter?.name || t("style.characterFallback");
-    const catchphrase = (voiceForm.catchphrases || [])[0] || t("style.catchphraseFallback");
-    const mood = (voiceForm.emotionalRange || [])[0] || t("style.moodFallback");
-    const sample = (voiceForm.sampleDialogues || [])[0]?.line || t("style.sampleLineFallback");
-    const dialect = voiceForm.dialect ? t("style.dialectSuffix", { dialect: voiceForm.dialect }) : "";
-    const pattern = voiceForm.speechPattern?.trim() || t("style.speechPatternFallback");
-    setVoicePreview(
-      t("style.voicePreviewTemplate", { dialect, characterName, catchphrase, sample, mood, level: voiceForm.vocabularyLevel || "colloquial", pattern }),
-    );
-    toast({ title: t("style.previewGenerated") });
+  const previewVoice = () => {
+    const character = characters.find(item => String(item.id) === String(voiceForm.characterCardId));
+    const lines = [character?.name, voiceForm.speechPattern, ...(voiceForm.catchphrases || []),
+      ...(voiceForm.sampleDialogues || []).map((item: { line: string } | string) => typeof item === "string" ? item : item.line)];
+    setVoicePreview(lines.filter((line): line is string => typeof line === "string" && !!line.trim()).join("\n"));
   };
 
   return (
@@ -525,7 +502,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim(); setVoiceForm((prev: NetworkObject) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>{t("style.addSample")}</Button>
               <ScrollArea className="h-24 rounded-md border p-2"><div className="space-y-1 text-sm">{(voiceForm.sampleDialogues || []).map((item: DialogueSample, index: number) => <div key={`${item.context}-${item.line}-${index}`} className="rounded border p-1"><div className="text-xs text-muted-foreground">{item.context ? `[${item.context}]` : ""}</div><div>{item.line}</div></div>)}</div></ScrollArea>
             </div>
-            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="secondary" onClick={() => void generateVoice()} disabled={!voiceForm.id}>{t("style.aiGenerate")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>
+            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>
             {voicePreview && <div className="rounded border bg-muted/40 p-2 text-sm"><div className="font-medium mb-1">{t("style.voicePreview")}</div><p className="whitespace-pre-wrap text-muted-foreground">{voicePreview}</p></div>}
           </CardContent>
         </Card>

@@ -205,10 +205,6 @@ public class UserSessionValidator {
             ManagedChannel channel,
             UserAuthServiceGrpc.UserAuthServiceBlockingStub stub
     ) {
-        boolean sameEndpoint(String targetHost, int targetPort) {
-            return host.equals(targetHost) && port == targetPort;
-        }
-
         void close() {
             channel.shutdownNow();
         }

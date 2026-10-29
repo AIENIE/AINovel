@@ -12,8 +12,6 @@
   - 首次绑定时提交密码阶段返回的 challenge，返回一次性绑定 challenge、手动密钥和 `otpauth` URI。
 - `POST /api/v1/admin-auth/enrollment/confirm`
   - 提交挑战与 6 位 TOTP，完成绑定并返回 10 个紧急码。
-- `POST /api/v1/admin-auth/login/challenge`
-  - 旧的无密码入口已禁用，返回 410。
 - `POST /api/v1/admin-auth/login/totp`
 - `POST /api/v1/admin-auth/login/recovery`
   - 恢复码只创建受限恢复会话，不授予普通管理接口权限。

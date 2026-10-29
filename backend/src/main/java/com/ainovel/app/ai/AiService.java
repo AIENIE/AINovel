@@ -80,7 +80,7 @@ public class AiService {
                     user, reservationCredits, referenceType, referenceId, idempotencyKey, requestHash):
                     economyService.reserveAiUsage(user,estimated,referenceType,referenceId,idempotencyKey,requestHash,selected);
             if (reservation.replay()) {
-                String actual=stored!=null&&stored.actualModelKey()!=null?stored.actualModelKey():selected==null?null:selected.modelKey();
+                String actual=stored==null?null:stored.actualModelKey();
                 if(selected!=null&&AiProgressContext.current()!=null)AiProgressContext.current().onModelResolved(actual);
                 return withSelection(response(user, reservation.content(), reservation.promptTokens(), reservation.completionTokens(),
                         reservation.cacheTokens(), reservation.charged(), reservation.metadata(),reservation.nativeResponseJson()),selected,actual);
@@ -89,7 +89,7 @@ public class AiService {
             try {
                 AiGatewayGrpcClient.ChatResult result = invokeGateway(remoteUid, request, idempotencyKey);
                 if(request.nativeTools())economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),result.modelKey(),result.metadata(),result.nativeResponseJson());
-                else economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),selected==null?null:result.modelKey(),result.metadata());
+                else economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),result.modelKey(),result.metadata());
                 if(selected!=null&&(!selected.streaming()||request.nativeTools())&&AiProgressContext.current()!=null)
                     AiProgressContext.current().onUnaryCompleted(result.modelKey(),result.completionTokens(),result.promptTokens(),result.cacheTokens());
                 EconomyService.AiChargeResult charge = economyService.settleAiUsage(user, idempotencyKey,

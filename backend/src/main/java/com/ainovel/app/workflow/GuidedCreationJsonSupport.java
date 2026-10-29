@@ -35,18 +35,20 @@ public class GuidedCreationJsonSupport {
         if (value instanceof Map<?, ?> map) {
             return new LinkedHashMap<>((Map<String, Object>) map);
         }
+        if (value != null) throw new BusinessException("引导创作步骤数据损坏");
         return new LinkedHashMap<>();
     }
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> candidates(Map<String, Object> stepData) {
         Object value = stepData.get("candidates");
-        if (!(value instanceof List<?> list)) return List.of();
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("引导创作候选数据损坏");
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 result.add(new LinkedHashMap<>((Map<String, Object>) map));
-            }
+            } else throw new BusinessException("引导创作候选数据损坏");
         }
         return result;
     }

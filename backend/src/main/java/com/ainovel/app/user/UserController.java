@@ -181,19 +181,6 @@ public class UserController {
         return ResponseEntity.ok(items);
     }
 
-    @PostMapping("/password")
-    @Operation(summary = "修改密码（已下线）", description = "当前系统使用统一登录，密码管理由外部 UserService 负责。")
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "501",
-                    description = "功能未在本服务提供",
-                    content = @Content(examples = @ExampleObject(value = "{\"success\":false,\"message\":\"PASSWORD_MANAGED_BY_SSO\"}"))
-            )
-    })
-    public ResponseEntity<BasicResponse> updatePassword(@AuthenticationPrincipal UserDetails principal) {
-        return ResponseEntity.status(501).body(new BasicResponse(false, "PASSWORD_MANAGED_BY_SSO"));
-    }
-
     private UserProfileResponse toProfile(User user, EconomyService.BalanceSnapshot balance) {
         String role = user.hasRole("ROLE_ADMIN") ? "admin" : "user";
         return new UserProfileResponse(

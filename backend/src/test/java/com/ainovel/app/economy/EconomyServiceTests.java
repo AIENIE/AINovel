@@ -102,24 +102,22 @@ class EconomyServiceTests {
         when(accountRepository.findByUser(user)).thenReturn(Optional.empty());
         when(billingGrpcClient.publicBalance(42L))
                 .thenThrow(new IllegalStateException("sensitive upstream response"));
-        when(conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)).thenReturn(Optional.empty());
         var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(EconomyService.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
-        EconomyService.BalanceSnapshot result;
         try {
-            result = economyService.currentBalance(user);
+            assertEquals("PUBLIC_BALANCE_UNAVAILABLE", assertThrows(com.ainovel.app.common.ApiStatusException.class,
+                    () -> economyService.currentBalance(user)).getMessage());
         } finally {
             logger.detachAppender(appender);
             appender.stop();
         }
 
-        assertEquals(0L, result.publicCredits());
         assertEquals(1, appender.list.size());
         ILoggingEvent event = appender.list.get(0);
         assertEquals(
-                "event=public_balance_fetch_failed remoteUid=42 fallback=0 errorType=IllegalStateException",
+                "event=public_balance_fetch_failed remoteUid=42 errorType=IllegalStateException",
                 event.getFormattedMessage()
         );
         assertFalse(event.getFormattedMessage().contains("sensitive upstream response"));

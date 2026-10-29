@@ -82,9 +82,6 @@ public final class RuntimeEnvironmentPreflight {
                     + String.join(", ", placeholders));
         }
 
-        if (hasText(environment.get("EXTERNAL_USER_INTERNAL_GRPC_TOKEN"))) {
-            throw new IllegalStateException("Legacy UserService static gRPC token is forbidden");
-        }
         validateUserServiceJwtConfiguration(environment);
         validatePayServiceJwtConfiguration(environment);
 
@@ -135,9 +132,6 @@ public final class RuntimeEnvironmentPreflight {
     }
 
     private static void validatePayServiceJwtConfiguration(Map<String, String> environment) {
-        if (hasText(environment.get("EXTERNAL_PAY_SERVICE_JWT"))) {
-            throw new IllegalStateException("Legacy PayService static JWT is forbidden");
-        }
         long ttlSeconds;
         try {
             ttlSeconds = Long.parseLong(environment.get("EXTERNAL_PAY_SERVICE_JWT_TTL_SECONDS"));
@@ -218,10 +212,6 @@ public final class RuntimeEnvironmentPreflight {
                 missing.add(name);
             }
         }
-    }
-
-    public static Map<String, String> templatePlaceholders() {
-        return TEMPLATE_PLACEHOLDERS;
     }
 
     private static Map<String, String> loadTemplatePlaceholders() {

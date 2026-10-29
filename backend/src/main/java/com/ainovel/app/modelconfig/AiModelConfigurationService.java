@@ -239,7 +239,7 @@ public class AiModelConfigurationService {
         if(m.getCapabilitiesJson()!=null)try {
             var node=json.readTree(m.getCapabilitiesJson()).get("gatewayChat");
             if(node!=null && node.isObject())chat=json.treeToValue(node,ChatCapabilities.class);
-        }catch(com.fasterxml.jackson.core.JsonProcessingException ignored){/* Legacy or absent declarations remain unknown. */}
+        }catch(com.fasterxml.jackson.core.JsonProcessingException invalid){throw new IllegalStateException("AI_MODEL_CAPABILITIES_INVALID",invalid); }
         return new CatalogModel(m.getGatewayModelId()==null?null:m.getGatewayModelId().toString(),m.getModelKey(),m.getDisplayName(),m.getProvider(),m.isAvailable(),m.isSupportsStreaming(),m.getSupportsImageInput(),m.getThinkingJson()==null?Thinking.unknown():read(m.getThinkingJson(),Thinking.class),m.getLastSyncedAt(),chat);
     }
     private void insertOption(AiModelSelection option,UUID modelId,int index) {jdbc.update("insert into ai_model_options(id,task_type,model_id,settings_json,active,position_index) values(?,?,?,?,true,?)",option.optionId(),option.featureKey(),bytes(modelId),write(option),index);}

@@ -240,7 +240,8 @@ export function VersionSidebarPanel({
                   {t("versionPanel.rollback")}
                 </Button>
               </div>
-              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${words == null ? "—" : t("versionPanel.wordCount", { count: words })}`}</div>
+              {words.invalid && <p role="alert" className="text-destructive">{t("errors.loadFailed")}</p>}
+              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${words.value == null ? "—" : t("versionPanel.wordCount", { count: words.value })}`}</div>
             </div>
           </div>
         ); })}

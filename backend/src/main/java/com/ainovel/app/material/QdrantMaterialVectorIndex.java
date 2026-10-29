@@ -54,7 +54,6 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
                 .build();
     }
 
-    @Override
     public void upsert(MaterialChunk chunk, float[] vector) {
         if (chunk == null || vector == null || vector.length == 0) {
             throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
@@ -91,19 +90,8 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
         send("POST", "/collections/" + collection + "/points/delete?wait=true", selector);
     }
 
-    @Override
-    public void deleteChunks(List<String> chunkIds) {
-        if (chunkIds.isEmpty()) return;
-        send("POST", "/collections/" + collection + "/points/delete?wait=true", Map.of("points", chunkIds));
-    }
-
-    @Override
-    public List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId) {
-        return searchWithin(vector,limit,ownerUserId,null);
-    }
-    /** Null preserves the legacy scope; an empty list never searches the whole collection. */
     public List<VectorMatch> searchWithin(float[] vector,int limit,java.util.UUID ownerUserId,List<java.util.UUID> allowedMaterials){
-        if(allowedMaterials!=null&&allowedMaterials.isEmpty())return List.of();
+        if(allowedMaterials.isEmpty())return List.of();
         if (vector == null || vector.length == 0) {
             throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
         }
@@ -116,21 +104,23 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             should.add(Map.of("key", "ownerUserId", "match", Map.of("value", "")));
             if (ownerUserId != null) should.add(Map.of("key", "ownerUserId", "match", Map.of("value", ownerUserId.toString())));
             List<Object> must=new ArrayList<>();must.add(Map.of("key","status","match",Map.of("value","approved")));
-            if(allowedMaterials!=null)must.add(Map.of("key","materialId","match",Map.of("any",allowedMaterials.stream().map(java.util.UUID::toString).toList())));
+            must.add(Map.of("key","materialId","match",Map.of("any",allowedMaterials.stream().map(java.util.UUID::toString).toList())));
             body.put("filter", Map.of("must",must,"should",should));
             JsonNode root = send("POST", "/collections/" + collection + "/points/query", body);
             List<VectorMatch> matches = new ArrayList<>();
             JsonNode points = root.path("result").path("points");
             if (!points.isArray()) throw new IllegalStateException("VECTOR_RESULT_INVALID");
             for (JsonNode item : points) {
-                String chunkId = item.path("payload").path("chunkId").asText("");
-                double score = item.path("score").asDouble(0d);
-                if (!chunkId.isBlank()) {
-                    JsonNode payload = item.path("payload");
-                    java.util.UUID materialId = java.util.UUID.fromString(payload.path("materialId").asText());
-                    matches.add(new VectorMatch(chunkId, score, materialId, payload.path("title").asText("素材"),
-                            payload.path("text").asText(""), payload.path("chunkSeq").asInt(0)));
-                }
+                JsonNode payload = item.path("payload");
+                if (!payload.path("chunkId").isTextual() || payload.path("chunkId").asText().isBlank()
+                        || !item.path("score").isNumber() || !Double.isFinite(item.path("score").doubleValue())
+                        || !payload.path("materialId").isTextual() || !payload.path("title").isTextual()
+                        || !payload.path("text").isTextual() || !payload.path("chunkSeq").canConvertToInt()
+                        || !payload.path("chunkSeq").isIntegralNumber())
+                    throw new IllegalStateException("VECTOR_RESULT_INVALID");
+                java.util.UUID materialId = java.util.UUID.fromString(payload.path("materialId").textValue());
+                matches.add(new VectorMatch(payload.path("chunkId").textValue(), item.path("score").doubleValue(),
+                        materialId, payload.path("title").textValue(), payload.path("text").textValue(), payload.path("chunkSeq").intValue()));
             }
             return matches;
     }

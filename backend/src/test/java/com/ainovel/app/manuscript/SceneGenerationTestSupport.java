@@ -47,7 +47,7 @@ public final class SceneGenerationTestSupport {
         var selector = mock(WorldContextSelector.class);
         when(selector.select(any(), any(), anyString(), anyInt(), anyBoolean())).thenAnswer(call -> {
             WorldBindingService.Resolved binding = call.getArgument(0);
-            String content = binding == null ? "" : world.render(binding);
+            String content = binding == null ? "" : binding.name();
             return new WorldContextDtos.Selection("test", binding, 0, "query", "context", call.getArgument(3),
                     SceneDraftContextCompiler.estimateTokens(content), content, List.of(), List.of(), List.of());
         });

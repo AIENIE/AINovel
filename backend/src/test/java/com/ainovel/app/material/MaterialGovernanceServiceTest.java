@@ -27,7 +27,7 @@ class MaterialGovernanceServiceTest {
     MaterialFingerprintService fingerprints = mock(MaterialFingerprintService.class);
     ObjectMapper json = new ObjectMapper();
     MaterialService service = new MaterialService(repository,jobs,guard,mock(MaterialRetrievalService.class),
-            mock(ManuscriptRepository.class),json,new JsonColumnCodec(json),fingerprints);
+            mock(ManuscriptRepository.class),new JsonColumnCodec(json),fingerprints);
 
     @Test void ordinaryEditCannotApproveEvenWithGenericAdminRole() throws Exception {
         var owner = owner("other"); Material uploaded = material(owner,"UPLOAD","rejected");

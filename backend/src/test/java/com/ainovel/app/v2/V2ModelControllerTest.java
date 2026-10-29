@@ -2,7 +2,6 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.security.ResourceAccessGuard;
-import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

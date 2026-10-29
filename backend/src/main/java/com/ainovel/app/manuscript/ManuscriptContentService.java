@@ -23,7 +23,6 @@ public class ManuscriptContentService {
                                     @Value("${app.manuscript.scene-storage.enabled:false}") boolean scenesEnabled) {
         this.jdbc = jdbc; this.json = json; this.scenesEnabled = scenesEnabled;
     }
-    public boolean usesScenes() { return scenesEnabled; }
     private boolean normalized(Manuscript m) {
         if (scenesEnabled && m.getContentStorageVersion() != 2)
             throw new ApiStatusException(HttpStatus.SERVICE_UNAVAILABLE, "MANUSCRIPT_MIGRATION_REQUIRED");

@@ -116,9 +116,6 @@ app:
     issuer: ainovel
     audience: ainovel-web
   ai:
-    model: deepseek-v4-flash
-    base-url: ''
-    api-key: ${AI_API_KEY:}
     admission:
       max-messages: 64
       max-message-chars: 20000
@@ -129,7 +126,6 @@ app:
       reservation-credits: 2
   external:
     project-key: ainovel
-    timeout-ms: 120000
     ai-timeout-ms: 60000
     billing-timeout-ms: 5000
     grpc:

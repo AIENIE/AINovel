@@ -107,13 +107,13 @@ class V2VersionControllerTests {
         UUID branchId = UUID.randomUUID();
         UUID mergeVersionId = UUID.randomUUID();
         Map<String, Object> merged = Map.of("mergeVersionId", mergeVersionId, "status", "merged");
-        when(versionService.mergeBranch(manuscript, user, branchId, V2BranchRequests.MergeBranch.defaults())).thenReturn(merged);
+        when(versionService.mergeBranch(manuscript, user, branchId, new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null))).thenReturn(merged);
 
-        Map<String, Object> result = controller.mergeBranch(principal, manuscriptId, branchId, V2BranchRequests.MergeBranch.defaults());
+        Map<String, Object> result = controller.mergeBranch(principal, manuscriptId, branchId, new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null));
 
         assertEquals("merged", result.get("status"));
         verify(accessGuard).requireOwnedManuscript(manuscriptId, user);
-        verify(versionService).mergeBranch(manuscript, user, branchId, V2BranchRequests.MergeBranch.defaults());
+        verify(versionService).mergeBranch(manuscript, user, branchId, new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null));
     }
 
     @Test

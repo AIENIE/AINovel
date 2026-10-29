@@ -1,7 +1,6 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.story.dto.*;
@@ -26,18 +25,17 @@ import java.util.UUID;
 public class StoryController {
     private final StoryService storyService;
     private final OutlineService outlineService;
-    private final AiService aiService;
+    
     private final CurrentUserResolver currentUserResolver;
     @Autowired private OutlineAiService outlineAi;
 
     @Autowired
     public StoryController(StoryService storyService,
                            OutlineService outlineService,
-                           AiService aiService,
                            CurrentUserResolver currentUserResolver) {
         this.storyService = storyService;
         this.outlineService = outlineService;
-        this.aiService = aiService;
+        
         this.currentUserResolver = currentUserResolver;
     }
 

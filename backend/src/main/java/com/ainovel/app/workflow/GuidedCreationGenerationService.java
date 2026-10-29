@@ -251,9 +251,10 @@ public class GuidedCreationGenerationService {
 
     private GuidedCreationOperation operation(Map<String, Object> payload) {
         try {
+            if (payload.get("operation") == null) return GuidedCreationOperation.STEP_CANDIDATES;
             return GuidedCreationOperation.valueOf(string(payload.get("operation")));
-        } catch (RuntimeException ignored) {
-            return GuidedCreationOperation.STEP_CANDIDATES;
+        } catch (IllegalArgumentException invalid) {
+            throw new BusinessException("引导创作任务操作无效", invalid);
         }
     }
 

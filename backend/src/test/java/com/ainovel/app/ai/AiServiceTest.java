@@ -48,13 +48,13 @@ class AiServiceTest {
         order.verify(guard).acquire(user, request);
         order.verify(economy).reserveAiUsage(user, 2, "AI_USAGE", "stable", "stable", "hash");
         order.verify(gateway).chatCompletions(eq("stable"), eq(9000003L), eq("deepseek-v4-flash"), anyList());
-        order.verify(economy).recordAiResult(user, "stable", "result", 100, 20, 60, null, result.metadata());
+        order.verify(economy).recordAiResult(user, "stable", "result", 100, 20, 60, "deepseek-v4-flash", result.metadata());
         order.verify(economy).settleAiUsage(user, "stable", "result", 100, 20, 60);
     }
 
     @Test
     void catalogComesFromCurrentConfiguration() {
-        var catalog = List.of(new AiModelPolicy().configuredTextModel());
+        var catalog = List.of(new com.ainovel.app.ai.dto.AiModelDto("catalog-id", "catalog-model", "目录模型", "text", 1, 1, "provider", true, false, true));
         when(configuration.publicModels()).thenReturn(catalog);
         assertEquals(catalog, service.listModels(user));
         verify(configuration).publicModels();

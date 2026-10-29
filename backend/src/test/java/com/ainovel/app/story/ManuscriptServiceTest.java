@@ -97,7 +97,7 @@ class ManuscriptServiceTest {
         verify(repository,never()).saveAndFlush(any());
     }
 
-    @Test void h2VersionConflictRetainsCandidateWithoutWritingTheCurrentBody() {
+    @Test void h2VersionConflictDoesNotWriteTheCurrentBody() {
         var repository=mock(ManuscriptRepository.class);var access=mock(ResourceAccessGuard.class);
         var s=service(repository,mock(OutlineRepository.class),mock(CharacterCardRepository.class),mock(AiService.class),access,
                 mock(SlopQualityGate.class),mock(PlotQualityService.class),mock(PromptAssemblyService.class),mock(MaterialRetrievalService.class),mock(StyleContextProvider.class));
@@ -107,12 +107,12 @@ class ManuscriptServiceTest {
         var manifest=new com.ainovel.app.manuscript.context.SceneDraftContextManifest("h2","hash","SHA-256",3500,10,null,null,m.getId(),scene,null,1,1,"",List.of(),List.of(),stamp);
         var generator=mock(SceneGenerationService.class);when(generator.generateSceneSection(any(),any(),any(),any(),any(),any(),eq(false))).thenReturn(
                 new SceneGenerationService.GenerationResult("<p>生成候选</p>",new SceneGenerationService.GenerationMetadata("test","h2","hash",1,manifest)));
-        var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);var archive=mock(com.ainovel.app.narrative.NarrativeGenerationCandidateStore.class);
-        ReflectionTestUtils.setField(s,"sceneGenerationService",generator);ReflectionTestUtils.setField(s,"narrativeContext",context);ReflectionTestUtils.setField(s,"retainedCandidates",archive);
+        var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
+        ReflectionTestUtils.setField(s,"sceneGenerationService",generator);ReflectionTestUtils.setField(s,"narrativeContext",context);
         when(repository.findWithStoryById(m.getId())).thenReturn(Optional.of(m));
         org.mockito.Mockito.doThrow(new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"H2_CONTEXT_CHANGED")).when(context).requireStamp(owner,stamp);
         assertThrows(com.ainovel.app.common.ApiStatusException.class,()->s.generateForScene(m.getId(),scene));
-        verify(archive,never()).retain(any(),any(),any(),any());verify(archive,never()).applied(any());verify(repository,never()).saveAndFlush(any());assertEquals("{}",m.getSectionsJson());
+        verify(repository,never()).saveAndFlush(any());assertEquals("{}",m.getSectionsJson());
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();

@@ -17,12 +17,22 @@ import static org.mockito.Mockito.when;
 
 class AdminAuthControllerTest {
     @Test
+    void retiredPasswordlessCompatibilityEndpointReturnsNotFound() throws Exception {
+        var controller = new AdminAuthController(mock(AdminLocalAuthService.class),
+                mock(AdminOperationProofService.class),mock(OpsRecordFileSink.class));
+        org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v1/admin-auth/login/challenge")
+                        .contentType("application/json").content("{}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+    }
+
+    @Test
     void totpUsesSixDigitsAndRejectsMalformedCodes() {
         String secret = "JBSWY3DPEHPK3PXP";
         String code = TotpService.code(secret, 0, 6);
         assertEquals(6, code.length());
-        assertTrue(TotpService.verify(secret, code, 0, -1, 6, 30));
-        assertFalse(TotpService.verify(secret, "12", 0, -1, 6, 30));
+        assertEquals(0, TotpService.matchingTimestep(secret, code, 0, -1, 6, 30));
+        assertEquals(-1, TotpService.matchingTimestep(secret, "12", 0, -1, 6, 30));
     }
 
     @Test

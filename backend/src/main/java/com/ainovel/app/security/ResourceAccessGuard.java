@@ -69,12 +69,6 @@ public class ResourceAccessGuard {
         }
     }
 
-    public void assertAdmin() {
-        if (!isCurrentUserAdmin()) {
-            throw new AccessDeniedException("仅管理员允许访问该资源");
-        }
-    }
-
     public User currentUser(UserDetails details) {
         return currentUserResolver.require(details);
     }
@@ -99,9 +93,4 @@ public class ResourceAccessGuard {
         return manuscript;
     }
 
-    public void requireAdmin(User user) {
-        if (!user.hasRole("ROLE_ADMIN") && !user.hasRole("ADMIN")) {
-            throw new AccessDeniedException("无管理员权限");
-        }
-    }
 }

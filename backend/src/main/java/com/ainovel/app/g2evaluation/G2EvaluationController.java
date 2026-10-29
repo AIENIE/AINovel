@@ -2,7 +2,6 @@ package com.ainovel.app.g2evaluation;
 
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.g2evaluation.dto.G2EvaluationDtos;
-import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

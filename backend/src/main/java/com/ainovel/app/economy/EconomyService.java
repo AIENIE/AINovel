@@ -24,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -913,20 +912,13 @@ public class EconomyService {
         if (remoteUid == null || remoteUid <= 0) {
             return 0L;
         }
-        RuntimeException lastError;
         try {
             return billingGrpcClient.publicBalance(remoteUid);
         } catch (RuntimeException ex) {
-            lastError = ex;
+            log.warn("event=public_balance_fetch_failed remoteUid={} errorType={}",
+                    remoteUid, ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+            throw new ApiStatusException(HttpStatus.SERVICE_UNAVAILABLE, "PUBLIC_BALANCE_UNAVAILABLE");
         }
-
-        long fallback = conversionOrderRepository.findFirstByUserOrderByCreatedAtDesc(user)
-                .map(item -> item.getPublicAfter() > 0 ? item.getPublicAfter() : item.getPublicBefore())
-                .orElse(0L);
-        RuntimeException failure = Objects.requireNonNull(lastError);
-        log.warn("event=public_balance_fetch_failed remoteUid={} fallback={} errorType={}",
-                remoteUid, fallback, failure.getClass().getSimpleName(), SafeLogThrowable.stackOnly(failure));
-        return fallback;
     }
 
     private String normalizeRedeemCode(String code) {

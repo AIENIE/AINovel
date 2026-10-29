@@ -16,8 +16,6 @@ import com.ainovel.app.v2.repo.V2AutoSaveConfigRepository;
 import com.ainovel.app.v2.repo.V2ManuscriptBranchRepository;
 import com.ainovel.app.v2.repo.V2ManuscriptVersionRepository;
 import com.ainovel.app.v2.repo.V2VersionDiffRepository;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +34,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
     private final V2VersionDiffRepository diffRepository;
     private final V2AutoSaveConfigRepository autoSaveRepository;
     private final ManuscriptRepository manuscriptRepository;
-    private final ObjectMapper objectMapper;
+    
     private final V2Json v2Json;
     private final JsonColumnCodec jsonColumnCodec;
     private final ApplicationEventPublisher eventPublisher;
@@ -46,7 +44,6 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
                                        V2VersionDiffRepository diffRepository,
                                        V2AutoSaveConfigRepository autoSaveRepository,
                                        ManuscriptRepository manuscriptRepository,
-                                       ObjectMapper objectMapper,
                                        V2Json v2Json,
                                        JsonColumnCodec jsonColumnCodec,
                                        ApplicationEventPublisher eventPublisher) {
@@ -55,7 +52,7 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         this.diffRepository = diffRepository;
         this.autoSaveRepository = autoSaveRepository;
         this.manuscriptRepository = manuscriptRepository;
-        this.objectMapper = objectMapper;
+        
         this.v2Json = v2Json;
         this.jsonColumnCodec = jsonColumnCodec;
         this.eventPublisher = eventPublisher;
