@@ -96,7 +96,6 @@ app:
   time-zone: Asia/Shanghai
   records:
     dir: ./var/records
-    elasticsearch-query-enabled: false
     max-file-size-bytes: 10485760
     max-history-days: 14
     max-total-size-bytes: 1073741824
@@ -182,12 +181,6 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
-elasticsearch:
-  hosts: ''
-  username: elastic
-  password: ${ELASTICSEARCH_PASSWORD:}
-filebeat:
-  index-prefix: aienie-local-ainovel
 runtime:
   configuration:
     ENV: ''

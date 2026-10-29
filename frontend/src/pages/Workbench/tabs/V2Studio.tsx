@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -143,23 +142,14 @@ const V2Studio = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>Beta Reader</CardTitle>
-              <Badge variant="secondary">{t("common.notImplemented")}</Badge>
-            </div>
+            <CardTitle>{t("v2Studio.analysisJobs")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled title={t("common.notImplemented")}>
-              {t("v2Studio.triggerAnalysis")} · {t("common.notImplemented")}
-            </Button>
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.analysisJobs", async () => {
               ensureStoryId();
               return api.v2.analysis.listJobs(storyId);
             })}>
-              {t("common.taskList")}
-            </Button>
-            <Button size="sm" variant="outline" disabled title={t("common.notImplemented")}>
-              {t("v2Studio.continuityCheck")} · {t("common.notImplemented")}
+              {t("v2Studio.analysisJobs")}
             </Button>
           </CardContent>
         </Card>

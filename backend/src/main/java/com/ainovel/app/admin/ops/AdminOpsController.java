@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.lang.management.ManagementFactory;
@@ -28,24 +27,21 @@ import java.util.Map;
 public class AdminOpsController {
     private final ApiRequestMetrics requestMetrics;
     private final DependencyHealthService dependencyHealthService;
-    private final OpsRecordSearchService recordSearchService;
+    private final String environment;
     private final SettingsService settingsService;
 
     @Value("${app.records.dir:${APP_RECORD_DIR:./var/records}}")
     private String recordDir;
 
-    @Value("${filebeat.index-prefix:${FILEBEAT_INDEX_PREFIX:aienie-local-ainovel}}")
-    private String indexPrefix;
-
     public AdminOpsController(
             ApiRequestMetrics requestMetrics,
             DependencyHealthService dependencyHealthService,
-            OpsRecordSearchService recordSearchService,
-            SettingsService settingsService
+            SettingsService settingsService,
+            @Value("${ENV}") String environment
     ) {
         this.requestMetrics = requestMetrics;
         this.dependencyHealthService = dependencyHealthService;
-        this.recordSearchService = recordSearchService;
+        this.environment = environment;
         this.settingsService = settingsService;
     }
 
@@ -60,8 +56,7 @@ public class AdminOpsController {
         result.put("dependencyTotal", dependencies.size());
         result.put("dependencyIssues", down);
         result.put("maintenanceMode", settingsService.getGlobalSettings().isMaintenanceMode());
-        result.put("es", recordSearchService.status());
-        result.put("logsUrl", recordSearchService.consoleUrl());
+        result.put("logsUrl", consoleUrl());
         result.put("alerts", deriveAlerts(snapshot, dependencies));
         result.put("generatedAt", Instant.now());
         return result;
@@ -71,44 +66,6 @@ public class AdminOpsController {
     @Operation(summary = "外部依赖健康状态")
     public List<Map<String, Object>> dependencies() {
         return dependencyHealthService.checkAll();
-    }
-
-    @GetMapping("/events")
-    @Operation(summary = "查询 AINovel 运维事件记录")
-    public OpsRecordSearchService.SearchResult events(
-            @RequestParam(value = "severity", required = false) String severity,
-            @RequestParam(value = "category", required = false) String category,
-            @RequestParam(value = "from", required = false) Instant from,
-            @RequestParam(value = "to", required = false) Instant to,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
-    ) {
-        return recordSearchService.search(
-                List.of(OpsRecordFileSink.OPS_EVENT_RECORD, OpsRecordFileSink.DEPENDENCY_PROBE_RECORD),
-                severity,
-                category,
-                null,
-                null,
-                null,
-                from,
-                to,
-                page,
-                size
-        );
-    }
-
-    @GetMapping("/audit")
-    @Operation(summary = "查询 AINovel 管理操作审计记录")
-    public OpsRecordSearchService.SearchResult audit(
-            @RequestParam(value = "action", required = false) String action,
-            @RequestParam(value = "actor", required = false) String actor,
-            @RequestParam(value = "targetType", required = false) String targetType,
-            @RequestParam(value = "from", required = false) Instant from,
-            @RequestParam(value = "to", required = false) Instant to,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
-    ) {
-        return recordSearchService.search(OpsRecordFileSink.AUDIT_RECORD, null, "admin", action, actor, targetType, from, to, page, size);
     }
 
     @GetMapping("/alerts")
@@ -125,11 +82,20 @@ public class AdminOpsController {
         result.put("javaVersion", System.getProperty("java.version"));
         result.put("uptimeMs", ManagementFactory.getRuntimeMXBean().getUptime());
         result.put("recordDir", recordDir);
-        result.put("filebeatIndexPrefix", indexPrefix);
-        result.put("logs", recordSearchService.status());
+        result.put("logsUrl", consoleUrl());
         result.put("maintenanceMode", settingsService.getGlobalSettings().isMaintenanceMode());
         result.put("generatedAt", Instant.now());
         return result;
+    }
+
+    private String consoleUrl() {
+        String target = switch (environment) {
+            case "local" -> "develop";
+            case "test" -> "staging";
+            case "production" -> "production";
+            default -> throw new IllegalStateException("Unknown runtime environment");
+        };
+        return "https://control.testhut.top/config-center/logs?component=ai-novel&environment=" + target;
     }
 
     private List<Map<String, Object>> deriveAlerts(ApiRequestMetrics.Snapshot snapshot, List<Map<String, Object>> dependencies) {

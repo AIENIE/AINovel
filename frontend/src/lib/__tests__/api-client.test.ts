@@ -97,218 +97,12 @@ describe("api client", () => {
     await api.stories.deleteCharacter("character-1");
     await api.stories.delete("story-1");
     await api.outlines.delete("outline-1");
-    await api.manuscripts.delete("manuscript-1");
     await api.worlds.delete("world-1");
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     for (const [, init] of fetchMock.mock.calls) {
       expect(init?.method).toBe("DELETE");
     }
-  });
-
-  it("loads AI models from v1 ai-service endpoint only", async () => {
-    const fetchMock = vi.fn(async (url: unknown) => {
-      const u = String(url);
-      if (u.endsWith("/api/v2/models")) {
-        return new Response(
-          JSON.stringify([{ id: "legacy-gpt", modelKey: "gpt-4o", displayName: "GPT-4o" }]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      if (u.endsWith("/api/v1/ai/models")) {
-        return new Response(
-          JSON.stringify([{ id: "deepseek-v4-flash", name: "deepseek-v4-flash", displayName: "DeepSeek V4 Flash", modelType: "text" }]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const models = await api.ai.getModels();
-
-    expect(models).toHaveLength(1);
-    expect(models[0].id).toBe("deepseek-v4-flash");
-    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/api/v2/models"), expect.anything());
-  });
-
-  it("returns the full normalized AI model list from the backend", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: unknown) => {
-        const u = String(url);
-        if (u.endsWith("/api/v1/ai/models")) {
-          return new Response(
-            JSON.stringify([
-              { id: "deepseek-v4-flash", name: "deepseek-v4-flash", displayName: "DeepSeek V4 Flash", modelType: "text" },
-              { id: "text-premium", name: "text-premium", displayName: "Text Premium", modelType: "text", inputMultiplier: 2, outputMultiplier: 3 },
-              { id: "embed-1", name: "embed-1", displayName: "Embed 1", modelType: "embedding" },
-            ]),
-            { status: 200, headers: { "content-type": "application/json" } },
-          );
-        }
-        return new Response("Not Found", { status: 404 });
-      }),
-    );
-
-    const models = await api.ai.getModels();
-
-    expect(models.map((model) => model.id)).toEqual(["deepseek-v4-flash", "text-premium", "embed-1"]);
-    expect(models[1]).toMatchObject({
-      id: "text-premium",
-      inputMultiplier: 2,
-      outputMultiplier: 3,
-    });
-  });
-
-  it("returns an empty AI model list when the backend model endpoint fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: unknown) => {
-        const u = String(url);
-        if (u.endsWith("/api/v1/ai/models")) {
-          return new Response(JSON.stringify({ message: "temporary failure" }), {
-            status: 503,
-            headers: { "content-type": "application/json" },
-          });
-        }
-        return new Response("Not Found", { status: 404 });
-      }),
-    );
-
-    await expect(api.ai.getModels()).resolves.toEqual([]);
-  });
-
-  it("preserves the caller-selected model for ai chat", async () => {
-    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith("/api/v1/ai/chat")) {
-        return new Response(
-          JSON.stringify({
-            role: "assistant",
-            content: "ok",
-            usage: { promptTokens: 1, completionTokens: 1, cost: 0 },
-            remainingCredits: 100,
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await api.ai.chat([{ role: "user", content: "继续写" }], "text-premium", { manuscriptId: "m-1" });
-
-    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/v1/ai/chat"));
-    expect(request).toBeTruthy();
-    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
-      modelId: "text-premium",
-      context: { manuscriptId: "m-1" },
-      messages: [{ role: "user", content: "继续写" }],
-    });
-  });
-
-  it("preserves the caller-selected model for ai refine", async () => {
-    const fetchMock = vi.fn(async (url: unknown) => {
-      const u = String(url);
-      if (u.endsWith("/api/v1/ai/refine")) {
-        return new Response(
-          JSON.stringify({
-            result: "润色结果",
-            usage: { promptTokens: 1, completionTokens: 1, cost: 0 },
-            remainingCredits: 100,
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await api.ai.refine("原文", "更有张力", "text-premium");
-
-    const request = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/v1/ai/refine"));
-    expect(request).toBeTruthy();
-    const requestInit = request?.at(1) as RequestInit | undefined;
-    expect(JSON.parse(String(requestInit?.body))).toEqual({
-      text: "原文",
-      instruction: "更有张力",
-      modelId: "text-premium",
-    });
-  });
-
-  it("normalizes conception planning payload for plot planner flow", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: unknown) => {
-        const u = String(url);
-        if (u.endsWith("/api/v1/conception")) {
-          return new Response(
-            JSON.stringify({
-              storyCard: {
-                id: "story-1",
-                title: "雾港迷局",
-                synopsis: "一个失忆调查员发现自己在追查的目标可能就是未来的自己。",
-                genre: "mystery",
-                tone: "dark",
-                status: "draft",
-                updatedAt: "2026-04-10T00:00:00Z",
-              },
-              generatedAt: "2026-04-10T00:00:00Z",
-              generated: {
-                skeleton: {
-                  corePromise: "追查越深入，越发现真相指向主角自己。",
-                  centralQuestion: "主角究竟在追谁？",
-                  hiddenTruth: "目标其实是另一时间线的自己。",
-                  readerExpectation: "读者会先以为幕后黑手是外部组织。",
-                },
-                twistOptions: [
-                  {
-                    id: "twist-intuition",
-                    label: "保留灵感版",
-                    summary: "维持强直觉反转",
-                    setupPoints: ["异常口供", "伪造监控"],
-                    misdirectionPoints: ["组织阴谋", "可信证人"],
-                    revealTiming: "高潮节点",
-                    earlyRevealRisk: "线索过于集中会被看穿",
-                    payoff: "前文违和感统一回收",
-                  },
-                ],
-                foreshadowSeeds: [
-                  {
-                    entryKey: "foreshadow-signal",
-                    setup: "案发现场的熟悉感",
-                    coverLayer: "被当成职业直觉",
-                    payoff: "最终证明来自时间错位记忆",
-                  },
-                ],
-                memeStrategy: {
-                  sourceDomain: "悬疑黑色幽默梗",
-                  useCase: "缓冲压抑氛围",
-                  naturalVersion: "只在配角对话里轻描淡写提及",
-                  conservativeVersion: "压成彩蛋",
-                  immersionRisk: "太频繁会让沉浸感断裂",
-                },
-                outlineSuggestion: {
-                  title: "剧情骨架方案",
-                  planning: { selectedTwistId: "twist-intuition" },
-                  chapters: [],
-                },
-              },
-            }),
-            { status: 200, headers: { "content-type": "application/json" } },
-          );
-        }
-        return new Response("Not Found", { status: 404 });
-      }),
-    );
-
-    const result = await api.stories.conception({ title: "雾港迷局", synopsis: "核心创意", genre: "mystery", tone: "dark" });
-    expect(result.storyCard?.id).toBe("story-1");
-    expect(result.plotPlanning?.corePromise).toContain("追查越深入");
-    expect(result.plotPlanning?.twistOptions[0]?.setup).toEqual(["异常口供", "伪造监控"]);
-    expect(result.plotPlanning?.foreshadowPlans[0]?.clue).toContain("案发现场");
-    expect(result.plotPlanning?.selectedTwistId).toBe("twist-intuition");
   });
 
   it("normalizes raw async conception results before they are cached for the workbench", () => {
@@ -328,41 +122,6 @@ describe("api client", () => {
     expect(result.plotPlanning?.twistOptions).toHaveLength(1);
     expect(result.plotPlanning?.foreshadowPlans).toHaveLength(1);
     expect(result.outlineSeed).toMatchObject({ title: "剧情骨架方案", chapters: [] });
-  });
-
-  it("keeps material search as chunk-level results without detail fetches", async () => {
-    const fetchMock = vi.fn(async (url: unknown) => {
-      const u = String(url);
-      if (u.endsWith("/api/v1/materials/search")) {
-        return new Response(
-          JSON.stringify([
-            {
-              materialId: "m1",
-              chunkId: "m1-0",
-              title: "旧报纸摘录",
-              snippet: "陆家码头在雨夜停用，船灯在雾里闪了三次。",
-              score: 4.4,
-              chunkSeq: 0,
-              source: "keyword",
-              matchReasons: ["title", "content"],
-            },
-          ]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const results = await api.materials.search("陆家码头");
-
-    expect(results[0]).toMatchObject({
-      materialId: "m1",
-      chunkId: "m1-0",
-      source: "keyword",
-      matchReasons: ["title", "content"],
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws typed user auth errors and redirects to login on 401", async () => {
@@ -463,36 +222,6 @@ describe("api client", () => {
     expect((requests[2].init?.headers as Headers).get("X-Admin-Operation-Proof")).toBe("one-use-proof");
   });
 
-  it("loads pending materials with GET semantics", async () => {
-    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
-      const u = String(url);
-      if (u.endsWith("/api/v1/materials/review/pending")) {
-        expect(init?.method).toBe("GET");
-        return new Response(
-          JSON.stringify([
-            {
-              id: "m-pending",
-              title: "待审素材",
-              type: "text",
-              content: "待审核正文",
-              tags: ["pending"],
-              status: "pending",
-            },
-          ]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const materials = await api.materials.getPending();
-
-    expect(materials).toHaveLength(1);
-    expect(materials[0].status).toBe("pending");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
   it("normalizes plot quality runs and trend payloads", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);
@@ -550,9 +279,9 @@ describe("api client", () => {
   it("normalizes manual slop diagnosis payloads", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);
-      if (u.endsWith("/api/v2/manuscripts/m1/scenes/s1/quality-runs")) {
+      if (u.endsWith("/api/v2/manuscripts/m1/quality-runs?sceneId=s1")) {
         return new Response(
-          JSON.stringify({
+          JSON.stringify([{
             id: "slop-run-1",
             storyId: "story-1",
             manuscriptId: "m1",
@@ -587,7 +316,7 @@ describe("api client", () => {
                 repairHint: "换成具体动作",
               },
             ],
-          }),
+          }]),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
@@ -595,7 +324,7 @@ describe("api client", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const run = await api.v2.quality.analyzeScene("m1", "s1");
+    const [run] = await api.v2.quality.listRuns("m1", "s1");
 
     expect(run.evidenceLevel).toBe("E2");
     expect(run.moduleScores.surface_template).toEqual({ score: 78 });
@@ -610,7 +339,7 @@ describe("api client", () => {
       const u = String(url);
       if (u.endsWith("/api/v2/manuscripts/m1/slop-drift-runs")) {
         return new Response(
-          JSON.stringify({
+          JSON.stringify([{
             id: "drift-run-1",
             storyId: "story-1",
             manuscriptId: "m1",
@@ -629,7 +358,7 @@ describe("api client", () => {
             alternativeExplanationsJson: "[\"赶稿\"]",
             rewriteTasksJson: "[{\"task_id\":\"D1\",\"problem\":\"后段事件传送带\"}]",
             createdAt: "2026-06-17T00:00:00Z",
-          }),
+          }]),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
@@ -637,7 +366,7 @@ describe("api client", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const run = await api.v2.slopDrift.analyze("m1");
+    const [run] = await api.v2.slopDrift.listRuns("m1");
 
     expect(run.riskLabel).toBe("high");
     expect(run.windowSummaries[0]).toEqual({ label: "opening", summary: "开头具体" });
@@ -646,55 +375,6 @@ describe("api client", () => {
     expect(run.evidenceItems[0].module).toBe("breath_focus_pacing");
     expect(run.alternativeExplanations).toEqual(["赶稿"]);
     expect(run.rewriteTasks[0].task_id).toBe("D1");
-  });
-
-  it("exposes material duplicate and citation API contracts", async () => {
-    const fetchMock = vi.fn(async (url: unknown) => {
-      const u = String(url);
-      if (u.endsWith("/api/v1/materials/find-duplicates")) {
-        return new Response(
-          JSON.stringify([
-            {
-              sourceMaterialId: "m1",
-              targetMaterialId: "m2",
-              sourceTitle: "陆家码头旧报",
-              targetTitle: "陆家码头档案",
-              score: 0.82,
-              reasons: ["title", "tags"],
-            },
-          ]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      if (u.endsWith("/api/v1/materials/m1/citations")) {
-        return new Response(
-          JSON.stringify([
-            {
-              materialId: "m1",
-              storyId: "s1",
-              storyTitle: "雨港迷案",
-              manuscriptId: "ms1",
-              sceneId: "scene1",
-              chapterTitle: "第一章",
-              sceneTitle: "旧码头",
-              snippet: "陆家码头的雨夜发现旧报。",
-              reason: "tag:陆家码头",
-            },
-          ]),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const duplicates = await api.materials.findDuplicates();
-    const citations = await api.materials.getCitations("m1");
-
-    expect(duplicates[0].score).toBe(0.82);
-    expect(duplicates[0].reasons).toEqual(["title", "tags"]);
-    expect(citations[0].sceneTitle).toBe("旧码头");
-    expect(citations[0].snippet).toContain("陆家码头");
   });
 
   it("exposes prompt reset and metadata API contracts", async () => {
@@ -784,27 +464,6 @@ describe("api client", () => {
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/credits/ledger?page=3&size=25"))).toBe(true);
   });
 
-  it("uses only the admin cookie for v2 model routing even when a user bearer exists", async () => {
-    localStorage.setItem("token", "ordinary-user-bearer");
-    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
-      const headers = init?.headers as Headers;
-      expect(headers.get("Authorization")).toBeNull();
-      expect(init?.credentials).toBe("same-origin");
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await api.v2.models.listRouting();
-    await api.v2.models.updateRouting("draft_generation", { routingStrategy: "fixed" });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/v2/admin/model-routing");
-    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/v2/admin/model-routing/draft_generation");
-  });
-
   it("passes admin ops observability requests through the API wrapper", async () => {
     const requestedUrls: string[] = [];
     const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
@@ -818,37 +477,13 @@ describe("api client", () => {
 
     await api.admin.getOpsSummary();
     await api.admin.listDependencies();
-    await api.admin.listOpsEvents({ severity: "WARN", category: "dependency", page: 2, size: 10 });
-    await api.admin.listAuditRecords({ action: "maintenance.update", actor: "admin", targetType: "system-config" });
     await api.admin.listOpsAlerts();
     await api.admin.getOpsDiagnostics();
 
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/summary"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/dependencies"))).toBe(true);
-    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/events?severity=WARN&category=dependency&page=2&size=10"))).toBe(true);
-    expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/audit?action=maintenance.update&actor=admin&targetType=system-config"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/alerts"))).toBe(true);
     expect(requestedUrls.some((url) => url.endsWith("/api/v1/admin/ops/diagnostics"))).toBe(true);
-  });
-
-  it("passes the selected manuscript generation mode through the API wrapper", async () => {
-    const fetchMock = vi.fn(async (url: unknown) => {
-      if (String(url).endsWith("/api/v1/manuscripts/m1/scenes/s1/generate?mode=crafted")) {
-        return new Response(
-          JSON.stringify({ id: "m1", outlineId: "o1", title: "正文稿", sections: {}, version: 0, updatedAt: "2026-07-14T00:00:00Z" }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        );
-      }
-      return new Response("Not Found", { status: 404 });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await api.manuscripts.generateScene("m1", "s1", "crafted");
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/manuscripts/m1/scenes/s1/generate?mode=crafted",
-      expect.objectContaining({ method: "POST" }),
-    );
   });
 
   it("uses the durable guided creation workflow endpoints", async () => {

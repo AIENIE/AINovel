@@ -99,9 +99,6 @@
     "APP_RECORD_DIR": [
       "app.records.dir"
     ],
-    "APP_RECORD_ES_QUERY_ENABLED": [
-      "app.records.elasticsearch-query-enabled"
-    ],
     "APP_RECORD_MAX_FILE_SIZE_BYTES": [
       "app.records.max-file-size-bytes"
     ],
@@ -287,18 +284,6 @@
     ],
     "SPRINGDOC_SWAGGER_UI_ENABLED": [
       "springdoc.swagger-ui.enabled"
-    ],
-    "ELASTICSEARCH_HOSTS": [
-      "elasticsearch.hosts"
-    ],
-    "ELASTICSEARCH_USERNAME": [
-      "elasticsearch.username"
-    ],
-    "ELASTICSEARCH_PASSWORD": [
-      "elasticsearch.password"
-    ],
-    "FILEBEAT_INDEX_PREFIX": [
-      "filebeat.index-prefix"
     ],
     "ENV": [
       "runtime.configuration.ENV"

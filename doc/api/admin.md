@@ -99,23 +99,19 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 ## 运维观测
 
 - `GET /api/v1/admin/ops/summary`
-  - 返回当前请求指标、依赖异常数量、维护模式、ES 查询状态和派生告警。
+  - 返回当前请求指标、依赖异常数量、维护模式、中央日志入口和派生告警。
 - `GET /api/v1/admin/ops/dependencies`
   - 实时探测 DB、Redis、Qdrant、user-service HTTP/gRPC、ai-service gRPC、pay-service gRPC。
   - 只返回脱敏 endpoint、状态、延迟和摘要消息。
-- `GET /api/v1/admin/ops/events?severity=WARN&category=dependency&page=0&size=20`
-  - 从 AINovel ES 索引查询 `recordType=ainovel_ops_event` 与 `recordType=ainovel_dependency_probe`。
-  - ES 未配置或不可用时返回 `available=false`，不影响业务运行。
-- `GET /api/v1/admin/ops/audit?action=maintenance.update&actor=admin&targetType=system-config&page=0&size=20`
-  - 从 AINovel ES 索引查询 `recordType=ainovel_admin_audit`。
+- 旧 `/events` 和 `/audit` ES 查询入口已退役，返回 HTTP 404；独立审计记录继续写入。
 - `GET /api/v1/admin/ops/alerts`
   - 返回只读派生告警，不提供确认、忽略或关闭。
 - `GET /api/v1/admin/ops/diagnostics`
-  - 返回脱敏运行诊断：记录目录、索引前缀、ES 查询状态、Java 版本、运行时长、维护模式。
+  - 返回脱敏运行诊断：记录目录、中央日志入口、Java 版本、运行时长、维护模式。
 
 ### 运维观测边界
 
-- 只查询 `FILEBEAT_INDEX_PREFIX` 对应的 AINovel 索引，默认 `aienie-local-ainovel-*`。
+- 运维页面通过中央日志入口查看 Loki 日志；独立运维和审计记录保留现行落盘策略。
 - 不提供 user-service 的 SMTP/SMS/SSO 配置管理。
 - 不提供 ai-service 的模型池、API Key、调用方密钥、成本报表或全局告警管理。
 - 不提供 pay-service 的签到、充值、通用账务、额度或全局告警管理。

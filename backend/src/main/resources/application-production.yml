@@ -43,7 +43,6 @@ app:
   admin-auth:
     trusted-origins: https://ainovel.seekerhut.com
   records:
-    elasticsearch-query-enabled: false
     dir: /app/records
 sso:
   session-validation:

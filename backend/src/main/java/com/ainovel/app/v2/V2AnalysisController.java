@@ -4,14 +4,11 @@ import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "V2", description = "AINovel v2 and quality APIs")
@@ -24,32 +21,6 @@ public class V2AnalysisController {
     public V2AnalysisController(ResourceAccessGuard accessGuard, V2AnalysisPersistenceService persistenceService) {
         this.accessGuard = accessGuard;
         this.persistenceService = persistenceService;
-    }
-
-    @Operation(summary = "v2 API endpoint")
-
-    @PostMapping("/stories/{storyId}/analysis/beta-reader")
-    public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerBetaReader(
-            @AuthenticationPrincipal UserDetails principal,
-            @PathVariable UUID storyId,
-            @RequestBody(required = false) V2RequestPayload payload) {
-        User user = accessGuard.currentUser(principal);
-        accessGuard.requireOwnedStory(storyId, user);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(V2AnalysisDtos.AnalysisUnavailableResponse.notImplemented());
-    }
-
-    @Operation(summary = "v2 API endpoint")
-
-    @PostMapping("/stories/{storyId}/analysis/continuity-check")
-    public ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> triggerContinuityCheck(
-            @AuthenticationPrincipal UserDetails principal,
-            @PathVariable UUID storyId,
-            @RequestBody(required = false) V2RequestPayload payload) {
-        User user = accessGuard.currentUser(principal);
-        accessGuard.requireOwnedStory(storyId, user);
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-                .body(V2AnalysisDtos.AnalysisUnavailableResponse.notImplemented());
     }
 
     @Operation(summary = "v2 API endpoint")
