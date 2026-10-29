@@ -266,7 +266,7 @@ class OutlineServiceTest {
         outline.setStory(story);
         outline.setTitle("旧大纲");
         outline.setWorldId("world-1");
-        outline.setContentJson(jsonColumnCodec.write(content, "{}"));
+        outline.setContentJson(jsonColumnCodec.writeRequired(content));
         return outline;
     }
 

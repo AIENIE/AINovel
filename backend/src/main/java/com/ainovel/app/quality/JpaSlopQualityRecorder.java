@@ -94,6 +94,6 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
+        return jsonColumnCodec.writeRequired(value);
     }
 }

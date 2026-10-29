@@ -330,7 +330,7 @@ const AnalysisDashboard = () => {
             {selectedDriftRun ? (
               <div className="flex flex-wrap gap-2">
                 <Badge>{selectedDriftRun.status}</Badge>
-                <Badge variant="outline">{t("analysis.riskScore", { score: selectedDriftRun.overallRiskScore })}</Badge>
+                <Badge variant="outline">{t("analysis.riskScore", { score: selectedDriftRun.overallRiskScore ?? "-" })}</Badge>
                 <Badge variant="outline">{t("analysis.windows", { count: selectedDriftRun.windowCount })}</Badge>
                 <Badge variant="outline">{t("analysis.charCount", { count: Number(selectedDriftRun.totalCharacters) })}</Badge>
               </div>

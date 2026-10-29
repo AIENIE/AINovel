@@ -160,9 +160,9 @@ public class GuidedCreationJobService {
         job.setOutputTokensEstimated(true);
         job.setAttemptCount(0);
         job.setIdempotencyKey(idempotencyKey);
-        job.setPayloadJson(codec.write(payload, "{}"));
+        job.setPayloadJson(codec.writeRequired(payload));
         var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
-        job.setModelSelectionsJson(selection==null?run.getModelSelectionsJson():codec.write(selection,"null"));
+        job.setModelSelectionsJson(selection==null?run.getModelSelectionsJson():codec.writeRequired(selection));
         if(selection!=null)run.setModelSelectionsJson(job.getModelSelectionsJson());
         job = jobRepository.save(job);
 
@@ -262,7 +262,7 @@ public class GuidedCreationJobService {
 
         job.setStatus(AsyncJobStatus.SUCCEEDED);
         job.setProgress(100);
-        job.setResultJson(codec.write(result.stepData(), "{}"));
+        job.setResultJson(codec.writeRequired(result.stepData()));
         job.setErrorMessage(null);
         job.setChargedCredits(result.chargedCredits());
         job.setRemainingCredits(result.remainingCredits());

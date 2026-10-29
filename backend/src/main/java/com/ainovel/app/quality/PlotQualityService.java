@@ -95,8 +95,6 @@ public class PlotQualityService {
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             PlotQualityRun degraded = newBaseRun(request);
             degraded.setStatus(PlotQualityStatus.DEGRADED);
-            degraded.setMaxSeverity(PlotQualitySeverity.MEDIUM);
-            degraded.setOverallRiskScore(45);
             degraded.setSummary("剧情质量诊断失败，已降级记录：" + truncate(ex.getMessage(), 180));
             degraded.setRewritePlanJson("[]");
             degraded.setSurgicalFixesJson("[]");
@@ -141,11 +139,12 @@ public class PlotQualityService {
             latestByScene.putIfAbsent(run.getSceneId(), run);
         }
         List<PlotQualityRun> latest = latestByScene.values().stream()
+                .filter(run -> run.getStatus() != PlotQualityStatus.DEGRADED)
                 .sorted(Comparator.comparingInt(PlotQualityRun::getChapterOrder)
                         .thenComparingInt(PlotQualityRun::getSceneOrder)
                         .thenComparing(PlotQualityRun::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
-        double average = latest.stream().mapToInt(PlotQualityRun::getOverallRiskScore).average().orElse(0d);
+        var average = latest.stream().mapToInt(PlotQualityRun::getOverallRiskScore).average();
         int highRisk = (int) latest.stream()
                 .filter(run -> run.getOverallRiskScore() >= 70 || run.getMaxSeverity() == PlotQualitySeverity.HIGH || run.getMaxSeverity() == PlotQualitySeverity.BLOCKING)
                 .count();
@@ -165,7 +164,8 @@ public class PlotQualityService {
                         run.getStatus().name()
                 ))
                 .toList();
-        return new PlotQualityTrend(manuscriptId, Math.round(average * 1000d) / 1000d, highRisk, dimensionCounts, points);
+        return new PlotQualityTrend(manuscriptId, average.isPresent() ? Math.round(average.getAsDouble() * 1000d) / 1000d : null,
+                highRisk, dimensionCounts, points);
     }
 
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
@@ -258,8 +258,8 @@ public class PlotQualityService {
 
     private PlotQualityRun toRun(PlotQualityRequest request, Map<String, Object> root, boolean degraded) {
         PlotQualityRun run = newBaseRun(request);
-        int risk = intVal(root.get("risk_score"), 0);
-        PlotQualitySeverity maxSeverity = severity(root.get("max_severity"), risk >= 70 ? PlotQualitySeverity.HIGH : PlotQualitySeverity.LOW);
+        int risk = requireRisk(root.get("risk_score"));
+        PlotQualitySeverity maxSeverity = PlotQualitySeverity.valueOf(str(root.get("max_severity"), ""));
         run.setOverallRiskScore(risk);
         run.setMaxSeverity(maxSeverity);
         run.setStatus(risk >= 70 || maxSeverity == PlotQualitySeverity.HIGH || maxSeverity == PlotQualitySeverity.BLOCKING
@@ -317,9 +317,9 @@ public class PlotQualityService {
                 continue;
             }
             PlotQualityIssue issue = new PlotQualityIssue();
-            issue.setDimension(dimension(raw.get("dimension")));
-            issue.setSeverity(severity(raw.get("severity"), PlotQualitySeverity.MEDIUM));
-            issue.setRiskScore(intVal(raw.get("risk_score"), 50));
+            issue.setDimension(PlotQualityDimension.valueOf(str(raw.get("dimension"), "")));
+            issue.setSeverity(PlotQualitySeverity.valueOf(str(raw.get("severity"), "")));
+            issue.setRiskScore(requireRisk(raw.get("risk_score")));
             issue.setEvidence(truncate(str(raw.get("evidence"), ""), 800));
             issue.setWhyItMatters(truncate(str(raw.get("why_it_matters"), ""), 800));
             issue.setMinimalFix(truncate(str(raw.get("minimal_fix"), ""), 800));
@@ -565,7 +565,7 @@ public class PlotQualityService {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
+        return jsonColumnCodec.writeRequired(value);
     }
 
     private String stripHtml(String html) {
@@ -596,8 +596,8 @@ public class PlotQualityService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            return null;
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 
@@ -612,20 +612,10 @@ public class PlotQualityService {
         }
     }
 
-    private PlotQualityDimension dimension(Object value) {
-        try {
-            return PlotQualityDimension.valueOf(str(value, "CAUSALITY"));
-        } catch (Exception ex) {
-            return PlotQualityDimension.CAUSALITY;
-        }
-    }
-
-    private PlotQualitySeverity severity(Object value, PlotQualitySeverity fallback) {
-        try {
-            return PlotQualitySeverity.valueOf(str(value, fallback.name()));
-        } catch (Exception ex) {
-            return fallback;
-        }
+    private int requireRisk(Object value) {
+        if (!(value instanceof Number n) || n.doubleValue() != n.intValue() || n.intValue() < 0 || n.intValue() > 100)
+            throw new IllegalArgumentException("PLOT_INVALID_RISK_SCORE");
+        return n.intValue();
     }
 
     private int intVal(Object value, int fallback) {

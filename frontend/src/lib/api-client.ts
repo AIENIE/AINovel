@@ -622,14 +622,14 @@ function toSlopQualityRun(dto: NetworkObject): SlopQualityRun {
     storyId: String(dto.storyId),
     manuscriptId: String(dto.manuscriptId),
     sceneId: String(dto.sceneId),
-    status: String(dto.status || "ACCEPTED"),
-    maxSeverity: String(dto.maxSeverity || "LOW"),
-    overallRiskScore: Number(dto.overallRiskScore || 0),
+    status: z.enum(["ACCEPTED", "REVISED", "ACCEPTED_WITH_ISSUES", "DEGRADED"]).parse(dto.status),
+    maxSeverity: z.enum(["LOW", "MEDIUM", "HIGH", "BLOCKING"]).nullable().parse(dto.maxSeverity),
+    overallRiskScore: z.number().min(0).max(100).nullable().parse(dto.overallRiskScore),
     revised: Boolean(dto.revised),
     revisionCount: Number(dto.revisionCount || 0),
     summary: dto.summary || undefined,
     analysisMode: dto.analysisMode || undefined,
-    riskLabel: dto.riskLabel || undefined,
+    riskLabel: dto.riskLabel ?? null,
     evidenceLevel: dto.evidenceLevel || undefined,
     safeClaim: dto.safeClaim || undefined,
     moduleScores: parseJsonObject(dto.moduleScoresJson ?? dto.moduleScores),
@@ -665,9 +665,9 @@ function toSlopDriftRun(dto: NetworkObject): SlopDriftRun {
     id: String(dto.id),
     storyId: String(dto.storyId),
     manuscriptId: String(dto.manuscriptId),
-    status: String(dto.status || "COMPLETED"),
-    overallRiskScore: Number(dto.overallRiskScore || 0),
-    riskLabel: dto.riskLabel || undefined,
+    status: z.enum(["COMPLETED", "INSUFFICIENT_TEXT", "DEGRADED"]).parse(dto.status),
+    overallRiskScore: z.number().min(0).max(100).nullable().parse(dto.overallRiskScore),
+    riskLabel: dto.riskLabel ?? null,
     safeClaim: dto.safeClaim || undefined,
     summary: dto.summary || undefined,
     totalCharacters: Number(dto.totalCharacters || 0),
@@ -689,33 +689,28 @@ function parseJsonValue(value: unknown): unknown {
   try {
     return JSON.parse(value);
   } catch {
-    return undefined;
+    throw new ApiError(502, "STORED_DATA_INVALID");
   }
 }
 
 function parseJsonObject(value: unknown): Record<string, unknown> {
   const parsed = parseJsonValue(value);
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  if (parsed === undefined || parsed === null) return {};
+  return networkObjectSchema.parse(parsed);
 }
 
 function parseJsonList<T = NetworkObject>(value: unknown): T[] {
   const parsed = parseJsonValue(value);
-  return Array.isArray(parsed) ? parsed as T[] : [];
+  if (parsed === undefined || parsed === null) return [];
+  return z.array(z.unknown()).parse(parsed) as T[];
 }
 
 function parseStringArray(value: unknown): string[] {
-  return parseJsonList(value).map((item) => String(item));
+  return z.array(z.string()).parse(parseJsonList(value));
 }
 
 function parseJsonArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item));
-  if (typeof value !== "string" || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
-  } catch {
-    return [];
-  }
+  return parseStringArray(value);
 }
 
 function toPlotQualityRun(dto: NetworkObject): PlotQualityRun {
@@ -728,9 +723,9 @@ function toPlotQualityRun(dto: NetworkObject): PlotQualityRun {
     sceneTitle: dto.sceneTitle || undefined,
     chapterOrder: Number(dto.chapterOrder || 0),
     sceneOrder: Number(dto.sceneOrder || 0),
-    status: String(dto.status || "ACCEPTED"),
-    maxSeverity: String(dto.maxSeverity || "LOW"),
-    overallRiskScore: Number(dto.overallRiskScore || 0),
+    status: z.enum(["ACCEPTED", "REVISED", "ACCEPTED_WITH_ISSUES", "DEGRADED"]).parse(dto.status),
+    maxSeverity: z.enum(["LOW", "MEDIUM", "HIGH", "BLOCKING"]).nullable().parse(dto.maxSeverity),
+    overallRiskScore: z.number().min(0).max(100).nullable().parse(dto.overallRiskScore),
     summary: dto.summary || undefined,
     rewritePlan: parseJsonArray(dto.rewritePlanJson ?? dto.rewritePlan),
     surgicalFixes: parseJsonArray(dto.surgicalFixesJson ?? dto.surgicalFixes),
@@ -755,7 +750,7 @@ function toPlotQualityRun(dto: NetworkObject): PlotQualityRun {
 function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
   return {
     manuscriptId: String(dto.manuscriptId || ""),
-    averageRisk: Number(dto.averageRisk || 0),
+    averageRisk: z.number().min(0).max(100).nullable().parse(dto.averageRisk),
     highRiskScenes: Number(dto.highRiskScenes || 0),
     dimensionCounts: Object.fromEntries(
       Object.entries(dto.dimensionCounts || {}).map(([key, value]) => [key, Number(value || 0)])

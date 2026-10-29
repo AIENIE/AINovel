@@ -8,7 +8,7 @@ public record SlopDriftRunDto(
         UUID storyId,
         UUID manuscriptId,
         String status,
-        int overallRiskScore,
+        Integer overallRiskScore,
         String riskLabel,
         String safeClaim,
         String summary,

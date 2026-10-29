@@ -15,7 +15,7 @@ public record PlotQualityRunDto(
         int sceneOrder,
         String status,
         String maxSeverity,
-        int overallRiskScore,
+        Integer overallRiskScore,
         String summary,
         String rewritePlanJson,
         String surgicalFixesJson,

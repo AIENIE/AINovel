@@ -5,6 +5,12 @@
 - 长篇 drift 基础路径：`/api/v2/manuscripts/{manuscriptId}/slop-drift-runs`
 - 剧情质量基础路径：`/api/v2/manuscripts/{manuscriptId}/plot-quality-runs`
 
+## 评分空值与读取失败
+
+Slop、剧情诊断的 `overallRiskScore` / `maxSeverity` 以及 drift 的 `overallRiskScore` / `riskLabel` 在失败或未完成时返回 `null`。Slop 新报告的 coverage 必须为 COMPLETE 才提供评分；drift 仅 COMPLETED 提供评分。数据库历史占位值保留，由状态判定，客户端不得将空值转成零分或 LOW。
+
+剧情趋势先取每个场景最新记录，再排除 DEGRADED；不会用旧成功记录替代最新失败记录。没有有效结果时 `averageRisk: null`，points 为空。可选历史 JSON 字段未填写仍可读取；非空 JSON 损坏或结构不符时报错，不返回正常空数据。失败不会覆盖正文。
+
 ## 语言自然度检查与逐项修订（zh-naturalness-v3）
 
 新增接口与原 Slop、drift、剧情接口并存，使用同一稿件所有权和 `AiOperation` 任务机制。旧请求/报告结构保持兼容；旧报告没有可信的分支/正文来源，不回填伪造来源，界面仅展示历史结论，不作为当前正文通过的证明。
@@ -111,8 +117,8 @@ V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史�
 
 返回项包含：
 - `status`：`COMPLETED` / `INSUFFICIENT_TEXT` / `DEGRADED`。
-- `overallRiskScore`：0-100 长篇 drift 风险分。
-- `riskLabel`：`low` / `medium` / `high` / `critical` / `unavailable`。
+- `overallRiskScore`：0-100 长篇 drift 风险分，未完成或失败为 `null`。
+- `riskLabel`：`low` / `medium` / `high` / `critical`；未完成或失败为 `null`。
 - `safeClaim`：安全结论，只评价文本中后段模板化、角色漂移、事件传送带、伏笔遗忘和叙事机制断层风险。
 - `totalCharacters` / `windowCount`：本次参与分析的正文字符数和窗口数。
 - `windowSummariesJson`：窗口观察摘要。

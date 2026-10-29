@@ -311,6 +311,6 @@ public class OutlineService {
     }
 
     private String writeJson(Object obj) {
-        return jsonColumnCodec.write(obj, "{}");
+        return jsonColumnCodec.writeRequired(obj);
     }
 }

@@ -61,18 +61,6 @@ public class JsonColumnCodec {
         if (json == null || json.isBlank()) {
             return fallback;
         }
-        try {
-            return objectMapper.readValue(json, type);
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    public String write(Object value, String fallback) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return fallback;
-        }
+        return readRequired(json, type);
     }
 }

@@ -10,19 +10,22 @@ public final class SlopQualityMapper {
     }
 
     public static SlopQualityRunDto toDto(SlopQualityRun run) {
+        var review = SlopEvidence.view(run.getReviewContextJson());
+        boolean assessed = run.getStatus() != SlopQualityStatus.DEGRADED
+                && (review == null || "COMPLETE".equals(review.coverage()));
         return new SlopQualityRunDto(
                 run.getId(),
                 run.getStoryId(),
                 run.getManuscriptId(),
                 run.getSceneId(),
                 run.getStatus().name(),
-                run.getMaxSeverity().name(),
-                run.getOverallRiskScore(),
+                assessed ? run.getMaxSeverity().name() : null,
+                assessed ? run.getOverallRiskScore() : null,
                 run.isRevised(),
                 run.getRevisionCount(),
                 run.getSummary(),
                 run.getAnalysisMode(),
-                run.getRiskLabel(),
+                assessed ? run.getRiskLabel() : null,
                 run.getEvidenceLevel(),
                 run.getSafeClaim(),
                 run.getModuleScoresJson(),
@@ -31,7 +34,7 @@ public final class SlopQualityMapper {
                 run.getRewriteTasksJson(),
                 run.getCreatedAt(),
                 run.getIssues().stream().map(SlopQualityMapper::toIssueDto).toList(),
-                SlopEvidence.view(run.getReviewContextJson())
+                review
         );
     }
 

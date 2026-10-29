@@ -386,7 +386,7 @@ public class StyleService {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value == null ? Map.of() : value, "{}");
+        return jsonColumnCodec.writeRequired(value == null ? Map.of() : value);
     }
 
     private Object readJson(String json, Object fallback) {

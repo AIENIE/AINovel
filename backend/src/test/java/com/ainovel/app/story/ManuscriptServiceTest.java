@@ -372,7 +372,7 @@ class ManuscriptServiceTest {
         manuscript.setOutline(outline);
         manuscript.setTitle("第一稿");
         manuscript.setWorldId("world-1");
-        manuscript.setSectionsJson(jsonColumnCodec.write(sections, "{}"));
+        manuscript.setSectionsJson(jsonColumnCodec.writeRequired(sections));
         manuscript.setCharacterLogsJson("[]");
         return manuscript;
     }
@@ -383,10 +383,10 @@ class ManuscriptServiceTest {
         outline.setStory(story);
         outline.setTitle("案件大纲");
         outline.setWorldId("world-1");
-        outline.setContentJson(jsonColumnCodec.write(Map.of(
+        outline.setContentJson(jsonColumnCodec.writeRequired(Map.of(
                 "planning", Map.of("mystery", "副将复活"),
                 "chapters", chapters
-        ), "{}"));
+        )));
         return outline;
     }
 

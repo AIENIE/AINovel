@@ -186,7 +186,10 @@ public class SlopDriftService {
 
     private SlopDriftRun completedRun(DriftInput input, List<WindowSample> windows, Map<String, Object> root) {
         Map<String, Object> overall = map(root.get("overall"));
-        int risk = intVal(overall.get("midbook_drift_risk_score"), intVal(root.get("risk_score"), 0));
+        Object score = overall.get("midbook_drift_risk_score");
+        if (!(score instanceof Number n) || n.doubleValue() != n.intValue() || n.intValue() < 0 || n.intValue() > 100)
+            throw new IllegalArgumentException("DRIFT_INVALID_RISK_SCORE");
+        int risk = n.intValue();
         String riskLabel = str(overall.get("risk_label"), label(risk));
         String safeClaim = str(overall.get("safe_claim"),
                 "该稿件呈现%s级长篇 drift 风险；这不能证明作者使用 AI。".formatted(riskLabel));
@@ -209,8 +212,7 @@ public class SlopDriftService {
     private SlopDriftRun degradedRun(DriftInput input, List<WindowSample> windows, RuntimeException ex) {
         SlopDriftRun run = baseRun(input, windows);
         run.setStatus(SlopDriftStatus.DEGRADED);
-        run.setOverallRiskScore(45);
-        run.setRiskLabel("medium");
+        run.setRiskLabel("unknown");
         run.setSafeClaim("长篇 drift 语义巡检失败，已降级记录；这不能证明作者使用 AI。");
         run.setSummary("长篇 drift 巡检失败，已降级记录：" + truncate(ex.getMessage(), 160));
         run.setMetricCurvesJson("{}");
@@ -366,7 +368,7 @@ public class SlopDriftService {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
+        return jsonColumnCodec.writeRequired(value);
     }
 
     private List<String> defaultAlternatives() {

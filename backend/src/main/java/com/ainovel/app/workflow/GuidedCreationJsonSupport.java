@@ -26,7 +26,7 @@ public class GuidedCreationJsonSupport {
     }
 
     public void writeSteps(CreationWorkflowRun run, Map<String, Object> steps) {
-        run.setStepsJson(codec.write(steps, "{}"));
+        run.setStepsJson(codec.writeRequired(steps));
     }
 
     @SuppressWarnings("unchecked")

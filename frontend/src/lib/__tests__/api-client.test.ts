@@ -276,6 +276,26 @@ describe("api client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("preserves unassessed scores and an empty trend as null", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: unknown) => new Response(JSON.stringify(
+      String(url).includes("trends")
+        ? { manuscriptId: "m1", averageRisk: null, highRiskScenes: 0, dimensionCounts: {}, points: [] }
+        : [{ id: "failed", storyId: "s1", manuscriptId: "m1", sceneId: "s1", status: "DEGRADED",
+            maxSeverity: null, overallRiskScore: null, issues: [] }]
+    ), { status: 200 })));
+    expect((await api.v2.plotQuality.listRuns("m1"))[0].overallRiskScore).toBeNull();
+    expect((await api.v2.plotQuality.listRuns("m1"))[0].maxSeverity).toBeNull();
+    expect((await api.v2.plotQuality.getTrend("m1")).averageRisk).toBeNull();
+  });
+
+  it.each(["{bad}", "[]", "{} {}"])("does not turn corrupt report objects into empty data: %s", async (json) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([{
+      id: "r1", storyId: "s1", manuscriptId: "m1", sceneId: "s1", status: "ACCEPTED",
+      maxSeverity: "LOW", overallRiskScore: 0, moduleScoresJson: json, issues: [],
+    }]), { status: 200 })));
+    await expect(api.v2.quality.listRuns("m1", "s1")).rejects.toThrow();
+  });
+
   it("normalizes manual slop diagnosis payloads", async () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const u = String(url);

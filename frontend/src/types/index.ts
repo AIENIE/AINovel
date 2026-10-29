@@ -326,13 +326,13 @@ export interface SlopQualityRun {
   manuscriptId: string;
   sceneId: string;
   status: "ACCEPTED" | "REVISED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
-  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
-  overallRiskScore: number;
+  maxSeverity: string | null;
+  overallRiskScore: number | null;
   revised: boolean;
   revisionCount: number;
   summary?: string;
   analysisMode?: string;
-  riskLabel?: string;
+  riskLabel?: string | null;
   evidenceLevel?: string;
   safeClaim?: string;
   moduleScores: Record<string, unknown>;
@@ -348,8 +348,8 @@ export interface SlopDriftRun {
   storyId: string;
   manuscriptId: string;
   status: "COMPLETED" | "INSUFFICIENT_TEXT" | "DEGRADED" | string;
-  overallRiskScore: number;
-  riskLabel?: string;
+  overallRiskScore: number | null;
+  riskLabel?: string | null;
   safeClaim?: string;
   summary?: string;
   totalCharacters: number;
@@ -459,8 +459,8 @@ export interface PlotQualityRun {
   chapterOrder: number;
   sceneOrder: number;
   status: "ACCEPTED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
-  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
-  overallRiskScore: number;
+  maxSeverity: string | null;
+  overallRiskScore: number | null;
   summary?: string;
   rewritePlan: string[];
   surgicalFixes: string[];
@@ -485,7 +485,7 @@ export interface PlotQualityTrendPoint {
 
 export interface PlotQualityTrend {
   manuscriptId: string;
-  averageRisk: number;
+  averageRisk: number | null;
   highRiskScenes: number;
   dimensionCounts: Record<string, number>;
   points: PlotQualityTrendPoint[];

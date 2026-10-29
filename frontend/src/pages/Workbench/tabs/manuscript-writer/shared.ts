@@ -10,7 +10,7 @@ export const qualityStatusText = (run?: SlopQualityRun | null) => {
       ? "冻结正文有确认问题" : "冻结正文未见确认问题";
   }
   if (run.status === "DEGRADED") return "历史检查不完整";
-  if (run.issues?.length || run.overallRiskScore >= 40) return "历史报告有建议";
+  if (run.issues?.length || (run.overallRiskScore ?? -1) >= 40) return "历史报告有建议";
   return "历史报告（未验证当前正文）";
 };
 
@@ -18,7 +18,7 @@ export const qualityStatusClass = (run?: SlopQualityRun | null) => {
   if (!run) return "border-zinc-300 text-zinc-500";
   if (run.analysisMode === "manual_scene" && run.status === "DEGRADED") return "border-amber-300 bg-amber-50 text-amber-800";
   if (run.status === "REVISED" || run.revised) return "border-amber-300 bg-amber-50 text-amber-800";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity)) return "border-red-300 bg-red-50 text-red-700";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || ["HIGH", "BLOCKING"].includes(run.maxSeverity ?? "")) return "border-red-300 bg-red-50 text-red-700";
   return "border-zinc-300 bg-zinc-50 text-zinc-700";
 };
 
@@ -48,8 +48,8 @@ export const plotStatusText = (run?: PlotQualityRun | null) => {
   if (!run) return t("plotStatus.notRun");
   if (run.revisionApplied) return t("plotStatus.candidateAdopted");
   if (run.status === "DEGRADED") return t("plotStatus.degraded");
-  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return t("plotStatus.highRisk");
-  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return t("plotStatus.needsAttention");
+  if (["HIGH", "BLOCKING"].includes(run.maxSeverity ?? "") || (run.overallRiskScore ?? -1) >= 70) return t("plotStatus.highRisk");
+  if (run.status === "ACCEPTED_WITH_ISSUES" || (run.overallRiskScore ?? -1) >= 40) return t("plotStatus.needsAttention");
   return t("plotStatus.lowRisk");
 };
 
@@ -57,8 +57,8 @@ export const plotStatusClass = (run?: PlotQualityRun | null) => {
   if (!run) return "border-zinc-300 text-zinc-500";
   if (run.revisionApplied) return "border-blue-300 bg-blue-50 text-blue-700";
   if (run.status === "DEGRADED") return "border-zinc-300 bg-zinc-50 text-zinc-700";
-  if (["HIGH", "BLOCKING"].includes(run.maxSeverity) || run.overallRiskScore >= 70) return "border-red-300 bg-red-50 text-red-700";
-  if (run.status === "ACCEPTED_WITH_ISSUES" || run.overallRiskScore >= 40) return "border-amber-300 bg-amber-50 text-amber-800";
+  if (["HIGH", "BLOCKING"].includes(run.maxSeverity ?? "") || (run.overallRiskScore ?? -1) >= 70) return "border-red-300 bg-red-50 text-red-700";
+  if (run.status === "ACCEPTED_WITH_ISSUES" || (run.overallRiskScore ?? -1) >= 40) return "border-amber-300 bg-amber-50 text-amber-800";
   return "border-emerald-300 bg-emerald-50 text-emerald-700";
 };
 
