@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Book, FileText, PenTool, Search, Rocket, BookOpen, Network, ClipboardCheck } from "lucide-react";
@@ -14,6 +14,9 @@ import V2Studio from "./tabs/V2Studio";
 import LorebookPanel from "./tabs/LorebookPanel";
 import KnowledgeGraphTab from "./tabs/KnowledgeGraphTab";
 import AnalysisDashboard from "./tabs/AnalysisDashboard";
+import { Button } from "@/components/ui/button";
+import { StoryDiscussionPanel } from "@/components/ai/StoryDiscussionPanel";
+import { StoryDiscussionWorkspaceContext, type StoryProposalDraft } from "@/components/ai/story-discussion-context";
 
 const Workbench = () => {
   const { t } = useTranslation();
@@ -22,6 +25,15 @@ const Workbench = () => {
   const paramsRef = useRef(params);
   useEffect(() => { paramsRef.current = params; }, [params]);
   const navigate = useNavigate();
+  const [discussionOpen, setDiscussionOpen] = useState(false);
+  const [discussionMounted, setDiscussionMounted] = useState(false);
+  const [dirtyTargets, setDirtyTargets] = useState<Set<string>>(new Set());
+  const proposalDrafts = useRef(new Map<string, StoryProposalDraft>());
+  const setDirty = useCallback((key: string, dirty: boolean) => setDirtyTargets(current => {
+    if (current.has(key) === dirty) return current;
+    const next = new Set(current); if (dirty) next.add(key); else next.delete(key); return next;
+  }), []);
+  const discussionWorkspace = useMemo(() => ({ dirtyTargets, setDirty, proposalDrafts: proposalDrafts.current }), [dirtyTargets, setDirty]);
   const setParams = useCallback((value: URLSearchParams | ((current: URLSearchParams) => URLSearchParams), options: { replace?: boolean }) => {
     const next = typeof value === "function" ? value(paramsRef.current) : value;
     const search = `?${next.toString()}`;
@@ -63,7 +75,7 @@ const Workbench = () => {
     next.set("tab", value);
     setParams(next, { replace: false });
   };
-  const updateContext = useCallback((selection: Partial<Record<"storyId" | "outlineId" | "manuscriptId" | "sceneId", string>>) => {
+  const updateContext = useCallback((selection: Partial<Record<"storyId" | "outlineId" | "manuscriptId" | "sceneId" | "chapterId", string>>) => {
     setParams((current) => {
       const next = new URLSearchParams(current);
       const currentStoryId = next.get("storyId") || next.get("id") || "";
@@ -73,9 +85,12 @@ const Workbench = () => {
         next.delete("outlineId");
         next.delete("manuscriptId");
         next.delete("sceneId");
+        next.delete("chapterId");
+        next.delete("characterId");
       } else if (selection.outlineId !== undefined && selection.outlineId !== currentOutlineId) {
         next.delete("manuscriptId");
         next.delete("sceneId");
+        next.delete("chapterId");
       } else if (selection.manuscriptId !== undefined && selection.manuscriptId !== currentManuscriptId) {
         next.delete("sceneId");
       }
@@ -84,18 +99,20 @@ const Workbench = () => {
       return next;
     }, { replace: true });
   }, [setParams]);
+  const changeStory = useCallback((id: string) => updateContext({ storyId: id }), [updateContext]);
 
   return (
-    <div className="h-full flex flex-col space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">{t("workbench.title")}</h1>
+    <StoryDiscussionWorkspaceContext.Provider value={discussionWorkspace}><div className="relative h-full w-full min-w-0 max-w-full flex flex-col space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="min-w-0 max-w-full break-words text-3xl font-bold tracking-tight">{t("workbench.title")}</h1>
+        <Button variant="outline" aria-expanded={discussionOpen} onClick={() => { setDiscussionMounted(true); setDiscussionOpen(value => !value); }}>{t("storyAssistant.title")}</Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={selectTab} className="flex-1 flex flex-col min-w-0">
         <div className="space-y-3 border-b pb-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.mainFlow")}</span>
-            <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
+            <TabsList aria-label={t("workbench.mainFlow")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="conception" className="gap-2 shrink-0">
             <Sparkles className="h-4 w-4" /> {t("workbench.conception")}
           </TabsTrigger>
@@ -112,7 +129,7 @@ const Workbench = () => {
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.tools")}</span>
-            <TabsList className="h-auto flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
+            <TabsList aria-label={t("workbench.tools")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="search" className="gap-2 shrink-0">
             <Search className="h-4 w-4" /> {t("workbench.materialSearch")}
           </TabsTrigger>
@@ -129,7 +146,7 @@ const Workbench = () => {
           </div>
           <div className="flex min-w-0 items-center gap-3">
             <span className="w-14 shrink-0 text-xs font-medium text-muted-foreground">{t("workbench.advanced")}</span>
-            <TabsList className="h-auto justify-start bg-transparent p-0">
+            <TabsList aria-label={t("workbench.advanced")} className="h-auto w-0 min-w-0 max-w-full flex-1 justify-start overflow-x-auto whitespace-nowrap bg-transparent p-0">
           <TabsTrigger value="v2" className="gap-2 shrink-0">
             <Rocket className="h-4 w-4" /> {t("workbench.advancedWorkbench")}
           </TabsTrigger>
@@ -142,10 +159,10 @@ const Workbench = () => {
             <StoryConception />
           </TabsContent>
           <TabsContent value="stories" className="h-full m-0 border-0 p-0">
-            <StoryManager initialStoryId={storyId} onStoryChange={(id) => updateContext({ storyId: id })} />
+            <StoryManager initialStoryId={storyId} initialCharacterId={params.get("characterId") || undefined} onStoryChange={changeStory} />
           </TabsContent>
           <TabsContent value="outline" className="h-full m-0 border-0 p-0">
-            <OutlineWorkbench initialStoryId={storyId} />
+            <OutlineWorkbench initialStoryId={storyId} initialOutlineId={params.get("outlineId") || undefined} initialSceneId={params.get("sceneId") || undefined} initialChapterId={params.get("chapterId") || undefined} onSelectionChange={updateContext} />
           </TabsContent>
           <TabsContent value="writing" className="h-full m-0 border-0 p-0">
             <ManuscriptWriter
@@ -173,7 +190,8 @@ const Workbench = () => {
           </TabsContent>
         </div>
       </Tabs>
-    </div>
+      {discussionMounted && <aside hidden={!discussionOpen} className={discussionOpen ? "fixed inset-x-0 bottom-0 top-16 z-40 !mt-0 overflow-hidden border bg-card shadow-xl md:absolute md:inset-x-auto md:right-0 md:top-14 md:z-20 md:w-[min(440px,100%)]" : "hidden"}><StoryDiscussionPanel storyId={storyId} outlineId={params.get("outlineId") || ""} visible={discussionOpen} onClose={() => setDiscussionOpen(false)} onSelectionChange={updateContext} /></aside>}
+    </div></StoryDiscussionWorkspaceContext.Provider>
   );
 };
 

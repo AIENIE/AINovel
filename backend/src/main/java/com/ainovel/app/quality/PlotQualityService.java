@@ -40,7 +40,6 @@ public class PlotQualityService {
     private final ManuscriptRepository manuscriptRepository;
     private final CharacterCardRepository characterCardRepository;
     private final PlotQualityRunRepository runRepository;
-    private final SlopQualityGate slopQualityGate;
     private final JsonColumnCodec jsonColumnCodec;
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
@@ -50,14 +49,12 @@ public class PlotQualityService {
                               ManuscriptRepository manuscriptRepository,
                               CharacterCardRepository characterCardRepository,
                               PlotQualityRunRepository runRepository,
-                              SlopQualityGate slopQualityGate,
                               JsonColumnCodec jsonColumnCodec) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
         this.manuscriptRepository = manuscriptRepository;
         this.characterCardRepository = characterCardRepository;
         this.runRepository = runRepository;
-        this.slopQualityGate = slopQualityGate;
         this.jsonColumnCodec = jsonColumnCodec;
     }
 
@@ -80,15 +77,21 @@ public class PlotQualityService {
                 () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
+    public PlotQualityRun analyzeDuringGeneration(User user,PlotQualityRequest request) {
+        PlotQualityRun result=evaluate(user,request);
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.apply(()->runRepository.save(result));
+    }
+
     private PlotQualityRun evaluate(User user, PlotQualityRequest request) {
         try {
             String content = aiService.chat(user, new AiChatRequest(
                     List.of(new AiChatRequest.Message("user", buildAnalysisPrompt(request))),
                     null,
                     null
-            )).content();
+            ).forFeature("plot.diagnose")).content();
             return toRun(request, parseJson(content), false);
         } catch (RuntimeException ex) {
+            if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             PlotQualityRun degraded = newBaseRun(request);
             degraded.setStatus(PlotQualityStatus.DEGRADED);
@@ -168,7 +171,7 @@ public class PlotQualityService {
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
         if (boundary != null) {
             var snapshot = boundary.snapshot(manuscript, current -> revisionPrompt(user, current, runId));
-            String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null)).content();
+            String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forFeature("plot.revise")).content();
             return boundary.save(snapshot, current -> {
                 PlotQualityRun run = requireRun(runId);
                 ensureRunBelongsToManuscript(run, current);
@@ -189,7 +192,7 @@ public class PlotQualityService {
                         + (run.getIsolationContext()==null?"":"\n必须遵守的 H2 上下文：\n"+run.getIsolationContext()))),
                 null,
                 null
-        )).content();
+        ).forFeature("plot.revise")).content();
         run.setRevisionCandidateText(stripWrapper(candidate));
         return runRepository.save(run);
     }
@@ -206,17 +209,16 @@ public class PlotQualityService {
 
     public PlotQualityRun applyRevision(User user, Manuscript manuscript, UUID runId) {
         if (boundary != null) {
-            var snapshot = boundary.snapshot(manuscript, current -> revisionGateRequest(user, current, runId));
-            SlopQualityResult gate = slopQualityGate.evaluateAndRepair(user, snapshot.data());
+            var snapshot = boundary.snapshot(manuscript, current -> reviewedCandidate(user, current, runId));
             return boundary.save(snapshot, current -> {
                 PlotQualityRun run = requireRun(runId);
                 ensureRunBelongsToManuscript(run, current);
                 requireIsolation(user, current, run);
                 if (!Objects.equals(run.getSourceTextHash(), hashText(currentPlainText(current, run.getSceneId()))))
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
-                contents.writeScene(current, run.getSceneId(), toEditorHtml(gate.acceptedText()));
+                contents.writeScene(current, run.getSceneId(), toEditorHtml(snapshot.data()));
                 run.setRevisionApplied(true); run.setRevisionAppliedAt(Instant.now());
-                run.setSourceTextHash(hashText(gate.acceptedText()));
+                run.setSourceTextHash(hashText(snapshot.data()));
                 manuscriptRepository.save(current);
                 if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(current.getId(), null));
                 return runRepository.save(run);
@@ -233,33 +235,17 @@ public class PlotQualityService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
         }
 
-        SlopQualityResult textGate = slopQualityGate.evaluateAndRepair(user, new SlopQualityRequest(
-                run.getStoryId(),
-                run.getManuscriptId(),
-                run.getSceneId(),
-                "未指定",
-                "未指定",
-                "沉浸、连贯",
-                safe(run.getChapterTitle(), "未指定章节"),
-                safe(run.getSceneTitle(), "未指定场景"),
-                "",
-                run.getIsolationContext()==null?"剧情修订采纳前的文本门禁":run.getIsolationContext(),
-                "",
-                "剧情修订候选采纳前未加载风格画像；仅按候选文本执行保守门禁。",
-                run.getRevisionCandidateText(),
-                run.getIsolationContext()==null ? "generation_gate" : "h2_revision_gate"
-        ));
         requireIsolation(user,manuscript,run);
-        contents.writeScene(manuscript, run.getSceneId(), toEditorHtml(textGate.acceptedText()));
+        contents.writeScene(manuscript, run.getSceneId(), toEditorHtml(run.getRevisionCandidateText()));
         run.setRevisionApplied(true);
         run.setRevisionAppliedAt(Instant.now());
-        run.setSourceTextHash(hashText(textGate.acceptedText()));
+        run.setSourceTextHash(hashText(run.getRevisionCandidateText()));
         manuscriptRepository.save(manuscript);
         if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscript.getId(), null));
         return runRepository.save(run);
     }
 
-    private SlopQualityRequest revisionGateRequest(User user, Manuscript manuscript, UUID runId) {
+    private String reviewedCandidate(User user, Manuscript manuscript, UUID runId) {
         PlotQualityRun run = requireRun(runId);
         ensureRunBelongsToManuscript(run, manuscript);
         requireIsolation(user, manuscript, run);
@@ -267,11 +253,7 @@ public class PlotQualityService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "尚未生成可采纳的剧情修订候选");
         if (!Objects.equals(run.getSourceTextHash(), hashText(currentPlainText(manuscript, run.getSceneId()))))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
-        return new SlopQualityRequest(run.getStoryId(), run.getManuscriptId(), run.getSceneId(), "未指定", "未指定", "沉浸、连贯",
-                safe(run.getChapterTitle(), "未指定章节"), safe(run.getSceneTitle(), "未指定场景"), "",
-                run.getIsolationContext() == null ? "剧情修订采纳前的文本门禁" : run.getIsolationContext(), "",
-                "剧情修订候选采纳前未加载风格画像；仅按候选文本执行保守门禁。", run.getRevisionCandidateText(),
-                run.getIsolationContext() == null ? "generation_gate" : "h2_revision_gate");
+        return run.getRevisionCandidateText();
     }
 
     private PlotQualityRun toRun(PlotQualityRequest request, Map<String, Object> root, boolean degraded) {

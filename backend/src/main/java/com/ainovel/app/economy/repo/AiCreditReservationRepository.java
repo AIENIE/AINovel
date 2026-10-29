@@ -10,10 +10,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface AiCreditReservationRepository extends JpaRepository<AiCreditReservation, UUID> {
+    boolean existsByUserIdAndOperationIdAndStatus(UUID userId,UUID operationId,AiCreditReservation.Status status);
     @org.springframework.data.jpa.repository.Query("select count(r) > 0 from AiCreditReservation r where r.user.id = :userId and r.status = com.ainovel.app.economy.model.AiCreditReservation.Status.RECONCILIATION_REQUIRED and (r.idempotencyKey like :prefix or r.idempotencyKey = :requestId)")
     boolean hasUncertainOperation(@org.springframework.data.repository.query.Param("userId") UUID userId,
                                  @org.springframework.data.repository.query.Param("prefix") String prefix,
                                  @org.springframework.data.repository.query.Param("requestId") String requestId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<AiCreditReservation> findByUserAndIdempotencyKey(User user, String idempotencyKey);
+    @org.springframework.data.jpa.repository.Query("select r from AiCreditReservation r where r.user = :user and r.idempotencyKey = :key")
+    Optional<AiCreditReservation> findResultByUserAndIdempotencyKey(
+            @org.springframework.data.repository.query.Param("user") User user,
+            @org.springframework.data.repository.query.Param("key") String idempotencyKey);
 }

@@ -12,8 +12,7 @@ import com.ainovel.app.style.model.StyleProfile;
 import com.ainovel.app.style.repo.CharacterVoiceRepository;
 import com.ainovel.app.style.repo.StyleProfileRepository;
 import com.ainovel.app.v2.V2ContextPersistenceService;
-import com.ainovel.app.world.model.World;
-import com.ainovel.app.world.repo.WorldRepository;
+import com.ainovel.app.world.WorldBindingService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -45,7 +44,11 @@ public class SceneDraftContextCompiler {
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.narrative.NarrativeContextService isolation;
-    public static final String COMPILER_VERSION = "scene-draft-v3";
+    public static final String COMPILER_VERSION = "scene-draft-v5";
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.worldcontext.WorldContextSelector worldSelector;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
     public static final int DEFAULT_TOKEN_BUDGET = 3500;
     public static final int MAX_TOKEN_BUDGET = 3500;
     public static final int MAX_HISTORICAL_ANCHORS = 2;
@@ -59,20 +62,20 @@ public class SceneDraftContextCompiler {
     );
 
     private final ObjectMapper objectMapper;
-    private final WorldRepository worldRepository;
+    private final WorldBindingService worldBindings;
     private final CharacterCardRepository characterCardRepository;
     private final StyleProfileRepository styleProfileRepository;
     private final CharacterVoiceRepository characterVoiceRepository;
     private final V2ContextPersistenceService contextPersistenceService;
 
     public SceneDraftContextCompiler(ObjectMapper objectMapper,
-                                     WorldRepository worldRepository,
+                                     WorldBindingService worldBindings,
                                      CharacterCardRepository characterCardRepository,
                                      StyleProfileRepository styleProfileRepository,
                                      CharacterVoiceRepository characterVoiceRepository,
                                      V2ContextPersistenceService contextPersistenceService) {
         this.objectMapper = objectMapper;
-        this.worldRepository = worldRepository;
+        this.worldBindings = worldBindings;
         this.characterCardRepository = characterCardRepository;
         this.styleProfileRepository = styleProfileRepository;
         this.characterVoiceRepository = characterVoiceRepository;
@@ -98,6 +101,12 @@ public class SceneDraftContextCompiler {
                                              UUID sceneId,
                                              Map<String, String> existingSections,
                                              int requestedTokenBudget) {
+        return compile(manuscript,sceneId,existingSections,requestedTokenBudget,null);
+    }
+
+    @Transactional
+    public CompiledSceneDraftContext compile(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,
+            int requestedTokenBudget,WorldBindingService.Frozen frozenWorld) {
         RequiredContext required = requireContext(manuscript, sceneId);
         if (isolation != null && isolation.enabled(manuscript)) {
             var p=isolation.preview(required.story().getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
@@ -131,7 +140,10 @@ public class SceneDraftContextCompiler {
 
         addPlanningCandidates(candidates, required);
         addCharacterCandidates(candidates, required.story(), baseQueryText);
-        UUID boundWorldId = addWorldCandidate(candidates, required, warnings);
+        var world=worldBindings.requireUsable((frozenWorld==null?worldBindings.input(manuscript):frozenWorld).binding());
+        UUID boundWorldId=world==null?null:world.worldId();
+        // Legacy standalone consumers have no W4 services; production always uses the selector below.
+        if(world!=null&&worldSelector==null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
         List<SceneSlot> recentScenes = recentScenes(required.position().priorScenes(), sections);
@@ -149,6 +161,16 @@ public class SceneDraftContextCompiler {
         );
         addAnchorCandidates(candidates, anchors, sections, anchorTerms);
 
+        com.ainovel.app.worldcontext.WorldContextDtos.Selection worldContext=null;
+        if(worldSelector!=null) {
+            var requiredCandidates=candidates.stream().filter(c->c.priority()>=980).toList();
+            var requiredRender=render(new ArrayList<>(requiredCandidates),tokenBudget);
+            String nearby=recentScenes.stream().map(s->plainSection(sections.get(id(s.id())))).reduce("",(a,b)->a+"\n"+b);
+            worldContext=worldSelector.select(world,worldPreferences.read(com.ainovel.app.worldcontext.WorldContextPreferences.scope(manuscript,sceneId),world),
+                    queryText+"\n"+nearby,Math.max(0,tokenBudget-estimateTokens(requiredRender.content())-24),false);
+            if(!worldContext.content().isBlank())candidates.add(new Candidate("world","world",world.versionId().toString(),"世界材料",960,
+                    worldContext.tokenUsed()+8,worldContext.content()));
+        }
         RenderedContext rendered = render(candidates, tokenBudget);
         Set<String> includedLorebookIds = sourceIds(rendered.sources(), "lorebook");
         List<Map<String, Object>> includedLorebook = lorebookSelection.entries().stream()
@@ -163,7 +185,12 @@ public class SceneDraftContextCompiler {
                 .reduce((left, right) -> left + "\n" + right)
                 .orElse("暂无可用前文。");
 
-        String contextHash = sha256(COMPILER_VERSION + "\n" + tokenBudget + "\n" + rendered.content());
+        String contextHash = sha256(COMPILER_VERSION + "\n" + tokenBudget + "\n" + rendered.content()+"\n"+(worldContext==null?"":worldContext.contextHash()));
+        var actualSources=new ArrayList<>(rendered.sources());
+        if(worldContext!=null) {
+            actualSources.removeIf(s->s.sourceType().equals("world"));
+            for(var source:worldContext.included())actualSources.add(new SceneDraftContextManifest.Source("world."+source.id(),"world_"+source.type(),source.id(),source.title(),source.reason(),960,source.estimatedTokens(),false,source.contentHash()));
+        }
         SceneDraftContextManifest manifest = new SceneDraftContextManifest(
                 COMPILER_VERSION,
                 contextHash,
@@ -178,8 +205,8 @@ public class SceneDraftContextCompiler {
                 required.position().chapter().order(),
                 required.position().scene().order(),
                 sceneType,
-                rendered.sources(),
-                warnings
+                List.copyOf(actualSources),
+                warnings, null, worldBindings.reference(world), worldContext
         );
         return new CompiledSceneDraftContext(
                 rendered.content(),
@@ -275,41 +302,6 @@ public class SceneDraftContextCompiler {
                 "当前章节规划", 990, 170, position.chapter().planning());
         addJsonCandidate(candidates, "planning.overall", "overall_planning", required.outline().getId(),
                 "全书规划", 980, 180, position.overallPlanning());
-    }
-
-    private UUID addWorldCandidate(List<Candidate> candidates, RequiredContext required, List<String> warnings) {
-        List<String> bindings = List.of(
-                text(required.manuscript().getWorldId()),
-                text(required.outline().getWorldId()),
-                text(required.story().getWorldId())
-        );
-        for (String binding : bindings) {
-            if (binding.isBlank()) {
-                continue;
-            }
-            UUID worldId;
-            try {
-                worldId = UUID.fromString(binding);
-            } catch (IllegalArgumentException ex) {
-                warnings.add("ignored invalid world binding: " + binding);
-                continue;
-            }
-            Optional<World> found = worldRepository.findById(worldId)
-                    .filter(world -> sameOwner(required.story(), world));
-            if (found.isEmpty()) {
-                warnings.add("bound world was unavailable: " + worldId);
-                continue;
-            }
-            World world = found.get();
-            String content = "名称=" + firstNonBlank(world.getName(), "未命名世界")
-                    + "\n创作意图=" + text(world.getCreativeIntent())
-                    + "\n主题=" + canonicalJsonText(world.getThemesJson())
-                    + "\n模块=" + canonicalJsonText(world.getModulesJson())
-                    + "\n备注=" + text(world.getNotes());
-            candidates.add(new Candidate("world", "world", worldId.toString(), "绑定世界", 940, 340, content));
-            return worldId;
-        }
-        return null;
     }
 
     private void addStyleCandidates(List<Candidate> candidates, Story story, String sceneType, String queryText) {
@@ -521,10 +513,13 @@ public class SceneDraftContextCompiler {
             String header = "\n\n[" + candidate.label() + "]\n";
             int headerTokens = estimateTokens(header);
             int fragmentBudget = Math.min(candidate.maxTokens(), remaining - headerTokens);
-            if (fragmentBudget < 8 || candidate.content().isBlank()) {
+            boolean whole=candidate.sourceType().equals("world")||candidate.priority()>=980;
+            if(whole&&estimateTokens(candidate.content())>remaining-headerTokens)
+                throw com.ainovel.app.worldcontext.WorldContextSelector.error("WORLD_CONTEXT_REQUIRED_CONTEXT_TOO_LARGE");
+            if ((!whole&&fragmentBudget < 8) || candidate.content().isBlank()) {
                 continue;
             }
-            String included = truncateToTokens(candidate.content(), fragmentBudget).trim();
+            String included = (whole?candidate.content():truncateToTokens(candidate.content(), fragmentBudget)).trim();
             if (included.isBlank()) {
                 continue;
             }
@@ -556,7 +551,8 @@ public class SceneDraftContextCompiler {
             ));
             fragmentsBySlot.put(candidate.slot(), candidate.label() + "：\n" + item.included());
         }
-        String compiled = truncateToTokens(content.toString(), tokenBudget).trim();
+        String compiled = content.toString().trim();
+        if(estimateTokens(compiled)>tokenBudget)throw com.ainovel.app.worldcontext.WorldContextSelector.error("WORLD_CONTEXT_REQUIRED_CONTEXT_TOO_LARGE");
         return new RenderedContext(
                 compiled,
                 List.copyOf(sources),
@@ -603,6 +599,9 @@ public class SceneDraftContextCompiler {
     private String queryText(RequiredContext required, String sceneType) {
         OutlinePosition position = required.position();
         return String.join(" ",
+                position.chapter().title(),
+                position.chapter().summary(),
+                canonicalJson(position.chapter().planning()),
                 position.scene().title(),
                 position.scene().summary(),
                 canonicalJson(position.scene().planning()),
@@ -793,13 +792,6 @@ public class SceneDraftContextCompiler {
             }
         }
         return ids;
-    }
-
-    private boolean sameOwner(Story story, World world) {
-        if (story.getUser() == null || world.getUser() == null) {
-            return false;
-        }
-        return story.getUser().getId() != null && story.getUser().getId().equals(world.getUser().getId());
     }
 
     private String canonicalJsonText(String rawJson) {

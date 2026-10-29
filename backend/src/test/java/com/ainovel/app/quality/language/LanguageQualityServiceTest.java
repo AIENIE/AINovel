@@ -60,6 +60,27 @@ class LanguageQualityServiceTest {
     UUID report() {
         service.start(user,m.getId(),scene,new CheckRequest(m.getCurrentBranchId(),m.getVersion())); return savedReports.keySet().iterator().next();
     }
+    @Test void slopImportsOnlyConfirmedLanguageWithoutAnotherDiagnosisAndKeepsAuthorDecisions() throws Exception {
+        var frozen=new com.ainovel.app.quality.SlopEvidence.ReviewData(); var projection=LanguageProjection.of(html.get());
+        frozen.projection=projection; frozen.coverage="COMPLETE";
+        frozen.source=new Source(m.getCurrentBranchId(),m.getVersion(),UUID.randomUUID(),projection.version(),projection.htmlHash(),projection.textHash(),"slop-context",LanguageStandard.VERSION);
+        frozen.findings=com.ainovel.app.quality.SlopEvidence.parse("""
+            {"complete":true,"evidence_items":[
+              {"judgment":"CONFIRMED","kind":"LANGUAGE","category":"AWKWARD","quote":"找这个动作还在。","risk_explanation":"抽象化生硬"},
+              {"judgment":"CONFIRMED","kind":"STYLE","quote":"雨停了。","risk_explanation":"可选文风"},
+              {"judgment":"DISMISSED","kind":"LANGUAGE","category":"CHOPPY","quote":"她放下书。","risk_explanation":"正常短句"}]}
+            """,projection,json).findings();
+        var run=UUID.randomUUID(); var report=service.importSlop(user,m.getId(),scene,run,frozen);
+        assertEquals("SLOP",service.input(user,report).data().origin); assertEquals(1,service.input(user,report).data().issues.size());
+        verifyNoInteractions(operations);
+        String original=html.get(); var patch=candidate(report,frozen.findings.getFirst().id().toString(),"她还想去找。","PASS");
+        assertEquals(original,html.get(),"双 PASS 也不能自动写正文");
+        assertEquals(report,service.importSlop(user,m.getId(),scene,run,frozen));
+        decide(report,patch,"accept","accept-slop-1"); assertTrue(html.get().startsWith("<p>她还想去找。</p><p>她放下书。</p>"));
+        decide(report,patch,"undo","undo-slop-1"); assertEquals(original,html.get());
+        m.setCurrentBranchId(UUID.randomUUID());
+        assertThrows(ApiStatusException.class,()->service.importSlop(user,m.getId(),scene,run,frozen));
+    }
     void diagnose(UUID id) throws Exception {
         var input=service.input(user,id); var p=input.data().projection;
         var items=List.of(Map.of("kind","LANGUAGE","category","AWKWARD","quote","找这个动作还在。","impact","抽象化生硬","direction","表达人物的想法"),

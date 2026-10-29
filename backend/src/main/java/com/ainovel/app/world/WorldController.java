@@ -26,6 +26,12 @@ public class WorldController {
     private WorldService worldService;
     @Autowired
     private CurrentUserResolver currentUserResolver;
+    @Autowired private WorldEntryAiService entries;
+
+    @PostMapping("/{id}/entries/{entryId}/refine")
+    public AiRefineResponse refineEntry(@PathVariable UUID id,@PathVariable UUID entryId,@RequestBody RefineRequest request) {
+        return entries.refine(id,entryId,request);
+    }
 
     @GetMapping
     @Operation(summary = "获取世界观列表", description = "返回当前用户全部世界观卡片。")
@@ -42,7 +48,7 @@ public class WorldController {
     public WorldDetailDto detail(@PathVariable UUID id) { return worldService.get(id); }
 
     @PutMapping("/{id}")
-    @Operation(summary = "更新世界观基础信息", description = "更新名称、标语、主题、创作意图与备注。")
+    @Operation(summary = "保存世界观", description = "原子更新基础信息与提供的模块；可通过 expectedRevision 检查编辑版本。")
     public WorldDetailDto update(@PathVariable UUID id, @RequestBody WorldUpdateRequest request) { return worldService.update(id, request); }
 
     @DeleteMapping("/{id}")
@@ -50,11 +56,11 @@ public class WorldController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) { worldService.delete(id); return ResponseEntity.noContent().build(); }
 
     @PutMapping("/{id}/modules")
-    @Operation(summary = "批量更新模块", description = "批量写入多个模块字段。")
+    @Operation(summary = "批量更新模块", description = "批量写入多个模块字段，兼容可选 expectedRevision。")
     public WorldDetailDto updateModules(@PathVariable UUID id, @RequestBody WorldModulesUpdateRequest request) { return worldService.updateModules(id, request); }
 
     @PutMapping("/{id}/modules/{moduleKey}")
-    @Operation(summary = "更新单模块", description = "按模块键写入字段集合。")
+    @Operation(summary = "更新单模块", description = "按模块键写入字段集合，兼容可选 expectedRevision。")
     public WorldDetailDto updateModule(@PathVariable UUID id, @PathVariable String moduleKey, @RequestBody WorldModuleUpdateRequest request) { return worldService.updateModule(id, moduleKey, request); }
 
     @PostMapping("/{id}/modules/{moduleKey}/fields/{fieldKey}/refine")
@@ -66,10 +72,6 @@ public class WorldController {
     @GetMapping("/{id}/publish/preview")
     @Operation(summary = "发布预检查", description = "检查缺失模块和待自动生成模块。")
     public WorldPublishPreviewResponse preview(@PathVariable UUID id) { return worldService.preview(id); }
-
-    @PostMapping("/{id}/publish")
-    @Operation(summary = "发布世界观", description = "推进发布状态并更新版本号。")
-    public WorldDetailDto publish(@PathVariable UUID id) { return worldService.publish(id); }
 
     @GetMapping("/{id}/generation")
     @Operation(summary = "查询生成状态", description = "查看各模块生成进度与状态。")

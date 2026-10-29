@@ -27,6 +27,20 @@ public class SceneGenerationPromptBuilder {
     @Autowired
     private SlopPatternSamplingService slopPatternSamplingService;
 
+    public static String lengthRevision(String previousDraft, int actual, int minHan, int maxHan) {
+        int target=(minHan+maxHan)/2;
+        int delta=target-actual;
+        return """
+
+                篇幅修订 1/1：上一稿实际为 %d 汉字，目标区间 %d–%d 汉字，中点 %d 汉字。
+                请%s，净%s约 %d 汉字，输出完整修订后的正文。
+                保留事件顺序、人物决定、关键事实及结尾；只在已有内容内展开或压缩。
+                不增加新情节，不改变结局，不用总结或重复凑字数。标点、数字、外文不计入汉字数。
+                上一稿完整正文：
+                %s
+                """.formatted(actual,minHan,maxHan,target,delta>0?"扩写":"压缩",delta>0?"增加":"减少",Math.abs(delta),previousDraft);
+    }
+
     public AssembledPrompt build(User owner,
                                  Story story,
                                  SceneGenerationContext scene,
@@ -77,13 +91,7 @@ public class SceneGenerationPromptBuilder {
         String retryInstruction = "";
         boolean isolated=compiledContext != null && compiledContext.isolated();
         if (attempt > 1) {
-            String direction = previousCount < minSectionHan ? "扩写" : "压缩";
-            retryInstruction = """
-
-                    这是第 %d 次重试。上一版字数为 %d 汉字，请在保持剧情一致的前提下进行%s，并严格输出 %d-%d 汉字。
-                    上一版草稿（可重写，不要直接复制）：
-                    %s
-                    """.formatted(attempt, previousCount, direction, minSectionHan, maxSectionHan, isolated ? previousDraft : truncate(previousDraft, 1200));
+            retryInstruction = lengthRevision(previousDraft, previousCount, minSectionHan, maxSectionHan);
         }
         SceneGenerationPromptInput input = new SceneGenerationPromptInput(
                 isolated ? "当前作品" : safeText(story == null ? null : story.getTitle(), "未命名故事"),

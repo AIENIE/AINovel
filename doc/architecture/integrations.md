@@ -19,6 +19,8 @@
 
 正式契约优先读取工作区相对目录 `../../aienie-doc/service-integration/<service>/`。当前 ai-service 契约提供 `ListModels.supports_streaming` 与 `ChatCompletionsStream`；AINovel 在长任务调用前确认模型支持真实流式输出，并按 `STARTED -> CONTENT_DELTA -> COMPLETED` 严格校验请求标识、事件序号和单调 token 进度。仓库内 proto 只保留 AINovel 实际消费的兼容子集。
 
+自主创作改用有人民币预算的非流式请求，每轮单独准备、预留、结算；普通工具与普通预算分别支持不能替代 `budget_tools_declared/available` 组合声明。原生回执及完整续接资料只保存在服务端，普通 HTTP 聊天拒绝私有工具字段。模型支持流式不表示本运行采用流式；旧生成的流式协议保持。详细边界见[自主创作](writing-agent.md)。
+
 ## 会话校验
 
 1. AINovel 按本地 JWT 密钥、配置的 issuer 和 audience 验证令牌；任一校验失败即拒绝，不解析未验签 payload，也不调用远端校验作为 fallback。

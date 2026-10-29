@@ -172,6 +172,7 @@ describe("desktop manuscript workbench panels", () => {
     );
 
     expect(screen.getByText("plot")).toBeTruthy();
+    expect(screen.getByRole('tab',{name:'上下文'})).toBeTruthy();
     expect(screen.getByText("反馈")).toBeTruthy();
     expect(screen.getByText("文本 Slop 风险")).toBeTruthy();
   });

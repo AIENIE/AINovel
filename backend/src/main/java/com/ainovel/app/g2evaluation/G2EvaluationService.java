@@ -39,6 +39,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 @Service
 public class G2EvaluationService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.modelconfig.AiQuoteService quotes;
     private final G2EvaluationExperimentRepository experimentRepository;
     private final G2EvaluationInviteRepository inviteRepository;
     private final G2EvaluationSampleRepository sampleRepository;
@@ -171,8 +173,18 @@ public class G2EvaluationService {
         sample.setStatus(G2EvaluationSampleStatus.PENDING);
         sampleRepository.save(sample);
         UUID sampleId = sample.getId();
+        if(quotes!=null)quotes.freezeTaskSnapshot(author,sampleId);
         scheduleGenerationAfterCommit(sampleId);
         return new G2EvaluationDtos.SampleSubmissionResponse(sampleId, sample.getStatus().name());
+    }
+
+    @Transactional
+    public G2EvaluationDtos.SampleSubmissionResponse resumePayment(User author,UUID sampleId) {
+        var sample=sampleRepository.findByIdForUpdate(sampleId).orElseThrow(()->new BusinessException("盲测样本不存在"));
+        if(!sample.getAuthor().getId().equals(author.getId()))throw new BusinessException("只能恢复自己的盲测样本");
+        if(sample.getStatus()!=G2EvaluationSampleStatus.PAYMENT_PENDING)throw new BusinessException("盲测样本没有待结算结果");
+        sample.setStatus(G2EvaluationSampleStatus.PENDING);sample.setFailureMessage(null);scheduleGenerationAfterCommit(sampleId);
+        return new G2EvaluationDtos.SampleSubmissionResponse(sampleId,sample.getStatus().name());
     }
 
     @Transactional
@@ -289,7 +301,9 @@ public class G2EvaluationService {
     private G2EvaluationDtos.ExperimentResponse responseFor(G2EvaluationExperiment experiment) {
         long readyPairs = sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.READY);
         long pendingPairs = sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.PENDING)
-                + sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.RUNNING);
+                + sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.RUNNING)
+                + sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.PAYMENT_PENDING)
+                + sampleRepository.countByExperimentAndStatus(experiment, G2EvaluationSampleStatus.RECOVERY_REQUIRED);
         long validVotes = voteRepository.countByExperiment(experiment);
         long craftedWins = voteRepository.countByExperimentAndChoice(experiment, G2EvaluationVoteChoice.CRAFTED);
         long reviewers = voteRepository.countDistinctReviewers(experiment);

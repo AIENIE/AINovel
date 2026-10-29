@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "stories")
+@org.hibernate.annotations.DynamicUpdate
 public class Story {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,6 +27,12 @@ public class Story {
     private String tone;
     private String status; // draft/published/archived
     private String worldId;
+    private UUID worldVersionId;
+    private long worldBindingRevision;
+    public UUID getWorldVersionId() { return worldVersionId; }
+    public void setWorldVersionId(UUID value) { worldVersionId = value; }
+    public long getWorldBindingRevision() { return worldBindingRevision; }
+    public void setWorldBindingRevision(long value) { worldBindingRevision = value; }
 
     @CreationTimestamp
     private Instant createdAt;

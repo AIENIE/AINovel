@@ -45,7 +45,7 @@ public class StoryConceptionService {
                     List.of(new AiChatRequest.Message("user", promptContext.prompt())),
                     null,
                     null
-            ));
+            ).forFeature("story.conception"));
         Map<String, Object> parsed = parseJsonObject(response.content());
         if (parsed == null || parsed.isEmpty()) {
             throw new com.ainovel.app.common.BusinessException("AI_INITIALIZATION_INVALID_RESULT");

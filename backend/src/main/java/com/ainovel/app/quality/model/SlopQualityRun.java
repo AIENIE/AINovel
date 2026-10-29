@@ -58,6 +58,10 @@ public class SlopQualityRun {
     private String sourceTextHash;
     @Column(name = "text_conversion_version", length = 64)
     private String textConversionVersion;
+    @Column(name = "review_context_json", columnDefinition = "longtext")
+    private String reviewContextJson;
+    public String getReviewContextJson() { return reviewContextJson; }
+    public void setReviewContextJson(String value) { reviewContextJson=value; }
     public String getTextConversionVersion() { return textConversionVersion; }
     public void setTextConversionVersion(String value) { textConversionVersion = value; }
 

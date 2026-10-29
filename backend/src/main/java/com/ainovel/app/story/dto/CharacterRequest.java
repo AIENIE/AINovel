@@ -12,6 +12,7 @@ public class CharacterRequest {
     private String synopsis;
     private String details;
     private String relationships;
+    private Long expectedRevision;
     @Size(max = 255) private String role;
     @Size(max = 255) private String archetype;
     private final Set<String> supplied = new HashSet<>();
@@ -21,6 +22,8 @@ public class CharacterRequest {
         setName(name); setSynopsis(synopsis); setDetails(details); setRelationships(relationships);
     }
     public boolean has(String field) { return supplied.contains(field); }
+    public Long expectedRevision() { return expectedRevision; }
+    @JsonSetter("expectedRevision") public void setExpectedRevision(Long value) { expectedRevision = value; }
     public String name() { return name; }
     @JsonSetter("name") public void setName(String value) { supplied.add("name"); name = value; }
     public String synopsis() { return synopsis; }

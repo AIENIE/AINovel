@@ -95,7 +95,35 @@ public class LanguageQualityService {
     @Transactional(readOnly=true)
     public List<ReportDto> list(User user,UUID manuscriptId,UUID sceneId) {
         var m=owned(user,manuscriptId,false);
-        return reports.findTop20ByManuscriptIdAndSceneIdOrderByCreatedAtDesc(manuscriptId,sceneId).stream().map(r->dto(user,m,r)).toList();
+        return reports.findTop20ByManuscriptIdAndSceneIdOrderByCreatedAtDesc(manuscriptId,sceneId).stream().filter(r->!"SLOP".equals(data(r).origin)).map(r->dto(user,m,r)).toList();
+    }
+    /** Reuse candidate storage and decisions, without running or claiming a separate language diagnosis. */
+    @Transactional
+    public UUID importSlop(User user,UUID manuscriptId,UUID sceneId,UUID runId,com.ainovel.app.quality.SlopEvidence.ReviewData frozen) {
+        requireEnabled(); var m=owned(user,manuscriptId,true);
+        String key=LanguageProjection.hash("slop:"+runId);
+        var prior=reports.findByManuscriptIdAndSceneIdAndSourceKey(manuscriptId,sceneId,key);
+        if(prior.isPresent()) {
+            if(!matches(m,prior.get(),data(prior.get()))) throw conflict("LANGUAGE_REPORT_STALE");
+            return prior.get().id;
+        }
+        if(frozen.version!=1 || frozen.source==null || frozen.source.snapshotId()==null || frozen.projection==null
+                || !LanguageProjection.VERSION.equals(frozen.source.projectionVersion())) throw conflict("SLOP_SOURCE_MISSING_REDIAGNOSE");
+        requireExpected(m,frozen.source.branchId(),frozen.source.bodyVersion());
+        var current=LanguageProjection.of(contents.readScene(m,sceneId));
+        if(!current.htmlHash().equals(frozen.source.htmlHash()) || !current.textHash().equals(frozen.source.textHash())
+                || !current.equals(frozen.projection)) throw conflict("LANGUAGE_REPORT_STALE");
+        var d=new ReportData(); d.origin="SLOP"; d.slopRunId=runId; d.source=frozen.source; d.projection=frozen.projection;
+        d.profileHash=LanguageStandard.hash(frozen.source.standardVersion()); d.applicableVersion=m.getVersion(); d.applicableHtmlHash=current.htmlHash();
+        d.status=Status.ISSUES; d.summary="来源：Slop 语义报告。未额外运行语言诊断；候选与复核需作者逐项决定。";
+        d.coverage=List.of(new Coverage(0,0,current.text().length(),0,current.text().length(),frozen.coverage,frozen.reason));
+        for(var f:frozen.findings) if(f.eligible()) {
+            var l=f.location(); var p=current.paragraphAt(l.start(),l.end());
+            d.issues.add(new Issue(f.id().toString(),Kind.LANGUAGE,f.category(),f.quote(),f.explanation(),f.advice(),
+                    l.start(),l.end(),"EXACT",p.index(),p.text(),l.start(),l.end(),"AVAILABLE"));
+        }
+        var r=new LanguageReport(); r.manuscriptId=manuscriptId; r.sceneId=sceneId; r.sourceKey=key; r.setDataJson(write(d));
+        reports.saveAndFlush(r); return r.id;
     }
     @Transactional(readOnly=true)
     public ReportDto get(User user,UUID manuscriptId,UUID reportId) {
@@ -141,10 +169,11 @@ public class LanguageQualityService {
         if(d.status==Status.CHECKING) throw conflict("LANGUAGE_CHECK_IN_PROGRESS");
         if(!matches(m,r,d)) throw conflict("LANGUAGE_REPORT_STALE");
         var issue=d.issues.stream().filter(i->i.id().equals(issueId)).findFirst().orElseThrow(()->missing());
-        if(!issue.availability().equals("AVAILABLE") || !issue.location().equals("EXACT")) throw conflict("LANGUAGE_LOCATION_UNTRUSTED");
+        if(issue.kind()!=Kind.LANGUAGE || !issue.availability().equals("AVAILABLE") || !issue.location().equals("EXACT")) throw conflict("LANGUAGE_LOCATION_UNTRUSTED");
         var p=LanguageProjection.of(contents.readScene(m,r.sceneId)); var paragraph=p.paragraphAt(issue.currentStart(),issue.currentEnd());
         if(paragraph==null) throw conflict("LANGUAGE_LOCATION_UNTRUSTED");
         var range=LanguageAnalysis.revisionRange(p,issue);
+        if("SLOP".equals(d.origin) && !p.canReplace(range[0],range[1])) throw conflict("LANGUAGE_LOCATION_UNTRUSTED");
         var pd=new PatchData(); pd.start=range[0]; pd.end=range[1]; pd.paragraph=paragraph.index();
         pd.original=p.text().substring(pd.start,pd.end); pd.beforeContext=localContext(p,paragraph.index()); pd.applicableVersion=m.getVersion(); pd.applicableHtmlHash=p.htmlHash();
         pd.contextOffset=pd.start-p.paragraphs().get(Math.max(0,paragraph.index()-1)).start();
@@ -157,7 +186,8 @@ public class LanguageQualityService {
     @Transactional(readOnly=true)
     public PatchInput patchInput(User user,UUID patchId) {
         var p=patches.findById(patchId).orElseThrow(()->missing()); var r=reports.findById(p.reportId).orElseThrow(()->missing());
-        owned(user,r.manuscriptId,false); var d=data(r);
+        var m=owned(user,r.manuscriptId,false); var d=data(r);
+        if("SLOP".equals(d.origin) && patchData(p).status.equals("GENERATING") && !matches(m,r,d)) throw conflict("LANGUAGE_REPORT_STALE");
         var issue=d.issues.stream().filter(i->i.id().equals(p.issueId)).findFirst().orElseThrow(()->missing());
         requireProfile(d); return new PatchInput(r.manuscriptId,r.id,p.id,issue,patchData(p),d.source.standardVersion());
     }

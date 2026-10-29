@@ -20,6 +20,8 @@ import java.util.UUID;
 
 @Service
 public class G2EvaluationGenerationWorker {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private com.ainovel.app.modelconfig.AiQuoteService quotes;
     private static final Logger log = LoggerFactory.getLogger(G2EvaluationGenerationWorker.class);
 
     private final G2EvaluationSampleRepository sampleRepository;
@@ -57,7 +59,7 @@ public class G2EvaluationGenerationWorker {
         });
         if (claim == null) return;
         activeExecutions.put(sampleId, leaseOwner);
-        try {
+        try(var selection=com.ainovel.app.modelconfig.AiSelectionContext.install(quotes==null?null:quotes.taskSnapshot(sampleId))) {
             Manuscript manuscript = manuscriptRepository.findWithStoryById(claim.manuscriptId())
                     .orElseThrow(() -> new BusinessException("盲测稿件不存在"));
             if (manuscript.getOutline() == null || manuscript.getOutline().getStory() == null
@@ -81,6 +83,10 @@ public class G2EvaluationGenerationWorker {
                 clearLease(sample);
             }));
             log.info("G2 evaluation sample generated sampleId={}", sampleId);
+        } catch(com.ainovel.app.modelconfig.AiPaymentRequiredException ex) {
+            pause(sampleId,leaseOwner,G2EvaluationSampleStatus.PAYMENT_PENDING,"AI_PAYMENT_REQUIRED");
+        } catch(com.ainovel.app.ai.AiResultUncertainException ex) {
+            pause(sampleId,leaseOwner,G2EvaluationSampleStatus.RECOVERY_REQUIRED,"AI_RESULT_UNCERTAIN");
         } catch (RuntimeException ex) {
             boolean failed = Boolean.TRUE.equals(transactions.execute(status -> {
                 G2EvaluationSample sample = sampleRepository.findByIdForUpdate(sampleId).orElse(null);
@@ -101,6 +107,13 @@ public class G2EvaluationGenerationWorker {
         } finally {
             activeExecutions.remove(sampleId, leaseOwner);
         }
+    }
+
+    private void pause(UUID id,String leaseOwner,G2EvaluationSampleStatus state,String reason) {
+        transactions.executeWithoutResult(status->sampleRepository.findByIdForUpdate(id).ifPresent(sample->{
+            if(!liveExecution(sample,leaseOwner))return;
+            sample.setStatus(state);sample.setFailureMessage(reason);clearLease(sample);
+        }));
     }
 
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 30000)

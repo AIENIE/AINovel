@@ -29,6 +29,8 @@ public final class LanguageDtos {
     public record DecisionResult(PatchDto patch, long bodyVersion, UUID branchId, String content) {}
     /** Persisted document, including immutable projection and independently checkpointed chunks. */
     public static class ReportData {
+        public String origin="LANGUAGE";
+        public UUID slopRunId;
         public Source source;
         public String profileHash;
         public LanguageProjection.Projection projection;

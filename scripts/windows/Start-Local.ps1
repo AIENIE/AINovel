@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$EnvironmentFile = (Join-Path 'D:\project\aienie\aienie-runtime\private\app-secrets' 'ainovel.env'),
+    [string]$EnvironmentFile = (Join-Path $(Join-Path $(if ($env:AIENIE_RUNTIME_ROOT) { $env:AIENIE_RUNTIME_ROOT } else { Join-Path $PSScriptRoot '../../../../aienie-runtime' }) 'private/app-secrets') 'ainovel.env'),
     [ValidateSet('All', 'Backend', 'Frontend')][string]$Component = 'All',
     [ValidateRange(30, 900)][int]$StartupTimeoutSeconds = 180,
     [ValidatePattern('^[a-z0-9][a-z0-9-]{0,47}$')][string]$InstanceName = 'ainovel',

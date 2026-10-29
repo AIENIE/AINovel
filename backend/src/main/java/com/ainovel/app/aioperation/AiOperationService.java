@@ -95,6 +95,7 @@ public class AiOperationService {
                 run.setOutputTokens(0);
                 run.setOutputTokensEstimated(true);
                 run.setPayloadJson(write(payload));
+                run.setModelSelectionsJson(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?null:write(com.ainovel.app.modelconfig.AiSelectionContext.current()));
                 run.setIdempotencyKey(key);
                 run.setActiveScopeKey(activeScopeKey);
                 return repository.saveAndFlush(run).getId();
@@ -159,15 +160,15 @@ public class AiOperationService {
             releaseLeaseAndScope(run);
             repository.save(run); recovered.set(true); return;
         }
-        if (creditReservations != null && creditReservations.hasUncertainOperation(user.getId(), id + ":%", run.getRequestId())) {
+        if (creditReservations != null && (creditReservations.hasUncertainOperation(user.getId(), id + ":%", run.getRequestId())
+                ||creditReservations.existsByUserIdAndOperationIdAndStatus(user.getId(),id,com.ainovel.app.economy.model.AiCreditReservation.Status.RECONCILIATION_REQUIRED))) {
             throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "AI_RESULT_RECONCILIATION_REQUIRED");
         }
         run.setStatus(AiOperationStatus.QUEUED);
         run.setErrorMessage(null);
         run.setStreamStarted(false);
         run.setCompletedSteps(0);
-        run.setOutputTokens(0);
-        run.setOutputTokensEstimated(true);
+        // Preserve already observed output across recovery; completed calls are replayed from cache.
         run.setModelKey(null);
         run.setResultJson(null);
         run.setCompletedAt(null);
@@ -283,7 +284,7 @@ public class AiOperationService {
             run.setErrorMessage(null);
             run.setStreamStarted(false);
             run.getUser().getUsername();
-            return new Claim(run.getId(), run.getUser(), run.getOperationType(), run.getPayloadJson());
+            return new Claim(run.getId(), run.getUser(), run.getOperationType(), run.getPayloadJson(),run.getModelSelectionsJson());
         });
         if (claim == null) return;
         executionTokens.put(id, token);
@@ -295,8 +296,11 @@ public class AiOperationService {
             return;
         }
         AtomicLong lastUpdate = new AtomicLong();
-        AtomicLong currentStepTokenBase = new AtomicLong();
+        AtomicLong currentStepTokenBase = new AtomicLong(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
         AiGatewayGrpcClient.StreamProgressListener listener = new AiGatewayGrpcClient.StreamProgressListener() {
+            @Override public void onModelResolved(String modelKey) {
+                update(id,token,run->run.setModelKey(modelKey));
+            }
             @Override public void onStarted(String requestId, String modelKey) {
                 currentStepTokenBase.set(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
                 update(id, token, run -> {
@@ -324,10 +328,12 @@ public class AiOperationService {
                     run.setOutputTokens(completedTotal);
                     run.setOutputTokensEstimated(false);
                     run.setStatus(AiOperationStatus.RUNNING);
+                    run.setStreamStarted(false);
                 });
             }
         };
-        try (var ignored = AiOperationExecutionContext.install(id, new AiOperationExecutionContext.Fence() {
+        try (var selections=com.ainovel.app.modelconfig.AiSelectionContext.install(claim.modelSelectionsJson()==null?null:objectMapper.readValue(claim.modelSelectionsJson(),com.ainovel.app.modelconfig.AiSelectionContext.Snapshot.class));
+             var ignored = AiOperationExecutionContext.install(id, new AiOperationExecutionContext.Fence() {
             @Override public <T> T apply(java.util.function.Supplier<T> mutation, java.util.function.Function<T, Object> resultView) {
                 return transactions.execute(status -> {
                     AiOperationRun run = repository.findByIdForUpdate(id).orElseThrow();
@@ -353,8 +359,7 @@ public class AiOperationService {
                                     run.setCurrentStep(label);
                                     run.setCompletedSteps(Math.max(0, completed));
                                     run.setTotalSteps(Math.max(1, total));
-                                    run.setOutputTokens(0);
-                                    run.setOutputTokensEstimated(true);
+                                    run.setOutputTokens(currentStepTokenBase.get());
                                 })));
                     } catch (RuntimeException ex) {
                         throw ex;
@@ -425,7 +430,11 @@ public class AiOperationService {
         run.setCompletedSteps(run.getTotalSteps());
         run.setResultJson(write(result));
         run.setCompletedAt(Instant.now());
-        run.setCurrentStep("已完成");
+        boolean review = result instanceof com.ainovel.app.manuscript.ManuscriptService.SceneOutcome scene && "NEEDS_REVIEW".equals(scene.outcome())
+                || "WRITING_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> values && "PROPOSAL_READY".equals(values.get("outcome"))
+                || "WORLD_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> worldValues && "PROPOSALS".equals(worldValues.get("outcome"))
+                || "STORY_ASSISTANT_TURN".equals(run.getOperationType()) && result instanceof Map<?,?> storyValues && "PROPOSALS".equals(storyValues.get("outcome"));
+        run.setCurrentStep(review ? "待作者确认" : "已完成");
         releaseLeaseAndScope(run);
     }
 
@@ -507,5 +516,5 @@ public class AiOperationService {
         run.setActiveScopeKey(null);
     }
 
-    private record Claim(UUID id, User user, String type, String payloadJson) {}
+    private record Claim(UUID id, User user, String type, String payloadJson,String modelSelectionsJson) {}
 }

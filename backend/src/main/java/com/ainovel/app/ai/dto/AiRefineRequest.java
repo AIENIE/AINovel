@@ -9,5 +9,9 @@ public record AiRefineRequest(
         @Schema(description = "润色指令", example = "保持语义不变，增强文学性")
         String instruction,
         @Schema(description = "模型 ID", example = "2")
-        String modelId
-) {}
+        String modelId,
+        String featureKey
+) {
+    public AiRefineRequest(String text,String instruction,String modelId) {this(text,instruction,modelId,null);}
+    public AiRefineRequest forFeature(String feature) {return new AiRefineRequest(text,instruction,modelId,feature);}
+}

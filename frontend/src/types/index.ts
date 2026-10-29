@@ -102,6 +102,7 @@ export interface ScenePlanning {
 
 export interface CharacterCard {
   id: string;
+  revision?: number;
   name: string;
   synopsis?: string | null;
   details?: string | null;
@@ -177,6 +178,7 @@ export interface Chapter {
 
 export interface Outline {
   id: string;
+  revision?: number;
   storyId: string;
   title: string;
   worldId?: string;
@@ -307,7 +309,18 @@ export interface SlopRewriteTask {
   suggestedMethod?: string;
 }
 
+export interface SlopReview {
+  source: import("@/lib/api/domains/language-quality").LanguageReport["source"] | null;
+  promptVersion: string; coverage: string; reason: string; localRisk: number;
+  localSignals: Array<{ quote: string; patternId?: string; evidence: string; riskScore: number }>;
+  findings: Array<{ id: string; judgment: "CONFIRMED" | "DISMISSED" | "UNCERTAIN";
+    kind: "LANGUAGE" | "OUTPUT_ARTIFACT" | "STYLE" | "OBSERVATION"; category: string | null;
+    quote: string; explanation: string; advice: string; risk: number;
+    location: { start: number | null; end: number | null; trust: string; replaceable: boolean } }>;
+  languageReportId: string | null;
+}
 export interface SlopQualityRun {
+  review?: SlopReview | null;
   id: string;
   storyId: string;
   manuscriptId: string;
@@ -533,10 +546,65 @@ export interface WorldModuleData {
 }
 
 export interface WorldDetail extends World {
+  timeline?: WorldTimeline | null;
+  overview?: string;
+  revision: number;
   themes: string[];
   creativeIntent: string;
   notes: string;
   modules: WorldModuleData[];
+  entries?: WorldEntry[];
+  relations?: WorldRelation[];
+  latestPublished?: WorldVersion | null;
+  unpublishedChanges?: boolean;
+}
+
+export type WorldEntryType = 'GEOGRAPHY' | 'LOCATION' | 'PERSON' | 'ORGANIZATION' | 'SPECIES' | 'SOCIETY' | 'RESOURCE' | 'SYSTEM' | 'RULE' | 'HISTORY' | 'CUSTOM';
+export interface WorldEntry {
+  id: string; type: WorldEntryType; title: string; summary: string | null; content: string | null;
+  aliases: string[]; tags: string[]; legacyModuleKey: string | null; legacyFieldKey: string | null;
+}
+export interface WorldRelation { id: string; sourceId: string; targetId: string; type: string; description: string | null }
+export interface WorldDatePoint { year: number | null; month?: number | null; day?: number | null }
+export interface WorldDateRange { start: WorldDatePoint | null; end: WorldDatePoint | null }
+export interface WorldEra { id: string; name: string; description: string; date: WorldDateRange | null; sortOrder: number }
+export interface WorldEvent { id: string; title: string; summary: string; content: string; aliases: string[]; tags: string[]; date: WorldDateRange | null; entryIds: string[]; eraIds: string[]; sortOrder: number }
+export interface WorldTimeline { schemaVersion: number; calendarName: string; eras: WorldEra[]; events: WorldEvent[] }
+export interface StoryWorldEras { worldId: string | null; worldVersionId: string | null; bindingRevision: number; revision: number; reviewedVersionId: string | null; eraIds: string[]; eras: WorldEra[]; reviewedEras?: WorldEra[]; changedEraIds: string[]; missingEraIds: string[] }
+export interface WorldContent {
+  timeline?: WorldTimeline | null;
+  overview?: string | null;
+  name: string; tagline: string | null; themes: string[]; creativeIntent: string | null; notes: string | null;
+  entries: WorldEntry[]; relations: WorldRelation[]; modules: Record<string, Record<string, string>>; legacyModulesJson: string | null;
+}
+export interface WorldVersion {
+  id: string; worldId: string; sequenceNumber: number; origin: 'PUBLISHED' | 'MIGRATION_BASELINE'; legacyVersion: string | null;
+  draftRevision: number; contentHash: string; releaseNote: string; createdAt: string; content: WorldContent | null;
+}
+export interface WorldDiff {
+  fromVersionId: string | null; toVersionId: string | null; draftRevision: number | null;
+  changes: { kind: 'METADATA' | 'ENTRY' | 'RELATION' | 'TIMELINE' | 'ERA' | 'EVENT'; id: string; label: string; before: unknown; after: unknown }[];
+}
+export type WorldBindingScope = 'STORY' | 'OUTLINE' | 'MANUSCRIPT';
+export interface WorldBindingReference {
+  worldId: string; versionId: string; sourceType: WorldBindingScope; sourceId: string; bindingRevision: number;
+  name: string; sequenceNumber: number; origin: WorldVersion['origin']; contentHash: string; unavailableReason: string | null;
+}
+export interface WorldBindingView {
+  resourceType: WorldBindingScope; resourceId: string; bindingRevision: number; explicitVersionId: string | null; explicit: boolean;
+  effective: WorldBindingReference | null;
+  overrides: { resourceType: WorldBindingScope; resourceId: string; title: string; effective: WorldBindingReference | null }[];
+}
+
+export interface WorldGenerationStatus {
+  queue: { moduleKey: string; status: string; attempts: number; error?: string | null }[];
+}
+
+export interface WorldGeneratedResults {
+  operationId: string;
+  worldId: string;
+  modules: Record<string, Record<string, string>>;
+  appliedModules: string[];
 }
 
 export interface PromptTemplates {
@@ -548,6 +616,7 @@ export interface PromptTemplates {
 }
 
 export interface WorldPromptTemplates {
+  actions?: Record<string, string>;
   modules: Record<string, string>; // moduleKey -> template
   finalTemplates: Record<string, string>;
   fieldRefine: string;
@@ -659,6 +728,8 @@ export interface GuidedCreationCandidate {
 }
 
 export interface GuidedCreationStepData {
+  awaitingPublication?: boolean;
+  publishedVersionId?: string;
   outlinePhase?: "DIRECTION_SELECTION" | "OUTLINE_PREVIEW";
   candidates?: GuidedCreationCandidate[];
   recommendedCandidateId?: string;

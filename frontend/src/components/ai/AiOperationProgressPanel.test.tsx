@@ -83,7 +83,7 @@ describe("AiOperationProgressPanel", () => {
     render(<AiOperationProgressPanel />);
 
     expect(screen.getByText("操作失败，请稍后重试")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    fireEvent.click(screen.getByRole("button", { name: "恢复原任务" }));
     expect(tracked.retry).toHaveBeenCalledWith("operation-1");
   });
   it("shows a recognized failure reason without exposing arbitrary server messages", () => {

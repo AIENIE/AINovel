@@ -7,7 +7,11 @@ import java.util.UUID;
 public record OutlineSaveRequest(String title,
                                  String worldId,
                                  Map<String, Object> planning,
-                                 List<ChapterPayload> chapters) {
+                                 List<ChapterPayload> chapters,
+                                 Long expectedRevision) {
+    public OutlineSaveRequest(String title, String worldId, Map<String, Object> planning, List<ChapterPayload> chapters) {
+        this(title, worldId, planning, chapters, null);
+    }
     public record ChapterPayload(UUID id,
                                  String title,
                                  String summary,

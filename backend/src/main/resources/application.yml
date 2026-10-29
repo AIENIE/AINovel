@@ -96,7 +96,7 @@ app:
   time-zone: Asia/Shanghai
   records:
     dir: ./var/records
-    elasticsearch-query-enabled: true
+    elasticsearch-query-enabled: false
     max-file-size-bytes: 10485760
     max-history-days: 14
     max-total-size-bytes: 1073741824
@@ -133,7 +133,6 @@ app:
     timeout-ms: 120000
     ai-timeout-ms: 60000
     billing-timeout-ms: 5000
-    session-timeout-ms: 3000
     grpc:
       tls-enabled: true
       plaintext-enabled: false
@@ -169,7 +168,7 @@ sso:
   callback-origin: ''
   session-validation:
     enabled: true
-    timeout-ms: 5000
+    timeout-ms: ${runtime.configuration.USER_SESSION_GRPC_TIMEOUT_MS:${USER_SESSION_GRPC_TIMEOUT_MS:${app.external.session-timeout-ms:${runtime.configuration.EXTERNAL_SESSION_TIMEOUT_MS:${EXTERNAL_SESSION_TIMEOUT_MS:5000}}}}}
     grpc-address: static://userservice.seekerhut.com:443
 qdrant:
   host: ''

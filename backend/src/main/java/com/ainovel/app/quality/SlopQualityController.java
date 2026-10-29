@@ -53,4 +53,13 @@ public class SlopQualityController {
         Manuscript manuscript = accessGuard.requireOwnedManuscript(manuscriptId, user);
         return SlopQualityMapper.toDto(diagnosticService.analyzeScene(user, manuscript, sceneId));
     }
+
+    @Operation(summary = "为语义确认的 Slop 语言问题生成一份局部候选并复核", description = "校验冻结来源及唯一定位；复用语言候选与作者逐项处置，不额外运行诊断或自动覆盖正文。")
+    @PostMapping("/manuscripts/{manuscriptId}/quality-runs/{runId}/issues/{issueId}/suggestions/operations")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.ACCEPTED)
+    public com.ainovel.app.aioperation.AiOperationDtos.Accepted suggest(@AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID manuscriptId,@PathVariable UUID runId,@PathVariable UUID issueId) {
+        User user=accessGuard.currentUser(principal); accessGuard.requireOwnedManuscript(manuscriptId,user);
+        return diagnosticService.suggest(user,manuscriptId,runId,issueId);
+    }
 }

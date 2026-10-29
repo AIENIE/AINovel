@@ -119,3 +119,12 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 - 不提供 user-service 的 SMTP/SMS/SSO 配置管理。
 - 不提供 ai-service 的模型池、API Key、调用方密钥、成本报表或全局告警管理。
 - 不提供 pay-service 的签到、充值、通用账务、额度或全局告警管理。
+
+## 模型配置
+
+- `GET /api/v2/admin/model-catalog`：目录、同步状态与专用链路只读配置。
+- `POST /api/v2/admin/model-catalog/sync`：手动同步当前环境 ai-service 调用方文本目录；不执行模型探测或推理。
+- `GET /api/v2/admin/model-routing`：各具体功能的免费/计费选项、默认项、价格与版本。
+- `PUT /api/v2/admin/model-routing/{featureKey}`：保存完整功能配置，复用既有 TOTP 操作证明与审计。目录更新不修改方案与售价，已受理任务沿用原快照。
+
+请求结构、thinking 能力及兼容错误见[模型配置 API](v2-models.md)。后台售价独立于 ai-service 上游费率；不提供上游凭据或模型池管理。

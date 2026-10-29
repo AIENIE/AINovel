@@ -213,4 +213,7 @@ public class SceneGenerationRun {
     public void setRecomputedAt(Instant recomputedAt) { this.recomputedAt = recomputedAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    @Lob @Column(columnDefinition="longtext") private String modelSelectionJson;
+    public String getModelSelectionJson(){return modelSelectionJson;}
+    public void setModelSelectionJson(String value){modelSelectionJson=value;}
 }

@@ -1,6 +1,7 @@
 package com.ainovel.app.integration;
 
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.ai.dto.AiModelDto;
 import fireflychat.ai.v1.AiGatewayServiceGrpc;
 import fireflychat.ai.v1.ChatCompletionsRequest;
@@ -34,14 +35,21 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 @Component
 public class AiGatewayGrpcClient {
+    private static final Set<String> QUALITY_REPORT_FEATURES = Set.of("slop.judge", "slop.diagnose", "plot.diagnose");
+    public static final String RETRIEVAL_RERANK_MODEL="qwen3.7-text-rerank";
+    public static final String RETRIEVAL_STRUCTURED_MODEL="qwen3.7-flash-2026-07-15";
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.ai.AiValidationMoneyGateway moneyGateway;
 
     private final ExternalServiceProperties properties;
     private final ClientInterceptor authInterceptor;
@@ -82,11 +90,101 @@ public class AiGatewayGrpcClient {
         return models;
     }
 
+    public fireflychat.ai.v1.ModelChatCapabilities chatCapabilities(String model) {
+        var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).listCallerModels(fireflychat.ai.v1.ListCallerModelsRequest.getDefaultInstance());
+        return response.getModelsList().stream().filter(m->m.getModelKey().equals(model) || Long.toString(m.getId()).equals(model))
+                .findFirst().map(fireflychat.ai.v1.ModelOption::getChatCapabilities).orElseThrow(()->new IllegalArgumentException("AI_MODEL_UNAVAILABLE"));
+    }
+    public List<com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel> listCallerModels() {
+        var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS)
+                .listCallerModels(fireflychat.ai.v1.ListCallerModelsRequest.getDefaultInstance());
+        return response.getModelsList().stream().map(m->{
+            var t=m.getThinking();
+            var thinking=m.hasThinking()?new com.ainovel.app.modelconfig.AiModelConfigurationService.Thinking(
+                    t.getDeclared(),t.getSupportsEnable(),t.getSupportsDisable(),t.getOptionsList().stream().filter(o->o.getEffortValue()>=1&&o.getEffortValue()<=6)
+                    .map(o->new com.ainovel.app.modelconfig.AiModelConfigurationService.ThinkingOption(
+                            o.getEffort().name().replace("THINKING_EFFORT_",""),o.getLabel())).toList(),
+                    t.hasDefaultEnabled()?t.getDefaultEnabled():null,
+                    t.hasDefaultEffort()?t.getDefaultEffort().name().replace("THINKING_EFFORT_",""):null)
+                    :com.ainovel.app.modelconfig.AiModelConfigurationService.Thinking.unknown();
+            return new com.ainovel.app.modelconfig.AiModelConfigurationService.CatalogModel(
+                    Long.toString(m.getId()),m.getModelKey(),m.getDisplayName(),m.getProvider(),true,
+                    m.getSupportsStreaming(),m.getSupportsImageInput(),thinking,null,
+                    m.hasChatCapabilities()?com.ainovel.app.modelconfig.AiModelConfigurationService.ChatCapabilities.from(m.getChatCapabilities()):com.ainovel.app.modelconfig.AiModelConfigurationService.ChatCapabilities.unknown());
+        }).toList();
+    }
+
+    public ChatResult complete(String requestId,long remoteUserId,
+            com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
+            StreamProgressListener listener) {
+        var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
+        if(owner!=null) {
+            var snapshot=com.ainovel.app.modelconfig.AiSelectionContext.current();
+            if(snapshot==null)throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_CONFIGURATION_REQUIRED");
+            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected).toBuilder()
+                    .setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
+            return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
+        }
+        if(monetaryValidation()) return moneyChat(selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected));
+        try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
+            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
+            if(listener==null) {
+                var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
+                return chatResult(response);
+            }
+            return consumeStream(requestId,request,listener);
+        });}catch(io.grpc.StatusRuntimeException failure) {
+            if(failure.getStatus().getCode()==io.grpc.Status.Code.FAILED_PRECONDITION
+                    &&failure.getStatus().getDescription()!=null&&failure.getStatus().getDescription().startsWith("THINKING_OPTIONS_UNSUPPORTED"))
+                throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_THINKING_UNSUPPORTED");
+            throw failure;
+        }
+    }
+
+    /** Native tool turns retain the complete wire envelope and use an explicitly bounded unary call. */
+    public ChatResult complete(String requestId,long remoteUserId,
+            com.ainovel.app.modelconfig.AiModelSelection selected,AiChatRequest input,StreamProgressListener listener) {
+        if(!input.nativeTools())return complete(requestId,remoteUserId,selected,input.messages(),listener);
+        var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),input),selected);
+        var capabilities=chatCapabilities(selected.modelKey());
+        if(!capabilities.getBudgetToolsDeclared() || !capabilities.getBudgetToolsAvailable())
+            throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE");
+        var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
+        if(owner!=null)return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
+        if(!monetaryValidation())throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_BUDGET_REQUIRED");
+        return moneyChat(request);
+    }
+
+    static ChatCompletionsRequest withThinking(ChatCompletionsRequest original,
+            com.ainovel.app.modelconfig.AiModelSelection selected) {
+        var builder=original.toBuilder();
+        if("OFF".equals(selected.thinkingMode())) builder.setThinkingEnabled(false);
+        else if("ON".equals(selected.thinkingMode())) {
+            builder.setThinkingEnabled(true);
+            if(selected.thinkingEffort()!=null) builder.setThinkingEffort(
+                    fireflychat.ai.v1.ThinkingEffort.valueOf("THINKING_EFFORT_"+selected.thinkingEffort()));
+        }
+        return builder.build();
+    }
+
+    private static ChatCompletionsRequest selectedRequest(ChatCompletionsRequest original,
+            com.ainovel.app.modelconfig.AiModelSelection selected) {
+        var request = withThinking(original, selected);
+        var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
+        // JSON reports must not inherit a provider's much larger prose-generation default.
+        // Drafting and full-text revisions keep their existing output behavior.
+        if (snapshot != null && QUALITY_REPORT_FEATURES.contains(selected.featureKey())) {
+            request = request.toBuilder().setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
+        }
+        return request;
+    }
+
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
         return chatCompletions(UUID.randomUUID().toString(), remoteUserId, model, messages);
     }
 
     public ChatResult chatCompletions(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
+        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
         return validated("CHAT", requestId, model, messages, () -> chatTransport(requestId, remoteUserId, model, messages));
     }
 
@@ -95,13 +193,7 @@ public class AiGatewayGrpcClient {
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
         ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .chatCompletions(request);
-        return new ChatResult(
-                response.getContent(),
-                response.getModelKey(),
-                response.getPromptTokens(),
-                response.getCompletionTokens(),
-                response.getCacheTokens()
-        );
+        return chatResult(response);
     }
 
     public ChatResult chatCompletionsStream(long remoteUserId,
@@ -116,7 +208,33 @@ public class AiGatewayGrpcClient {
                                             String model,
                                             List<AiChatRequest.Message> messages,
                                             StreamProgressListener listener) {
+        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
         return validated("CHAT_STREAM", requestId, model, messages, () -> streamTransport(requestId, remoteUserId, model, messages, listener));
+    }
+
+    private boolean monetaryValidation() { return validationBudget!=null && validationBudget.monetaryEnabled(); }
+    public com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
+        return new com.ainovel.app.ai.AiValidationMoneyGateway.Transport() {
+            public fireflychat.ai.v1.ModelChatCapabilities capabilities(String model) { return chatCapabilities(model); }
+            public fireflychat.ai.v1.PrepareCallBudgetResponse prepare(fireflychat.ai.v1.PrepareCallBudgetRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).prepareCallBudget(request);
+            }
+            public ChatCompletionsResponse send(ChatCompletionsRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
+            }
+            public fireflychat.ai.v1.GetBudgetCallStatusResponse status(fireflychat.ai.v1.GetBudgetCallStatusRequest request) {
+                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).getBudgetCallStatus(request);
+            }
+        };
+    }
+    private ChatResult moneyChat(ChatCompletionsRequest request) {
+        // Explicit local acceptance uses only the declared unary text budget path, even when the UI tracks progress.
+        var response=moneyGateway.call(request,moneyTransport());
+        return chatResult(response);
+    }
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelayString="${app.ai.validation.reconcile-delay-ms:30000}")
+    public void reconcileValidationMoney() {
+        if(monetaryValidation()) moneyGateway.reconcilePending(moneyTransport());
     }
 
     private ChatResult streamTransport(String requestId,
@@ -125,6 +243,10 @@ public class AiGatewayGrpcClient {
                                             List<AiChatRequest.Message> messages,
                                             StreamProgressListener listener) {
         ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
+        return consumeStream(requestId,request,listener);
+    }
+
+    private ChatResult consumeStream(String requestId,ChatCompletionsRequest request,StreamProgressListener listener) {
         Iterator<ChatCompletionsStreamEvent> events = stub()
                 .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
                 .chatCompletionsStream(request);
@@ -167,7 +289,9 @@ public class AiGatewayGrpcClient {
         if (completed == null) throw new IllegalStateException("ai-service stream ended without COMPLETED event");
         listener.onCompleted(completed.getCompletionTokens(), completed.getPromptTokens(), completed.getCacheTokens());
         return new ChatResult(content.toString(), completed.getModelKey(), completed.getPromptTokens(),
-                completed.getCompletionTokens(), completed.getCacheTokens());
+                completed.getCompletionTokens(), completed.getCacheTokens(), AiResponseMetadata.reported(
+                        completed.getFinishReason(), completed.hasReasoningTokens() ? completed.getReasoningTokens() : null,
+                        completed.hasUsageAuthoritative() ? completed.getUsageAuthoritative() : null));
     }
 
     private ChatCompletionsRequest buildChatRequest(String requestId,
@@ -197,6 +321,22 @@ public class AiGatewayGrpcClient {
         return builder.build();
     }
 
+    private ChatCompletionsRequest buildChatRequest(String requestId,long remoteUserId,String model,AiChatRequest input) {
+        if(!input.nativeTools())return buildChatRequest(requestId,remoteUserId,model,input.messages());
+        var builder=ChatCompletionsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
+                .setUserId(remoteUserId).setSessionId("").setModel(model).setToolsJson(input.toolsJson());
+        if(input.maxOutputTokens()!=null)builder.setMaxOutputTokens(input.maxOutputTokens());
+        for(var message:input.messages()) {
+            var wire=ChatMessage.newBuilder().setRole(message.role()).setContent(message.content()==null?"":message.content());
+            if(message.toolCallId()!=null)wire.setToolCallId(message.toolCallId());
+            if(message.toolCallsJson()!=null)wire.setToolCallsJson(message.toolCallsJson());
+            if(message.reasoningContent()!=null)wire.setReasoningContent(message.reasoningContent());
+            if(message.providerState()!=null)wire.setProviderState(message.providerState());
+            builder.addMessages(wire);
+        }
+        return builder.build();
+    }
+
     public EmbeddingResult embeddings(long remoteUserId, String model, List<String> input, boolean normalize) {
         String requestId = UUID.randomUUID().toString();
         return validated("EMBEDDINGS", requestId, model, input, () -> embeddingTransport(requestId, remoteUserId, model, input, normalize));
@@ -211,17 +351,17 @@ public class AiGatewayGrpcClient {
     }
     public fireflychat.ai.v1.RerankResponse rerank(String requestId,long user,String query,List<String> documents,String instruction,int top,String run){
         var request=fireflychat.ai.v1.RerankRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
-                .setUserId(user).setModel("qwen3.7-text-rerank").setQuery(query).addAllDocuments(documents).setInstruct(instruction).setTopN(top);
+                .setUserId(user).setModel(RETRIEVAL_RERANK_MODEL).setQuery(query).addAllDocuments(documents).setInstruct(instruction).setTopN(top);
         if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
         return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).rerank(request.build());
     }
     public ChatResult structured(String requestId,long user,List<AiChatRequest.Message> messages,String schema,int maxOutput,String run){
         var request=ChatCompletionsRequest.newBuilder().setRequestId(requestId).setProjectKey(properties.getProjectKey())
-                .setUserId(user).setModel("qwen3.7-flash-2026-07-15").setJsonSchema(schema).setMaxOutputTokens(maxOutput).setThinkingEnabled(false);
+                .setUserId(user).setModel(RETRIEVAL_STRUCTURED_MODEL).setJsonSchema(schema).setMaxOutputTokens(maxOutput).setThinkingEnabled(false);
         for(var m:messages)request.addMessages(ChatMessage.newBuilder().setRole(m.role()).setContent(m.content()));
         if(run!=null&&!run.isBlank())request.setEvaluationRunId(run);
         var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request.build());
-        return new ChatResult(response.getContent(),response.getModelKey(),response.getPromptTokens(),response.getCompletionTokens(),response.getCacheTokens());
+        return chatResult(response);
     }
 
     private EmbeddingResult embeddingTransport(String requestId, long remoteUserId, String model, List<String> input, boolean normalize) {
@@ -266,7 +406,12 @@ public class AiGatewayGrpcClient {
             return result;
         } catch (RuntimeException failure) {
             if (validationBudget != null) {
-                try { validationBudget.complete(validationId, java.util.Map.of("errorType", failure.getClass().getSimpleName()), false); }
+                Map<String, String> failureMetadata = new java.util.LinkedHashMap<>();
+                failureMetadata.put("errorType", failure.getClass().getSimpleName());
+                if (failure instanceof io.grpc.StatusRuntimeException status) {
+                    failureMetadata.put("grpcCode", status.getStatus().getCode().name());
+                }
+                try { validationBudget.complete(validationId, failureMetadata, false); }
                 catch (RuntimeException recordingFailure) { failure.addSuppressed(recordingFailure); }
             }
             throw failure;
@@ -295,13 +440,34 @@ public class AiGatewayGrpcClient {
         endpointManager.shutdown();
     }
 
-    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens) {
+    private static ChatResult chatResult(ChatCompletionsResponse response) {
+        return new ChatResult(response.getContent(), response.getModelKey(), response.getPromptTokens(),
+                response.getCompletionTokens(), response.getCacheTokens(), AiResponseMetadata.reported(
+                        response.hasFinishReason() ? response.getFinishReason() : null,
+                        response.hasReasoningTokens() ? response.getReasoningTokens() : null,
+                        response.hasUsageAuthoritative() ? response.getUsageAuthoritative() : null),
+                response.hasNativeResponseJson()?response.getNativeResponseJson():null);
+    }
+
+    public record ChatResult(String content, String modelKey, long promptTokens, long completionTokens, long cacheTokens,
+                             AiResponseMetadata metadata,String nativeResponseJson) {
+        public ChatResult(String content,String modelKey,long promptTokens,long completionTokens,long cacheTokens,AiResponseMetadata metadata) {
+            this(content,modelKey,promptTokens,completionTokens,cacheTokens,metadata,null);
+        }
+        public ChatResult(String content,String modelKey,long promptTokens,long completionTokens,long cacheTokens) {
+            this(content,modelKey,promptTokens,completionTokens,cacheTokens,null);
+        }
     }
 
     public interface StreamProgressListener {
         default void onStarted(String requestId, String modelKey) {}
+        default void onModelResolved(String modelKey) {}
         void onDelta(long outputTokens, boolean estimated);
         default void onCompleted(long completionTokens, long promptTokens, long cacheTokens) {}
+        default void onUnaryCompleted(String modelKey,long completionTokens,long promptTokens,long cacheTokens) {
+            onModelResolved(modelKey);
+            onCompleted(completionTokens,promptTokens,cacheTokens);
+        }
     }
 
     public record EmbeddingResult(String modelKey, int dimensions, List<float[]> vectors, long promptTokens) {

@@ -12,21 +12,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlopQualityGateTest {
     @Test void localAcceptanceKeepsHeuristicsButMakesNoPaidJudgeOrRepairCalls() {
         var judge=org.mockito.Mockito.mock(SlopJudgeClient.class);
-        var repair=org.mockito.Mockito.mock(ConservativeRevisionService.class);
         var recorder=new InMemorySlopQualityRecorder();
-        var gate=new SlopQualityGate(new LocalSlopHeuristics(),judge,repair,recorder);
+        var gate=new SlopQualityGate(new LocalSlopHeuristics(),judge,recorder);
         var budget=org.mockito.Mockito.mock(com.ainovel.app.ai.AiValidationCallBudget.class);
         org.mockito.Mockito.when(budget.localQualityOnly()).thenReturn(true);
         org.springframework.test.util.ReflectionTestUtils.setField(gate,"validationBudget",budget);
         String text="她的嘴角微微上扬，空气仿佛凝固，时间像是停了下来。".repeat(10);
         var request=new SlopQualityRequest(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"作品","类型","语气","章","场","","受控上下文","","",text);
-        var result=gate.evaluateAndRepair(UserForTest.create(),request);
+        var result=gate.evaluate(UserForTest.create(),request);
         assertEquals(text,result.acceptedText());assertEquals(1,recorder.recorded().size());
-        org.mockito.Mockito.verifyNoInteractions(judge,repair);
+        org.mockito.Mockito.verifyNoInteractions(judge);
     }
 
     @Test
-    void shouldRunOneConservativeRevisionWhenJudgeConfirmsHighRisk() {
+    void keepsOriginalVerbatimEvenWhenJudgeRequestsRevision() {
         LocalSlopHeuristics heuristics = new LocalSlopHeuristics();
         SlopJudgeClient judgeClient = (user, request, heuristicResult) -> new SlopJudgeResult(
                 82,
@@ -41,11 +40,10 @@ class SlopQualityGateTest {
                 )),
                 "先替换模板化氛围句"
         );
-        ConservativeRevisionService revisionService = (user, request, judgeResult) -> "雨水砸在铁皮棚上，林烬听见门闩后面响了一声。";
         InMemorySlopQualityRecorder recorder = new InMemorySlopQualityRecorder();
-        SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, revisionService, recorder);
+        SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, recorder);
 
-        SlopQualityResult result = gate.evaluateAndRepair(UserForTest.create(), new SlopQualityRequest(
+        SlopQualityResult result = gate.evaluate(UserForTest.create(), new SlopQualityRequest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -61,11 +59,11 @@ class SlopQualityGateTest {
                 "她的嘴角微微上扬，空气仿佛凝固，时间像是停了下来。她的嘴角微微上扬，空气仿佛凝固，时间像是停了下来。"
         ));
 
-        assertEquals("雨水砸在铁皮棚上，林烬听见门闩后面响了一声。", result.acceptedText());
-        assertTrue(result.revised());
-        assertEquals(1, result.revisionCount());
+        assertEquals(recorder.recorded().get(0).request().candidateText(), result.acceptedText());
+        org.junit.jupiter.api.Assertions.assertFalse(result.revised());
+        assertEquals(0, result.revisionCount());
         assertEquals(1, recorder.recorded().size());
-        assertTrue(recorder.recorded().get(0).revised());
+        org.junit.jupiter.api.Assertions.assertFalse(recorder.recorded().get(0).revised());
     }
 
     @Test
@@ -108,11 +106,10 @@ class SlopQualityGateTest {
                 "先处理密度共振片段",
                 signals
         );
-        ConservativeRevisionService revisionService = (user, request, judgeResult) -> request.candidateText();
         InMemorySlopQualityRecorder recorder = new InMemorySlopQualityRecorder();
-        SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, revisionService, recorder);
+        SlopQualityGate gate = new SlopQualityGate(heuristics, judgeClient, recorder);
 
-        gate.evaluateAndRepair(UserForTest.create(), new SlopQualityRequest(
+        gate.evaluate(UserForTest.create(), new SlopQualityRequest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),

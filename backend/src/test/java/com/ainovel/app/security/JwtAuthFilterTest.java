@@ -44,6 +44,8 @@ class JwtAuthFilterTest {
         var chain = new MockFilterChain();
         filter.doFilter(bearer("signed"), response, chain);
         assertEquals(status, response.getStatus()); assertNull(chain.getRequest());
+        assertEquals(result == UserSessionValidator.ValidationResult.UNAVAILABLE
+                ? "{\"message\":\"SESSION_VALIDATION_UNAVAILABLE\"}" : "{\"message\":\"SESSION_INVALID\"}", response.getContentAsString());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         org.mockito.Mockito.verifyNoInteractions(provisioning);
     }

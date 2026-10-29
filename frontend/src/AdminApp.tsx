@@ -1,3 +1,4 @@
+import ModelConfiguration from "./pages/Admin/ModelConfiguration";
 import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -85,6 +86,7 @@ const AdminApp = () => (
               <Route path="g2-evaluations" element={<G2EvaluationCampaigns />} />
               <Route path="credits" element={<CreditsManager />} />
               <Route path="ops" element={<OpsObservability />} />
+              <Route path="models" element={<ModelConfiguration />} />
               <Route path="settings" element={<SystemSettingsPage />} />
               <Route path="security" element={<AdminSecurity />} />
             </Route>

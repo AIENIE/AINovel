@@ -20,9 +20,9 @@ public class ScenePlotQualitySupport {
 
     public void recordIsolatedPlotQuality(User owner, Manuscript manuscript, SceneGenerationContext scene, com.ainovel.app.manuscript.context.CompiledSceneDraftContext context, String text) {
         try {
-            plotQualityService.analyze(owner,new PlotQualityRequest(manuscript.getOutline().getStory().getId(),manuscript.getId(),scene.sceneId(),
+            plotQualityService.analyzeDuringGeneration(owner,new PlotQualityRequest(manuscript.getOutline().getStory().getId(),manuscript.getId(),scene.sceneId(),
                     "当前作品","未指定","沉浸、连贯","当前章节",scene.chapterOrder(),"当前场景",scene.sceneOrder(),"","",context.content(),"",text,context.manifest().isolationStamp(),context.content()));
-        } catch (RuntimeException ignored) { }
+        } catch (com.ainovel.app.modelconfig.AiPaymentRequiredException e) {throw e;} catch (com.ainovel.app.ai.AiResultUncertainException e) { throw e; } catch (RuntimeException ignored) { }
     }
     @Autowired
     private PlotQualityService plotQualityService;
@@ -73,7 +73,7 @@ public class ScenePlotQualitySupport {
                                   String characterContext,
                                   String acceptedText) {
         try {
-            plotQualityService.analyze(owner, new PlotQualityRequest(
+            plotQualityService.analyzeDuringGeneration(owner, new PlotQualityRequest(
                     story.getId(),
                     manuscript.getId(),
                     scene.sceneId(),
@@ -90,7 +90,7 @@ public class ScenePlotQualitySupport {
                     characterContext,
                     acceptedText
             ));
-        } catch (RuntimeException ignored) {
+        } catch (com.ainovel.app.modelconfig.AiPaymentRequiredException e) {throw e;} catch (com.ainovel.app.ai.AiResultUncertainException e) { throw e; } catch (RuntimeException ignored) {
         }
     }
 

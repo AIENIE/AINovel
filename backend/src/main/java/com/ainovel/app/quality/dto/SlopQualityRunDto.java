@@ -24,6 +24,7 @@ public record SlopQualityRunDto(
         String revisionPrioritiesJson,
         String rewriteTasksJson,
         Instant createdAt,
-        List<SlopQualityIssueDto> issues
+        List<SlopQualityIssueDto> issues,
+        com.ainovel.app.quality.SlopEvidence.View review
 ) {
 }

@@ -13,6 +13,7 @@ import {
   Menu,
   Activity,
   FlaskConical,
+  Cpu,
   KeyRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const navItems = [
   { title: "G2 盲测", href: "/admin/g2-evaluations", icon: FlaskConical },
   { title: "专属积分", href: "/admin/credits", icon: Coins },
   { title: "运维观测", href: "/admin/ops", icon: Activity },
+  { title: "模型配置", href: "/admin/models", icon: Cpu },
   { title: "系统维护", href: "/admin/settings", icon: Settings },
   { title: "账户安全", href: "/admin/security", icon: KeyRound },
 ];

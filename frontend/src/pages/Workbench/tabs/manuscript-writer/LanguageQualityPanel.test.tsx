@@ -85,6 +85,6 @@ describe("语言审阅", () => {
   it("完整显示超过十二项问题并分离文风和观察", async () => {
     const r = report(); r.issues = Array.from({ length: 15 }, (_, i) => ({ ...r.issues[0], id: `0-${i}`, kind: i === 13 ? "STYLE" : i === 14 ? "OBSERVATION" : "LANGUAGE" }));
     vi.mocked(api.language.reports).mockResolvedValue([r]); render(<LanguageQualityPanel {...props()} />, { wrapper: wrapper() });
-    expect(await screen.findByText("明确语言问题（13）")).toBeTruthy(); expect(screen.getByText("文风建议（1）")).toBeTruthy(); expect(screen.getAllByRole("button", { name: "生成修改建议" }).length).toBe(15);
+    expect(await screen.findByText("明确语言问题（13）")).toBeTruthy(); expect(screen.getByText("文风建议（1）")).toBeTruthy(); expect(screen.getAllByRole("button", { name: "生成修改建议" }).length).toBe(13);
   });
 });

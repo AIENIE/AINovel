@@ -140,6 +140,7 @@ export function useGuidedCreation() {
       const next = await api.creationWorkflows.confirm(
         workflow.id, workflow.currentStep, candidate.candidateId, candidate, workflow.version,
       );
+      if (next.steps.WORLD?.awaitingPublication) return next;
       if (next.currentStep !== "COMPLETED") {
         await api.creationWorkflows.generate(next.id, next.currentStep);
         return await api.creationWorkflows.get(next.id);
@@ -164,6 +165,19 @@ export function useGuidedCreation() {
     if (!workflow) return;
     await act(() => api.creationWorkflows.startAuto(workflow.id, workflow.targetChapterCount));
   }, [act, workflow]);
+
+  const publishWorld = useCallback(async (input: {expectedRevision: number;fromVersionId: string | null;expectedBindingRevision: number;releaseNote: string;requestKey: string}) => {
+    if (!workflow) throw new Error('WORLD_PUBLICATION_NOT_PENDING');
+    setBusy(true);
+    try {
+      const next = await api.creationWorkflows.publishWorld(workflow.id,{...input,version:workflow.version});
+      setWorkflow(next);await refreshList();return next;
+    } finally {setBusy(false);}
+  },[workflow,refreshList]);
+  const generateCurrent = useCallback(async () => {
+    if (!workflow || workflow.currentStep==='COMPLETED' || workflow.steps.WORLD?.awaitingPublication) return;
+    await act(async () => {await api.creationWorkflows.generate(workflow.id,workflow.currentStep);return api.creationWorkflows.get(workflow.id);});
+  },[act,workflow]);
 
   const retry = useCallback(async () => {
     if (!workflow) return;
@@ -213,7 +227,7 @@ export function useGuidedCreation() {
 
   return {
     runs, workflow, loading, busy, shouldPoll, totalCharged, remainingCredits,
-    create, open, confirm, skipWorld, startAuto, retry, newDraft,
+    create, open, confirm, skipWorld, startAuto, retry, newDraft, publishWorld, generateCurrent,
     developOutlineDirection, expandOutlineDirection,
   };
 }

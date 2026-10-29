@@ -7,7 +7,8 @@ public record SlopJudgeResult(
         boolean revisionRecommended,
         List<SlopIssueDraft> issues,
         String actionableHint,
-        SlopQualitySignals signals
+        SlopQualitySignals signals,
+        SlopEvidence.ReviewData review
 ) {
     public SlopJudgeResult(int riskScore,
                            boolean revisionRecommended,
@@ -15,6 +16,10 @@ public record SlopJudgeResult(
                            String actionableHint) {
         this(riskScore, revisionRecommended, issues, actionableHint,
                 SlopQualitySignals.fromIssues(riskScore, maxSeverity(issues, severityForRisk(riskScore)), issues));
+    }
+
+    public SlopJudgeResult(int riskScore,boolean revisionRecommended,List<SlopIssueDraft> issues,String actionableHint,SlopQualitySignals signals) {
+        this(riskScore,revisionRecommended,issues,actionableHint,signals,null);
     }
 
     public SlopJudgeResult {

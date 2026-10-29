@@ -1,116 +1,32 @@
 package com.ainovel.app.quality;
-
-import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiChatRequest;
-import com.ainovel.app.ai.dto.AiChatResponse;
+import com.ainovel.app.ai.*;
+import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import java.util.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class AiSlopJudgeClientTest {
-
-    @Test
-    void shouldParseRicherGenerationGateJson() {
-        AiService aiService = mock(AiService.class);
-        when(aiService.chat(any(), any())).thenReturn(new AiChatResponse("assistant", """
-                {
-                  "overall": {
-                    "overall_slop_risk": 74,
-                    "risk_label": "high",
-                    "evidence_level": "E2",
-                    "safe_claim": "该文本呈现 high 级模板化/slop风险；这不能证明作者使用AI。"
-                  },
-                  "revision_recommended": false,
-                  "actionable_hint": "先处理密度共振片段",
-                  "module_scores": {
-                    "surface_template": {"score": 78, "evidence_count": 2}
-                  },
-                  "evidence_items": [
-                    {
-                      "char_start": 4,
-                      "char_end": 10,
-                      "quote": "空气仿佛凝固",
-                      "module": "surface_template",
-                      "pattern_id": "SURFACE_GENERIC_PHRASE",
-                      "issue_type": "phrase_pattern",
-                      "evidence_level": "E2",
-                      "severity": "high",
-                      "risk_score": 78,
-                      "risk_explanation": "模板氛围句和抽象情绪句在短窗口共振。",
-                      "alternative_explanations": ["传统网文俗套"],
-                      "repair_hint": "换成具体动作。"
-                    }
-                  ],
-                  "alternative_explanations": ["传统网文俗套", "作者个人文风"],
-                  "revision_priorities": ["先处理共振片段"],
-                  "rewrite_tasks": [
-                    {
-                      "task_id": "R1",
-                      "priority": 1,
-                      "problem": "模板句密度偏高",
-                      "repair_goal": "换成具体动作"
-                    }
-                  ]
-                }
-                """, null, 0));
-        AiSlopJudgeClient client = new AiSlopJudgeClient(aiService, new ObjectMapper());
-
-        SlopJudgeResult result = client.judge(user(), request(), new LocalSlopHeuristics().evaluate("""
-                雨水砸在铁皮棚上，空气仿佛凝固。林烬心中涌起一股说不出的感觉。
-                """));
-
-        assertEquals(74, result.riskScore());
-        assertEquals("E2", result.signals().evidenceLevel());
-        assertEquals("high", result.signals().riskLabel());
-        assertTrue(result.signals().moduleScores().containsKey("surface_template"));
-        assertEquals("R1", ((java.util.Map<?, ?>) result.signals().rewriteTasks().get(0)).get("task_id"));
-        assertEquals(1, result.issues().size());
-        assertEquals("surface_template", result.issues().get(0).module());
-        assertEquals("E2", result.issues().get(0).evidenceLevel());
-
-        ArgumentCaptor<AiChatRequest> requestCaptor = ArgumentCaptor.forClass(AiChatRequest.class);
-        verify(aiService).chat(any(), requestCaptor.capture());
-        String prompt = requestCaptor.getValue().messages().get(0).content();
-        assertTrue(prompt.contains("风格/角色声音语境"));
-        assertTrue(prompt.contains("Active style profile: 冷峻悬疑画像"));
-        assertTrue(prompt.contains("Character voice: 林烬 speechPattern=短句、反问、重视证据"));
+    static SlopQualityRequest request(String text) { return new SlopQualityRequest(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"故事","类型","文风","章节","场景","目标","冻结的前文","角色声音","风格上下文",text); }
+    @Test void sendsFullTextPastAllLegacyBoundariesAndExcludedLocalRiskDoesNotDominate() throws Exception {
+        var ai=mock(AiService.class); var json=new ObjectMapper();
+        String text="她说：当然可以。"+java.util.stream.IntStream.range(0,7200).mapToObj(i->String.valueOf((char)(0x4e00+i))).collect(java.util.stream.Collectors.joining())+"周明没有交出钥匙。";
+        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","""
+            {"complete":true,"evidence_items":[{"judgment":"DISMISSED","kind":"OUTPUT_ARTIFACT","quote":"当然可以","risk_score":88,"risk_explanation":"正常对白"}]}
+            """,null,0));
+        var local=new LocalSlopHeuristics().evaluate(text);
+        var result=new AiSlopJudgeClient(ai,json).judge(new User(),request(text),local);
+        assertEquals(0,result.riskScore()); assertTrue(result.issues().isEmpty());
+        var capture=ArgumentCaptor.forClass(AiChatRequest.class); verify(ai).chat(any(),capture.capture());
+        assertEquals(text,json.readTree(capture.getValue().messages().get(1).content()).path("text").asText());
+        assertEquals("COMPLETE",result.review().coverage);
     }
-
-    private SlopQualityRequest request() {
-        return new SlopQualityRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                "雨城疑案",
-                "悬疑",
-                "冷峻",
-                "第一章",
-                "雨夜门外",
-                "主角发现线索",
-                "前文暂无",
-                "林烬：谨慎、重视证据",
-                "Active style profile: 冷峻悬疑画像\nCharacter voice: 林烬 speechPattern=短句、反问、重视证据",
-                "雨水砸在铁皮棚上，空气仿佛凝固。林烬心中涌起一股说不出的感觉。"
-        );
-    }
-
-    private User user() {
-        User user = new User();
-        user.setId(UUID.randomUUID());
-        user.setUsername("judge_user");
-        user.setEmail("judge_user@example.com");
-        user.setPasswordHash("x");
-        user.setRemoteUid(9000031L);
-        return user;
+    @Test void oversizedFullyBuiltRequestNeverCallsAi() {
+        var ai=mock(AiService.class); var request=request("雨".repeat(22000));
+        assertThrows(SlopInputAdmission.InputLimit.class,()->new AiSlopJudgeClient(ai,new ObjectMapper()).judge(new User(),request,new LocalSlopHeuristics().evaluate(request.candidateText())));
+        verifyNoInteractions(ai);
     }
 }

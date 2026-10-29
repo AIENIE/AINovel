@@ -16,6 +16,7 @@
 - `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/develop`：继续发展或按反馈重写一条方向。Body `{action:"continue"|"rewrite",instruction?,editedPayload?,version?}`；rewrite 的 instruction 必填且最多 500 字。
 - `POST /api/v1/creation-workflows/{id}/steps/outline/directions/{directionId}/expand`：把选定方向展开成完整大纲预览。Body `{editedPayload?,version?}`，返回 `202 {workflowId,jobId}`。新展开结果的每个场景都包含 `planning.sceneType`，且值只允许 `action/dialogue/introspection/description/flashback`；旧大纲仍可不含该字段。
 - `POST /api/v1/creation-workflows/{id}/steps/{step}/confirm`：确认并可编辑候选，Body `{candidateId,editedPayload?,version?}`。
+- `POST /api/v1/creation-workflows/{id}/steps/world/publish`：Body `{version,expectedRevision,fromVersionId,expectedBindingRevision,releaseNote?,requestKey}`。确认世界候选后，先保存草稿并等待此独立确认；发布与故事绑定在同一事务完成。重复相同请求返回原结果，不调用 AI。成功进入角色步骤，下一次生成或自动模式按剩余步骤重新报价。
 - `POST /api/v1/creation-workflows/{id}/steps/world/skip?version=`：跳过世界设定。
 - `POST /api/v1/creation-workflows/{id}/auto-run`：从当前状态采用推荐候选并自动推进，Body `{targetChapterCount?}`，返回 `202`。
 - `POST /api/v1/creation-workflows/{id}/retry`：重试 `FAILED` 或 `RECOVERY_REQUIRED` 任务，返回 `202`。
@@ -29,3 +30,5 @@
 任务 operation：`STEP_CANDIDATES`、`OUTLINE_DEVELOP`、`OUTLINE_REWRITE`、`OUTLINE_EXPAND`。
 
 运行状态：`WAITING_USER`、`AUTO_RUNNING`、`FAILED`、`COMPLETED`。任务状态：`QUEUED`、`RUNNING`、`CALLING_AI`、`SUCCEEDED`、`FAILED`、`RECOVERY_REQUIRED`。
+
+`steps.WORLD.awaitingPublication` 表示等待作者发布确认；此时禁止自动推进。`publishedVersionId` 保存已确认的版本身份。

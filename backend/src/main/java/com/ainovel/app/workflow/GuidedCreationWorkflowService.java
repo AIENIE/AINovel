@@ -134,6 +134,10 @@ public class GuidedCreationWorkflowService {
     public CreationWorkflowDtos.WorkflowResponse skipWorld(User user, UUID runId, Long version) {
         return responseFor(materializer.skipWorld(runId, user.getId(), version, false));
     }
+    @Transactional
+    public CreationWorkflowDtos.WorkflowResponse publishWorld(User user,UUID runId,GuidedCreationMaterializer.PublishWorldRequest request) {
+        return responseFor(materializer.publishWorld(runId,user.getId(),request));
+    }
 
     @Transactional
     public CreationWorkflowDtos.WorkflowResponse startAuto(User user,
@@ -143,6 +147,8 @@ public class GuidedCreationWorkflowService {
         if (run.getStatus() == CreationWorkflowStatus.COMPLETED) {
             return responseFor(run);
         }
+        if(Boolean.TRUE.equals(jsonSupport.stepData(jsonSupport.readSteps(run),run.getCurrentStep()).get("awaitingPublication")))
+            throw com.ainovel.app.world.WorldEntryStore.error("WORLD_PUBLICATION_REQUIRED");
         if (request != null && request.targetChapterCount() != null) {
             run.setTargetChapterCount(request.targetChapterCount());
         }
@@ -184,7 +190,7 @@ public class GuidedCreationWorkflowService {
         CreationWorkflowRun run = materializer.confirm(
                 completion.runId(), completion.userId(), completion.step(),
                 completion.recommendedCandidateId(), null, null, true);
-        if (run.getStatus() != CreationWorkflowStatus.COMPLETED) {
+        if (run.isAutoRun() && run.getStatus() != CreationWorkflowStatus.COMPLETED) {
             jobService.enqueueAutomatic(run.getId());
         }
         log.info("Guided creation automatic step advanced runId={} step={} nextStep={}",
@@ -227,7 +233,7 @@ public class GuidedCreationWorkflowService {
                     CreationWorkflowRun advanced = materializer.confirm(
                             run.getId(), run.getUser().getId(), run.getCurrentStep(),
                             candidateId, null, null, true);
-                    if (advanced.getStatus() != CreationWorkflowStatus.COMPLETED) {
+                    if (advanced.isAutoRun() && advanced.getStatus() != CreationWorkflowStatus.COMPLETED) {
                         jobService.enqueueAutomatic(advanced.getId());
                     }
                     return;
@@ -236,7 +242,7 @@ public class GuidedCreationWorkflowService {
             String candidateId = String.valueOf(stepData.get("recommendedCandidateId"));
             CreationWorkflowRun advanced = materializer.confirm(
                     run.getId(), run.getUser().getId(), run.getCurrentStep(), candidateId, null, null, true);
-            if (advanced.getStatus() != CreationWorkflowStatus.COMPLETED) {
+            if (advanced.isAutoRun() && advanced.getStatus() != CreationWorkflowStatus.COMPLETED) {
                 jobService.enqueueAutomatic(advanced.getId());
             }
             return;

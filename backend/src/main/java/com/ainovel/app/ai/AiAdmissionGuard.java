@@ -91,7 +91,9 @@ public class AiAdmissionGuard {
 
     public String requestHash(AiChatRequest request) {
         try {
-            byte[] json = objectMapper.writeValueAsBytes(request);
+            var node=objectMapper.valueToTree(request);
+            if(request.featureKey()==null)((com.fasterxml.jackson.databind.node.ObjectNode)node).remove("featureKey");
+            byte[] json = objectMapper.writeValueAsBytes(node);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json));
         } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
             throw new IllegalStateException("Unable to hash AI request", ex);
@@ -103,6 +105,12 @@ public class AiAdmissionGuard {
                 || request.messages().size() > maxMessages) {
             throw new ApiStatusException(HttpStatus.BAD_REQUEST, "AI_MESSAGES_INVALID");
         }
+        if(request.nativeTools()) {
+            AiNativeRequestValidator.validate(request,objectMapper,maxMessageChars,maxTotalChars);
+            if(serializedContextBytes(request)>maxTotalChars)throw new ApiStatusException(HttpStatus.BAD_REQUEST,"AI_REQUEST_TOO_LARGE");
+            return;
+        }
+        if(request.hasNativeFields())throw new ApiStatusException(HttpStatus.BAD_REQUEST,"AI_NATIVE_REQUEST_INVALID");
         int total = 0;
         boolean hasUser = false;
         for (AiChatRequest.Message message : request.messages()) {

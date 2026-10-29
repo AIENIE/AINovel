@@ -63,9 +63,19 @@ final class SceneGenerationSchemaAssertions {
                                 String username,
                                 String password,
                                 String databaseName) throws SQLException {
+        assertSchema(jdbcUrl,username,password,databaseName,EXPECTED_COLUMNS);
+    }
+
+    static void assertLatestSchema(String jdbcUrl,String username,String password,String databaseName) throws SQLException {
+        var expected=new ArrayList<>(EXPECTED_COLUMNS);
+        expected.add(textNullable("model_selection_json","longtext"));
+        assertSchema(jdbcUrl,username,password,databaseName,expected);
+    }
+
+    private static void assertSchema(String jdbcUrl,String username,String password,String databaseName,List<ColumnDefinition> expected) throws SQLException {
         try (Connection connection = DriverManager.getConnection(jdbcUrl, username, password)) {
             assertEquals(1, tableCount(connection, databaseName), TABLE_NAME + " table count");
-            assertEquals(EXPECTED_COLUMNS, columns(connection, databaseName), TABLE_NAME + " column definitions");
+            assertEquals(expected, columns(connection, databaseName), TABLE_NAME + " column definitions");
             assertEquals(EXPECTED_INDEXES, indexes(connection, databaseName), TABLE_NAME + " index definitions");
             assertEquals(EXPECTED_FOREIGN_KEYS, foreignKeys(connection, databaseName),
                     TABLE_NAME + " foreign keys and delete rules");

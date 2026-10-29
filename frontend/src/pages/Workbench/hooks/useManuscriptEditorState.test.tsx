@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api-client";
 import type { Manuscript } from "@/types";
@@ -13,6 +13,133 @@ const makeManuscript = (sections: Record<string, string>): Manuscript => ({
   sections,
 });
 
+describe("assistant manuscript write receipts", () => {
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
+  const original: Manuscript = { ...makeManuscript({ one: "<p>原文</p>", two: "<p>第二场</p>" }), currentBranchId: "main", version: 4 };
+  function mount() {
+    const replace = vi.fn();
+    const hook = renderHook(({ manuscript, scene }) => useManuscriptEditorState({ selectedManuscript: manuscript,
+      selectedManuscriptId: manuscript.id, selectedSceneId: scene, selectedStoryId: "", replaceManuscript: replace, toast: vi.fn() }),
+      { initialProps: { manuscript: original, scene: "one" } });
+    return { ...hook, replace };
+  }
+  it("waits for an in-flight autosave, locks editing and passes its confirmed version to adoption", async () => {
+    const saving = deferred<Manuscript>(), adopting = deferred<Manuscript>();
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockReturnValue(saving.promise);
+    const adopt = vi.fn(() => adopting.promise);
+    const { result } = mount();
+    act(() => result.current.updateSceneDraft("one", "<p>草稿</p>"));
+    let first!: Promise<void>, second!: Promise<Manuscript>;
+    act(() => { first = result.current.persistSection("one", "<p>草稿</p>", true); });
+    await flushAsync();
+    act(() => { second = result.current.runAssistantWrite("<p>草稿</p>", adopt); });
+    expect(result.current.assistantWriteLocked).toBe(true);
+    act(() => result.current.handleEditorChange("<p>锁定期间输入</p>"));
+    expect(result.current.content).toBe("<p>草稿</p>");
+    expect(adopt).not.toHaveBeenCalled();
+    await act(async () => { saving.resolve({ ...original, version: 5, sections: { ...original.sections, one: "<p>草稿</p>" } }); await first; });
+    expect(adopt).toHaveBeenCalledWith(expect.objectContaining({ version: 5 }));
+    await act(async () => { adopting.resolve({ ...original, version: 6, sections: { ...original.sections, one: "<p>采纳内容</p>" } }); await second; });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.content).toBe("<p>采纳内容</p>");
+    expect(result.current.assistantWriteLocked).toBe(false);
+  });
+  it("distinguishes a saved baseline from a failed adoption and retains that baseline", async () => {
+    vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue({ ...original, version: 5, sections: { ...original.sections, one: "<p>本地基线</p>" } });
+    const { result } = mount();
+    act(() => result.current.updateSceneDraft("one", "<p>本地基线</p>"));
+    await act(async () => { await expect(result.current.runAssistantWrite("<p>本地基线</p>", async () => { throw new ApiError(503, "unavailable"); })).rejects.toThrow("原稿已保存"); });
+    expect(result.current.content).toBe("<p>本地基线</p>");
+    expect(result.current.dirtyScenes.one).toBe(false);
+    expect(result.current.assistantWriteLocked).toBe(false);
+  });
+  it("never calls adoption if saving the exact draft failed", async () => {
+    vi.spyOn(api.manuscripts, "saveSection").mockRejectedValue(new ApiError(409, "MANUSCRIPT_VERSION_CONFLICT"));
+    const adopt = vi.fn();
+    const { result } = mount();
+    act(() => result.current.updateSceneDraft("one", "<p>待保留草稿</p>"));
+    await act(async () => { await expect(result.current.runAssistantWrite("<p>待保留草稿</p>", adopt)).rejects.toBeInstanceOf(ApiError); });
+    expect(adopt).not.toHaveBeenCalled();
+    expect(result.current.dirtyScenes.one).toBe(true);
+    expect(result.current.content).toBe("<p>待保留草稿</p>");
+  });
+  it.each(["scene", "branch"])("isolates a late adoption response after switching %s", async kind => {
+    const adopting = deferred<Manuscript>();
+    const { result, rerender, replace } = mount();
+    let pending!: Promise<Manuscript>;
+    act(() => { pending = result.current.runAssistantWrite("<p>原文</p>", () => adopting.promise); });
+    await flushAsync();
+    const selected = kind === "branch" ? { ...original, currentBranchId: "other", version: 8, sections: { one: "<p>另一个分支</p>" } } : original;
+    rerender({ manuscript: selected, scene: kind === "scene" ? "two" : "one" });
+    await act(async () => { adopting.resolve({ ...original, version: 5, sections: { ...original.sections, one: "<p>采纳稿</p>" } }); await pending; });
+    expect(result.current.content).toBe(kind === "scene" ? "<p>第二场</p>" : "<p>另一个分支</p>");
+    if (kind === "branch") expect(replace).not.toHaveBeenCalled();
+  });
+  it("keeps another scene's expiring autosave behind the adoption receipt", async () => {
+    vi.useFakeTimers();
+    const adopting = deferred<Manuscript>();
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue({ ...original, version: 6, sections: { one: "<p>采纳稿</p>", two: "<p>另一场草稿</p>" } });
+    const { result } = mount();
+    act(() => { result.current.updateSceneDraft("two", "<p>另一场草稿</p>"); result.current.scheduleSave("two", "<p>另一场草稿</p>"); });
+    let pending!: Promise<Manuscript>;
+    act(() => { pending = result.current.runAssistantWrite("<p>原文</p>", () => adopting.promise); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1300); });
+    expect(save).not.toHaveBeenCalled();
+    await act(async () => { adopting.resolve({ ...original, version: 5, sections: { ...original.sections, one: "<p>采纳稿</p>" } }); await pending; });
+    await flushAsync();
+    expect(save).toHaveBeenCalledWith(original.id, "two", "<p>另一场草稿</p>", 5, "main");
+  });
+  it("initializes the first branch without replacing an unsaved editor draft", async () => {
+    const fresh = { ...original, currentBranchId: undefined, version: 0 };
+    const initialized = { ...fresh, currentBranchId: "main" };
+    vi.spyOn(api.v2.version, "listBranches").mockResolvedValue([]);
+    vi.spyOn(api.manuscripts, "get").mockResolvedValue(initialized);
+    const { result, rerender } = mount();
+    rerender({ manuscript: fresh, scene: "one" });
+    act(() => result.current.updateSceneDraft("one", "<p>初始化前草稿</p>"));
+    await act(() => result.current.initializeAssistantBranch());
+    rerender({ manuscript: initialized, scene: "one" });
+    expect(result.current.content).toBe("<p>初始化前草稿</p>");
+    expect(result.current.dirtyScenes.one).toBe(true);
+  });
+  it("preserves newer local text received while reconciliation is waiting for its response", async () => {
+    const response = deferred<Manuscript>();
+    const { result } = mount();
+    let pending!: ReturnType<typeof result.current.reconcileAssistantWrite>;
+    act(() => { pending = result.current.reconcileAssistantWrite("<p>原文</p>", "<p>已采纳</p>", () => response.promise); });
+    await flushAsync();
+    act(() => result.current.updateSceneDraft("one", "<p>新草稿</p>"));
+    await act(async () => {
+      response.resolve({ ...original, version: 5, sections: { ...original.sections, one: "<p>已采纳</p>" } });
+      expect((await pending).applied).toBe(false);
+    });
+    expect(result.current.content).toBe("<p>新草稿</p>");
+    expect(result.current.dirtyScenes.one).toBe(true);
+  });
+  it("keeps the local baseline when the server scene changed after the acknowledged decision", async () => {
+    const { result, replace } = mount();
+    await act(async () => {
+      const receipt = await result.current.reconcileAssistantWrite("<p>原文</p>", "<p>已采纳</p>", async () => ({ ...original, version: 6, sections: { one: "<p>另一设备的新正文</p>", two: "<p>最新其他场景</p>" } }));
+      expect(receipt.applied).toBe(false);
+    });
+    expect(result.current.content).toBe("<p>原文</p>");
+    expect(result.current.dirtyScenes.one).toBe(true);
+    expect(replace).toHaveBeenLastCalledWith(expect.objectContaining({ version: 6, sections: { one: "<p>另一设备的新正文</p>", two: "<p>最新其他场景</p>" } }));
+  });
+  it("does not downgrade its current server baseline from an older receipt", async () => {
+    const { result, replace } = mount();
+    await act(async () => { await expect(result.current.reconcileAssistantWrite("<p>原文</p>", "<p>旧回执</p>", async () => ({ ...original, version: 3, sections: { one: "<p>旧回执</p>" } }))).rejects.toThrow("早于已确认回执"); });
+    expect(result.current.content).toBe("<p>原文</p>");
+    expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { resolve, promise };
+}
+
 const flushAsync = async () => {
   await act(async () => {
     await Promise.resolve();
@@ -21,6 +148,19 @@ const flushAsync = async () => {
 };
 
 describe("useManuscriptEditorState", () => {
+  it("keeps a recovered candidate local until an explicit manual save", async () => {
+    vi.useFakeTimers();
+    const manuscript = makeManuscript({ "scene-1": "" });
+    const save = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(makeManuscript({ "scene-1": "<p>恢复后修改</p>" }));
+    const { result } = renderHook(() => useManuscriptEditorState({ replaceManuscript: vi.fn(), selectedManuscript: manuscript,
+      selectedManuscriptId: manuscript.id, selectedSceneId: "scene-1", selectedStoryId: "", toast: vi.fn() }));
+    act(() => result.current.loadCandidateDraft("<p>恢复正文</p>"));
+    act(() => result.current.handleEditorChange("<p>恢复后修改</p>"));
+    await act(async () => { vi.advanceTimersByTime(2000); await Promise.resolve(); });
+    expect(save).not.toHaveBeenCalled();expect(result.current.content).toBe("<p>恢复后修改</p>");
+    await act(async () => result.current.handleManualSave());expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it("never renders the previous scene's body when switching scenes", () => {
     const manuscript = makeManuscript({ "scene-1": "<p>第一场</p>", "scene-2": "<p>第二场</p>" });
     const renders: { scene: string; html: string }[] = [];
@@ -34,6 +174,7 @@ describe("useManuscriptEditorState", () => {
     expect(renders.filter(item => item.scene === "scene-2").every(item => item.html === "<p>第二场</p>")).toBe(true);
   });
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -131,7 +272,7 @@ describe("useManuscriptEditorState", () => {
     expect(result.current.sceneDrafts["scene-1"]).toBe("<p>second</p>");
   });
 
-  it("cancels a pending empty autosave when server generation is applied and preserves other drafts", async () => {
+  it("preserves all unsaved edits when generation completes and cancels stale autosave", async () => {
     vi.useFakeTimers();
     const saveSection = vi.spyOn(api.manuscripts, "saveSection").mockResolvedValue(
       makeManuscript({ "scene-1": "<p></p>" }),
@@ -163,10 +304,10 @@ describe("useManuscriptEditorState", () => {
     });
 
     expect(saveSection).not.toHaveBeenCalled();
-    expect(result.current.content).toBe("<p>generated text</p>");
-    expect(result.current.sceneDrafts["scene-1"]).toBe("<p>generated text</p>");
+    expect(result.current.content).toBe("<p></p>");
+    expect(result.current.sceneDrafts["scene-1"]).toBe("<p></p>");
     expect(result.current.sceneDrafts["scene-2"]).toBe("<p>other local draft</p>");
-    expect(result.current.dirtyScenes["scene-1"]).toBeUndefined();
+    expect(result.current.dirtyScenes["scene-1"]).toBe(true);
     expect(result.current.dirtyScenes["scene-2"]).toBe(true);
   });
 
@@ -308,7 +449,7 @@ describe("useManuscriptEditorState", () => {
 
 // Audit PERF-01: these exercise identity switches, not just scene switches.
 describe("manuscript and branch draft isolation", () => {
-  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
+  afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
   const a = { ...makeManuscript({ shared: "A" }), id: "a", version: 2 };
   const b = { ...makeManuscript({ shared: "B" }), id: "b", version: 7 };
   function mount(initial = a) {

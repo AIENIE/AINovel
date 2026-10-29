@@ -1,7 +1,15 @@
+import { requestAiQuote } from "./ai-quote-store";
+import { createWorldContextApi } from './api/domains/world-context';
+import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment } from "./ai-model-config";
+import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
 import { createMaterialEvidenceApi } from "./api/domains/material-evidence";
 import { createLanguageQualityApi } from "./api/domains/language-quality";
+import { createWritingAssistantApi } from "./api/domains/writing-assistant";
+import { createWritingAgentApi } from "./api/domains/writing-agent";
+import { createWorldAssistantApi } from "./api/domains/world-assistant";
+import { createStoryAssistantApi } from "./api/domains/story-assistant";
 import { manuscriptSchema, aiOperationProgressSchema, aiOperationAcceptedSchema, manuscriptSummarySchema, sceneContentSchema, type ManuscriptSectionUpdate } from "./api-contracts";
 import {
   AdminDashboardStats,
@@ -38,6 +46,10 @@ import {
   V2ContinuityIssueUpdateRequest,
   World,
   WorldDetail,
+  StoryWorldEras,
+  WorldVersion, WorldDiff, WorldBindingScope, WorldBindingView,
+  WorldGenerationStatus,
+  WorldGeneratedResults,
   WorldModuleDefinition,
   WorldPromptMetadata,
   WorldPromptTemplates,
@@ -154,6 +166,29 @@ async function fetchWithAdminOperationProof(path: string, init: RequestInit, hea
     headers: requestHeaders,
   });
   const response = await execute(headers);
+  if (response.status === 428 && inferAuthScope(path) === "user") {
+    const reason = await response.clone().json().catch(() => null) as { code?: string } | null;
+    if (reason?.code === "AI_QUOTE_REQUIRED") {
+      const body = typeof init.body === "string" && init.body ? JSON.parse(init.body) as unknown : {};
+      const preview = async (selections: Record<string, string>) => {
+        const next = await fetch(`${API_BASE}/v2/ai-quotes`, { method: "POST", headers, credentials: "same-origin", signal: init.signal,
+          body: JSON.stringify({ target: path, body, selections }) });
+        if (!next.ok) throw new ApiError(next.status, await safeErrorMessage(next) || "AI_QUOTE_FAILED");
+        return await next.json() as AiQuote;
+      };
+      const remember = async (selections: Record<string, string>) => {
+        for (const [feature, preferredOptionId] of Object.entries(selections)) {
+          const saved = await fetch(`${API_BASE}/v2/users/me/model-preferences/${feature}`, { method: "PUT", headers, credentials: "same-origin",
+            body: JSON.stringify({ preferredOptionId }) });
+          if (!saved.ok) throw new ApiError(saved.status, "AI_PREFERENCE_SAVE_FAILED");
+        }
+      };
+      const quote = await preview({});
+      const quoteId = await requestAiQuote(quote, preview, remember, init.signal);
+      const quoted = new Headers(headers); quoted.set("X-AI-Quote-Id", quoteId);
+      return execute(quoted);
+    }
+  }
   if (response.status !== 428 || inferAuthScope(path) !== "admin") return response;
 
   const challenge = await response.clone().json().catch(() => null) as { challengeId?: string } | null;
@@ -177,11 +212,11 @@ async function fetchWithAdminOperationProof(path: string, init: RequestInit, hea
   return execute(retryHeaders);
 }
 
-async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string): Promise<T> {
+async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverride?: string, responseType: "json" | "text" = "json"): Promise<T> {
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
   const method = (init.method || "GET").toUpperCase();
-  if (method === "POST" && (path.startsWith("/v1/ai/") || path.includes("/operations"))
+  if (method === "POST"
       && !headers.has("Idempotency-Key")) {
     headers.set("Idempotency-Key", globalThis.crypto.randomUUID());
   }
@@ -197,7 +232,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}, tokenOverrid
     }
     throw new ApiError(resp.status, msg || `Request failed: ${resp.status}`, resp.headers.get("X-Request-Id"));
   }
-  return (await resp.json()) as T;
+  return (responseType === "text" ? await resp.text() : await resp.json()) as T;
 }
 
 async function requestForm<T>(path: string, form: FormData, tokenOverride?: string): Promise<T> {
@@ -498,6 +533,7 @@ function toOutline(dto: NetworkObject): Outline {
   return {
     id: dto.id,
     storyId: dto.storyId,
+    revision: Number(dto.revision ?? 0),
     title: dto.title || "新大纲",
     worldId: dto.worldId || undefined,
     chapters: (dto.chapters || []).map((c: NetworkObject) => ({
@@ -569,6 +605,7 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
   const modulesMap: Record<string, Record<string, string>> = dto.modules || {};
   return {
     id: dto.id,
+    revision: dto.revision,
     name: dto.name,
     tagline: dto.tagline || "",
     status: dto.status || "draft",
@@ -576,10 +613,18 @@ function toWorldDetail(dto: NetworkObject): WorldDetail {
     updatedAt: dto.updatedAt || new Date().toISOString(),
     themes: dto.themes || [],
     creativeIntent: dto.creativeIntent || "",
+    overview: dto.overview || "",
     notes: dto.notes || "",
     modules: Object.entries(modulesMap).map(([key, fields]) => ({ key, fields: fields || {} })),
   };
 }
+
+function toWorldDraft(dto: NetworkObject): WorldDetail {
+  return { ...toWorldDetail(dto.world), entries: dto.entries || [], relations: dto.relations || [],
+    timeline: dto.timeline || null,
+    latestPublished: dto.latestPublished || null, unpublishedChanges: dto.unpublishedChanges };
+}
+const bindingCollection = (scope: WorldBindingScope) => ({ STORY: 'story-cards', OUTLINE: 'outlines', MANUSCRIPT: 'manuscripts' })[scope];
 
 function toMaterial(dto: NetworkObject): Material {
   return {
@@ -615,6 +660,7 @@ function toManuscript(value: unknown): Manuscript {
 
 function toSlopQualityRun(dto: NetworkObject): SlopQualityRun {
   return {
+    review: dto.review || null,
     id: String(dto.id),
     storyId: String(dto.storyId),
     manuscriptId: String(dto.manuscriptId),
@@ -774,8 +820,13 @@ function toPlotQualityTrend(dto: NetworkObject): PlotQualityTrend {
 }
 
 export const api = {
+  worldContext: createWorldContextApi({json:requestJson,void:requestVoid,blob:requestBlob}),
   evidence: createMaterialEvidenceApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   language: createLanguageQualityApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
+  writingAssistant: createWritingAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
+  writingAgent: createWritingAgentApi({ json: requestJson, void: requestVoid, blob: requestBlob }, toManuscript),
+  worldAssistant: createWorldAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
+  storyAssistant: createStoryAssistantApi({ json: requestJson, void: requestVoid, blob: requestBlob }),
   narrativeContext: {
     state: (mid: string, bid: string) => requestJson<import('@/types/narrative-context').ContextState>(`/v2/manuscripts/${mid}/branches/${bid}/narrative/context`),
     update: (mid: string, bid: string, value: import('@/types/narrative-context').ContextUpdate, key: string) =>
@@ -873,7 +924,24 @@ export const api = {
     },
   },
 
+  modelConfig: {
+    pending: () => requestJson<AiPendingPayment[]>("/v2/ai-quotes/pending"),
+    settle: (pending: AiPendingPayment) => requestJson<unknown>(pending.target, { method: "POST", body: JSON.stringify(pending.body),
+      headers: { "Idempotency-Key": pending.requestKey, ...(pending.quoteId ? { "X-AI-Quote-Id": pending.quoteId } : {}) } }, undefined,
+      /^\/v1\/(?:story-cards|character-cards|outlines\/scenes)\/[^/]+\/refine$/.test(pending.target) ? "text" : "json"),
+    catalog: () => requestJson<ModelCatalog>("/v2/admin/model-catalog", {}, adminCookieAuth()),
+    sync: () => requestJson<ModelCatalog>("/v2/admin/model-catalog/sync", { method: "POST" }, adminCookieAuth()),
+    routing: () => requestJson<AiFeature[]>("/v2/admin/model-routing", {}, adminCookieAuth()),
+    save: (feature: AiFeature) => requestJson<AiFeature>(`/v2/admin/model-routing/${feature.definition.key}`, { method: "PUT", body: JSON.stringify({ revision: feature.revision,
+      billingEnabled: feature.billingEnabled, defaultOptionId: feature.defaultOptionId, options: feature.options.map((option) => ({ id: option.optionId, modelKey: option.modelKey,
+        label: option.label, thinkingMode: option.thinkingMode, thinkingEffort: option.thinkingEffort, pricingMode: option.pricingMode,
+        fixedCredits: option.fixedCredits, inputPer1k: option.inputPer1k, outputPer1k: option.outputPer1k })) }) }, adminCookieAuth()),
+    features: () => requestJson<AiFeature[]>("/v2/ai-features"),
+    preference: (key: string, preferredOptionId: string | null) => requestJson<AiFeature>(`/v2/users/me/model-preferences/${key}`, { method: "PUT", body: JSON.stringify({ preferredOptionId }) }),
+  },
   ai: {
+    versionSummary: (messages: Array<{ role: string; content: string }>, context: NetworkObject) => requestJson<NetworkObject>("/v1/ai/version-summary", { method: "POST", body: JSON.stringify({ messages, context }) }),
+    outlineRefine: (text: string, instruction: string, kind: string) => requestJson<NetworkObject>("/v1/ai/outline-refine", { method: "POST", body: JSON.stringify({ text, instruction, kind }) }),
     chat: async (messages: Array<{ role: string; content: string }>, modelId: string, context: NetworkObject) => {
       const payload = {
         modelId,
@@ -1112,6 +1180,8 @@ export const api = {
         { method: "POST", body: "{}" },
       );
     },
+    publishWorld: (id: string, input: {version: number;expectedRevision: number;fromVersionId: string | null;expectedBindingRevision: number;releaseNote: string;requestKey: string}) =>
+      requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/steps/world/publish`, {method:'POST',body:JSON.stringify(input)}),
     startAuto: async (id: string, targetChapterCount: number): Promise<CreationWorkflow> => {
       return await requestJson<CreationWorkflow>(`/v1/creation-workflows/${id}/auto-run`, {
         method: "POST",
@@ -1173,10 +1243,10 @@ export const api = {
     listCharacters: async (storyId: string) => {
       return await requestJson<CharacterCard[]>(`/v1/story-cards/${storyId}/character-cards`, { method: "GET" });
     },
-    addCharacter: async (storyId: string, payload: Omit<CharacterCard, "id" | "updatedAt">) => {
+    addCharacter: async (storyId: string, payload: Omit<CharacterCard, "id" | "updatedAt" | "revision">) => {
       return await requestJson<CharacterCard>(`/v1/story-cards/${storyId}/characters`, { method: "POST", body: JSON.stringify(payload) });
     },
-    updateCharacter: async (id: string, payload: Partial<Omit<CharacterCard, "id" | "updatedAt">>) => {
+    updateCharacter: async (id: string, payload: Partial<Omit<CharacterCard, "id" | "updatedAt" | "revision">> & { expectedRevision?: number }) => {
       return await requestJson<CharacterCard>(`/v1/character-cards/${id}`, { method: "PUT", body: JSON.stringify(payload) });
     },
     deleteCharacter: async (id: string) => {
@@ -1209,7 +1279,7 @@ export const api = {
     save: async (outlineId: string, outline: Outline & { worldId?: string }) => {
       const payload = {
         title: outline.title,
-        worldId: outline.worldId,
+        expectedRevision: outline.revision,
         planning: outline.planning,
         chapters: (outline.chapters || []).map((c: NetworkObject, ci: number) => ({
           id: c.id,
@@ -1269,8 +1339,16 @@ export const api = {
       const dto = await requestJson<NetworkObject>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate?mode=${mode}`, { method: "POST", body: "{}" });
       return toManuscript(dto);
     },
-    startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast"): Promise<AiOperationAccepted> =>
-      requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: "{}" }),
+    startGenerateScene: async (manuscriptId: string, sceneId: string, mode: "fast" | "crafted" = "fast", context?: {contextHash:string;expectedSelectionRevision:number}): Promise<AiOperationAccepted> =>
+      requestJson<AiOperationAccepted>(`/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generate/operations?mode=${mode}`, { method: "POST", body: JSON.stringify(context??{}) }),
+    listSceneCandidates: (id: string, sceneId: string, branchId: string) =>
+      requestJson<SceneCandidate[]>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates?branchId=${encodeURIComponent(branchId)}`, { method: "GET" }),
+    sceneCandidate: (id: string, sceneId: string, branchId: string, candidateId: string) =>
+      requestJson<SceneCandidateDetail>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates/${candidateId}?branchId=${encodeURIComponent(branchId)}`, { method: "GET" }),
+    adoptSceneCandidate: async (id: string, sceneId: string, candidateId: string, expectedVersion: number, branchId: string): Promise<Manuscript> =>
+      toManuscript(await requestJson<NetworkObject>(`/v1/manuscripts/${id}/scenes/${sceneId}/generation-candidates/${candidateId}/adopt`, {
+        method: "POST", body: JSON.stringify({ expectedVersion, branchId }),
+      })),
     listGenerationRuns: async (manuscriptId: string, sceneId: string, limit = 10): Promise<GenerationRunSummary[]> =>
       requestJson<GenerationRunSummary[]>(
         `/v1/manuscripts/${manuscriptId}/scenes/${sceneId}/generation-runs?limit=${encodeURIComponent(String(limit))}`,
@@ -1305,28 +1383,30 @@ export const api = {
       return await requestJson<WorldModuleDefinition[]>("/v1/world-building/definitions", { method: "GET" });
     },
     getDetail: async (id: string): Promise<WorldDetail> => {
-      const dto = await requestJson<NetworkObject>(`/v1/worlds/${id}`, { method: "GET" });
-      return toWorldDetail(dto);
+      const dto = await requestJson<NetworkObject>(`/v1/worlds/${id}/draft`, { method: "GET" });
+      return toWorldDraft(dto);
     },
     create: async (data: unknown): Promise<World> => {
       const dto = await requestJson<NetworkObject>("/v1/worlds", { method: "POST", body: JSON.stringify(data) });
       return toWorldDetail(dto);
     },
-    update: async (id: string, detail: WorldDetail) => {
-      await requestJson<NetworkObject>(`/v1/worlds/${id}`, {
+    update: async (id: string, detail: WorldDetail): Promise<WorldDetail> => {
+      if (!Number.isInteger(detail.revision) || detail.revision < 0) throw new Error("WORLD_REVISION_REQUIRED");
+      const saved = await requestJson<NetworkObject>(`/v1/worlds/${id}/draft`, {
         method: "PUT",
         body: JSON.stringify({
-          name: detail.name,
+          metadata: { name: detail.name,
           tagline: detail.tagline,
           themes: detail.themes,
           creativeIntent: detail.creativeIntent,
-          notes: detail.notes,
+          overview: detail.overview,
+          notes: detail.notes },
+          entries: detail.entries || [], relations: detail.relations || [],
+          timeline: detail.timeline,
+          expectedRevision: detail.revision,
         }),
       });
-      const modules: Record<string, Record<string, string>> = {};
-      (detail.modules || []).forEach((m) => (modules[m.key] = m.fields || {}));
-      await requestJson<NetworkObject>(`/v1/worlds/${id}/modules`, { method: "PUT", body: JSON.stringify({ modules }) });
-      return true;
+      return toWorldDraft(saved);
     },
     delete: async (id: string) => {
       await requestVoid(`/v1/worlds/${id}`, { method: "DELETE" });
@@ -1341,14 +1421,31 @@ export const api = {
     publishPreview: async (worldId: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish/preview`, { method: "GET" });
     },
-    publish: async (worldId: string) => {
-      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: "{}" });
+    publish: async (worldId: string, expectedRevision: number, releaseNote: string, requestKey: string): Promise<WorldVersion> => {
+      return await requestJson<WorldVersion>(`/v1/worlds/${worldId}/publish`, { method: "POST", body: JSON.stringify({expectedRevision, releaseNote, requestKey}) });
     },
+    versions: (worldId: string) => requestJson<WorldVersion[]>(`/v1/worlds/${worldId}/versions`, { method: "GET" }),
+    copy: async (worldId: string, input: {source: 'DRAFT' | 'VERSION'; expectedRevision?: number; versionId?: string; name: string; requestKey: string}) =>
+      toWorldDetail(await requestJson<NetworkObject>(`/v1/worlds/${worldId}/copy`, {method:'POST',body:JSON.stringify(input)})),
+    export: (worldId: string, input: {source: 'DRAFT' | 'VERSION'; expectedRevision?: number; versionId?: string; format:'MARKDOWN'|'JSON'}) =>
+      requestBlob(`/v1/worlds/${worldId}/export?${new URLSearchParams(Object.entries(input).filter(([,value])=>value!==undefined).map(([key,value])=>[key,String(value)]))}`),
+    version: (worldId: string, versionId: string) => requestJson<WorldVersion>(`/v1/worlds/${worldId}/versions/${versionId}`, { method: "GET" }),
+    diff: (worldId: string, fromVersionId?: string | null, toVersionId?: string | null, draftRevision?: number) => {
+      const query = new URLSearchParams();
+      if (fromVersionId) query.set('fromVersionId', fromVersionId);
+      if (toVersionId) query.set('toVersionId', toVersionId);
+      if (draftRevision !== undefined) query.set('draftRevision', String(draftRevision));
+      return requestJson<WorldDiff>(`/v1/worlds/${worldId}/diff?${query}`, { method: "GET" });
+    },
+    startGenerateEntry: (worldId: string, entryId: string, expectedRevision: number) => requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/entries/${entryId}/generate/operations`, {method:'POST', body:JSON.stringify({expectedRevision})}),
+    refineEntry: (worldId: string, entryId: string, text: string, instruction: string) => requestJson<{result: string}>(`/v1/worlds/${worldId}/entries/${entryId}/refine`, {method:'POST',body:JSON.stringify({text,instruction})}),
     startPublish: async (worldId: string): Promise<AiOperationAccepted> =>
       requestJson<AiOperationAccepted>(`/v1/worlds/${worldId}/publish/operations`, { method: "POST", body: "{}" }),
     generationStatus: async (worldId: string) => {
-      return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
+      return await requestJson<WorldGenerationStatus>(`/v1/worlds/${worldId}/generation`, { method: "GET" });
     },
+    generatedResults: async (worldId: string, operationId: string): Promise<WorldGeneratedResults> =>
+      requestJson<WorldGeneratedResults>(`/v1/worlds/${worldId}/operations/${operationId}/generated-results`, { method: "GET" }),
     generateModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}`, { method: "POST", body: "{}" });
     },
@@ -1357,6 +1454,16 @@ export const api = {
     retryModule: async (worldId: string, moduleKey: string) => {
       return await requestJson<NetworkObject>(`/v1/worlds/${worldId}/generation/${moduleKey}/retry`, { method: "POST", body: "{}" });
     },
+  },
+
+  worldBindings: {
+    eras: (storyId: string) => requestJson<StoryWorldEras>(`/v1/stories/${storyId}/world-eras`, {method:'GET'}),
+    saveEras: (storyId: string, input: {worldId:string;worldVersionId:string;expectedBindingRevision:number;expectedRevision:number;eraIds:string[]}) =>
+      requestJson<StoryWorldEras>(`/v1/stories/${storyId}/world-eras`,{method:'PUT',body:JSON.stringify(input)}),
+    get: (scope: WorldBindingScope, id: string) => requestJson<WorldBindingView>(`/v1/${bindingCollection(scope)}/${id}/world-binding`, {method:'GET'}),
+    diff: (scope: WorldBindingScope, id: string, toVersionId: string) => requestJson<WorldDiff>(`/v1/${bindingCollection(scope)}/${id}/world-binding/diff?toVersionId=${encodeURIComponent(toVersionId)}`, {method:'GET'}),
+    change: (scope: WorldBindingScope, id: string, input: {fromVersionId: string | null; toVersionId: string | null; expectedBindingRevision: number}) =>
+      requestJson<WorldBindingView>(`/v1/${bindingCollection(scope)}/${id}/world-binding`, {method:'PUT',body:JSON.stringify(input)}),
   },
 
   materials: {

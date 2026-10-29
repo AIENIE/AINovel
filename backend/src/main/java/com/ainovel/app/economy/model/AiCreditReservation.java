@@ -33,6 +33,10 @@ public class AiCreditReservation {
     private Status status;
     @Lob @Column(columnDefinition = "longtext")
     private String resultContent;
+    @Lob @Column(columnDefinition = "longtext")
+    private String resultMetadataJson;
+    @Lob @Column(columnDefinition = "longtext")
+    private String resultNativeResponseJson;
     private long promptTokens;
     private long completionTokens;
     private long cacheTokens;
@@ -63,6 +67,10 @@ public class AiCreditReservation {
     public void setStatus(Status value) { this.status = value; }
     public String getResultContent() { return resultContent; }
     public void setResultContent(String value) { this.resultContent = value; }
+    public String getResultMetadataJson() { return resultMetadataJson; }
+    public void setResultMetadataJson(String value) { resultMetadataJson = value; }
+    public String getResultNativeResponseJson() { return resultNativeResponseJson; }
+    public void setResultNativeResponseJson(String value) { resultNativeResponseJson = value; }
     public long getPromptTokens() { return promptTokens; }
     public void setPromptTokens(long value) { this.promptTokens = value; }
     public long getCompletionTokens() { return completionTokens; }
@@ -73,4 +81,22 @@ public class AiCreditReservation {
     public void setAttemptCount(int value) { this.attemptCount = value; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String selectionJson;
+    public String getSelectionJson() { return selectionJson; }
+    public void setSelectionJson(String value) { selectionJson=value; }
+    @Column(length=100) private String actualModelKey;
+    public String getActualModelKey() { return actualModelKey; }
+    public void setActualModelKey(String value) { actualModelKey=value; }
+    @jakarta.persistence.Lob @jakarta.persistence.Column(columnDefinition="longtext")
+    private String frozenRequestJson;
+    public String getFrozenRequestJson(){return frozenRequestJson;}
+    public void setFrozenRequestJson(String value){frozenRequestJson=value;}
+    private UUID operationId;
+    public UUID getOperationId(){return operationId;}
+    public void setOperationId(UUID value){operationId=value;}
+    @Column(length=160) private String requestIdentity;
+    public String getRequestIdentity(){return requestIdentity;}
+    public void setRequestIdentity(String value){requestIdentity=value;}
 }

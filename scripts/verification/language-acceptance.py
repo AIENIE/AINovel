@@ -14,7 +14,7 @@ import pymysql
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-PRIVATE = Path(r"D:\project\aienie\aienie-runtime\private\app-secrets")
+PRIVATE = (Path(os.environ.get("AIENIE_RUNTIME_ROOT", ROOT.parent.parent / "aienie-runtime")) / 'private/app-secrets')
 RUN = "language-20261007-v1"
 SCHEMA = "aienie_novel_audit_test_language_20261007"
 EVIDENCE = ROOT / "doc/verification/language-20261007"
@@ -29,7 +29,7 @@ def secrets(path):
 
 def root_connection(database=None):
     config = configparser.ConfigParser(interpolation=None)
-    config.read(Path(r"D:\project\aienie\aienie-runtime\private\credentials\database\aienie-devvm-mysql-root.cnf"), encoding="utf-8-sig")
+    config.read((Path(os.environ.get("AIENIE_RUNTIME_ROOT", ROOT.parent.parent / "aienie-runtime")) / 'private/credentials/database/aienie-devvm-mysql-root.cnf'), encoding="utf-8-sig")
     client = config["client"]
     return pymysql.connect(host="localmysql.testhut.top", port=23306, user=client["user"], password=client["password"], database=database, charset="utf8mb4", cursorclass=pymysql.cursors.DictCursor, connect_timeout=10)
 
@@ -98,7 +98,7 @@ def evidence():
 def database_test_environment():
     """Called by a private PowerShell process; credentials are never printed to tool output."""
     config = configparser.ConfigParser(interpolation=None)
-    config.read(Path(r"D:\project\aienie\aienie-runtime\private\credentials\database\aienie-devvm-mysql-root.cnf"), encoding="utf-8-sig")
+    config.read((Path(os.environ.get("AIENIE_RUNTIME_ROOT", ROOT.parent.parent / "aienie-runtime")) / 'private/credentials/database/aienie-devvm-mysql-root.cnf'), encoding="utf-8-sig")
     return {"AIENIE_AUDIT_MYSQL_URL": f"jdbc:mysql://localmysql.testhut.top:23306/{SCHEMA}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false", "AIENIE_AUDIT_MYSQL_USERNAME": config["client"]["user"], "AIENIE_AUDIT_MYSQL_PASSWORD": config["client"]["password"]}
 
 def freeze():

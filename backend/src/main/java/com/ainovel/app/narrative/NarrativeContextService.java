@@ -277,12 +277,17 @@ public class NarrativeContextService {
 
     @Transactional
     public void requireStamp(User user, Stamp stamp) {
+        if (!stampCurrent(user,stamp)) throw conflict("H2_CONTEXT_CHANGED");
+    }
+
+    /** A stale stamp is an expected review result, not an exception that rolls back a caller's transaction. */
+    @Transactional
+    public boolean stampCurrent(User user, Stamp stamp) {
         var state=state(user,stamp.manuscriptId(),stamp.branchId());
         var m=access.requireOwnedManuscript(stamp.manuscriptId(),user);
-        if (!stamp.branchId().equals(m.getCurrentBranchId()) || state.manuscriptVersion()!=stamp.manuscriptVersion()
-                || state.canonRevision()!=stamp.canonRevision() || state.revision()!=stamp.contextRevision()
-                || state.settingsRevision()!=stamp.settingsRevision() || !hash(m.getOutline().getContentJson()).equals(stamp.orderHash()))
-            throw conflict("H2_CONTEXT_CHANGED");
+        return stamp.branchId().equals(m.getCurrentBranchId()) && state.manuscriptVersion()==stamp.manuscriptVersion()
+                && state.canonRevision()==stamp.canonRevision() && state.revision()==stamp.contextRevision()
+                && state.settingsRevision()==stamp.settingsRevision() && hash(m.getOutline().getContentJson()).equals(stamp.orderHash());
     }
 
     private NarrativeContextRevision append(UUID branch,long revision,Document doc,String key,String requestHash,UUID author) {

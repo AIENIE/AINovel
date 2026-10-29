@@ -76,6 +76,22 @@ public class ManuscriptController {
         return manuscriptService.updateSection(id, sceneId, request);
     }
 
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates")
+    public List<com.ainovel.app.narrative.SceneCandidateSummary> candidates(@PathVariable UUID id,@PathVariable UUID sceneId,@RequestParam UUID branchId) {
+        return manuscriptService.sceneCandidates(id,sceneId,branchId);
+    }
+
+    @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates/{candidateId}")
+    public ManuscriptService.CandidateDetail candidate(@PathVariable UUID id,@PathVariable UUID sceneId,@PathVariable UUID candidateId,@RequestParam UUID branchId) {
+        return manuscriptService.sceneCandidate(id,sceneId,branchId,candidateId);
+    }
+
+    @PostMapping("/manuscripts/{id}/scenes/{sceneId}/generation-candidates/{candidateId}/adopt")
+    public ManuscriptDto adoptCandidate(@PathVariable UUID id,@PathVariable UUID sceneId,@PathVariable UUID candidateId,
+            @Valid @RequestBody ManuscriptService.AdoptCandidateRequest request) {
+        return manuscriptService.adoptSceneCandidate(id,sceneId,candidateId,request);
+    }
+
     @GetMapping("/manuscripts/{id}/scenes/{sceneId}/generation-runs")
     @Operation(summary = "查询场景生成历史", description = "按时间倒序返回生成记录；待重算记录会在查询中再次尝试精确归因。")
     public List<SceneGenerationRunDto> listSceneGenerationRuns(
@@ -99,7 +115,12 @@ public class ManuscriptController {
 
     @PostMapping("/manuscript/scenes/{sceneId}/generate")
     @Operation(summary = "生成场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件生成场景正文。")
-    public ManuscriptDto generateScene(@PathVariable UUID sceneId) { return manuscriptService.generateForScene(sceneId); }
+    public ManuscriptDto generateScene(@PathVariable UUID sceneId) {
+        var selection=com.ainovel.app.modelconfig.AiSelectionContext.current();
+        return selection!=null&&selection.businessScope()!=null
+                ?manuscriptService.generateForScene(UUID.fromString(selection.businessScope()),sceneId,com.ainovel.app.manuscript.GenerationMode.FAST)
+                :manuscriptService.generateForScene(sceneId);
+    }
 
     @PutMapping("/manuscript/sections/{sectionId}")
     @Operation(summary = "保存场景正文（兼容路径）", description = "兼容旧路径，自动选择当前稿件更新正文。")

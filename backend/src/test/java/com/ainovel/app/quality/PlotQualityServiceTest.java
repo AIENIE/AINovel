@@ -32,7 +32,7 @@ class PlotQualityServiceTest {
     @Test void isolatedDiagnosisAndRepairUseFrozenInputAndRejectChangedConfiguration() throws Exception {
         var ai=mock(AiService.class);var manuscripts=mock(ManuscriptRepository.class);var cards=mock(CharacterCardRepository.class);
         var runs=mock(PlotQualityRunRepository.class);var gate=mock(SlopQualityGate.class);var mapper=new ObjectMapper();
-        var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,gate,new JsonColumnCodec(mapper));
+        var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,new JsonColumnCodec(mapper));
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(service,"isolation",context);
@@ -71,7 +71,6 @@ class PlotQualityServiceTest {
                 manuscriptRepository,
                 characterCardRepository,
                 repository,
-                slopQualityGate,
                 new JsonColumnCodec(new ObjectMapper())
         );
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
@@ -138,7 +137,7 @@ class PlotQualityServiceTest {
                 mock(ManuscriptRepository.class),
                 mock(CharacterCardRepository.class),
                 repository,
-                mock(SlopQualityGate.class),
+
                 new JsonColumnCodec(new ObjectMapper())
         );
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
@@ -171,7 +170,7 @@ class PlotQualityServiceTest {
                 mock(ManuscriptRepository.class),
                 mock(CharacterCardRepository.class),
                 repository,
-                mock(SlopQualityGate.class),
+
                 new JsonColumnCodec(new ObjectMapper())
         );
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
@@ -203,7 +202,6 @@ class PlotQualityServiceTest {
                 manuscriptRepository,
                 mock(CharacterCardRepository.class),
                 repository,
-                slopQualityGate,
                 new JsonColumnCodec(new ObjectMapper())
         );
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
@@ -221,22 +219,14 @@ class PlotQualityServiceTest {
         when(repository.findById(runId)).thenReturn(Optional.of(run));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.save(any(PlotQualityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(slopQualityGate.evaluateAndRepair(any(), any())).thenReturn(new SlopQualityResult(
-                runId,
-                "修订后正文",
-                18,
-                SlopSeverity.LOW,
-                false,
-                0,
-                SlopQualityStatus.ACCEPTED,
-                List.of()
-        ));
+
 
         PlotQualityRun revised = service.applyRevision(user(), manuscript, runId);
 
+        org.mockito.Mockito.verifyNoInteractions(slopQualityGate);
         assertTrue(revised.isRevisionApplied());
-        assertEquals(PlotQualityService.hashText("修订后正文"), revised.getSourceTextHash());
-        assertTrue(manuscript.getSectionsJson().contains("<p>修订后正文</p>"));
+        assertEquals(PlotQualityService.hashText("修订候选"), revised.getSourceTextHash());
+        assertTrue(manuscript.getSectionsJson().contains("<p>修订候选</p>"));
         verify(manuscriptRepository).save(manuscript);
         verify(repository).save(run);
     }

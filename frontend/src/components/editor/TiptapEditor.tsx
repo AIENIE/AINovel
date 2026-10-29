@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import EditorToolbar from "./EditorToolbar";
 import { cn } from "@/lib/utils";
 import { FontType, WidthType, ThemeType } from "./AppearanceSettings";
-import { SlashCommand, suggestionOptions } from "./slash-command";
+import { SlashCommand, createSuggestionOptions } from "./slash-command";
 import { Button } from "@/components/ui/button";
 import { 
   Bold, 
@@ -15,11 +15,10 @@ import {
   Sparkles
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { showSuccess, showError } from "@/utils/toast";
-import { useCallback, useEffect, useRef, useState } from "react";
-import AiRefineDialog from "@/components/ai/AiRefineDialog";
-import { api } from "@/lib/api-client";
-import { useAuth } from "@/contexts/auth-state";
+import { showError } from "@/utils/toast";
+import { useCallback, useEffect, useRef } from "react";
+import { useWritingAssistantContext } from "@/components/ai/writing-assistant-context";
+import { captureAssistantTarget } from "@/lib/assistant-editor";
 
 interface TiptapEditorProps {
   content: string;
@@ -42,14 +41,10 @@ const TiptapEditor = ({
   width = "medium",
   theme = "light"
 }: TiptapEditorProps) => {
-  const { refreshProfile, user } = useAuth();
+  const assistant = useWritingAssistantContext();
+  const assistantRef = useRef(assistant);
+  assistantRef.current = assistant;
   const { t } = useTranslation();
-  
-  // AI Refine State
-  const [isRefineOpen, setIsRefineOpen] = useState(false);
-  const [originalText, setOriginalText] = useState("");
-  const [refinedText, setRefinedText] = useState("");
-  const [refineCost, setRefineCost] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollRafRef = useRef<number | null>(null);
   const applyingExternalContentRef = useRef(false);
@@ -61,7 +56,7 @@ const TiptapEditor = ({
         placeholder: t("editor.placeholder"),
       }),
       SlashCommand.configure({
-        suggestion: suggestionOptions,
+        suggestion: createSuggestionOptions(editor => assistantRef.current?.openEditorAction(captureAssistantTarget(editor, true), "continue")),
       }),
     ],
     content,
@@ -121,8 +116,8 @@ const TiptapEditor = ({
   useEffect(() => {
     if (!editor) return;
     // Changing editor permissions is hydration, not a user edit.
-    editor.setEditable(editable, false);
-  }, [editor, editable]);
+    editor.setEditable(editable && !assistant?.locked, false);
+  }, [editor, editable, assistant?.locked]);
 
   useEffect(() => {
     if (!editor) return;
@@ -154,43 +149,23 @@ const TiptapEditor = ({
     };
   }, [centerCurrentLine, editor, zenMode]);
 
-  const handleAIPolish = async () => {
+  useEffect(() => {
     if (!editor) return;
-    if (user && user.credits <= 0) {
-      showError("editor.insufficientCredits");
-      return;
-    }
-    const selection = editor.state.selection;
-    const text = editor.state.doc.textBetween(selection.from, selection.to);
-    
-    if (text.length < 2) {
+    const capture = () => {
+      if (editor.isFocused && !editor.state.selection.empty) assistantRef.current?.capture(captureAssistantTarget(editor));
+    };
+    editor.on("selectionUpdate", capture);
+    return () => { editor.off("selectionUpdate", capture); };
+  }, [editor]);
+
+  const handleAIPolish = () => {
+    if (!editor) return;
+    const target = captureAssistantTarget(editor);
+    if (target.text.length < 2) {
       showError("editor.selectMoreText");
       return;
     }
-
-    setOriginalText(text);
-    showSuccess("editor.polishing");
-    
-    try {
-      // Use default model for quick refine
-      const models = await api.ai.getModels();
-      const modelId = models[0]?.id;
-      if (!modelId) throw new Error(t("ai.noModel"));
-      
-      const res = await api.ai.refine(text, t("editor.refineInstruction"), modelId);
-      setRefinedText(res.result);
-      setRefineCost(res.usage.cost);
-      setIsRefineOpen(true);
-      await refreshProfile();
-    } catch (error) {
-      showError("editor.refineFailed");
-    }
-  };
-
-  const confirmRefine = () => {
-    if (editor) {
-      editor.chain().focus().insertContent(refinedText).run();
-    }
+    assistantRef.current?.openEditorAction(target, "polish");
   };
 
   const getContainerStyle = () => {
@@ -221,18 +196,8 @@ const TiptapEditor = ({
 
   return (
     <div className="flex flex-col w-full h-full relative">
-      {!zenMode && <EditorToolbar editor={editor} />}
+      {!zenMode && <fieldset disabled={!editable || assistant?.locked} className="min-w-0"><EditorToolbar editor={editor} /></fieldset>}
       
-      {/* AI Refine Dialog */}
-      <AiRefineDialog 
-        open={isRefineOpen} 
-        onOpenChange={setIsRefineOpen}
-        originalText={originalText}
-        refinedText={refinedText}
-        onConfirm={confirmRefine}
-        cost={refineCost}
-      />
-
       {/* Bubble Menu */}
       {editor && (
         <BubbleMenu 
@@ -243,6 +208,7 @@ const TiptapEditor = ({
           <Button
             variant="ghost"
             size="sm"
+            disabled={!editable || assistant?.locked}
             className="h-8 w-8 p-0"
             onClick={() => editor.chain().focus().toggleBold().run()}
             data-state={editor.isActive('bold') ? 'on' : 'off'}
@@ -252,6 +218,7 @@ const TiptapEditor = ({
           <Button
             variant="ghost"
             size="sm"
+            disabled={!editable || assistant?.locked}
             className="h-8 w-8 p-0"
             onClick={() => editor.chain().focus().toggleItalic().run()}
             data-state={editor.isActive('italic') ? 'on' : 'off'}
@@ -261,6 +228,7 @@ const TiptapEditor = ({
           <Button
             variant="ghost"
             size="sm"
+            disabled={!editable || assistant?.locked}
             className="h-8 w-8 p-0"
             onClick={() => editor.chain().focus().toggleStrike().run()}
             data-state={editor.isActive('strike') ? 'on' : 'off'}
@@ -275,6 +243,7 @@ const TiptapEditor = ({
             size="sm"
             className="h-8 px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
             onClick={handleAIPolish}
+            disabled={!assistant || assistant.locked}
           >
             <Sparkles className="h-3 w-3 mr-1" />
             <span className="text-xs font-medium">{t("editor.polish")}</span>

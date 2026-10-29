@@ -30,7 +30,8 @@ public final class SlopQualityMapper {
                 run.getRevisionPrioritiesJson(),
                 run.getRewriteTasksJson(),
                 run.getCreatedAt(),
-                run.getIssues().stream().map(SlopQualityMapper::toIssueDto).toList()
+                run.getIssues().stream().map(SlopQualityMapper::toIssueDto).toList(),
+                SlopEvidence.view(run.getReviewContextJson())
         );
     }
 

@@ -1,0 +1,21 @@
+{
+  "runId": "slop-repair-20261022-v1",
+  "maximumBusinessCalls": 24,
+  "maximumCostCny": "30.000000",
+  "maxProviderAttemptsPerCall": 1,
+  "model": "gemini-3.8-flash-high",
+  "allocations": {
+    "diagnosis": 8,
+    "candidate": 6,
+    "review": 6,
+    "probeOrProvenNotSentSupplement": 4
+  },
+  "fixtureSha256": "0987d1e2580b4486e02b342d40770170fe092fdb74c2cd96559899e3608e970e",
+  "frozenAt": "2026-10-22T09:32:16.369817+00:00",
+  "authorConfirmation": "PENDING",
+  "newSamples": [
+    "D7",
+    "D8"
+  ],
+  "rules": "No prompt tuning after paid calls. NEEDS_CONTEXT or no eligible issue ends that item. Counts include empty or invalid output. Unknown calls retain original ids and reservations."
+}

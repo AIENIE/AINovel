@@ -1,5 +1,5 @@
 import type { NetworkObject } from "@/lib/api-client";
-import { Extension } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import Suggestion from "@tiptap/suggestion";
 import { ReactRenderer } from "@tiptap/react";
 import tippy from "tippy.js";
@@ -15,45 +15,19 @@ import {
   User
 } from "lucide-react";
 import React from "react";
-import { api } from "@/lib/api-client";
-import { showError, showSuccess } from "@/utils/toast";
 import { t } from "@/i18n";
 
 // 指令列表（文案经 i18n 本地化）
-const getSuggestionItems = ({ query }: { query: string }) => {
+const getSuggestionItems = ({ query }: { query: string }, onContinue?: (editor: Editor) => void) => {
   const items: SlashCommandItem[] = [
     {
       title: t("editor.continueWrite"),
       description: t("editor.continueWriteDesc"),
       icon: React.createElement(Sparkles, { className: "h-4 w-4 text-purple-500" }),
-      command: ({ editor }) => {
-        const placeholder = "【AI 续写中...】";
-        const from = editor.state.selection.from;
-        editor.chain().focus().insertContent(placeholder).run();
-        const to = from + placeholder.length;
-
-        (async () => {
-          try {
-            const models = await api.ai.getModels();
-            const modelId = models[0]?.id;
-            if (!modelId) {
-              showError("ai.noModel");
-              return;
-            }
-            const contextText = editor.getText().slice(-1000);
-            const resp = await api.ai.chat(
-              [{ role: "user", content: "请根据上下文继续创作一段正文，保持中文小说风格。" }],
-              modelId,
-              { context: contextText }
-            );
-            const content = resp?.content || "";
-            editor.chain().focus().deleteRange({ from, to }).insertContent(content).run();
-            showSuccess("editor.continueWriteDone");
-          } catch (e: unknown) {
-            editor.chain().focus().deleteRange({ from, to }).insertContent("【AI 续写失败】").run();
-            showError(e, "editor.continueWriteFailed");
-          }
-        })();
+      command: ({ editor, range }) => {
+        // Remove only the typed slash command. Opening the assistant never starts a paid call.
+        editor.chain().focus().deleteRange(range).run();
+        onContinue?.(editor);
       },
     },
     {
@@ -144,7 +118,7 @@ export const SlashCommand = Extension.create({
 });
 
 export const suggestionOptions = {
-  items: getSuggestionItems,
+  items: (args: { query: string }) => getSuggestionItems(args),
   render: () => {
     let component: ReactRenderer;
     let popup: NetworkObject;
@@ -199,3 +173,7 @@ export const suggestionOptions = {
     };
   },
 };
+
+export const createSuggestionOptions = (onContinue: (editor: Editor) => void) => ({
+  ...suggestionOptions, items: (args: { query: string }) => getSuggestionItems(args, onContinue),
+});

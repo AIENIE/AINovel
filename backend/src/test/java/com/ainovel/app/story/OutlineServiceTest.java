@@ -42,12 +42,28 @@ class OutlineServiceTest {
     private final JsonColumnCodec jsonColumnCodec = new JsonColumnCodec(objectMapper);
 
     @Test
+    void staleManualOutlineCannotReplaceNewlyAcceptedScenes() {
+        var repository = mock(OutlineRepository.class);
+        var service = service(repository, mock(StoryRepository.class), mock(ResourceAccessGuard.class), mock(AiService.class), mock(UserRepository.class));
+        var outline = outline(outlineId(), story(user("author")), Map.of("chapters", List.of(), "planning", Map.of()));
+        ReflectionTestUtils.setField(outline, "revision", 7L);
+        when(repository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
+        String original = outline.getContentJson();
+        var failure = assertThrows(com.ainovel.app.common.ApiStatusException.class,
+                () -> service.saveOutline(outline.getId(), new OutlineSaveRequest("旧编辑", null, Map.of(), List.of(), 6L)));
+        assertEquals(org.springframework.http.HttpStatus.CONFLICT, failure.getStatus());
+        assertEquals(original, outline.getContentJson());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
     void saveOutlineShouldNormalizeNestedChapterTree() {
         OutlineRepository outlineRepository = mock(OutlineRepository.class);
         ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
         OutlineService service = service(outlineRepository, mock(StoryRepository.class), accessGuard, mock(AiService.class), mock(UserRepository.class));
         User owner = user("outline_author");
         Outline outline = outline(outlineId(), story(owner), Map.of("planning", Map.of(), "chapters", List.of()));
+        outline.setWorldId("world-2"); // Existing override survives ordinary outline edits.
 
         when(outlineRepository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
         when(outlineRepository.save(any(Outline.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -212,57 +228,19 @@ class OutlineServiceTest {
     }
 
     @Test
-    void addGeneratedChapterShouldAppendAiDraftAndFillMissingScenes() {
-        OutlineRepository outlineRepository = mock(OutlineRepository.class);
-        ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
-        AiService aiService = mock(AiService.class);
-        UserRepository userRepository = mock(UserRepository.class);
-        OutlineService service = service(outlineRepository, mock(StoryRepository.class), accessGuard, aiService, userRepository);
-        User owner = user("planner");
-        Story story = story(owner);
-        Outline outline = outline(outlineId(), story, Map.of(
-                "planning", Map.of("arc", "overall"),
-                "chapters", List.of(new OutlineSaveRequest.ChapterPayload(
-                        UUID.randomUUID(),
-                        "第一章",
-                        "旧章摘要",
-                        1,
-                        Map.of("purpose", "setup"),
-                        List.of()
-                ))
-        ));
-
-        when(outlineRepository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
-        when(outlineRepository.save(any(Outline.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(accessGuard.currentUsername()).thenReturn(owner.getUsername());
-        when(userRepository.findByUsername(owner.getUsername())).thenReturn(Optional.of(owner));
-        when(aiService.chat(eq(owner), any())).thenReturn(new AiChatResponse(
-                "assistant",
-                """
-                {
-                  "title":"第三章 破局前夜",
-                  "summary":"众人准备收网，但核心误导开始反噬主角判断。",
-                  "scenes":[
-                    {"title":"风暴前的安静","summary":"主角用错误线索说服同伴提前行动。"}
-                  ]
-                }
-                """,
-                null,
-                0
-        ));
-
-        OutlineDto dto = service.addGeneratedChapter(outline.getId(), new OutlineChapterGenerateRequest(3, 3, null, null));
-
-        assertEquals(2, dto.chapters().size());
-        OutlineDto.ChapterDto appended = dto.chapters().get(1);
-        assertEquals("第三章 破局前夜", appended.title());
-        assertEquals(2, appended.order());
-        assertEquals(5, appended.scenes().size());
-        assertEquals("风暴前的安静", appended.scenes().get(0).title());
-        assertEquals("第3章 第5节", appended.scenes().get(4).title());
-        assertEquals("progression", appended.planning().get("twistRole"));
-        verify(accessGuard, times(2)).assertOwner(owner);
-        verify(aiService).chat(eq(owner), any());
+    void legacyGenerationKeepsUnappliedResultForReview() {
+        var repository=mock(OutlineRepository.class);
+        var ai=mock(OutlineAiService.class);
+        var service=service(repository,mock(StoryRepository.class),mock(ResourceAccessGuard.class),mock(AiService.class),mock(UserRepository.class));
+        ReflectionTestUtils.setField(service,"outlineAi",ai);
+        var outline=outline(outlineId(),story(user("planner")),Map.of("chapters",List.of()));
+        when(repository.findByIdWithStoryUser(outline.getId())).thenReturn(Optional.of(outline));
+        var result=new OutlineAiService.Result(UUID.randomUUID(),UUID.randomUUID(),"CHAPTER_GENERATE",null,"READY",0,0,"",null,null,"",null,1,5,"");
+        when(ai.compatible(any(),eq(outline.getId()),any())).thenReturn(result);
+        var failure=assertThrows(com.ainovel.app.common.ApiStatusException.class,
+                ()->service.addGeneratedChapter(outline.getId(),new OutlineChapterGenerateRequest(1,5,null,null)));
+        assertEquals("OUTLINE_AI_RESULT_NEEDS_REVIEW",failure.getMessage());
+        org.mockito.Mockito.verify(repository,org.mockito.Mockito.never()).save(any());
     }
 
     private OutlineService service(
@@ -273,15 +251,10 @@ class OutlineServiceTest {
             UserRepository userRepository
     ) {
         OutlineService service = new OutlineService();
-        var transactions = mock(org.springframework.transaction.support.TransactionTemplate.class);
-        when(transactions.execute(any())).thenAnswer(i -> ((org.springframework.transaction.support.TransactionCallback<?>) i.getArgument(0)).doInTransaction(mock(org.springframework.transaction.TransactionStatus.class)));
         when(outlineRepository.findByIdForUpdate(any())).thenAnswer(i -> outlineRepository.findByIdWithStoryUser(i.getArgument(0)));
-        ReflectionTestUtils.setField(service, "transactions", transactions);
         ReflectionTestUtils.setField(service, "outlineRepository", outlineRepository);
         ReflectionTestUtils.setField(service, "storyRepository", storyRepository);
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
-        ReflectionTestUtils.setField(service, "aiService", aiService);
-        ReflectionTestUtils.setField(service, "userRepository", userRepository);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
         ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
         return service;

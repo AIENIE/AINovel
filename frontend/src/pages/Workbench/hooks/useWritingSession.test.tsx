@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
-import { api } from "@/lib/api-client";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { api, ApiError } from "@/lib/api-client";
+import * as clientErrors from "@/lib/client-error-reporting";
 import { useWritingSession } from "./useWritingSession";
 
 const flushAsync = async () => {
@@ -15,7 +16,9 @@ describe("useWritingSession", () => {
     vi.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    cleanup();
+    await flushAsync();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -174,5 +177,37 @@ describe("useWritingSession", () => {
     });
     await flushAsync();
     expect(createVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains counters after a rejected heartbeat and recovers on the next regular tick", async () => {
+    vi.spyOn(api.v2.workspace, "startSession").mockResolvedValue({id:"retained-session",startedAt:new Date().toISOString(),wordsWritten:0,wordsDeleted:0} as never);
+    vi.spyOn(api.v2.workspace, "endSession").mockResolvedValue({} as never);
+    const failure=new ApiError(503,"SESSION_VALIDATION_UNAVAILABLE");
+    const heartbeat=vi.spyOn(api.v2.workspace,"heartbeatSession").mockRejectedValueOnce(failure).mockResolvedValue({} as never);
+    const report=vi.spyOn(clientErrors,"reportClientError").mockImplementation(()=>{});
+    const {result,unmount}=renderHook(()=>useWritingSession({selectedStoryId:"story",selectedManuscriptId:"manuscript",selectedSceneId:"scene",selectedSceneDirty:false,measureHtmlWords:html=>html.length}));
+    await flushAsync();act(()=>result.current.recordSceneHtml("scene","abcd"));await flushAsync();
+    act(()=>vi.advanceTimersByTime(30000));await flushAsync();
+    expect(report).toHaveBeenCalledExactlyOnceWith(failure,"writing.session-heartbeat");
+    expect(result.current.sessionNetWords).toBe(4);expect(heartbeat).toHaveBeenCalledTimes(1);
+    act(()=>result.current.recordSceneHtml("scene","abcde"));await flushAsync();
+    act(()=>vi.advanceTimersByTime(29999));await flushAsync();expect(heartbeat).toHaveBeenCalledTimes(1);
+    act(()=>vi.advanceTimersByTime(1));await flushAsync();
+    expect(heartbeat).toHaveBeenLastCalledWith("retained-session",{wordsWritten:5,wordsDeleted:0});
+    expect(result.current.sessionNetWords).toBe(5);expect(report).toHaveBeenCalledOnce();unmount();
+  });
+
+  it.each(["unmount","beforeunload"] as const)("handles an unavailable end request on %s without replaying it", async trigger=>{
+    vi.spyOn(api.v2.workspace,"startSession").mockResolvedValue({id:"closing-session",startedAt:new Date().toISOString(),wordsWritten:0,wordsDeleted:0} as never);
+    vi.spyOn(api.v2.workspace,"heartbeatSession").mockResolvedValue({} as never);
+    const failure=new ApiError(503,"SESSION_VALIDATION_UNAVAILABLE");
+    const end=vi.spyOn(api.v2.workspace,"endSession").mockRejectedValueOnce(failure).mockResolvedValue({} as never);
+    const report=vi.spyOn(clientErrors,"reportClientError").mockImplementation(()=>{});
+    const {result,unmount}=renderHook(()=>useWritingSession({selectedStoryId:"story",selectedManuscriptId:"manuscript",selectedSceneId:"scene",selectedSceneDirty:false,measureHtmlWords:html=>html.length}));
+    await flushAsync();act(()=>result.current.recordSceneHtml("scene","abc"));await flushAsync();
+    if(trigger==="unmount")unmount();else act(()=>window.dispatchEvent(new Event("beforeunload")));
+    await flushAsync();expect(end).toHaveBeenCalledExactlyOnceWith("closing-session",{wordsWritten:3,wordsDeleted:0});
+    expect(report).toHaveBeenCalledExactlyOnceWith(failure,trigger==="unmount"?"writing.session-end":"writing.session-unload");
+    if(trigger==="beforeunload"){expect(result.current.sessionNetWords).toBe(3);unmount();await flushAsync();}
   });
 });

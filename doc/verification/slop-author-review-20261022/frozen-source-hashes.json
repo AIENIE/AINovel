@@ -1,0 +1,7 @@
+{
+  "backend/src/main/java/com/ainovel/app/quality/SlopEvidence.java": "c9ac3fc2c581daec65fcd2f6a2656bc0d4b5cb1a073792bd09f4fe9602f74c3f",
+  "backend/src/main/java/com/ainovel/app/quality/language/LanguageAnalysis.java": "cc110035a9a228b75e52f304c6900af19aec820f366bed3af4c0bb268a5a97f4",
+  "backend/src/main/java/com/ainovel/app/quality/language/LanguageStandard.java": "6c940aee0c8a9811c77d3f82e4252028babd8b50565b9465ec732028b5a27b0d",
+  "backend/src/main/resources/quality/language/zh-naturalness-v3.txt": "d027b3fe00c3fea38541e2774dc9c56d00f061e31d0a7c0807d1cd47a7d28e91",
+  "backend/src/main/resources/quality/language/zh-naturalness-v3.json": "7f0aea7c12c0b3b7d08169ceb98034b2a046f3e4c76a4af1d10ba336461daefc"
+}

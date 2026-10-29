@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
+import { reportClientError } from "@/lib/client-error-reporting";
 
 type UseWritingSessionOptions = {
   selectedStoryId: string;
@@ -98,7 +99,7 @@ export function useWritingSession({
       void api.v2.workspace.endSession(sessionIdRef.current, {
         wordsWritten: sessionWordsWrittenRef.current,
         wordsDeleted: sessionWordsDeletedRef.current,
-      });
+      }).catch(error => reportClientError(error, "writing.session-end"));
       setSessionId("");
     };
   }, [selectedStoryId]);
@@ -109,7 +110,7 @@ export function useWritingSession({
       void api.v2.workspace.heartbeatSession(sessionId, {
         wordsWritten: sessionWordsWrittenRef.current,
         wordsDeleted: sessionWordsDeletedRef.current,
-      });
+      }).catch(error => reportClientError(error, "writing.session-heartbeat"));
     }, 30000);
     return () => window.clearInterval(timer);
   }, [sessionId]);
@@ -120,7 +121,7 @@ export function useWritingSession({
       void api.v2.workspace.endSession(sessionIdRef.current, {
         wordsWritten: sessionWordsWrittenRef.current,
         wordsDeleted: sessionWordsDeletedRef.current,
-      });
+      }).catch(error => reportClientError(error, "writing.session-unload"));
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);

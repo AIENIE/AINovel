@@ -16,6 +16,8 @@ import java.time.Instant;
 
 @Service
 public class AiService {
+    @Autowired(required=false) private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
+    @Autowired(required=false) private AiStoredResponseMetadata storedResponseMetadata;
     @org.springframework.beans.factory.annotation.Autowired
     private AiModelPolicy modelPolicy = new AiModelPolicy();
 
@@ -48,6 +50,7 @@ public class AiService {
 
     public List<AiModelDto> listModels(User user) {
         resolveGatewayUserId(user);
+        if(modelConfiguration!=null)return modelConfiguration.publicModels();
         return List.of(modelPolicy.configuredTextModel());
     }
 
@@ -56,8 +59,10 @@ public class AiService {
     }
 
     public AiChatResponse chat(User user, AiChatRequest request, AiUsageContext usageContext) {
-        String key = usageContext == null ? com.ainovel.app.aioperation.AiOperationExecutionContext.callKey(
-                admissionGuard == null ? "legacy" : admissionGuard.requestHash(request)) : usageContext.idempotencyKey();
+        String contextKey=usageContext==null&&com.ainovel.app.modelconfig.AiSelectionContext.current()!=null
+                ?com.ainovel.app.modelconfig.AiSelectionContext.callKey(request.featureKey()==null?"generic.chat":request.featureKey()):null;
+        String key = usageContext == null ? contextKey!=null?contextKey:com.ainovel.app.aioperation.AiOperationExecutionContext.callKey(
+                admissionGuard == null ? "legacy" : admissionGuard.requestHash(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?request.forFeature(null):request)) : usageContext.idempotencyKey();
         return executeChat(user, request, usageContext, key);
     }
 
@@ -67,8 +72,18 @@ public class AiService {
 
     private AiChatResponse executeChat(User user, AiChatRequest request, AiUsageContext usageContext,
                                        String idempotencyKey) {
+        var selected=com.ainovel.app.modelconfig.AiSelectionContext.selection(request.featureKey()==null?"generic.chat":request.featureKey());
+        if(request.nativeTools() && (selected==null || !reservationEnabled))
+            throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_CONFIGURATION_REQUIRED");
+        EconomyService.StoredAiRequest stored=selected!=null&&reservationEnabled?economyService.frozenAiRequest(user,idempotencyKey):null;
+        if(stored!=null&&stored.requestJson()!=null&&java.util.Objects.equals(stored.identity(),com.ainovel.app.modelconfig.AiSelectionContext.current().identity())) {
+            request=modelConfiguration.read(stored.requestJson(),AiChatRequest.class);
+        }
         Long remoteUid = resolveGatewayUserId(user);
-        if (admissionGuard == null) validateChatMessages(request.messages());
+        if (admissionGuard == null) {
+            if(request.nativeTools())AiNativeRequestValidator.validate(request,new com.fasterxml.jackson.databind.ObjectMapper(),20000,100000);
+            else validateChatMessages(request.messages());
+        }
         final AiAdmissionGuard.Lease lease = admissionGuard == null ? null : admissionGuard.acquire(user, request);
         try (lease) {
             if (!reservationEnabled) {
@@ -76,21 +91,33 @@ public class AiService {
             }
             String referenceType = usageContext == null ? "AI_USAGE" : usageContext.referenceType();
             String referenceId = usageContext == null ? idempotencyKey : usageContext.referenceId();
-            String requestHash = admissionGuard.requestHash(request);
-            EconomyService.AiReservationStart reservation = economyService.reserveAiUsage(
-                    user, reservationCredits, referenceType, referenceId, idempotencyKey, requestHash);
+            String requestHash = admissionGuard.requestHash(com.ainovel.app.modelconfig.AiSelectionContext.current()==null?request.forFeature(null):request);
+            if(selected!=null)requestHash=com.ainovel.app.modelconfig.AiActionPlanner.hash(requestHash+selected.toString());
+            long estimated=selected==null?reservationCredits:selected.cost(
+                    com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(request.nativeTools()?modelConfiguration.write(request):request.messages().stream().map(AiChatRequest.Message::content).collect(java.util.stream.Collectors.joining("\n"))),
+                    request.maxOutputTokens()==null?com.ainovel.app.modelconfig.AiSelectionContext.current().outputBudget(selected.featureKey()):request.maxOutputTokens());
+            EconomyService.AiReservationStart reservation = selected==null?economyService.reserveAiUsage(
+                    user, reservationCredits, referenceType, referenceId, idempotencyKey, requestHash):
+                    economyService.reserveAiUsage(user,estimated,referenceType,referenceId,idempotencyKey,requestHash,selected);
             if (reservation.replay()) {
-                return response(user, reservation.content(), reservation.promptTokens(), reservation.completionTokens(),
-                        reservation.cacheTokens(), reservation.charged());
+                String actual=stored!=null&&stored.actualModelKey()!=null?stored.actualModelKey():selected==null?null:selected.modelKey();
+                if(selected!=null&&AiProgressContext.current()!=null)AiProgressContext.current().onModelResolved(actual);
+                return withSelection(response(user, reservation.content(), reservation.promptTokens(), reservation.completionTokens(),
+                        reservation.cacheTokens(), reservation.charged(), reservation.metadata(),reservation.nativeResponseJson()),selected,actual);
             }
+            if(selected!=null)economyService.freezeAiRequest(user,idempotencyKey,request);
             try {
                 AiGatewayGrpcClient.ChatResult result = invokeGateway(remoteUid, request, idempotencyKey);
-                economyService.recordAiResult(user, idempotencyKey, result.content(),
-                        result.promptTokens(), result.completionTokens(), result.cacheTokens());
+                if(request.nativeTools())economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),result.modelKey(),result.metadata(),result.nativeResponseJson());
+                else economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),selected==null?null:result.modelKey(),result.metadata());
+                if(selected!=null&&(!selected.streaming()||request.nativeTools())&&AiProgressContext.current()!=null)
+                    AiProgressContext.current().onUnaryCompleted(result.modelKey(),result.completionTokens(),result.promptTokens(),result.cacheTokens());
                 EconomyService.AiChargeResult charge = economyService.settleAiUsage(user, idempotencyKey,
                         result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens());
-                return response(user, result.content(), result.promptTokens(), result.completionTokens(),
-                        result.cacheTokens(), charge.charged());
+                return withSelection(response(user, result.content(), result.promptTokens(), result.completionTokens(),
+                        result.cacheTokens(), charge.charged(), result.metadata(),result.nativeResponseJson()),selected,result.modelKey());
+            } catch(com.ainovel.app.modelconfig.AiPaymentRequiredException pending) {
+                throw pending;
             } catch (AiRequestNotSentException denied) {
                 economyService.releaseAiReservation(user, idempotencyKey);
                 throw denied;
@@ -113,11 +140,17 @@ public class AiService {
                 ? economyService.chargeAiUsage(user, result.promptTokens(), result.completionTokens(), UUID.randomUUID().toString())
                 : economyService.chargeAiUsage(user, result.promptTokens(), result.completionTokens(),
                         usageContext.referenceType(), usageContext.referenceId(), usageContext.idempotencyKey());
-        return response(user, result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens(), charge.charged());
+        return response(user, result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens(), charge.charged(), result.metadata());
     }
 
     private AiGatewayGrpcClient.ChatResult invokeGateway(Long remoteUid, AiChatRequest request, String requestId) {
         var progressListener = AiProgressContext.current();
+        var selected=com.ainovel.app.modelconfig.AiSelectionContext.selection(request.featureKey()==null?"generic.chat":request.featureKey());
+        if(selected!=null) {
+            if(modelConfiguration!=null&&!modelConfiguration.available(selected.modelKey()))throw new AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_MODEL_UNAVAILABLE");
+            if(request.nativeTools())return aiGatewayGrpcClient.complete(requestId==null?UUID.randomUUID().toString():requestId,remoteUid,selected,request,progressListener);
+            return aiGatewayGrpcClient.complete(requestId==null?UUID.randomUUID().toString():requestId,remoteUid,selected,request.messages(),selected.streaming()?progressListener:null);
+        }
         if (progressListener != null && !supportsRequiredModelStreaming(remoteUid)) {
             throw new BusinessException("当前 AI 模型不支持真实流式输出，请检查 ai-service 模型配置");
         }
@@ -133,11 +166,25 @@ public class AiService {
     }
 
     private AiChatResponse response(User user, String content, long promptTokens, long completionTokens,
-                                    long cacheTokens, long charged) {
+                                    long cacheTokens, long charged, AiResponseMetadata metadata) {
+        return response(user,content,promptTokens,completionTokens,cacheTokens,charged,metadata,null);
+    }
+
+    private AiChatResponse response(User user,String content,long promptTokens,long completionTokens,
+                                    long cacheTokens,long charged,AiResponseMetadata metadata,String nativeResponseJson) {
         var balance = economyService.currentBalance(user);
         return new AiChatResponse("assistant", content,
                 new AiUsageDto((int) promptTokens, (int) completionTokens, (int) cacheTokens,
-                        cacheHitRate(promptTokens, cacheTokens), charged), balance.totalCredits());
+                        cacheHitRate(promptTokens, cacheTokens), charged), balance.totalCredits(),null,null,metadata,nativeResponseJson);
+    }
+
+    private AiChatResponse withSelection(AiChatResponse response,com.ainovel.app.modelconfig.AiModelSelection selected,String actual) {
+        return new AiChatResponse(response.role(),response.content(),response.usage(),response.remainingCredits(),selected,actual,response.metadata(),response.nativeResponseJson());
+    }
+
+    /** A read-only lookup of owned durable receipts; never sends an inference or rewrites historical results. */
+    public AiResponseMetadata storedResultMetadata(User user,String requestId) {
+        return storedResponseMetadata == null ? null : storedResponseMetadata.find(user,requestId);
     }
 
     public AiRefineResponse refine(User user, AiRefineRequest request) {
@@ -149,7 +196,8 @@ public class AiService {
         AiChatRequest chatRequest = new AiChatRequest(
                 List.of(new AiChatRequest.Message("user", "请根据以下指令润色文本。\n\n指令:\n" + instruction + "\n\n文本:\n" + request.text())),
                 request.modelId(),
-                null
+                null,
+                request.featureKey()==null?"generic.refine":request.featureKey()
         );
         AiChatResponse resp = idempotencyKey == null
                 ? chat(user, chatRequest)

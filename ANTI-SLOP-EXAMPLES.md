@@ -4,13 +4,13 @@
 
 > **首批运行材料为 C、修正后的 D、E、F。** A、B 仅方向确认，具体措辞仍待审，不进入运行提示；C 原文已确认保留；D 按作者纠正补足主语，D2 不猜行动者；E、F 获准先照此本地试用，并非逐句黄金答案。
 >
-> 本轮接入 `zh-naturalness-v3` 的生成、诊断、修订和复核，独立预算为 40 次业务调用／120 次供应商尝试。实际验证见[接入验收记录](doc/verification/language-examples-20261008/README.md)；不追溯改变此前“语言效果验收未通过”的结论。机制与历史证据见 [Anti Slop 审计](ANTI-SLOP-AUDIT.md)，专题进度以[路线图](doc/roadmap.md)为准。
+> 本轮接入 `zh-naturalness-v3` 的生成、诊断、修订和复核，独立预算为 40 次业务调用／120 次供应商尝试。实际验证见[接入验收记录](doc/verification/language-examples-20261008/README.md)；不追溯改变此前“语言效果验收未通过”的结论。机制与历史证据见 [现行语言机制](doc/architecture/language-quality.md)，专题进度以[路线图](doc/roadmap.md)为准。
 
 阅读入口：[确认记录](#confirmation-record) · [A 连续压缩](#example-a) · [B 动作与发现](#example-b) · [C 自然省略](#example-c) · [D 跨段或换人](#example-d) · [E 整段持续生硬](#example-e) · [F 合理停顿](#example-f) · [用途与边界](#usage-boundaries) · [核对记录](#verification-record)
 
 ## 怎样使用这份文档
 
-本文 A–F 均由助手在本次讨论中构造，不是真实作品摘录，也不是业务模型接口的实测输出。A、B、C 的初稿已在聊天中展示；D、E、F 为本轮新构造。它们借助已讨论的 S6 问题校准判断，不作为独立留出集或生产准确率依据。S5/S6 完整历史原文与作者判断仍保存在[审计文档的校准样例](ANTI-SLOP-AUDIT.md#完整作者校准样例)。
+本文 A–F 均由助手在本次讨论中构造，不是真实作品摘录，也不是业务模型接口的实测输出。A、B、C 的初稿已在聊天中展示；D、E、F 为本轮新构造。它们借助已讨论的 S6 问题校准判断，不作为独立留出集或生产准确率依据。S5/S6 完整历史原文与作者判断仍保存在[审计文档的校准样例](doc/architecture/language-quality.md)。
 
 **这里的 A–F 与 2026-10-07 [实际候选审阅包](doc/verification/language-20261007/AUTHOR-REVIEW.md)中的 A–D 不是同一组材料。** 对新构造示例的确认，不代表认可上轮模型候选，也不替代其待完成审阅。
 
@@ -297,7 +297,7 @@ B-r1 将“勾出—识别”接成一个表达过程，将翻看、看见名字
 
 组织方式参考 [Anthropic 的示例提示指南](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#use-examples-effectively)：示例应贴近任务、有差异并清楚区分结构。本批采用有上下文的问题与保留对照，是设计选择；该指南不能证明这些示例对当前中文小说模型有效。已有[示例顺序研究](https://aclanthology.org/2022.acl-long.556/)说明，所研究的分类任务会受示例顺序影响；本批数量、顺序也不应被当作已经验证的最优配置。
 
-**待验证推测：**完整示例可能帮助模型理解作者所说的“自然”。v2 已包含少量短例而 S6 仍漏检，见[实际验收记录](doc/verification/language-20261007/README.md#v1-首轮校准失败保留原始记录)与[S6 原始报告](doc/verification/language-20261007/diagnosis-S6.json)，因此不能将“没有任何例子”当作既定根因，也不能仅以示例写完或作者确认就宣布模型效果改善。
+**待验证推测：**完整示例可能帮助模型理解作者所说的“自然”。v2 已包含少量短例而 S6 仍漏检，见[实际验收记录](doc/verification/language-20261007/README.md#v1-首轮校准失败保留原始记录)与[S6 原始报告](doc/roadmap.md)，因此不能将“没有任何例子”当作既定根因，也不能仅以示例写完或作者确认就宣布模型效果改善。
 
 接入对照采用相同 v3 规则、有／无完整示例，预算独立 40／120。用于提示或反复修订的样例、同源变体不得冒充独立留出集；本页任何结论均不计入 G2 真人盲测，不解除既有阶段门槛。
 

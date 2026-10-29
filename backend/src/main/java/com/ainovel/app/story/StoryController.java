@@ -28,6 +28,7 @@ public class StoryController {
     private final OutlineService outlineService;
     private final AiService aiService;
     private final CurrentUserResolver currentUserResolver;
+    @Autowired private OutlineAiService outlineAi;
 
     @Autowired
     public StoryController(StoryService storyService,
@@ -144,6 +145,8 @@ public class StoryController {
     @Operation(summary = "润色场景文本", description = "调用 AiService 对场景文本执行润色。")
     public ResponseEntity<String> refineScene(@AuthenticationPrincipal UserDetails principal, @PathVariable UUID id, @RequestBody RefineRequest request) {
         String instruction = request.instruction() == null ? "" : request.instruction();
-        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), new AiRefineRequest(request.text(), instruction, null)).result());
+        var user=currentUserResolver.require(principal);var outline=outlineAi.sceneOutline(user,id);
+        var result=outlineAi.compatible(user,outline,new OutlineAiService.Request("SCENE_REFINE",id,instruction,request.text(),null,null,null,null,null));
+        return ResponseEntity.ok(result.candidate().path("text").asText());
     }
 }

@@ -15,6 +15,36 @@ public class AiValidationCall {
     @Column(nullable=false) private Instant createdAt;
     @Column(length=32) private String operationKind;
     @Column(nullable=false) private int reservedProviderAttempts;
+    @Column(length=160) private String budgetId;
+    public String getBudgetId(){return budgetId;}
+    public void setBudgetId(String value){budgetId=value;}
+    @Column(length=64) private String requestHash;
+    public String getRequestHash(){return requestHash;}
+    public void setRequestHash(String value){requestHash=value;}
+    @Column(length=3) private String currency;
+    public String getCurrency(){return currency;}
+    public void setCurrency(String value){currency=value;}
+     private Long priceVersionId;
+    public Long getPriceVersionId(){return priceVersionId;}
+    public void setPriceVersionId(Long value){priceVersionId=value;}
+    @Column(length=64) private String priceSha256;
+    public String getPriceSha256(){return priceSha256;}
+    public void setPriceSha256(String value){priceSha256=value;}
+    @Column(precision=19,scale=6) private java.math.BigDecimal maxCost;
+    public java.math.BigDecimal getMaxCost(){return maxCost;}
+    public void setMaxCost(java.math.BigDecimal value){maxCost=value;}
+    @Column(precision=19,scale=6) private java.math.BigDecimal settledCost;
+    public java.math.BigDecimal getSettledCost(){return settledCost;}
+    public void setSettledCost(java.math.BigDecimal value){settledCost=value;}
+    @Column(length=32) private String settlementState;
+    public String getSettlementState(){return settlementState;}
+    public void setSettlementState(String value){settlementState=value;}
+    public String getRunId(){return runId;}
+    public String getRequestId(){return requestId;}
+    public String getRequestJson(){return requestJson;}
+    public String getResultJson(){return resultJson;}
+    public String getStatus(){return status;}
+    public String getModel(){return model;}
     public void setOperationKind(String value){operationKind=value;}
     public void setReservedProviderAttempts(int value){reservedProviderAttempts=value;}
     public UUID getId(){return id;}

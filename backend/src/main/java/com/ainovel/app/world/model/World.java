@@ -33,6 +33,21 @@ public class World {
     private String notes;
     @Lob
     private String modulesJson; // moduleKey -> fields map
+    @Lob @Column(columnDefinition = "LONGTEXT")
+    private String legacyModulesJson;
+    @Lob @Column(columnDefinition = "LONGTEXT")
+    private String overview;
+    public String getOverview() { return overview; }
+    public void setOverview(String value) { overview = value; }
+    @Lob @Column(name = "timeline_json", columnDefinition = "LONGTEXT")
+    private String timelineJson;
+    public String getTimelineJson() { return timelineJson; }
+    public void setTimelineJson(String value) { timelineJson = value; }
+    private String draftContentHash;
+    public String getLegacyModulesJson() { return legacyModulesJson; }
+    public void setLegacyModulesJson(String value) { legacyModulesJson = value; }
+    public String getDraftContentHash() { return draftContentHash; }
+    public void setDraftContentHash(String value) { draftContentHash = value; }
     @Lob
     private String moduleProgressJson; // moduleKey -> status
 

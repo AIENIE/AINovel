@@ -27,6 +27,11 @@ public class WorldPromptTemplatesEntity {
     @Lob
     private String fieldRefine;
 
+    @Lob @Column(columnDefinition = "LONGTEXT")
+    private String actionTemplatesJson;
+    public String getActionTemplatesJson() { return actionTemplatesJson; }
+    public void setActionTemplatesJson(String value) { actionTemplatesJson = value; }
+
     @UpdateTimestamp
     private Instant updatedAt;
 

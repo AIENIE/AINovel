@@ -152,7 +152,7 @@ class SceneGenerationServiceMetadataTest {
         when(plotQualitySupport.buildQualityRequest(
                 eq(manuscript), eq(story), any(SceneGenerationContext.class), any(), any(), eq(acceptedText)
         )).thenReturn(qualityRequest);
-        when(qualityGate.evaluateAndRepair(owner, qualityRequest)).thenReturn(new SlopQualityResult(
+        when(qualityGate.evaluate(owner, qualityRequest)).thenReturn(new SlopQualityResult(
                 UUID.randomUUID(), acceptedText, 0, SlopSeverity.LOW, false, 0,
                 SlopQualityStatus.ACCEPTED, List.of()
         ));
@@ -164,7 +164,13 @@ class SceneGenerationServiceMetadataTest {
         assertEquals(2, result.metadata().attemptCount());
         assertEquals(AiModelPolicy.REQUIRED_TEXT_MODEL_KEY, result.metadata().modelKey());
         assertEquals(SceneDraftContextCompiler.COMPILER_VERSION, result.metadata().promptVersion());
-        assertEquals(expectedPromptHash(successfulMessages), result.metadata().promptHash());
+        var calls=org.mockito.ArgumentCaptor.forClass(AiChatRequest.class);
+        org.mockito.Mockito.verify(aiService,org.mockito.Mockito.times(2)).chat(eq(owner),calls.capture());
+        var sent=calls.getAllValues().get(1).messages();
+        assertEquals(failedMessages.get(0),sent.get(0));
+        org.junit.jupiter.api.Assertions.assertTrue(sent.get(1).content().startsWith("first-user"));
+        org.junit.jupiter.api.Assertions.assertTrue(sent.get(1).content().contains("篇幅修订 1/1"));
+        assertEquals(expectedPromptHash(sent), result.metadata().promptHash());
         assertSame(contextManifest, result.metadata().contextManifest());
     }
 

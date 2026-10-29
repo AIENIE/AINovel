@@ -27,7 +27,8 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UUID record(SlopQualityRecord record) {
         SlopQualityRun run = new SlopQualityRun();
-        run.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1.version());
+        if(record.review()!=null) run.setReviewContextJson(writeJson(record.review()));
+        run.setTextConversionVersion(com.ainovel.app.quality.language.LanguageProjection.VERSION);
         run.setStoryId(record.request().storyId());
         run.setManuscriptId(record.request().manuscriptId());
         run.setSceneId(record.request().sceneId());
@@ -43,9 +44,10 @@ public class JpaSlopQualityRecorder implements SlopQualityRecorder {
                 ? "generation_gate"
                 : record.request().analysisMode());
         SlopQualitySignals signals = record.signals().withDefaults(record.overallRiskScore(), record.maxSeverity(), record.issues());
-        run.setRiskLabel(signals.riskLabel());
+        boolean unchecked=record.review()!=null && !"COMPLETE".equals(record.review().coverage);
+        run.setRiskLabel(unchecked?"unchecked":signals.riskLabel());
         run.setEvidenceLevel(signals.evidenceLevel());
-        run.setSafeClaim(truncate(signals.safeClaim(), 500));
+        run.setSafeClaim(unchecked?"正文未完成语义检查；本地命中仅作为线索。":truncate(signals.safeClaim(), 500));
         run.setModuleScoresJson(writeJson(signals.moduleScores()));
         run.setAlternativeExplanationsJson(writeJson(signals.alternativeExplanations()));
         run.setRevisionPrioritiesJson(writeJson(signals.revisionPriorities()));

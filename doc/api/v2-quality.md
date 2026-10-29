@@ -5,7 +5,7 @@
 - 长篇 drift 基础路径：`/api/v2/manuscripts/{manuscriptId}/slop-drift-runs`
 - 剧情质量基础路径：`/api/v2/manuscripts/{manuscriptId}/plot-quality-runs`
 
-## 语言自然度检查与逐项修订（zh-naturalness-v2）
+## 语言自然度检查与逐项修订（zh-naturalness-v3）
 
 新增接口与原 Slop、drift、剧情接口并存，使用同一稿件所有权和 `AiOperation` 任务机制。旧请求/报告结构保持兼容；旧报告没有可信的分支/正文来源，不回填伪造来源，界面仅展示历史结论，不作为当前正文通过的证明。
 
@@ -32,15 +32,41 @@
 
 问题 `kind` 为 `LANGUAGE/STYLE/OBSERVATION`，`category` 为 `OMISSION/COMPRESSION/CHOPPY/AWKWARD/PARAGRAPH`，包含连续 `quote`、阅读影响 `impact`、修改方向 `direction`、原始与当前位置、完整原段落及定位状态。不存在、歧义或无效范围的位置不允许补丁。诊断只使用保存的本场正文，不读取 H2 隐藏资料、人物私密卡、未来规划或额外资料检索。
 
-候选 `status` 为 `GENERATING/READY/FAILED/ACCEPTED/REJECTED/UNDONE`；`applicability` 区分 `APPLICABLE/UNCERTAIN/BLOCKED/MANUAL_ONLY/STALE` 及未完成原因。`review.language` 与 `review.meaning` 独立为 `PASS/UNCERTAIN/FAIL`。明确失败禁用采纳，不确定显示给作者核对，模型通过也不自动采纳。`original/replacement` 为完整差异输入，`beforeContext/afterContext` 保留自然段与相邻段。
+候选 `status` 为 `GENERATING/READY/FAILED/NEEDS_CONTEXT/ACCEPTED/REJECTED/UNDONE`；`applicability` 区分 `APPLICABLE/UNCERTAIN/BLOCKED/MANUAL_ONLY/STALE` 及未完成原因。`NEEDS_CONTEXT` 保存缺失信息的原因，无有效候选，不调用复核。`review.language` 与 `review.meaning` 独立为 `PASS/UNCERTAIN/FAIL`。明确失败禁用采纳，不确定显示给作者核对，模型通过也不自动采纳。`original/replacement` 为完整差异输入，`beforeContext/afterContext` 保留自然段与相邻段。
 
 普通编辑/自动保存/回滚/合并/换分支不触发付费诊断；读取时按正文版本、分支和 HTML 哈希即时判旧报告失效。已知同批次补丁可确定性平移未受影响的建议；同段或相邻上下文影响的建议失效。`canContinueBatch` 只授权处理这些未受影响的项目，不表示原报告适用于新正文。采纳/撤销均产生新版本，外部编辑后不得强行反向覆盖。
 
 运行配置：`app.language.enabled=false` 为总开关；`generation-enabled`、`diagnosis-enabled` 可分别关闭（默认 true，仍受总开关与作品开关限制）。`input-token-budget=24000` 是输入预算，按 UTF-8 字节作保守 token 上界，同时受 AI admission 的消息/总字符上限约束。开启作品语言流程后，普通正文生成保留本地 Slop 规则，旧的付费 Slop 门禁及自动改稿退出该路径；冻结盲测提示不改变。关闭开关不删除报告、候选或已采纳正文。
 
-本地验收预算额外支持 `app.ai.validation.maximum-provider-attempts`；未设置时保留原先随 `maximum-calls` 的限制。当前专题账本必须为 40 次业务调用和 120 次供应商尝试，实际运行前另行核实 `provider-attempts-per-rpc`，不能仅凭默认重试数开始付费验证。
+本地验收沿用次数账本，并提供独立、默认关闭的人民币路径，配置见下节。既有不确定调用不重发，也不迁入新预算。
 
-## 旧版文本质量门禁
+### Local 人民币验收预算
+
+仅 `local` profile 且显式开启 `app.ai.validation.monetary-enabled=true` 时适用。需先创建独立 `ai_validation_budgets` 行，设置 run-id、currency=CNY、call-limit=24、provider-attempt-limit=24、cost-limit=30；配置 `maximum-calls=24`、`maximum-cost-cny=30`、`model-key=gemini-3.8-flash-high`，输出上限 `output-token-limit` 默认 4096。不自动创建或扩大预算。验收结束恢复原配置，不修改普通业务选型或价格。
+
+通过调用方目录的预算能力声明核实一元纯文本路径；先 `PrepareCallBudget(billing_currency=CNY,max_provider_attempts=1)` 取得价格版本和最高金额，再同时锁定次数与 `已结算＋未决最高预留＋本次最高报价≤预算上限`。带预算凭据发送的请求与报价请求完全一致。该路径不用流式或无预算回退，凭据不落账本。
+
+V41 在原验收预算和调用账本追加金额、预算标识、请求哈希、价格版本及结算状态；项目积分报价与人民币成本各自记账。空返回、解析失败仍占用调用次数并按权威用量结算。缺少能力、报价或权威用量则停止；发送后超时保留原编号和最高预留，仅调用 `GetBudgetCallStatus`。重启后的定时对账和同编号重试均不再次推理；只有已确认未发送才能释放金额预留，次数不返还。历史行的未知金额保持 NULL，不补造零费用。
+
+## Slop 来源与逐项候选（slop-evidence-v2）
+
+现有诊断与查询路由保留，新报告增加 `review`；历史报告为 null，不补造来源。
+
+- `source`：分支、正文版本、快照、投影与 HTML/文本/语境哈希；`promptVersion=slop-evidence-v2`。
+- `coverage`：`COMPLETE/PARTIAL/INPUT_LIMIT/FAILED/LOCAL_ONLY`，`reason` 说明覆盖。仅 COMPLETE 可形成完整检查结论；其它状态顶层 DEGRADED、riskLabel=unchecked，零分不代表低风险。
+- `localRisk/localSignals`：原算法的线索分与命中，不能直接确认为错误；SHADOW 仍只记录。
+- `findings[]`：稳定 id、judgment（CONFIRMED/DISMISSED/UNCERTAIN）、kind（LANGUAGE/OUTPUT_ARTIFACT/STYLE/OBSERVATION）、category、完整 quote、explanation、advice、risk、location。location 含 UTF-16 start/end、trust（EXACT/RELOCATED/AMBIGUOUS/MISSING/INVALID）与 replaceable。
+- `overallRiskScore` 仅汇总有效确认的语言问题与输出残留，文风与观察不参与；新报告 revised=false、revisionCount=0。
+
+新增 `POST /quality-runs/{runId}/issues/{issueId}/suggestions/operations`，空对象，返回 202 `{operationId}`。仅确认五类语言问题、来源未过期、定位可信且能够替换时受理。沿用语言功能环境开关，不改变作品生成规范或自动诊断设置。
+
+受理后 `review.languageReportId` 指向现有候选容器（来源 SLOP，不另跑语言诊断）；通过 `GET /quality-runs/language/{reportId}` 及既有候选处置接口读取、接受、拒绝或撤销。两步分别报价 language.revise/language.review。来源失效返回 409，同一问题返回原操作。停用的 slop.revise 不再出现在新报价中。
+
+受理前冻结完整正文、辅助语境和提示，续跑沿用冻结请求。超过现有消息限制、默认 24000 token 保守输入预算或模型声明限制时零发送，返回 INPUT_LIMIT，不截断、不分窗。缺少冻结来源的历史后台任务不能套用新处理重发。
+
+V40 仅增加 `slop_quality_runs.review_context_json` 可空 LONGTEXT；历史记录不回填，候选与处置复用现有语言表。后端保存完整冻结材料，查询只返回审阅所需字段。以下旧字段继续供历史读取，新语义以 review 为准。
+
+## 历史文本质量字段
 
 - `GET /quality-runs`：查询稿件最近 20 条反 slop 质量门禁记录。
 - `GET /quality-runs?sceneId={sceneId}`：查询指定场景最近 20 条记录。
@@ -60,11 +86,11 @@
 - `evidenceLevel`：`E1` / `E2` / `E3` / `E4`，分别表示单点弱信号、多信号共振、结构性矛盾、元提示/生成残留。
 - `safeClaim`：安全结论，只评价文本 slop 风险，不推断作者是否使用 AI。
 - `moduleScoresJson`：模块评分 JSON，覆盖 `surface_template`、`voice_fit`、`consistency_assimilation`、`breath_focus_pacing`、`human_trace`；保留键 `_shadow_pattern_hits` 记录不参与评分的影子规则命中摘要。
-- `alternativeExplanationsJson`：替代解释，例如传统网文俗套、人工低水平写作、工作室公式化、题材/平台惯例、作者个人文风。
+- `alternativeExplanationsJson`：历史替代解释；新报告不推断作者身份、亲历经验或输入方式。
 - `revisionPrioritiesJson`：修改优先级。
 - `rewriteTasksJson`：证据驱动改写任务。
 
-`generation_gate` 记录会复用上述扩展字段。低风险本地规则记录可能只包含本地模块分和默认替代解释；触发 AI review 后会持久化 AI 返回的模块分、证据等级、修改优先级和 rewrite tasks。即使存在 rewrite tasks，生成链路也只允许最多一次保守修订。
+`generation_gate` 新记录只检查和记录，原样返回输入候选；不执行整稿修订。本地线索未获语义确认时明确标记未检查。
 
 手动诊断和生成链路门禁会把故事 active 风格画像与角色声音作为 `voice_fit` 判断语境。未配置风格/声音时，服务端会明确传入空语境，诊断不得虚构角色语域不贴合问题。
 
@@ -100,11 +126,9 @@
 
 ## 生成链路行为
 
-`POST /api/v1/manuscripts/{id}/scenes/{sceneId}/generate` 在正文写入前自动执行质量门禁：
-- 低风险：直接保存候选正文并记录 `ACCEPTED`。
-- 中高风险：调用 AI 诊断 JSON，必要时执行一次保守修订。
-- 修订约束：不改变剧情事件、角色决策、人物关系和关键设定；只处理重复、套话、AI 输出伪迹、局部承接和轻量风格漂移。
-- 修订失败或风险未下降：保存最佳候选，并记录 `ACCEPTED_WITH_ISSUES` 供前端展示。
+- 快速与精雕均使用只读质量门，本地风险只决定是否需语义审校，绝不自动采用修订文本。
+- 语义审校使用全文输入准入；检查失败或超限记录 DEGRADED/unchecked，原候选不变。
+- 剧情候选采纳保存作者审阅稿，不再次调用 Slop，也没有 Slop 费用。
 
 ## 剧情质量诊断
 
@@ -140,15 +164,15 @@
 ## 候选修订安全规则
 
 - 生成候选和采纳候选都会校验 `sourceTextHash`，如果场景正文已经变化，应重新诊断后再生成候选。
-- 采纳候选前服务端会复用文本 `SlopQualityGate`，避免候选引入明显套话、重复和 AI 伪迹。
+- 采纳候选不再调用 `SlopQualityGate`，直接保存作者已审阅的候选；该操作没有 Slop 审校或修订费用。
 - 前端工作台的 `plot` 侧栏只做人工确认入口；除用户点击“采纳候选”外，不会自动覆盖场景正文。
 
 ## 文本诊断安全规则
 
 - 文本诊断不输出“AI率”“作者用了 AI”“从第 X 章开始机写”等作者归因。
-- 单点黑名单命中只能作为 `E1` 弱信号；短窗口密度或多信号共振才能升级为 `E2`。
-- 本地密度窗口固定为 500 字：同类 3 次或 3 类共现升级到 58/E2；同类 5 次或 4 类共现升级到 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1。
-- 设定硬冲突和元提示残留优先于表层套话，分别按 `E3` / `E4` 处理。
+- 本地线索保留旧 `E1/E2` 密度口径，但不直接成为语义确认的问题。
+- 本地密度窗口固定为 500 字：同类 3 次或 3 类共现为 58/E2；同类 5 次或 4 类共现为 72/HIGH/E2。预期文体语境中的单点命中降为 28/E1；新报告风险不与这些本地分取最大值。
+- 旧 `E3/E4` 记录保留可读。新报告按 `review` 的判断、类别和有效引文解释；作品中的引语和日志不能仅凭协议字样判为残留。
 - `_shadow_pattern_hits` 不得改变 `overallRiskScore`、`maxSeverity`、`issues`、AI review 或 `safeClaim`，也不包含模型归因结论。
 - 平台合规、AIGC 标识和商业风险不计入文本 slop 总分。
 

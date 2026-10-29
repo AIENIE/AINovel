@@ -30,7 +30,7 @@ public class PromptAssemblyService {
         return new AssembledPrompt(
                 List.of(
                         new AiChatRequest.Message("system", system),
-                        new AiChatRequest.Message("user", trimToBudget(user, budget))
+                        new AiChatRequest.Message("user", user)
                 ),
                 budget
         );
@@ -55,7 +55,7 @@ public class PromptAssemblyService {
         return new AssembledPrompt(
                 List.of(
                         new AiChatRequest.Message("system", system),
-                        new AiChatRequest.Message("user", trimToBudget(user, budget))
+                        new AiChatRequest.Message("user", user)
                 ),
                 budget
         );
@@ -79,12 +79,12 @@ public class PromptAssemblyService {
     }
 
     private void validateIsolatedBudget(SceneGenerationPromptInput input, String system, String user, int budget) {
-        if (input==null || input.contextCompilerVersion()==null || !input.contextCompilerVersion().startsWith("scene-isolation-")) return;
+        if (input==null) return;
         // UTF-8 byte count is a conservative upper bound; never silently trim a frozen context or retry ending.
         long upperBound=(long)system.getBytes(java.nio.charset.StandardCharsets.UTF_8).length
                 +user.getBytes(java.nio.charset.StandardCharsets.UTF_8).length+Math.max(2048L,(long)input.maxHan()*3);
         if (upperBound>budget) throw new com.ainovel.app.common.ApiStatusException(
-                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"H2_PROMPT_BUDGET_EXCEEDED");
+                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"SCENE_PROMPT_BUDGET_EXCEEDED");
     }
 
     private String dynamicSceneDraftUser(SceneGenerationPromptInput input) {
@@ -93,7 +93,7 @@ public class PromptAssemblyService {
         }
         String continuity = compiledContextText(input);
         return """
-                输出字数：%d-%d 汉字
+                输出字数：%d-%d 汉字；瞄准区间中点 %d 汉字（不含标点、数字和外文）。
 
                 故事信息：
                 - 标题：%s
@@ -122,6 +122,7 @@ public class PromptAssemblyService {
                 """.formatted(
                 input.minHan(),
                 input.maxHan(),
+                (input.minHan()+input.maxHan())/2,
                 safe(input.storyTitle(), "未命名故事"),
                 safe(input.genre(), "未指定"),
                 safe(input.tone(), "沉浸、连贯"),

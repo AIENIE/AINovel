@@ -1,6 +1,7 @@
 package com.ainovel.app.economy;
 
 import com.ainovel.app.common.BusinessException;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.common.SafeLogThrowable;
 import com.ainovel.app.economy.model.ConversionOrderStatus;
 import com.ainovel.app.economy.model.AiCreditReservation;
@@ -41,6 +42,7 @@ import java.util.List;
 
 @Service
 public class EconomyService {
+    @Autowired private com.fasterxml.jackson.databind.ObjectMapper modelSelectionJson;
     private static final Logger log = LoggerFactory.getLogger(EconomyService.class);
 
     private final BillingGrpcClient billingGrpcClient;
@@ -98,7 +100,13 @@ public class EconomyService {
     }
 
     public record AiReservationStart(boolean replay, String content, long promptTokens,
-                                     long completionTokens, long cacheTokens, long charged) {
+                                     long completionTokens, long cacheTokens, long charged, AiResponseMetadata metadata,String nativeResponseJson) {
+        public AiReservationStart(boolean replay,String content,long promptTokens,long completionTokens,long cacheTokens,long charged,AiResponseMetadata metadata) {
+            this(replay,content,promptTokens,completionTokens,cacheTokens,charged,metadata,null);
+        }
+        public AiReservationStart(boolean replay,String content,long promptTokens,long completionTokens,long cacheTokens,long charged) {
+            this(replay,content,promptTokens,completionTokens,cacheTokens,charged,null);
+        }
         public static AiReservationStart reserved() {
             return new AiReservationStart(false, null, 0, 0, 0, 0);
         }
@@ -213,11 +221,17 @@ public class EconomyService {
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public AiReservationStart reserveAiUsage(User user, long maximumCost, String referenceType,
                                              String referenceId, String idempotencyKey, String requestHash) {
+        return reserveAiUsage(user,maximumCost,referenceType,referenceId,idempotencyKey,requestHash,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public AiReservationStart reserveAiUsage(User user,long maximumCost,String referenceType,String referenceId,
+            String idempotencyKey,String requestHash,com.ainovel.app.modelconfig.AiModelSelection selection) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw new BusinessException("缺少 Idempotency-Key");
         }
         user = lockUser(user);
-        long reservationCost = Math.max(1L, maximumCost);
+        long reservationCost = selection!=null&&!selection.billingEnabled()?0:Math.max(1L, maximumCost);
         AiCreditReservation reservation = aiReservationRepository
                 .findByUserAndIdempotencyKey(user, idempotencyKey).orElse(null);
         if (reservation != null) {
@@ -226,13 +240,13 @@ public class EconomyService {
             }
             if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED) {
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount());
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), reservation.getSettledAmount(), readResultMetadata(reservation),reservation.getResultNativeResponseJson());
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) {
                 AiChargeResult charge = settleAiUsage(user, idempotencyKey, reservation.getResultContent(),
                         reservation.getPromptTokens(), reservation.getCompletionTokens(), reservation.getCacheTokens());
                 return new AiReservationStart(true, reservation.getResultContent(), reservation.getPromptTokens(),
-                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged());
+                        reservation.getCompletionTokens(), reservation.getCacheTokens(), charge.charged(), readResultMetadata(reservation),reservation.getResultNativeResponseJson());
             }
             if (reservation.getStatus() == AiCreditReservation.Status.RESERVED) {
                 if (reservation.getLeaseExpiresAt() == null || reservation.getLeaseExpiresAt().isAfter(Instant.now()))
@@ -259,6 +273,13 @@ public class EconomyService {
             reservation.setRequestHash(requestHash);
             reservation.setReferenceType(referenceType);
             reservation.setReferenceId(referenceId);
+            reservation.setOperationId(com.ainovel.app.aioperation.AiOperationExecutionContext.operationId());
+            if(com.ainovel.app.modelconfig.AiSelectionContext.current()!=null)
+                reservation.setRequestIdentity(com.ainovel.app.modelconfig.AiSelectionContext.current().identity());
+            if(selection!=null) {
+                try {reservation.setSelectionJson(modelSelectionJson.writeValueAsString(selection));}
+                catch(com.fasterxml.jackson.core.JsonProcessingException ex){throw new IllegalStateException(ex);}
+            }
         }
         reservation.setReservedAmount(reservationCost);
         reservation.setAttemptCount(reservation.getAttemptCount() + 1);
@@ -266,10 +287,12 @@ public class EconomyService {
         reservation.setStatus(AiCreditReservation.Status.RESERVED);
         reservation.setLeaseExpiresAt(Instant.now().plusSeconds(600));
         reservation.setResultContent(null);
+        reservation.setResultMetadataJson(null);
+        reservation.setResultNativeResponseJson(null);
         aiReservationRepository.save(reservation);
-        writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
-                referenceType, referenceId, "AI 调用额度预留",
-                "ai-reserve:" + idempotencyKey + ":" + reservation.getAttemptCount());
+        if(reservationCost>0) writeLedger(user, CreditLedgerType.AI_RESERVATION, -reservationCost, nextBalance,
+                referenceType, referenceId, selection==null?"AI 调用额度预留":"AI "+selection.featureKey()+" · "+selection.label().substring(0,selection.label().offsetByCodePoints(0,Math.min(80,selection.label().codePointCount(0,selection.label().length()))))+" · "+selection.modelKey(),
+                "ai-reserve:" + aiLedgerKey(idempotencyKey,selection!=null) + ":" + reservation.getAttemptCount());
         return AiReservationStart.reserved();
     }
 
@@ -288,20 +311,48 @@ public class EconomyService {
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void recordAiResult(User user, String idempotencyKey, String content,
                                long inputTokens, long outputTokens, long cacheTokens) {
+        recordAiResult(user,idempotencyKey,content,inputTokens,outputTokens,cacheTokens,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user,String idempotencyKey,String content,
+                               long inputTokens,long outputTokens,long cacheTokens,String actualModelKey) {
+        recordAiResult(user,idempotencyKey,content,inputTokens,outputTokens,cacheTokens,actualModelKey,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user,String idempotencyKey,String content,
+                               long inputTokens,long outputTokens,long cacheTokens,String actualModelKey,AiResponseMetadata metadata) {
+        recordAiResult(user,idempotencyKey,content,inputTokens,outputTokens,cacheTokens,actualModelKey,metadata,null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void recordAiResult(User user,String idempotencyKey,String content,
+                               long inputTokens,long outputTokens,long cacheTokens,String actualModelKey,AiResponseMetadata metadata,String nativeResponseJson) {
         User locked = lockUser(user);
         AiCreditReservation reservation = aiReservationRepository.findByUserAndIdempotencyKey(locked, idempotencyKey).orElseThrow();
         if (reservation.getStatus() == AiCreditReservation.Status.COMPLETED || reservation.getStatus() == AiCreditReservation.Status.RESULT_READY) return;
         if (reservation.getStatus() != AiCreditReservation.Status.RESERVED
-                && !("EVIDENCE_TASK".equals(reservation.getReferenceType())
+                && !(("EVIDENCE_TASK".equals(reservation.getReferenceType()) || "WRITING_AGENT".equals(reservation.getReferenceType()))
                 && reservation.getStatus() == AiCreditReservation.Status.RECONCILIATION_REQUIRED))
             throw new IllegalStateException("AI reservation lost");
         reservation.setResultContent(content);
+        reservation.setResultNativeResponseJson(nativeResponseJson);
+        try { reservation.setResultMetadataJson(metadata == null ? null : modelSelectionJson.writeValueAsString(metadata)); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException(ex); }
         reservation.setPromptTokens(inputTokens);
         reservation.setCompletionTokens(outputTokens);
         reservation.setCacheTokens(cacheTokens);
+        if(actualModelKey!=null)reservation.setActualModelKey(actualModelKey);
         reservation.setStatus(AiCreditReservation.Status.RESULT_READY);
         reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
+    }
+
+    private AiResponseMetadata readResultMetadata(AiCreditReservation reservation) {
+        if (reservation.getResultMetadataJson() == null) return null;
+        try { return modelSelectionJson.readValue(reservation.getResultMetadataJson(), AiResponseMetadata.class); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException ex) { throw new IllegalStateException("Invalid stored AI response metadata", ex); }
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
@@ -318,14 +369,15 @@ public class EconomyService {
             throw new IllegalStateException("AI reservation is not active");
         }
 
-        long actualCost = calculateAiCost(inputTokens, outputTokens);
+        long actualCost = reservation.getSelectionJson()==null?calculateAiCost(inputTokens, outputTokens)
+                :readModelSelection(reservation.getSelectionJson()).cost(inputTokens,outputTokens);
         if ("EVIDENCE_TASK".equals(reservation.getReferenceType()) && actualCost > reservation.getReservedAmount()) {
             throw new IllegalStateException("AI usage exceeded author accepted credit maximum");
         }
         long adjustment = reservation.getReservedAmount() - actualCost;
         ProjectCreditAccount account = accountForUpdate(user);
         if (adjustment < 0 && account.getBalance() < -adjustment) {
-            throw new IllegalStateException("AI usage exceeded reserved credit boundary");
+            throw new com.ainovel.app.modelconfig.AiPaymentRequiredException();
         }
         if (adjustment != 0) {
             long nextBalance = account.getBalance() + adjustment;
@@ -335,7 +387,7 @@ public class EconomyService {
             writeLedger(user, adjustment > 0 ? CreditLedgerType.AI_RESERVATION_RELEASE : CreditLedgerType.AI_DEBIT,
                     adjustment, nextBalance, reservation.getReferenceType(), reservation.getReferenceId(),
                     adjustment > 0 ? "释放未使用的 AI 预留额度" : "补充 AI 实际用量扣费",
-                    "ai-settle:" + idempotencyKey + ":" + reservation.getAttemptCount());
+                    "ai-settle:" + aiLedgerKey(idempotencyKey,reservation.getSelectionJson()!=null) + ":" + reservation.getAttemptCount());
         }
         reservation.setSettledAmount(actualCost);
         reservation.setResultContent(content);
@@ -369,6 +421,28 @@ public class EconomyService {
         if (reservation == null || reservation.getStatus() != AiCreditReservation.Status.RESERVED) {
             return;
         }
+        releaseAiReservation(user, idempotencyKey, reservation);
+    }
+
+    /** Internal recovery only: the caller has verified the original budget/hash as FAILED_NOT_SENT. */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void releaseConfirmedNotSentWritingAgentReservation(User user, com.ainovel.app.ai.AiUsageContext usage) {
+        if (usage == null || !"WRITING_AGENT".equals(usage.referenceType())) {
+            throw new IllegalArgumentException("Writing-agent recovery identity required");
+        }
+        user = lockUser(user);
+        AiCreditReservation reservation = aiReservationRepository
+                .findByUserAndIdempotencyKey(user, usage.idempotencyKey()).orElse(null);
+        if (reservation == null || !"WRITING_AGENT".equals(reservation.getReferenceType())
+                || !usage.referenceId().equals(reservation.getReferenceId())
+                || (reservation.getStatus() != AiCreditReservation.Status.RESERVED
+                && reservation.getStatus() != AiCreditReservation.Status.RECONCILIATION_REQUIRED)) {
+            return;
+        }
+        releaseAiReservation(user, usage.idempotencyKey(), reservation);
+    }
+
+    private void releaseAiReservation(User user, String idempotencyKey, AiCreditReservation reservation) {
         ProjectCreditAccount account = accountForUpdate(user);
         long nextBalance = account.getBalance() + reservation.getReservedAmount();
         account.setBalance(nextBalance);
@@ -377,9 +451,9 @@ public class EconomyService {
         reservation.setStatus(AiCreditReservation.Status.RELEASED);
         reservation.setLeaseExpiresAt(null);
         aiReservationRepository.save(reservation);
-        writeLedger(user, CreditLedgerType.AI_RESERVATION_RELEASE, reservation.getReservedAmount(), nextBalance,
+        if(reservation.getReservedAmount()>0) writeLedger(user, CreditLedgerType.AI_RESERVATION_RELEASE, reservation.getReservedAmount(), nextBalance,
                 reservation.getReferenceType(), reservation.getReferenceId(), "AI 调用失败，释放预留额度",
-                "ai-release:" + idempotencyKey + ":" + reservation.getAttemptCount());
+                "ai-release:" + aiLedgerKey(idempotencyKey,reservation.getSelectionJson()!=null) + ":" + reservation.getAttemptCount());
     }
 
     @Transactional
@@ -427,10 +501,10 @@ public class EconomyService {
         if (ledgerRepository.existsByUserAndIdempotencyKey(user, idempotencyKey)) {
             return 0L;
         }
-        long refunded = ledgerRepository.findByUserAndReferenceTypeAndReferenceIdAndEntryType(
-                        user, "G2_EVALUATION", referenceId, CreditLedgerType.AI_DEBIT)
+        long refunded = -ledgerRepository.findByUserAndReferenceTypeAndReferenceId(user,"G2_EVALUATION",referenceId)
                 .stream()
-                .mapToLong(item -> Math.max(0L, -item.getDelta()))
+                .filter(item->item.getEntryType()==CreditLedgerType.AI_DEBIT||item.getEntryType()==CreditLedgerType.AI_RESERVATION||item.getEntryType()==CreditLedgerType.AI_RESERVATION_RELEASE)
+                .mapToLong(item -> item.getDelta())
                 .sum();
         if (refunded <= 0L) {
             return 0L;
@@ -802,11 +876,36 @@ public class EconomyService {
         );
     }
 
+    private String aiLedgerKey(String key,boolean configured) {
+        return configured&&key.length()>80?com.ainovel.app.modelconfig.AiActionPlanner.hash(key):key;
+    }
+
     private long calculateAiCost(long inputTokens, long outputTokens) {
         long totalTokens = Math.max(0L, inputTokens) + Math.max(0L, outputTokens);
         long unit = 100_000L;
         long cost = (totalTokens + unit - 1L) / unit;
         return Math.max(1L, cost);
+    }
+
+    private com.ainovel.app.modelconfig.AiModelSelection readModelSelection(String raw) {
+        try{return modelSelectionJson.readValue(raw,com.ainovel.app.modelconfig.AiModelSelection.class);}
+        catch(com.fasterxml.jackson.core.JsonProcessingException ex){throw new IllegalStateException("AI price snapshot unreadable",ex);}
+    }
+
+    public record StoredAiRequest(String requestJson,String identity,String actualModelKey) {}
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public StoredAiRequest frozenAiRequest(User user,String key) {
+        return aiReservationRepository.findByUserAndIdempotencyKey(user,key)
+                .map(r->new StoredAiRequest(r.getFrozenRequestJson(),r.getRequestIdentity(),r.getActualModelKey())).orElse(null);
+    }
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void freezeAiRequest(User user,String key,com.ainovel.app.ai.dto.AiChatRequest request) {
+        var row=aiReservationRepository.findByUserAndIdempotencyKey(user,key).orElseThrow();
+        if(row.getFrozenRequestJson()==null) {
+            try{row.setFrozenRequestJson(modelSelectionJson.writeValueAsString(request));}
+            catch(com.fasterxml.jackson.core.JsonProcessingException e){throw new IllegalStateException(e);}
+            aiReservationRepository.save(row);
+        }
     }
 
     private long fetchPublicBalance(User user) {

@@ -35,16 +35,14 @@ class UserSummaryQueryServiceTest {
                 manuscript("{\"scene-1\":\"<p>abc</p>\",\"scene-2\":\"  hi  \"}"),
                 manuscript("{\"scene-3\":\"<div>1234</div>\"}")
         ));
-        when(worldRepository.findByUser(user)).thenReturn(List.of(
-                world("{\"region\":{\"climate\":\"cold\",\"note\":\"\"},\"history\":{\"era\":\" dawn \"}}"),
-                world("{\"characters\":{\"lead\":\"hero\",\"ally\":\"   \",\"mentor\":null}}")
-        ));
+        var entries = mock(com.ainovel.app.world.repo.WorldEntryRepository.class);
+        when(entries.countFilledByUser(user.getId())).thenReturn(3L);
 
         UserSummaryQueryService service = new UserSummaryQueryService(
                 storyRepository,
                 worldRepository,
                 manuscriptRepository,
-                jsonColumnCodec
+                entries
         );
         com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
 

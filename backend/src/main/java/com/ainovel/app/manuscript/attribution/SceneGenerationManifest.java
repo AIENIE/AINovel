@@ -15,7 +15,7 @@ import java.util.UUID;
 public final class SceneGenerationManifest {
     private static final Set<String> SCALAR_KEYS = Set.of(
             "branchId", "manuscriptVersion", "canonRevision", "contextRevision", "settingsRevision", "orderHash",
-            "schemaVersion",
+            "schemaVersion", "lengthOutOfRange", "actualHan", "minHan", "maxHan",
             "mode",
             "sceneId",
             "generator",

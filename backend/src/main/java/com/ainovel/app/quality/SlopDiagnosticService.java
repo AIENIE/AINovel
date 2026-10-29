@@ -69,32 +69,84 @@ public class SlopDiagnosticService {
         return runRepository.findTop20ByManuscriptIdOrderByCreatedAtDesc(manuscriptId);
     }
 
-    public SlopQualityRun analyzeScene(User user, Manuscript manuscript, UUID sceneId) {
-        if (boundary == null) return analyze(user, buildRequest(manuscript, sceneId));
-        var snapshot = boundary.snapshot(manuscript, current -> buildRequest(current, sceneId));
-        SlopQualityRun result = evaluate(user, snapshot.data());
-        return boundary.save(snapshot, current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
-    }
+    @org.springframework.beans.factory.annotation.Autowired
+    private SlopInputAdmission admission=new SlopInputAdmission(20000,100000,24000);
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.v2.V2VersionPersistenceService versions;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.manuscript.repo.ManuscriptRepository manuscripts;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.quality.language.LanguageQualityService language;
 
-    public SlopQualityRun analyze(User user, SlopQualityRequest request) {
-        SlopQualityRun result = evaluate(user, request);
-        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(
-                () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
+    public SlopEvidence.ReviewData freeze(User user,Manuscript manuscript,UUID sceneId) {
+        if(boundary!=null) return boundary.snapshot(manuscript,current->freezeCurrent(user,current,sceneId)).data();
+        return freezeCurrent(user,manuscript,sceneId);
     }
-
-    private SlopQualityRun evaluate(User user, SlopQualityRequest request) {
-        SlopHeuristicResult heuristicResult = heuristics.evaluate(SlopHeuristicInput.from(request, request.candidateText()));
+    private SlopEvidence.ReviewData freezeCurrent(User user,Manuscript m,UUID sceneId) {
+        if(versions!=null) { versions.ensureGenerationBaseline(m,user); manuscripts.flush(); }
+        var p=com.ainovel.app.quality.language.LanguageProjection.of(contents.readScene(m,sceneId));
+        var d=material(buildRequest(m,sceneId),p);
+        UUID snapshot=versions==null?null:UUID.fromString(versions.createVersion(m,user,Map.of("snapshotType","slop_check","label","Slop 检查来源")).get("id").toString());
+        d.source=new com.ainovel.app.quality.language.LanguageDtos.Source(m.getCurrentBranchId(),m.getVersion(),snapshot,p.version(),p.htmlHash(),p.textHash(),
+                com.ainovel.app.quality.language.LanguageProjection.hash(writeJson(d.request)),com.ainovel.app.quality.language.LanguageStandard.VERSION);
+        return d;
+    }
+    private SlopEvidence.ReviewData material(SlopQualityRequest request,com.ainovel.app.quality.language.LanguageProjection.Projection p) {
+        var local=heuristics.evaluate(SlopHeuristicInput.from(request,p.text()));
+        var d=new SlopEvidence.ReviewData(); d.projection=p; d.localSignals=local.issues(); d.localRisk=local.overallRiskScore(); d.shadowHits=local.shadowHits();
+        d.request=SlopEvidence.request(request,local,"slop.diagnose",objectMapper);
+        return d;
+    }
+    public SlopQualityRun analyzeScene(User user,Manuscript manuscript,UUID sceneId) {
+        return analyzeFrozen(user,manuscript,sceneId,freeze(user,manuscript,sceneId));
+    }
+    public SlopQualityRun analyze(User user,SlopQualityRequest request) {
+        var p=com.ainovel.app.quality.language.LanguageProjection.of(org.springframework.web.util.HtmlUtils.htmlEscape(request.candidateText()));
+        var run=baseRun(request); return evaluate(user,run,material(request,p));
+    }
+    public SlopQualityRun analyzeFrozen(User user,Manuscript manuscript,UUID sceneId,SlopEvidence.ReviewData frozen) {
+        if(frozen==null || frozen.version!=1 || !SlopEvidence.VERSION.equals(frozen.promptVersion) || frozen.source==null)
+            throw new com.ainovel.app.ai.AiResultUncertainException(new IllegalStateException("SLOP_SOURCE_MISSING_REDIAGNOSE"));
+        var run=new SlopQualityRun(); run.setStoryId(manuscript.getOutline().getStory().getId());
+        run.setManuscriptId(manuscript.getId()); run.setSceneId(sceneId); run.setAnalysisMode("manual_scene");
+        run.setCandidateTextHash(frozen.projection.textHash()); run.setAcceptedTextHash(frozen.projection.textHash());
+        run.setSourceTextHash(frozen.projection.textHash()); run.setTextConversionVersion(frozen.projection.version());
+        return evaluate(user,run,frozen);
+    }
+    private SlopQualityRun evaluate(User user,SlopQualityRun run,SlopEvidence.ReviewData d) {
+        int risk=0;
         try {
-            Map<String, Object> root = parseJson(aiService.chat(user, new AiChatRequest(
-                    List.of(new AiChatRequest.Message("user", buildPrompt(request, heuristicResult))),
-                    null,
-                    null
-            )).content());
-            return toRun(request, root, heuristicResult, false);
-        } catch (RuntimeException ex) {
-            if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
-            return fallbackRun(request, heuristicResult, ex);
+            admission.requireFits(d.request);
+            d.raw=aiService.chat(user,d.request).content();
+            var parsed=SlopEvidence.parse(d.raw,d.projection,objectMapper);
+            d.findings=parsed.findings(); d.coverage=parsed.complete()?"COMPLETE":"PARTIAL"; d.reason=parsed.summary(); risk=parsed.risk();
+        } catch(RuntimeException e) {
+            if(e instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException || e instanceof com.ainovel.app.ai.AiResultUncertainException) throw e;
+            d.coverage=e instanceof SlopInputAdmission.InputLimit?"INPUT_LIMIT":"FAILED";
+            d.reason=e instanceof SlopInputAdmission.InputLimit?e.getMessage():"语义检查失败或返回格式无效；仅保留本地观察，不能视为通过。";
         }
+        run.setOverallRiskScore(risk); run.setMaxSeverity(SlopEvidence.severity(risk));
+        run.setStatus(!d.coverage.equals("COMPLETE")?SlopQualityStatus.DEGRADED:risk>=70?SlopQualityStatus.ACCEPTED_WITH_ISSUES:SlopQualityStatus.ACCEPTED);
+        run.setRiskLabel(d.coverage.equals("COMPLETE")?label(risk):"unchecked"); run.setSummary(truncate(d.reason,800));
+        run.setSafeClaim(d.coverage.equals("COMPLETE")?"仅汇总有效、已确认的文本问题；文风建议及本地命中不等于错误。":"正文未完成检查；保留的本地观察不能作为低风险或通过结论。");
+        run.setEvidenceLevel(d.coverage.equals("COMPLETE")?"E2":"E1");
+        run.setModuleScoresJson(writeJson(SlopQualitySignals.empty().withShadowHits(d.shadowHits).moduleScores())); run.setAlternativeExplanationsJson("[]"); run.setRevisionPrioritiesJson("[]"); run.setRewriteTasksJson("[]");
+        run.setReviewContextJson(writeJson(d));
+        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(()->runRepository.save(run),saved->Map.of("resourceId",saved.getId()));
+    }
+    @Transactional
+    public com.ainovel.app.aioperation.AiOperationDtos.Accepted suggest(User user,UUID manuscriptId,UUID runId,UUID issueId) {
+        var run=runRepository.findById(runId).filter(r->r.getManuscriptId().equals(manuscriptId)).orElseThrow(()->new BusinessException("Slop 报告不存在"));
+        var d=review(run);
+        if(d==null || d.source==null) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"旧报告缺少可靠来源，请重新诊断");
+        // Import is a source-bound bridge, not another language diagnosis or another provider call.
+        UUID reportId=language.importSlop(user,manuscriptId,run.getSceneId(),runId,d);
+        d.languageReportId=reportId; run.setReviewContextJson(writeJson(d)); runRepository.save(run);
+        return language.suggest(user,manuscriptId,reportId,issueId.toString());
+    }
+    private SlopEvidence.ReviewData review(SlopQualityRun run) {
+        try { return run.getReviewContextJson()==null?null:objectMapper.readValue(run.getReviewContextJson(),SlopEvidence.ReviewData.class); }
+        catch(Exception e) { throw new IllegalStateException("SLOP_INVALID_SNAPSHOT",e); }
     }
 
     private SlopQualityRequest buildRequest(Manuscript manuscript, UUID sceneId) {
@@ -183,89 +235,9 @@ public class SlopDiagnosticService {
         return builder.toString();
     }
 
-    private SlopQualityRun toRun(SlopQualityRequest request,
-                                 Map<String, Object> root,
-                                 SlopHeuristicResult heuristicResult,
-                                 boolean degraded) {
-        Map<String, Object> overall = map(root.get("overall"));
-        int risk = Math.max(
-                intVal(overall.get("overall_slop_risk"), heuristicResult.overallRiskScore()),
-                heuristicResult.overallRiskScore()
-        );
-        String riskLabel = label(risk);
-        List<SlopIssueDraft> parsedIssues = parseIssues(root.get("evidence_items"), request.candidateText());
-        List<SlopIssueDraft> issues = mergeDiagnosticIssues(heuristicResult.issues(), parsedIssues);
-        SlopSeverity maxSeverity = maxSeverity(issues, severityForRisk(risk));
-        String evidenceLevel = SlopQualitySignals.fromIssues(risk, maxSeverity, issues).evidenceLevel();
-        String safeClaim = "该文本呈现%s级模板化/slop风险；这不能证明作者使用 AI。".formatted(riskLabel);
-
-        SlopQualityRun run = baseRun(request);
-        run.setStatus(statusFor(degraded, risk, issues));
-        run.setMaxSeverity(maxSeverity);
-        run.setOverallRiskScore(risk);
-        run.setRiskLabel(riskLabel);
-        run.setEvidenceLevel(evidenceLevel);
-        run.setSafeClaim(truncate(safeClaim, 500));
-        run.setSummary(str(root.get("summary"), safeClaim));
-        run.setModuleScoresJson(writeJson(moduleScoresWithShadow(root.get("module_scores"), heuristicResult)));
-        run.setAlternativeExplanationsJson(writeJson(root.getOrDefault("alternative_explanations", defaultAlternatives())));
-        run.setRevisionPrioritiesJson(writeJson(root.getOrDefault("revision_priorities", List.of())));
-        run.setRewriteTasksJson(writeJson(root.getOrDefault("rewrite_tasks", List.of())));
-        for (SlopIssueDraft draft : issues) {
-            run.getIssues().add(toIssue(run, draft));
-        }
-        return run;
-    }
-
-    private List<SlopIssueDraft> mergeDiagnosticIssues(List<SlopIssueDraft> localIssues,
-                                                       List<SlopIssueDraft> semanticIssues) {
-        List<SlopIssueDraft> merged = new ArrayList<>();
-        if (localIssues != null) merged.addAll(localIssues);
-        if (semanticIssues != null) {
-            for (SlopIssueDraft candidate : semanticIssues) {
-                boolean duplicate = merged.stream().anyMatch(existing -> sameEvidence(existing, candidate));
-                if (!duplicate) merged.add(candidate);
-            }
-        }
-        return merged.stream()
-                .sorted(Comparator.comparingInt(SlopIssueDraft::riskScore).reversed()
-                        .thenComparing(issue -> issue.charStart() == null ? Integer.MAX_VALUE : issue.charStart()))
-                .limit(12)
-                .toList();
-    }
-
-    private boolean sameEvidence(SlopIssueDraft left, SlopIssueDraft right) {
-        if (left.quote() != null && right.quote() != null && left.quote().equals(right.quote())) {
-            return true;
-        }
-        return left.charStart() != null && left.charEnd() != null
-                && left.charStart().equals(right.charStart()) && left.charEnd().equals(right.charEnd());
-    }
-
-    private SlopQualityRun fallbackRun(SlopQualityRequest request, SlopHeuristicResult heuristicResult, RuntimeException ex) {
-        SlopQualityRun run = baseRun(request);
-        int risk = heuristicResult.overallRiskScore();
-        String riskLabel = label(risk);
-        run.setStatus(SlopQualityStatus.DEGRADED);
-        run.setMaxSeverity(heuristicResult.maxSeverity());
-        run.setOverallRiskScore(risk);
-        run.setRiskLabel(riskLabel);
-        run.setEvidenceLevel(evidenceLevel(heuristicResult.maxSeverity(), risk));
-        run.setSafeClaim("该文本呈现%s级模板化/slop风险；这不能证明作者使用AI。".formatted(riskLabel));
-        run.setSummary("文本 slop 语义诊断失败，已按本地规则降级记录：" + truncate(ex.getMessage(), 160));
-        run.setModuleScoresJson(writeJson(localModuleScores(heuristicResult)));
-        run.setAlternativeExplanationsJson(writeJson(defaultAlternatives()));
-        run.setRevisionPrioritiesJson("[]");
-        run.setRewriteTasksJson("[]");
-        for (SlopIssueDraft draft : heuristicResult.issues()) {
-            run.getIssues().add(toIssue(run, draft));
-        }
-        return run;
-    }
-
     private SlopQualityRun baseRun(SlopQualityRequest request) {
         SlopQualityRun run = new SlopQualityRun();
-        run.setTextConversionVersion(com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1.version());
+        run.setTextConversionVersion(com.ainovel.app.quality.language.LanguageProjection.VERSION);
         run.setStoryId(request.storyId());
         run.setManuscriptId(request.manuscriptId());
         run.setSceneId(request.sceneId());
@@ -278,327 +250,11 @@ public class SlopDiagnosticService {
         return run;
     }
 
-    private SlopQualityIssue toIssue(SlopQualityRun run, SlopIssueDraft draft) {
-        SlopQualityIssue issue = new SlopQualityIssue();
-        issue.setRun(run);
-        issue.setDimension(draft.dimension());
-        issue.setSeverity(draft.severity());
-        issue.setRiskScore(draft.riskScore());
-        issue.setEvidence(truncate(draft.evidence(), 600));
-        issue.setWhyItMatters(truncate(draft.whyItMatters(), 800));
-        issue.setMinimalFix(truncate(draft.minimalFix(), 800));
-        issue.setCharStart(draft.charStart());
-        issue.setCharEnd(draft.charEnd());
-        issue.setQuote(truncate(draft.quote(), 800));
-        issue.setModule(truncate(draft.module(), 80));
-        issue.setPatternId(truncate(draft.patternId(), 80));
-        issue.setIssueType(truncate(draft.issueType(), 80));
-        issue.setEvidenceLevel(truncate(draft.evidenceLevel(), 8));
-        issue.setAlternativeExplanationsJson(draft.alternativeExplanationsJson());
-        issue.setRepairHint(truncate(draft.repairHint(), 800));
-        return issue;
-    }
-
-    private List<SlopIssueDraft> parseIssues(Object value, String text) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        List<SlopIssueDraft> issues = new ArrayList<>();
-        for (Object item : list) {
-            if (!(item instanceof Map<?, ?> raw)) {
-                continue;
-            }
-            String module = str(raw.get("module"), "surface_template");
-            String quote = str(raw.get("quote"), str(raw.get("evidence"), ""));
-            Integer start = nullableInt(raw.get("char_start"));
-            Integer end = nullableInt(raw.get("char_end"));
-            if ((start == null || end == null) && !quote.isBlank()) {
-                int found = text == null ? -1 : text.indexOf(quote);
-                if (found >= 0) {
-                    start = found;
-                    end = found + quote.length();
-                }
-            }
-            String explanation = str(raw.get("risk_explanation"), str(raw.get("why_it_matters"), ""));
-            String repairHint = str(raw.get("repair_hint"), str(raw.get("minimal_fix"), ""));
-            issues.add(new SlopIssueDraft(
-                    dimension(module),
-                    severity(raw.get("severity"), intVal(raw.get("risk_score"), 50)),
-                    intVal(raw.get("risk_score"), 50),
-                    quote,
-                    explanation,
-                    repairHint,
-                    start,
-                    end,
-                    quote,
-                    module,
-                    str(raw.get("pattern_id"), ""),
-                    str(raw.get("issue_type"), ""),
-                    str(raw.get("evidence_level"), "E1"),
-                    writeJson(raw.containsKey("alternative_explanations") ? raw.get("alternative_explanations") : defaultAlternatives()),
-                    repairHint
-            ));
-        }
-        return issues;
-    }
-
-    private String buildPrompt(SlopQualityRequest request, SlopHeuristicResult heuristicResult) {
-        return """
-                你是中文小说文本 slop 风险诊断助手。你的任务不是判断作者是否使用 AI，而是评估文本呈现出的模板化、工业化、AI味/slop 风险，并给出可修改证据。
-
-                必须遵守：
-                1) 不输出 AI 概率，不说作者用了 AI。
-                2) 每个判断必须引用原文证据；单个黑名单词只能作为弱信号。
-                3) 必须列出替代解释，如传统网文俗套、人工低水平写作、平台公式化、作者个人风格。
-                4) 修改优先级：元泄漏/事实矛盾/设定冲突 > 角色行为逻辑 > 后果/代价/关系变化 > 角色语域 > 表层套话。
-                5) voice_fit 只能基于下方“风格/角色声音语境”和正文证据判断；没有配置时不要虚构角色语域问题。
-
-                输出 JSON：
-                {
-                  "summary": "一句话摘要",
-                  "overall": {
-                    "overall_slop_risk": 0-100,
-                    "risk_label": "low|medium|high|critical",
-                    "evidence_level": "E1|E2|E3|E4",
-                    "safe_claim": "该文本呈现...风险，但不能证明作者使用AI。"
-                  },
-                  "module_scores": {
-                    "surface_template": {"score": 0-100},
-                    "voice_fit": {"score": 0-100},
-                    "consistency_assimilation": {"score": 0-100},
-                    "breath_focus_pacing": {"score": 0-100},
-                    "human_trace": {"score": 0-100}
-                  },
-                  "evidence_items": [
-                    {
-                      "char_start": 0,
-                      "char_end": 0,
-                      "quote": "原文证据",
-                      "module": "surface_template|voice_fit|consistency_assimilation|breath_focus_pacing|human_trace",
-                      "pattern_id": "可为空",
-                      "issue_type": "phrase_pattern|register_mismatch|local_contradiction|event_conveyor_belt|human_trace_missing",
-                      "evidence_level": "E1|E2|E3|E4",
-                      "severity": "low|medium|high|blocking",
-                      "risk_score": 0-100,
-                      "risk_explanation": "为什么影响阅读",
-                      "alternative_explanations": ["传统网文俗套"],
-                      "repair_hint": "最小修复建议"
-                    }
-                  ],
-                  "alternative_explanations": [],
-                  "revision_priorities": [],
-                  "rewrite_tasks": []
-                }
-
-                本地规则风险：%d / %s
-                故事：%s
-                类型：%s
-                文风目标：%s
-                章节：%s
-                场景：%s
-                场景摘要：%s
-                角色上下文：%s
-                风格/角色声音语境：%s
-                前文：%s
-
-                当前正文：
-                %s
-                """.formatted(
-                heuristicResult.overallRiskScore(),
-                heuristicResult.maxSeverity(),
-                safe(request.storyTitle()),
-                safe(request.genre()),
-                safe(request.tone()),
-                safe(request.chapterTitle()),
-                safe(request.sceneTitle()),
-                truncate(request.sceneSummary(), 900),
-                truncate(request.characterContext(), 1400),
-                truncate(request.styleContext(), 1400),
-                request.isolated() ? request.previousContext() : truncate(request.previousContext(), 1200),
-                truncate(request.candidateText(), 7000)
-        );
-    }
-
-    private Map<String, Object> parseJson(String raw) {
-        String text = stripWrapper(raw);
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            text = text.substring(start, end + 1);
-        }
-        try {
-            return objectMapper.readValue(text, new TypeReference<>() {});
-        } catch (Exception ex) {
-            throw new RuntimeException("文本 slop 诊断 JSON 解析失败", ex);
-        }
-    }
-
+    private String writeJson(Object value) { return jsonColumnCodec.writeRequired(value); }
+    private Map<String,Object> readObjectMap(String value) { return jsonColumnCodec.readRequired(value,new TypeReference<Map<String,Object>>() {}); }
     @SuppressWarnings("unchecked")
-    private Map<String, Object> map(Object value) {
-        return value instanceof Map<?, ?> raw ? (Map<String, Object>) raw : Map.of();
-    }
-
-    private Map<String, String> readSectionMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
-    }
-
-    private Map<String, Object> readObjectMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (Object item : list) {
-            if (item instanceof Map<?, ?> map) {
-                out.add(new LinkedHashMap<>((Map<String, Object>) map));
-            }
-        }
-        return out;
-    }
-
-    private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
-    }
-
-    private Map<String, Object> localModuleScores(SlopHeuristicResult result) {
-        Map<String, Object> scores = new LinkedHashMap<>();
-        scores.put("surface_template", Map.of("score", result.overallRiskScore()));
-        scores.put("voice_fit", Map.of("score", 0));
-        scores.put("consistency_assimilation", Map.of("score", result.maxSeverity() == SlopSeverity.BLOCKING ? result.overallRiskScore() : 0));
-        scores.put("breath_focus_pacing", Map.of("score", 0));
-        scores.put("human_trace", Map.of("score", 0));
-        return addShadowScores(scores, result);
-    }
-
-    private Map<String, Object> moduleScoresWithShadow(Object aiScores, SlopHeuristicResult result) {
-        Map<String, Object> scores = new LinkedHashMap<>(map(aiScores));
-        return addShadowScores(scores, result);
-    }
-
-    private Map<String, Object> addShadowScores(Map<String, Object> scores, SlopHeuristicResult result) {
-        Object shadow = SlopQualitySignals.fromIssues(
-                        result.overallRiskScore(), result.maxSeverity(), result.issues())
-                .withShadowHits(result.shadowHits())
-                .moduleScores()
-                .get("_shadow_pattern_hits");
-        scores.put("_shadow_pattern_hits", shadow);
-        return scores;
-    }
-
-    private List<String> defaultAlternatives() {
-        return List.of("传统网文俗套", "人工低水平写作", "工作室公式化", "题材/平台惯例", "作者个人文风");
-    }
-
-    private SlopQualityStatus statusFor(boolean degraded, int risk, List<SlopIssueDraft> issues) {
-        if (degraded) {
-            return SlopQualityStatus.DEGRADED;
-        }
-        SlopSeverity max = maxSeverity(issues, severityForRisk(risk));
-        if (risk >= 70 || max == SlopSeverity.HIGH || max == SlopSeverity.BLOCKING) {
-            return SlopQualityStatus.ACCEPTED_WITH_ISSUES;
-        }
-        return SlopQualityStatus.ACCEPTED;
-    }
-
-    private SlopSeverity maxSeverity(List<SlopIssueDraft> issues, SlopSeverity fallback) {
-        SlopSeverity max = fallback;
-        for (SlopIssueDraft issue : issues) {
-            if (rank(issue.severity()) > rank(max)) {
-                max = issue.severity();
-            }
-        }
-        return max;
-    }
-
-    private SlopSeverity severity(Object value, int risk) {
-        String text = str(value, "").toUpperCase();
-        try {
-            return SlopSeverity.valueOf(text);
-        } catch (Exception ignored) {
-            return severityForRisk(risk);
-        }
-    }
-
-    private SlopSeverity severityForRisk(int risk) {
-        if (risk >= 85) {
-            return SlopSeverity.BLOCKING;
-        }
-        if (risk >= 70) {
-            return SlopSeverity.HIGH;
-        }
-        if (risk >= 40) {
-            return SlopSeverity.MEDIUM;
-        }
-        return SlopSeverity.LOW;
-    }
-
-    private SlopDimension dimension(String module) {
-        return switch (str(module, "surface_template")) {
-            case "voice_fit" -> SlopDimension.STYLE_DRIFT_LIGHT;
-            case "consistency_assimilation" -> SlopDimension.LOCAL_COHERENCE;
-            case "breath_focus_pacing" -> SlopDimension.LOCAL_COHERENCE;
-            case "human_trace" -> SlopDimension.GENERICITY;
-            default -> SlopDimension.GENERICITY;
-        };
-    }
-
-    private String evidenceLevel(SlopSeverity severity, int risk) {
-        if (severity == SlopSeverity.BLOCKING) {
-            return "E4";
-        }
-        if (severity == SlopSeverity.HIGH || risk >= 70) {
-            return "E2";
-        }
-        return "E1";
-    }
-
-    private String label(int riskScore) {
-        if (riskScore >= 85) {
-            return "critical";
-        }
-        if (riskScore >= 70) {
-            return "high";
-        }
-        if (riskScore >= 40) {
-            return "medium";
-        }
-        return "low";
-    }
-
-    private int rank(SlopSeverity severity) {
-        return switch (severity) {
-            case LOW -> 1;
-            case MEDIUM -> 2;
-            case HIGH -> 3;
-            case BLOCKING -> 4;
-        };
-    }
-
-    private Integer nullableInt(Object value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(String.valueOf(value));
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return Math.max(0, Math.min(100, number.intValue()));
-        }
-        try {
-            return Math.max(0, Math.min(100, Integer.parseInt(String.valueOf(value))));
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
+    private List<Map<String,Object>> listOfMap(Object value) { return value instanceof List<?> list?list.stream().filter(Map.class::isInstance).map(v->(Map<String,Object>)v).toList():List.of(); }
+    private String label(int risk) { return risk>=85?"critical":risk>=70?"high":risk>=40?"medium":"low"; }
 
     private String str(Object value, String fallback) {
         if (value == null) {
@@ -609,8 +265,7 @@ public class SlopDiagnosticService {
     }
 
     private String stripHtml(String html) {
-        return com.ainovel.app.common.text.RichTextProjector.project(html,
-                com.ainovel.app.common.text.RichTextProjector.Policy.QUALITY_V1).text();
+        return com.ainovel.app.quality.language.LanguageProjection.of(html).text();
     }
 
     private String stripWrapper(String raw) {

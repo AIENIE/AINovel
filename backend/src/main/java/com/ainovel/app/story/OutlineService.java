@@ -1,9 +1,7 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.common.BusinessException;
-import com.ainovel.app.ai.AiService;
 import com.ainovel.app.common.JsonColumnCodec;
-import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.story.dto.*;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
@@ -11,7 +9,6 @@ import com.ainovel.app.story.repo.OutlineRepository;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
-import com.ainovel.app.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +19,6 @@ import java.util.*;
 
 @Service
 public class OutlineService {
-    @org.springframework.beans.factory.annotation.Autowired
-    private org.springframework.transaction.support.TransactionTemplate transactions;
     @Autowired
     private OutlineRepository outlineRepository;
     @Autowired
@@ -31,9 +26,7 @@ public class OutlineService {
     @Autowired
     private ResourceAccessGuard accessGuard;
     @Autowired
-    private AiService aiService;
-    @Autowired
-    private UserRepository userRepository;
+    private OutlineAiService outlineAi;
     @Autowired
     private ObjectMapper objectMapper;
     @Autowired
@@ -66,7 +59,7 @@ public class OutlineService {
         Outline outline = new Outline();
         outline.setStory(story);
         outline.setTitle(request.title() == null ? "新大纲" : request.title());
-        outline.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(null, request.worldId());
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
         return toDto(outline);
@@ -82,14 +75,16 @@ public class OutlineService {
     public OutlineDto saveOutline(UUID outlineId, OutlineSaveRequest request) {
         Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         outline.setTitle(request.title() != null ? request.title() : outline.getTitle());
-        outline.setWorldId(request.worldId());
+        com.ainovel.app.world.WorldBindingService.preserveLegacy(outline.getWorldId(), request.worldId());
         List<OutlineSaveRequest.ChapterPayload> normalized = normalizeChapters(request.chapters());
         Map<String, Object> content = new HashMap<>();
         content.put("planning", copyMap(request.planning()));
         content.put("chapters", normalized);
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
+        outlineRepository.flush();
         if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
         return toDto(outline);
     }
@@ -98,6 +93,7 @@ public class OutlineService {
     public OutlineDto updateChapter(UUID chapterId, ChapterUpdateRequest request) {
         Outline outline = findOutlineContainingChapter(chapterId);
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -131,6 +127,7 @@ public class OutlineService {
     public OutlineDto updateScene(UUID sceneId, SceneUpdateRequest request) {
         Outline outline = findOutlineContainingScene(sceneId);
         accessGuard.assertOwner(outline.getStory().getUser());
+        assertRevision(outline, request.expectedRevision());
         Map<String, Object> content = readJson(outline.getContentJson());
         List<OutlineSaveRequest.ChapterPayload> chapters = objectMapper.convertValue(
                 content.getOrDefault("chapters", new ArrayList<>()),
@@ -180,174 +177,11 @@ public class OutlineService {
     }
 
     public OutlineDto addGeneratedChapter(UUID outlineId, OutlineChapterGenerateRequest request) {
-        Outline outline = outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(() -> new BusinessException("大纲不存在"));
+        Outline outline=outlineRepository.findByIdWithStoryUser(outlineId).orElseThrow(()->new BusinessException("大纲不存在"));
         accessGuard.assertOwner(outline.getStory().getUser());
-        OutlineDto dto = toDto(outline);
-        int order = dto.chapters() == null ? 1 : dto.chapters().size() + 1;
-        UUID chapterId = UUID.randomUUID();
-        int chapterNumber = request.chapterNumber() != null ? request.chapterNumber() : order;
-        int scenesCount = normalizeSectionsPerChapter(request.sectionsPerChapter());
-        GeneratedChapter generated = generateChapterByAi(outline.getStory(), chapterNumber, scenesCount, order);
-        List<OutlineDto.SceneDto> scenes = new ArrayList<>();
-        for (int i = 1; i <= scenesCount; i++) {
-            GeneratedScene scene = i - 1 < generated.scenes().size() ? generated.scenes().get(i - 1) : null;
-            String sceneTitle = scene == null ? "第" + chapterNumber + "章 第" + i + "节" : safe(scene.title(), "第" + chapterNumber + "章 第" + i + "节");
-            String sceneSummary = scene == null ? "围绕章节主线推进关键冲突与人物关系。" : safe(scene.summary(), "围绕章节主线推进关键冲突与人物关系。");
-            scenes.add(new OutlineDto.SceneDto(
-                    UUID.randomUUID(),
-                    sceneTitle,
-                    sceneSummary,
-                    null,
-                    i,
-                    Map.of(
-                            "foreshadowHint", i == 1 ? "埋下一个不完整信息点" : "",
-                            "misdirectionAction", i == scenesCount ? "收束前制造一次误判" : "",
-                            "revealTrigger", i == scenesCount ? "在本节末尾释放新的真相碎片" : "",
-                            "payoffPlan", i == scenesCount ? "为下一章的回收预留接口" : ""
-                    )
-            ));
-        }
-        OutlineDto.ChapterDto newChapter = new OutlineDto.ChapterDto(
-                chapterId,
-                safe(generated.title(), "第" + chapterNumber + "章"),
-                safe(generated.summary(), "推进核心矛盾并强化人物成长线。"),
-                order,
-                Map.of(
-                        "purpose", "推进核心矛盾",
-                        "informationRelease", "引入新的线索或障碍",
-                        "twistRole", order == 1 ? "setup" : "progression"
-                ),
-                scenes
-        );
-        List<OutlineDto.ChapterDto> updated = new ArrayList<>(dto.chapters() != null ? dto.chapters() : List.of());
-        updated.add(newChapter);
-        OutlineSaveRequest saveRequest = new OutlineSaveRequest(
-                outline.getTitle(),
-                outline.getWorldId(),
-                copyMap(dto.planning()),
-                updated.stream().map(c -> new OutlineSaveRequest.ChapterPayload(
-                        c.id(),
-                        c.title(),
-                        c.summary(),
-                        c.order(),
-                        copyMap(c.planning()),
-                        c.scenes().stream().map(s -> new OutlineSaveRequest.ScenePayload(
-                                s.id(),
-                                s.title(),
-                                s.summary(),
-                                s.content(),
-                                s.order(),
-                                copyMap(s.planning())
-                        )).toList()
-                )).toList()
-        );
-        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> transactions.execute(status -> {
-            Outline current = outlineRepository.findByIdForUpdate(outlineId).orElseThrow();
-            if (current.getRevision() != outline.getRevision())
-                throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "OUTLINE_VERSION_CONFLICT");
-            return saveOutline(outlineId, saveRequest);
-        }));
-    }
-
-    private int normalizeSectionsPerChapter(Integer input) {
-        if (input == null) return 5;
-        return Math.max(5, Math.min(7, input));
-    }
-
-    private GeneratedChapter generateChapterByAi(Story story, int chapterNumber, int scenesCount, int order) {
-        try {
-            User currentUser = userRepository.findByUsername(accessGuard.currentUsername()).orElse(story.getUser());
-            String prompt = """
-                    你是长篇小说策划编辑。请生成第 %d 章的大纲信息，必须返回 JSON，不要 markdown：
-                    {
-                      "title":"章节标题",
-                      "summary":"章节摘要（80-140字）",
-                      "scenes":[
-                        {"title":"节标题","summary":"该节剧情摘要（60-120字）"}
-                      ]
-                    }
-                    约束：
-                    - scenes 数量必须为 %d
-                    - 章节需与已有章节数量 %d 保持连续推进
-                    - 题材：%s
-                    - 故事标题：%s
-                    - 故事梗概：%s
-                    """.formatted(
-                    chapterNumber,
-                    scenesCount,
-                    Math.max(order - 1, 0),
-                    safe(story.getGenre(), "未指定"),
-                    safe(story.getTitle(), "未命名故事"),
-                    safe(story.getSynopsis(), "无")
-            );
-            String content = aiService.chat(currentUser, new AiChatRequest(
-                    List.of(new AiChatRequest.Message("user", prompt)),
-                    null,
-                    null
-            )).content();
-            Map<String, Object> root = parseJson(content);
-            if (root == null) {
-                return new GeneratedChapter(null, null, List.of());
-            }
-            List<GeneratedScene> generatedScenes = new ArrayList<>();
-            Object rawScenes = root.get("scenes");
-            if (rawScenes instanceof List<?> list) {
-                for (Object item : list) {
-                    if (item instanceof Map<?, ?> map) {
-                        String title = safe(map.get("title") == null ? null : String.valueOf(map.get("title")), "");
-                        String summary = safe(map.get("summary") == null ? null : String.valueOf(map.get("summary")), "");
-                        if (!title.isBlank() || !summary.isBlank()) {
-                            generatedScenes.add(new GeneratedScene(title, summary));
-                        }
-                    }
-                }
-            }
-            return new GeneratedChapter(
-                    safe(root.get("title") == null ? null : String.valueOf(root.get("title")), null),
-                    safe(root.get("summary") == null ? null : String.valueOf(root.get("summary")), null),
-                    generatedScenes
-            );
-        } catch (Exception ignored) {
-            return new GeneratedChapter(null, null, List.of());
-        }
-    }
-
-    private Map<String, Object> parseJson(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        String text = raw.trim();
-        if (text.startsWith("```")) {
-            int start = text.indexOf('{');
-            int end = text.lastIndexOf('}');
-            if (start >= 0 && end > start) {
-                text = text.substring(start, end + 1);
-            }
-        }
-        try {
-            return objectMapper.readValue(text, new TypeReference<>() {});
-        } catch (Exception ex) {
-            int start = text.indexOf('{');
-            int end = text.lastIndexOf('}');
-            if (start >= 0 && end > start) {
-                try {
-                    return objectMapper.readValue(text.substring(start, end + 1), new TypeReference<>() {});
-                } catch (Exception ignored) {
-                    return null;
-                }
-            }
-            return null;
-        }
-    }
-
-    private String safe(String value, String fallback) {
-        if (value == null) return fallback;
-        String text = value.trim();
-        return text.isBlank() ? fallback : text;
-    }
-
-    private record GeneratedChapter(String title, String summary, List<GeneratedScene> scenes) {
-    }
-
-    private record GeneratedScene(String title, String summary) {
+        var result=outlineAi.compatible(outline.getStory().getUser(),outlineId,OutlineAiService.chapterRequest(request));
+        if(!"APPLIED".equals(result.status()))throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("OUTLINE_AI_RESULT_NEEDS_REVIEW");
+        return get(outlineId);
     }
 
     private OutlineDto toDto(Outline outline) {
@@ -371,8 +205,15 @@ public class OutlineService {
                 outline.getWorldId(),
                 copyMap(objectMapper.convertValue(content.get("planning"), new TypeReference<>() {})),
                 chapterDtos,
-                outline.getUpdatedAt()
+                outline.getUpdatedAt(),
+                outline.getRevision()
         );
+    }
+
+    private void assertRevision(Outline outline, Long expectedRevision) {
+        if (expectedRevision != null && expectedRevision != outline.getRevision()) {
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "STORY_RESOURCE_CONFLICT");
+        }
     }
 
     private List<OutlineSaveRequest.ChapterPayload> normalizeChapters(List<OutlineSaveRequest.ChapterPayload> chapters) {

@@ -5,6 +5,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.ainovel.app.economy.model.ProjectCreditAccount;
 import com.ainovel.app.economy.model.ProjectCreditLedger;
 import com.ainovel.app.economy.model.AiCreditReservation;
+import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.economy.repo.AiCreditReservationRepository;
 import com.ainovel.app.economy.repo.CreditConversionOrderRepository;
 import com.ainovel.app.economy.repo.ProjectCreditAccountRepository;
@@ -16,6 +17,8 @@ import com.ainovel.app.user.User;
 import com.ainovel.app.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -72,6 +75,7 @@ class EconomyServiceTests {
         ReflectionTestUtils.setField(economyService, "redeemCodeRepository", redeemCodeRepository);
         ReflectionTestUtils.setField(economyService, "redeemCodeUsageRepository", usageRepository);
         ReflectionTestUtils.setField(economyService, "aiReservationRepository", aiReservationRepository);
+        ReflectionTestUtils.setField(economyService, "modelSelectionJson", new com.fasterxml.jackson.databind.ObjectMapper());
         TransactionTemplate transactions = org.mockito.Mockito.mock(TransactionTemplate.class);
         org.mockito.Mockito.lenient().when(transactions.execute(any())).thenAnswer(invocation ->
                 ((TransactionCallback<?>) invocation.getArgument(0)).doInTransaction(null));
@@ -179,10 +183,13 @@ class EconomyServiceTests {
         when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
         when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
         when(aiReservationRepository.findByUserAndIdempotencyKey(user,"recover")).thenReturn(Optional.of(reservation));
-        economyService.recordAiResult(user,"recover","durable",10,20,0);
+        var metadata=AiResponseMetadata.reported("length",20L,true);
+        economyService.recordAiResult(user,"recover","durable",10,20,0,"model",metadata);
         assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
         var replay = economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash");
         assertTrue(replay.replay()); assertEquals("durable",replay.content()); assertEquals(9,account.getBalance());
+        assertEquals(metadata,replay.metadata());
+        assertEquals(metadata,economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash").metadata());
         assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
         reservation.setStatus(AiCreditReservation.Status.RESERVED);
         economyService.markAiResultUncertain(user,"recover");
@@ -190,6 +197,42 @@ class EconomyServiceTests {
         assertEquals(AiCreditReservation.Status.RECONCILIATION_REQUIRED,reservation.getStatus()); assertEquals(9,account.getBalance());
         assertThrows(com.ainovel.app.ai.AiResultUncertainException.class,
                 () -> economyService.reserveAiUsage(user,2,"AI_USAGE","recover","recover","hash"));
+    }
+
+    @Test
+    void nativeEnvelopeAndSafeMetadataAreSavedTogetherAndReplayedAfterResultReady() {
+        User user=user();var account=account(user,8L);var reservation=new AiCreditReservation();
+        reservation.setUser(user);reservation.setRequestHash("native-hash");reservation.setStatus(AiCreditReservation.Status.RESERVED);
+        reservation.setReservedAmount(2);reservation.setReferenceType("AI_USAGE");reservation.setReferenceId("native");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"native")).thenReturn(Optional.of(reservation));
+        String envelope="{\"message\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[],\"provider_state\":\"private opaque state\"}}";
+        var metadata=AiResponseMetadata.reported("tool_calls",5L,true);
+        economyService.recordAiResult(user,"native","",10,20,0,"model",metadata,envelope);
+        assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
+        assertEquals(envelope,reservation.getResultNativeResponseJson());
+        assertFalse(reservation.getResultMetadataJson().contains("private opaque state"));
+        var replay=economyService.reserveAiUsage(user,2,"AI_USAGE","native","native","native-hash");
+        assertEquals(envelope,replay.nativeResponseJson());assertEquals(metadata,replay.metadata());assertTrue(replay.replay());
+        assertEquals(envelope,economyService.reserveAiUsage(user,2,"AI_USAGE","native","native","native-hash").nativeResponseJson());
+        assertEquals(9,account.getBalance());assertEquals(AiCreditReservation.Status.COMPLETED,reservation.getStatus());
+    }
+
+    @Test
+    void verifiedAgentReceiptCanFinishExistingUnknownHoldWithoutASecondReservation() {
+        User user=user();var reservation=new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);reservation.setReferenceType("WRITING_AGENT");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user,"agent-step")).thenReturn(Optional.of(reservation));
+        var metadata=AiResponseMetadata.reported("tool_calls",0L,true);
+        economyService.recordAiResult(user,"agent-step","",15,10,0,"model",metadata,"original native envelope");
+        assertEquals(AiCreditReservation.Status.RESULT_READY,reservation.getStatus());
+        assertEquals("original native envelope",reservation.getResultNativeResponseJson());
+        assertEquals(0,reservation.getAttemptCount());
+        verify(accountRepository,never()).findForUpdateByUserId(any());
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);reservation.setReferenceType("AI_USAGE");
+        assertThrows(IllegalStateException.class,()->economyService.recordAiResult(user,"agent-step","unverified",15,10,0));
     }
 
     @Test
@@ -244,6 +287,67 @@ class EconomyServiceTests {
         assertEquals(10L, account.getBalance());
         assertEquals(AiCreditReservation.Status.RELEASED, reservation.getStatus());
         verify(ledgerRepository, org.mockito.Mockito.times(1)).save(any(ProjectCreditLedger.class));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AiCreditReservation.Status.class, names = {"RESERVED", "RECONCILIATION_REQUIRED"})
+    void confirmedNotSentAgentRecoveryReleasesOnlyItsMatchingHoldOnce(AiCreditReservation.Status initialStatus) {
+        User user = user();
+        var usage = new com.ainovel.app.ai.AiUsageContext("WRITING_AGENT", UUID.randomUUID().toString(), "step:3");
+        var account = account(user, 8L);
+        var reservation = new AiCreditReservation();
+        reservation.setStatus(initialStatus);
+        reservation.setReferenceType("WRITING_AGENT");
+        reservation.setReferenceId(usage.referenceId());
+        reservation.setReservedAmount(2L);
+        reservation.setLeaseExpiresAt(java.time.Instant.now().plusSeconds(100));
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(accountRepository.findForUpdateByUserId(user.getId())).thenReturn(Optional.of(account));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user, usage.idempotencyKey())).thenReturn(Optional.of(reservation));
+
+        if (initialStatus == AiCreditReservation.Status.RECONCILIATION_REQUIRED) {
+            economyService.releaseAiReservation(user, usage.idempotencyKey());
+            assertEquals(AiCreditReservation.Status.RECONCILIATION_REQUIRED, reservation.getStatus());
+            assertEquals(8L, account.getBalance());
+        }
+        economyService.releaseConfirmedNotSentWritingAgentReservation(user, usage);
+        economyService.releaseConfirmedNotSentWritingAgentReservation(user, usage);
+
+        assertEquals(AiCreditReservation.Status.RELEASED, reservation.getStatus());
+        assertNull(reservation.getLeaseExpiresAt());
+        assertEquals(10L, account.getBalance());
+        verify(ledgerRepository, org.mockito.Mockito.times(1)).save(any(ProjectCreditLedger.class));
+    }
+
+    @Test
+    void confirmedNotSentAgentRecoveryCannotReleaseAnotherReferenceOrFinishedResult() {
+        User user = user();
+        var usage = new com.ainovel.app.ai.AiUsageContext("WRITING_AGENT", UUID.randomUUID().toString(), "step:3");
+        var reservation = new AiCreditReservation();
+        reservation.setStatus(AiCreditReservation.Status.RECONCILIATION_REQUIRED);
+        reservation.setReferenceType("AI_USAGE");
+        reservation.setReferenceId(usage.referenceId());
+        reservation.setReservedAmount(13L);
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(aiReservationRepository.findByUserAndIdempotencyKey(user, usage.idempotencyKey())).thenReturn(Optional.of(reservation));
+
+        economyService.releaseConfirmedNotSentWritingAgentReservation(user, usage);
+        assertEquals(AiCreditReservation.Status.RECONCILIATION_REQUIRED, reservation.getStatus());
+        reservation.setReferenceType("WRITING_AGENT");
+        reservation.setReferenceId(UUID.randomUUID().toString());
+        economyService.releaseConfirmedNotSentWritingAgentReservation(user, usage);
+        assertEquals(AiCreditReservation.Status.RECONCILIATION_REQUIRED, reservation.getStatus());
+        reservation.setReferenceId(usage.referenceId());
+        for (var status : List.of(AiCreditReservation.Status.RESULT_READY, AiCreditReservation.Status.COMPLETED)) {
+            reservation.setStatus(status);
+            economyService.releaseConfirmedNotSentWritingAgentReservation(user, usage);
+            assertEquals(status, reservation.getStatus());
+        }
+        assertThrows(IllegalArgumentException.class, () -> economyService.releaseConfirmedNotSentWritingAgentReservation(user,
+                new com.ainovel.app.ai.AiUsageContext("AI_USAGE", usage.referenceId(), "step:3")));
+        verify(accountRepository, never()).findForUpdateByUserId(any());
+        verify(aiReservationRepository, never()).save(any());
+        verify(ledgerRepository, never()).save(any());
     }
 
     @Test

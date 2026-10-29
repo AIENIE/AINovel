@@ -36,7 +36,7 @@ import static com.ainovel.app.material.MaterialFingerprintService.bytes;
 @AutoConfigureTestDatabase(replace=AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation=Propagation.NOT_SUPPORTED)
 @Import({ManuscriptService.class, ManuscriptContentService.class, OwnedManuscriptTransactions.class,
-        ResourceAccessGuard.class, JsonColumnCodec.class, V2VersionPersistenceService.class,
+        ResourceAccessGuard.class, JsonColumnCodec.class, com.ainovel.app.narrative.NarrativeGenerationCandidateStore.class, V2VersionPersistenceService.class,
         V2ExportPersistenceService.class, V2ExportJobService.class, V2ExportRenderer.class, V2Json.class, CreatorWorkflowMysqlTest.Beans.class})
 class CreatorWorkflowMysqlTest {
     @DynamicPropertySource static void mysql(DynamicPropertyRegistry r) {
@@ -64,7 +64,7 @@ class CreatorWorkflowMysqlTest {
     @MockitoBean SceneGenerationService generator;
     @MockitoBean com.ainovel.app.manuscript.attribution.SceneGenerationAttributionService attribution;
     @MockitoBean com.ainovel.app.narrative.NarrativeContextService narrative;
-    @MockitoBean com.ainovel.app.narrative.NarrativeGenerationCandidateStore candidates;
+    @Autowired com.ainovel.app.narrative.NarrativeGenerationCandidateStore candidates;
     @Autowired com.ainovel.app.ai.AiValidationCallBudget validationBudget;
     @Autowired ManuscriptService manuscripts;
     @Autowired OwnedManuscriptTransactions owned;
@@ -195,6 +195,27 @@ class CreatorWorkflowMysqlTest {
             jdbc.update("delete from material_chunks where chunk_id=?",chunkId);
             jdbc.update("delete from materials where id=?",bytes(materialId));
         }
+    }
+    @Test void sceneCandidateDuplicateWriteAndAdoptionAreIdempotentOnMysql() throws Exception {
+        var f=fixture();login(f.user);
+        var created=manuscripts.create(f.outline,new ManuscriptCreateRequest("候选验收",null));
+        Manuscript source=transactions.execute(s->{var m=em.find(Manuscript.class,created.id());versions.ensureGenerationBaseline(m,f.user);em.flush();return m;});
+        var metadata=new SceneGenerationService.GenerationMetadata("test","scene-draft-v2","a".repeat(64),1,null);
+        var language=new com.ainovel.app.quality.language.LanguageStandard.Selection("zh-naturalness-v3",false,false);
+        UUID operation=UUID.randomUUID();
+        UUID id=candidates.retainDraft(operation,source,f.scene,"<p>保留结尾</p>",1,2800,3200,4,new com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source(GenerationMode.FAST,metadata,language));
+        assertEquals(id,candidates.retainDraft(operation,source,f.scene,"<p>不能覆盖</p>",1,2800,3200,4,new com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source(GenerationMode.FAST,metadata,language)));
+        assertEquals(1,manuscripts.sceneCandidates(source.getId(),f.scene,source.getCurrentBranchId()).size());
+        assertEquals("<p>保留结尾</p>",manuscripts.sceneCandidate(source.getId(),f.scene,source.getCurrentBranchId(),id).content());
+        var run=new SceneGenerationRunDto(UUID.randomUUID(),source.getId(),f.scene,f.user.getId(),"FAST",com.ainovel.app.manuscript.attribution.SceneGenerationRunStatus.GENERATED,"test","scene-draft-v2",1,null,Map.of(),UUID.randomUUID(),null,null,null,0,0,1.0,false,List.of(),null,false,java.time.Instant.now(),java.time.Instant.now());
+        org.mockito.Mockito.when(attribution.recordGeneration(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any())).thenReturn(run);
+        var request=new ManuscriptService.AdoptCandidateRequest(source.getVersion(),source.getCurrentBranchId());
+        var first=manuscripts.adoptSceneCandidate(source.getId(),f.scene,id,request);
+        var again=manuscripts.adoptSceneCandidate(source.getId(),f.scene,id,request);
+        assertEquals(first.version(),again.version());assertEquals("<p>保留结尾</p>",again.sections().get(f.scene.toString()));
+        assertEquals(1,jdbc.queryForObject("select count(*) from manuscript_versions where manuscript_id=? and snapshot_type='generation'",Integer.class,bytes(source.getId())));
+        org.mockito.Mockito.verify(attribution,org.mockito.Mockito.times(1)).recordGeneration(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(f.scene),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.argThat(m->Boolean.TRUE.equals(m.get("lengthOutOfRange"))),org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verifyNoInteractions(generator);
     }
     private Fixture fixture(){return transactions.execute(s->{
         String name="creator-"+UUID.randomUUID();var user=new User();user.setUsername(name);user.setEmail(name+"@example.invalid");user.setPasswordHash("test");em.persist(user);

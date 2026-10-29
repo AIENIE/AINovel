@@ -20,16 +20,18 @@ const WorldMetadataForm = ({ data, onChange }: WorldMetadataFormProps) => {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>{t("worldMeta.name")}</Label>
+            <Label htmlFor="world-name">{t("worldMeta.name")}</Label>
             <Input 
+              id="world-name"
               value={data.name} 
               onChange={(e) => onChange("name", e.target.value)} 
               placeholder={t("worldMeta.namePlaceholder")}
             />
           </div>
           <div className="space-y-2">
-            <Label>{t("worldMeta.tagline")}</Label>
+            <Label htmlFor="world-tagline">{t("worldMeta.tagline")}</Label>
             <Input 
+              id="world-tagline"
               value={data.tagline} 
               onChange={(e) => onChange("tagline", e.target.value)} 
               placeholder={t("worldMeta.taglinePlaceholder")}
@@ -38,8 +40,9 @@ const WorldMetadataForm = ({ data, onChange }: WorldMetadataFormProps) => {
         </div>
         
         <div className="space-y-2">
-          <Label>{t("worldMeta.creativeIntent")}</Label>
+          <Label htmlFor="world-intent">{t("worldMeta.creativeIntent")}</Label>
           <Textarea 
+            id="world-intent"
             value={data.creativeIntent} 
             onChange={(e) => onChange("creativeIntent", e.target.value)} 
             placeholder={t("worldMeta.creativeIntentPlaceholder")}
@@ -48,16 +51,18 @@ const WorldMetadataForm = ({ data, onChange }: WorldMetadataFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label>{t("worldMeta.themes")}</Label>
+          <Label htmlFor="world-themes">{t("worldMeta.themes")}</Label>
           <Input 
+            id="world-themes"
             value={data.themes.join(", ")} 
             onChange={(e) => onChange("themes", e.target.value.split(",").map(s => s.trim()))} 
             placeholder={t("worldMeta.themesPlaceholder")}
           />
         </div>
         <div className="space-y-2">
-          <Label>{t("worldMeta.notes")}</Label>
+          <Label htmlFor="world-notes">{t("worldMeta.notes")}</Label>
           <Textarea
+            id="world-notes"
             value={data.notes || ""}
             onChange={(e) => onChange("notes", e.target.value)}
             placeholder={t("worldMeta.notesPlaceholder")}

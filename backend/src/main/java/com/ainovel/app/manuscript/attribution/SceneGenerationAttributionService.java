@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Propagation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -35,6 +36,11 @@ import java.util.UUID;
 
 @Service
 public class SceneGenerationAttributionService {
+    @Transactional
+    public void recordModelSelection(UUID runId,com.ainovel.app.modelconfig.AiModelSelection selection) {
+        var run=runRepository.findById(runId).orElseThrow();
+        run.setModelSelectionJson(writeJson(selection));runRepository.save(run);
+    }
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
     @org.springframework.beans.factory.annotation.Autowired
@@ -94,7 +100,7 @@ public class SceneGenerationAttributionService {
         run.setStatus(SceneGenerationRunStatus.GENERATED);
         run.setAttributionStatus(SceneAttributionStatus.READY);
         run.setMode(mode == null ? GenerationMode.FAST.name() : mode.name());
-        run.setModelKey(modelPolicy.modelKey());
+        run.setModelKey(Objects.toString(sanitizedManifest.get("modelKey"),modelPolicy.modelKey()));
         run.setPromptVersion(promptVersion(sanitizedManifest));
         run.setAttemptCount(positiveInt(sanitizedManifest.get("attemptCount"), 1));
         run.setContextHash(requiredSha256(sanitizedManifest.get("contextHash"), "生成上下文哈希"));

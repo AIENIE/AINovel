@@ -13,6 +13,7 @@ import {
   plotStatusText,
   qualityStatusClass,
   qualityStatusText,
+  qualityRiskText,
   slopModuleLabel,
   slopRewriteTaskTitle,
 } from "./shared";
@@ -92,7 +93,7 @@ export function PlotSidebarPanel({
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.risk")}</div>
-                <div className="text-lg font-semibold">{selectedQualityRun?.overallRiskScore ?? "-"}</div>
+                <div className="text-lg font-semibold">{qualityRiskText(selectedQualityRun)}</div>
               </div>
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.evidence")}</div>
@@ -100,14 +101,14 @@ export function PlotSidebarPanel({
               </div>
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.issues")}</div>
-                <div className="text-lg font-semibold">{selectedQualityRun?.issues?.length ?? 0}</div>
+                <div className="text-lg font-semibold">{selectedQualityRun?.review?.findings.filter(f => f.judgment === "CONFIRMED" && ["LANGUAGE", "OUTPUT_ARTIFACT"].includes(f.kind)).length ?? selectedQualityRun?.issues?.length ?? 0}</div>
               </div>
             </div>
             {!!selectedQualityRun?.safeClaim && <div className="text-muted-foreground leading-relaxed">{selectedQualityRun.safeClaim}</div>}
             {!selectedQualityRun && <div className="text-muted-foreground">{t("plotPanel.slopHint")}</div>}
           </div>
 
-          {!!selectedQualityRun && (
+          {!!selectedQualityRun && !selectedQualityRun.review && (
             <div className="rounded border p-2 space-y-2">
               <div className="font-medium">{t("plotPanel.textEvidence")}</div>
               {(selectedQualityRun.issues || []).map((issue) => (

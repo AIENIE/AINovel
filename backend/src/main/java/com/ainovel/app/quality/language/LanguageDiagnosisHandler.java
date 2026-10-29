@@ -32,6 +32,7 @@ public class LanguageDiagnosisHandler implements AiOperationHandler {
                 parsed=LanguageAnalysis.parse(raw,input.data().projection,c,e.objectMapper());
             } catch(AiResultUncertainException uncertain) { throw uncertain; }
             catch(RuntimeException ex) {
+                if(ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
                 if(Thread.currentThread().isInterrupted()) throw ex;
                 failure=ex instanceof IllegalArgumentException?"结果解析或结构校验失败":ex instanceof com.ainovel.app.common.ApiStatusException
                         && "AI_VALIDATION_BUDGET_EXHAUSTED".equals(ex.getMessage())?"预算不足，停止检查":"调用失败，停止检查";

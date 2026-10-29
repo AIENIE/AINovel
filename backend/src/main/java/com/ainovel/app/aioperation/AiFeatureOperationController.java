@@ -7,7 +7,6 @@ import com.ainovel.app.story.OutlineService;
 import com.ainovel.app.story.dto.OutlineChapterGenerateRequest;
 import com.ainovel.app.story.dto.StoryCreateRequest;
 import com.ainovel.app.user.User;
-import com.ainovel.app.world.WorldService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -23,18 +22,23 @@ public class AiFeatureOperationController {
     private final CurrentUserResolver users;
     private final ResourceAccessGuard accessGuard;
     private final OutlineService outlines;
-    private final WorldService worlds;
+    private final WorldTaskService worldTasks;
     private final ObjectMapper objectMapper;
     private final com.ainovel.app.quality.language.LanguageFeature languageFeature;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ainovel.app.quality.SlopDiagnosticService slopDiagnostic;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.story.OutlineAiService outlineAi;
+    @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.manuscript.SceneGenerationAdmission sceneAdmission;
 
     public AiFeatureOperationController(AiOperationService operations, CurrentUserResolver users,
                                         ResourceAccessGuard accessGuard, OutlineService outlines,
-                                        WorldService worlds, ObjectMapper objectMapper, com.ainovel.app.quality.language.LanguageFeature languageFeature) {
+                                        WorldTaskService worldTasks, ObjectMapper objectMapper, com.ainovel.app.quality.language.LanguageFeature languageFeature) {
         this.operations = operations;
         this.users = users;
         this.accessGuard = accessGuard;
         this.outlines = outlines;
-        this.worlds = worlds;
+        this.worldTasks = worldTasks;
         this.objectMapper = objectMapper;
         this.languageFeature = languageFeature;
     }
@@ -54,7 +58,7 @@ public class AiFeatureOperationController {
                                                             @RequestBody OutlineChapterGenerateRequest request) {
         User user = users.require(principal);
         outlines.get(outlineId);
-        return accepted(user, "OUTLINE_CHAPTER", "OUTLINE", outlineId, null, null, request, 3, "准备章节上下文", idempotencyKey);
+        return ResponseEntity.accepted().body(new AiOperationDtos.Accepted(outlineAi.submit(user,outlineId,com.ainovel.app.story.OutlineAiService.chapterRequest(request),idempotencyKey).operationId()));
     }
 
     @PostMapping("/v1/worlds/{worldId}/publish/operations")
@@ -62,8 +66,7 @@ public class AiFeatureOperationController {
                                                                  @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                                  @PathVariable UUID worldId) {
         User user = users.require(principal);
-        worlds.get(worldId);
-        return accepted(user, "WORLD_PUBLISH", "WORLD", worldId, null, null, null, 6, "检查世界模块", idempotencyKey);
+        return accepted(user, "WORLD_PUBLISH", "WORLD", worldId, null, null, worldTasks.freeze(worldId, null), 6, "检查世界模块", idempotencyKey);
     }
 
     @PostMapping("/v1/worlds/{worldId}/generation/{moduleKey}/operations")
@@ -72,8 +75,21 @@ public class AiFeatureOperationController {
                                                                         @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                                         @PathVariable String moduleKey) {
         User user = users.require(principal);
-        worlds.get(worldId);
-        return accepted(user, "WORLD_MODULE", "WORLD", worldId, null, moduleKey, null, 2, "准备世界模块", idempotencyKey);
+        return accepted(user, "WORLD_MODULE", "WORLD", worldId, null, moduleKey, worldTasks.freeze(worldId, moduleKey), 2, "准备世界模块", idempotencyKey);
+    }
+
+    @GetMapping("/v1/worlds/{worldId}/operations/{operationId}/generated-results")
+    public WorldTaskService.GeneratedResults worldGeneratedResults(@AuthenticationPrincipal UserDetails principal,
+                                                                   @PathVariable UUID worldId, @PathVariable UUID operationId) {
+        return worldTasks.generatedResults(users.require(principal), worldId, operationId);
+    }
+
+    @PostMapping("/v1/worlds/{worldId}/entries/{entryId}/generate/operations")
+    public ResponseEntity<AiOperationDtos.Accepted> generateEntry(@AuthenticationPrincipal UserDetails principal,
+            @PathVariable UUID worldId,@PathVariable UUID entryId,@RequestHeader("Idempotency-Key") String key,
+            @RequestBody com.ainovel.app.world.WorldDraftDtos.EntryAi request) {
+        return accepted(users.require(principal),"WORLD_ENTRY","WORLD",worldId,entryId,null,
+            worldTasks.freezeEntry(worldId,entryId,request.expectedRevision()),2,"准备世界条目",key);
     }
 
     @PostMapping("/v1/manuscripts/{manuscriptId}/scenes/{sceneId}/generate/operations")
@@ -82,11 +98,7 @@ public class AiFeatureOperationController {
                                                                   @PathVariable UUID sceneId,
                                                                   @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                                   @RequestParam(defaultValue = "fast") String mode) {
-        User user = users.require(principal);
-        var manuscript=accessGuard.requireOwnedManuscript(manuscriptId, user);
-        var language=languageFeature.selection(manuscript.getOutline().getStory().getId());
-        GenerationMode parsed = "crafted".equalsIgnoreCase(mode) ? GenerationMode.CRAFTED : GenerationMode.FAST;
-        return accepted(user, "SCENE_GENERATION", "MANUSCRIPT", manuscriptId, sceneId, parsed.name(), language, 5, "准备场景上下文", idempotencyKey);
+        return ResponseEntity.accepted().body(sceneAdmission.submit(users.require(principal),manuscriptId,sceneId,mode,idempotencyKey));
     }
 
     @PostMapping("/v2/manuscripts/{manuscriptId}/scenes/{sceneId}/quality-runs/operations")
@@ -94,8 +106,9 @@ public class AiFeatureOperationController {
                                                          @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                          @PathVariable UUID manuscriptId, @PathVariable UUID sceneId) {
         User user = users.require(principal);
-        accessGuard.requireOwnedManuscript(manuscriptId, user);
-        return accepted(user, "SLOP_DIAGNOSIS", "MANUSCRIPT", manuscriptId, sceneId, null, null, 2, "准备文本诊断", idempotencyKey);
+        var manuscript=accessGuard.requireOwnedManuscript(manuscriptId, user);
+        var frozen=slopDiagnostic.freeze(user,manuscript,sceneId);
+        return accepted(user, "SLOP_DIAGNOSIS", "MANUSCRIPT", manuscriptId, sceneId, null, frozen, 2, "准备文本诊断", idempotencyKey);
     }
 
     @PostMapping("/v2/manuscripts/{manuscriptId}/slop-drift-runs/operations")
@@ -129,7 +142,7 @@ public class AiFeatureOperationController {
                                                               UUID primaryId, UUID secondaryId, String mode,
                                                               Object request, int total, String step, String idempotencyKey) {
         var payload = new CoreAiOperationHandler.CorePayload(action, primaryId, secondaryId, mode,
-                request == null ? null : objectMapper.valueToTree(request));
+                request == null ? null : objectMapper.valueToTree(request), "SCENE_GENERATION".equals(action)?4:null);
         return ResponseEntity.accepted().body(operations.submit(user, CoreAiOperationHandler.TYPE,
                 scopeType, primaryId, payload, total, step, idempotencyKey));
     }

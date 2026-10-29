@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { SceneCandidatesPanel } from "./manuscript-writer/SceneCandidatesPanel";
+import { WritingAgentPanel } from "./manuscript-writer/WritingAgentPanel";
+import { api } from '@/lib/api-client';
+import { WorldBindingPanel } from '@/pages/WorldBuilder/components/WorldBindingPanel';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { WritingAssistantContext } from "@/components/ai/writing-assistant-context";
+import { useWritingAssistant } from "../hooks/useWritingAssistant";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { ImperativePanelHandle } from "react-resizable-panels";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -11,6 +18,7 @@ import { useManuscriptSceneGeneration } from "@/pages/Workbench/hooks/useManuscr
 import { useManuscriptSelectionData } from "@/pages/Workbench/hooks/useManuscriptSelectionData";
 import { useManuscriptWorkspaceShell } from "@/pages/Workbench/hooks/useManuscriptWorkspaceShell";
 import { useWorkbenchLayoutPersistence } from "@/pages/Workbench/hooks/useWorkbenchLayoutPersistence";
+import { useWorkbenchPanelVisibility } from "@/pages/Workbench/hooks/useWorkbenchPanelVisibility";
 import { useManuscriptSidebarData } from "@/pages/Workbench/hooks/useManuscriptSidebarData";
 import { SceneOutlinePanel } from "./manuscript-writer/SceneOutlinePanel";
 import { MobileWorkbenchPanel } from "./manuscript-writer/MobileWorkbenchPanel";
@@ -18,6 +26,7 @@ import { DesktopEditorPanel } from "./manuscript-writer/DesktopEditorPanel";
 import { DesktopSidebarPanel } from "./manuscript-writer/DesktopSidebarPanel";
 import { NarrativeSidebarPanel } from "./manuscript-writer/NarrativeSidebarPanel";
 import { EvidenceSidebarPanel } from "./manuscript-writer/EvidenceSidebarPanel";
+import { SlopReviewPanel } from "./manuscript-writer/SlopReviewPanel";
 import { LanguageQualityPanel } from "./manuscript-writer/LanguageQualityPanel";
 import { WorkbenchOverlays } from "./manuscript-writer/WorkbenchOverlays";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,16 +51,13 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   const { t } = useTranslation();
   const { toast } = useToast();
   const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState<number | null>(null);
+  const [worldBindingOpen,setWorldBindingOpen] = useState(false);
   const [sceneStatuses, setSceneStatuses] = useState<Record<string, SceneStatus>>({});
   const [draggingChapterId, setDraggingChapterId] = useState("");
   const [dragOverChapterId, setDragOverChapterId] = useState("");
   const [draggingSceneId, setDraggingSceneId] = useState("");
   const [dragOverSceneId, setDragOverSceneId] = useState("");
   const [draggingTabId, setDraggingTabId] = useState("");
-  const leftPanelRef = useRef<ImperativePanelHandle | null>(null);
-  const rightPanelRef = useRef<ImperativePanelHandle | null>(null);
-  const leftPanelVisibleRef = useRef<boolean | null>(null);
-  const rightPanelVisibleRef = useRef<boolean | null>(null);
 
   const {
     batchMoveChapterId,
@@ -115,6 +121,11 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
   });
 
   const {
+    runAssistantWrite,
+    reconcileAssistantWrite,
+    initializeAssistantBranch,
+    assistantWriteLocked,
+    loadCandidateDraft,
     applyFetchedManuscript,
     applyServerSection,
     cancelPendingSectionSave,
@@ -298,7 +309,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     commandQuery,
     focusMode,
     isCommandOpen,
-    isMobile,
+    // The three writing panes need more room than the app navigation's mobile breakpoint.
+    isCompact: usePagedLayout,
     jumpScene,
     mobilePane,
     selectedWordCount,
@@ -326,20 +338,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
 
   const showLeftPanel = leftPanelOpen && !focusMode;
   const showRightPanel = isSidebarOpen && !focusMode;
-
-  useEffect(() => {
-    if (leftPanelVisibleRef.current === showLeftPanel) return;
-    if (showLeftPanel) leftPanelRef.current?.expand();
-    else leftPanelRef.current?.collapse();
-    leftPanelVisibleRef.current = showLeftPanel;
-  }, [showLeftPanel]);
-
-  useEffect(() => {
-    if (rightPanelVisibleRef.current === showRightPanel) return;
-    if (showRightPanel) rightPanelRef.current?.expand();
-    else rightPanelRef.current?.collapse();
-    rightPanelVisibleRef.current = showRightPanel;
-  }, [showRightPanel]);
+  const leftPanelRef = useWorkbenchPanelVisibility(showLeftPanel, usePagedLayout);
+  const rightPanelRef = useWorkbenchPanelVisibility(showRightPanel, usePagedLayout);
 
   const {
     generateScene,
@@ -348,6 +348,8 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     isGenerating,
     setGenerationMode,
   } = useManuscriptSceneGeneration({
+    onSourceResolved: replaceManuscript,
+    hasUnsavedChanges: !!dirtyScenes[activeSceneId],
     applyServerSection,
     cancelPendingSectionSave,
     loadPlotQuality,
@@ -370,31 +372,52 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
     };
   }, [selectedStory, outlineDraft, activeSceneId, content]);
 
+  const writingAssistant = useWritingAssistant({ manuscript: selectedManuscript, sceneId: activeSceneId,
+    sceneTitle: contextData.currentScene || "", content, locked: assistantWriteLocked,
+    busy: isSaving || isGenerating, runWrite: runAssistantWrite, reconcileWrite: reconcileAssistantWrite,
+    initializeBranch: initializeAssistantBranch, onSourceResolved: replaceManuscript,
+    open: () => { setIsSidebarOpen(true); setSidebarTab("copilot"); if (usePagedLayout) setMobilePane("sidebar"); },
+  });
+
   const setSceneStatus = (sceneId: string, status: SceneStatus) => {
     setSceneStatuses((prev) => ({ ...prev, [sceneId]: status }));
   };
 
   const narrativePanel = <NarrativeSidebarPanel
     key={selectedManuscriptId + ":" + (selectedManuscript?.currentBranchId || "")}
-    active={sidebarTab === "narrative" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")}
+    active={sidebarTab === "narrative" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")}
     manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
     busy={isSaving || isGenerating}
     scenes={outlineDraft?.chapters.flatMap(chapter => chapter.scenes.map(scene => ({ id: scene.id, title: `${chapter.title} · ${scene.title}` }))) || []}
     structureKey={JSON.stringify(outlineDraft?.chapters.map(chapter => [chapter.id, chapter.scenes.map(scene => scene.id)]))}
     characters={characters.map(character => ({ id: String(character.id), name: String(character.name) }))} onManuscript={replaceManuscript}
-  ><EvidenceSidebarPanel key={selectedManuscriptId + ":evidence:" + activeSceneId} storyId={selectedStoryId} manuscript={selectedManuscript} chapters={outlineDraft?.chapters || []} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]} active={sidebarTab === "narrative" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")} /></NarrativeSidebarPanel>;
+  ><EvidenceSidebarPanel key={selectedManuscriptId + ":evidence:" + activeSceneId} storyId={selectedStoryId} manuscript={selectedManuscript} chapters={outlineDraft?.chapters || []} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]} active={sidebarTab === "narrative" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")} /></NarrativeSidebarPanel>;
 
-  const languagePanel = <LanguageQualityPanel
+  const languagePanel = <><LanguageQualityPanel
     key={`${selectedManuscriptId}:${selectedManuscript?.currentBranchId || ""}:${activeSceneId}`}
     manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
-    active={sidebarTab === "plot" && isSidebarOpen && (!isMobile || mobilePane === "sidebar")}
+    active={sidebarTab === "plot" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")}
     busy={isSaving || isGenerating} save={persistSection} onApplied={applyServerSection} onSourceResolved={replaceManuscript}
-  />;
+  /><SlopReviewPanel key={`slop:${selectedManuscriptId}:${selectedManuscript?.currentBranchId || ""}:${activeSceneId}`}
+    manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
+    active={sidebarTab === "plot" && isSidebarOpen && (!usePagedLayout || mobilePane === "sidebar")}
+    busy={isSaving || isGenerating} run={selectedQualityRun} onApplied={applyServerSection} /></>;
 
+  const pagedAssistantOpen = usePagedLayout && mobilePane === "sidebar" && sidebarTab === "copilot";
   return (
-    <div className="relative h-[calc(100vh-180px)]">
-      {isMobile ? (
-        <div className="flex h-full min-w-0 flex-col gap-2">
+    <WritingAssistantContext.Provider value={writingAssistant}><div className={cn("relative flex min-h-0 flex-col gap-2", pagedAssistantOpen ? "min-h-[calc(100vh-180px)]" : "h-[calc(100vh-180px)]")}>
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <WritingAgentPanel manuscript={selectedManuscript} sceneId={activeSceneId} content={content} dirty={!!dirtyScenes[activeSceneId]}
+          busy={isSaving || isGenerating} locked={assistantWriteLocked} h2={writingAssistant.session.data?.h2Enabled ?? false}
+          target={writingAssistant.target} runWrite={runAssistantWrite} reconcileWrite={reconcileAssistantWrite} />
+        <Button variant="ghost" size="sm" disabled={!selectedManuscriptId} onClick={()=>setWorldBindingOpen(true)}>{t('world2.binding')}</Button>
+        <Dialog open={worldBindingOpen} onOpenChange={setWorldBindingOpen}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{t('world2.binding')}</DialogTitle><DialogDescription>{t('world2.bindingHelp')}</DialogDescription></DialogHeader>{worldBindingOpen&&selectedManuscriptId&&<WorldBindingPanel key={selectedManuscriptId} scope="MANUSCRIPT" resourceId={selectedManuscriptId} storyId={selectedStoryId} onChanged={() => { void api.manuscripts.get(selectedManuscriptId).then(replaceManuscript).catch(() => {}); }}/>}</DialogContent></Dialog>
+        <SceneCandidatesPanel manuscript={selectedManuscript} sceneId={activeSceneId} dirty={!!dirtyScenes[activeSceneId]}
+          busy={isSaving || isGenerating} revision={generationRevision} onApplied={applyServerSection}
+          onLoadDraft={loadCandidateDraft} onRegenerate={generateScene} />
+      </div>
+      {usePagedLayout ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Select value={selectedStoryId} onValueChange={setSelectedStoryId}><SelectTrigger><SelectValue placeholder={t("common.selectStory")} /></SelectTrigger><SelectContent>{stories.map((story) => <SelectItem key={story.id} value={story.id}>{story.title}</SelectItem>)}</SelectContent></Select>
             <Select value={selectedOutlineId} onValueChange={setSelectedOutlineId} disabled={!selectedStoryId}><SelectTrigger><SelectValue placeholder={outlines.length ? t("common.selectOutline") : t("manuscript.createOutlineFirst")} /></SelectTrigger><SelectContent>{outlines.map((outline) => <SelectItem key={outline.id} value={outline.id}>{outline.title}</SelectItem>)}</SelectContent></Select>
@@ -457,10 +480,10 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
             ref={leftPanelRef}
             collapsible
             collapsedSize={0}
-            defaultSize={leftPanelSize}
+            defaultSize={showLeftPanel ? Math.max(16, leftPanelSize) : 0}
             minSize={16}
             maxSize={35}
-            onResize={(size) => setLeftPanelSize(Math.round(size))}
+            onResize={(size) => { if (size > 0) setLeftPanelSize(Math.round(size)); }}
           >
             <SceneOutlinePanel
               batchMoveChapterId={batchMoveChapterId}
@@ -551,10 +574,10 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
               ref={rightPanelRef}
               collapsible
               collapsedSize={0}
-              defaultSize={rightPanelSize}
+              defaultSize={showRightPanel ? Math.max(20, rightPanelSize) : 0}
               minSize={20}
               maxSize={45}
-              onResize={(size) => setRightPanelSize(Math.round(size))}
+              onResize={(size) => { if (size > 0) setRightPanelSize(Math.round(size)); }}
             >
               <DesktopSidebarPanel
                 languagePanel={languagePanel}
@@ -666,7 +689,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
         commandQuery={commandQuery}
         focusMode={focusMode}
         isCommandOpen={isCommandOpen}
-        isMobile={isMobile}
+        isMobile={usePagedLayout}
         leftPanelOpen={leftPanelOpen}
         onChangeCommandOpen={setIsCommandOpen}
         onChangeCommandQuery={setCommandQuery}
@@ -685,6 +708,7 @@ const ManuscriptWriter = ({ initialStoryId, initialOutlineId, initialManuscriptI
         shortcuts={shortcuts}
       />
     </div>
+    </WritingAssistantContext.Provider>
   );
 };
 

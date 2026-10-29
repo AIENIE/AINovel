@@ -11,5 +11,23 @@ public record AiChatResponse(
         @Schema(description = "token 使用统计")
         AiUsageDto usage,
         @Schema(description = "剩余资产", example = "1200.0")
-        double remainingCredits
-) {}
+        double remainingCredits,
+        com.ainovel.app.modelconfig.AiModelSelection selection,
+        String actualModelKey,
+        AiResponseMetadata metadata,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @Schema(hidden = true) String nativeResponseJson
+) {
+    public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits,
+                          com.ainovel.app.modelconfig.AiModelSelection selection,String actualModelKey,AiResponseMetadata metadata) {
+        this(role,content,usage,remainingCredits,selection,actualModelKey,metadata,null);
+    }
+    public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits,
+                          com.ainovel.app.modelconfig.AiModelSelection selection,String actualModelKey) {
+        this(role,content,usage,remainingCredits,selection,actualModelKey,null,null);
+    }
+    public AiChatResponse(String role,String content,AiUsageDto usage,double remainingCredits) {
+        this(role,content,usage,remainingCredits,null,null,null,null);
+    }
+    public AiNativeResult nativeResult() {return AiNativeResult.parse(nativeResponseJson);}
+}
