@@ -26,7 +26,7 @@ class ExternalMySqlMigrationVerificationTest {
     private static final String JDBC_OPTIONS =
             "useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
                     + "&allowPublicKeyRetrieval=true&useSSL=false"
-                    + "&connectTimeout=10000&socketTimeout=60000";
+                    + "&connectTimeout=10000&socketTimeout=300000";
 
     @Test
     void migratesFreshExternalDatabaseThroughLatest() throws Exception {
@@ -250,23 +250,25 @@ class ExternalMySqlMigrationVerificationTest {
 
     @Test
     void upgradesStagingV23ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("23", 18);
+        assertUpgradeThroughLatest("23");
     }
 
     @Test
     void upgradesDevelopV33ThroughLatestAndIsIdempotent() throws Exception {
-        assertUpgradeThroughLatest("33", 8);
+        assertUpgradeThroughLatest("33");
     }
 
-    private void assertUpgradeThroughLatest(String baseline, int expectedPending) throws Exception {
+    private void assertUpgradeThroughLatest(String baseline) throws Exception {
         ExternalMySqlConfig config = ExternalMySqlConfig.load();
         withIsolatedDatabase(config, (databaseName, databaseUrl) -> {
             Flyway.configure().dataSource(databaseUrl, config.username, config.password)
                     .locations("classpath:db/migration").target(baseline).load().migrate();
             var migration = flyway(config, databaseUrl);
-            assertEquals(expectedPending, migration.info().pending().length);
-            assertEquals(expectedPending, migration.migrate().migrationsExecuted);
-            assertEquals("41", migration.info().current().getVersion().getVersion());
+            migration.migrate();
+            SceneGenerationSchemaAssertions.assertLatestSchema(
+                    databaseUrl, config.username, config.password, databaseName);
+            assertNarrativeSchema(config, databaseUrl);
+            assertModelConfigurationSchema(config, databaseUrl);
             try (Connection connection = DriverManager.getConnection(databaseUrl, config.username, config.password);
                  Statement statement = connection.createStatement();
                  var rows = statement.executeQuery("SELECT COUNT(*) FROM admin_emergency_subjects WHERE subject_id='configured-admin'")) {

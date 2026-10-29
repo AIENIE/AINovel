@@ -64,6 +64,8 @@ C35：风格设置按实际 Map/List 类型读取；错误结构、分数或对�
 
 C36：管理员质量聚合曾绕过质量 DTO，直接读取数据库占位风险分。现按状态和语义覆盖标记先投影为 nullable 分数/严重程度，再统一筛选、计数、分页；高风险数量复用同一读模型。删除原始风险计数仓库方法及无用注入。前端使用实际 nullable 契约解析并以“—”显示未知，保留真实0。沿用现有 LanguageQualityMysqlTest 增加历史、损坏/未完成、空值、零分和分页验证；不改历史列或记录。
 
+C37：删除未绑定Maven生命周期、无现行仓库/平台命令消费的flyway-maven-plugin及其专用版本属性；应用自动配置和现有隔离迁移测试实际调用flyway-core，不消费这个CLI插件。当前catalog的package构建和标准Windows启动仍使用现行Spring Boot入口。
+
 ## 调用、依赖与文档复查
 
 TypeScript最终零引用候选仅`mountAdmin`和`mountUser`，由bootstrap动态调用；未用API包装扫描为空。初始681个Java main方法候选中，60个零入边已继续核实并分类处置；不能把框架回调当死代码：保留实际Scheduled对账/G2租约、PreDestroy客户端/worker、JPA生命周期及Application/HealthProbe/ManuscriptStorageMaintenance CLI。
