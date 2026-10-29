@@ -1,7 +1,0 @@
-[
-  {
-    "request_id": "language-20261007:G1-fast-new",
-    "status": "FAILED",
-    "result_json": "{\"errorType\":\"StatusRuntimeException\"}"
-  }
-]
