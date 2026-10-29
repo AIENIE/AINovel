@@ -69,15 +69,4 @@
 
 “恢复原任务”保留任务、请求和计费身份；新生成使用新任务。缺少新流程输入的旧任务返回 `SCENE_LEGACY_RECOVERY_REQUIRED`，不套用新提示重发。历史事故 `a9917c9d-919b-44b1-986b-5afd7cd68cb3` 仅从三条完成调用恢复，恢复工具不更新原任务、正文或计费记录。
 
-本地事故恢复入口（仅以上固定任务，重复执行不新增候选）：
-
-```powershell
-# 编译前先按标准入口停止后端，构建完成后恢复服务。
-./scripts/windows/Stop-Local.ps1 -Component Backend
-./scripts/windows/Build-Local.ps1 -Component Backend
-mvn.cmd -q -f backend/pom.xml dependency:build-classpath -Dmdep.outputFile=target/scene-classpath.txt
-./scripts/windows/Start-Local.ps1 -Component Backend -NoBrowser
-python scripts/windows/recover-scene-candidates.py
-```
-
-工具读取标准仓库外私有配置对，只接受约定 local MySQL，凭据仅通过子进程环境传入。恢复不发起 AI 调用，不补造稿件版本或质量结论，不直接采纳历史正文。
+上述事故的一次性恢复入口已退役。已恢复候选继续通过标准候选接口读取；旧工具及操作记录可从 Git 历史查询。

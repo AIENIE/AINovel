@@ -639,10 +639,6 @@ public class V2VersionPersistenceService implements SceneGenerationSnapshotStore
         return jsonColumnCodec.readSections(json);
     }
 
-    private String writeSections(Map<String, String> sections) {
-        return jsonColumnCodec.writeRequired(sections);
-    }
-
     private Set<UUID> changedSceneIds(String beforeJson, String afterJson) {
         Map<String, String> before = parseSections(beforeJson);
         Map<String, String> after = parseSections(afterJson);

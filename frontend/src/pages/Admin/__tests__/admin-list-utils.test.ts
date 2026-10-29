@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesAdminSearch, paginateItems } from "../admin-list-utils";
+import { matchesAdminSearch } from "../admin-list-utils";
 
 describe("admin list utilities", () => {
   it("matches nested values with trimmed case-insensitive search", () => {
@@ -16,12 +16,4 @@ describe("admin list utilities", () => {
     expect(matchesAdminSearch(item, "不存在")).toBe(false);
   });
 
-  it("paginates arrays with safe page and size boundaries", () => {
-    const items = Array.from({ length: 12 }, (_, index) => index + 1);
-
-    expect(paginateItems(items, 0, 5)).toEqual([1, 2, 3, 4, 5]);
-    expect(paginateItems(items, 2, 5)).toEqual([11, 12]);
-    expect(paginateItems(items, -1, 5)).toEqual([1, 2, 3, 4, 5]);
-    expect(paginateItems(items, 0, 0)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-  });
 });

@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class InMemorySlopQualityRecorder implements SlopQualityRecorder {
+final class InMemorySlopQualityRecorder implements SlopQualityRecorder {
     private final List<SlopQualityRecord> recorded = new ArrayList<>();
 
     @Override

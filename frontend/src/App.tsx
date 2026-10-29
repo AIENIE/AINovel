@@ -2,7 +2,6 @@ import { AiQuotePrompt } from "@/components/ai/AiQuotePrompt";
 import { WorldContextPreview } from '@/components/ai/WorldContextPreview';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, createRoutesFromElements, RouterProvider, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -111,11 +110,9 @@ const router = createBrowserRouter(createRoutesFromElements(
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
         <Toaster />
         <Sonner />
         <RouterProvider router={router} />
-      </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

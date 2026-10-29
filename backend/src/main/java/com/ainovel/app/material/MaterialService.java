@@ -387,17 +387,6 @@ public class MaterialService {
         }
     }
 
-    private double jaccard(Set<String> left, Set<String> right) {
-        if (left.isEmpty() || right.isEmpty()) {
-            return 0.0;
-        }
-        Set<String> intersection = new HashSet<>(left);
-        intersection.retainAll(right);
-        Set<String> union = new HashSet<>(left);
-        union.addAll(right);
-        return (double) intersection.size() / union.size();
-    }
-
     private String stripHtml(String text) {
         return HTML_TAG_PATTERN.matcher(safe(text)).replaceAll("");
     }
@@ -412,10 +401,6 @@ public class MaterialService {
         } catch (Exception ignored) {
             return null;
         }
-    }
-
-    private Map<String, String> readStringMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
     }
 
     private Map<String, Object> readObjectMap(String json) {

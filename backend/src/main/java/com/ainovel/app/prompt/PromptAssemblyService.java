@@ -232,14 +232,6 @@ public class PromptAssemblyService {
         return Math.min(HARD_BUDGET, Math.max(4000, budget));
     }
 
-    private String trimToBudget(String text, int tokenBudget) {
-        if (text == null) {
-            return "";
-        }
-        int charBudget = Math.max(4000, tokenBudget * 2);
-        return text.length() <= charBudget ? text : text.substring(0, charBudget);
-    }
-
     private String safe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }

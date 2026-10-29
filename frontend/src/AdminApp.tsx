@@ -1,11 +1,9 @@
 import ModelConfiguration from "./pages/Admin/ModelConfiguration";
 import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { api } from "@/lib/api-client";
-import { SafeErrorBoundary } from "@/components/SafeErrorBoundary";
 
 // Admin 布局与页面（不导入任何 i18n / locale 模块，保持固定简中）
 import AdminLayout from "@/components/layout/AdminLayout";
@@ -70,7 +68,6 @@ const AdminRoute = () => {
 
 const AdminApp = () => (
   <QueryClientProvider client={adminQueryClient}>
-    <TooltipProvider>
       <Toaster />
       <BrowserRouter>
         <Routes>
@@ -94,16 +91,7 @@ const AdminApp = () => (
           <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
   </QueryClientProvider>
 );
-
-export function AdminEntry() {
-  return (
-    <SafeErrorBoundary>
-      <AdminApp />
-    </SafeErrorBoundary>
-  );
-}
 
 export default AdminApp;

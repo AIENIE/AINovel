@@ -7,7 +7,6 @@ import type { useWritingAssistant } from "@/pages/Workbench/hooks/useWritingAssi
 import type { Manuscript } from "@/types";
 
 vi.mock("@/contexts/auth-state", () => ({ useAuth: () => ({ user: null, refreshProfile: vi.fn() }) }));
-vi.mock("@/components/ai/AiRefineDialog", () => ({ default: () => null }));
 // Tooltip positioning is outside this editor/state integration test (JSDOM has no layout).
 vi.mock("@tiptap/react/menus", () => ({ BubbleMenu: () => null }));
 afterEach(cleanup);

@@ -936,14 +936,6 @@ public class EconomyService {
         return code.trim().toUpperCase(Locale.ROOT);
     }
 
-    private long remoteUidOrThrow(User user, String action) {
-        Long remoteUid = user == null ? null : user.getRemoteUid();
-        if (remoteUid == null || remoteUid <= 0) {
-            throw new BusinessException("当前账号未绑定统一用户，无法" + action);
-        }
-        return remoteUid;
-    }
-
     private void syncUserCreditSnapshot(User user, long projectCredits) {
         user.setCredits(projectCredits);
         userRepository.save(user);

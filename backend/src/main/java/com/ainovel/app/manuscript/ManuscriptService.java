@@ -516,14 +516,4 @@ public class ManuscriptService {
         }
     }
 
-    private UUID parseUuidOrRandom(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return UUID.randomUUID();
-        }
-        try {
-            return UUID.fromString(raw.trim());
-        } catch (Exception ignored) {
-            return UUID.randomUUID();
-        }
-    }
 }
