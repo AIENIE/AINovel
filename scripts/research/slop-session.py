@@ -3,6 +3,10 @@
 Runs the documented SSO browser form/code flow with CSRF, normal TLS, and exact
 redirect binding. Explicit line commands dispatch one experiment call at a time.
 """
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import getpass
 import http.cookiejar
 import importlib.util

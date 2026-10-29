@@ -1,4 +1,8 @@
 """Archive research evidence without credentials. No model calls or DB writes."""
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import difflib
 import hashlib
 import json

@@ -1,4 +1,8 @@
 """Export auditable research evidence and separate metrics; never dispatches."""
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import difflib, importlib.util, json, re, statistics
 from pathlib import Path
 spec=importlib.util.spec_from_file_location('study',Path(__file__).with_name('slop3-client.py'))

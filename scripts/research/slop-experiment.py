@@ -4,6 +4,10 @@ Uses the application's authenticated /v1/ai/chat path and existing transactional
 validation budget. Token comes from AINOVEL_RESEARCH_TOKEN (never written to disk).
 The only DB write is creation of this experiment's independent budget, via seed.
 """
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import argparse
 import hashlib
 import json

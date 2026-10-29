@@ -1,4 +1,8 @@
 """Freeze the 2026-09-26 corpus before evaluation. No model calls or credentials."""
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import hashlib
 import json
 import re

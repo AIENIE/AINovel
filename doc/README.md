@@ -8,4 +8,4 @@
 - 待作者审阅：[语言候选](verification/language-20261007/README.md)、[示例候选](verification/language-examples-20261008/README.md)。
 - [创作者与管理员手册](../user-doc/README.md)。
 
-仓库保留现行规范、活动路线图、可重复测试协议和夹具、未完成作者审阅内容；历史设计、旧评估、审查报告及执行快照的删除尚待完成；旧目录仍存在，本入口仅列现行资料。历史变更从 Git 查询。跨服务契约维护在工作区相对目录 `../../aienie-doc/service-integration/`；本机配置和运行证据不写入仓库。
+仓库保留现行规范、活动路线图、可重复测试协议和夹具、未完成作者审阅内容。旧规划、研究报告、审查材料及执行快照已完成本批清理，历史内容从 Git 查询；相关旧研究命令的退役说明见[研究工具](../scripts/research/README.md)。跨服务契约维护在工作区相对目录 `../../aienie-doc/service-integration/`；本机配置和运行证据不写入仓库。

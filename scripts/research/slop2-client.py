@@ -1,3 +1,6 @@
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import os
 """One authorized study call per command; transactional 40-call budget; no auto retry."""
 import difflib, hashlib, importlib.util, json, os, ssl, time, urllib.request, urllib.error

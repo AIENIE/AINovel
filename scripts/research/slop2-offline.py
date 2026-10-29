@@ -1,4 +1,8 @@
 """Frozen structural observations, not production rules. No model calls."""
+
+if __name__ == "__main__":
+    raise SystemExit("Retired 2026-09-26 study CLI: archived inputs were removed; retrieve the original scripts and data together from Git history. See scripts/research/README.md.")
+
 import collections, hashlib, json, re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]; D=ROOT/'doc/research/slop2-20260926'
