@@ -7,17 +7,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "sso.session-validation")
 public class UserSessionValidationProperties {
 
-    private boolean enabled = true;
     private long timeoutMs = 5000;
     private String grpcAddress = "static://userservice.seekerhut.com:443";
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
 
     public long getTimeoutMs() {
         return timeoutMs;

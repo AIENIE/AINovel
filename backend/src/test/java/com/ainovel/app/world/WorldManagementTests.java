@@ -24,6 +24,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 @ActiveProfiles("test")
 @WithMockUser(username="world_management")
 class WorldManagementTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockitoBean SsoTokenExchangeService sso;
     @MockitoBean AiService ai;
     @Autowired WorldService worlds;

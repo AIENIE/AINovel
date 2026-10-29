@@ -35,6 +35,9 @@ import static org.mockito.Mockito.*;
 @SpringBootTest
 @ActiveProfiles("test")
 class WorldTaskRecoveryTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockBean private SsoTokenExchangeService ssoTokenExchangeService;
     @MockBean private AiService ai;
     @Autowired private WorldService worlds;

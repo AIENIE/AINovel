@@ -240,9 +240,6 @@
     "SSO_CALLBACK_ORIGIN": [
       "sso.callback-origin"
     ],
-    "SSO_SESSION_VALIDATION_ENABLED": [
-      "sso.session-validation.enabled"
-    ],
     "USER_SESSION_GRPC_TIMEOUT_MS": [
       "sso.session-validation.timeout-ms"
     ],

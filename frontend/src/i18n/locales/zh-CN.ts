@@ -793,7 +793,7 @@ export const zhCN = {
   "genre.scifi": "科幻 / 赛博朋克",
   "genre.wuxia": "武侠 / 仙侠",
   "novels.aiInit": "AI 辅助初始化",
-  "novels.aiInitDesc": "自动生成初始角色建议（示例流程）",
+  "novels.aiInitDesc": "根据梗概生成构思草案，提交前确认模型方案和费用。",
   "novels.createCard": "传统方式创建",
   "novels.createNow": "立即创建",
   "novels.createTitle": "新建小说",

@@ -7,14 +7,11 @@ import com.ainovel.app.user.SsoUserProvisioningService;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -39,7 +36,7 @@ class JwtAuthFilterTest {
         var signedClaims = claims("user", 42, "sid", "USER", false);
         when(jwt.parseClaims("signed")).thenReturn(signedClaims);
         when(validator.validate(42, "sid")).thenReturn(result);
-        var filter = new JwtAuthFilter(jwt, mock(UserDetailsService.class), provisioning, provider(validator));
+        var filter = new JwtAuthFilter(jwt, provisioning, validator);
         var response = new MockHttpServletResponse();
         var chain = new MockFilterChain();
         filter.doFilter(bearer("signed"), response, chain);
@@ -60,9 +57,6 @@ class JwtAuthFilterTest {
         JwtService jwtService = mock(JwtService.class);
         Claims claims = claims("goodboy95", 18L, "sid-001", "USER", false);
         when(jwtService.parseClaims("signed-token")).thenReturn(claims);
-        UserDetailsService users = mock(UserDetailsService.class);
-        when(users.loadUserByUsername("goodboy95"))
-                .thenReturn(User.withUsername("goodboy95").password("n/a").authorities("ROLE_USER").build());
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
         com.ainovel.app.user.User localUser = new com.ainovel.app.user.User();
         localUser.setUsername("goodboy95");
@@ -70,8 +64,7 @@ class JwtAuthFilterTest {
         when(provisioning.ensureExistsBestEffort("goodboy95", "USER", 18L)).thenReturn(localUser);
         UserSessionValidator validator = mock(UserSessionValidator.class);
         when(validator.validate(18L, "sid-001")).thenReturn(UserSessionValidator.ValidationResult.VALID);
-        ObjectProvider<UserSessionValidator> provider = provider(validator);
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider);
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, provisioning, validator);
 
         MockHttpServletRequest request = bearer("signed-token");
         filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
@@ -85,11 +78,10 @@ class JwtAuthFilterTest {
     void rejectsForgedUnsignedRoleAdminPayloadWithoutParsingFallback() throws Exception {
         JwtService jwtService = mock(JwtService.class);
         doThrow(new RuntimeException("bad-signature")).when(jwtService).parseClaims(anyString());
-        UserDetailsService users = mock(UserDetailsService.class);
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
         UserSessionValidator validator = mock(UserSessionValidator.class);
         when(validator.validate(anyLong(), anyString())).thenReturn(UserSessionValidator.ValidationResult.VALID);
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(validator));
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, provisioning, validator);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(bearer("eyJhbGciOiJub25lIn0.eyJzdWIiOiJmb3JnZWQtYWRtaW4iLCJyb2xlIjoiQURNSU4iLCJ1aWQiOjE4LCJzaWQiOiJzaWQtMDAxIn0."), // gitleaks:allow -- deliberately unsigned negative-test JWT
@@ -110,9 +102,8 @@ class JwtAuthFilterTest {
         JwtService jwtService = mock(JwtService.class);
         Claims legacyAdminClaims = claims("configured-admin", 0L, "admin-session", "ADMIN", true);
         when(jwtService.parseClaims("legacy-admin-token")).thenReturn(legacyAdminClaims);
-        UserDetailsService users = mock(UserDetailsService.class);
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(null));
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, provisioning, mock(UserSessionValidator.class));
 
         filter.doFilter(bearer("legacy-admin-token"), new MockHttpServletResponse(), new MockFilterChain());
 
@@ -125,12 +116,11 @@ class JwtAuthFilterTest {
         JwtService jwtService = mock(JwtService.class);
         Claims claims = claims("signed-user", 99L, "private-session-id", "USER", false);
         when(jwtService.parseClaims("signed-token")).thenReturn(claims);
-        UserDetailsService users = mock(UserDetailsService.class);
         SsoUserProvisioningService provisioning = mock(SsoUserProvisioningService.class);
         UserSessionValidator validator = mock(UserSessionValidator.class);
         when(validator.validate(99L, "private-session-id"))
                 .thenThrow(new IllegalStateException("token=remote-token-secret path=/private/auth"));
-        JwtAuthFilter filter = new JwtAuthFilter(jwtService, users, provisioning, provider(validator));
+        JwtAuthFilter filter = new JwtAuthFilter(jwtService, provisioning, validator);
 
         MockHttpServletRequest request = bearer("signed-token");
         request.setRequestURI("/private/request/path");
@@ -173,10 +163,4 @@ class JwtAuthFilterTest {
         return request;
     }
 
-    @SuppressWarnings("unchecked")
-    private ObjectProvider<UserSessionValidator> provider(UserSessionValidator validator) {
-        ObjectProvider<UserSessionValidator> provider = mock(ObjectProvider.class);
-        when(provider.getIfAvailable()).thenReturn(validator);
-        return provider;
-    }
 }

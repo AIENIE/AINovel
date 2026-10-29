@@ -92,9 +92,9 @@ public class StyleService {
         Map<String, Object> result = new LinkedHashMap<>();
         result.putAll(dimensions);
         result.put("dimensions", dimensions);
-        result.put("rhythm", dimensions.getOrDefault("pacing", 6) * 10);
-        result.put("imagery", dimensions.getOrDefault("descriptiveness", 6) * 10);
-        result.put("dialogueDensity", dimensions.getOrDefault("dialogue_ratio", 6) * 10);
+        result.put("rhythm", dimensions.get("pacing") * 10);
+        result.put("imagery", dimensions.get("descriptiveness") * 10);
+        result.put("dialogueDensity", dimensions.get("dialogue_ratio") * 10);
         result.put("suggestedProfileName", "分析画像-" + Instant.now().toString().substring(11, 19));
 
         StyleAnalysisJob job = new StyleAnalysisJob();
@@ -184,16 +184,16 @@ public class StyleService {
             voice.setVocabularyLevel(str(payload.get("vocabularyLevel"), "neutral"));
         }
         if (payload.containsKey("catchphrases") || voice.getCatchphrasesJson() == null) {
-            voice.setCatchphrasesJson(writeJson(payload.getOrDefault("catchphrases", List.of())));
+            voice.setCatchphrasesJson(writeJson(Objects.requireNonNullElse(payload.get("catchphrases"), List.of())));
         }
         if (payload.containsKey("emotionalRange") || voice.getEmotionalRangeJson() == null) {
-            voice.setEmotionalRangeJson(writeJson(payload.getOrDefault("emotionalRange", List.of())));
+            voice.setEmotionalRangeJson(writeJson(Objects.requireNonNullElse(payload.get("emotionalRange"), List.of())));
         }
         if (payload.containsKey("dialect") || voice.getDialect() == null) {
             voice.setDialect(str(payload.get("dialect"), ""));
         }
         if (payload.containsKey("sampleDialogues") || voice.getSampleDialoguesJson() == null) {
-            voice.setSampleDialoguesJson(writeJson(payload.getOrDefault("sampleDialogues", List.of())));
+            voice.setSampleDialoguesJson(writeJson(Objects.requireNonNullElse(payload.get("sampleDialogues"), List.of())));
         }
         if (payload.containsKey("aiAnalysis") || voice.getAiAnalysisJson() == null) {
             voice.setAiAnalysisJson(writeJson(payload.getOrDefault("aiAnalysis", Map.of())));
@@ -229,9 +229,9 @@ public class StyleService {
         result.put("userId", profile.getUser() == null ? null : profile.getUser().getId());
         result.put("name", profile.getName());
         result.put("profileType", profile.getProfileType());
-        result.put("dimensions", readJson(profile.getDimensionsJson(), Map.of()));
+        result.put("dimensions", readMap(profile.getDimensionsJson()));
         result.put("sampleText", profile.getSampleText());
-        result.put("aiAnalysis", readJson(profile.getAiAnalysisJson(), Map.of()));
+        result.put("aiAnalysis", readMap(profile.getAiAnalysisJson()));
         result.put("sceneOverrides", profile.getSceneOverrides().stream().map(this::sceneOverrideResponse).toList());
         result.put("isActive", profile.isActive());
         result.put("createdAt", profile.getCreatedAt());
@@ -239,15 +239,10 @@ public class StyleService {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> sceneOverrideResponse(StyleProfileSceneOverride override) {
-        Object parsed = readJson(override.getOverrideJson(), Map.of());
-        if (parsed instanceof Map<?, ?> raw) {
-            Map<String, Object> result = new LinkedHashMap<>((Map<String, Object>) raw);
-            result.putIfAbsent("sceneType", override.getSceneType());
-            return result;
-        }
-        return new LinkedHashMap<>(Map.of("sceneType", override.getSceneType(), "dimensions", Map.of()));
+        Map<String, Object> result = new LinkedHashMap<>(readMap(override.getOverrideJson()));
+        result.putIfAbsent("sceneType", override.getSceneType());
+        return result;
     }
 
     private Map<String, Object> voiceResponse(CharacterVoice voice) {
@@ -257,11 +252,11 @@ public class StyleService {
         result.put("characterCardId", voice.getCharacterCard() == null ? null : voice.getCharacterCard().getId());
         result.put("speechPattern", voice.getSpeechPattern());
         result.put("vocabularyLevel", voice.getVocabularyLevel());
-        result.put("catchphrases", readJson(voice.getCatchphrasesJson(), List.of()));
-        result.put("emotionalRange", readJson(voice.getEmotionalRangeJson(), List.of()));
+        result.put("catchphrases", readList(voice.getCatchphrasesJson()));
+        result.put("emotionalRange", readList(voice.getEmotionalRangeJson()));
         result.put("dialect", voice.getDialect());
-        result.put("sampleDialogues", readJson(voice.getSampleDialoguesJson(), List.of()));
-        result.put("aiAnalysis", readJson(voice.getAiAnalysisJson(), Map.of()));
+        result.put("sampleDialogues", readList(voice.getSampleDialoguesJson()));
+        result.put("aiAnalysis", readMap(voice.getAiAnalysisJson()));
         result.put("createdAt", voice.getCreatedAt());
         result.put("updatedAt", voice.getUpdatedAt());
         return result;
@@ -274,7 +269,7 @@ public class StyleService {
         result.put("sourceType", job.getSourceType());
         result.put("sourceReference", job.getSourceReference());
         result.put("status", job.getStatus());
-        result.put("result", readJson(job.getResultJson(), Map.of()));
+        result.put("result", readMap(job.getResultJson()));
         result.put("errorMessage", job.getErrorMessage());
         result.put("createdAt", job.getCreatedAt());
         result.put("updatedAt", job.getUpdatedAt());
@@ -282,7 +277,7 @@ public class StyleService {
     }
 
     private Map<String, Integer> analyzeDimensionScores(String sampleText) {
-        String text = sampleText == null ? "" : sampleText.trim();
+        String text = sampleText.trim();
         int length = text.length();
         int punctuation = countChars(text, "，。！？；：");
         int quotes = countChars(text, "“”\"「」");
@@ -305,9 +300,6 @@ public class StyleService {
     }
 
     private int countChars(String source, String chars) {
-        if (source == null || source.isEmpty()) {
-            return 0;
-        }
         int count = 0;
         for (int i = 0; i < source.length(); i++) {
             if (chars.indexOf(source.charAt(i)) >= 0) {
@@ -319,11 +311,8 @@ public class StyleService {
 
     private int countContains(String source, String... keywords) {
         int count = 0;
-        if (source == null || source.isEmpty()) {
-            return count;
-        }
         for (String keyword : keywords) {
-            if (keyword != null && !keyword.isEmpty() && source.contains(keyword)) {
+            if (source.contains(keyword)) {
                 count++;
             }
         }
@@ -335,9 +324,6 @@ public class StyleService {
     }
 
     private int uniqueCharacterCount(String source) {
-        if (source == null || source.isEmpty()) {
-            return 0;
-        }
         Set<Character> chars = new HashSet<>();
         for (int i = 0; i < source.length(); i++) {
             chars.add(source.charAt(i));
@@ -368,7 +354,11 @@ public class StyleService {
         return jsonColumnCodec.writeRequired(value == null ? Map.of() : value);
     }
 
-    private Object readJson(String json, Object fallback) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, fallback);
+    private Map<String, Object> readMap(String json) {
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
+    }
+
+    private List<Object> readList(String json) {
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, List.of());
     }
 }

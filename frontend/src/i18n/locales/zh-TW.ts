@@ -793,7 +793,7 @@ export const zhTW = {
   "genre.scifi": "科幻 / 賽博龐克",
   "genre.wuxia": "武俠 / 仙俠",
   "novels.aiInit": "AI 輔助初始化",
-  "novels.aiInitDesc": "自動產生初始角色建議（示範流程）",
+  "novels.aiInitDesc": "依據梗概產生構思草稿，提交前確認模型方案與費用。",
   "novels.createCard": "傳統方式建立",
   "novels.createNow": "立即建立",
   "novels.createTitle": "新建小說",

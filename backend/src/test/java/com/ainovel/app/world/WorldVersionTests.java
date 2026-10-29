@@ -22,6 +22,9 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 @WithMockUser(username="world_versions")
 class WorldVersionTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockitoBean SsoTokenExchangeService sso;
     @MockitoBean AiService ai;
     @Autowired WorldService worlds;

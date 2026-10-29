@@ -23,6 +23,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 class WorldEditingTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockBean private SsoTokenExchangeService ssoTokenExchangeService;
     @MockBean private AiService aiService;
     @Autowired private WorldService worlds;

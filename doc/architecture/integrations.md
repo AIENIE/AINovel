@@ -25,7 +25,7 @@
 
 1. AINovel 按本地 JWT 密钥、配置的 issuer 和 audience 验证令牌；任一校验失败即拒绝，不解析未验签 payload，也不调用远端校验作为 fallback。
 2. 本地签名令牌还必须包含有效的 `sub + uid + sid`。
-3. 启用会话校验时，`UserSessionValidator` 才使用已验签的 `uid + sid` 调用 `UserAuthService.ValidateSession`；上游无效或不可达时拒绝建立本地登录态。
+3. `UserSessionValidator` 始终使用已验签的 `uid + sid` 调用 `UserAuthService.ValidateSession`；上游无效或不可达时拒绝建立本地登录态。
 4. 每次远程校验都从 `UserServiceJwtProvider` 获取最长 900 秒、`aud=aienie-userservice-grpc` 且仅含 `user.auth.session.read` 的 HS256 JWT；JWT 必须带 `iss/sub/iat/nbf/exp/jti/scopes`，并在到期前轮换。禁止恢复共享静态 token 或复用其他产品的 caller secret。
 
 ## 部署约束

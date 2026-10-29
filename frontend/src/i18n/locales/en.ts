@@ -793,7 +793,7 @@ export const en = {
   "genre.scifi": "Sci-Fi / Cyberpunk",
   "genre.wuxia": "Wuxia / Xianxia",
   "novels.aiInit": "AI-Assisted Init",
-  "novels.aiInitDesc": "Automatically generate initial character suggestions (sample flow)",
+  "novels.aiInitDesc": "Generate a conception draft from the synopsis. Confirm the model plan and cost before submitting.",
   "novels.createCard": "Create traditionally",
   "novels.createNow": "Create Now",
   "novels.createTitle": "New Novel",

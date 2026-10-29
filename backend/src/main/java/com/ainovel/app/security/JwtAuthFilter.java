@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,17 +26,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final SsoUserProvisioningService provisioningService;
-    private final ObjectProvider<UserSessionValidator> userSessionValidatorProvider;
+    private final UserSessionValidator userSessionValidator;
 
     public JwtAuthFilter(
             JwtService jwtService,
-            org.springframework.security.core.userdetails.UserDetailsService userDetailsService,
             SsoUserProvisioningService provisioningService,
-            ObjectProvider<UserSessionValidator> userSessionValidatorProvider
+            UserSessionValidator userSessionValidator
     ) {
         this.jwtService = jwtService;
         this.provisioningService = provisioningService;
-        this.userSessionValidatorProvider = userSessionValidatorProvider;
+        this.userSessionValidator = userSessionValidator;
     }
 
     @Override
@@ -67,23 +65,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
 
-            UserSessionValidator validator = userSessionValidatorProvider.getIfAvailable();
-            if (validator != null) {
-                UserSessionValidator.ValidationResult result;
-                try { result = validator.validate(uid, sid); }
-                catch (RuntimeException ex) {
-                    log.warn("Signed user token validation failed errorType={}", ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
-                    result = UserSessionValidator.ValidationResult.UNAVAILABLE;
-                }
-                if (result != UserSessionValidator.ValidationResult.VALID) {
-                    boolean unavailable = result == UserSessionValidator.ValidationResult.UNAVAILABLE;
-                    response.setStatus(unavailable ? 503 : 401);
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write(unavailable
-                            ? "{\"message\":\"SESSION_VALIDATION_UNAVAILABLE\"}"
-                            : "{\"message\":\"SESSION_INVALID\"}");
-                    return;
-                }
+            UserSessionValidator.ValidationResult result;
+            try { result = userSessionValidator.validate(uid, sid); }
+            catch (RuntimeException ex) {
+                log.warn("Signed user token validation failed errorType={}", ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
+                result = UserSessionValidator.ValidationResult.UNAVAILABLE;
+            }
+            if (result != UserSessionValidator.ValidationResult.VALID) {
+                boolean unavailable = result == UserSessionValidator.ValidationResult.UNAVAILABLE;
+                response.setStatus(unavailable ? 503 : 401);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write(unavailable
+                        ? "{\"message\":\"SESSION_VALIDATION_UNAVAILABLE\"}"
+                        : "{\"message\":\"SESSION_INVALID\"}");
+                return;
             }
 
             com.ainovel.app.user.User localUser;
