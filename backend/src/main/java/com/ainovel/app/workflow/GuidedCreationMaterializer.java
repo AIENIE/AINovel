@@ -112,7 +112,7 @@ public class GuidedCreationMaterializer {
     @Transactional
     public CreationWorkflowRun publishWorld(UUID runId,UUID actor,PublishWorldRequest request) {
         var run=requireRun(runId,actor);var steps=jsonSupport.readSteps(run);var data=jsonSupport.stepData(steps,GuidedCreationStep.WORLD);
-        String hash=com.ainovel.app.modelconfig.AiActionPlanner.hash(codec.write(request,"{}"));
+        String hash=com.ainovel.app.modelconfig.AiActionPlanner.hash(codec.writeRequired(request));
         if(request.requestKey()!=null&&request.requestKey().equals(data.get("publishRequestKey"))) {
             if(!hash.equals(data.get("publishRequestHash")))throw com.ainovel.app.world.WorldVersionService.conflict("WORLD_PUBLISH_REQUEST_CONFLICT");
             return run;
@@ -179,16 +179,16 @@ public class GuidedCreationMaterializer {
         world.setTagline(text(selected, "tagline", 255));
         world.setStatus("draft");
         world.setVersion("0.1.0");
-        world.setThemesJson(codec.write(selected.getOrDefault("themes", List.of()), "[]"));
+        world.setThemesJson(codec.writeRequired(selected.getOrDefault("themes", List.of())));
         world.setCreativeIntent(text(selected, "creativeIntent", 12000));
         world.setNotes(text(selected, "notes", 12000));
         Object rawModules = selected.get("modules");
         Map<String, Object> modules = rawModules instanceof Map<?, ?> map
                 ? new LinkedHashMap<>((Map<String, Object>) map) : new LinkedHashMap<>();
-        world.setModulesJson(codec.write(modules, "{}"));
+        world.setModulesJson(codec.writeRequired(modules));
         Map<String, String> progress = new LinkedHashMap<>();
         modules.keySet().forEach(key -> progress.put(key, "COMPLETED"));
-        world.setModuleProgressJson(codec.write(progress, "{}"));
+        world.setModuleProgressJson(codec.writeRequired(progress));
         run.setWorld(worldRepository.saveAndFlush(world));
         entries.replaceLegacy(world,entries.modules(world.getModulesJson()));worldRepository.saveAndFlush(world);
         return run.getWorld().getId();
@@ -261,7 +261,7 @@ public class GuidedCreationMaterializer {
         Outline outline = new Outline();
         outline.setStory(story);
         outline.setTitle(requiredText(selected, "title", 255));
-        outline.setContentJson(codec.write(content, "{\"planning\":{},\"chapters\":[]}"));
+        outline.setContentJson(codec.writeRequired(content));
         run.setOutline(outlineRepository.save(outline));
         return run.getOutline().getId();
     }

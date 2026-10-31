@@ -20,6 +20,4 @@ public final class WorldContextDtos {
     public record Selection(String compilerVersion, WorldBindingService.Resolved binding, long selectionRevision,
             String queryHash, String contextHash, int tokenBudget, int tokenUsed, String content,
             List<Source> included, List<Source> excluded, List<String> issues) {}
-    public record PreviewRequest(String purpose, UUID nodeId, String instruction, String text,
-            String contextHash, Long expectedSelectionRevision) {}
 }

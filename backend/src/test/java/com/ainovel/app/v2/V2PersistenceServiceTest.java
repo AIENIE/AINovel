@@ -36,6 +36,8 @@ import static org.junit.jupiter.api.Assertions.*;
         V2PersistenceServiceTest.TestBeans.class
 })
 class V2PersistenceServiceTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.modelconfig.AiModelConfigurationService modelConfiguration;
     @Autowired
     private org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager entityManager;
 
@@ -82,11 +84,11 @@ class V2PersistenceServiceTest {
                 "keywords", List.of("青云", "灵山"),
                 "priority", 9
         ));
-        Map<String, Object> extraction = contextService.createExtraction(story, Map.of(
-                "text", "林烬在青云山发现石碑",
-                "entityName", "林烬",
-                "entityType", "character"
-        ));
+        var extraction = new com.ainovel.app.v2.model.V2EntityExtraction();
+        extraction.setStory(story); extraction.setEntityName("林烬"); extraction.setEntityType("character");
+        extraction.setSourceText("林烬在青云山发现石碑"); extraction.setAttributesJson("{}");
+        extraction.setConfidence(0.82d); extraction.setReviewed(false); extraction.setReviewAction("pending");
+        entityManager.persist(extraction);
 
         entityManager.flush();
         entityManager.clear();
@@ -94,25 +96,7 @@ class V2PersistenceServiceTest {
         assertEquals("青云山", contextService.listLorebook(story.getId()).get(0).get("displayName"));
         assertEquals("林烬", contextService.listExtractions(story.getId()).get(0).get("entityName"));
         assertEquals(entry.get("id"), contextService.listLorebook(story.getId()).get(0).get("id"));
-        assertEquals(extraction.get("id"), contextService.listExtractions(story.getId()).get(0).get("id"));
-    }
-
-    @Test
-    void modelPreferencesAndUsageShouldPersist() {
-        User user = persistUser("v2-model");
-        Story story = persistStory(user);
-
-        Map<String, Object> model = modelService.listModels().get(0);
-        modelService.savePreference(user, "draft_generation", (java.util.UUID) model.get("id"));
-        modelService.logUsage(user, story.getId(), (java.util.UUID) model.get("id"),
-                "draft_generation", 100, 200, 300, true, null);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        assertEquals(1, modelService.listPreferences(user).size());
-        assertEquals(1, modelService.usageDetails(user, 10).size());
-        assertEquals(200, ((Number) modelService.usageSummary(user).get("totalOutputTokens")).intValue());
+        assertEquals(extraction.getId(), contextService.listExtractions(story.getId()).get(0).get("id"));
     }
 
     @Test

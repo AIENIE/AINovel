@@ -24,6 +24,9 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest @ActiveProfiles("test") @WithMockUser(username="world_writing")
 class WorldWritingTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockitoBean AiService ai;
     @MockitoBean SsoTokenExchangeService sso;
     @Autowired UserRepository users; @Autowired StoryRepository stories; @Autowired OutlineRepository outlines;

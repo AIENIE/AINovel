@@ -2,8 +2,6 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.quality.repo.PlotQualityRunRepository;
-import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.world.repo.WorldRepository;
 import org.springframework.stereotype.Service;
@@ -20,16 +18,12 @@ public class AdminOperationsQueryService {
     private final StoryRepository storyRepository;
     private final WorldRepository worldRepository;
     private final ManuscriptRepository manuscriptRepository;
-    private final SlopQualityRunRepository slopQualityRunRepository;
-    private final PlotQualityRunRepository plotQualityRunRepository;
 
     public AdminOperationsQueryService(
             MaterialRepository materialRepository,
             StoryRepository storyRepository,
             WorldRepository worldRepository,
             ManuscriptRepository manuscriptRepository,
-            SlopQualityRunRepository slopQualityRunRepository,
-            PlotQualityRunRepository plotQualityRunRepository,
             AdminOperationsReadRepository readRepository
     ) {
         this.readRepository = readRepository;
@@ -37,8 +31,6 @@ public class AdminOperationsQueryService {
         this.storyRepository = storyRepository;
         this.worldRepository = worldRepository;
         this.manuscriptRepository = manuscriptRepository;
-        this.slopQualityRunRepository = slopQualityRunRepository;
-        this.plotQualityRunRepository = plotQualityRunRepository;
     }
 
     @Transactional(readOnly = true)
@@ -49,8 +41,7 @@ public class AdminOperationsQueryService {
         result.put("manuscripts", manuscriptRepository.count());
         result.put("materials", materialRepository.count());
         result.put("pendingMaterials", materialRepository.countByStatusIgnoreCase("pending"));
-        result.put("highRiskQualityRuns", slopQualityRunRepository.countByOverallRiskScoreGreaterThanEqual(70)
-                + plotQualityRunRepository.countByOverallRiskScoreGreaterThanEqual(70));
+        result.put("highRiskQualityRuns", readRepository.highRiskQualityRuns());
         return result;
     }
 

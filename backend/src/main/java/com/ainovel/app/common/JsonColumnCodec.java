@@ -62,17 +62,11 @@ public class JsonColumnCodec {
             return fallback;
         }
         try {
-            return objectMapper.readValue(json, type);
+            T value = objectMapper.readerFor(type)
+                    .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(json);
+            return value == null ? fallback : value;
         } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    public String write(Object value, String fallback) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return fallback;
+            throw invalidStoredData();
         }
     }
 }

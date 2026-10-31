@@ -68,7 +68,7 @@ import static com.ainovel.app.assistant.AssistantDtos.*;
 @DataJpaTest(showSql = false, properties = {"spring.flyway.enabled=true", "spring.jpa.hibernate.ddl-auto=none", "spring.jpa.open-in-view=false"})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@Import({AssistantStore.class, ManuscriptContentService.class, V2VersionPersistenceService.class,
+@Import({com.ainovel.app.worldcontext.WorldContextSelector.class, AssistantStore.class, ManuscriptContentService.class, V2VersionPersistenceService.class,
         ManuscriptService.class, NarrativeGenerationCandidateStore.class, WritingAssistantService.class,
         NarrativeService.class, NarrativeContextService.class,
         AssistantContext.class, AssistantPrompts.class, LanguageFeature.class,
@@ -100,6 +100,16 @@ class AssistantMysqlTest {
         @Bean TransactionTemplate transactions(PlatformTransactionManager manager) { return new TransactionTemplate(manager); }
     }
 
+    @MockitoBean com.ainovel.app.world.WorldBindingService worldBindings;
+    @MockitoBean com.ainovel.app.worldcontext.WorldContextPreferences worldPreferences;
+    @MockitoBean com.ainovel.app.quality.language.LanguageQualityService languageQuality;
+    @MockitoBean com.ainovel.app.material.evidence.MaterialEvidenceService materialEvidence;
+    @BeforeEach void noWorldBindingFixture() {
+        when(worldBindings.input(any())).thenReturn(new com.ainovel.app.world.WorldBindingService.Frozen(null));
+        when(worldBindings.freeze(any())).thenReturn(new com.ainovel.app.world.WorldBindingService.Frozen(null));
+        when(worldBindings.same(any(), any())).thenCallRealMethod();
+        when(worldPreferences.read(anyString(), any())).thenReturn(com.ainovel.app.worldcontext.WorldContextDtos.Preferences.defaults(null));
+    }
     @MockitoBean CurrentUserResolver currentUser;
     @MockitoBean AiService ai;
     @MockitoBean AiAdmissionGuard admission;

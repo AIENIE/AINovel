@@ -16,7 +16,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,6 +25,9 @@ import static org.mockito.Mockito.when;
 @SpringBootTest
 @ActiveProfiles("test")
 class WorldPublishFlowTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     // Isolate business tests from the external SSO transport and its mounted CA.
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.ainovel.app.auth.SsoTokenExchangeService ssoTokenExchangeService;

@@ -1,7 +1,6 @@
 package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.common.BusinessException;
@@ -13,7 +12,6 @@ import com.ainovel.app.quality.SlopQualityGate;
 import com.ainovel.app.quality.SlopQualityRequest;
 import com.ainovel.app.quality.SlopQualityResult;
 import com.ainovel.app.story.dto.OutlineSaveRequest;
-import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Outline;
 import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.CharacterCardRepository;
@@ -33,21 +31,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 public class SceneGenerationService {
     public record Admission(com.ainovel.app.quality.language.LanguageStandard.Selection language,com.ainovel.app.world.WorldBindingService.Frozen world) {}
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.quality.language.LanguageFeature languageFeature;
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.material.evidence.SceneReferenceSelectionService referenceSelection;
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.manuscript.ManuscriptContentService contents;
-    @org.springframework.beans.factory.annotation.Autowired
-    private AiModelPolicy modelPolicy = new AiModelPolicy();
     private static final int MAX_GENERATION_ATTEMPTS = 3;
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     public static final String SCENE_DRAFT_SYSTEM_RULES_VERSION = "AINOVEL_SCENE_DRAFT_RULES_V1";
 
     @Autowired
@@ -66,11 +60,8 @@ public class SceneGenerationService {
     private ObjectMapper objectMapper;
     @Autowired
     private com.ainovel.app.narrative.NarrativeGenerationCandidateStore candidateStore;
-    @Autowired(required=false)
+    @Autowired
     private com.ainovel.app.ai.AiValidationCallBudget validationBudget;
-
-    public record EvaluationPair(String fastText, String craftedText) {
-    }
 
     public record GenerationMetadata(
             String modelKey,
@@ -93,7 +84,7 @@ public class SceneGenerationService {
             Integer minHan, Integer maxHan, Integer actualHan, boolean needsReview, String reviewReason) {
         public GenerationResult(String html,GenerationMetadata metadata){this(html,metadata,List.of(),null,null,null,false,null);}
     }
-    @Autowired(required=false) private com.ainovel.app.ai.AiAdmissionGuard admissionGuard;
+    @Autowired private com.ainovel.app.ai.AiAdmissionGuard admissionGuard;
 
 
     public String generateSceneSectionHtml(Manuscript manuscript, UUID sceneId, Map<String, String> existingSections) {
@@ -112,8 +103,7 @@ public class SceneGenerationService {
     }
     public com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection(Manuscript manuscript) {
         UUID storyId=manuscript.getOutline().getStory().getId();
-        return languageFeature==null ? new com.ainovel.app.quality.language.LanguageStandard.Selection(com.ainovel.app.quality.language.LanguageStandard.VERSION,false,false)
-                : languageFeature.selection(storyId);
+        return languageFeature.selection(storyId);
     }
     public GenerationResult generateSceneSection(Manuscript manuscript, UUID sceneId, Map<String,String> existingSections,
             GenerationMode mode, com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection) {
@@ -124,7 +114,7 @@ public class SceneGenerationService {
             com.ainovel.app.world.WorldBindingService.Frozen admittedWorld,boolean requireHistoricalInput) {
         UUID operationId=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
         if(operationId==null) operationId=UUID.randomUUID();
-        var checkpoint=candidateStore==null?null:candidateStore.draft(operationId,1);
+        var checkpoint=candidateStore.draft(operationId,1);
         FrozenInput frozen;
         if(checkpoint!=null&&checkpoint.getRequestJson()!=null) {
             if(checkpoint.getManuscriptVersion()!=manuscript.getVersion()||!checkpoint.getBranchId().equals(manuscript.getCurrentBranchId()))
@@ -140,7 +130,7 @@ public class SceneGenerationService {
             if(frozen.sourceVersion()!=null&&frozen.branchId()!=null&&(frozen.sourceVersion()!=manuscript.getVersion()||!java.util.Objects.equals(frozen.branchId(),manuscript.getCurrentBranchId())))
                 throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT,"SCENE_CANDIDATE_VERSION_CONFLICT");
             if(frozen.compiled()!=null)com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(frozen.compiled().manifest().worldContext());
-            if(candidateStore!=null) candidateStore.freeze(operationId,manuscript,sceneId,frozen);
+            candidateStore.freeze(operationId,manuscript,sceneId,frozen);
         }
         var sceneContext=frozen.scene(); var compiledContext=frozen.compiled();
         var characterContext=frozen.characters(); var previousContext=frozen.previous(); var outlinePlanning=frozen.planning();
@@ -153,7 +143,7 @@ public class SceneGenerationService {
         String previousDraft=null;
         for(int attempt=1;attempt<=2;attempt++) {
             com.ainovel.app.aioperation.SceneGenerationProgress.report(attempt==1?"起草":"篇幅修订 1/1",attempt-1);
-            if(referenceSelection!=null) referenceSelection.revalidate(owner,frozenReferences);
+            referenceSelection.revalidate(owner,frozenReferences);
             // Freeze the entire first prompt, including materials and language settings; append only the revision instruction.
             var messages=new ArrayList<>(initialPrompt.messages());
             if(attempt==2) {
@@ -162,7 +152,7 @@ public class SceneGenerationService {
                 messages.set(last,new AiChatRequest.Message(message.role(),message.content()
                         +SceneGenerationPromptBuilder.lengthRevision(previousDraft,previous.actualHan(),min,max)));
             }
-            var retained=candidateStore==null?null:candidateStore.draft(operationId,attempt);
+            var retained=candidateStore.draft(operationId,attempt);
             var request=new AiChatRequest(messages,null,null).forFeature("scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length"));
             if(attempt==2&&retained!=null&&retained.getRequestJson()!=null) {
                 try {request=objectMapper.readValue(retained.getRequestJson(),AiChatRequest.class);messages=new ArrayList<>(request.messages());}
@@ -171,19 +161,19 @@ public class SceneGenerationService {
             try {
                 long bytes=messages.stream().mapToLong(m->m.content().getBytes(StandardCharsets.UTF_8).length).sum()+Math.max(2048L,(long)max*3);
                 if(bytes>initialPrompt.tokenBudget()) throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY,"SCENE_PROMPT_BUDGET_EXCEEDED");
-                if(admissionGuard!=null) admissionGuard.validate(request);
+                admissionGuard.validate(request);
             } catch(com.ainovel.app.common.ApiStatusException e) {
                 if(previous!=null && List.of("SCENE_PROMPT_BUDGET_EXCEEDED","AI_REQUEST_TOO_LARGE","AI_MESSAGE_CONTENT_INVALID").contains(e.getMessage()))
                     return new GenerationResult(previous.html(),previous.metadata(),List.copyOf(ids),min,max,previous.actualHan(),true,"REVISION_INPUT_BUDGET_EXCEEDED");
                 throw e;
             }
-            if(attempt==2&&candidateStore!=null) candidateStore.freezeRequest(operationId,manuscript,sceneId,2,request);
+            if(attempt==2) candidateStore.freezeRequest(operationId,manuscript,sceneId,2,request);
             var aiResponse=retained!=null&&retained.getActualHan()!=null?null:aiService.chat(owner,request);
             String normalized=retained!=null&&retained.getActualHan()!=null
                     ?normalizeGeneratedText(org.springframework.web.util.HtmlUtils.htmlUnescape(retained.getContent().replace("</p>","\n\n").replace("<br />","\n").replaceAll("<[^>]+>","")))
                     :normalizeGeneratedText(aiResponse.content());
             int count=countHanCharacters(normalized);
-            String actualModel=aiResponse!=null&&aiResponse.actualModelKey()!=null?aiResponse.actualModelKey():modelPolicy.modelKey();
+            String actualModel=aiResponse==null?null:aiResponse.actualModelKey();
             var modelSelection=aiResponse==null?null:aiResponse.selection();
             if(aiResponse==null&&retained!=null&&retained.getMetadataJson()!=null) {
                 try {var source=objectMapper.readValue(retained.getMetadataJson(),com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source.class).generation();actualModel=source.modelKey();modelSelection=source.selection();}
@@ -191,7 +181,7 @@ public class SceneGenerationService {
             }
             var metadata=new GenerationMetadata(actualModel,compiledContext==null?SceneDraftContextCompiler.COMPILER_VERSION:compiledContext.compilerVersion(),
                     promptHash(messages),attempt,compiledContext==null?null:compiledContext.manifest(),frozenReferences,languageStandard?languageSelection.version():null,modelSelection);
-            UUID id=candidateStore==null?null:candidateStore.retainDraft(operationId,manuscript,sceneId,toEditorHtml(normalized),attempt,min,max,count,
+            UUID id=candidateStore.retainDraft(operationId,manuscript,sceneId,toEditorHtml(normalized),attempt,min,max,count,
                     new com.ainovel.app.narrative.NarrativeGenerationCandidateStore.Source(mode,metadata,languageSelection));
             if(id!=null) ids.add(id);
             if(retained!=null&&"PROCESSED".equals(retained.getQualityStatus()))
@@ -204,7 +194,7 @@ public class SceneGenerationService {
                 int acceptedCount=countHanCharacters(accepted);
                 if(id!=null) candidateStore.qualityResult(id,toEditorHtml(accepted),acceptedCount);
                 boolean outOfRange=acceptedCount<min||acceptedCount>max;
-                if(!outOfRange && !(validationBudget!=null&&validationBudget.localQualityOnly())) {
+                if(!outOfRange && !(validationBudget.localQualityOnly())) {
                     if(compiledContext!=null&&compiledContext.isolated()) scenePlotQualitySupport.recordIsolatedPlotQuality(owner,manuscript,sceneContext,compiledContext,accepted);
                     else scenePlotQualitySupport.recordPlotQuality(owner,manuscript,story,sceneContext,outlinePlanning,previousContext,characterContext,accepted);
                 }
@@ -219,14 +209,12 @@ public class SceneGenerationService {
     public FrozenInput prepare(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,GenerationMode mode,
             com.ainovel.app.quality.language.LanguageStandard.Selection languageSelection,com.ainovel.app.world.WorldBindingService.Frozen world) {
         var scene=resolveSceneContext(manuscript.getOutline(),sceneId);var story=manuscript.getOutline().getStory();
-        var compiled=world==null?compileContext(manuscript,sceneId,existingSections):sceneDraftContextCompiler==null?null:
+        var compiled=world==null?sceneDraftContextCompiler.compile(manuscript,sceneId,existingSections):
                 sceneDraftContextCompiler.compile(manuscript,sceneId,existingSections,SceneDraftContextCompiler.DEFAULT_TOKEN_BUDGET,world);
-        String characters=compiled==null?buildCharacterContext(characterCardRepository.findByStory(story)):compiled.characterContext();
-        String previous=compiled==null?buildPreviousContext(scene,existingSections):compiled.recentSceneContext();
+        String characters=compiled.characterContext();
+        String previous=compiled.recentSceneContext();
         var references=freezeReferences(ownerOf(manuscript),story,manuscript,scene,compiled);
-        var prompt=referenceSelection==null
-                ?sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled)
-                :sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled,promptReferences(references));
+        var prompt=sceneGenerationPromptBuilder.build(ownerOf(manuscript),story,scene,characters,previous,null,0,1,scene.lengthRange().minHan(),scene.lengthRange().maxHan(),mode,compiled,promptReferences(references));
         if(languageSelection.generation())prompt=com.ainovel.app.quality.language.LanguageStandard.augment(prompt,languageSelection.version(),true);
         return new FrozenInput(scene,compiled,characters,previous,outlinePlanning(manuscript.getOutline()),references,prompt,mode,languageSelection,manuscript.getVersion(),manuscript.getCurrentBranchId(),planningHash(manuscript));
     }
@@ -251,12 +239,12 @@ public class SceneGenerationService {
 
     public boolean hasFrozenInput() {
         var operation=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
-        var draft=operation==null||candidateStore==null?null:candidateStore.draft(operation,1);
+        var draft=operation==null?null:candidateStore.draft(operation,1);
         return draft!=null&&draft.getRequestJson()!=null;
     }
     public String frozenPlanningHash(Manuscript manuscript) {
         var operation=com.ainovel.app.aioperation.AiOperationExecutionContext.operationId();
-        var draft=operation==null||candidateStore==null?null:candidateStore.draft(operation,1);
+        var draft=operation==null?null:candidateStore.draft(operation,1);
         if(draft!=null&&draft.getRequestJson()!=null) {
             try {var input=objectMapper.readTree(draft.getRequestJson());if(input.hasNonNull("planningHash"))return input.path("planningHash").asText();}
             catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
@@ -280,31 +268,20 @@ public class SceneGenerationService {
                 ? slopQualityGate.evaluateLocal(user, request) : slopQualityGate.evaluate(user, request);
     }
     private List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> freezeReferences(User owner,Story story,Manuscript manuscript,SceneGenerationContext scene,CompiledSceneDraftContext context){
-        if(referenceSelection==null||(context!=null&&context.isolated()))return List.of();
+        if(context!=null&&context.isolated())return List.of();
         String query=String.join(" ",Objects.toString(scene.chapterTitle(),""),Objects.toString(scene.chapterSummary(),""),Objects.toString(scene.sceneTitle(),""),Objects.toString(scene.sceneSummary(),""));
         return referenceSelection.select(owner,story.getId(),manuscript.getId(),scene.sceneId(),query);
     }
     private List<com.ainovel.app.prompt.PromptReference> promptReferences(List<com.ainovel.app.material.evidence.EvidenceDtos.Hit> references){return references.stream().map(h->new com.ainovel.app.prompt.PromptReference("material",h.materialId(),h.title(),h.text(),h.rank(),0)).toList();}
 
     /**
-     * Produces a fast/crafted pair for blind evaluation without changing manuscript sections,
-     * versions, or plot-quality records. All billable calls share the sample reference.
+     * Produces one selected candidate for blind evaluation without changing manuscript sections,
+     * versions, or plot-quality records. Billable calls use the sample and generation mode reference.
      */
-    public EvaluationPair generateEvaluationPair(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId) {
-        Map<String, String> sections = existingSections(manuscript);
-        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, sections);
-        AiUsageContext baseContext = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId), "pair");
-        String fastText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.FAST,
-                baseContext.forOperation("fast"), compiledContext);
-        String craftedText = generateEvaluationCandidate(manuscript, sceneId, sections, GenerationMode.CRAFTED,
-                baseContext.forOperation("crafted"), compiledContext);
-        return new EvaluationPair(fastText, craftedText);
-    }
-
     public String generateEvaluationCandidate(Manuscript manuscript, UUID sceneId, UUID evaluationSampleId,
                                               GenerationMode mode) {
-        Map<String, String> sections = existingSections(manuscript);
-        CompiledSceneDraftContext compiledContext = compileContext(manuscript, sceneId, sections);
+        Map<String, String> sections = contents.readAll(manuscript);
+        CompiledSceneDraftContext compiledContext = sceneDraftContextCompiler.compile(manuscript, sceneId, sections);
         AiUsageContext context = new AiUsageContext("G2_EVALUATION", String.valueOf(evaluationSampleId),
                 "pair:" + mode.name().toLowerCase(java.util.Locale.ROOT));
         return generateEvaluationCandidate(manuscript, sceneId, sections, mode, context, compiledContext);
@@ -319,11 +296,8 @@ public class SceneGenerationService {
         SceneGenerationContext sceneContext = resolveSceneContext(manuscript.getOutline(), sceneId);
         Story story = manuscript.getOutline().getStory();
         User owner = ownerOf(manuscript);
-        String characterContext = compiledContext == null
-                ? buildCharacterContext(characterCardRepository.findByStory(story)) : compiledContext.characterContext();
-        String previousContext = compiledContext == null
-                ? buildPreviousContext(sceneContext, existingSections)
-                : compiledContext.recentSceneContext();
+        String characterContext = compiledContext.characterContext();
+        String previousContext = compiledContext.recentSceneContext();
         String previousDraft = null;
         int previousCount = 0;
 
@@ -363,19 +337,6 @@ public class SceneGenerationService {
                 + " 次后仍未达到 " + sceneContext.lengthRange().minHan() + "-" + sceneContext.lengthRange().maxHan() + " 汉字");
     }
 
-    private Map<String, String> existingSections(Manuscript manuscript) {
-        return manuscript == null ? Map.of() : contents.readAll(manuscript);
-    }
-
-    private CompiledSceneDraftContext compileContext(Manuscript manuscript,
-                                                     UUID sceneId,
-                                                     Map<String, String> existingSections) {
-        if (sceneDraftContextCompiler == null) {
-            return null;
-        }
-        return sceneDraftContextCompiler.compile(manuscript, sceneId, existingSections);
-    }
-
     private String promptHash(List<AiChatRequest.Message> messages) {
         StringBuilder canonical = new StringBuilder(SCENE_DRAFT_SYSTEM_RULES_VERSION);
         if (messages != null) {
@@ -407,7 +368,7 @@ public class SceneGenerationService {
             Object planning = root.get("planning");
             return planning == null ? "暂无结构规划。" : objectMapper.writeValueAsString(planning);
         } catch (Exception ex) {
-            return "暂无结构规划。";
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "STORED_DATA_INVALID");
         }
     }
 
@@ -461,50 +422,10 @@ public class SceneGenerationService {
         throw new BusinessException("场景不存在，无法生成正文");
     }
 
-    private String buildCharacterContext(List<CharacterCard> characters) {
-        if (characters == null || characters.isEmpty()) {
-            return "暂无角色卡。";
-        }
-        StringBuilder characterInfo = new StringBuilder();
-        for (CharacterCard card : characters) {
-            if (card == null) {
-                continue;
-            }
-            characterInfo.append("- ").append(safeText(card.getName(), "角色")).append("：")
-                    .append(safeText(card.getSynopsis(), ""))
-                    .append(" 背景：").append(safeText(truncate(card.getDetails(), 180), ""))
-                    .append(" 关系：").append(safeText(truncate(card.getRelationships(), 160), ""))
-                    .append('\n');
-        }
-        return characterInfo.toString();
-    }
-
-    private String buildPreviousContext(SceneGenerationContext scene, Map<String, String> existingSections) {
-        if (scene.previousSceneIds() == null || scene.previousSceneIds().isEmpty()) {
-            return "暂无可用前文。";
-        }
-        StringBuilder continuity = new StringBuilder();
-        int kept = 0;
-        for (int i = scene.previousSceneIds().size() - 1; i >= 0 && kept < 2; i--) {
-            UUID previousId = scene.previousSceneIds().get(i);
-            String content = existingSections.get(previousId.toString());
-            if (content == null || content.isBlank()) {
-                continue;
-            }
-            String plain = truncate(stripHtml(content), 500);
-            if (plain.isBlank()) {
-                continue;
-            }
-            continuity.append("前文片段 ").append(kept + 1).append("：").append(plain).append("\n");
-            kept++;
-        }
-        return continuity.length() == 0 ? "暂无可用前文。" : continuity.toString();
-    }
-
     private String normalizeGeneratedText(String raw) { return normalizeGeneratedText(raw,objectMapper); }
 
     static String normalizeGeneratedText(String raw,ObjectMapper objectMapper) {
-        if (raw == null) return "";
+        if (raw == null || raw.isBlank()) throw new IllegalArgumentException("SCENE_RESPONSE_INVALID");
         String text = raw.trim();
         if (text.startsWith("```")) {
             int firstLineEnd = text.indexOf('\n');
@@ -513,16 +434,20 @@ public class SceneGenerationService {
                 text = text.substring(firstLineEnd + 1, lastFence).trim();
             }
         }
-        if (text.startsWith("{") && text.endsWith("}")) {
+        if (text.startsWith("{")) {
             try {
-                Map<String, Object> root = objectMapper.readValue(text, new TypeReference<>() {});
-                Object content = root.get("content");
-                if (content == null) content = root.get("text");
-                if (content == null) content = root.get("manuscript");
-                if (content instanceof String str && !str.isBlank()) {
-                    text = str.trim();
+                Map<String,Object> root = objectMapper.readerFor(new TypeReference<Map<String,Object>>() {})
+                        .with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(text);
+                var bodies = new java.util.HashSet<String>();
+                for (var key : List.of("content", "text", "manuscript")) {
+                    if (!root.containsKey(key)) continue;
+                    if (!(root.get(key) instanceof String body) || body.isBlank()) throw new IllegalArgumentException();
+                    bodies.add(body);
                 }
-            } catch (Exception ignored) {
+                if (bodies.size() != 1) throw new IllegalArgumentException();
+                text = bodies.iterator().next();
+            } catch (Exception invalid) {
+                throw new IllegalArgumentException("SCENE_RESPONSE_INVALID");
             }
         }
         text = text.replace("\r\n", "\n").replace("\r", "\n").trim();
@@ -570,17 +495,6 @@ public class SceneGenerationService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
-    }
-
-    private String stripHtml(String text) {
-        return com.ainovel.app.common.text.RichTextProjector.project(text,
-                com.ainovel.app.common.text.RichTextProjector.Policy.CONTEXT_V2).text();
-    }
-
-    private String truncate(String text, int maxLength) {
-        if (text == null) return "";
-        if (text.length() <= maxLength) return text;
-        return text.substring(0, maxLength);
     }
 
     private String safeText(String text, String fallback) {

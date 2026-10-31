@@ -8,7 +8,6 @@ import com.ainovel.app.story.model.Story;
 import com.ainovel.app.story.repo.OutlineRepository;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.security.ResourceAccessGuard;
-import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,7 +84,7 @@ public class OutlineService {
         outline.setContentJson(writeJson(content));
         outlineRepository.save(outline);
         outlineRepository.flush();
-        if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
+        eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(null, outlineId));
         return toDto(outline);
     }
 
@@ -311,6 +310,6 @@ public class OutlineService {
     }
 
     private String writeJson(Object obj) {
-        return jsonColumnCodec.write(obj, "{}");
+        return jsonColumnCodec.writeRequired(obj);
     }
 }

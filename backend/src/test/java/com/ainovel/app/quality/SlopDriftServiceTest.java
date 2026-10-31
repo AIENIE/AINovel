@@ -29,7 +29,7 @@ class SlopDriftServiceTest {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
         SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         Manuscript manuscript = manuscriptWithRepeatedSections("雨水砸在铁皮棚上，林烬记住了铜扣的划痕。", 12);
 
         when(aiService.chat(any(), any())).thenReturn(new AiChatResponse("assistant", """
@@ -38,7 +38,7 @@ class SlopDriftServiceTest {
                   "overall": {
                     "midbook_drift_risk_score": 76,
                     "risk_label": "high",
-                    "safe_claim": "该稿件在中后段呈现叙事机制断层风险；这不能证明作者使用 AI。"
+                    "safe_claim": "该稿件在中后段呈现叙事机制断层风险"
                   },
                   "window_summaries": [
                     {"label": "opening", "summary": "开头具体"},
@@ -86,7 +86,7 @@ class SlopDriftServiceTest {
         assertEquals("quality-plain-v1", run.getTextConversionVersion());
         assertEquals(76, run.getOverallRiskScore());
         assertEquals("high", run.getRiskLabel());
-        assertTrue(run.getSafeClaim().contains("不能证明作者使用 AI"));
+        assertTrue(run.getSafeClaim().contains("叙事机制断层风险"));
         assertTrue(run.getMetricCurvesJson().contains("template_density"));
         assertTrue(run.getDriftPointsJson().contains("role_stability"));
         assertTrue(run.getEvidenceItemsJson().contains("breath_focus_pacing"));
@@ -99,7 +99,7 @@ class SlopDriftServiceTest {
         AiService aiService = mock(AiService.class);
         SlopDriftRunRepository repository = mock(SlopDriftRunRepository.class);
         SlopDriftService service = new SlopDriftService(aiService, new ObjectMapper(), repository, new JsonColumnCodec(new ObjectMapper()));
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         Manuscript manuscript = manuscriptWithRepeatedSections("短稿。", 2);
 
         when(repository.save(any(SlopDriftRun.class))).thenAnswer(invocation -> invocation.getArgument(0));

@@ -1,6 +1,5 @@
 package com.ainovel.app.aioperation;
 
-import com.ainovel.app.ai.AiResultUncertainException;
 import com.ainovel.app.manuscript.*;
 import com.ainovel.app.quality.*;
 import com.ainovel.app.quality.language.LanguageStandard;
@@ -15,7 +14,7 @@ import static org.mockito.Mockito.*;
 
 class LanguageGenerationProfileTest {
     final ManuscriptService manuscripts=mock(ManuscriptService.class);
-    final CoreAiOperationHandler handler=new CoreAiOperationHandler(mock(StoryService.class),mock(OutlineService.class),mock(WorldTaskService.class),
+    final CoreAiOperationHandler handler=new CoreAiOperationHandler(mock(StoryService.class),mock(WorldTaskService.class),
             manuscripts,mock(ResourceAccessGuard.class),mock(SlopDiagnosticService.class),mock(SlopDriftService.class),mock(PlotQualityService.class));
     final ObjectMapper json=new ObjectMapper();
     AiOperationExecution execution(CoreAiOperationHandler.CorePayload payload) throws Exception {

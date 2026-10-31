@@ -1,6 +1,5 @@
 package com.ainovel.app.admin;
 
-import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.material.MaterialAdminService;
 import com.ainovel.app.material.MaterialAdminReadRepository;
 import com.ainovel.app.material.MaterialDuplicateService;
@@ -25,16 +24,13 @@ import java.util.UUID;
 public class AdminOperationsController {
     private final MaterialAdminService materialService;
     private final AdminOperationsQueryService adminOperationsQueryService;
-    private final OpsRecordFileSink recordFileSink;
 
     public AdminOperationsController(
             MaterialAdminService materialService,
-            AdminOperationsQueryService adminOperationsQueryService,
-            OpsRecordFileSink recordFileSink
+            AdminOperationsQueryService adminOperationsQueryService
     ) {
         this.materialService = materialService;
         this.adminOperationsQueryService = adminOperationsQueryService;
-        this.recordFileSink = recordFileSink;
     }
 
     @GetMapping("/materials/pending")
@@ -127,15 +123,4 @@ public class AdminOperationsController {
         return adminOperationsQueryService.qualityRuns(page, size, search, filter);
     }
 
-    private void audit(String action, String targetType, String targetId) {
-        recordFileSink.appendAudit(Map.of(
-                "category", "admin",
-                "action", action,
-                "actor", "admin",
-                "targetType", targetType,
-                "targetId", targetId,
-                "result", "SUCCESS",
-                "severity", "INFO"
-        ));
-    }
 }

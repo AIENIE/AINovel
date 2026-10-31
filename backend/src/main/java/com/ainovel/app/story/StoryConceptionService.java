@@ -24,8 +24,6 @@ public class StoryConceptionService {
     private StoryConceptionPromptFactory promptFactory;
     @Autowired
     private StoryConceptionProjectionBuilder projectionBuilder;
-    @Autowired
-    private StoryConceptionDraftNormalizer draftNormalizer;
 
     public ConceptionDraft draftConception(User user, StoryCreateRequest request) {
         Map<String, Object> generated = generateNormalizedDraft(user, request);
@@ -50,18 +48,7 @@ public class StoryConceptionService {
         if (parsed == null || parsed.isEmpty()) {
             throw new com.ainovel.app.common.BusinessException("AI_INITIALIZATION_INVALID_RESULT");
         }
-        Map<String, Object> normalized = draftNormalizer.normalize(
-                request,
-                parsed,
-                promptContext.hintedPromise(),
-                promptContext.hintedTruth(),
-                promptContext.hintedMeme()
-        );
-        List<String> missing = java.util.stream.Stream.of("synopsis", "characters", "skeleton", "twistOptions", "foreshadowSeeds", "memeStrategy", "outlineSuggestion")
-                .filter(key -> { Object value=parsed.get(key); return value==null || value instanceof String text && text.isBlank()
-                        || value instanceof java.util.Collection<?> items && items.isEmpty() || value instanceof Map<?,?> map && map.isEmpty(); }).toList();
-        normalized.put("fallbackFields", missing);
-        return normalized;
+        return parsed;
     }
 
     private Map<String, Object> parseJsonObject(String text) {
@@ -75,13 +62,13 @@ public class StoryConceptionService {
             }
         }
         try {
-            return objectMapper.readValue(candidate, new TypeReference<>() {});
+            return objectMapper.readerFor(new TypeReference<Map<String,Object>>() {}).with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(candidate);
         } catch (Exception ignored) {
             int first = candidate.indexOf('{');
             int last = candidate.lastIndexOf('}');
             if (first >= 0 && last > first) {
                 try {
-                    return objectMapper.readValue(candidate.substring(first, last + 1), new TypeReference<>() {});
+                    return objectMapper.readerFor(new TypeReference<Map<String,Object>>() {}).with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readValue(candidate.substring(first, last + 1));
                 } catch (Exception ignoredAgain) {
                     return null;
                 }

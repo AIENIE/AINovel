@@ -124,7 +124,7 @@ public class V2ContextController {
         List<Map<String, Object>> entries = listLorebookInternal(storyId);
         List<Map<String, Object>> nodes = new ArrayList<>();
         for (Map<String, Object> entry : entries) {
-            if (!boolVal(entry.get("enabled"), true)) {
+            if (!com.ainovel.app.common.JsonValues.bool(entry.get("enabled"), true)) {
                 continue;
             }
             nodes.add(Map.of(
@@ -245,37 +245,6 @@ public class V2ContextController {
 
     @Operation(summary = "v2 API endpoint")
 
-    @PostMapping("/stories/{storyId}/graph/sync")
-    public Map<String, Object> syncGraph(@AuthenticationPrincipal UserDetails principal,
-                                         @PathVariable UUID storyId) {
-        User user = accessGuard.currentUser(principal);
-        accessGuard.requireOwnedStory(storyId, user);
-        return Map.of(
-                "storyId", storyId,
-                "status", "completed",
-                "syncedAt", Instant.now(),
-                "nodes", listLorebookInternal(storyId).size(),
-                "edges", listRelationshipsInternal(storyId).size()
-        );
-    }
-
-    @Operation(summary = "v2 API endpoint")
-
-    @PostMapping("/stories/{storyId}/extract-entities")
-    public Map<String, Object> extractEntities(@AuthenticationPrincipal UserDetails principal,
-                                               @PathVariable UUID storyId,
-                                               @RequestBody V2RequestPayload payload) {
-        User user = accessGuard.currentUser(principal);
-        Story story = accessGuard.requireOwnedStory(storyId, user);
-        String text = str(payload.get("text"), "").trim();
-        if (text.isEmpty()) {
-            throw new BusinessException("text 不能为空");
-        }
-        return persistenceService.createExtraction(story, payload.asMap());
-    }
-
-    @Operation(summary = "v2 API endpoint")
-
     @GetMapping("/stories/{storyId}/extractions")
     public List<Map<String, Object>> listExtractions(@AuthenticationPrincipal UserDetails principal,
                                                      @PathVariable UUID storyId) {
@@ -326,13 +295,13 @@ public class V2ContextController {
         }
 
         List<Map<String, Object>> enabled = listLorebookInternal(storyId).stream()
-                .filter(entry -> boolVal(entry.get("enabled"), true))
+                .filter(entry -> com.ainovel.app.common.JsonValues.bool(entry.get("enabled"), true))
                 .toList();
 
         int usedBudget = 0;
         List<Map<String, Object>> selected = new ArrayList<>();
         for (Map<String, Object> entry : enabled) {
-            int entryBudget = intVal(entry.get("tokenBudget"), 500);
+            int entryBudget = com.ainovel.app.common.JsonValues.integer(entry.get("tokenBudget"), 500);
             if (usedBudget + entryBudget > tokenBudget) {
                 continue;
             }
@@ -343,7 +312,7 @@ public class V2ContextController {
         List<Map<String, Object>> pendingExtractions = new ArrayList<>();
         List<Map<String, Object>> extractions = persistenceService.listExtractions(storyId);
         for (Map<String, Object> extraction : extractions) {
-            if (!boolVal(extraction.get("reviewed"), false)) {
+            if (!com.ainovel.app.common.JsonValues.bool(extraction.get("reviewed"), false)) {
                 pendingExtractions.add(extraction);
             }
         }
@@ -431,7 +400,7 @@ public class V2ContextController {
             source.put("sourceId", str(entry.get("id"), ""));
             source.put("label", str(entry.get("displayName"), "未命名条目"));
             source.put("reason", "通用预览按启用状态、优先级与条目预算入选");
-            source.put("estimatedTokens", intVal(entry.get("tokenBudget"), 500));
+            source.put("estimatedTokens", com.ainovel.app.common.JsonValues.integer(entry.get("tokenBudget"), 500));
             source.put("truncated", false);
             sources.add(Map.copyOf(source));
         }
@@ -452,7 +421,7 @@ public class V2ContextController {
             canonical.append('\n').append(str(entry.get("id"), ""))
                     .append('|').append(str(entry.get("displayName"), ""))
                     .append('|').append(str(entry.get("insertionPosition"), "before_scene"))
-                    .append('|').append(intVal(entry.get("tokenBudget"), 500));
+                    .append('|').append(com.ainovel.app.common.JsonValues.integer(entry.get("tokenBudget"), 500));
         }
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -489,7 +458,7 @@ public class V2ContextController {
 
         List<Map<String, Object>> pendingExtractions = new ArrayList<>();
         for (Map<String, Object> extraction : persistenceService.listExtractions(storyId)) {
-            if (!boolVal(extraction.get("reviewed"), false)) {
+            if (!com.ainovel.app.common.JsonValues.bool(extraction.get("reviewed"), false)) {
                 pendingExtractions.add(extraction);
             }
         }
@@ -523,7 +492,7 @@ public class V2ContextController {
 
     private List<Map<String, Object>> listLorebookInternal(UUID storyId) {
         List<Map<String, Object>> entries = new ArrayList<>(persistenceService.listLorebook(storyId));
-        entries.sort(Comparator.comparingInt((Map<String, Object> entry) -> intVal(entry.get("priority"), 0)).reversed());
+        entries.sort(Comparator.comparingInt((Map<String, Object> entry) -> com.ainovel.app.common.JsonValues.integer(entry.get("priority"), 0)).reversed());
         return entries;
     }
 
@@ -539,20 +508,6 @@ public class V2ContextController {
         return text.isEmpty() ? fallback : text;
     }
 
-    private int intVal(Object value, int fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Number n) {
-            return n.intValue();
-        }
-        try {
-            return Integer.parseInt(value.toString());
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
-    }
-
     private UUID uuidVal(Object value, UUID fallback) {
         if (value == null) {
             return fallback;
@@ -563,24 +518,15 @@ public class V2ContextController {
         try {
             return UUID.fromString(value.toString());
         } catch (IllegalArgumentException ex) {
-            return fallback;
+            throw new BusinessException("字段格式错误", ex);
         }
-    }
-
-    private boolean boolVal(Object value, boolean fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Boolean b) {
-            return b;
-        }
-        return Boolean.parseBoolean(value.toString());
     }
 
     private List<Object> list(Object value) {
         if (value instanceof List<?> raw) {
             return new ArrayList<>(raw);
         }
-        return new ArrayList<>();
+        if (value == null) return new ArrayList<>();
+        throw new BusinessException("字段必须为数组");
     }
 }

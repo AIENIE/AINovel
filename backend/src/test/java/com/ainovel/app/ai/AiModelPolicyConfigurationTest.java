@@ -11,8 +11,7 @@ class AiModelPolicyConfigurationTest {
                 .run(context -> {
                     var policy = context.getBean(AiModelPolicy.class);
                     assertEquals("deepseek-flash", policy.modelKey());
-                    assertEquals("deepseek-flash", policy.configuredTextModel().id());
-                    assertEquals("DeepSeek Flash", policy.configuredTextModel().displayName());
+                    assertEquals("DeepSeek Flash", policy.displayName());
                 });
     }
     @Test void otherProfilesKeepTheirExistingDefault() {

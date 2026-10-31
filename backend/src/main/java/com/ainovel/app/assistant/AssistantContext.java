@@ -55,7 +55,6 @@ public class AssistantContext {
         authorPool.add(source("outline:"+m.getOutline().getId(),"OUTLINE","当前场景大纲",selected.toString(),null));
         for(var c:characters.findByStory(story))authorPool.add(source("character:"+c.getId(),"CHARACTER",c.getName(),Objects.toString(c.getSynopsis(),"")+"\n"+Objects.toString(c.getDetails(),"")+"\n"+Objects.toString(c.getRelationships(),""),null));
         var world=worlds.requireUsable(input.binding());
-        if(world!=null&&worldSelector==null)authorPool.add(source("world:"+world.versionId(),"WORLD",world.name(),worlds.render(world),null));
         boolean h2=narrative.enabled(m);NarrativeContextDtos.Stamp stamp=null;
         if(h2){
             var p=narrative.preview(user,m.getId(),m.getCurrentBranchId(),sceneId,NarrativeContextDtos.View.SCENE,null,BUDGET-350);
@@ -67,7 +66,7 @@ public class AssistantContext {
             editPool.addAll(authorPool);
         }
         com.ainovel.app.worldcontext.WorldContextDtos.Selection selection=null;
-        if(worldSelector!=null) {
+        {
             String recent=prior.stream().skip(Math.max(0,prior.size()-2)).map(Source::content).reduce("",(a,b)->a+"\n"+b);
             String query=selected+"\n"+selectedChapter.path("planning")+"\n"+selectedChapter.path("summary").asText()+"\n"+instruction+"\n"+selectedText+"\n"+recent;
             int baseTokens=base.stream().mapToInt(s->tokens(json.valueToTree(s).toString())).sum();

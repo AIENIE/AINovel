@@ -1,7 +1,6 @@
 package com.ainovel.app.aioperation;
 
 import com.ainovel.app.common.CurrentUserResolver;
-import com.ainovel.app.manuscript.GenerationMode;
 import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.story.OutlineService;
 import com.ainovel.app.story.dto.OutlineChapterGenerateRequest;
@@ -24,7 +23,7 @@ public class AiFeatureOperationController {
     private final OutlineService outlines;
     private final WorldTaskService worldTasks;
     private final ObjectMapper objectMapper;
-    private final com.ainovel.app.quality.language.LanguageFeature languageFeature;
+
     @org.springframework.beans.factory.annotation.Autowired
     private com.ainovel.app.quality.SlopDiagnosticService slopDiagnostic;
     @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
@@ -33,14 +32,14 @@ public class AiFeatureOperationController {
 
     public AiFeatureOperationController(AiOperationService operations, CurrentUserResolver users,
                                         ResourceAccessGuard accessGuard, OutlineService outlines,
-                                        WorldTaskService worldTasks, ObjectMapper objectMapper, com.ainovel.app.quality.language.LanguageFeature languageFeature) {
+                                        WorldTaskService worldTasks, ObjectMapper objectMapper) {
         this.operations = operations;
         this.users = users;
         this.accessGuard = accessGuard;
         this.outlines = outlines;
         this.worldTasks = worldTasks;
         this.objectMapper = objectMapper;
-        this.languageFeature = languageFeature;
+
     }
 
     @PostMapping("/v1/conception/operations")

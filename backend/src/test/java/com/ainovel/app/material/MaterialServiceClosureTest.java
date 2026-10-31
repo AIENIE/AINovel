@@ -45,7 +45,6 @@ class MaterialServiceClosureTest {
                 accessGuard,
                 mock(MaterialRetrievalService.class),
                 manuscriptRepository,
-                new ObjectMapper(),
                 new JsonColumnCodec(new ObjectMapper()),
                 mock(MaterialFingerprintService.class)
         );

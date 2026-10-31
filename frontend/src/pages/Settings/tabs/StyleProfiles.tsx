@@ -53,52 +53,47 @@ interface StyleProfilesProps {
   initialStoryId?: string;
 }
 
+const invalidStyleData = () => new Error("STORED_DATA_INVALID");
 const normalizeDimensionScore = (value: unknown, fallback = 6) => {
+  if (value == null) return fallback;
+  if ((typeof value !== "number" && typeof value !== "string") || String(value).trim() === "") throw invalidStyleData();
   const num = Number(value);
-  if (!Number.isFinite(num)) return fallback;
+  if (!Number.isFinite(num)) throw invalidStyleData();
   if (num <= 10 && num >= 1) return Math.round(num);
   if (num >= 0 && num <= 100) return Math.max(1, Math.min(10, Math.round(num / 10)));
-  return fallback;
+  throw invalidStyleData();
 };
-
-const toDialogueSamples = (raw: NetworkObject): DialogueSample[] => {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      if (typeof item === "string") return { context: "", line: item };
-      if (item && typeof item === "object") {
-        return { context: String(item.context || item.emotion || ""), line: String(item.line || item.content || "") };
-      }
-      return null;
-    })
-    .filter((item): item is DialogueSample => !!item && !!item.line.trim());
+const validateDimensions = (value: unknown) => {
+  if (value == null) return;
+  if (typeof value !== "object" || Array.isArray(value)) throw invalidStyleData();
+  STYLE_DIMENSIONS.forEach(item => normalizeDimensionScore((value as Record<string, unknown>)[item.key]));
 };
-
-const mapAnalysisDimensions = (analysisResult: NetworkObject) => {
-  const raw = analysisResult?.result || analysisResult || {};
-  const mapped = buildDefaultDimensions(6);
-  const keyMap: Record<string, string> = {
-    formality: "formality",
-    sentence_length: "sentence_length",
-    vocabulary_richness: "vocabulary_richness",
-    pacing: "pacing",
-    descriptiveness: "descriptiveness",
-    dialogue_ratio: "dialogue_ratio",
-    emotional_intensity: "emotional_intensity",
-    rhetoric_frequency: "rhetoric_frequency",
-    rhythm: "pacing",
-    imagery: "descriptiveness",
-    dialogueDensity: "dialogue_ratio",
-    tension: "emotional_intensity",
-    emotion: "emotional_intensity",
-    complexity: "vocabulary_richness",
-    descriptionDensity: "descriptiveness",
-  };
-  Object.entries(raw).forEach(([key, value]) => {
-    const target = keyMap[key];
-    if (target) mapped[target] = normalizeDimensionScore(value, mapped[target]);
+const stringList = (value: unknown): string[] => {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) throw invalidStyleData();
+  return value;
+};
+const toDialogueSamples = (raw: unknown): DialogueSample[] => {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) throw invalidStyleData();
+  return raw.map(item => {
+    if (typeof item === "string") return { context: "", line: item };
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw invalidStyleData();
+    const context: unknown = item.context ?? item.emotion ?? "", line: unknown = item.line ?? item.content;
+    if (typeof context !== "string" || typeof line !== "string") throw invalidStyleData();
+    return { context, line };
   });
-  return mapped;
+};
+const mapAnalysisDimensions = (analysis: NetworkObject) => {
+  const raw: unknown = analysis?.result;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw invalidStyleData();
+  const dimensions = (raw as NetworkObject).dimensions ?? raw;
+  validateDimensions(dimensions);
+  return Object.fromEntries(STYLE_DIMENSIONS.map(item => {
+    const value = dimensions[item.key];
+    if (value == null) throw invalidStyleData();
+    return [item.key, normalizeDimensionScore(value)];
+  }));
 };
 
 const emptyVoiceForm = {
@@ -160,6 +155,13 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       api.v2.style.listVoices(storyId),
       api.stories.listCharacters(storyId),
     ]);
+    if (!Array.isArray(profileList) || !Array.isArray(voiceList) || !Array.isArray(characterList)) throw invalidStyleData();
+    profileList.forEach(profile => {
+      validateDimensions(profile.dimensions);
+      if (profile.sceneOverrides != null && !Array.isArray(profile.sceneOverrides)) throw invalidStyleData();
+      (profile.sceneOverrides || []).forEach((override: NetworkObject) => validateDimensions(override.dimensions));
+    });
+    voiceList.forEach(voice => { stringList(voice.catchphrases); stringList(voice.emotionalRange); toDialogueSamples(voice.sampleDialogues); });
     setProfiles(profileList);
     setVoices(voiceList);
     setCharacters(characterList);
@@ -221,8 +223,8 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
       characterCardId: String(voice.characterCardId || ""),
       speechPattern: voice.speechPattern || "",
       vocabularyLevel: voice.vocabularyLevel || "colloquial",
-      catchphrases: Array.isArray(voice.catchphrases) ? voice.catchphrases : [],
-      emotionalRange: Array.isArray(voice.emotionalRange) ? voice.emotionalRange : [],
+      catchphrases: stringList(voice.catchphrases),
+      emotionalRange: stringList(voice.emotionalRange),
       dialect: voice.dialect || "",
       sampleDialogues: toDialogueSamples(voice.sampleDialogues),
     });
@@ -233,7 +235,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const profileB = profiles.find((item) => String(item.id) === String(compareProfileB));
 
   const compareData = useMemo(
-    () => STYLE_DIMENSIONS.map((item) => ({ metric: t(item.labelKey), A: normalizeDimensionScore(profileA?.dimensions?.[item.key], 6), B: normalizeDimensionScore(profileB?.dimensions?.[item.key], 6) })),
+    () => !profileA || !profileB ? [] : STYLE_DIMENSIONS.map((item) => ({ metric: t(item.labelKey), A: normalizeDimensionScore(profileA?.dimensions?.[item.key], 6), B: normalizeDimensionScore(profileB?.dimensions?.[item.key], 6) })),
     [profileA, profileB, t],
   );
 
@@ -281,6 +283,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
   const runAnalysis = async () => {
     try {
       const result = await api.v2.style.analyze({ sourceType: "uploaded_text", sourceReference: "settings-style", sampleText: analysisText });
+      mapAnalysisDimensions(result);
       setAnalysisResult(result);
       toast({ title: t("style.analysisDone") });
     } catch (error: unknown) {
@@ -340,34 +343,11 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
     }
   };
 
-  const generateVoice = async () => {
-    if (!storyId || !voiceForm.id) return;
-    const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
-    try {
-      await api.v2.style.generateVoice(storyId, voiceForm.id, { characterName: selectedCharacter?.name || t("style.characterFallback") });
-      await loadData();
-      toast({ title: t("style.voiceGenerated") });
-    } catch (error: unknown) {
-      toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(error, "errors.generateFailed") });
-    }
-  };
-
-  const previewVoice = async () => {
-    if (!voiceForm.characterCardId) {
-      toast({ variant: "destructive", title: t("style.selectCharacterFirst") });
-      return;
-    }
-    const selectedCharacter = characters.find((character) => String(character.id) === String(voiceForm.characterCardId));
-    const characterName = selectedCharacter?.name || t("style.characterFallback");
-    const catchphrase = (voiceForm.catchphrases || [])[0] || t("style.catchphraseFallback");
-    const mood = (voiceForm.emotionalRange || [])[0] || t("style.moodFallback");
-    const sample = (voiceForm.sampleDialogues || [])[0]?.line || t("style.sampleLineFallback");
-    const dialect = voiceForm.dialect ? t("style.dialectSuffix", { dialect: voiceForm.dialect }) : "";
-    const pattern = voiceForm.speechPattern?.trim() || t("style.speechPatternFallback");
-    setVoicePreview(
-      t("style.voicePreviewTemplate", { dialect, characterName, catchphrase, sample, mood, level: voiceForm.vocabularyLevel || "colloquial", pattern }),
-    );
-    toast({ title: t("style.previewGenerated") });
+  const previewVoice = () => {
+    const character = characters.find(item => String(item.id) === String(voiceForm.characterCardId));
+    const lines = [character?.name, voiceForm.speechPattern, ...(voiceForm.catchphrases || []),
+      ...(voiceForm.sampleDialogues || []).map((item: { line: string } | string) => typeof item === "string" ? item : item.line)];
+    setVoicePreview(lines.filter((line): line is string => typeof line === "string" && !!line.trim()).join("\n"));
   };
 
   return (
@@ -387,7 +367,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="secondary" onClick={() => void loadData()} disabled={!storyId || loading}>{t("common.refresh")}</Button>
+          <Button variant="secondary" onClick={() => void loadData().catch(error => toast({ variant: "destructive", title: t("errors.loadStyleDataFailed"), description: localizedErrorMessage(error) }))} disabled={!storyId || loading}>{t("common.refresh")}</Button>
           {activeProfile ? <Badge>{t("style.currentlyActive", { name: activeProfile.name })}</Badge> : <Badge variant="outline">{t("style.noActiveProfile")}</Badge>}
         </CardContent>
       </Card>
@@ -525,7 +505,7 @@ const StyleProfiles = ({ initialStoryId }: StyleProfilesProps) => {
               <Button variant="outline" onClick={() => { const line = sampleLineInput.trim(); if (!line) return; const context = sampleContextInput.trim(); setVoiceForm((prev: NetworkObject) => ({ ...prev, sampleDialogues: [...(prev.sampleDialogues || []), { context, line }] })); setSampleLineInput(""); }}>{t("style.addSample")}</Button>
               <ScrollArea className="h-24 rounded-md border p-2"><div className="space-y-1 text-sm">{(voiceForm.sampleDialogues || []).map((item: DialogueSample, index: number) => <div key={`${item.context}-${item.line}-${index}`} className="rounded border p-1"><div className="text-xs text-muted-foreground">{item.context ? `[${item.context}]` : ""}</div><div>{item.line}</div></div>)}</div></ScrollArea>
             </div>
-            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="secondary" onClick={() => void generateVoice()} disabled={!voiceForm.id}>{t("style.aiGenerate")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>
+            <div className="flex flex-wrap gap-2"><Button onClick={() => void saveVoice()} disabled={!storyId}>{t("style.saveVoice")}</Button><Button variant="outline" onClick={() => void previewVoice()}>{t("common.preview")}</Button><Button variant="destructive" onClick={() => void removeVoice()} disabled={!voiceForm.id}>{t("style.deleteVoice")}</Button></div>
             {voicePreview && <div className="rounded border bg-muted/40 p-2 text-sm"><div className="font-medium mb-1">{t("style.voicePreview")}</div><p className="whitespace-pre-wrap text-muted-foreground">{voicePreview}</p></div>}
           </CardContent>
         </Card>

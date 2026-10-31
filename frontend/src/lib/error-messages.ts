@@ -7,6 +7,8 @@ import { t } from "@/i18n";
  * 未命中类别时显示本地化通用操作失败。
  */
 const AI_MODEL_ERROR_KEYS: Record<string, string> = {
+  MANUSCRIPT_CREATE_INTENT_INVALID: "selectionData.createIntentUnreadable",
+  MATERIAL_VECTOR_CLEANUP_FAILED: "material.cleanupFailed",
   WRITING_AGENT_SAVE_REQUIRED: 'agent.saveRequired',
   WRITING_AGENT_PROTOCOL_UNAVAILABLE: 'agent.protocolUnavailable',
   WRITING_AGENT_PROTOCOL_UNSUPPORTED: 'agent.protocolUnavailable',

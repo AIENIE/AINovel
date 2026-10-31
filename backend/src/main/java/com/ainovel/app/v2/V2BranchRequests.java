@@ -55,7 +55,6 @@ public final class V2BranchRequests {
             sceneResolutions = Map.copyOf(sceneResolutions);
             if (label != null && (label.isBlank() || label.length() > 200)) throw new IllegalArgumentException("INVALID_BRANCH_LABEL");
         }
-        public static MergeBranch defaults() { return new MergeBranch(MergeStrategy.REPLACE_ALL, Map.of(), null); }
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         public static MergeBranch fromJson(JsonNode body) {
             validateFields(body, Set.of("strategy", "sceneResolutions", "label"));

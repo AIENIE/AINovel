@@ -1,6 +1,5 @@
 package com.ainovel.app.narrative;
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.AiModelPolicy;
 import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.aioperation.*;
@@ -12,8 +11,6 @@ import java.util.*;
 
 @Component
 public class NarrativeExtractionHandler implements AiOperationHandler {
-    @org.springframework.beans.factory.annotation.Autowired
-    private AiModelPolicy modelPolicy = new AiModelPolicy();
     public static final String TYPE = "NARRATIVE_STATE_EXTRACT";
     private final NarrativeService narrative;
     private final AiService ai;
@@ -42,7 +39,7 @@ public class NarrativeExtractionHandler implements AiOperationHandler {
                 new AiChatRequest.Message("user", execution.objectMapper().writeValueAsString(input))), null, null).forFeature("narrative.extract"),
                 new AiUsageContext("NARRATIVE_EXTRACTION", extractionId.toString(), "p11-v1"));
         return AiOperationExecutionContext.complete(() -> {
-            narrative.storeResult(execution.user(), extractionId, execution.operationId(), result.content(), result.usage(), result.actualModelKey()==null?modelPolicy.modelKey():result.actualModelKey());
+            narrative.storeResult(execution.user(), extractionId, execution.operationId(), result.content(), result.usage(), result.actualModelKey());
             return Map.of("extractionId", extractionId);
         });
     }

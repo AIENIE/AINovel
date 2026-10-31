@@ -102,7 +102,7 @@ class SlopQualityControllerTest {
         run.setAnalysisMode("manual_scene");
         run.setRiskLabel("high");
         run.setEvidenceLevel("E2");
-        run.setSafeClaim("该文本呈现 high 级模板化风险，不能证明作者使用 AI。");
+        run.setSafeClaim("该文本呈现 high 级模板化风险");
         return run;
     }
 }

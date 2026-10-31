@@ -54,6 +54,20 @@ class V2ContextControllerTests {
     }
 
     @Test
+    void retiredFakeSyncAndExtractionEndpointsReturn404() throws Exception {
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build();
+        for (String action : List.of("graph/sync", "extract-entities"))
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v2/stories/"+storyId+"/"+action)
+                    .contentType("application/json").content("{}"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+        var style = new V2StyleController(accessGuard, mock(com.ainovel.app.style.StyleService.class));
+        mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(style).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v2/stories/"+storyId+"/character-voices/"+UUID.randomUUID()+"/generate")
+                .contentType("application/json").content("{}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+    }
+
+    @Test
     void previewShouldRespectTokenBudget() {
         when(persistenceService.listLorebook(storyId)).thenReturn(List.of(
                 lorebookEntry("角色设定", "character", 200, 10, "before_scene"),

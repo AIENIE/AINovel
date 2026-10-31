@@ -39,11 +39,14 @@ class SceneGenerationAttributionServiceTest {
         var stamp = Map.<String,Object>of("branchId", UUID.randomUUID().toString(), "manuscriptVersion", 8,
                 "canonRevision", 2, "contextRevision", 4, "settingsRevision", 1, "orderHash", "a".repeat(64));
         var manifest = new java.util.HashMap<String,Object>(stamp);
+        manifest.put("modelKey", "actual-h2-model");
         manifest.put("promptHash", "b".repeat(64)); manifest.put("contextHash", "c".repeat(64));
         var result = service.recordGeneration(manuscript, UUID.randomUUID(), UUID.randomUUID(), GenerationMode.FAST, manifest, "正文");
         assertEquals(com.ainovel.app.narrative.NarrativeContextService.VERSION, result.promptVersion());
         assertEquals(result.promptVersion(), result.contextManifest().get("promptVersion"));
         stamp.forEach((key,value) -> assertEquals(value.toString(), result.contextManifest().get(key).toString()));
+        manifest.remove("modelKey");
+        assertThrows(BusinessException.class, () -> service.recordGeneration(manuscript, UUID.randomUUID(), UUID.randomUUID(), GenerationMode.FAST, manifest, "待保存正文"));
     }
 
     @Test
@@ -153,6 +156,8 @@ class SceneGenerationAttributionServiceTest {
         assertEquals(Integer.valueOf(1), result.deletedCharacters());
         assertEquals(Double.valueOf(2.0d / 3.0d), result.retentionRate());
         assertFalse(result.recalculationPending());
+        run.setTagsJson("{broken");
+        assertThrows(BusinessException.class, () -> service.listRuns(manuscriptId, sceneId, 10));
     }
 
     @Test

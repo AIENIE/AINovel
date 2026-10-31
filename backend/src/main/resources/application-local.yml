@@ -99,7 +99,6 @@ app:
   time-zone: Asia/Shanghai
   records:
     dir: /app/records
-    elasticsearch-query-enabled: false
     max-file-size-bytes: 10485760
     max-history-days: 14
     max-total-size-bytes: 1073741824
@@ -120,9 +119,6 @@ app:
     issuer: ainovel
     audience: ainovel-web
   ai:
-    model: deepseek-v4-flash
-    base-url: ''
-    api-key: ${AI_API_KEY:}
     admission:
       max-messages: 64
       max-message-chars: 20000
@@ -139,7 +135,6 @@ app:
     text-model-display-name: DeepSeek Flash
   external:
     project-key: ainovel
-    timeout-ms: 120000
     ai-timeout-ms: 180000
     billing-timeout-ms: 5000
     grpc:
@@ -191,12 +186,6 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
-elasticsearch:
-  hosts: https://locales.testhut.top:9200
-  username: elastic
-  password: ${ELASTICSEARCH_PASSWORD}
-filebeat:
-  index-prefix: aienie-local-ainovel
 runtime:
   configuration:
     ENV: local

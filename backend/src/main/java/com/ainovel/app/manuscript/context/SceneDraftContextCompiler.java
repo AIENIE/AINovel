@@ -55,7 +55,6 @@ public class SceneDraftContextCompiler {
 
     private static final int RECENT_SCENE_COUNT = 2;
     private static final int MAX_LOREBOOK_ENTRIES = 4;
-    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private static final Pattern WORD_PATTERN = Pattern.compile("[\\p{IsHan}]{2,}|[a-z0-9_]{2,}");
     private static final Set<String> STOP_TERMS = Set.of(
             "一个", "这个", "那个", "当前", "场景", "章节", "故事", "本节", "人物", "角色", "目标", "信息", "冲突"
@@ -108,7 +107,7 @@ public class SceneDraftContextCompiler {
     public CompiledSceneDraftContext compile(Manuscript manuscript,UUID sceneId,Map<String,String> existingSections,
             int requestedTokenBudget,WorldBindingService.Frozen frozenWorld) {
         RequiredContext required = requireContext(manuscript, sceneId);
-        if (isolation != null && isolation.enabled(manuscript)) {
+        if (isolation.enabled(manuscript)) {
             var p=isolation.preview(required.story().getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
                     com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,requestedTokenBudget);
             if (p.included().stream().noneMatch(f -> "PLAN".equals(f.category())))
@@ -142,8 +141,6 @@ public class SceneDraftContextCompiler {
         addCharacterCandidates(candidates, required.story(), baseQueryText);
         var world=worldBindings.requireUsable((frozenWorld==null?worldBindings.input(manuscript):frozenWorld).binding());
         UUID boundWorldId=world==null?null:world.worldId();
-        // Legacy standalone consumers have no W4 services; production always uses the selector below.
-        if(world!=null&&worldSelector==null)candidates.add(new Candidate("world","world",world.versionId().toString(),"绑定世界 · "+world.sourceType(),940,340,worldBindings.render(world)));
         addStyleCandidates(candidates, required.story(), sceneType, queryText);
 
         List<SceneSlot> recentScenes = recentScenes(required.position().priorScenes(), sections);
@@ -162,7 +159,7 @@ public class SceneDraftContextCompiler {
         addAnchorCandidates(candidates, anchors, sections, anchorTerms);
 
         com.ainovel.app.worldcontext.WorldContextDtos.Selection worldContext=null;
-        if(worldSelector!=null) {
+        {
             var requiredCandidates=candidates.stream().filter(c->c.priority()>=980).toList();
             var requiredRender=render(new ArrayList<>(requiredCandidates),tokenBudget);
             String nearby=recentScenes.stream().map(s->plainSection(sections.get(id(s.id())))).reduce("",(a,b)->a+"\n"+b);
@@ -800,8 +797,8 @@ public class SceneDraftContextCompiler {
         }
         try {
             return canonicalJson(objectMapper.readValue(rawJson, Object.class));
-        } catch (Exception ignored) {
-            return rawJson.trim();
+        } catch (Exception ex) {
+            throw new BusinessException("上下文 JSON 内容异常", ex);
         }
     }
 
@@ -918,22 +915,12 @@ public class SceneDraftContextCompiler {
         }
     }
 
-    private int intValue(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return value == null ? fallback : Integer.parseInt(value.toString());
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
+    private int intValue(Object value, int defaultValue) {
+        return com.ainovel.app.common.JsonValues.integer(value, defaultValue);
     }
 
-    private boolean boolValue(Object value, boolean fallback) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        return value == null ? fallback : Boolean.parseBoolean(value.toString());
+    private boolean boolValue(Object value, boolean defaultValue) {
+        return com.ainovel.app.common.JsonValues.bool(value, defaultValue);
     }
 
     @SuppressWarnings("unchecked")
@@ -941,24 +928,26 @@ public class SceneDraftContextCompiler {
         if (value instanceof Map<?, ?> raw) {
             return new LinkedHashMap<>((Map<String, Object>) raw);
         }
+        if (value != null) throw new BusinessException("上下文数据应为对象");
         return Map.of();
     }
 
     private List<Map<String, Object>> maps(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("上下文数据应为数组");
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?>) {
                 result.add(map(item));
-            }
+            } else throw new BusinessException("上下文数组项目应为对象");
         }
         return result;
     }
 
     private List<Object> list(Object value) {
-        return value instanceof List<?> raw ? new ArrayList<>(raw) : List.of();
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> raw)) throw new BusinessException("上下文数据应为数组");
+        return new ArrayList<>(raw);
     }
 
     private List<IndexedMap> indexed(List<Map<String, Object>> values) {

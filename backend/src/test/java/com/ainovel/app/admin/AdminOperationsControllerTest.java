@@ -1,6 +1,5 @@
 package com.ainovel.app.admin;
 
-import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.material.MaterialAdminService;
 import com.ainovel.app.material.MaterialAdminReadRepository;
 import org.junit.jupiter.api.Test;
@@ -13,9 +12,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AdminOperationsControllerTest {
     @Test
+    void qualityResponsesKeepUnknownScoresNullAndAssessedZeroNumeric() throws Exception {
+        var service=mock(AdminOperationsQueryService.class);
+        var mvc=MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class),service)).build();
+        var failed=new AdminOperationsReadRepository.QualityRow("slop",java.util.UUID.randomUUID(),null,null,null,null,null,"DEGRADED",null,null,false,"失败历史",null);
+        var complete=new AdminOperationsReadRepository.QualityRow("plot",java.util.UUID.randomUUID(),null,null,null,null,null,"ACCEPTED","LOW",0,false,"真实零分",null);
+        when(service.qualityRuns(0,20,"","all")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(failed,complete),0,20,2,1));
+        mvc.perform(get("/v1/admin/quality/runs")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].overallRiskScore").hasJsonPath()).andExpect(jsonPath("$.items[0].overallRiskScore").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.items[0].maxSeverity").hasJsonPath()).andExpect(jsonPath("$.items[0].maxSeverity").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.items[1].overallRiskScore").value(0));
+    }
+    @Test
     void defaultsTo20AndForwardsPaginationSearchAndFilter() throws Exception {
         AdminOperationsQueryService service = mock(AdminOperationsQueryService.class);
-        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class), service, mock(OpsRecordFileSink.class))).build();
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(mock(MaterialAdminService.class), service)).build();
         when(service.assets("stories", 0, 20, "")).thenReturn(new AdminOperationsQueryService.PageResult<>(List.of(), 0, 20, 0, 0));
         mvc.perform(get("/v1/admin/assets/stories")).andExpect(status().isOk()).andExpect(jsonPath("$.size").value(20)).andExpect(jsonPath("$.items").isArray());
         verify(service).assets("stories", 0, 20, "");
@@ -35,7 +46,7 @@ class AdminOperationsControllerTest {
     void pendingMaterialsUsePaginatedProjection() throws Exception {
         MaterialAdminService materials = mock(MaterialAdminService.class);
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new AdminOperationsController(materials,
-                mock(AdminOperationsQueryService.class), mock(OpsRecordFileSink.class))).build();
+                mock(AdminOperationsQueryService.class))).build();
         when(materials.pending(2, 20)).thenReturn(new MaterialAdminReadRepository.Page(List.of(), 2, 20, 45, 3));
         mvc.perform(get("/v1/admin/materials/pending").param("page", "2"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(45))

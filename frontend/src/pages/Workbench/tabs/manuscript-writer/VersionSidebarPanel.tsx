@@ -222,7 +222,9 @@ export function VersionSidebarPanel({
         </DialogContent>
       </Dialog>
       <ScrollArea className="h-[calc(100%-2.5rem)] rounded-md border p-3 space-y-2">
-        {visibleVersions.map((version, index) => (
+        {visibleVersions.map((version, index) => {
+          const words = versionWordCount(version);
+          return (
           <div key={String(version.id)} className="flex gap-2 text-xs">
             <div className="flex flex-col items-center pt-0.5">
               <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -238,10 +240,11 @@ export function VersionSidebarPanel({
                   {t("versionPanel.rollback")}
                 </Button>
               </div>
-              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${t("versionPanel.wordCount", { count: versionWordCount(version) })}`}</div>
+              {words.invalid && <p role="alert" className="text-destructive">{t("errors.loadFailed")}</p>}
+              <div className="text-muted-foreground">{`${formatDateTime(version.createdAt)} · ${words.value == null ? "—" : t("versionPanel.wordCount", { count: words.value })}`}</div>
             </div>
           </div>
-        ))}
+        ); })}
         {hasMoreVersions && (
           <Button size="sm" variant="outline" className="w-full h-7" onClick={() => setVersionVisibleCount((prev) => prev + versionPageSize)}>
             {t("versionPanel.loadMore")}

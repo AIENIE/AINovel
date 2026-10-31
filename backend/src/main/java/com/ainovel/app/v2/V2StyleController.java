@@ -127,14 +127,4 @@ public class V2StyleController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "v2 API endpoint")
-    @PostMapping("/stories/{storyId}/character-voices/{id}/generate")
-    public Map<String, Object> generateCharacterVoice(@AuthenticationPrincipal UserDetails principal,
-                                                      @PathVariable UUID storyId,
-                                                      @PathVariable UUID id,
-                                                      @RequestBody(required = false) V2RequestPayload payload) {
-        User user = accessGuard.currentUser(principal);
-        Story story = accessGuard.requireOwnedStory(storyId, user);
-        return styleService.generateCharacterVoice(story, id, payload.asMap());
-    }
 }

@@ -5,28 +5,10 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
 import java.util.Locale;
 
 public final class TotpService {
     private TotpService() {
-    }
-
-    public static boolean verify(String secret, String code, long nowSeconds, long lastAccepted, int digits, int period) {
-        if (code == null || !code.matches("\\d{" + digits + "}")) {
-            return false;
-        }
-        long current = Math.floorDiv(nowSeconds, period);
-        for (long candidate = current - 1; candidate <= current + 1; candidate++) {
-            if (candidate <= lastAccepted) {
-                continue;
-            }
-            String expected = code(secret, candidate, digits);
-            if (MessageDigest.isEqual(expected.getBytes(StandardCharsets.US_ASCII), code.getBytes(StandardCharsets.US_ASCII))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public static long matchingTimestep(String secret, String code, long nowSeconds, long lastAccepted, int digits, int period) {

@@ -111,9 +111,7 @@ public class AdminConsoleService {
             settings.setMaintenanceMode(maintenanceMode);
         }
         GlobalSettings saved = globalSettingsRepository.save(settings);
-        if (maintenanceModeCache != null) {
-            maintenanceModeCache.invalidate();
-        }
+        maintenanceModeCache.invalidate();
         return new AdminSystemConfigResponse(saved.isMaintenanceMode());
     }
 
@@ -141,12 +139,7 @@ public class AdminConsoleService {
         long projectCredits = projectCreditAccountRepository.findByUser(local)
                 .map(com.ainovel.app.economy.model.ProjectCreditAccount::getBalance)
                 .orElse(Math.round(local.getCredits()));
-        long publicCredits = 0L;
-        try {
-            publicCredits = economyService.currentBalance(local).publicCredits();
-        } catch (RuntimeException ignored) {
-            publicCredits = 0L;
-        }
+        long publicCredits = economyService.currentBalance(local).publicCredits();
         return new AdminUserDto(
                 String.valueOf(local.getId()),
                 local.getRemoteUid(),

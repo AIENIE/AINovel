@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -13,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class QdrantMaterialVectorIndexQueryTest {
     private final ObjectMapper json = new ObjectMapper();
@@ -32,7 +35,7 @@ class QdrantMaterialVectorIndexQueryTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/collections/materials", exchange -> {
             if ("GET".equals(exchange.getRequestMethod())) {
-                respond(exchange, 200, "{}");
+                respond(exchange, 200, "{\"result\":{\"config\":{\"params\":{\"vectors\":{\"size\":2}}}}}");
                 return;
             }
             requestPath.set(exchange.getRequestURI().getPath());
@@ -44,7 +47,7 @@ class QdrantMaterialVectorIndexQueryTest {
 
         var index = new QdrantMaterialVectorIndex(json, "http://127.0.0.1", server.getAddress().getPort(),
                 "materials", "", 1000, 1000);
-        var matches = index.search(new float[]{0.1f, 0.2f}, 3, ownerId);
+        var matches = index.searchWithin(new float[]{0.1f, 0.2f}, 3, ownerId, java.util.List.of(materialId));
 
         assertThat(requestPath.get()).isEqualTo("/collections/materials/points/query");
         assertThat(requestBody.get().path("query")).hasSize(2);
@@ -66,5 +69,28 @@ class QdrantMaterialVectorIndexQueryTest {
         try (var output = exchange.getResponseBody()) {
             output.write(bytes);
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{", "{\"result\":{}}", "{\"result\":{\"points\":[{}]}}", "unavailable"})
+    void failedOrCorruptQueriesNeverBecomeEmptyMatches(String body) throws IOException {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/collections/materials", exchange -> respond(exchange,
+                "unavailable".equals(body) ? 503 : 200,
+                "GET".equals(exchange.getRequestMethod()) ? "{\"result\":{\"config\":{\"params\":{\"vectors\":{\"size\":2}}}}}" : body));
+        server.start();
+        var index = new QdrantMaterialVectorIndex(json, "http://127.0.0.1", server.getAddress().getPort(), "materials", "", 1000, 1000);
+        assertThatThrownBy(() -> index.searchWithin(new float[]{.1f, .2f}, 3, UUID.randomUUID(), java.util.List.of(UUID.randomUUID())))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void validEmptyQueryRemainsEmpty() throws IOException {
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/collections/materials", exchange -> respond(exchange, 200,
+                "GET".equals(exchange.getRequestMethod()) ? "{\"result\":{\"config\":{\"params\":{\"vectors\":{\"size\":2}}}}}" : "{\"result\":{\"points\":[]}}"));
+        server.start();
+        var index = new QdrantMaterialVectorIndex(json, "http://127.0.0.1", server.getAddress().getPort(), "materials", "", 1000, 1000);
+        assertThat(index.searchWithin(new float[]{.1f, .2f}, 3, UUID.randomUUID(), java.util.List.of(UUID.randomUUID()))).isEmpty();
     }
 }

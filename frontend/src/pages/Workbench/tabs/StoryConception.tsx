@@ -1,10 +1,10 @@
 import type { NetworkObject } from "@/lib/api-client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, normalizeConceptionResult } from "@/lib/api-client";
 import { runTrackedAiOperation } from "@/lib/ai-operation-store";
-import type { ForeshadowPlan, Outline, PlotBeat, PlotPlanning, ScenePlanning, TwistOption } from "@/types";
+import type { Outline, PlotPlanning, ScenePlanning } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,6 @@ import { AlertCircle, ArrowRight, BookOpen, Loader2, Network, Sparkles, Wand2 } 
 import { localizedErrorMessage } from "@/lib/error-messages";
 
 type ConceptionResult = {
-  degraded?: boolean;
   storyCard?: { id: string; title: string; synopsis: string; genre: string; tone: string };
   characterCards?: Array<{ id?: string; name: string; synopsis?: string; details?: string }>;
   plotPlanning?: PlotPlanning;
@@ -39,19 +38,9 @@ type ConceptionResult = {
   };
 };
 
-type OutlineSeedChapter = NonNullable<NonNullable<ConceptionResult["outlineSeed"]>["chapters"]>[number];
-type OutlineSeedScene = NonNullable<OutlineSeedChapter["scenes"]>[number];
-
 const CACHE_PREFIX = "ainovel.plot-planner.conception";
 
-const ensureUuid = () => {
-  if (crypto?.randomUUID) return crypto.randomUUID();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
-    const rand = Math.floor(Math.random() * 16);
-    const value = char === "x" ? rand : (rand & 0x3) | 0x8;
-    return value.toString(16);
-  });
-};
+const ensureUuid = () => crypto.randomUUID();
 
 const toSceneType = (value?: string): ScenePlanning["sceneType"] => (
   value === "action"
@@ -65,178 +54,32 @@ const toSceneType = (value?: string): ScenePlanning["sceneType"] => (
 
 const readCache = (storyId?: string) => {
   if (!storyId) return null;
-  try {
-    const raw = window.sessionStorage.getItem(`${CACHE_PREFIX}:${storyId}`);
-    if (!raw) return null;
-    return normalizeConceptionResult(JSON.parse(raw)) as ConceptionResult;
-  } catch {
-    return null;
-  }
+  const raw = window.sessionStorage.getItem(`${CACHE_PREFIX}:${storyId}`);
+  return raw ? normalizeConceptionResult(JSON.parse(raw)) as ConceptionResult : null;
 };
 
 const writeCache = (storyId: string, result: ConceptionResult) => {
-  try {
-    window.sessionStorage.setItem(`${CACHE_PREFIX}:${storyId}`, JSON.stringify(result));
-  } catch {
-    // Ignore session storage failures.
-  }
-};
-
-const createFallbackPlanning = (
-  title: string,
-  idea: string,
-  genre: string,
-  tone: string,
-  promiseHint: string,
-  secretHint: string,
-  memeHint: string,
-): PlotPlanning => {
-  const promise = promiseHint.trim() || `读者会持续追着《${title || "这个故事"}》的核心秘密往下读。`;
-  const hiddenTruth = secretHint.trim() || `真相并不在表面的冲突里，而是与“${idea.slice(0, 18) || "主角命运"}”相关。`;
-  const beats: PlotBeat[] = [
-    { id: ensureUuid(), label: "钩子", summary: "用异常事件或错误认知开篇，让读者先相信一个表层解释。" },
-    { id: ensureUuid(), label: "误导", summary: "通过角色选择和环境证据强化错误判断，让真相暂时潜伏。" },
-    { id: ensureUuid(), label: "揭示", summary: "在代价最高的时刻揭开真相，让前文伏笔完成回收。" },
-  ];
-  const foreshadowPlans: ForeshadowPlan[] = [
-    {
-      id: ensureUuid(),
-      clue: "第一章留下一处看似无关的异常细节",
-      disguise: "将异常包装成背景噪音或角色口误",
-      payoff: "在揭示时证明这其实是最早的真相提示",
-      revealTiming: "中后段",
-    },
-    {
-      id: ensureUuid(),
-      clue: "让配角说出半真半假的解释",
-      disguise: "把它做成情绪化发言，而不是事实陈述",
-      payoff: "让读者回头意识到解释里藏着反转答案",
-      revealTiming: "高潮前",
-    },
-  ];
-  const twistOptions: TwistOption[] = [
-    {
-      id: ensureUuid(),
-      label: "保留灵感版",
-      track: "instinct",
-      hook: `沿着“${idea || "核心创意"}”直推，让反转保持最原始的惊奇感。`,
-      hiddenTruth,
-      setup: ["用主角的直观判断推进事件", "早期伏笔只轻触，不做过度解释"],
-      misdirection: ["让读者把异常归因于表层敌人", "用类型预期掩护真正真相"],
-      revealTiming: "第三幕前半",
-      payoff: "反转更猛，但容错更低，需要后续大纲配合回收。",
-      risk: "如果中段铺垫不足，读者会觉得突然。",
-    },
-    {
-      id: ensureUuid(),
-      label: "结构更强版",
-      track: "structure",
-      hook: `先明确“${promise}”，让每次推进都服务最终揭示。`,
-      hiddenTruth,
-      setup: ["前 30% 明示错误目标", "中段重复同一线索但换解释视角", "在高潮前把关键线索倒转意义"],
-      misdirection: ["给每条线索一个合理但错误的解释", "让配角承担部分误导功能"],
-      revealTiming: "高潮节点",
-      payoff: "读者会觉得反转早有铺垫，回看时更成立。",
-      risk: "结构感更强，但如果角色动机不足，会显得用力过猛。",
-    },
-  ];
-
-  return {
-    corePromise: promise,
-    centralQuestion: `谁在误导读者理解“${idea.slice(0, 24) || "这场事件"}”？`,
-    hiddenTruth,
-    readerMisdirect: "让读者长期相信一个表层答案，再用更深一层因果推翻它。",
-    stakes: `一旦真相暴露，主角将失去当前最依赖的判断方式。${tone ? `整体气质保持 ${tone}。` : ""}`,
-    beats,
-    twistOptions,
-    foreshadowPlans,
-    memeStrategy: memeHint.trim()
-      ? {
-          reference: memeHint.trim(),
-          purpose: "用来增加角色辨识度或反差感，而不是抢戏。",
-          usage: "只在关键场景做一次高识别度点缀，避免反复刷存在。",
-          caution: "如果它削弱沉浸感，就退回到更保守的表达。",
-        }
-      : {
-          reference: `${genre || "当前题材"}梗`,
-          purpose: "给角色或世界观增加熟悉感。",
-          usage: "让梗先服务角色视角，再服务笑点。",
-          caution: "一旦读者会跳戏，就不要为了玩梗牺牲结构。",
-        },
-    confidence: 0.48,
-    warnings: ["当前结果使用了轻量 fallback 规划，建议保存后继续在大纲阶段细化。"],
-  };
+  window.sessionStorage.setItem(`${CACHE_PREFIX}:${storyId}`, JSON.stringify(result));
 };
 
 const createOutlineFromPlanning = (storyId: string, planning: PlotPlanning, selectedTwistId: string, outlineSeed?: ConceptionResult["outlineSeed"]): Outline => {
-  const selectedTwist = planning.twistOptions.find((item) => item.id === selectedTwistId) || planning.twistOptions[0];
-  const chapters = (outlineSeed?.chapters?.length ? outlineSeed.chapters : planning.beats).map((item: PlotBeat | OutlineSeedChapter, index) => {
-    const beat = planning.beats[index];
-    const outlineSeedChapter = "scenes" in item || "title" in item ? item : null;
-    const itemTitle = outlineSeedChapter?.title || beat?.label || `第 ${index + 1} 章`;
-    const itemSummary = outlineSeedChapter?.summary || beat?.summary || "";
-    const fallbackScenePlanning = planning.foreshadowPlans[index]
-      ? {
-          foreshadowHint: planning.foreshadowPlans[index].clue,
-          misdirectionAction: planning.foreshadowPlans[index].disguise,
-          revealTrigger: planning.foreshadowPlans[index].revealTiming || "",
-          payoffPlan: planning.foreshadowPlans[index].payoff,
-          memeUsage: index === 0 ? planning.memeStrategy?.usage || "" : "",
-        }
-      : {
-          foreshadowHint: "",
-          misdirectionAction: beat?.summary || "",
-          revealTrigger: selectedTwist?.revealTiming || "",
-          payoffPlan: selectedTwist?.payoff || "",
-          memeUsage: "",
-        };
-    const scenes = outlineSeedChapter?.scenes?.length
-      ? outlineSeedChapter.scenes.map((scene: OutlineSeedScene, sceneIndex: number) => ({
-          id: scene.id || ensureUuid(),
-          title: scene.title || `场景 ${sceneIndex + 1}`,
-          summary: scene.summary || itemSummary,
-          content: "",
-          planning: {
-            sceneType: toSceneType(scene.planning?.sceneType),
-            foreshadowHint: scene.planning?.foreshadowHint || (sceneIndex === 0 ? fallbackScenePlanning.foreshadowHint : ""),
-            misdirectionAction: scene.planning?.misdirectionAction || fallbackScenePlanning.misdirectionAction,
-            revealTrigger: scene.planning?.revealTrigger || fallbackScenePlanning.revealTrigger,
-            payoffPlan: scene.planning?.payoffPlan || fallbackScenePlanning.payoffPlan,
-            memeUsage: scene.planning?.memeUsage || (sceneIndex === 0 ? fallbackScenePlanning.memeUsage : ""),
-          },
-        }))
-      : [
-          {
-            id: ensureUuid(),
-            title: beat ? `${beat.label}场景` : `第 ${index + 1} 场`,
-            summary: itemSummary,
-            content: "",
-            planning: fallbackScenePlanning,
-          },
-        ];
+  if (!outlineSeed?.title || !outlineSeed.chapters?.length) throw new Error("AI_INITIALIZATION_INVALID_RESULT");
+  const chapters = outlineSeed.chapters.map(chapter => {
+    if (!chapter.title || !chapter.summary || !chapter.scenes?.length) throw new Error("AI_INITIALIZATION_INVALID_RESULT");
     return {
-      id: item.id || ensureUuid(),
-      title: itemTitle,
-      summary: itemSummary,
-      scenes,
-      planning: {
-        purpose: index === 0 ? "建立错误认知" : index === planning.beats.length - 1 ? "翻转并回收伏笔" : "加深误导并抬升代价",
-        informationRelease: itemSummary,
-        twistRole: index === planning.beats.length - 1 ? "reveal" : "setup",
-        selectedTwistId,
-      },
+      id: chapter.id || ensureUuid(), title: chapter.title, summary: chapter.summary,
+      planning: { ...chapter.planning, selectedTwistId },
+      scenes: chapter.scenes.map(scene => {
+        if (!scene.title || !scene.summary) throw new Error("AI_INITIALIZATION_INVALID_RESULT");
+        return {
+          id: scene.id || ensureUuid(), title: scene.title, summary: scene.summary, content: "",
+          planning: { ...scene.planning, sceneType: toSceneType(scene.planning?.sceneType) },
+        };
+      }),
     };
   });
-
-  return {
-    id: ensureUuid(),
-    storyId,
-    title: outlineSeed?.title || "剧情结构规划稿",
-    chapters,
-    updatedAt: new Date().toISOString(),
-    planning,
-    activeTwistId: selectedTwistId,
-  };
+  return { id: ensureUuid(), storyId, title: outlineSeed.title, chapters,
+    updatedAt: new Date().toISOString(), planning, activeTwistId: selectedTwistId };
 };
 
 const StoryConception = () => {
@@ -254,17 +97,24 @@ const StoryConception = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [result, setResult] = useState<ConceptionResult | null>(null);
+  const [cacheReadError, setCacheReadError] = useState<string | null>(null);
   const [selectedTwistId, setSelectedTwistId] = useState("");
 
   const storyIdFromQuery = params.get("id") || "";
 
-  useEffect(() => {
-    const cached = readCache(storyIdFromQuery);
-    if (cached?.plotPlanning) {
-      setResult(cached);
-      setSelectedTwistId(cached.plotPlanning.selectedTwistId || cached.plotPlanning.twistOptions[0]?.id || "");
+  const restoreCache = useCallback((storyId: string) => {
+    setCacheReadError(null);
+    try {
+      const cached = readCache(storyId);
+      if (cached?.plotPlanning) {
+        setResult(cached);
+        setSelectedTwistId(cached.plotPlanning.selectedTwistId || cached.plotPlanning.twistOptions[0]?.id || "");
+      }
+    } catch (error) {
+      setCacheReadError(localizedErrorMessage(error, "errors.loadFailed"));
     }
-  }, [storyIdFromQuery]);
+  }, []);
+  useEffect(() => { restoreCache(storyIdFromQuery); }, [storyIdFromQuery, restoreCache]);
 
   const planning = result?.plotPlanning;
   const selectedTwist = useMemo(
@@ -292,24 +142,24 @@ const StoryConception = () => {
         },
       }));
       const response = normalizeConceptionResult(operation.resultJson ? JSON.parse(operation.resultJson) : null);
-      const nextPlanning =
-        response.plotPlanning ||
-        createFallbackPlanning(title, idea, genre, tone, promiseHint, secretHint, memeHint);
+      const nextPlanning = response.plotPlanning;
+      if (!nextPlanning || !response.storyCard?.id || !Array.isArray(response.characterCards) || !response.outlineSeed?.chapters?.length)
+        throw new Error("AI_INITIALIZATION_INVALID_RESULT");
       const nextResult: ConceptionResult = {
-        degraded: response.degraded === true,
         storyCard: response?.storyCard,
-        characterCards: response?.characterCards || response?.generated?.characters || [],
+        characterCards: response.characterCards,
         plotPlanning: nextPlanning,
         outlineSeed: response?.outlineSeed,
       };
       setResult(nextResult);
       setSelectedTwistId(nextPlanning.selectedTwistId || nextPlanning.twistOptions[0]?.id || "");
       if (response?.storyCard?.id) {
-        writeCache(response.storyCard.id, nextResult);
+        try { writeCache(response.storyCard.id, nextResult); }
+        catch (error) { toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error, "errors.saveFailed") }); }
       }
-      toast({ title: response.degraded ? "已生成待补充草稿" : t("storyConception.generated"), description: response.degraded ? "部分 AI 字段缺失，已用基础结构补齐，请在写作前核对。" : t("storyConception.generatedDesc") });
-    } catch {
-      toast({ variant: "destructive", title: t("errors.generateFailed") });
+      toast({ title: t("storyConception.generated"), description: t("storyConception.generatedDesc") });
+    } catch (error) {
+      toast({ variant: "destructive", title: t("errors.generateFailed"), description: localizedErrorMessage(error, "errors.generateFailed") });
     } finally {
       setIsGenerating(false);
     }
@@ -384,7 +234,7 @@ const StoryConception = () => {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] h-full">
-      {result?.degraded && <p role="status" className="rounded border border-amber-500 p-3 text-sm">初始化结果不完整，部分设定使用了基础结构。请核对人物、反转和章节建议后再写作。</p>}
+      {cacheReadError && <div role="alert" className="text-sm text-destructive">{cacheReadError}<Button variant="link" onClick={() => restoreCache(storyIdFromQuery)}>{t("common.retry")}</Button></div>}
       <Card className="h-fit">
         <CardHeader>
           <CardTitle>{t("storyConception.entryTitle")}</CardTitle>

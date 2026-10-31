@@ -12,7 +12,7 @@ describe("AI quote client", () => {
     const fetcher = vi.fn().mockResolvedValueOnce(response({ code: "AI_QUOTE_REQUIRED" }, 428))
       .mockResolvedValueOnce(response(quoteFixture())).mockResolvedValueOnce(response({ content: "generated" }));
     vi.stubGlobal("fetch", fetcher);
-    const result = api.ai.chat([{ role: "user", content: "hello" }], "ignored-legacy-id", {});
+    const result = api.ai.versionSummary([{ role: "user", content: "hello" }], {});
     await waitFor(() => expect(pendingAiQuote()).not.toBeNull());
     expect(fetcher).toHaveBeenCalledTimes(2);
     finishAiQuote(pendingAiQuote()!, "quote-one");
@@ -26,7 +26,7 @@ describe("AI quote client", () => {
   it("cancelling never submits the chargeable action", async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(response({ code: "AI_QUOTE_REQUIRED" }, 428)).mockResolvedValueOnce(response(quoteFixture()));
     vi.stubGlobal("fetch", fetcher);
-    const result = api.ai.chat([{ role: "user", content: "hello" }], "model", {});
+    const result = api.ai.versionSummary([{ role: "user", content: "hello" }], {});
     await waitFor(() => expect(pendingAiQuote()).not.toBeNull());
     const rejected = expect(result).rejects.toThrow("AI_QUOTE_CANCELLED");
     finishAiQuote(pendingAiQuote()!); await rejected;
@@ -34,7 +34,7 @@ describe("AI quote client", () => {
   });
   it("a free action never opens the quote prompt", async () => {
     const fetcher = vi.fn().mockResolvedValue(response({ content: "free" })); vi.stubGlobal("fetch", fetcher);
-    await expect(api.ai.chat([{ role: "user", content: "hello" }], "model", {})).resolves.toMatchObject({ content: "free" });
+    await expect(api.ai.versionSummary([{ role: "user", content: "hello" }], {})).resolves.toMatchObject({ content: "free" });
     expect(pendingAiQuote()).toBeNull(); expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it("settlement reuses the receipt body, quote and request key without quoting again", async () => {

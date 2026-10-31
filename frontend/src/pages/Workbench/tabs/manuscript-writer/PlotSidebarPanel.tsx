@@ -240,7 +240,7 @@ export function PlotSidebarPanel({
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.avgRisk")}</div>
-                <div className="text-lg font-semibold">{plotTrend ? Math.round(plotTrend.averageRisk) : "-"}</div>
+                <div className="text-lg font-semibold">{plotTrend?.averageRisk != null ? Math.round(plotTrend.averageRisk) : "-"}</div>
               </div>
               <div className="rounded bg-muted/60 p-2">
                 <div className="text-muted-foreground">{t("plotPanel.highRiskScenes")}</div>

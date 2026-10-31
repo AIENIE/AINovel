@@ -195,19 +195,11 @@ public class SettingsService {
     }
 
     private Map<String, String> jsonToMap(String json) {
-        if (json == null || json.isBlank()) return new HashMap<>();
-        try {
-            return objectMapper.readValue(json, Map.class);
-        } catch (Exception e) {
-            return new HashMap<>();
-        }
+        return new com.ainovel.app.common.JsonColumnCodec(objectMapper).read(json,
+                new com.fasterxml.jackson.core.type.TypeReference<>() {}, new HashMap<>());
     }
 
     private String mapToJson(Map<String, String> map) {
-        try {
-            return objectMapper.writeValueAsString(map);
-        } catch (Exception e) {
-            return "{}";
-        }
+        return new com.ainovel.app.common.JsonColumnCodec(objectMapper).writeRequired(map);
     }
 }

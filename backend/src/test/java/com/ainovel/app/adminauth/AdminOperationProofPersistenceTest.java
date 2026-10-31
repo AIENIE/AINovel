@@ -26,6 +26,9 @@ import static org.mockito.Mockito.when;
 })
 @ActiveProfiles("test")
 class AdminOperationProofPersistenceTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     // Isolate business tests from the external SSO transport and its mounted CA.
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.ainovel.app.auth.SsoTokenExchangeService ssoTokenExchangeService;

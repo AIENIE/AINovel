@@ -234,15 +234,6 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
     }
   };
 
-  const syncGraph = async () => {
-    if (!storyId) return;
-    try {
-      await api.v2.context.syncGraph(storyId);
-      toast({ title: t("lorebook.graphSynced") });
-    } catch (error: unknown) {
-      toast({ variant: "destructive", title: t("lorebook.syncFailed"), description: localizedErrorMessage(error, "lorebook.syncFailed") });
-    }
-  };
 
   const used = Number(preview?.tokenUsed ?? 0);
   const budget = Number(preview?.tokenBudget ?? 1);
@@ -274,9 +265,6 @@ const LorebookPanel = ({ initialStoryId }: LorebookPanelProps) => {
           </div>
           <Button variant="secondary" onClick={loadLorebook} disabled={!storyId || loading}>
             {t("common.refresh")}
-          </Button>
-          <Button variant="outline" onClick={syncGraph} disabled={!storyId || loading}>
-            {t("lorebook.syncGraph")}
           </Button>
           <Button variant="outline" onClick={loadPreview} disabled={!storyId || loading}>
             {t("lorebook.refreshContextPreview")}

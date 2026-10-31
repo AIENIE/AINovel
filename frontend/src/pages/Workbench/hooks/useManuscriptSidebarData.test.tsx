@@ -197,4 +197,18 @@ describe("useManuscriptSidebarData", () => {
       sceneId: "scene-7",
     });
   });
+  it("reports a goal read failure without replacing the last successful list", async () => {
+    const fetch = vi.spyOn(api.v2.workspace, "listGoals").mockResolvedValue([{ id: "goal" }] as never);
+    const client = createTestQueryClient(), toast = vi.fn();
+    const { result } = renderHook(() => useManuscriptSidebarData({ applyFetchedManuscript: vi.fn(), isSidebarOpen: false,
+      selectedManuscriptId: "", selectedSceneId: "", selectedSceneIds: [], selectedStoryId: "", sidebarTab: "version", toast }),
+      { wrapper: createQueryClientWrapper(client) });
+    await waitFor(() => expect(result.current.goals).toHaveLength(1));
+    fetch.mockRejectedValue(new Error("unavailable"));
+    await act(async () => { await client.invalidateQueries({ queryKey: ["workbench", "sidebar", "goals"] }); });
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
+    expect(result.current.goals).toHaveLength(1);
+    expect(client.getQueryState(["workbench", "sidebar", "goals"])?.status).toBe("error");
+  });
+
 });

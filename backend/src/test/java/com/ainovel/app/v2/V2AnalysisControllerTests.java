@@ -6,17 +6,17 @@ import com.ainovel.app.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class V2AnalysisControllerTests {
 
@@ -47,26 +47,12 @@ class V2AnalysisControllerTests {
     }
 
     @Test
-    void triggerContinuityCheckShouldReturnStableNotImplementedCode() {
-        Map<String, Object> payload = Map.of(
-                "scope", "chapter",
-                "scopeReference", "chapter-2",
-                "text", "章节衔接前后矛盾"
-        );
-        ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
-                controller.triggerContinuityCheck(principal, storyId, V2RequestPayload.of(payload));
-
-        assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
-        assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());
-    }
-
-    @Test
-    void triggerBetaReaderShouldReturnStableNotImplementedCode() {
-        ResponseEntity<V2AnalysisDtos.AnalysisUnavailableResponse> result =
-                controller.triggerBetaReader(principal, storyId, V2RequestPayload.of(Map.of()));
-
-        assertEquals(HttpStatus.NOT_IMPLEMENTED, result.getStatusCode());
-        assertEquals("ANALYSIS_NOT_IMPLEMENTED", result.getBody().code());
+    void retiredTriggersReturnNotFound() throws Exception {
+        var http = MockMvcBuilders.standaloneSetup(controller).build();
+        for (String operation : List.of("beta-reader", "continuity-check")) {
+            http.perform(post("/v2/stories/" + storyId + "/analysis/" + operation))
+                    .andExpect(status().isNotFound());
+        }
     }
 
     @Test

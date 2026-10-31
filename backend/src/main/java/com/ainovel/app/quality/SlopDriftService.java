@@ -13,7 +13,6 @@ import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -55,10 +54,10 @@ public class SlopDriftService {
     }
 
     public SlopDriftRun analyze(User user, Manuscript manuscript) {
-        var snapshot = boundary == null ? null : boundary.snapshot(manuscript, this::buildInput);
-        DriftInput input = snapshot == null ? buildInput(manuscript) : snapshot.data();
+        var snapshot = boundary.snapshot(manuscript, this::buildInput);
+        DriftInput input = snapshot.data();
         SlopDriftRun result = evaluate(user, input);
-        return snapshot == null ? runRepository.save(result) : boundary.save(snapshot,
+        return boundary.save(snapshot,
                 current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
@@ -119,7 +118,7 @@ public class SlopDriftService {
         List<OrderedScene> scenes = new ArrayList<>();
         for (int chapterIndex = 0; chapterIndex < chapters.size(); chapterIndex++) {
             Map<String, Object> chapter = chapters.get(chapterIndex);
-            int chapterOrder = intVal(chapter.get("order"), chapterIndex + 1);
+            int chapterOrder = com.ainovel.app.common.JsonValues.integer(chapter.get("order"), chapterIndex + 1);
             String chapterTitle = safe(str(chapter.get("title"), ""), "未命名章节");
             List<Map<String, Object>> sceneList = listOfMap(chapter.get("scenes"));
             for (int sceneIndex = 0; sceneIndex < sceneList.size(); sceneIndex++) {
@@ -133,7 +132,7 @@ public class SlopDriftService {
                         chapterTitle,
                         chapterOrder,
                         safe(str(scene.get("title"), ""), "未命名场景"),
-                        intVal(scene.get("order"), sceneIndex + 1)
+                        com.ainovel.app.common.JsonValues.integer(scene.get("order"), sceneIndex + 1)
                 ));
             }
         }
@@ -174,22 +173,32 @@ public class SlopDriftService {
         run.setStatus(SlopDriftStatus.INSUFFICIENT_TEXT);
         run.setOverallRiskScore(0);
         run.setRiskLabel("unavailable");
-        run.setSafeClaim("正文窗口不足，无法判断长篇 drift；这不能证明作者使用 AI。");
+        run.setSafeClaim("正文窗口不足，无法判断长篇 drift");
         run.setSummary("正文不足，长篇 drift 巡检需要至少 6000 字且形成 3 个有效窗口。");
         run.setMetricCurvesJson("{}");
         run.setDriftPointsJson("[]");
         run.setEvidenceItemsJson("[]");
-        run.setAlternativeExplanationsJson(writeJson(defaultAlternatives()));
+        run.setAlternativeExplanationsJson("[]");
         run.setRewriteTasksJson("[]");
         return run;
     }
 
     private SlopDriftRun completedRun(DriftInput input, List<WindowSample> windows, Map<String, Object> root) {
+        if (!(root.get("overall") instanceof Map<?,?>)) throw new IllegalArgumentException("DRIFT_INVALID_SCHEMA");
+        for (String key : List.of("window_summaries", "drift_points", "evidence_items", "rewrite_tasks")) {
+            if (!(root.get(key) instanceof List<?> list) || list.stream().anyMatch(v -> !(v instanceof Map<?,?>)))
+                throw new IllegalArgumentException("DRIFT_INVALID_SCHEMA");
+        }
+        if (!(root.get("metric_curves") instanceof Map<?,?>) || !(root.get("summary") instanceof String summary) || summary.isBlank())
+            throw new IllegalArgumentException("DRIFT_INVALID_SCHEMA");
         Map<String, Object> overall = map(root.get("overall"));
-        int risk = intVal(overall.get("midbook_drift_risk_score"), intVal(root.get("risk_score"), 0));
+        Object score = overall.get("midbook_drift_risk_score");
+        if (!(score instanceof Number n) || n.doubleValue() != n.intValue() || n.intValue() < 0 || n.intValue() > 100)
+            throw new IllegalArgumentException("DRIFT_INVALID_RISK_SCORE");
+        int risk = n.intValue();
         String riskLabel = str(overall.get("risk_label"), label(risk));
         String safeClaim = str(overall.get("safe_claim"),
-                "该稿件呈现%s级长篇 drift 风险；这不能证明作者使用 AI。".formatted(riskLabel));
+                "该稿件呈现%s级长篇 drift 风险".formatted(riskLabel));
 
         SlopDriftRun run = baseRun(input, windows);
         run.setStatus(SlopDriftStatus.COMPLETED);
@@ -197,26 +206,25 @@ public class SlopDriftService {
         run.setRiskLabel(riskLabel);
         run.setSafeClaim(truncate(safeClaim, 500));
         run.setSummary(truncate(str(root.get("summary"), safeClaim), 800));
-        run.setWindowSummariesJson(writeJson(root.getOrDefault("window_summaries", windowMetadata(windows))));
-        run.setMetricCurvesJson(writeJson(root.getOrDefault("metric_curves", Map.of())));
-        run.setDriftPointsJson(writeJson(root.getOrDefault("drift_points", List.of())));
-        run.setEvidenceItemsJson(writeJson(root.getOrDefault("evidence_items", List.of())));
-        run.setAlternativeExplanationsJson(writeJson(root.getOrDefault("alternative_explanations", defaultAlternatives())));
-        run.setRewriteTasksJson(writeJson(root.getOrDefault("rewrite_tasks", List.of())));
+        run.setWindowSummariesJson(writeJson(root.get("window_summaries")));
+        run.setMetricCurvesJson(writeJson(root.get("metric_curves")));
+        run.setDriftPointsJson(writeJson(root.get("drift_points")));
+        run.setEvidenceItemsJson(writeJson(root.get("evidence_items")));
+        run.setAlternativeExplanationsJson(writeJson(root.getOrDefault("alternative_explanations", List.of())));
+        run.setRewriteTasksJson(writeJson(root.get("rewrite_tasks")));
         return run;
     }
 
     private SlopDriftRun degradedRun(DriftInput input, List<WindowSample> windows, RuntimeException ex) {
         SlopDriftRun run = baseRun(input, windows);
         run.setStatus(SlopDriftStatus.DEGRADED);
-        run.setOverallRiskScore(45);
-        run.setRiskLabel("medium");
-        run.setSafeClaim("长篇 drift 语义巡检失败，已降级记录；这不能证明作者使用 AI。");
+        run.setRiskLabel("unknown");
+        run.setSafeClaim("长篇 drift 语义巡检失败，已降级记录");
         run.setSummary("长篇 drift 巡检失败，已降级记录：" + truncate(ex.getMessage(), 160));
         run.setMetricCurvesJson("{}");
         run.setDriftPointsJson("[]");
         run.setEvidenceItemsJson("[]");
-        run.setAlternativeExplanationsJson(writeJson(defaultAlternatives()));
+        run.setAlternativeExplanationsJson("[]");
         run.setRewriteTasksJson("[]");
         return run;
     }
@@ -239,8 +247,6 @@ public class SlopDriftService {
 
                 安全边界：
                 - 只评价文本呈现出的模板化、角色漂移、事件传送带、伏笔遗忘和叙事机制断层风险。
-                - 禁止输出 AI 概率，禁止说作者从某章开始使用 AI。
-                - E1-E3 判断必须给出替代解释，例如赶稿、换写手、剧情高潮、平台节奏、作者疲劳、题材惯例。
 
                 输出 JSON：
                 {
@@ -248,7 +254,7 @@ public class SlopDriftService {
                   "overall": {
                     "midbook_drift_risk_score": 0-100,
                     "risk_label": "low|medium|high|critical",
-                    "safe_claim": "该稿件在某阶段呈现...风险；这不能证明作者使用AI。"
+                    "safe_claim": "该稿件在某阶段呈现...风险"
                   },
                   "window_summaries": [{"label": "opening", "summary": "窗口观察"}],
                   "metric_curves": {
@@ -338,9 +344,6 @@ public class SlopDriftService {
         }
     }
 
-    private Map<String, String> readSectionMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
-    }
 
     private Map<String, Object> readObjectMap(String json) {
         return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
@@ -348,14 +351,13 @@ public class SlopDriftService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("数据结构应为数组");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 out.add(new LinkedHashMap<>((Map<String, Object>) map));
-            }
+            } else throw new BusinessException("数组项目应为对象");
         }
         return out;
     }
@@ -366,11 +368,7 @@ public class SlopDriftService {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
-    }
-
-    private List<String> defaultAlternatives() {
-        return List.of("赶稿", "换写手", "剧情高潮段落", "平台节奏压力", "作者疲劳", "题材/平台惯例");
+        return jsonColumnCodec.writeRequired(value);
     }
 
     private String stripHtml(String html) {
@@ -386,17 +384,6 @@ public class SlopDriftService {
             return UUID.fromString(value.toString());
         } catch (Exception ex) {
             return null;
-        }
-    }
-
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(String.valueOf(value));
-        } catch (Exception ex) {
-            return fallback;
         }
     }
 
@@ -441,8 +428,8 @@ public class SlopDriftService {
                 builder.append(String.format("%02x", b));
             }
             return builder.toString();
-        } catch (Exception ex) {
-            return "";
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 

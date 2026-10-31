@@ -36,6 +36,7 @@ public record CompiledSceneDraftContext(
         return manifest == null ? "" : manifest.compilerVersion();
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isolated() { return manifest != null && manifest.isolationStamp() != null; }
 
     public String contextHash() {

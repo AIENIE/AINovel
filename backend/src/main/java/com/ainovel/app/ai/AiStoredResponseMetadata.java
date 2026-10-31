@@ -35,7 +35,7 @@ public class AiStoredResponseMetadata {
                 ||!java.util.Set.of(AiCreditReservation.Status.RESULT_READY,AiCreditReservation.Status.COMPLETED).contains(reservation.getStatus()))return null;
         if(reservation.getResultMetadataJson()!=null) {
             try{return json.readValue(reservation.getResultMetadataJson(),AiResponseMetadata.class);}
-            catch(com.fasterxml.jackson.core.JsonProcessingException invalid){return null;}
+            catch(com.fasterxml.jackson.core.JsonProcessingException invalid){throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,"STORED_DATA_INVALID");}
         }
         if(user.getRemoteUid()==null||user.getRemoteUid()<=0)return null;
         var candidates=calls.findByRequestIdAndSettlementState(requestId,"SETTLED");
@@ -58,7 +58,7 @@ public class AiStoredResponseMetadata {
                     response.hasReasoningTokens()?response.getReasoningTokens():null,
                     response.hasUsageAuthoritative()?response.getUsageAuthoritative():null);
         } catch(java.io.IOException|IllegalArgumentException invalid) {
-            return null;
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,"STORED_DATA_INVALID");
         }
     }
 }

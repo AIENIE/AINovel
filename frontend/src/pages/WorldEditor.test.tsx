@@ -71,14 +71,14 @@ describe("WorldEditor", () => {
   it("requires explicit save before generation or publishing without silently saving", async () => {
     const update = vi.spyOn(api.worlds, "update");
     const generate = vi.spyOn(api.worlds, "startGenerateEntry");
-    const preview = vi.spyOn(api.worlds, "publishPreview");
+    const publish = vi.spyOn(api.worlds, "publish");
     renderEditor();
     fireEvent.change(await screen.findByLabelText("正文"), { target: { value: "未保存的群岛" } });
     fireEvent.click(screen.getByRole("button", { name: /^气候/ }));
     fireEvent.click(screen.getByRole("button", { name: "AI 补空" }));
     expect(screen.getByRole("alert").textContent).toContain("请先保存");
     fireEvent.click(screen.getByRole("button", { name: "发布世界版本" }));
-    expect(update).not.toHaveBeenCalled(); expect(generate).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled(); expect(generate).not.toHaveBeenCalled(); expect(publish).not.toHaveBeenCalled();
   });
 
   it("protects reload and route changes and keeps the editor open when save fails", async () => {

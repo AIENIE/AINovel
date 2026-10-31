@@ -55,6 +55,14 @@ class ManuscriptControllerTest {
         verify(service).patchSceneGenerationFeedback(manuscriptId, sceneId, runId, feedback);
     }
 
+    @Test
+    void retiredCharacterPlaceholderReturnsNotFound() throws Exception {
+        org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller(mock(ManuscriptService.class))).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v1/manuscripts/"+UUID.randomUUID()+"/sections/analyze-character-changes")
+                        .contentType("application/json").content("{}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+    }
+
     private ManuscriptController controller(ManuscriptService service) {
         ManuscriptController controller = new ManuscriptController();
         ReflectionTestUtils.setField(controller, "manuscriptService", service);

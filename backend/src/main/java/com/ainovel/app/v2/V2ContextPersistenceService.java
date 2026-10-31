@@ -79,24 +79,6 @@ public class V2ContextPersistenceService {
         relationshipRepository.deleteByStoryIdAndId(storyId, relationshipId);
     }
 
-    @Transactional
-    public Map<String, Object> createExtraction(Story story, Map<String, Object> payload) {
-        String text = blank(payload.get("text"), "");
-        if (text.isBlank()) {
-            throw new BusinessException("text 不能为空");
-        }
-        V2EntityExtraction extraction = new V2EntityExtraction();
-        extraction.setStory(story);
-        extraction.setEntityName(blank(payload.get("entityName"), text.substring(0, Math.min(12, text.length()))));
-        extraction.setEntityType(blank(payload.get("entityType"), "concept"));
-        extraction.setAttributesJson(v2Json.write(payload.getOrDefault("attributes", Map.of("source", "ai"))));
-        extraction.setSourceText(text.substring(0, Math.min(text.length(), 200)));
-        extraction.setConfidence(doubleVal(payload.get("confidence"), 0.82d));
-        extraction.setReviewed(false);
-        extraction.setReviewAction("pending");
-        return extractionMap(extractionRepository.save(extraction));
-    }
-
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listExtractions(UUID storyId) {
         return extractionRepository.findByStoryIdOrderByCreatedAtDesc(storyId).stream().map(this::extractionMap).toList();
@@ -121,10 +103,10 @@ public class V2ContextPersistenceService {
         entry.setCategory(blank(payload.get("category"), "custom"));
         entry.setContent(blank(payload.get("content"), ""));
         entry.setKeywordsJson(v2Json.write(list(payload.get("keywords"))));
-        entry.setPriority(intVal(payload.get("priority"), 0));
-        entry.setEnabled(boolVal(payload.get("enabled"), true));
+        entry.setPriority(com.ainovel.app.common.JsonValues.integer(payload.get("priority"), 0));
+        entry.setEnabled(com.ainovel.app.common.JsonValues.bool(payload.get("enabled"), true));
         entry.setInsertionPosition(blank(payload.get("insertionPosition"), "before_scene"));
-        entry.setTokenBudget(intVal(payload.get("tokenBudget"), 500));
+        entry.setTokenBudget(com.ainovel.app.common.JsonValues.integer(payload.get("tokenBudget"), 500));
     }
 
     private V2LorebookEntry requireLorebook(UUID storyId, UUID id) {
@@ -180,7 +162,9 @@ public class V2ContextPersistenceService {
     }
 
     private static List<Object> list(Object value) {
-        return value instanceof List<?> raw ? new ArrayList<>(raw) : new ArrayList<>();
+        if (value == null) return new ArrayList<>();
+        if (value instanceof List<?> raw) return new ArrayList<>(raw);
+        throw new BusinessException("字段必须为数组");
     }
 
     private static String blank(Object value, String fallback) {
@@ -189,17 +173,4 @@ public class V2ContextPersistenceService {
         return text.isBlank() ? fallback : text;
     }
 
-    private static int intVal(Object value, int fallback) {
-        if (value instanceof Number n) return n.intValue();
-        try { return value == null ? fallback : Integer.parseInt(value.toString()); } catch (Exception ex) { return fallback; }
-    }
-
-    private static double doubleVal(Object value, double fallback) {
-        if (value instanceof Number n) return n.doubleValue();
-        try { return value == null ? fallback : Double.parseDouble(value.toString()); } catch (Exception ex) { return fallback; }
-    }
-
-    private static boolean boolVal(Object value, boolean fallback) {
-        return value instanceof Boolean b ? b : value == null ? fallback : Boolean.parseBoolean(value.toString());
-    }
 }

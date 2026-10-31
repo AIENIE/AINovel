@@ -27,7 +27,7 @@ class StoryControllerTests {
         OutlineService outlineService = mock(OutlineService.class);
         AiService aiService = mock(AiService.class);
         CurrentUserResolver currentUserResolver = mock(CurrentUserResolver.class);
-        StoryController controller = new StoryController(storyService, outlineService, aiService, currentUserResolver);
+        StoryController controller = new StoryController(storyService, outlineService, currentUserResolver);
         UUID storyId = UUID.randomUUID();
         List<OutlineDto> outlines = List.of(new OutlineDto(
                 UUID.randomUUID(),
@@ -52,7 +52,7 @@ class StoryControllerTests {
         OutlineService outlineService = mock(OutlineService.class);
         AiService aiService = mock(AiService.class);
         CurrentUserResolver currentUserResolver = mock(CurrentUserResolver.class);
-        StoryController controller = new StoryController(storyService, outlineService, aiService, currentUserResolver);
+        StoryController controller = new StoryController(storyService, outlineService, currentUserResolver);
         UUID storyId = UUID.randomUUID();
         OutlineCreateRequest request = new OutlineCreateRequest("新大纲", "world-1", Map.of("hook", "seed"));
         OutlineDto outline = new OutlineDto(

@@ -31,13 +31,13 @@ class AiValidationBudgetConcurrencyTest {
         var ids=new ConcurrentLinkedQueue<UUID>();
         try(var pool=Executors.newFixedThreadPool(8)) {
             List<Callable<Boolean>> attempts=new ArrayList<>();
-            for(int i=0;i<30;i++)attempts.add(()->{try{ids.add(budget.claim(request,"same-logical-request","test-model"));return true;}catch(ApiStatusException exhausted){return false;}});
+            for(int i=0;i<30;i++)attempts.add(()->{try{ids.add(budget.claimGateway("CHAT",request.messages(),"same-logical-request","test-model"));return true;}catch(ApiStatusException exhausted){return false;}});
             long accepted=0;for(var future:pool.invokeAll(attempts))if(future.get())accepted++;
             assertEquals(10,accepted);
         }
         ids.forEach(id->budget.complete(id,Map.of("errorType","TimeoutException"),false));
         assertEquals(10,budgets.findById(row.getId()).orElseThrow().getUsed());
         assertEquals(10,calls.count());
-        assertThrows(ApiStatusException.class,()->budget.claim(request,"after-failure","test-model"));
+        assertThrows(ApiStatusException.class,()->budget.claimGateway("CHAT",request.messages(),"after-failure","test-model"));
     }
 }

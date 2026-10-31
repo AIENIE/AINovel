@@ -17,7 +17,6 @@ import com.ainovel.app.world.WorldBindingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,7 @@ class SceneDraftContextCompilerTest {
         var world=mock(WorldBindingService.class);var cards=mock(CharacterCardRepository.class);
         var style=mock(StyleProfileRepository.class);var voices=mock(CharacterVoiceRepository.class);var lore=mock(V2ContextPersistenceService.class);
         var compiler=new SceneDraftContextCompiler(objectMapper,world,cards,style,voices,lore);
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, world);
         var isolation=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(compiler,"isolation",isolation);
         var owner=new User();owner.setId(UUID.randomUUID());var story=new Story();story.setId(UUID.randomUUID());story.setUser(owner);story.setSynopsis("SECRET_SYNOPSIS");
@@ -73,7 +72,7 @@ class SceneDraftContextCompilerTest {
                 characterVoiceRepository,
                 contextPersistenceService
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, worldRepository);
 
         User owner = new User();
         owner.setId(UUID.randomUUID());
@@ -89,7 +88,6 @@ class SceneDraftContextCompilerTest {
         when(worldRepository.input(org.mockito.ArgumentMatchers.any())).thenReturn(new WorldBindingService.Frozen(frozen));
         when(worldRepository.requireUsable(frozen)).thenReturn(frozen);
         when(worldRepository.reference(frozen)).thenReturn(frozen);
-        when(worldRepository.render(frozen)).thenReturn("名称=潮汐雨城\n创作意图=所有超自然现象都必须留下可验证代价\n规则=午夜退潮");
 
         StyleProfile profile = new StyleProfile();
         profile.setId(UUID.randomUUID());
@@ -270,7 +268,7 @@ class SceneDraftContextCompilerTest {
                 characterVoiceRepository,
                 contextPersistenceService
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(compiler);
+        com.ainovel.app.manuscript.SceneGenerationTestSupport.configureCompiler(compiler, worldRepository);
 
         User owner = new User();
         owner.setId(UUID.randomUUID());

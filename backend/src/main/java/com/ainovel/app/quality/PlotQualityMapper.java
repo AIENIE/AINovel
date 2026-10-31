@@ -10,6 +10,7 @@ public final class PlotQualityMapper {
     }
 
     public static PlotQualityRunDto toDto(PlotQualityRun run) {
+        boolean assessed = run.getStatus() != PlotQualityStatus.DEGRADED;
         return new PlotQualityRunDto(
                 run.getId(),
                 run.getStoryId(),
@@ -20,8 +21,8 @@ public final class PlotQualityMapper {
                 run.getChapterOrder(),
                 run.getSceneOrder(),
                 run.getStatus().name(),
-                run.getMaxSeverity().name(),
-                run.getOverallRiskScore(),
+                assessed ? run.getMaxSeverity().name() : null,
+                assessed ? run.getOverallRiskScore() : null,
                 run.getSummary(),
                 run.getRewritePlanJson(),
                 run.getSurgicalFixesJson(),

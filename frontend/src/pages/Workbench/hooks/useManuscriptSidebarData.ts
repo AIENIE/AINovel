@@ -37,11 +37,7 @@ const exportDataQueryKey = (manuscriptId: string) => ["workbench", "sidebar", "e
 const statsQueryKey = ["workbench", "sidebar", "stats"] as const;
 
 async function fetchGoals() {
-  try {
-    return await api.v2.workspace.listGoals();
-  } catch {
-    return [];
-  }
+  return await api.v2.workspace.listGoals();
 }
 
 async function fetchContextPreview(storyId: string, manuscriptId: string, sceneId: string) {
@@ -114,6 +110,9 @@ export function useManuscriptSidebarData({
     retry: false,
     refetchOnWindowFocus: false,
   });
+  useEffect(() => {
+    if (goalsQuery.error) toast({ variant: "destructive", title: t("errors.loadFailed"), description: localizedErrorMessage(goalsQuery.error) });
+  }, [goalsQuery.error, toast]);
   const contextPreviewQuery = useQuery({
     queryKey: contextPreviewQueryKey(selectedStoryId, selectedManuscriptId, selectedSceneId),
     queryFn: async () => {

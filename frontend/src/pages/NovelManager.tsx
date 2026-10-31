@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
@@ -14,7 +14,7 @@ import { countWords, stripHtml } from "@/pages/Workbench/tabs/manuscript-writer/
 import { Story } from "@/types";
 import { showError, showSuccess } from "@/utils/toast";
 
-type StoryCardStats = Record<string, { wordCount: number; progress: number }>;
+type StoryCardStats = Record<string, { wordCount: number; progress: number } | null>;
 
 function estimateTextLength(html: string) {
   return countWords(stripHtml(html || ""));
@@ -26,15 +26,18 @@ const NovelManager = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [stats, setStats] = useState<StoryCardStats>({});
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const list = await api.stories.list();
       setStories(list);
       setLoading(false);
 
-      // Background stats: wordCount & progress (best-effort)
+      setStats({});
+      // Load statistics independently; an unavailable result stays distinct from zero.
       (async () => {
         const next: StoryCardStats = {};
         await Promise.all(
@@ -57,7 +60,7 @@ const NovelManager = () => {
               const progress = totalScenes ? Math.min(100, Math.round(filledScenes / totalScenes * 100)) : 0;
               next[story.id] = { wordCount, progress };
             } catch {
-              next[story.id] = { wordCount: 0, progress: 0 };
+              next[story.id] = null;
             }
           })
         );
@@ -65,6 +68,7 @@ const NovelManager = () => {
       })();
     } catch (e: unknown) {
       setLoading(false);
+      setLoadFailed(true);
       showError(e, "errors.loadFailed");
     }
   };
@@ -83,8 +87,6 @@ const NovelManager = () => {
       showError(e, "errors.deleteFailed");
     }
   };
-
-  const displayStories = useMemo(() => stories, [stories]);
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -126,14 +128,16 @@ const NovelManager = () => {
             <div className="col-span-full text-sm text-muted-foreground">{t("common.loading")}</div>
           )}
 
-          {!loading && displayStories.length === 0 && (
+          {!loading && !loadFailed && stories.length === 0 && (
             <div className="col-span-full text-sm text-muted-foreground">{t("novels.empty")}</div>
           )}
 
-          {displayStories.map((novel) => {
+          {loadFailed && <div role="alert" className="col-span-full text-sm text-destructive">{t("errors.loadFailed")}<Button variant="link" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
+
+          {stories.map((novel) => {
             const s = stats[novel.id];
-            const progress = s?.progress ?? 0;
-            const wordCount = s?.wordCount ?? 0;
+            const progress = s?.progress;
+            const wordCount = s?.wordCount;
             return (
               <div
                 key={novel.id}
@@ -170,19 +174,20 @@ const NovelManager = () => {
                         <Clock className="h-3 w-3" /> {new Date(novel.updatedAt).toLocaleString()}
                       </div>
                       <div className="flex items-center gap-1">
-                        <BookOpen className="h-3 w-3" /> {t("novels.wordCount", { count: wordCount, value: wordCount.toLocaleString() })}
+                        <BookOpen className="h-3 w-3" /> {wordCount == null ? "—" : t("novels.wordCount", { count: wordCount, value: wordCount.toLocaleString() })}
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">{novel.synopsis || t("novels.noSynopsis")}</p>
                   </div>
 
+                  {s === null && <div role="alert" className="text-xs text-destructive">{t("errors.loadFailed")}<Button size="sm" variant="link" onClick={event => { event.stopPropagation(); void refresh(); }}>{t("common.retry")}</Button></div>}
                   <div className="mt-auto">
                     <div className="flex justify-between text-xs mb-1.5">
                       <span className="text-muted-foreground">{t("novels.progress")}</span>
-                      <span className="font-mono font-medium">{progress}%</span>
+                      <span className="font-mono font-medium">{progress == null ? "—" : `${progress}%`}</span>
                     </div>
                     <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
+                      <div className="bg-primary h-full rounded-full" style={{ width: `${progress == null ? "—" : `${progress}%`}` }} />
                     </div>
                   </div>
                 </div>

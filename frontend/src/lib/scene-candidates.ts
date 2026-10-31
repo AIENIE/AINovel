@@ -12,9 +12,8 @@ export type SceneGenerationOutcome = {
   minHan: number; maxHan: number; actualHan: number; revisionCount: number; reviewReason?: string;
 };
 export function sceneGenerationOutcome(json?: string | null): SceneGenerationOutcome | null {
-  try {
-    const result = JSON.parse(json || "null");
-    return result?.outcome === "SAVED" || result?.outcome === "NEEDS_REVIEW" ? result : null;
-  } catch { return null; }
+  if (!json?.trim()) return null;
+  const result = JSON.parse(json);
+  return result?.outcome === "SAVED" || result?.outcome === "NEEDS_REVIEW" ? result : null;
 }
 export const SCENE_CANDIDATES_EVENT = "ainovel:scene-candidates";

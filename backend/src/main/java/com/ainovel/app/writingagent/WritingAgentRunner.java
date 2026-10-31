@@ -3,7 +3,6 @@ package com.ainovel.app.writingagent;
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
-import com.ainovel.app.assistant.AssistantDocumentProjection;
 import com.ainovel.app.assistant.AssistantDtos.Source;
 import com.ainovel.app.modelconfig.AiSelectionContext;
 import com.fasterxml.jackson.databind.*;

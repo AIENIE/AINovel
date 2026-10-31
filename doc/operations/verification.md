@@ -71,20 +71,8 @@ corepack pnpm@11.22.0 --dir frontend run build
 7. 验证同一场景的上下文预览与生成 manifest 具有相同 `scene-draft-v2`、来源顺序、固定 3500 预算占用和 hash；未来场景、禁用 Lorebook 与待复核提取不得入选。
 8. 验证生成正文、`generation` 版本快照和 generation run 原子落库；故障时不得留下无法归因的正文覆盖。分别确认插入、删除、等长改写、再生成和版本回滚的增删量、保留率及 `GENERATED/EDITED/SUPERSEDED/REVERTED` 状态。
 9. 在桌面和窄屏确认生成反馈面板不强制评分，八类标签、备注和长期偏好确认刷新后仍保持；切换简体中文、繁体中文和英文检查全部新增文案。
-10. Beta Reader 与连续性触发器必须返回 HTTP 501/`ANALYSIS_NOT_IMPLEMENTED`，且数据库不新增任务、报告或问题。
+10. 退役的 Beta Reader 与连续性触发路径返回 HTTP 404；历史任务及报告仍可读取，数据库不新增任务、报告或问题。
 11. 检查控制台、失败网络请求、数据库刷新后持久化、结构化错误日志及日志敏感信息；原始提示词、上下文正文、令牌和会话不得进入 generation run 或日志。
-
-付费离线模型回归不属于 L4 默认验收。只有获得单独授权后，才可从仓库根目录显式运行：
-
-```powershell
-$envFile = '<private-env-file>'
-mvn -f backend/pom.xml -Pquality-regression `
-  "-Dtest=QualityRegressionOfflineTest" `
-  "-DqualityRegression.envFile=$envFile" `
-  "-DqualityRegression.remoteUserId=<remote-uid>" test
-```
-
-该 profile 从显式指定的 Windows 安全配置文件读取既有 AI 网关地址与 HMAC 配置，只写 `backend/target/quality-regression/quality-regression-report.json`，不写 AINovel 产品表。不得将其分数计入 G2 真人票数。
 
 ## H1 证据与状态
 
@@ -94,7 +82,7 @@ mvn -f backend/pom.xml -Pquality-regression `
 4. 自有正文覆盖准备偷钥匙、声称桥断、误以为背叛、梦境、反讽和未知时间。确认普通保存不调用 AI，再明确确认正文；首轮真实抽取不超过六次。分别记录真实模型语义错误、作者修正和实际用量，离线模拟不替代真实结果。
 5. 在待审阅中修改类型/持有人/证据，拒绝无效项并补充遗漏；刷新恢复后提交，核对账本修订只增加一次、原候选及审阅保留。点击证据时只高亮不可变版本，中文生僻字和 emoji 后定位准确。
 6. 修改旧稿、生成写回、回滚、合并、删除/重排，核对来源及已消费依赖进入待复核，历史修订仍可读，恢复文字不自动恢复记录。新分支为空账本，同故事不同稿件隔离，合并不导入来源分支状态。
-7. 覆盖桌面与窄屏、简中/繁中/英文，以及控制台、失败请求、页面刷新和任务恢复。跨用户或分支访问、版本冲突、超时/取消和格式错误不得产生部分有效状态；旧角色变化触发器为 501，历史日志标记 `UNVERIFIED_LEGACY`。
+7. 覆盖桌面与窄屏、简中/繁中/英文，以及控制台、失败请求、页面刷新和任务恢复。跨用户或分支访问、版本冲突、超时/取消和格式错误不得产生部分有效状态；旧角色变化触发器已删除，返回 404，历史日志标记 `UNVERIFIED_LEGACY`。
 8. 通过产品接口清理自有测试数据，并用标准 Stop/Status 入口恢复按需停止状态。实际阻塞与验收状态只登记到 [路线图](../roadmap.md)。
 
 ## 安全与可观测性

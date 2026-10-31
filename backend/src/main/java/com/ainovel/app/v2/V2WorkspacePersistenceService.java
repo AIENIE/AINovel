@@ -50,7 +50,7 @@ public class V2WorkspacePersistenceService {
 
     @Transactional
     public Map<String, Object> createLayout(User user, Map<String, Object> payload) {
-        if (boolVal(payload.get("isActive"), false)) {
+        if (com.ainovel.app.common.JsonValues.bool(payload.get("isActive"), false)) {
             for (V2WorkspaceLayout existing : layoutRepository.findByUserId(user.getId())) {
                 existing.setActive(false);
             }
@@ -59,7 +59,7 @@ public class V2WorkspacePersistenceService {
         layout.setUser(user);
         layout.setName(str(payload.get("name"), "我的布局"));
         layout.setLayoutJson(v2Json.write(payload.getOrDefault("layout", Map.of("preset", "writing"))));
-        layout.setActive(boolVal(payload.get("isActive"), false));
+        layout.setActive(com.ainovel.app.common.JsonValues.bool(payload.get("isActive"), false));
         return layoutMap(layoutRepository.save(layout));
     }
 
@@ -68,7 +68,7 @@ public class V2WorkspacePersistenceService {
         V2WorkspaceLayout layout = layoutRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("布局不存在"));
         if (payload.containsKey("name")) layout.setName(str(payload.get("name"), layout.getName()));
         if (payload.containsKey("layout")) layout.setLayoutJson(v2Json.write(payload.get("layout")));
-        if (payload.containsKey("isActive") && boolVal(payload.get("isActive"), false)) {
+        if (payload.containsKey("isActive") && com.ainovel.app.common.JsonValues.bool(payload.get("isActive"), false)) {
             for (V2WorkspaceLayout existing : layoutRepository.findByUserId(user.getId())) {
                 existing.setActive(false);
             }
@@ -98,9 +98,9 @@ public class V2WorkspacePersistenceService {
         session.setUser(user);
         session.setStory(story);
         session.setStartedAt(now());
-        session.setWordsWritten(intVal(payload.get("wordsWritten"), 0));
-        session.setWordsDeleted(intVal(payload.get("wordsDeleted"), 0));
-        session.setNetWords(intVal(payload.get("netWords"), 0));
+        session.setWordsWritten(com.ainovel.app.common.JsonValues.integer(payload.get("wordsWritten"), 0));
+        session.setWordsDeleted(com.ainovel.app.common.JsonValues.integer(payload.get("wordsDeleted"), 0));
+        session.setNetWords(com.ainovel.app.common.JsonValues.integer(payload.get("netWords"), 0));
         session.setDurationSeconds(0);
         session.setChaptersEditedJson(v2Json.write(payload.getOrDefault("chaptersEdited", List.of())));
         return sessionMap(sessionRepository.save(session));
@@ -113,8 +113,8 @@ public class V2WorkspacePersistenceService {
             throw new BusinessException("会话已结束，无法继续心跳更新");
         }
         int previousNet = session.getNetWords();
-        int written = intVal(payload.get("wordsWritten"), session.getWordsWritten());
-        int deleted = intVal(payload.get("wordsDeleted"), session.getWordsDeleted());
+        int written = com.ainovel.app.common.JsonValues.integer(payload.get("wordsWritten"), session.getWordsWritten());
+        int deleted = com.ainovel.app.common.JsonValues.integer(payload.get("wordsDeleted"), session.getWordsDeleted());
         session.setWordsWritten(written);
         session.setWordsDeleted(deleted);
         session.setNetWords(written - deleted);
@@ -145,8 +145,8 @@ public class V2WorkspacePersistenceService {
         goal.setUser(user);
         goal.setStory(story);
         goal.setGoalType(str(payload.get("goalType"), "daily_words"));
-        goal.setTargetValue(intVal(payload.get("targetValue"), 1000));
-        goal.setCurrentValue(intVal(payload.get("currentValue"), 0));
+        goal.setTargetValue(com.ainovel.app.common.JsonValues.integer(payload.get("targetValue"), 1000));
+        goal.setCurrentValue(com.ainovel.app.common.JsonValues.integer(payload.get("currentValue"), 0));
         goal.setDeadline(date(payload.get("deadline")));
         goal.setStatus(str(payload.get("status"), "active"));
         return goalMap(goalRepository.save(goal));
@@ -156,8 +156,8 @@ public class V2WorkspacePersistenceService {
     public Map<String, Object> updateGoal(User user, UUID id, Map<String, Object> payload) {
         V2WritingGoal goal = goalRepository.findByUserIdAndId(user.getId(), id).orElseThrow(() -> new BusinessException("写作目标不存在"));
         if (payload.containsKey("goalType")) goal.setGoalType(str(payload.get("goalType"), goal.getGoalType()));
-        if (payload.containsKey("targetValue")) goal.setTargetValue(intVal(payload.get("targetValue"), goal.getTargetValue()));
-        if (payload.containsKey("currentValue")) goal.setCurrentValue(intVal(payload.get("currentValue"), goal.getCurrentValue()));
+        if (payload.containsKey("targetValue")) goal.setTargetValue(com.ainovel.app.common.JsonValues.integer(payload.get("targetValue"), goal.getTargetValue()));
+        if (payload.containsKey("currentValue")) goal.setCurrentValue(com.ainovel.app.common.JsonValues.integer(payload.get("currentValue"), goal.getCurrentValue()));
         if (payload.containsKey("deadline")) goal.setDeadline(date(payload.get("deadline")));
         if (payload.containsKey("status")) goal.setStatus(str(payload.get("status"), goal.getStatus()));
         return goalMap(goalRepository.save(goal));
@@ -301,15 +301,6 @@ public class V2WorkspacePersistenceService {
         if (value == null) return fallback;
         String text = value.toString().trim();
         return text.isBlank() ? fallback : text;
-    }
-
-    private static int intVal(Object value, int fallback) {
-        if (value instanceof Number n) return n.intValue();
-        try { return value == null ? fallback : Integer.parseInt(value.toString()); } catch (Exception ex) { return fallback; }
-    }
-
-    private static boolean boolVal(Object value, boolean fallback) {
-        return value instanceof Boolean b ? b : value == null ? fallback : Boolean.parseBoolean(value.toString());
     }
 
     private static LocalDate date(Object value) {

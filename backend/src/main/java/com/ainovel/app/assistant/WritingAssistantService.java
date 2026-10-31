@@ -93,10 +93,10 @@ public class WritingAssistantService {
         String intent=Objects.toString(request.intent(),"AUTO");if(!Set.of("AUTO","EDIT","AUTHOR_QA").contains(intent))throw invalid("ASSISTANT_INTENT_INVALID");
         // One manuscript lock also arbitrates first-session creation and the frozen baseline.
         var m=owned(user,manuscriptId,request.branchId());
-        if(worldBindings!=null) {
+        {
             var current=worldBindings.lockCurrent(m);var quoted=com.ainovel.app.modelconfig.AiSelectionContext.current();
             if(quoted!=null&&quoted.worldInput()!=null&&!worldBindings.same(quoted.worldInput().binding(),current))throw conflict("WORLD_CONTEXT_CHANGED");
-        }else manuscripts.findByIdForUpdate(manuscriptId).orElseThrow(()->missing());
+        }
         var session=store.session(user.getId(),manuscriptId,request.branchId(),sceneId);
         String requestHash=hash(store.write(request));
         if(session!=null){

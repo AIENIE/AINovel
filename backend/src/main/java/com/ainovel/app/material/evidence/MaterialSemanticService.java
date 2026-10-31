@@ -56,7 +56,7 @@ public class MaterialSemanticService {
             indexes.put(
                     id,
                     new QdrantMaterialVectorIndex(
-                            json, host, port, profile.collection(), key, 2000, 5000, true));
+                            json, host, port, profile.collection(), key, 2000, 5000));
         }
     }
 

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 public class ExternalServiceProperties {
 
     private String projectKey = "ainovel";
-    private long timeoutMs = 2500;
     private long aiTimeoutMs = 60_000;
     private long billingTimeoutMs = 5_000;
     private final Grpc grpc = new Grpc();
@@ -29,14 +28,6 @@ public class ExternalServiceProperties {
 
     public void setProjectKey(String projectKey) {
         this.projectKey = projectKey;
-    }
-
-    public long getTimeoutMs() {
-        return timeoutMs;
-    }
-
-    public void setTimeoutMs(long timeoutMs) {
-        this.timeoutMs = timeoutMs;
     }
 
     public long getAiTimeoutMs() { return aiTimeoutMs; }

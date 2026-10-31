@@ -60,7 +60,7 @@ class RemediationCapacityExternalMysqlTest {
             assertEquals("<p>修订😀</p>", content.readScene(working, changedScene));
             assertEquals(size, jdbc.queryForObject("select count(*) from manuscript_scene_contents where manuscript_id=?", Integer.class, bytes(manuscriptId)));
             assertEquals("{}", jdbc.queryForObject("select sections_json from manuscripts where id=?", String.class, bytes(manuscriptId)));
-            String key = String.valueOf(jdbc.queryForList("explain select content from manuscript_scene_contents where manuscript_id=? and scene_id=?",
+            String key = String.valueOf(jdbc.queryForList("explain format=traditional select content from manuscript_scene_contents where manuscript_id=? and scene_id=?",
                     bytes(manuscriptId), bytes(changedScene)).get(0).get("key"));
             assertEquals("PRIMARY", key);
             System.out.printf("CAPACITY scenes=%d singleSceneWriteMs=%d archiveBytes=2 sqlKey=%s heapMiB=%d%n",
@@ -85,7 +85,7 @@ class RemediationCapacityExternalMysqlTest {
             int responseBytes = new ObjectMapper().findAndRegisterModules().writeValueAsBytes(page).length;
             assertTrue(responseBytes < 8192, "Admin asset page grew with the synopsis LOB");
             String key = String.valueOf(jdbc.queryForList(
-                    "explain select id,title,status,updated_at from stories order by updated_at desc,id desc limit 20"
+                    "explain format=traditional select id,title,status,updated_at from stories order by updated_at desc,id desc limit 20"
                     ).get(0).get("key"));
             assertEquals("idx_admin_stories_page", key);
             System.out.printf("CAPACITY assets=%d insertMs=%d page=20 responseBytes=%d sqlKey=%s heapMiB=%d%n",

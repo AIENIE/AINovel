@@ -1,7 +1,6 @@
 package com.ainovel.app.aioperation;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiRefineRequest;
 import com.ainovel.app.ai.dto.AiRefineResponse;
 import com.ainovel.app.ai.dto.AiUsageDto;
 import com.ainovel.app.auth.SsoTokenExchangeService;
@@ -36,6 +35,9 @@ import static org.mockito.Mockito.*;
 @SpringBootTest
 @ActiveProfiles("test")
 class WorldTaskRecoveryTests {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ainovel.app.security.remote.UserSessionValidator userSessionValidator;
+
     @MockBean private SsoTokenExchangeService ssoTokenExchangeService;
     @MockBean private AiService ai;
     @Autowired private WorldService worlds;

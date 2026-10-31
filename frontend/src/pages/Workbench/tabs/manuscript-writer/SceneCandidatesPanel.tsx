@@ -36,7 +36,12 @@ export function SceneCandidatesPanel({ manuscript, sceneId, dirty, busy, revisio
   const comparison = useQuery({ queryKey: ["scene-candidate", identity, compare],
     queryFn: () => api.manuscripts.sceneCandidate(id, sceneId, branch, compare), enabled: open && !!compare, retry: false });
   const usage = useMemo(() => {
-    try { return JSON.parse(detail.data?.sourceFingerprint || "{}") as Record<string, number>; } catch { return {}; }
+    if (!detail.data?.sourceFingerprint) return { data: null, error: false };
+    try {
+      const data: unknown = JSON.parse(detail.data.sourceFingerprint);
+      if (!data || typeof data !== "object" || Array.isArray(data)) return { data: null, error: true };
+      return { data: data as Record<string, unknown>, error: false };
+    } catch { return { data: null, error: true }; }
   }, [detail.data?.sourceFingerprint]);
   const changes = useMemo(() => comparison.data && detail.data
     ? materialTextDiff(candidateText(comparison.data.content), candidateText(detail.data.content)) : [], [comparison.data, detail.data]);
@@ -88,8 +93,9 @@ export function SceneCandidatesPanel({ manuscript, sceneId, dirty, busy, revisio
         </button>)}</div>
         {candidate && detail.data && <section className="space-y-3">
           {detail.data.worldContext&&<details><summary>{t("world4.actual")}</summary><WorldSources selection={detail.data.worldContext}/></details>}
+          {usage.error && <p role="alert" className="text-sm text-destructive">{t("errors.loadFailed")}</p>}
           {historical && <p className="text-sm">{t("sceneCandidates.incompleteSource")}</p>}
-          {historical && typeof usage.completion_tokens === "number" && <p className="text-sm">{t("sceneCandidates.historicalUsage", { input: usage.prompt_tokens, output: usage.completion_tokens, credits: usage.settled_amount })}</p>}
+          {historical && typeof usage.data?.completion_tokens === "number" && <p className="text-sm">{t("sceneCandidates.historicalUsage", { input: usage.data?.prompt_tokens, output: usage.data?.completion_tokens, credits: usage.data?.settled_amount })}</p>}
           {outside && <p className="text-sm font-medium text-amber-700">{t("sceneCandidates.outside")}</p>}
           <p className="text-xs text-muted-foreground">{t("sceneCandidates.quality")}: {candidate.qualityStatus === "PROCESSED" ? t("sceneCandidates.processed") : t("sceneCandidates.unchecked")}</p>
           <div className="flex flex-wrap gap-2">

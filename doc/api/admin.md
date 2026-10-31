@@ -12,8 +12,6 @@
   - 首次绑定时提交密码阶段返回的 challenge，返回一次性绑定 challenge、手动密钥和 `otpauth` URI。
 - `POST /api/v1/admin-auth/enrollment/confirm`
   - 提交挑战与 6 位 TOTP，完成绑定并返回 10 个紧急码。
-- `POST /api/v1/admin-auth/login/challenge`
-  - 旧的无密码入口已禁用，返回 410。
 - `POST /api/v1/admin-auth/login/totp`
 - `POST /api/v1/admin-auth/login/recovery`
   - 恢复码只创建受限恢复会话，不授予普通管理接口权限。
@@ -50,6 +48,7 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
   - 返回用户数、今日新增、项目积分消耗、API 错误率、待审素材数。
 - `GET /api/v1/admin/assets/summary`
   - 返回故事、世界观、稿件、素材、待审素材、高风险质量记录数量。
+  - 高风险数量只统计有效完成检查的风险分 >= 70；失败或覆盖未完成的占位分不计入。
 
 ## 项目用户
 
@@ -77,6 +76,7 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 
 - `GET /api/v1/admin/quality/runs`
   - 聚合 `slop_quality_runs` 与 `plot_quality_runs`。
+  - 失败、语义覆盖未完成或无法读取覆盖标记的检查，其 `overallRiskScore`、`maxSeverity` 返回 `null`，界面显示未知。历史无快照记录保持可读；数据库占位值不回写。高风险筛选及分页总数使用同一有效结果范围。
 
 ## 项目专属积分
 
@@ -99,23 +99,19 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 ## 运维观测
 
 - `GET /api/v1/admin/ops/summary`
-  - 返回当前请求指标、依赖异常数量、维护模式、ES 查询状态和派生告警。
+  - 返回当前请求指标、依赖异常数量、维护模式、中央日志入口和派生告警。
 - `GET /api/v1/admin/ops/dependencies`
   - 实时探测 DB、Redis、Qdrant、user-service HTTP/gRPC、ai-service gRPC、pay-service gRPC。
   - 只返回脱敏 endpoint、状态、延迟和摘要消息。
-- `GET /api/v1/admin/ops/events?severity=WARN&category=dependency&page=0&size=20`
-  - 从 AINovel ES 索引查询 `recordType=ainovel_ops_event` 与 `recordType=ainovel_dependency_probe`。
-  - ES 未配置或不可用时返回 `available=false`，不影响业务运行。
-- `GET /api/v1/admin/ops/audit?action=maintenance.update&actor=admin&targetType=system-config&page=0&size=20`
-  - 从 AINovel ES 索引查询 `recordType=ainovel_admin_audit`。
+- 旧 `/events` 和 `/audit` ES 查询入口已退役，返回 HTTP 404；独立审计记录继续写入。
 - `GET /api/v1/admin/ops/alerts`
   - 返回只读派生告警，不提供确认、忽略或关闭。
 - `GET /api/v1/admin/ops/diagnostics`
-  - 返回脱敏运行诊断：记录目录、索引前缀、ES 查询状态、Java 版本、运行时长、维护模式。
+  - 返回脱敏运行诊断：记录目录、中央日志入口、Java 版本、运行时长、维护模式。
 
 ### 运维观测边界
 
-- 只查询 `FILEBEAT_INDEX_PREFIX` 对应的 AINovel 索引，默认 `aienie-local-ainovel-*`。
+- 运维页面通过中央日志入口查看 Loki 日志；独立运维和审计记录保留现行落盘策略。
 - 不提供 user-service 的 SMTP/SMS/SSO 配置管理。
 - 不提供 ai-service 的模型池、API Key、调用方密钥、成本报表或全局告警管理。
 - 不提供 pay-service 的签到、充值、通用账务、额度或全局告警管理。

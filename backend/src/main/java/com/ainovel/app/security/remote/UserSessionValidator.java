@@ -11,7 +11,6 @@ import io.grpc.stub.MetadataUtils;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @Profile("!test")
-@ConditionalOnProperty(name = "sso.session-validation.enabled", havingValue = "true", matchIfMissing = true)
 public class UserSessionValidator {
     private static final Logger log = LoggerFactory.getLogger(UserSessionValidator.class);
 
@@ -205,10 +203,6 @@ public class UserSessionValidator {
             ManagedChannel channel,
             UserAuthServiceGrpc.UserAuthServiceBlockingStub stub
     ) {
-        boolean sameEndpoint(String targetHost, int targetPort) {
-            return host.equals(targetHost) && port == targetPort;
-        }
-
         void close() {
             channel.shutdownNow();
         }

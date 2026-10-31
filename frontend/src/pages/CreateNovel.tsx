@@ -43,16 +43,10 @@ const CreateNovel = () => {
         const operation = await runTrackedAiOperation(api.stories.startConception({ title: title.trim(), synopsis, genre, tone: "" }));
         const res = normalizeConceptionResult(operation.resultJson ? JSON.parse(operation.resultJson) : null);
         const storyId = res?.storyCard?.id;
-        if (storyId) {
-          try {
-            window.sessionStorage.setItem(`${CACHE_PREFIX}:${storyId}`, JSON.stringify(res));
-          } catch {
-            // Ignore session storage failures.
-          }
-        }
+        if (!storyId) throw new Error("AI_INITIALIZATION_INVALID_RESULT");
+        window.sessionStorage.setItem(`${CACHE_PREFIX}:${storyId}`, JSON.stringify(res));
         showSuccess("novels.created");
-        if (storyId) navigate(`/workbench?storyId=${storyId}&tab=conception`);
-        else navigate("/novels");
+        navigate(`/workbench?storyId=${storyId}&tab=conception`);
       } else {
         const story = await api.stories.create({ title: title.trim(), synopsis, genre, tone: "" });
         showSuccess("novels.created");

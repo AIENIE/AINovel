@@ -149,9 +149,8 @@ public class V2AnalysisPersistenceService {
     }
 
     private List<String> stringList(Object raw) {
-        if (!(raw instanceof List<?> list)) {
-            return List.of();
-        }
+        if (raw == null) return List.of();
+        if (!(raw instanceof List<?> list)) throw new com.ainovel.app.common.BusinessException("历史报告列表格式错误");
         return list.stream()
                 .filter(Objects::nonNull)
                 .map(Object::toString)
@@ -170,7 +169,7 @@ public class V2AnalysisPersistenceService {
         try {
             return Integer.parseInt(raw.toString().trim());
         } catch (NumberFormatException ex) {
-            return null;
+            throw new com.ainovel.app.common.BusinessException("历史报告数字格式错误", ex);
         }
     }
 

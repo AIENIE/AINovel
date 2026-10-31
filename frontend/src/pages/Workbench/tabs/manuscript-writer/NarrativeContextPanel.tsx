@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+import { readSessionDraft } from "@/lib/session-draft";
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -17,28 +19,36 @@ type Props = { active: boolean; manuscript: Manuscript; sceneId: string; disable
 type Draft = { base: ContextState; document: ContextDocument; enabled: boolean; key: string; edited: boolean };
 const selectClass = 'w-full rounded border bg-background p-2 text-sm';
 const emptyDocument = (): ContextDocument => ({ policy: { perspective: 'LIMITED_THIRD', allowInner: true, viewpointByScene: {} }, grants: [], entries: [] });
-function restore(key: string): Draft | null {
-  try { const d = JSON.parse(sessionStorage.getItem(key) || 'null'); return d?.base && d?.document?.policy && Array.isArray(d.document.grants) && Array.isArray(d.document.entries) && typeof d.key === 'string' ? d : null; }
-  catch { return null; }
+function validDraft(value: unknown): value is Draft {
+  const d = value as Draft | null;
+  return !!d?.base && !!d?.document?.policy && Array.isArray(d.document.grants) && Array.isArray(d.document.entries) && typeof d.key === 'string';
+}
+function validGrant(value: unknown): value is KnowledgeGrant {
+  const g = value as KnowledgeGrant | null;
+  return !!g && typeof g.id === 'string' && Array.isArray(g.evidence);
 }
 
 export function NarrativeContextPanel({ active, manuscript, sceneId, disabled, characters, scenes, records }: Props) {
   const { user } = useAuth(); const client = useQueryClient();
   const mid=manuscript.id, bid=manuscript.currentBranchId || '';
   const storageKey=`ainovel.h2:${user?.id}:${mid}:${bid}`;
-  const [draft,setDraft]=useState<Draft | null>(()=>restore(storageKey));
+  const [restored] = useState(() => readSessionDraft(storageKey, validDraft));
+  const [draft,setDraft]=useState<Draft | null>(restored.value);
+  const [draftUnreadable,setDraftUnreadable] = useState(restored.unreadable);
   const [error,setError]=useState(''); const [working,setWorking]=useState(false);
   const [view,setView]=useState<ContextView>('SCENE'); const [who,setWho]=useState('');
   const [preview,setPreview]=useState<ContextPreview | null>(null);
   const [source,setSource]=useState<NarrativeSource | null>(null);
-  const [grant,setGrant]=useState<KnowledgeGrant | null>(()=>{try{return JSON.parse(sessionStorage.getItem(storageKey+':grant') || 'null');}catch{return null;}});
+  const [restoredGrant] = useState(() => readSessionDraft(storageKey+':grant', validGrant));
+  const [grant,setGrant]=useState<KnowledgeGrant | null>(restoredGrant.value);
+  const [grantUnreadable,setGrantUnreadable] = useState(restoredGrant.unreadable);
   const [history,setHistory]=useState<Array<{ revision:number; createdAt:string; document:ContextDocument }>>([]);
   const [candidates,setCandidates]=useState<RetainedCandidate[]>([]);
   const query=useQuery({queryKey:['narrative-context',mid,bid,manuscript.version],queryFn:()=>api.narrativeContext.state(mid,bid),enabled:active && !!bid,retry:false});
   useEffect(()=>{ if(query.data && (!draft || !draft.edited && JSON.stringify(draft.base)!==JSON.stringify(query.data))) setDraft({base:query.data,document:query.data.document || emptyDocument(),enabled:query.data.enabled,key:crypto.randomUUID(),edited:false}); },[query.data,draft]);
-  useEffect(()=>{if(draft)try{sessionStorage.setItem(storageKey,JSON.stringify(draft));}catch{/* In-memory edits remain available. */}},[draft,storageKey]);
-  useEffect(()=>{try{sessionStorage.setItem(storageKey+':grant',JSON.stringify(grant));}catch{/* Keep in-memory draft. */}},[grant,storageKey]);
-  useEffect(()=>{if(grant?.approvalId) void api.narrative.evidence(mid,bid,grant.approvalId).then(setSource).catch(()=>setSource(null));},[mid,bid,grant?.approvalId]);
+  useEffect(()=>{if(draft && !draftUnreadable)try{sessionStorage.setItem(storageKey,JSON.stringify(draft));}catch{/* In-memory edits remain available. */}},[draft,storageKey,draftUnreadable]);
+  useEffect(()=>{if(grantUnreadable)return;try{sessionStorage.setItem(storageKey+':grant',JSON.stringify(grant));}catch{/* Keep in-memory draft. */}},[grant,storageKey,grantUnreadable]);
+  useEffect(()=>{if(grant?.approvalId) void api.narrative.evidence(mid,bid,grant.approvalId).then(setSource).catch(e=>setError(localizedErrorMessage(e)));},[mid,bid,grant?.approvalId]);
   useEffect(()=>{setPreview(null);},[sceneId,manuscript.version]);
   const run=async(action:()=>Promise<void>)=>{setWorking(true);setError('');try{await action();}catch(e){setError(localizedErrorMessage(e));}finally{setWorking(false);}};
   const edit=(document:ContextDocument,enabled=draft?.enabled || false)=>{if(draft){setDraft({...draft,document,enabled,key:crypto.randomUUID(),edited:true});setPreview(null);}};
@@ -47,10 +57,11 @@ export function NarrativeContextPanel({ active, manuscript, sceneId, disabled, c
     const request:ContextUpdate={enabled:draft.enabled,document:draft.document,expectedManuscriptVersion:draft.base.manuscriptVersion,
       expectedCanonRevision:draft.base.canonRevision,expectedRevision:draft.base.revision,expectedSettingsRevision:draft.base.settingsRevision};
     const saved=await api.narrativeContext.update(mid,bid,request,draft.key);
+    setDraftUnreadable(false);
     setDraft({base:saved,document:saved.document || emptyDocument(),enabled:saved.enabled,key:crypto.randomUUID(),edited:false});
     await client.invalidateQueries({queryKey:['narrative-context',mid,bid]});
   });
-  const reload=()=>run(async()=>{const saved=await api.narrativeContext.state(mid,bid);setDraft({base:saved,document:saved.document || emptyDocument(),enabled:saved.enabled,key:crypto.randomUUID(),edited:false});setGrant(null);setPreview(null);});
+  const reload=()=>run(async()=>{const saved=await api.narrativeContext.state(mid,bid);setDraft({base:saved,document:saved.document || emptyDocument(),enabled:saved.enabled,key:crypto.randomUUID(),edited:false});setGrant(null);setPreview(null);setDraftUnreadable(false);setGrantUnreadable(false);});
   const updateEntry=(index:number,patch:Partial<ContextEntry>)=>draft && edit({...draft.document,entries:draft.document.entries.map((e,i)=>i===index?{...e,...patch}:e)});
   const addEntry=()=>draft && edit({...draft.document,entries:[...draft.document.entries,{id:crypto.randomUUID(),kind:'PLAN',text:'',fromSceneId:sceneId,characterIds:[],narratorVisible:false,dependencyRecordIds:[],stale:false}]});
   const selectEvidence=(approvalId:string)=>run(async()=>{const result=await api.narrative.evidence(mid,bid,approvalId);setSource(result);setGrant(g=>g?{...g,approvalId,evidence:[{blockId:'',quote:''}]}:g);});
@@ -61,6 +72,7 @@ export function NarrativeContextPanel({ active, manuscript, sceneId, disabled, c
   return <details className="rounded border p-3 space-y-3">
     <summary className="cursor-pointer text-sm font-medium">人物认知与隔离 · {query.data?(query.data.enabled?'已开启':'沿用原上下文'):'正在读取状态'}</summary>
     <p className="text-xs text-muted-foreground">按作品开启。知情不等于真实，计划不等于已发生。未分类资料不会进入隔离上下文。</p>
+    {(draftUnreadable || grantUnreadable) && <p role="alert" className="text-sm text-destructive">{t("narrative.browserDraftUnreadable")}</p>}
     {(error || query.error) && <p role="alert" className="text-sm text-destructive">{error || localizedErrorMessage(query.error)}</p>}
     {!draft ? <Button variant="outline" disabled={working} onClick={()=>void reload()}>读取隔离配置</Button> : <>
       <fieldset disabled={lock} className="space-y-3 min-w-0">

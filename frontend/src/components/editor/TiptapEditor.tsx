@@ -5,7 +5,9 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { useTranslation } from "react-i18next";
 import EditorToolbar from "./EditorToolbar";
 import { cn } from "@/lib/utils";
-import { FontType, WidthType, ThemeType } from "./AppearanceSettings";
+type FontType = "sans" | "serif" | "mono";
+type WidthType = "narrow" | "medium" | "wide";
+type ThemeType = "light" | "dark" | "parchment" | "hacker";
 import { SlashCommand, createSuggestionOptions } from "./slash-command";
 import { Button } from "@/components/ui/button";
 import { 

@@ -6,7 +6,6 @@ import com.ainovel.app.manuscript.ManuscriptContentService;
 import com.ainovel.app.manuscript.attribution.SceneContentEditedEvent;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
-import com.ainovel.app.security.ResourceAccessGuard;
 import com.ainovel.app.user.User;
 import com.ainovel.app.v2.V2VersionPersistenceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +22,7 @@ import static com.ainovel.app.quality.language.LanguageDtos.*;
 public class LanguageQualityService {
     private final ManuscriptRepository manuscripts;
     private final ManuscriptContentService contents;
-    private final ResourceAccessGuard access;
+
     private final V2VersionPersistenceService versions;
     private final LanguageReportRepository reports;
     private final LanguagePatchRepository patches;
@@ -33,14 +32,14 @@ public class LanguageQualityService {
     private final ObjectMapper json;
     private final ApplicationEventPublisher events;
     private final int maxMessage, maxTotal, inputTokens;
-    public LanguageQualityService(ManuscriptRepository manuscripts, ManuscriptContentService contents, ResourceAccessGuard access,
+    public LanguageQualityService(ManuscriptRepository manuscripts, ManuscriptContentService contents,
             V2VersionPersistenceService versions, LanguageReportRepository reports, LanguagePatchRepository patches,
             LanguageDecisionRepository decisions, LanguageFeature feature, @Lazy AiOperationService operations,
             ObjectMapper json, ApplicationEventPublisher events,
             @Value("${app.ai.admission.max-message-chars:20000}") int maxMessage,
             @Value("${app.ai.admission.max-total-chars:100000}") int maxTotal,
             @Value("${app.language.input-token-budget:24000}") int inputTokens) {
-        this.manuscripts=manuscripts; this.contents=contents; this.access=access; this.versions=versions; this.reports=reports;
+        this.manuscripts=manuscripts; this.contents=contents;  this.versions=versions; this.reports=reports;
         this.patches=patches; this.decisions=decisions; this.feature=feature; this.operations=operations; this.json=json; this.events=events;
         this.maxMessage=maxMessage; this.maxTotal=maxTotal; this.inputTokens=inputTokens;
     }

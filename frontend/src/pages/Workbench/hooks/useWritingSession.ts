@@ -1,3 +1,6 @@
+import { toast } from "@/components/ui/use-toast";
+import { t } from "@/i18n";
+import { localizedErrorMessage } from "@/lib/error-messages";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api-client";
 import { reportClientError } from "@/lib/client-error-reporting";
@@ -92,7 +95,7 @@ export function useWritingSession({
         setSessionWordsWritten(Number(session.wordsWritten || 0));
         setSessionWordsDeleted(Number(session.wordsDeleted || 0));
       })
-      .catch(() => {});
+      .catch(error => toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error) }));
 
     return () => {
       if (!sessionIdRef.current) return;
@@ -138,7 +141,7 @@ export function useWritingSession({
         snapshotType: "auto",
         label: `auto-${new Date().toLocaleTimeString()}`,
       })
-      .catch(() => {});
+      .catch(error => toast({ variant: "destructive", title: t("errors.saveFailed"), description: localizedErrorMessage(error) }));
   }, [autoSaveIntervalSeconds, selectedManuscriptId, selectedSceneDirty, selectedSceneId, tick]);
 
   return {

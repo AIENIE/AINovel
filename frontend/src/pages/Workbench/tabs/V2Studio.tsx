@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +12,6 @@ const V2Studio = () => {
   const { t } = useTranslation();
   const [storyId, setStoryId] = useState("");
   const [manuscriptId, setManuscriptId] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [entryName, setEntryName] = useState("");
   const [entryContent, setEntryContent] = useState("");
@@ -143,23 +141,14 @@ const V2Studio = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle>Beta Reader</CardTitle>
-              <Badge variant="secondary">{t("common.notImplemented")}</Badge>
-            </div>
+            <CardTitle>{t("v2Studio.analysisJobs")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" disabled title={t("common.notImplemented")}>
-              {t("v2Studio.triggerAnalysis")} · {t("common.notImplemented")}
-            </Button>
             <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.analysisJobs", async () => {
               ensureStoryId();
               return api.v2.analysis.listJobs(storyId);
             })}>
-              {t("common.taskList")}
-            </Button>
-            <Button size="sm" variant="outline" disabled title={t("common.notImplemented")}>
-              {t("v2Studio.continuityCheck")} · {t("common.notImplemented")}
+              {t("v2Studio.analysisJobs")}
             </Button>
           </CardContent>
         </Card>
@@ -220,12 +209,7 @@ const V2Studio = () => {
             <Button size="sm" disabled={busy} onClick={() => run("v2Studio.modelList", async () => api.v2.models.list())}>
               {t("v2Studio.modelList")}
             </Button>
-            <Button size="sm" variant="secondary" disabled={busy} onClick={() => run("v2Studio.modelCompare", async () => {
-              ensureStoryId();
-              return api.v2.models.compare(storyId, { taskType: "draft_generation", prompt: entryContent });
-            })}>
-              {t("v2Studio.modelCompare")}
-            </Button>
+
             <Button size="sm" variant="outline" disabled={busy} onClick={() => run("v2Studio.newLayout", async () => {
               return api.v2.workspace.createLayout({
                 name: `${t("v2Studio.layoutPrefix")}-${new Date().toLocaleTimeString()}`,
@@ -235,19 +219,7 @@ const V2Studio = () => {
             })}>
               {t("v2Studio.newLayout")}
             </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run("v2Studio.sessionToggle", async () => {
-              ensureStoryId();
-              if (!sessionId) {
-                const started = await api.v2.workspace.startSession({ storyId, wordsWritten: 0, wordsDeleted: 0 });
-                setSessionId(started.id);
-                return started;
-              }
-              const ended = await api.v2.workspace.endSession(sessionId, { wordsWritten: 320, wordsDeleted: 35 });
-              setSessionId(null);
-              return ended;
-            })}>
-              {sessionId ? t("v2Studio.endSession") : t("v2Studio.startSession")}
-            </Button>
+
           </CardContent>
         </Card>
       </div>

@@ -17,6 +17,31 @@ import java.util.UUID;
 /** Read-model queries deliberately select no entity, manuscript text or diagnostic JSON. */
 @Repository
 public class AdminOperationsReadRepository {
+    // Normalize the stored placeholders before filtering, counting or paging.
+    // Historic runs without a review snapshot remain readable; invalid or incomplete
+    // snapshots have no assessed score. Diagnostic JSON never leaves the database.
+    private static final String QUALITY_SOURCE = """
+            select kind,id,story_id,manuscript_id,scene_id,chapter_title,scene_title,status,
+                   case when assessed then max_severity else null end as max_severity,
+                   case when assessed then overall_risk_score else null end as overall_risk_score,
+                   resolved,summary,created_at
+            from (
+              select 'slop' as kind,id,story_id,manuscript_id,scene_id,null as chapter_title,null as scene_title,status,
+                     max_severity,overall_risk_score,revised as resolved,summary,created_at,
+                     case when status = 'DEGRADED' then false
+                          when review_context_json is null or trim(review_context_json) = '' then true
+                          when json_valid(review_context_json) then
+                               json_type(review_context_json) = 'OBJECT'
+                               and json_unquote(json_extract(review_context_json, '$.coverage')) = 'COMPLETE'
+                          else false end as assessed
+              from slop_quality_runs
+              union all
+              select 'plot' as kind,id,story_id,manuscript_id,scene_id,chapter_title,scene_title,status,
+                     max_severity,overall_risk_score,revision_applied as resolved,summary,created_at,
+                     status <> 'DEGRADED' as assessed
+              from plot_quality_runs
+            ) assessed_quality
+            """;
     private final NamedParameterJdbcTemplate jdbc;
 
     public AdminOperationsReadRepository(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
@@ -24,7 +49,7 @@ public class AdminOperationsReadRepository {
     public record AssetRow(String type, UUID id, String title, String status, String owner, Instant updatedAt) { }
     public record QualityRow(String kind, UUID id, UUID storyId, UUID manuscriptId, UUID sceneId,
                              String chapterTitle, String sceneTitle, String status, String maxSeverity,
-                             int overallRiskScore, boolean resolved, String summary, Instant createdAt) { }
+                             Integer overallRiskScore, boolean resolved, String summary, Instant createdAt) { }
     public record Result<T>(List<T> items, long total) { }
 
     public Result<AssetRow> assets(String kind, int offset, int size, String search) {
@@ -46,15 +71,18 @@ public class AdminOperationsReadRepository {
 
     public Result<QualityRow> quality(int offset, int size, String search, String filter) {
         // Apply one global ORDER/LIMIT to both kinds so pages cannot omit interleaved records.
-        String union = "select 'slop' as kind,id,story_id,manuscript_id,scene_id,null as chapter_title,null as scene_title,status,max_severity,overall_risk_score,revised as resolved,summary,created_at from slop_quality_runs"
-                + " union all select 'plot' as kind,id,story_id,manuscript_id,scene_id,chapter_title,scene_title,status,max_severity,overall_risk_score,revision_applied as resolved,summary,created_at from plot_quality_runs";
-        String from = " from (" + union + ") q where (:filter = 'all' or (:filter = 'open' and resolved = false) or (:filter = 'high' and (overall_risk_score >= 70 or max_severity in ('BLOCKING','HIGH'))))"
+        String from = " from (" + QUALITY_SOURCE + ") q where (:filter = 'all' or (:filter = 'open' and resolved = false) or (:filter = 'high' and (overall_risk_score >= 70 or max_severity in ('BLOCKING','HIGH'))))"
                 + " and (:emptySearch = true or lower(coalesce(chapter_title,'')) like :search escape '!' or lower(coalesce(scene_title,'')) like :search escape '!' or lower(coalesce(summary,'')) like :search escape '!' or id = :searchId or manuscript_id = :searchId or scene_id = :searchId)";
         MapSqlParameterSource params = params(search, offset, size).addValue("filter", filter);
         long total = jdbc.queryForObject("select count(*)" + from, params, Long.class);
         List<QualityRow> rows = jdbc.query("select kind,id,story_id,manuscript_id,scene_id,chapter_title,scene_title,status,max_severity,overall_risk_score,resolved,summary,created_at" + from
                 + " order by created_at desc, id desc, kind desc limit :size offset :offset", params, QUALITY_ROW);
         return new Result<>(rows, total);
+    }
+
+    public long highRiskQualityRuns() {
+        return jdbc.getJdbcTemplate().queryForObject(
+                "select count(*) from (" + QUALITY_SOURCE + ") q where overall_risk_score >= 70", Long.class);
     }
 
     private static MapSqlParameterSource params(String search, int offset, int size) {
@@ -72,7 +100,7 @@ public class AdminOperationsReadRepository {
     private static final RowMapper<QualityRow> QUALITY_ROW = (rs, index) -> new QualityRow(
             rs.getString("kind"), uuid(rs, "id"), uuid(rs, "story_id"), uuid(rs, "manuscript_id"), uuid(rs, "scene_id"),
             rs.getString("chapter_title"), rs.getString("scene_title"), rs.getString("status"), rs.getString("max_severity"),
-            rs.getInt("overall_risk_score"), rs.getBoolean("resolved"), rs.getString("summary"), instant(rs, "created_at"));
+            rs.getObject("overall_risk_score", Integer.class), rs.getBoolean("resolved"), rs.getString("summary"), instant(rs, "created_at"));
 
     private static UUID uuid(ResultSet rs, String column) throws SQLException {
         Object value = rs.getObject(column);

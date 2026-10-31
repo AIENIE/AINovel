@@ -33,9 +33,3 @@
   - 功能：查询通用积分兑换历史
   - 返回：数组（按时间倒序）
   - 每条记录包含：订单号、请求量、实际兑换量、兑换前后通用积分与项目积分、状态、创建时间
-
-## 密码
-
-- `POST /api/v1/user/password`
-  - 固定返回 `501`
-  - 响应：`{success:false,message:"PASSWORD_MANAGED_BY_SSO"}`

@@ -128,10 +128,10 @@ public class V2WorkspaceController {
         int totalNet = 0;
         long totalDuration = 0;
         for (Map<String, Object> session : sessions) {
-            totalWritten += intVal(session.get("wordsWritten"), 0);
-            totalDeleted += intVal(session.get("wordsDeleted"), 0);
-            totalNet += intVal(session.get("netWords"), 0);
-            totalDuration += intVal(session.get("durationSeconds"), 0);
+            totalWritten += com.ainovel.app.common.JsonValues.integer(session.get("wordsWritten"), 0);
+            totalDeleted += com.ainovel.app.common.JsonValues.integer(session.get("wordsDeleted"), 0);
+            totalNet += com.ainovel.app.common.JsonValues.integer(session.get("netWords"), 0);
+            totalDuration += com.ainovel.app.common.JsonValues.integer(session.get("durationSeconds"), 0);
         }
 
         LocalDate today = timeProvider.today();
@@ -145,8 +145,8 @@ public class V2WorkspaceController {
                 continue;
             }
             LocalDate day = startedAt.atZone(zoneId).toLocalDate();
-            int net = intVal(session.get("netWords"), 0);
-            int duration = intVal(session.get("durationSeconds"), 0);
+            int net = com.ainovel.app.common.JsonValues.integer(session.get("netWords"), 0);
+            int duration = com.ainovel.app.common.JsonValues.integer(session.get("durationSeconds"), 0);
             daily.computeIfAbsent(day, key -> new int[] {0, 0, 0});
             daily.get(day)[0] += net;
             daily.get(day)[1] += duration;
@@ -285,21 +285,8 @@ public class V2WorkspaceController {
         try {
             return UUID.fromString(value.toString());
         } catch (IllegalArgumentException ex) {
-            return null;
+            throw new BusinessException("storyId 格式错误", ex);
         }
     }
 
-    private int intVal(Object value, int fallback) {
-        if (value == null) {
-            return fallback;
-        }
-        if (value instanceof Number n) {
-            return n.intValue();
-        }
-        try {
-            return Integer.parseInt(value.toString());
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
-    }
 }

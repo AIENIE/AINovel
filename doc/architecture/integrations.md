@@ -13,7 +13,7 @@
 
 | 服务 | AINovel 使用方式 | 鉴权 |
 | --- | --- | --- |
-| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `authorization: Bearer <JWT>` 携带 AINovel 独立密钥签发的短期 caller JWT；旧 `x-internal-token` 禁用 |
+| user-service | SSO 页面、授权码交换、用户目录和 `uid + sid` 会话校验 | HTTP SSO；gRPC `authorization: Bearer <JWT>` 携带 AINovel 独立密钥签发的短期 caller JWT |
 | ai-service | 模型列表、对话、嵌入和写作生成 | HMAC metadata |
 | pay-service | 通用积分余额与通用转专属扣减 | Bearer service JWT |
 
@@ -25,12 +25,12 @@
 
 1. AINovel 按本地 JWT 密钥、配置的 issuer 和 audience 验证令牌；任一校验失败即拒绝，不解析未验签 payload，也不调用远端校验作为 fallback。
 2. 本地签名令牌还必须包含有效的 `sub + uid + sid`。
-3. 启用会话校验时，`UserSessionValidator` 才使用已验签的 `uid + sid` 调用 `UserAuthService.ValidateSession`；上游无效或不可达时拒绝建立本地登录态。
+3. `UserSessionValidator` 始终使用已验签的 `uid + sid` 调用 `UserAuthService.ValidateSession`；上游无效或不可达时拒绝建立本地登录态。
 4. 每次远程校验都从 `UserServiceJwtProvider` 获取最长 900 秒、`aud=aienie-userservice-grpc` 且仅含 `user.auth.session.read` 的 HS256 JWT；JWT 必须带 `iss/sub/iat/nbf/exp/jti/scopes`，并在到期前轮换。禁止恢复共享静态 token 或复用其他产品的 caller secret。
 
 ## 部署约束
 
-- Linux 服务器发布唯一入口是发版中心执行的 `scripts/ci/build-release.sh`；仓库不再提供本地 Compose 部署脚本。
+- Linux 服务器发布通过发版中心的 catalog 镜像构建及控制面部署执行；运行模板与入口见 `scripts/ci/README.md`。本地使用 Windows 原生入口。
 - `env.txt` 由 config-center 提供、发版中心以 `0600` 普通文件只读挂载进后端容器加载完整运行时配置。
 - 外部安全配置由 `ExternalSecurityStartupValidator` 在启动期校验。
 - user-service caller JWT 使用 `EXTERNAL_USER_SERVICE_JWT_{CALLER_ID,ISSUER,SECRET,AUDIENCE,TTL_SECONDS,SCOPES}`；其中 secret 只进入受保护配置，audience 和 scope 必须保持规范值。

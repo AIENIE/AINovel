@@ -11,7 +11,7 @@ public record SlopQualityRunDto(
         UUID sceneId,
         String status,
         String maxSeverity,
-        int overallRiskScore,
+        Integer overallRiskScore,
         boolean revised,
         int revisionCount,
         String summary,

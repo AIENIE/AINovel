@@ -8,13 +8,14 @@ public final class SlopDriftMapper {
     }
 
     public static SlopDriftRunDto toDto(SlopDriftRun run) {
+        boolean assessed = run.getStatus() == SlopDriftStatus.COMPLETED;
         return new SlopDriftRunDto(
                 run.getId(),
                 run.getStoryId(),
                 run.getManuscriptId(),
                 run.getStatus().name(),
-                run.getOverallRiskScore(),
-                run.getRiskLabel(),
+                assessed ? run.getOverallRiskScore() : null,
+                assessed ? run.getRiskLabel() : null,
                 run.getSafeClaim(),
                 run.getSummary(),
                 run.getTotalCharacters(),

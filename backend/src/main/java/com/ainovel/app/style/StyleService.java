@@ -1,5 +1,7 @@
 package com.ainovel.app.style;
 
+import com.ainovel.app.common.BusinessException;
+
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.story.model.CharacterCard;
 import com.ainovel.app.story.model.Story;
@@ -13,7 +15,6 @@ import com.ainovel.app.style.repo.StyleAnalysisJobRepository;
 import com.ainovel.app.style.repo.StyleProfileRepository;
 import com.ainovel.app.user.User;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,20 +29,19 @@ public class StyleService {
     private final CharacterVoiceRepository characterVoiceRepository;
     private final StyleAnalysisJobRepository styleAnalysisJobRepository;
     private final CharacterCardRepository characterCardRepository;
-    private final ObjectMapper objectMapper;
+
     private final JsonColumnCodec jsonColumnCodec;
 
     public StyleService(StyleProfileRepository styleProfileRepository,
                         CharacterVoiceRepository characterVoiceRepository,
                         StyleAnalysisJobRepository styleAnalysisJobRepository,
                         CharacterCardRepository characterCardRepository,
-                        ObjectMapper objectMapper,
                         JsonColumnCodec jsonColumnCodec) {
         this.styleProfileRepository = styleProfileRepository;
         this.characterVoiceRepository = characterVoiceRepository;
         this.styleAnalysisJobRepository = styleAnalysisJobRepository;
         this.characterCardRepository = characterCardRepository;
-        this.objectMapper = objectMapper;
+
         this.jsonColumnCodec = jsonColumnCodec;
     }
 
@@ -87,21 +87,15 @@ public class StyleService {
     @Transactional
     public Map<String, Object> analyzeStyle(User user, Map<String, Object> payload) {
         String sampleText = str(payload.get("sampleText"), "");
+        if (sampleText.isBlank()) throw new BusinessException("sampleText 不能为空");
         Map<String, Integer> dimensions = analyzeDimensionScores(sampleText);
         Map<String, Object> result = new LinkedHashMap<>();
         result.putAll(dimensions);
         result.put("dimensions", dimensions);
-        result.put("tone", "balanced");
-        result.put("rhythm", dimensions.getOrDefault("pacing", 6) * 10);
-        result.put("imagery", dimensions.getOrDefault("descriptiveness", 6) * 10);
-        result.put("dialogueDensity", dimensions.getOrDefault("dialogue_ratio", 6) * 10);
-        result.put("summary", "文本整体偏叙事描写，节奏稳定，建议继续保持情绪推进与场景细节平衡。");
+        result.put("rhythm", dimensions.get("pacing") * 10);
+        result.put("imagery", dimensions.get("descriptiveness") * 10);
+        result.put("dialogueDensity", dimensions.get("dialogue_ratio") * 10);
         result.put("suggestedProfileName", "分析画像-" + Instant.now().toString().substring(11, 19));
-        result.put("recommendations", List.of(
-                "关键冲突段可适度提升情感强度",
-                "对话场景可提高对话占比并缩短句长",
-                "回忆段落可增加修辞频率与描写密度"
-        ));
 
         StyleAnalysisJob job = new StyleAnalysisJob();
         job.setUser(user);
@@ -145,18 +139,6 @@ public class StyleService {
         characterVoiceRepository.delete(requireVoice(story, id));
     }
 
-    @Transactional
-    public Map<String, Object> generateCharacterVoice(Story story, UUID id, Map<String, Object> payload) {
-        CharacterVoice voice = requireVoice(story, id);
-        String characterName = payload == null ? "角色" : str(payload.get("characterName"), "角色");
-        voice.setSpeechPattern(characterName + "偏好短句、反问句与口语化表达");
-        voice.setVocabularyLevel("colloquial");
-        voice.setCatchphrasesJson(writeJson(List.of("这事不对劲", "让我想想")));
-        voice.setSampleDialoguesJson(writeJson(List.of(characterName + "：先别急，我们再看一眼线索。")));
-        voice.setAiAnalysisJson(writeJson(Map.of("source", "auto-generated", "version", "v2")));
-        return voiceResponse(characterVoiceRepository.save(voice));
-    }
-
     private void applyProfilePayload(StyleProfile profile, Map<String, Object> payload) {
         profile.setName(str(payload.get("name"), profile.getName() == null ? "默认风格画像" : profile.getName()));
         profile.setProfileType(str(payload.get("profileType"), profile.getProfileType() == null ? "global" : profile.getProfileType()));
@@ -181,14 +163,11 @@ public class StyleService {
     }
 
     private List<StyleProfileSceneOverride> toSceneOverrides(Object raw) {
-        if (!(raw instanceof List<?> list)) {
-            return List.of();
-        }
+        if (raw == null) return List.of();
+        if (!(raw instanceof List<?> list)) throw new BusinessException("场景风格设置应为数组");
         List<StyleProfileSceneOverride> overrides = new ArrayList<>();
         for (Object item : list) {
-            if (!(item instanceof Map<?, ?> map)) {
-                continue;
-            }
+            if (!(item instanceof Map<?, ?> map)) throw new BusinessException("场景风格设置应为对象");
             StyleProfileSceneOverride override = new StyleProfileSceneOverride();
             override.setSceneType(str(map.get("sceneType"), "custom"));
             override.setOverrideJson(writeJson(item));
@@ -205,16 +184,16 @@ public class StyleService {
             voice.setVocabularyLevel(str(payload.get("vocabularyLevel"), "neutral"));
         }
         if (payload.containsKey("catchphrases") || voice.getCatchphrasesJson() == null) {
-            voice.setCatchphrasesJson(writeJson(payload.getOrDefault("catchphrases", List.of())));
+            voice.setCatchphrasesJson(writeJson(Objects.requireNonNullElse(payload.get("catchphrases"), List.of())));
         }
         if (payload.containsKey("emotionalRange") || voice.getEmotionalRangeJson() == null) {
-            voice.setEmotionalRangeJson(writeJson(payload.getOrDefault("emotionalRange", List.of())));
+            voice.setEmotionalRangeJson(writeJson(Objects.requireNonNullElse(payload.get("emotionalRange"), List.of())));
         }
         if (payload.containsKey("dialect") || voice.getDialect() == null) {
             voice.setDialect(str(payload.get("dialect"), ""));
         }
         if (payload.containsKey("sampleDialogues") || voice.getSampleDialoguesJson() == null) {
-            voice.setSampleDialoguesJson(writeJson(payload.getOrDefault("sampleDialogues", List.of())));
+            voice.setSampleDialoguesJson(writeJson(Objects.requireNonNullElse(payload.get("sampleDialogues"), List.of())));
         }
         if (payload.containsKey("aiAnalysis") || voice.getAiAnalysisJson() == null) {
             voice.setAiAnalysisJson(writeJson(payload.getOrDefault("aiAnalysis", Map.of())));
@@ -250,9 +229,9 @@ public class StyleService {
         result.put("userId", profile.getUser() == null ? null : profile.getUser().getId());
         result.put("name", profile.getName());
         result.put("profileType", profile.getProfileType());
-        result.put("dimensions", readJson(profile.getDimensionsJson(), Map.of()));
+        result.put("dimensions", readMap(profile.getDimensionsJson()));
         result.put("sampleText", profile.getSampleText());
-        result.put("aiAnalysis", readJson(profile.getAiAnalysisJson(), Map.of()));
+        result.put("aiAnalysis", readMap(profile.getAiAnalysisJson()));
         result.put("sceneOverrides", profile.getSceneOverrides().stream().map(this::sceneOverrideResponse).toList());
         result.put("isActive", profile.isActive());
         result.put("createdAt", profile.getCreatedAt());
@@ -260,15 +239,10 @@ public class StyleService {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> sceneOverrideResponse(StyleProfileSceneOverride override) {
-        Object parsed = readJson(override.getOverrideJson(), Map.of());
-        if (parsed instanceof Map<?, ?> raw) {
-            Map<String, Object> result = new LinkedHashMap<>((Map<String, Object>) raw);
-            result.putIfAbsent("sceneType", override.getSceneType());
-            return result;
-        }
-        return new LinkedHashMap<>(Map.of("sceneType", override.getSceneType(), "dimensions", Map.of()));
+        Map<String, Object> result = new LinkedHashMap<>(readMap(override.getOverrideJson()));
+        result.putIfAbsent("sceneType", override.getSceneType());
+        return result;
     }
 
     private Map<String, Object> voiceResponse(CharacterVoice voice) {
@@ -278,11 +252,11 @@ public class StyleService {
         result.put("characterCardId", voice.getCharacterCard() == null ? null : voice.getCharacterCard().getId());
         result.put("speechPattern", voice.getSpeechPattern());
         result.put("vocabularyLevel", voice.getVocabularyLevel());
-        result.put("catchphrases", readJson(voice.getCatchphrasesJson(), List.of()));
-        result.put("emotionalRange", readJson(voice.getEmotionalRangeJson(), List.of()));
+        result.put("catchphrases", readList(voice.getCatchphrasesJson()));
+        result.put("emotionalRange", readList(voice.getEmotionalRangeJson()));
         result.put("dialect", voice.getDialect());
-        result.put("sampleDialogues", readJson(voice.getSampleDialoguesJson(), List.of()));
-        result.put("aiAnalysis", readJson(voice.getAiAnalysisJson(), Map.of()));
+        result.put("sampleDialogues", readList(voice.getSampleDialoguesJson()));
+        result.put("aiAnalysis", readMap(voice.getAiAnalysisJson()));
         result.put("createdAt", voice.getCreatedAt());
         result.put("updatedAt", voice.getUpdatedAt());
         return result;
@@ -295,7 +269,7 @@ public class StyleService {
         result.put("sourceType", job.getSourceType());
         result.put("sourceReference", job.getSourceReference());
         result.put("status", job.getStatus());
-        result.put("result", readJson(job.getResultJson(), Map.of()));
+        result.put("result", readMap(job.getResultJson()));
         result.put("errorMessage", job.getErrorMessage());
         result.put("createdAt", job.getCreatedAt());
         result.put("updatedAt", job.getUpdatedAt());
@@ -303,7 +277,7 @@ public class StyleService {
     }
 
     private Map<String, Integer> analyzeDimensionScores(String sampleText) {
-        String text = sampleText == null ? "" : sampleText.trim();
+        String text = sampleText.trim();
         int length = text.length();
         int punctuation = countChars(text, "，。！？；：");
         int quotes = countChars(text, "“”\"「」");
@@ -326,9 +300,6 @@ public class StyleService {
     }
 
     private int countChars(String source, String chars) {
-        if (source == null || source.isEmpty()) {
-            return 0;
-        }
         int count = 0;
         for (int i = 0; i < source.length(); i++) {
             if (chars.indexOf(source.charAt(i)) >= 0) {
@@ -340,11 +311,8 @@ public class StyleService {
 
     private int countContains(String source, String... keywords) {
         int count = 0;
-        if (source == null || source.isEmpty()) {
-            return count;
-        }
         for (String keyword : keywords) {
-            if (keyword != null && !keyword.isEmpty() && source.contains(keyword)) {
+            if (source.contains(keyword)) {
                 count++;
             }
         }
@@ -356,9 +324,6 @@ public class StyleService {
     }
 
     private int uniqueCharacterCount(String source) {
-        if (source == null || source.isEmpty()) {
-            return 0;
-        }
         Set<Character> chars = new HashSet<>();
         for (int i = 0; i < source.length(); i++) {
             chars.add(source.charAt(i));
@@ -386,10 +351,14 @@ public class StyleService {
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value == null ? Map.of() : value, "{}");
+        return jsonColumnCodec.writeRequired(value == null ? Map.of() : value);
     }
 
-    private Object readJson(String json, Object fallback) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, fallback);
+    private Map<String, Object> readMap(String json) {
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, Map.of());
+    }
+
+    private List<Object> readList(String json) {
+        return jsonColumnCodec.read(json, new TypeReference<>() {}, List.of());
     }
 }

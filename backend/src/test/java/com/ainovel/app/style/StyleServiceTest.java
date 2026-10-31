@@ -31,7 +31,6 @@ class StyleServiceTest {
                 mock(CharacterVoiceRepository.class),
                 mock(StyleAnalysisJobRepository.class),
                 mock(CharacterCardRepository.class),
-                new ObjectMapper(),
                 new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();
@@ -59,7 +58,6 @@ class StyleServiceTest {
                 voiceRepository,
                 mock(StyleAnalysisJobRepository.class),
                 cardRepository,
-                new ObjectMapper(),
                 new JsonColumnCodec(new ObjectMapper())
         );
         Story story = story();
@@ -75,6 +73,45 @@ class StyleServiceTest {
                 service.createCharacterVoice(story, Map.of("characterCardId", characterId.toString()))
         );
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    }
+
+    @Test
+    void malformedStoredShapesDoNotBecomeEmptySettings() {
+        var profiles = mock(StyleProfileRepository.class);
+        var voices = mock(CharacterVoiceRepository.class);
+        var service = new StyleService(profiles, voices, mock(StyleAnalysisJobRepository.class),
+                mock(CharacterCardRepository.class), new JsonColumnCodec(new ObjectMapper()));
+        Story story = story();
+        var profile = profile(UUID.randomUUID(), "保留画像", false);
+        when(profiles.findByStoryOrderByCreatedAtDesc(story)).thenReturn(List.of(profile));
+        profile.setDimensionsJson("[]");
+        assertThrows(com.ainovel.app.common.ApiStatusException.class, () -> service.listStyleProfiles(story));
+        profile.setDimensionsJson(null);
+        assertEquals(Map.of(), service.listStyleProfiles(story).getFirst().get("dimensions"));
+        var voice = new CharacterVoice(); voice.setSampleDialoguesJson("{}");
+        when(voices.findByStoryOrderByCreatedAtDesc(story)).thenReturn(List.of(voice));
+        assertThrows(com.ainovel.app.common.ApiStatusException.class, () -> service.listCharacterVoices(story));
+        verify(profiles, never()).save(any()); verify(voices, never()).save(any());
+    }
+
+    @Test
+    void optionalNullVoiceListsRemainValidEmptyLists() {
+        var profiles = mock(StyleProfileRepository.class);
+        var voices = mock(CharacterVoiceRepository.class);
+        var cards = mock(CharacterCardRepository.class);
+        var service = new StyleService(profiles, voices, mock(StyleAnalysisJobRepository.class),
+                cards, new JsonColumnCodec(new ObjectMapper()));
+        Story story = story();
+        var card = new CharacterCard(); card.setId(UUID.randomUUID()); card.setStory(story);
+        when(cards.findByIdWithStoryUser(card.getId())).thenReturn(Optional.of(card));
+        when(voices.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("characterCardId", card.getId());
+        payload.put("catchphrases", null); payload.put("emotionalRange", null); payload.put("sampleDialogues", null);
+        Map<String, Object> response = service.createCharacterVoice(story, payload);
+        assertEquals(List.of(), response.get("catchphrases"));
+        assertEquals(List.of(), response.get("emotionalRange"));
+        assertEquals(List.of(), response.get("sampleDialogues"));
     }
 
     private Story story() {

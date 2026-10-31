@@ -33,7 +33,7 @@ class PlotQualityServiceTest {
         var ai=mock(AiService.class);var manuscripts=mock(ManuscriptRepository.class);var cards=mock(CharacterCardRepository.class);
         var runs=mock(PlotQualityRunRepository.class);var gate=mock(SlopQualityGate.class);var mapper=new ObjectMapper();
         var service=new PlotQualityService(ai,mapper,manuscripts,cards,runs,new JsonColumnCodec(mapper));
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         var context=mock(com.ainovel.app.narrative.NarrativeContextService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(service,"isolation",context);
         UUID scene=UUID.randomUUID();var m=manuscriptWithSceneContext(scene,UUID.randomUUID(),"SECRET_PREVIOUS","当前正文");
@@ -43,7 +43,7 @@ class PlotQualityServiceTest {
         var preview=new com.ainovel.app.narrative.NarrativeContextDtos.Preview(com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,scene,stamp,"hash",3500,10,"ONLY_APPROVED",List.of(),List.of());
         when(context.enabled(m)).thenReturn(true);
         when(context.preview(owner,m.getId(),m.getCurrentBranchId(),scene,com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500)).thenReturn(preview);
-        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","{\"risk_score\":10}",null,0));
+        when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","{\"risk_score\":10,\"max_severity\":\"LOW\"}",null,0));
         when(runs.save(any())).thenAnswer(i->{PlotQualityRun r=i.getArgument(0);if(r.getId()==null)r.setId(UUID.randomUUID());return r;});
         var run=service.analyzeScene(owner,m,scene);
         when(runs.findById(run.getId())).thenReturn(Optional.of(run));
@@ -73,7 +73,7 @@ class PlotQualityServiceTest {
                 repository,
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         User user = user();
         UUID sceneId = UUID.randomUUID();
         UUID previousSceneId = UUID.randomUUID();
@@ -140,7 +140,7 @@ class PlotQualityServiceTest {
 
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID manuscriptId = UUID.randomUUID();
         UUID sceneA = UUID.randomUUID();
         UUID sceneB = UUID.randomUUID();
@@ -162,6 +162,27 @@ class PlotQualityServiceTest {
     }
 
     @Test
+    void failedLatestResultDoesNotReviveAnOlderScoreOrProduceZeroMean() {
+        var repository = mock(PlotQualityRunRepository.class);
+        var service = new PlotQualityService(mock(AiService.class), new ObjectMapper(),
+                mock(ManuscriptRepository.class), mock(CharacterCardRepository.class), repository,
+                new JsonColumnCodec(new ObjectMapper()));
+        var manuscript = UUID.randomUUID(); var scene = UUID.randomUUID();
+        var failed = run(manuscript, scene, 1, 1, 45, PlotQualitySeverity.MEDIUM);
+        failed.setStatus(PlotQualityStatus.DEGRADED);
+        when(repository.findTop200ByManuscriptIdOrderByCreatedAtDesc(manuscript)).thenReturn(List.of(
+                failed, run(manuscript, scene, 1, 1, 72, PlotQualitySeverity.HIGH)));
+        var trend = service.buildTrend(manuscript);
+        assertNull(trend.averageRisk());
+        assertTrue(trend.points().isEmpty());
+        assertTrue(trend.dimensionCounts().isEmpty());
+        assertEquals(0, trend.highRiskScenes());
+        assertNull(PlotQualityMapper.toDto(failed).overallRiskScore());
+        assertNull(PlotQualityMapper.toDto(failed).maxSeverity());
+        assertEquals(45, failed.getOverallRiskScore());
+    }
+
+    @Test
     void applyRevisionShouldRejectWhenCurrentTextHashChanged() {
         PlotQualityRunRepository repository = mock(PlotQualityRunRepository.class);
         PlotQualityService service = new PlotQualityService(
@@ -173,7 +194,7 @@ class PlotQualityServiceTest {
 
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID runId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();
         run.setId(runId);
@@ -204,7 +225,7 @@ class PlotQualityServiceTest {
                 repository,
                 new JsonColumnCodec(new ObjectMapper())
         );
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        QualityTestSupport.install(service);
         UUID runId = UUID.randomUUID();
         UUID sceneId = UUID.randomUUID();
         PlotQualityRun run = new PlotQualityRun();

@@ -148,10 +148,7 @@ public class StoryService {
         StoryConceptionService.ConceptionDraft draft = storyConceptionService.draftConception(user, request);
         return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(() -> transactions.execute(status -> {
         StoryDto story = createStory(user, request);
-        StoryDto updatedStory = story;
-        if (!draft.generated().isEmpty()) {
-            updatedStory = updateStory(story.id(), draft.storyUpdate());
-        }
+        StoryDto updatedStory = updateStory(story.id(), draft.storyUpdate());
         List<CharacterDto> createdCharacters = new ArrayList<>();
         for (CharacterRequest characterRequest : draft.characterRequests()) {
             createdCharacters.add(addCharacter(updatedStory.id(), characterRequest));
@@ -164,7 +161,6 @@ public class StoryService {
         result.put("plotPlanning", draft.plotPlanning());
         result.put("outlineSeed", draft.outlineSeed());
         result.put("generated", draft.generated());
-        result.put("degraded", draft.generated().get("fallbackFields") instanceof List<?> fields && !fields.isEmpty());
         return result;
         }));
     }

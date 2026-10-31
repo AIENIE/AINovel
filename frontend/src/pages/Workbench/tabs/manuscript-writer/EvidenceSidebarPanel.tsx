@@ -1,3 +1,4 @@
+import { localizedErrorMessage } from "@/lib/error-messages";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api-client";
@@ -72,7 +73,7 @@ export function EvidenceSidebarPanel({ storyId, manuscript, sceneId, content, di
   useEffect(() => {
     let observing = true;
     if (!active || !pack) return;
-    Promise.all(pack.pinned.map(async id => { try { return [id, await api.evidence.open(id)] as const; } catch { return [id, null] as const; } })).then(rows => { if (observing) setPinnedSources(Object.fromEntries(rows)); });
+    Promise.all(pack.pinned.map(async id => [id, await api.evidence.open(id)] as const)).then(rows => { if (observing) setPinnedSources(Object.fromEntries(rows)); }).catch((error: unknown) => { if (observing) setError(localizedErrorMessage(error)); });
     return () => { observing = false; };
   }, [active, pack]);
   useEffect(() => {

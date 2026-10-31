@@ -99,9 +99,6 @@
     "APP_RECORD_DIR": [
       "app.records.dir"
     ],
-    "APP_RECORD_ES_QUERY_ENABLED": [
-      "app.records.elasticsearch-query-enabled"
-    ],
     "APP_RECORD_MAX_FILE_SIZE_BYTES": [
       "app.records.max-file-size-bytes"
     ],
@@ -150,15 +147,6 @@
     "JWT_AUDIENCE": [
       "app.jwt.audience"
     ],
-    "AI_MODEL": [
-      "app.ai.model"
-    ],
-    "AI_BASE_URL": [
-      "app.ai.base-url"
-    ],
-    "AI_API_KEY": [
-      "app.ai.api-key"
-    ],
     "AI_MAX_MESSAGES": [
       "app.ai.admission.max-messages"
     ],
@@ -182,9 +170,6 @@
     ],
     "EXTERNAL_PROJECT_KEY": [
       "app.external.project-key"
-    ],
-    "EXTERNAL_TIMEOUT_MS": [
-      "app.external.timeout-ms"
     ],
     "EXTERNAL_BILLING_TIMEOUT_MS": [
       "app.external.billing-timeout-ms"
@@ -255,9 +240,6 @@
     "SSO_CALLBACK_ORIGIN": [
       "sso.callback-origin"
     ],
-    "SSO_SESSION_VALIDATION_ENABLED": [
-      "sso.session-validation.enabled"
-    ],
     "USER_SESSION_GRPC_TIMEOUT_MS": [
       "sso.session-validation.timeout-ms"
     ],
@@ -287,18 +269,6 @@
     ],
     "SPRINGDOC_SWAGGER_UI_ENABLED": [
       "springdoc.swagger-ui.enabled"
-    ],
-    "ELASTICSEARCH_HOSTS": [
-      "elasticsearch.hosts"
-    ],
-    "ELASTICSEARCH_USERNAME": [
-      "elasticsearch.username"
-    ],
-    "ELASTICSEARCH_PASSWORD": [
-      "elasticsearch.password"
-    ],
-    "FILEBEAT_INDEX_PREFIX": [
-      "filebeat.index-prefix"
     ],
     "ENV": [
       "runtime.configuration.ENV"

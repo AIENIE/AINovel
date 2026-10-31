@@ -37,7 +37,6 @@ import java.util.regex.Pattern;
 @Component
 public class OpsRecordFileSink {
     public static final String AUDIT_RECORD = "ainovel_admin_audit";
-    public static final String OPS_EVENT_RECORD = "ainovel_ops_event";
     public static final String DEPENDENCY_PROBE_RECORD = "ainovel_dependency_probe";
 
     private static final Logger log = LoggerFactory.getLogger(OpsRecordFileSink.class);
@@ -126,10 +125,6 @@ public class OpsRecordFileSink {
 
     public void appendAudit(Map<String, Object> fields) {
         append("ainovel-admin-audit-", AUDIT_RECORD, fields);
-    }
-
-    public void appendOpsEvent(Map<String, Object> fields) {
-        append("ainovel-ops-events-", OPS_EVENT_RECORD, fields);
     }
 
     public void appendDependencyProbe(Map<String, Object> fields) {

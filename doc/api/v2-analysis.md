@@ -3,8 +3,7 @@
 - 基础路径：`/api/v2/stories/{storyId}/analysis`
 
 ## Jobs
-- `POST /beta-reader`：当前未接入真实分析，完成故事所有权校验后返回 HTTP 501，Body `{code:"ANALYSIS_NOT_IMPLEMENTED",message:"..."}`；不会创建任务或报告。
-- `POST /continuity-check`：当前未接入真实分析，完成故事所有权校验后返回同一稳定 501；不会创建伪连续性问题。
+- 旧 `POST /beta-reader` 和 `POST /continuity-check` 占位触发接口已退役，返回 HTTP 404。现有历史读取接口继续提供。
 - `GET /jobs`：任务列表。
 - `GET /jobs/{jobId}`：任务详情。
 

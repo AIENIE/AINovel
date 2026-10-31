@@ -94,7 +94,7 @@ class AiOperationFencingTest {
     @Test void retryReusesCallKeysButSeparatesCalls() throws Exception {
         List<String> keys = new ArrayList<>();
         when(handler.execute(any())).thenAnswer(i -> {
-            keys.add(AiOperationExecutionContext.nextCallKey()); keys.add(AiOperationExecutionContext.nextCallKey());
+            keys.add(AiOperationExecutionContext.callKey("same-request")); keys.add(AiOperationExecutionContext.callKey("same-request"));
             return Map.of("ok", true);
         });
         ReflectionTestUtils.invokeMethod(service, "execute", run.getId());

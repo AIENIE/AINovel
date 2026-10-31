@@ -518,7 +518,7 @@ class NarrativeServiceTest {
         manuscript.setSectionsJson(write(Map.of(scene1, "<p>林青发现桥完好。</p>", scene2, "<p>林青仍在等消息。</p>"))); em.flush();
         complete(scene1, assertion(Kind.FACT, "桥完好", "桥完好", "b1", null));
         assertEquals("CONFIRMED", service.state(user, manuscript.getId(), main, null, null, null, null, null).records().get(0).status());
-        versions.mergeBranch(manuscript, user, fork, com.ainovel.app.v2.V2BranchRequests.MergeBranch.defaults()); em.flush(); branch = main;
+        versions.mergeBranch(manuscript, user, fork, new com.ainovel.app.v2.V2BranchRequests.MergeBranch(com.ainovel.app.v2.V2BranchRequests.MergeStrategy.REPLACE_ALL, java.util.Map.of(), null)); em.flush(); branch = main;
         assertEquals(1, state().records().size());
         assertEquals("STALE", state().records().get(0).status());
         assertEquals("CONFIRMED", service.state(user, manuscript.getId(), fork, null, null, null, null, null).records().get(0).status());

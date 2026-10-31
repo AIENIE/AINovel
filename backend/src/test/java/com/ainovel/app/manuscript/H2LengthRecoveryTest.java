@@ -2,7 +2,6 @@ package com.ainovel.app.manuscript;
 
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
-import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.manuscript.context.*;
 import com.ainovel.app.manuscript.model.Manuscript;
 import com.ainovel.app.narrative.*;
@@ -20,7 +19,7 @@ import static org.mockito.ArgumentMatchers.*;
 class H2LengthRecoveryTest {
     @Test void retainsBothDraftsAndNeverMakesAThirdCall() throws Exception {
         var json=new ObjectMapper();var service=new SceneGenerationService();
-        com.ainovel.app.manuscript.ManuscriptContentTestSupport.injectLegacy(service);
+        SceneGenerationTestSupport.install(service,json,mock(com.ainovel.app.story.repo.CharacterCardRepository.class));
         var ai=mock(AiService.class);var builder=mock(SceneGenerationPromptBuilder.class);
         var compiler=mock(SceneDraftContextCompiler.class);var archive=mock(NarrativeGenerationCandidateStore.class);
         ReflectionTestUtils.setField(service,"aiService",ai);ReflectionTestUtils.setField(service,"sceneGenerationPromptBuilder",builder);
@@ -34,7 +33,7 @@ class H2LengthRecoveryTest {
         var manifest=new SceneDraftContextManifest("scene-isolation-h2-v2","hash","SHA-256",3500,30,null,null,mid,scene,null,1,1,"",List.of(),List.of(),stamp);
         var compiled=new CompiledSceneDraftContext("frozen",manifest,"",List.of(),List.of(),List.of(),"");
         when(compiler.compile(any(),any(),any())).thenReturn(compiled);
-        when(builder.build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any())).thenReturn(new AssembledPrompt(List.of(new AiChatRequest.Message("user","frozen")),128000));
+        when(builder.build(any(),any(),any(),any(),any(),any(),anyInt(),anyInt(),anyInt(),anyInt(),any(),any(),anyList())).thenReturn(new AssembledPrompt(List.of(new AiChatRequest.Message("user","frozen")),128000));
         when(ai.chat(any(),any())).thenReturn(new AiChatResponse("assistant","初稿仍太短",null,0),new AiChatResponse("assistant","修正稿仍太短",null,0));
         assertTrue(service.generateSceneSection(manuscript,scene,Map.of(),GenerationMode.FAST).needsReview());
         verify(ai,times(2)).chat(any(),any());

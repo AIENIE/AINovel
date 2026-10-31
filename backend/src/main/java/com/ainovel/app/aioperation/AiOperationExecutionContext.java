@@ -1,7 +1,6 @@
 package com.ainovel.app.aioperation;
 
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /** Worker-scoped identity. Business writes must enter apply/complete, never wrap remote calls. */
@@ -30,12 +29,6 @@ public final class AiOperationExecutionContext {
         return scope == null ? mutation.get() : scope.fence.apply(mutation, resultView);
     }
 
-    public static String nextCallKey() {
-        Scope scope = CURRENT.get();
-        return scope == null ? UUID.randomUUID().toString()
-                : "operation:" + scope.operationId + ":call:" + scope.calls.getAndIncrement();
-    }
-
     public static String callKey(String requestHash) {
         Scope scope = CURRENT.get();
         if (scope == null) return UUID.randomUUID().toString();
@@ -53,7 +46,6 @@ public final class AiOperationExecutionContext {
     private static final class Scope {
         private final UUID operationId;
         private final Fence fence;
-        private final AtomicInteger calls = new AtomicInteger();
         private final java.util.Map<String,Integer> requestCalls = new java.util.HashMap<>();
         private Scope(UUID operationId, Fence fence) { this.operationId = operationId; this.fence = fence; }
     }

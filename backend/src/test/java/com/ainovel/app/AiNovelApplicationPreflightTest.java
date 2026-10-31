@@ -1,6 +1,5 @@
 package com.ainovel.app;
 
-import com.ainovel.app.config.RuntimeEnvironmentPreflight;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -47,7 +46,7 @@ class AiNovelApplicationPreflightTest {
     @Test
     void everyFixedEnvExamplePlaceholderFailsBeforeSpringStartup() throws IOException {
         Map<String, String> template = readEnvExample();
-        Map<String, String> placeholders = RuntimeEnvironmentPreflight.templatePlaceholders();
+        Map<String, String> placeholders = templatePlaceholders();
         Map<String, String> fixedTemplateValues = template.entrySet().stream()
                 .filter(entry -> entry.getValue().toLowerCase().contains("replace-")
                         || entry.getValue().toLowerCase().contains("replace_")
@@ -75,9 +74,9 @@ class AiNovelApplicationPreflightTest {
     }
 
     @Test
-    void failedPreflightNeverInvokesSpringLauncher() {
+    void failedPreflightNeverInvokesSpringLauncher() throws IOException {
         Map<String, String> environment = validEnvironment();
-        environment.put("JWT_SECRET", RuntimeEnvironmentPreflight.templatePlaceholders().get("JWT_SECRET"));
+        environment.put("JWT_SECRET", templatePlaceholders().get("JWT_SECRET"));
         AtomicBoolean launched = new AtomicBoolean();
 
         assertThrows(IllegalStateException.class, () ->
@@ -114,22 +113,22 @@ class AiNovelApplicationPreflightTest {
     }
 
     @Test
-    void stagingAcceptsOnlyTheRebaselinedCanonicalDataEndpoints() {
+    void stagingUsesConfiguredEndpointsCredentialsAndAccountNames() {
         Map<String, String> environment = validEnvironment();
         environment.put("ENV", "test");
         configureStagingDataServices(environment);
         assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
 
-        for (Map.Entry<String, String> invalid : Map.of(
+        for (Map.Entry<String, String> allowed : Map.of(
                 "DB_URL", "jdbc:mysql://192.168.1.3:13306/ainovel?sslMode=REQUIRED&allowPublicKeyRetrieval=false",
                 "REDIS_HOST", "192.168.1.3",
                 "REDIS_PORT", "26379",
                 "REDIS_SSL_ENABLED", "true",
                 "QDRANT_HOST", "http://192.168.1.3",
                 "QDRANT_PORT", "26333").entrySet()) {
-            Map<String, String> rejected = new HashMap<>(environment);
-            rejected.put(invalid.getKey(), invalid.getValue());
-            assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(rejected), invalid.getKey());
+            Map<String, String> configured = new HashMap<>(environment);
+            configured.put(allowed.getKey(), allowed.getValue());
+            assertDoesNotThrow(() -> AiNovelApplication.preflight(configured), allowed.getKey());
         }
 
         Map<String, String> duplicateOverride = new HashMap<>(environment);
@@ -145,13 +144,17 @@ class AiNovelApplicationPreflightTest {
         duplicateMode.put("DB_URL", environment.get("DB_URL") + "&sslMode=DISABLED");
         assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(duplicateMode));
 
-        Map<String, String> fakeRedisCredential = new HashMap<>(environment);
-        fakeRedisCredential.put("REDIS_PASSWORD", "not-configured-on-staging");
-        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(fakeRedisCredential));
+        environment.put("REDIS_USERNAME", "configured-user");
+        environment.put("REDIS_PASSWORD", "configured-password");
+        environment.put("QDRANT_API_KEY", "configured-key");
+        for (String account : java.util.List.of("root", "ainovel", "operator")) {
+            environment.put("DB_USERNAME", account);
+            assertDoesNotThrow(() -> AiNovelApplication.preflight(environment), account);
+        }
     }
 
     @Test
-    void userServiceCallerJwtContractRejectsLegacyOrOverPrivilegedConfiguration() {
+    void userServiceCallerJwtContractValidatesCurrentConfiguration() {
         Map<String, String> environment = validEnvironment();
         assertDoesNotThrow(() -> AiNovelApplication.preflight(environment));
 
@@ -171,7 +174,18 @@ class AiNovelApplicationPreflightTest {
 
         Map<String, String> legacy = new HashMap<>(environment);
         legacy.put("EXTERNAL_USER_INTERNAL_GRPC_TOKEN", "legacy-shared-static-token");
-        assertThrows(IllegalStateException.class, () -> AiNovelApplication.preflight(legacy));
+        legacy.put("EXTERNAL_PAY_SERVICE_JWT", "unused-old-jwt");
+        assertDoesNotThrow(() -> AiNovelApplication.preflight(legacy));
+    }
+
+    private Map<String, String> templatePlaceholders() throws IOException {
+        var properties = new java.util.Properties();
+        try (var stream = getClass().getClassLoader().getResourceAsStream("env-template-placeholders.properties")) {
+            properties.load(new java.io.InputStreamReader(java.util.Objects.requireNonNull(stream), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        Map<String, String> result = new HashMap<>();
+        properties.forEach((key, value) -> result.put(key.toString(), value.toString()));
+        return result;
     }
 
     private Map<String, String> validEnvironment() {

@@ -113,10 +113,7 @@ class UserSessionValidatorInfrastructureTests {
     void shouldAttachARecentlyIssuedCallerJwtToEveryRemoteValidation() throws Exception {
         Metadata.Key<String> tokenHeader = Metadata.Key.of(
                 "authorization", Metadata.ASCII_STRING_MARSHALLER);
-        Metadata.Key<String> legacyTokenHeader = Metadata.Key.of(
-                "x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
         List<String> observedTokens = new CopyOnWriteArrayList<>();
-        List<Boolean> observedLegacyTokens = new CopyOnWriteArrayList<>();
         Server server = ServerBuilder.forPort(0)
                 .addService(ServerInterceptors.intercept(
                         new UserAuthServiceGrpc.UserAuthServiceImplBase() {
@@ -134,7 +131,6 @@ class UserSessionValidatorInfrastructureTests {
                                     Metadata headers,
                                     ServerCallHandler<ReqT, RespT> next) {
                                 observedTokens.add(headers.get(tokenHeader));
-                                observedLegacyTokens.add(headers.containsKey(legacyTokenHeader));
                                 return next.startCall(call, headers);
                             }
                         }
@@ -160,7 +156,6 @@ class UserSessionValidatorInfrastructureTests {
             assertEquals(UserSessionValidator.ValidationResult.VALID, validator.validate(41L, "session-one"));
             assertEquals(UserSessionValidator.ValidationResult.VALID, validator.validate(42L, "session-two"));
             assertEquals(List.of("Bearer caller.jwt.one", "Bearer caller.jwt.two"), observedTokens);
-            assertEquals(List.of(false, false), observedLegacyTokens);
         } finally {
             if (validator != null) {
                 validator.shutdown();

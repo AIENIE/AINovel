@@ -2,7 +2,6 @@ package com.ainovel.app.v2;
 
 import com.ainovel.app.admin.ops.OpsRecordFileSink;
 import com.ainovel.app.security.ResourceAccessGuard;
-import com.ainovel.app.story.model.Story;
 import com.ainovel.app.user.User;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -43,41 +42,13 @@ class V2ModelControllerTest {
     }
 
     @Test
-    void compareModelsShouldUsePersistedModelsAndRecordUsage() {
-        ResourceAccessGuard accessGuard = mock(ResourceAccessGuard.class);
-        V2ModelPersistenceService persistenceService = mock(V2ModelPersistenceService.class);
-        OpsRecordFileSink recordFileSink = mock(OpsRecordFileSink.class);
-        UserDetails principal = mock(UserDetails.class);
-        User user = user();
-        UUID storyId = UUID.randomUUID();
-        UUID modelAId = UUID.randomUUID();
-        UUID modelBId = UUID.randomUUID();
-        Story story = new Story();
-        story.setId(storyId);
-        story.setTitle("雨城疑案");
-
-        when(accessGuard.currentUser(principal)).thenReturn(user);
-        when(accessGuard.requireOwnedStory(storyId, user)).thenReturn(story);
-        when(persistenceService.listModels()).thenReturn(List.of(
-                Map.of("id", modelAId, "modelKey", "deepseek-v4-flash", "displayName", "DeepSeek V4 Flash"),
-                Map.of("id", modelBId, "modelKey", "deepseek-v4-pro", "displayName", "DeepSeek V4 Pro")
-        ));
-        V2ModelController controller = new V2ModelController(accessGuard, persistenceService, recordFileSink);
-
-        Map<String, Object> result = controller.compareModels(principal, storyId, V2RequestPayload.of(Map.of(
-                "modelAId", modelAId.toString(),
-                "modelBId", modelBId.toString(),
-                "taskType", "analysis",
-                "prompt", "请分析这段剧情"
-        )));
-
-        assertEquals("analysis", result.get("taskType"));
-        assertEquals("请分析这段剧情", result.get("prompt"));
-        assertEquals(2, ((List<?>) result.get("candidates")).size());
-        verify(persistenceService).listModels();
-        verify(persistenceService).logUsage(user, storyId, modelAId, "analysis", 220, 340, 580, true, null);
-        verify(persistenceService).logUsage(user, storyId, modelBId, "analysis", 210, 330, 560, true, null);
-        verify(accessGuard).requireOwnedStory(storyId, user);
+    void retiredComparisonDoesNotFabricateModelOutputsOrUsage() throws Exception {
+        var controller = new V2ModelController(mock(ResourceAccessGuard.class),
+                mock(V2ModelPersistenceService.class), mock(OpsRecordFileSink.class));
+        org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v2/stories/"+UUID.randomUUID()+"/compare-models")
+                        .contentType("application/json").content("{}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
     }
 
     @Test
@@ -86,16 +57,17 @@ class V2ModelControllerTest {
         V2ModelPersistenceService persistenceService = mock(V2ModelPersistenceService.class);
         OpsRecordFileSink recordFileSink = mock(OpsRecordFileSink.class);
         V2ModelController controller = new V2ModelController(accessGuard, persistenceService, recordFileSink);
-        UUID recommended = UUID.randomUUID();
         Map<String, Object> updated = Map.of("taskType", "draft_generation");
-        when(persistenceService.updateRouting(
-                "draft_generation", recommended, null, "fixed", Map.of()
-        )).thenReturn(updated);
+        var configuration = mock(com.ainovel.app.modelconfig.AiModelConfigurationService.class);
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelConfiguration",configuration);
+        var feature = new com.ainovel.app.modelconfig.AiModelConfigurationService.FeatureView(null,0,false,null,null,false,List.of(),List.of());
+        when(configuration.update(org.mockito.ArgumentMatchers.eq("draft_generation"), org.mockito.ArgumentMatchers.any())).thenReturn(feature);
+        when(configuration.asMap(feature)).thenReturn(updated);
 
         Map<String, Object> result = controller.updateRouting(
                 new UsernamePasswordAuthenticationToken("local-operator", "n/a"),
                 "draft_generation",
-                V2RequestPayload.of(Map.of("recommendedModelId", recommended.toString()))
+                V2RequestPayload.of(Map.of("options", List.of()))
         );
 
         assertEquals(updated, result);

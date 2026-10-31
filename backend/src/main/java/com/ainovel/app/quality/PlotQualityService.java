@@ -18,7 +18,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
@@ -65,16 +64,9 @@ public class PlotQualityService {
     }
 
     public PlotQualityRun analyzeScene(User user, Manuscript manuscript, UUID sceneId) {
-        if (boundary == null) return analyze(user, buildRequest(manuscript, sceneId));
         var snapshot = boundary.snapshot(manuscript, current -> buildRequest(current, sceneId));
         PlotQualityRun result = evaluate(user, snapshot.data());
         return boundary.save(snapshot, current -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
-    }
-
-    public PlotQualityRun analyze(User user, PlotQualityRequest request) {
-        PlotQualityRun result = evaluate(user, request);
-        return com.ainovel.app.aioperation.AiOperationExecutionContext.complete(
-                () -> runRepository.save(result), saved -> Map.of("resourceId", saved.getId()));
     }
 
     public PlotQualityRun analyzeDuringGeneration(User user,PlotQualityRequest request) {
@@ -89,14 +81,12 @@ public class PlotQualityService {
                     null,
                     null
             ).forFeature("plot.diagnose")).content();
-            return toRun(request, parseJson(content), false);
+            return toRun(request, parseJson(content));
         } catch (RuntimeException ex) {
             if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
             if (ex instanceof com.ainovel.app.ai.AiResultUncertainException) throw ex;
             PlotQualityRun degraded = newBaseRun(request);
             degraded.setStatus(PlotQualityStatus.DEGRADED);
-            degraded.setMaxSeverity(PlotQualitySeverity.MEDIUM);
-            degraded.setOverallRiskScore(45);
             degraded.setSummary("剧情质量诊断失败，已降级记录：" + truncate(ex.getMessage(), 180));
             degraded.setRewritePlanJson("[]");
             degraded.setSurgicalFixesJson("[]");
@@ -109,7 +99,7 @@ public class PlotQualityService {
         Story story = outline.getStory();
         Map<String, String> sections = contents.readAll(manuscript);
         SceneContext scene = resolveScene(outline, sceneId);
-        if (isolation!=null && isolation.enabled(manuscript)) {
+        if (isolation.enabled(manuscript)) {
             var p=isolation.preview(story.getUser(),manuscript.getId(),manuscript.getCurrentBranchId(),sceneId,
                     com.ainovel.app.narrative.NarrativeContextDtos.View.SCENE,null,3500);
             return new PlotQualityRequest(story.getId(),manuscript.getId(),sceneId,"当前作品","未指定","沉浸、连贯","当前章节",scene.chapterOrder(),
@@ -141,11 +131,12 @@ public class PlotQualityService {
             latestByScene.putIfAbsent(run.getSceneId(), run);
         }
         List<PlotQualityRun> latest = latestByScene.values().stream()
+                .filter(run -> run.getStatus() != PlotQualityStatus.DEGRADED)
                 .sorted(Comparator.comparingInt(PlotQualityRun::getChapterOrder)
                         .thenComparingInt(PlotQualityRun::getSceneOrder)
                         .thenComparing(PlotQualityRun::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
-        double average = latest.stream().mapToInt(PlotQualityRun::getOverallRiskScore).average().orElse(0d);
+        var average = latest.stream().mapToInt(PlotQualityRun::getOverallRiskScore).average();
         int highRisk = (int) latest.stream()
                 .filter(run -> run.getOverallRiskScore() >= 70 || run.getMaxSeverity() == PlotQualitySeverity.HIGH || run.getMaxSeverity() == PlotQualitySeverity.BLOCKING)
                 .count();
@@ -165,36 +156,20 @@ public class PlotQualityService {
                         run.getStatus().name()
                 ))
                 .toList();
-        return new PlotQualityTrend(manuscriptId, Math.round(average * 1000d) / 1000d, highRisk, dimensionCounts, points);
+        return new PlotQualityTrend(manuscriptId, average.isPresent() ? Math.round(average.getAsDouble() * 1000d) / 1000d : null,
+                highRisk, dimensionCounts, points);
     }
 
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
-        if (boundary != null) {
-            var snapshot = boundary.snapshot(manuscript, current -> revisionPrompt(user, current, runId));
-            String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forFeature("plot.revise")).content();
-            return boundary.save(snapshot, current -> {
-                PlotQualityRun run = requireRun(runId);
-                ensureRunBelongsToManuscript(run, current);
-                requireIsolation(user, current, run);
-                run.setRevisionCandidateText(stripWrapper(candidate));
-                return runRepository.save(run);
-            }, saved -> Map.of("resourceId", saved.getId()));
-        }
-        PlotQualityRun run = requireRun(runId);
-        ensureRunBelongsToManuscript(run, manuscript);
-        requireIsolation(user,manuscript,run);
-        String currentText = currentPlainText(manuscript, run.getSceneId());
-        if (!Objects.equals(run.getSourceTextHash(), hashText(currentText))) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
-        }
-        String candidate = aiService.chat(user, new AiChatRequest(
-                List.of(new AiChatRequest.Message("user", buildRevisionPrompt(run, currentText)
-                        + (run.getIsolationContext()==null?"":"\n必须遵守的 H2 上下文：\n"+run.getIsolationContext()))),
-                null,
-                null
-        ).forFeature("plot.revise")).content();
-        run.setRevisionCandidateText(stripWrapper(candidate));
-        return runRepository.save(run);
+        var snapshot = boundary.snapshot(manuscript, current -> revisionPrompt(user, current, runId));
+        String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forFeature("plot.revise")).content();
+        return boundary.save(snapshot, current -> {
+            PlotQualityRun run = requireRun(runId);
+            ensureRunBelongsToManuscript(run, current);
+            requireIsolation(user, current, run);
+            run.setRevisionCandidateText(stripWrapper(candidate));
+            return runRepository.save(run);
+        }, saved -> Map.of("resourceId", saved.getId()));
     }
 
     private String revisionPrompt(User user, Manuscript manuscript, UUID runId) {
@@ -208,41 +183,20 @@ public class PlotQualityService {
     }
 
     public PlotQualityRun applyRevision(User user, Manuscript manuscript, UUID runId) {
-        if (boundary != null) {
-            var snapshot = boundary.snapshot(manuscript, current -> reviewedCandidate(user, current, runId));
-            return boundary.save(snapshot, current -> {
-                PlotQualityRun run = requireRun(runId);
-                ensureRunBelongsToManuscript(run, current);
-                requireIsolation(user, current, run);
-                if (!Objects.equals(run.getSourceTextHash(), hashText(currentPlainText(current, run.getSceneId()))))
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
-                contents.writeScene(current, run.getSceneId(), toEditorHtml(snapshot.data()));
-                run.setRevisionApplied(true); run.setRevisionAppliedAt(Instant.now());
-                run.setSourceTextHash(hashText(snapshot.data()));
-                manuscriptRepository.save(current);
-                if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(current.getId(), null));
-                return runRepository.save(run);
-            }, saved -> Map.of("resourceId", saved.getId()));
-        }
-        PlotQualityRun run = requireRun(runId);
-        ensureRunBelongsToManuscript(run, manuscript);
-        requireIsolation(user,manuscript,run);
-        if (run.getRevisionCandidateText() == null || run.getRevisionCandidateText().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "尚未生成可采纳的剧情修订候选");
-        }
-        String currentText = currentPlainText(manuscript, run.getSceneId());
-        if (!Objects.equals(run.getSourceTextHash(), hashText(currentText))) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
-        }
-
-        requireIsolation(user,manuscript,run);
-        contents.writeScene(manuscript, run.getSceneId(), toEditorHtml(run.getRevisionCandidateText()));
-        run.setRevisionApplied(true);
-        run.setRevisionAppliedAt(Instant.now());
-        run.setSourceTextHash(hashText(run.getRevisionCandidateText()));
-        manuscriptRepository.save(manuscript);
-        if (eventPublisher != null) eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(manuscript.getId(), null));
-        return runRepository.save(run);
+        var snapshot = boundary.snapshot(manuscript, current -> reviewedCandidate(user, current, runId));
+        return boundary.save(snapshot, current -> {
+            PlotQualityRun run = requireRun(runId);
+            ensureRunBelongsToManuscript(run, current);
+            requireIsolation(user, current, run);
+            if (!Objects.equals(run.getSourceTextHash(), hashText(currentPlainText(current, run.getSceneId()))))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "当前正文已变化，请重新进行剧情诊断");
+            contents.writeScene(current, run.getSceneId(), toEditorHtml(snapshot.data()));
+            run.setRevisionApplied(true); run.setRevisionAppliedAt(Instant.now());
+            run.setSourceTextHash(hashText(snapshot.data()));
+            manuscriptRepository.save(current);
+            eventPublisher.publishEvent(new com.ainovel.app.narrative.NarrativeSourceChanged(current.getId(), null));
+            return runRepository.save(run);
+        }, saved -> Map.of("resourceId", saved.getId()));
     }
 
     private String reviewedCandidate(User user, Manuscript manuscript, UUID runId) {
@@ -256,18 +210,18 @@ public class PlotQualityService {
         return run.getRevisionCandidateText();
     }
 
-    private PlotQualityRun toRun(PlotQualityRequest request, Map<String, Object> root, boolean degraded) {
+    private PlotQualityRun toRun(PlotQualityRequest request, Map<String, Object> root) {
         PlotQualityRun run = newBaseRun(request);
-        int risk = intVal(root.get("risk_score"), 0);
-        PlotQualitySeverity maxSeverity = severity(root.get("max_severity"), risk >= 70 ? PlotQualitySeverity.HIGH : PlotQualitySeverity.LOW);
+        int risk = requireRisk(root.get("risk_score"));
+        PlotQualitySeverity maxSeverity = PlotQualitySeverity.valueOf(str(root.get("max_severity"), ""));
         run.setOverallRiskScore(risk);
         run.setMaxSeverity(maxSeverity);
         run.setStatus(risk >= 70 || maxSeverity == PlotQualitySeverity.HIGH || maxSeverity == PlotQualitySeverity.BLOCKING
                 ? PlotQualityStatus.ACCEPTED_WITH_ISSUES
                 : PlotQualityStatus.ACCEPTED);
-        run.setSummary(str(root.get("summary"), degraded ? "剧情质量诊断降级。" : "剧情质量诊断完成。"));
-        run.setRewritePlanJson(writeJson(root.getOrDefault("rewrite_plan", List.of())));
-        run.setSurgicalFixesJson(writeJson(root.getOrDefault("surgical_fixes", List.of())));
+        run.setSummary(requireText(root.get("summary")));
+        run.setRewritePlanJson(writeJson(requireStrings(root.get("rewrite_plan"))));
+        run.setSurgicalFixesJson(writeJson(requireStrings(root.get("surgical_fixes"))));
         for (PlotQualityIssue issue : parseIssues(root.get("issues"))) {
             issue.setRun(run);
             run.getIssues().add(issue);
@@ -298,7 +252,6 @@ public class PlotQualityService {
     }
 
     private void requireIsolation(User user,Manuscript manuscript,PlotQualityRun run) {
-        if(isolation==null)return;
         if(run.getIsolationStampJson()==null) {
             if(isolation.enabled(manuscript))throw new ResponseStatusException(HttpStatus.CONFLICT,"请在当前隔离配置下重新诊断，旧诊断不可用于修订");
             return;
@@ -308,20 +261,16 @@ public class PlotQualityService {
     }
 
     private List<PlotQualityIssue> parseIssues(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (!(value instanceof List<?> list)) throw new IllegalArgumentException("PLOT_INVALID_ISSUES");
         List<PlotQualityIssue> issues = new ArrayList<>();
         for (Object item : list) {
-            if (!(item instanceof Map<?, ?> raw)) {
-                continue;
-            }
+            if (!(item instanceof Map<?, ?> raw)) throw new IllegalArgumentException("PLOT_INVALID_ISSUE");
             PlotQualityIssue issue = new PlotQualityIssue();
-            issue.setDimension(dimension(raw.get("dimension")));
-            issue.setSeverity(severity(raw.get("severity"), PlotQualitySeverity.MEDIUM));
-            issue.setRiskScore(intVal(raw.get("risk_score"), 50));
-            issue.setEvidence(truncate(str(raw.get("evidence"), ""), 800));
-            issue.setWhyItMatters(truncate(str(raw.get("why_it_matters"), ""), 800));
+            issue.setDimension(PlotQualityDimension.valueOf(str(raw.get("dimension"), "")));
+            issue.setSeverity(PlotQualitySeverity.valueOf(str(raw.get("severity"), "")));
+            issue.setRiskScore(requireRisk(raw.get("risk_score")));
+            issue.setEvidence(truncate(requireText(raw.get("evidence")), 800));
+            issue.setWhyItMatters(truncate(requireText(raw.get("why_it_matters")), 800));
             issue.setMinimalFix(truncate(str(raw.get("minimal_fix"), ""), 800));
             issues.add(issue);
         }
@@ -452,9 +401,9 @@ public class PlotQualityService {
                 if (id != null && id.equals(sceneId)) {
                     return new SceneContext(
                             safe(str(chapter.get("title"), ""), "未命名章节"),
-                            intVal(chapter.get("order"), chapterIndex + 1),
+                            com.ainovel.app.common.JsonValues.integer(chapter.get("order"), chapterIndex + 1),
                             safe(str(scene.get("title"), ""), "未命名场景"),
-                            intVal(scene.get("order"), sceneIndex + 1),
+                            com.ainovel.app.common.JsonValues.integer(scene.get("order"), sceneIndex + 1),
                             safe(str(scene.get("summary"), ""), ""),
                             previousSceneIds
                     );
@@ -476,7 +425,7 @@ public class PlotQualityService {
         try {
             return objectMapper.writeValueAsString(planning);
         } catch (Exception ex) {
-            return String.valueOf(planning);
+            throw new BusinessException("结构规划无法序列化", ex);
         }
     }
 
@@ -542,9 +491,6 @@ public class PlotQualityService {
         return text;
     }
 
-    private Map<String, String> readSectionMap(String json) {
-        return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
-    }
 
     private Map<String, Object> readObjectMap(String json) {
         return jsonColumnCodec.read(json, new TypeReference<>() {}, new HashMap<>());
@@ -552,20 +498,19 @@ public class PlotQualityService {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> listOfMap(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
+        if (value == null) return List.of();
+        if (!(value instanceof List<?> list)) throw new BusinessException("数据结构应为数组");
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 out.add(new HashMap<>((Map<String, Object>) map));
-            }
+            } else throw new BusinessException("数组项目应为对象");
         }
         return out;
     }
 
     private String writeJson(Object value) {
-        return jsonColumnCodec.write(value, "[]");
+        return jsonColumnCodec.writeRequired(value);
     }
 
     private String stripHtml(String html) {
@@ -596,8 +541,8 @@ public class PlotQualityService {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest((text == null ? "" : text).getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            return null;
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
         }
     }
 
@@ -612,31 +557,20 @@ public class PlotQualityService {
         }
     }
 
-    private PlotQualityDimension dimension(Object value) {
-        try {
-            return PlotQualityDimension.valueOf(str(value, "CAUSALITY"));
-        } catch (Exception ex) {
-            return PlotQualityDimension.CAUSALITY;
-        }
+    private String requireText(Object value) {
+        if (!(value instanceof String text) || text.isBlank()) throw new IllegalArgumentException("PLOT_INVALID_TEXT");
+        return text;
+    }
+    private List<?> requireStrings(Object value) {
+        if (!(value instanceof List<?> list) || list.stream().anyMatch(v -> !(v instanceof String)))
+            throw new IllegalArgumentException("PLOT_INVALID_PLAN");
+        return list;
     }
 
-    private PlotQualitySeverity severity(Object value, PlotQualitySeverity fallback) {
-        try {
-            return PlotQualitySeverity.valueOf(str(value, fallback.name()));
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    private int intVal(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return Math.max(0, Math.min(100, number.intValue()));
-        }
-        try {
-            return Math.max(0, Math.min(100, Integer.parseInt(String.valueOf(value))));
-        } catch (Exception ex) {
-            return fallback;
-        }
+    private int requireRisk(Object value) {
+        if (!(value instanceof Number n) || n.doubleValue() != n.intValue() || n.intValue() < 0 || n.intValue() > 100)
+            throw new IllegalArgumentException("PLOT_INVALID_RISK_SCORE");
+        return n.intValue();
     }
 
     private String str(Object value, String fallback) {

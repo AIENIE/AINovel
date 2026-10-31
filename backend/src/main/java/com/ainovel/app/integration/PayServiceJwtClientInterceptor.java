@@ -14,8 +14,6 @@ import java.util.Objects;
 final class PayServiceJwtClientInterceptor implements ClientInterceptor {
     static final Metadata.Key<String> AUTHORIZATION =
             Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
-    static final Metadata.Key<String> LEGACY_INTERNAL_TOKEN =
-            Metadata.Key.of("x-internal-token", Metadata.ASCII_STRING_MARSHALLER);
     private final PayServiceJwtProvider tokenProvider;
 
     PayServiceJwtClientInterceptor(PayServiceJwtProvider tokenProvider) {
@@ -31,7 +29,6 @@ final class PayServiceJwtClientInterceptor implements ClientInterceptor {
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
                 headers.discardAll(AUTHORIZATION);
-                headers.discardAll(LEGACY_INTERNAL_TOKEN);
                 headers.put(AUTHORIZATION, "Bearer " + tokenProvider.currentToken());
                 super.start(responseListener, headers);
             }

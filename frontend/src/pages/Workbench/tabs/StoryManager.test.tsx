@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api-client";
 import type { CharacterCard } from "@/types";
 import StoryManager from "./StoryManager";
+import { notifyStoryResourceChanged } from "@/lib/story-assistant-events";
 
 function sources() {
   vi.spyOn(api.stories, "list").mockResolvedValue([{ id: "story-a", title: "甲故事" }, { id: "story-b", title: "乙故事" }] as never);
@@ -25,6 +26,18 @@ describe("character cards in story discussion", () => {
     expect(screen.queryByText("甲人物")).toBeNull();
     expect(screen.getByText("乙人物")).toBeTruthy();
   });
+  it("shows a refresh failure while retaining loaded character cards", async () => {
+    sources();
+    vi.spyOn(api.stories, "listCharacters").mockResolvedValueOnce([{ id: "character-a", name: "许安" }])
+      .mockRejectedValueOnce(new Error("read failed"));
+    render(<RouterProvider router={createMemoryRouter([{ path: "*", element: <StoryManager initialStoryId="story-a" /> }])} />);
+    expect(await screen.findByText("许安")).toBeTruthy();
+    act(() => notifyStoryResourceChanged({ storyId: "story-a", resourceType: "CHARACTER", targetId: "character-a" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByText("许安")).toBeTruthy();
+    expect(screen.queryByText("暂无角色卡")).toBeNull();
+  });
+
   it("allows authors to maintain details and relationships using the loaded revision", async () => {
     sources();
     vi.spyOn(api.stories, "listCharacters").mockResolvedValue([{ id: "character-a", name: "许安", synopsis: "简介", details: "原详情", relationships: "旧关系", revision: 7 }]);

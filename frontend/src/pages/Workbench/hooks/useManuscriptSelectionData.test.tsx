@@ -226,4 +226,18 @@ describe("useManuscriptSelectionData", () => {
     expect(outlinesSpy).toHaveBeenCalledTimes(1);
     expect(manuscriptsSpy).toHaveBeenCalledTimes(1);
   });
+  it("reports a character read failure and retains the last successful list", async () => {
+    vi.spyOn(api.stories, "list").mockResolvedValue([makeStory("story", "故事")] as never);
+    const fetch = vi.spyOn(api.stories, "listCharacters").mockResolvedValue([{ id: "character", name: "人物" }] as never);
+    vi.spyOn(api.outlines, "listByStory").mockResolvedValue([]);
+    const client = createTestQueryClient(), toast = vi.fn();
+    const { result } = renderHook(() => useManuscriptSelectionData({ initialStoryId: "story", toast }), { wrapper: createQueryClientWrapper(client) });
+    await waitFor(() => expect(result.current.characters).toHaveLength(1));
+    fetch.mockRejectedValue(new Error("unavailable"));
+    await act(async () => { await client.invalidateQueries({ queryKey: ["workbench", "story-characters", "story"] }); });
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "destructive" })));
+    expect(result.current.characters).toHaveLength(1);
+    expect(client.getQueryState(["workbench", "story-characters", "story"])?.status).toBe("error");
+  });
+
 });

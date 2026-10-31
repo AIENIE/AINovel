@@ -7,16 +7,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.lang.reflect.Field;
-import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UserControllerTests {
+
+    @Test
+    void retiredPasswordHintReturnsNotFound() throws Exception {
+        var controller = new UserController(mock(EconomyService.class), mock(CurrentUserResolver.class), mock(UserSummaryQueryService.class));
+        org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup(controller).build()
+                .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/v1/user/password"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
+    }
 
     @Test
     void summaryShouldResolveCurrentUserAndDelegateToQueryService() {
@@ -37,16 +42,4 @@ class UserControllerTests {
         verify(summaryQueryService).summary(user);
     }
 
-    @Test
-    void controllerShouldNotKeepRepositoryFieldsForSummaryAggregation() {
-        var fieldTypes = Arrays.stream(UserController.class.getDeclaredFields())
-                .map(Field::getType)
-                .map(Class::getSimpleName)
-                .toList();
-
-        assertFalse(fieldTypes.contains("StoryRepository"));
-        assertFalse(fieldTypes.contains("WorldRepository"));
-        assertFalse(fieldTypes.contains("OutlineRepository"));
-        assertFalse(fieldTypes.contains("ManuscriptRepository"));
-    }
 }

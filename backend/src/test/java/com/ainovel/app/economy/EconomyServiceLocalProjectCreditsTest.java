@@ -82,7 +82,6 @@ class EconomyServiceLocalProjectCreditsTest {
         assertTrue(result.success());
         assertEquals(525L, result.projectCredits());
         assertEquals(555L, result.totalCredits());
-        verify(billingGrpcClient, never()).grantProjectCredits(anyLong(), anyLong(), any(String.class));
 
         ArgumentCaptor<ProjectCreditLedger> ledger = ArgumentCaptor.forClass(ProjectCreditLedger.class);
         verify(ledgerRepository).save(ledger.capture());

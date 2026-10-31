@@ -1,7 +1,6 @@
 package com.ainovel.app.story;
 
 import com.ainovel.app.ai.AiService;
-import com.ainovel.app.ai.dto.AiChatResponse;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.JsonColumnCodec;
 import com.ainovel.app.security.ResourceAccessGuard;
@@ -257,6 +256,7 @@ class OutlineServiceTest {
         ReflectionTestUtils.setField(service, "accessGuard", accessGuard);
         ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
         ReflectionTestUtils.setField(service, "jsonColumnCodec", jsonColumnCodec);
+        ReflectionTestUtils.setField(service,"eventPublisher",mock(org.springframework.context.ApplicationEventPublisher.class));
         return service;
     }
 
@@ -266,7 +266,7 @@ class OutlineServiceTest {
         outline.setStory(story);
         outline.setTitle("旧大纲");
         outline.setWorldId("world-1");
-        outline.setContentJson(jsonColumnCodec.write(content, "{}"));
+        outline.setContentJson(jsonColumnCodec.writeRequired(content));
         return outline;
     }
 

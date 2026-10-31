@@ -20,37 +20,6 @@ function Assert-AienieLocalOnlyEnvironment {
     }
 }
 
-function Test-AienieProtectedProcessVariable {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Name)
-
-    $upperName = $Name.ToUpperInvariant()
-    return $upperName -in @(
-            'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS',
-            'MAVEN_OPTS', 'SPRING_APPLICATION_JSON') -or
-        $upperName.StartsWith('SPRING_CONFIG_', [StringComparison]::Ordinal)
-}
-
-function Assert-AieniePrivateEnvironmentKeyAllowed {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Name)
-
-    if (Test-AienieProtectedProcessVariable -Name $Name) {
-        throw "Environment file cannot set protected process variable '$Name'."
-    }
-}
-
-function Remove-AienieProcessInjectionEnvironment {
-    [CmdletBinding()]
-    param([Parameter(Mandatory)][System.Collections.IDictionary]$Values)
-
-    foreach ($key in @($Values.Keys)) {
-        if (Test-AienieProtectedProcessVariable -Name ([string]$key)) {
-            $Values.Remove($key)
-        }
-    }
-}
-
 function Resolve-AienieLocalPrivateFile {
     [CmdletBinding()]
     param(
@@ -421,9 +390,6 @@ function Invoke-AienieGrpcHealthServing {
 
 Export-ModuleMember -Function @(
     'Assert-AienieLocalOnlyEnvironment',
-    'Test-AienieProtectedProcessVariable',
-    'Assert-AieniePrivateEnvironmentKeyAllowed',
-    'Remove-AienieProcessInjectionEnvironment',
     'Resolve-AienieLocalPrivateFile',
     'Test-AienieStrictJsonHealthPayload',
     'Invoke-AienieBoundedHttp',

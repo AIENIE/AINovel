@@ -26,7 +26,6 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
     private final String apiKey;
     private final Duration requestTimeout;
     private final AtomicInteger ensuredDimensions = new AtomicInteger(0);
-    private boolean strict;
 
     @org.springframework.beans.factory.annotation.Autowired
     public QdrantMaterialVectorIndex(
@@ -54,14 +53,10 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
                 .connectTimeout(Duration.ofMillis(Math.max(500L, connectTimeoutMs)))
                 .build();
     }
-    public QdrantMaterialVectorIndex(ObjectMapper mapper,String host,int port,String collection,String key,long connect,long timeout,boolean strict){
-        this(mapper,host,port,collection,key,connect,timeout);this.strict=strict;
-    }
 
-    @Override
     public void upsert(MaterialChunk chunk, float[] vector) {
         if (chunk == null || vector == null || vector.length == 0) {
-            return;
+            throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
         }
         ensureCollection(vector.length);
         Map<String, Object> body = Map.of(
@@ -95,24 +90,12 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
         send("POST", "/collections/" + collection + "/points/delete?wait=true", selector);
     }
 
-    @Override
-    public void deleteChunks(List<String> chunkIds) {
-        if (chunkIds.isEmpty()) return;
-        send("POST", "/collections/" + collection + "/points/delete?wait=true", Map.of("points", chunkIds));
-    }
-
-    @Override
-    public List<VectorMatch> search(float[] vector, int limit, java.util.UUID ownerUserId) {
-        return searchWithin(vector,limit,ownerUserId,null);
-    }
-    /** Null preserves the legacy scope; an empty list never searches the whole collection. */
     public List<VectorMatch> searchWithin(float[] vector,int limit,java.util.UUID ownerUserId,List<java.util.UUID> allowedMaterials){
-        if(allowedMaterials!=null&&allowedMaterials.isEmpty())return List.of();
+        if(allowedMaterials.isEmpty())return List.of();
         if (vector == null || vector.length == 0) {
-            return List.of();
+            throw new IllegalArgumentException("VECTOR_INPUT_INVALID");
         }
         ensureCollection(vector.length);
-        try {
             Map<String, Object> body = new java.util.LinkedHashMap<>();
             body.put("query", floats(vector));
             body.put("limit", Math.max(1, Math.min(limit, 50)));
@@ -121,25 +104,25 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             should.add(Map.of("key", "ownerUserId", "match", Map.of("value", "")));
             if (ownerUserId != null) should.add(Map.of("key", "ownerUserId", "match", Map.of("value", ownerUserId.toString())));
             List<Object> must=new ArrayList<>();must.add(Map.of("key","status","match",Map.of("value","approved")));
-            if(allowedMaterials!=null)must.add(Map.of("key","materialId","match",Map.of("any",allowedMaterials.stream().map(java.util.UUID::toString).toList())));
+            must.add(Map.of("key","materialId","match",Map.of("any",allowedMaterials.stream().map(java.util.UUID::toString).toList())));
             body.put("filter", Map.of("must",must,"should",should));
             JsonNode root = send("POST", "/collections/" + collection + "/points/query", body);
             List<VectorMatch> matches = new ArrayList<>();
-            for (JsonNode item : root.path("result").path("points")) {
-                String chunkId = item.path("payload").path("chunkId").asText("");
-                double score = item.path("score").asDouble(0d);
-                if (!chunkId.isBlank()) {
-                    JsonNode payload = item.path("payload");
-                    java.util.UUID materialId = java.util.UUID.fromString(payload.path("materialId").asText());
-                    matches.add(new VectorMatch(chunkId, score, materialId, payload.path("title").asText("素材"),
-                            payload.path("text").asText(""), payload.path("chunkSeq").asInt(0)));
-                }
+            JsonNode points = root.path("result").path("points");
+            if (!points.isArray()) throw new IllegalStateException("VECTOR_RESULT_INVALID");
+            for (JsonNode item : points) {
+                JsonNode payload = item.path("payload");
+                if (!payload.path("chunkId").isTextual() || payload.path("chunkId").asText().isBlank()
+                        || !item.path("score").isNumber() || !Double.isFinite(item.path("score").doubleValue())
+                        || !payload.path("materialId").isTextual() || !payload.path("title").isTextual()
+                        || !payload.path("text").isTextual() || !payload.path("chunkSeq").canConvertToInt()
+                        || !payload.path("chunkSeq").isIntegralNumber())
+                    throw new IllegalStateException("VECTOR_RESULT_INVALID");
+                java.util.UUID materialId = java.util.UUID.fromString(payload.path("materialId").textValue());
+                matches.add(new VectorMatch(payload.path("chunkId").textValue(), item.path("score").doubleValue(),
+                        materialId, payload.path("title").textValue(), payload.path("text").textValue(), payload.path("chunkSeq").intValue()));
             }
             return matches;
-        } catch (RuntimeException ignored) {
-            if(strict)throw ignored;
-            return List.of();
-        }
     }
 
     private void ensureCollection(int dimensions) {
@@ -147,8 +130,9 @@ public class QdrantMaterialVectorIndex implements MaterialVectorIndex {
             return;
         }
         if (collectionExists()) {
-            if(strict){var root=send("GET","/collections/"+collection,null);int actual=root.path("result").path("config").path("params").path("vectors").path("size").asInt(-1);
-                if(actual!=dimensions)throw new IllegalStateException("VECTOR_INDEX_DIMENSIONS_MISMATCH");}
+            var root=send("GET","/collections/"+collection,null);
+            int actual=root.path("result").path("config").path("params").path("vectors").path("size").asInt(-1);
+            if(actual!=dimensions)throw new IllegalStateException("VECTOR_INDEX_DIMENSIONS_MISMATCH");
             ensuredDimensions.set(dimensions);
             return;
         }

@@ -30,7 +30,7 @@
 
 ## 发版中心部署
 
-Linux 服务器发布唯一入口是发版中心。当前 Jenkins 按 catalog 检出固定 SHA、构建和推送镜像、上传 runtime bundle，控制面负责部署与健康检查；Job 名称不能用来判断目标环境，必须核对发布记录的 environment、目标服务器和 remote root。当前平台不调用本仓库的两阶段 `scripts/ci/build-release.sh`，AINovel 的 L2 与隔离迁移验证需单独完成；本轮已确认使用现有平台恢复 stag。仓库保留的两阶段契约、运行时契约及 Flyway ledger 说明见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。
+Linux 服务器发布通过发版中心执行。当前 Jenkins 按 catalog 检出固定 SHA、构建和推送镜像、上传 runtime bundle，控制面负责部署与健康检查；实际环境、目标服务器和 remote root 以发布记录为准。当前入口见 [`../../scripts/ci/README.md`](../../scripts/ci/README.md)。旧两阶段构建、专有扫描和 V35 生产迁移执行器已退役；生产继续关闭自动迁移，已执行 SQL 与历史数据保持。L2、隔离 MySQL 及发布验证按当前任务分别执行。
 
 运行时配置、密钥和证书都不是构建输入：生产包只允许 config-center 提供的 `env.txt` 以 `0600` 只读挂载进后端容器，`backend/`、`frontend/`、`release/` 前缀的文件覆盖一律拒绝。仓库不再提供本地 Compose 部署脚本；本地开发使用 Windows 原生入口（见 [`windows-native.md`](windows-native.md)）。
 
@@ -47,7 +47,7 @@ Linux 服务器发布唯一入口是发版中心。当前 Jenkins 按 catalog �
 
 - 新库从 `V1` 顺序迁移到当前版本。
 - 引入 Flyway 前已存在的旧库需要正确登记 V1 baseline。
-- 当前开发迁移已追加至 V45；本段原有发布包记录截至 V35。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因；V14 保留既有运行时治理迁移；V15 建立五张叙事证据状态表及快照保护标记，不将旧稿或旧日志自动转换为事实。V16–V23 的叙事隔离、治理与存储迁移继续保留；V24 扩展 AI 请求编号、增加稿件创建回执和供应商尝试预留计数。V25–V32 增加资料证据与任务恢复，V33 增加语言审阅记录，V34 增加管理员保留式紧急码。V35 恢复被历史运行时缩小的 LONGTEXT 容量，保留既有数据、排序规则和空值约束。当前发布包包含 V1–V35；旧迁移文件不变。
+- 当前源码迁移已追加至 V50；实际环境已执行版本以发布及数据库核验记录为准。V5 建立 `creation_workflow_runs` 和 `async_jobs`；V6 为已基线旧库条件补齐 `slop_quality_issues` 的质量证据列；V7 补齐故事内容树级联删除；V8 持久化 AI 操作进度；V9 将历史质量问题表的限制型外键修复为级联删除；V10 建立管理员 TOTP 凭据、挑战、恢复码、会话和审计表；V11 撤销旧管理员会话，并加入策略/认证强度字段、密码阶段时间以及操作级 challenge/proof 表；V12 将新建 G2 活动的本地管理员主体与普通 `users` 身份解耦，同时兼容旧活动的用户创建者记录；V13 建立 `scene_generation_runs`，保存场景生成、版本快照、上下文指纹及后续作者编辑归因；V14 保留既有运行时治理迁移；V15 建立五张叙事证据状态表及快照保护标记，不将旧稿或旧日志自动转换为事实。V16–V23 的叙事隔离、治理与存储迁移继续保留；V24 扩展 AI 请求编号、增加稿件创建回执和供应商尝试预留计数。V25–V32 增加资料证据与任务恢复，V33 增加语言审阅记录，V34 增加管理员保留式紧急码。V35 恢复被历史运行时缩小的 LONGTEXT 容量，保留既有数据、排序规则和空值约束。当前源码包含 V1–V50 的完整迁移链；V36–V50 的候选、语言、助手、世界观和模型配置迁移随当前 catalog 镜像构建纳入。旧迁移文件不变。
 - V34 退休旧恢复码并撤销受限恢复会话，保留完整管理员会话及 TOTP 绑定。已执行的 V1–V33 不重编号、不修改校验和。
 - 数据库结构只通过 Flyway 迁移演进，不存在 schema.sql 一类的旁路 DDL 入口。
 - W2 的 V42 新增世界条目、关系、不可变版本、发布回执，并为世界草稿与故事/大纲/稿件增加版本字段；V43 将旧模块无损迁移并固定已有有效绑定；V44 补齐迁移基线的完整快照摘要；V45 根据 V43 的实际执行时刻纠正迁移基线时间的会话时区偏移，不改变快照及绑定。结构和读取契约见[世界观架构](../architecture/worldbuilding.md)。已执行迁移字节不改写；本期只更新 local，生产封闭迁移执行器和发布包范围未扩展。
@@ -90,7 +90,7 @@ java -jar /app/app.jar --spring.main.web-application-type=none --spring.profiles
 命令会撤销全部管理员会话、恢复码和旧验证器凭据，写入审计记录后退出；下一次访问将回到首次绑定流程。审批编号不可包含密钥、验证码或恢复码。
 # v1.0 审计整改补充（2026-08-17）
 
-- 非本地环境必须配置数据库身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key；启动预检不允许降级为明文。
+- 生产保留 MySQL 身份校验 TLS、Redis TLS/ACL、Qdrant HTTPS/API key。预生产保留 MySQL TLS 和现行公共服务证书边界，数据服务主机、端口与凭据由配置决定，不再强制 Redis/Qdrant 明文或空凭据，也不按数据库账号名称拒绝启动。
 - 后端 healthcheck 使用 readiness；前端容器通过 `depends_on: condition: service_healthy` 等待后端就绪，compose healthcheck 的 `start_period` 提供启动宽限，任一服务未就绪不会进入健康状态。
 - 新增 AI 准入、分服务 deadline、Hikari 池与泄漏检测、Redis/Qdrant 安全参数，变量清单见 `env.example`。
 

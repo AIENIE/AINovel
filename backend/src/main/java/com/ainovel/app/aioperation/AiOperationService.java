@@ -160,7 +160,7 @@ public class AiOperationService {
             releaseLeaseAndScope(run);
             repository.save(run); recovered.set(true); return;
         }
-        if (creditReservations != null && (creditReservations.hasUncertainOperation(user.getId(), id + ":%", run.getRequestId())
+        if ((creditReservations.hasUncertainOperation(user.getId(), id + ":%", run.getRequestId())
                 ||creditReservations.existsByUserIdAndOperationIdAndStatus(user.getId(),id,com.ainovel.app.economy.model.AiCreditReservation.Status.RECONCILIATION_REQUIRED))) {
             throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.CONFLICT, "AI_RESULT_RECONCILIATION_REQUIRED");
         }

@@ -7,7 +7,7 @@ import { WorldGeneratedResultsDialog } from "./WorldGeneratedResultsDialog";
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, options?: { field: string }) => options?.field ? `${key}:${options.field}` : key }) }));
 vi.mock("@/lib/error-messages", () => ({ localizedErrorMessage: (_error: unknown, fallback: string) => fallback }));
 vi.mock("@/lib/api-client", () => ({ isApiError: (error: unknown) => error instanceof Error && "status" in error, api: {
-  worlds: { generatedResults: vi.fn(), update: vi.fn(), startPublish: vi.fn(), startGenerateModule: vi.fn() },
+  worlds: { generatedResults: vi.fn(), update: vi.fn(), publish: vi.fn(), startGenerateEntry: vi.fn() },
   aiOperations: { retry: vi.fn() },
 } }));
 
@@ -53,8 +53,8 @@ describe("world generated result review", () => {
     await screen.findByText("worldGeneratedResults.copied");
     expect(writeText).toHaveBeenCalledExactlyOnceWith("  海上山城\n雾中的码头。  ");
     expect(api.worlds.update).not.toHaveBeenCalled();
-    expect(api.worlds.startPublish).not.toHaveBeenCalled();
-    expect(api.worlds.startGenerateModule).not.toHaveBeenCalled();
+    expect(api.worlds.publish).not.toHaveBeenCalled();
+    expect(api.worlds.startGenerateEntry).not.toHaveBeenCalled();
     expect(api.aiOperations.retry).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describe("world generated result review", () => {
     await screen.findByText("worldGeneratedResults.empty");
 
     expect(screen.queryByRole("button", { name: /worldGeneratedResults.copyField/ })).toBeNull();
-    expect(api.worlds.startGenerateModule).not.toHaveBeenCalled();
+    expect(api.worlds.startGenerateEntry).not.toHaveBeenCalled();
   });
 
   it("ignores a response received after closing and fetches again on reopening", async () => {

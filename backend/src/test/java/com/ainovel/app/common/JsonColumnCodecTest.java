@@ -10,7 +10,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,17 +38,17 @@ class JsonColumnCodecTest {
     }
 
     @Test
-    void readShouldReturnFallbackForBlankOrInvalidJson() throws Exception {
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
-        JsonColumnCodec codec = new JsonColumnCodec(objectMapper);
+    void optionalBlankValuesRemainDistinctFromCorruptStoredData() {
+        JsonColumnCodec codec = new JsonColumnCodec(new ObjectMapper());
         Map<String, Object> fallback = Map.of("fallback", true);
-
-        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .thenThrow(new RuntimeException("bad json"));
-
-        assertSame(fallback, codec.read(null, new TypeReference<Map<String, Object>>() {}, fallback));
-        assertSame(fallback, codec.read("   ", new TypeReference<Map<String, Object>>() {}, fallback));
-        assertSame(fallback, codec.read("{bad}", new TypeReference<Map<String, Object>>() {}, fallback));
+        var type = new TypeReference<Map<String, Object>>() {};
+        assertSame(fallback, codec.read(null, type, fallback));
+        assertSame(fallback, codec.read("   ", type, fallback));
+        assertSame(fallback, codec.read("null", type, fallback));
+        for (String invalid : new String[]{"{bad}", "[]", "{} {}"}) {
+            org.junit.jupiter.api.Assertions.assertThrows(ApiStatusException.class,
+                    () -> codec.read(invalid, type, fallback));
+        }
     }
 
     @Test
@@ -72,19 +71,9 @@ class JsonColumnCodecTest {
     }
 
     @Test
-    void writeShouldReturnFallbackOnSerializationFailure() throws Exception {
-        ObjectMapper objectMapper = mock(ObjectMapper.class);
-        JsonColumnCodec codec = new JsonColumnCodec(objectMapper);
-
-        when(objectMapper.writeValueAsString(any())).thenThrow(new RuntimeException("cannot serialize"));
-
-        assertEquals("[]", codec.write(List.of("x"), "[]"));
-    }
-
-    @Test
     void writeShouldSerializeValue() {
         JsonColumnCodec codec = new JsonColumnCodec(new ObjectMapper());
 
-        assertEquals("{\"scene-1\":\"hello\"}", codec.write(Map.of("scene-1", "hello"), "{}"));
+        assertEquals("{\"scene-1\":\"hello\"}", codec.writeRequired(Map.of("scene-1", "hello")));
     }
 }

@@ -2,20 +2,14 @@ package com.ainovel.app.admin;
 
 import com.ainovel.app.manuscript.repo.ManuscriptRepository;
 import com.ainovel.app.material.repo.MaterialRepository;
-import com.ainovel.app.quality.model.PlotQualityRun;
-import com.ainovel.app.quality.model.SlopQualityRun;
-import com.ainovel.app.quality.repo.PlotQualityRunRepository;
-import com.ainovel.app.quality.repo.SlopQualityRunRepository;
 import com.ainovel.app.story.repo.StoryRepository;
 import com.ainovel.app.world.repo.WorldRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,23 +24,20 @@ class AdminOperationsQueryServiceTest {
         StoryRepository storyRepository = mock(StoryRepository.class);
         WorldRepository worldRepository = mock(WorldRepository.class);
         ManuscriptRepository manuscriptRepository = mock(ManuscriptRepository.class);
-        SlopQualityRunRepository slopQualityRunRepository = mock(SlopQualityRunRepository.class);
-        PlotQualityRunRepository plotQualityRunRepository = mock(PlotQualityRunRepository.class);
         when(storyRepository.count()).thenReturn(11L);
         when(worldRepository.count()).thenReturn(7L);
         when(manuscriptRepository.count()).thenReturn(5L);
         when(materialRepository.count()).thenReturn(13L);
         when(materialRepository.countByStatusIgnoreCase("pending")).thenReturn(3L);
-        when(slopQualityRunRepository.countByOverallRiskScoreGreaterThanEqual(70)).thenReturn(2L);
-        when(plotQualityRunRepository.countByOverallRiskScoreGreaterThanEqual(70)).thenReturn(4L);
+        var read = mock(AdminOperationsReadRepository.class);
+        when(read.highRiskQualityRuns()).thenReturn(6L);
 
         AdminOperationsQueryService service = new AdminOperationsQueryService(
                 materialRepository,
                 storyRepository,
                 worldRepository,
                 manuscriptRepository,
-                slopQualityRunRepository,
-                plotQualityRunRepository, mock(AdminOperationsReadRepository.class)
+                read
         );
 
         Map<String, Object> result = service.assetSummary();
@@ -63,7 +54,7 @@ class AdminOperationsQueryServiceTest {
     void validatesPageAndDelegatesOnlyBoundedReadModelQueries() {
         AdminOperationsReadRepository read = mock(AdminOperationsReadRepository.class);
         AdminOperationsQueryService service = new AdminOperationsQueryService(mock(MaterialRepository.class), mock(StoryRepository.class),
-                mock(WorldRepository.class), mock(ManuscriptRepository.class), mock(SlopQualityRunRepository.class), mock(PlotQualityRunRepository.class), read);
+                mock(WorldRepository.class), mock(ManuscriptRepository.class), read);
         when(read.assets("stories", 20, 20, "needle")).thenReturn(new AdminOperationsReadRepository.Result<>(List.of(), 45));
         var page = service.assets("stories", 1, 20, "needle");
         assertEquals(3, page.totalPages());

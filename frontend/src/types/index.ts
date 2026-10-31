@@ -112,14 +112,6 @@ export interface CharacterCard {
   updatedAt?: string;
 }
 
-export interface Character {
-  id: string;
-  name: string;
-  role: string;
-  archetype: string;
-  summary: string;
-}
-
 export interface World {
   id: string;
   name: string;
@@ -138,17 +130,6 @@ export interface Material {
   tags: string[];
   status: 'pending' | 'approved' | 'rejected';
   createdAt?: string;
-}
-
-export interface MaterialSearchResult {
-  materialId: string;
-  chunkId: string;
-  title: string;
-  snippet: string;
-  score: number;
-  chunkSeq?: number;
-  source: 'keyword' | 'vector' | string;
-  matchReasons: string[];
 }
 
 export interface FileImportJob {
@@ -326,13 +307,13 @@ export interface SlopQualityRun {
   manuscriptId: string;
   sceneId: string;
   status: "ACCEPTED" | "REVISED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
-  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
-  overallRiskScore: number;
+  maxSeverity: string | null;
+  overallRiskScore: number | null;
   revised: boolean;
   revisionCount: number;
   summary?: string;
   analysisMode?: string;
-  riskLabel?: string;
+  riskLabel?: string | null;
   evidenceLevel?: string;
   safeClaim?: string;
   moduleScores: Record<string, unknown>;
@@ -348,8 +329,8 @@ export interface SlopDriftRun {
   storyId: string;
   manuscriptId: string;
   status: "COMPLETED" | "INSUFFICIENT_TEXT" | "DEGRADED" | string;
-  overallRiskScore: number;
-  riskLabel?: string;
+  overallRiskScore: number | null;
+  riskLabel?: string | null;
   safeClaim?: string;
   summary?: string;
   totalCharacters: number;
@@ -425,20 +406,6 @@ export interface V2ContinuityIssue {
   createdAt?: string | null;
 }
 
-export interface V2AnalysisTriggerRequest {
-  scope?: string;
-  scopeReference?: string;
-  focus?: string;
-  estimatedTokenCost?: number;
-  text?: string;
-}
-
-export interface V2ContinuityIssueUpdateRequest {
-  status?: string;
-  suggestion?: string;
-  severity?: string;
-}
-
 export interface PlotQualityIssue {
   id: string;
   dimension: string;
@@ -459,8 +426,8 @@ export interface PlotQualityRun {
   chapterOrder: number;
   sceneOrder: number;
   status: "ACCEPTED" | "ACCEPTED_WITH_ISSUES" | "DEGRADED" | string;
-  maxSeverity: "LOW" | "MEDIUM" | "HIGH" | "BLOCKING" | string;
-  overallRiskScore: number;
+  maxSeverity: string | null;
+  overallRiskScore: number | null;
   summary?: string;
   rewritePlan: string[];
   surgicalFixes: string[];
@@ -485,7 +452,7 @@ export interface PlotQualityTrendPoint {
 
 export interface PlotQualityTrend {
   manuscriptId: string;
-  averageRisk: number;
+  averageRisk: number | null;
   highRiskScenes: number;
   dimensionCounts: Record<string, number>;
   points: PlotQualityTrendPoint[];
@@ -634,51 +601,6 @@ export interface WorldPromptMetadata {
   functions: { name: string; description: string; example: string }[];
   modules: { key: string; label: string; fields: { key: string; label: string; maxLength: number }[] }[];
   examples: string[];
-}
-
-export interface MaterialDuplicateCandidate {
-  sourceMaterialId: string;
-  targetMaterialId: string;
-  sourceTitle: string;
-  targetTitle: string;
-  score: number;
-  reasons: string[];
-}
-
-export interface MaterialCitation {
-  materialId: string;
-  storyId: string;
-  storyTitle: string;
-  manuscriptId: string;
-  sceneId: string;
-  chapterTitle: string;
-  sceneTitle: string;
-  snippet: string;
-  reason: string;
-}
-
-// --- V2 Admin & Economy Types ---
-
-export interface ModelConfig {
-  id: string;
-  name: string; // Internal ID, e.g., 'gpt-4'
-  displayName: string; // UI Name, e.g., 'GPT-4 Turbo'
-  modelType?: string; // text | embedding | unspecified
-  inputMultiplier: number; // e.g., 1.0
-  outputMultiplier: number; // e.g., 3.0
-  poolId: string;
-  isEnabled: boolean;
-}
-
-export interface ApiPool {
-  id: string;
-  name: string;
-  apis: {
-    id: string;
-    baseUrl: string;
-    weight: number;
-    status: 'active' | 'error';
-  }[];
 }
 
 export interface AdminDashboardStats {
