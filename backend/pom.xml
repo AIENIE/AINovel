@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ainovel</groupId>
     <artifactId>ai-novel-backend</artifactId>
-    <version>0.1.0</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <parent>
@@ -172,6 +172,7 @@
     </dependencies>
 
     <build>
+        <finalName>ai-novel-backend</finalName>
         <plugins>
             <plugin>
                 <groupId>org.hibernate.orm.tooling</groupId>

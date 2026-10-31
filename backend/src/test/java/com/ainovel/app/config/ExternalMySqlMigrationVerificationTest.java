@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +45,84 @@ class ExternalMySqlMigrationVerificationTest {
             assertStoryAssistantSchema(config, databaseUrl);
             assertModelConfigurationSchema(config,databaseUrl);
             assertEquals(0, flyway(config, databaseUrl).migrate().migrationsExecuted);
+        });
+    }
+
+    @Test
+    void upgradesV35ToV50PreservingContentBindingsAndOriginalRequestIdentity() throws Exception {
+        var config = ExternalMySqlConfig.load();
+        withIsolatedDatabase(config, (name, url) -> {
+            Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("35").load().migrate();
+            Map<String, String> originalHistory = new LinkedHashMap<>();
+            String modules = "{\"geography\":{\"terrain\":\"岛屿😀\"},\"legacy\":\"旧模块原文\"}";
+            String sections = "{\"chapter\":\"历史正文😀\"}";
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                statement.execute("INSERT INTO users(id,username,email,password_hash,banned,credits) VALUES(UNHEX(REPEAT('11',16)),'release-upgrade','release-upgrade@example.invalid','fixture',false,87)");
+                statement.execute("INSERT INTO worlds(id,user_id,name,status,version,modules_json,themes_json,module_progress_json) VALUES(UNHEX(REPEAT('22',16)),UNHEX(REPEAT('11',16)),'历史群岛','draft','old-v1','" + modules + "','[]','{}')");
+                statement.execute("INSERT INTO stories(id,user_id,title,world_id) VALUES(UNHEX(REPEAT('33',16)),UNHEX(REPEAT('11',16)),'历史作品','22222222-2222-2222-2222-222222222222')");
+                statement.execute("INSERT INTO outlines(id,story_id,title,world_id,content_json) VALUES(UNHEX(REPEAT('44',16)),UNHEX(REPEAT('33',16)),'历史大纲','22222222-2222-2222-2222-222222222222','{}')");
+                statement.execute("INSERT INTO manuscripts(id,outline_id,title,world_id,sections_json,version) VALUES(UNHEX(REPEAT('55',16)),UNHEX(REPEAT('44',16)),'历史稿件','22222222-2222-2222-2222-222222222222','" + sections + "',7)");
+                statement.execute("INSERT INTO ai_validation_budgets(id,used,call_limit) VALUES('release-upgrade',1,6)");
+                statement.execute("INSERT INTO ai_validation_calls(id,run_id,attempt,request_id,request_json,status,created_at) VALUES(UNHEX(REPEAT('66',16)),'release-upgrade',1,'original-request-v35','{}','STARTED',NOW(6))");
+                try (var rows = statement.executeQuery("SELECT version,CONCAT(script,':',checksum,':',UNIX_TIMESTAMP(installed_on),':',success) FROM flyway_schema_history ORDER BY installed_rank")) {
+                    while (rows.next()) originalHistory.put(rows.getString(1), rows.getString(2));
+                }
+            }
+
+            var releaseMigration = Flyway.configure().dataSource(url, config.username, config.password)
+                    .locations("classpath:db/migration").target("50").load();
+            assertEquals(15, releaseMigration.migrate().migrationsExecuted);
+            try (var connection = DriverManager.getConnection(url, config.username, config.password);
+                 var statement = connection.createStatement()) {
+                Map<String, String> historyAfter = new LinkedHashMap<>();
+                try (var rows = statement.executeQuery("SELECT version,CONCAT(script,':',checksum,':',UNIX_TIMESTAMP(installed_on),':',success) FROM flyway_schema_history WHERE installed_rank<=35 ORDER BY installed_rank")) {
+                    while (rows.next()) historyAfter.put(rows.getString(1), rows.getString(2));
+                }
+                assertEquals(35, originalHistory.size());
+                assertEquals(originalHistory, historyAfter);
+                try (var rows = statement.executeQuery("SELECT modules_json,legacy_modules_json FROM worlds")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals(modules, rows.getString(1));
+                    assertEquals(modules, rows.getString(2));
+                }
+                try (var rows = statement.executeQuery("SELECT sections_json,version FROM manuscripts")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals(sections, rows.getString(1));
+                    assertEquals(7, rows.getLong(2));
+                }
+                try (var rows = statement.executeQuery("SELECT COUNT(*) FROM stories s JOIN outlines o ON o.story_id=s.id JOIN manuscripts m ON m.outline_id=o.id JOIN world_versions v ON v.id=s.world_version_id AND v.id=o.world_version_id AND v.id=m.world_version_id WHERE v.origin='MIGRATION_BASELINE' AND v.sequence_number=0 AND v.content_hash=SHA2(v.snapshot_json,256)")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals(1, rows.getInt(1));
+                }
+                try (var rows = statement.executeQuery("SELECT request_id,status,budget_id,settled_cost,settlement_state FROM ai_validation_calls")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals("original-request-v35", rows.getString(1));
+                    assertEquals("STARTED", rows.getString(2));
+                    org.junit.jupiter.api.Assertions.assertNull(rows.getString(3));
+                    org.junit.jupiter.api.Assertions.assertNull(rows.getBigDecimal(4));
+                    org.junit.jupiter.api.Assertions.assertNull(rows.getString(5));
+                }
+                try (var rows = statement.executeQuery("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('writing_agent_runs','writing_agent_steps')")) {
+                    org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                    assertEquals(2, rows.getInt(1));
+                }
+                var tables = new ArrayList<String>();
+                try (var rows = statement.executeQuery("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE' ORDER BY table_name")) {
+                    while (rows.next()) tables.add(rows.getString(1));
+                }
+                var schema = new StringBuilder("-- MySQL V50 reference structure from the V35 upgrade replay.\n\n");
+                for (String table : tables) {
+                    try (var rows = statement.executeQuery("SHOW CREATE TABLE `" + table.replace("`", "``") + "`")) {
+                        org.junit.jupiter.api.Assertions.assertTrue(rows.next());
+                        schema.append(rows.getString(2)).append(";\n\n");
+                    }
+                }
+                Files.writeString(Path.of("target", "release-v50-schema.sql"), schema, StandardCharsets.UTF_8);
+            }
+            assertModelConfigurationSchema(config, url);
+            assertEquals(0, releaseMigration.migrate().migrationsExecuted);
         });
     }
 

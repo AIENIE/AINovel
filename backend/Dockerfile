@@ -14,7 +14,7 @@ WORKDIR /app
 RUN groupadd --system --gid 10001 ainovel \
     && useradd --system --uid 10001 --gid ainovel --home-dir /nonexistent --shell /usr/sbin/nologin ainovel \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/ai-novel-backend-0.1.0.jar app.jar
+COPY --from=builder /app/target/ai-novel-backend.jar app.jar
 COPY start-backend.sh /app/bin/start-backend.sh
 RUN chmod 0444 /app/app.jar \
     && chmod 0555 /app/bin/start-backend.sh

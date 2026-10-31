@@ -1,0 +1,890 @@
+{
+  "version": "0.3.0",
+  "candidate": "v0.3.0-rc.1",
+  "fromVersion": 35,
+  "toVersion": 50,
+  "sourceBaseline": "8cd8c0a2ee10cdf21eeee3b86fd3962dee17a08c",
+  "currentSchema": "schema.sql",
+  "postconditions": "postconditions.sql",
+  "appliedPrefix": [
+    {
+      "version": 1,
+      "path": "backend/src/main/resources/db/migration/V1__baseline.sql",
+      "script": "V1__baseline.sql",
+      "bytes": 39829,
+      "sha256": "975c17a6aebdca0622c694eb5744c324dbda78deaf2854dfde28a794c48cfb01",
+      "flywayChecksum": 611812511,
+      "createTables": [
+        "analysis_jobs",
+        "auto_save_config",
+        "beta_reader_reports",
+        "character_cards",
+        "character_voices",
+        "checkin_records",
+        "continuity_issues",
+        "credit_conversion_orders",
+        "entity_extractions",
+        "export_jobs",
+        "export_templates",
+        "global_settings",
+        "keyboard_shortcuts",
+        "knowledge_graph_relationships",
+        "lorebook_entries",
+        "manuscript_branches",
+        "manuscript_versions",
+        "manuscripts",
+        "material_upload_jobs",
+        "materials",
+        "model_registry",
+        "model_usage_logs",
+        "outlines",
+        "plot_quality_issues",
+        "plot_quality_runs",
+        "project_credit_accounts",
+        "project_credit_ledger",
+        "prompt_templates",
+        "redeem_code_usages",
+        "redeem_codes",
+        "slop_drift_runs",
+        "slop_quality_issues",
+        "slop_quality_runs",
+        "stories",
+        "style_analysis_jobs",
+        "style_profile_scene_overrides",
+        "style_profiles",
+        "task_model_routing",
+        "user_model_preferences",
+        "user_roles",
+        "users",
+        "version_diffs",
+        "workspace_layouts",
+        "world_prompt_templates",
+        "worlds",
+        "writing_goals",
+        "writing_sessions"
+      ],
+      "alterTables": [
+        "manuscripts"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 2,
+      "path": "backend/src/main/resources/db/migration/V2__slop_patterns.sql",
+      "script": "V2__slop_patterns.sql",
+      "bytes": 7837,
+      "sha256": "8f132308c70dcbac1c168c37dde2d81925113f936e725c839cb27063092472f4",
+      "flywayChecksum": 81520501,
+      "createTables": [
+        "slop_patterns"
+      ],
+      "alterTables": [],
+      "dataTables": [
+        "slop_patterns"
+      ]
+    },
+    {
+      "version": 3,
+      "path": "backend/src/main/resources/db/migration/V3__backfill_baselined_v2_persistence.sql",
+      "script": "V3__backfill_baselined_v2_persistence.sql",
+      "bytes": 23409,
+      "sha256": "a040910435e5858ada25d791549583e655c82b8ee05a4f3ac8e644715ea09df3",
+      "flywayChecksum": -616944434,
+      "createTables": [
+        "analysis_jobs",
+        "auto_save_config",
+        "beta_reader_reports",
+        "character_voices",
+        "continuity_issues",
+        "entity_extractions",
+        "export_jobs",
+        "export_templates",
+        "keyboard_shortcuts",
+        "knowledge_graph_relationships",
+        "lorebook_entries",
+        "manuscript_branches",
+        "manuscript_versions",
+        "model_registry",
+        "model_usage_logs",
+        "style_analysis_jobs",
+        "style_profile_scene_overrides",
+        "style_profiles",
+        "task_model_routing",
+        "user_model_preferences",
+        "version_diffs",
+        "workspace_layouts",
+        "writing_goals",
+        "writing_sessions"
+      ],
+      "alterTables": [],
+      "dataTables": [
+        "manuscripts"
+      ]
+    },
+    {
+      "version": 4,
+      "path": "backend/src/main/resources/db/migration/V4__g2_blind_evaluation.sql",
+      "script": "V4__g2_blind_evaluation.sql",
+      "bytes": 5928,
+      "sha256": "14b3feb91a2679f7d995fc4970a53ebc48fb31815c9a853e0b19a96244cf3501",
+      "flywayChecksum": -216989419,
+      "createTables": [
+        "g2_evaluation_experiments",
+        "g2_evaluation_invites",
+        "g2_evaluation_samples",
+        "g2_evaluation_votes",
+        "project_credit_accounts",
+        "project_credit_ledger"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 5,
+      "path": "backend/src/main/resources/db/migration/V5__guided_creation_workflows.sql",
+      "script": "V5__guided_creation_workflows.sql",
+      "bytes": 3131,
+      "sha256": "2435585c26e17ec39d9c53099b5aecec7dead99a603ab9d59bdb6a9c006d85b7",
+      "flywayChecksum": 249726465,
+      "createTables": [
+        "async_jobs",
+        "creation_workflow_runs"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 6,
+      "path": "backend/src/main/resources/db/migration/V6__backfill_legacy_slop_quality_issue_columns.sql",
+      "script": "V6__backfill_legacy_slop_quality_issue_columns.sql",
+      "bytes": 4109,
+      "sha256": "b8ebbd6cfa6956c49e38a770c97bda3ee9c1f6be9ec2deb1899256e9cab3a141",
+      "flywayChecksum": -1368070329,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 7,
+      "path": "backend/src/main/resources/db/migration/V7__cascade_story_content_deletion.sql",
+      "script": "V7__cascade_story_content_deletion.sql",
+      "bytes": 3820,
+      "sha256": "31950a684c6fbcd095455f1ba7f54dd3d0282397b7193bf1f8f8bda113f8657a",
+      "flywayChecksum": 1512342702,
+      "createTables": [],
+      "alterTables": [
+        "character_cards",
+        "manuscripts",
+        "outlines"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 8,
+      "path": "backend/src/main/resources/db/migration/V8__ai_operation_progress.sql",
+      "script": "V8__ai_operation_progress.sql",
+      "bytes": 2774,
+      "sha256": "c3d7a273c2ef295345e5205c915e0600bcbbc3bbad9003a9e988833c7ffd7928",
+      "flywayChecksum": 1797429470,
+      "createTables": [
+        "ai_operation_runs",
+        "ai_operation_steps"
+      ],
+      "alterTables": [
+        "async_jobs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 9,
+      "path": "backend/src/main/resources/db/migration/V9__repair_quality_issue_delete_cascades.sql",
+      "script": "V9__repair_quality_issue_delete_cascades.sql",
+      "bytes": 3730,
+      "sha256": "6069dd73f58f40f3aaf4d2e732bbd2aabff70a7644ba4f0fc42e2260895992e6",
+      "flywayChecksum": -590970376,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 10,
+      "path": "backend/src/main/resources/db/migration/V10__admin_totp_authentication.sql",
+      "script": "V10__admin_totp_authentication.sql",
+      "bytes": 2377,
+      "sha256": "ddf45488a20591c7e8eb0496804a29c4ddf8fb57b24454d236dbf60f36bfcb6f",
+      "flywayChecksum": 260866110,
+      "createTables": [
+        "admin_auth_audit",
+        "admin_auth_challenges",
+        "admin_recovery_codes",
+        "admin_sessions",
+        "admin_totp_credentials"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 11,
+      "path": "backend/src/main/resources/db/migration/V11__harden_admin_authentication.sql",
+      "script": "V11__harden_admin_authentication.sql",
+      "bytes": 1956,
+      "sha256": "3edc0ee815c83b78daf8e16a5d666b803279201e3d068130f467d4ac392401f6",
+      "flywayChecksum": -1224904234,
+      "createTables": [
+        "admin_operation_challenges",
+        "admin_operation_proofs"
+      ],
+      "alterTables": [
+        "admin_auth_challenges",
+        "admin_sessions"
+      ],
+      "dataTables": [
+        "admin_sessions"
+      ]
+    },
+    {
+      "version": 12,
+      "path": "backend/src/main/resources/db/migration/V12__decouple_local_admin_operator.sql",
+      "script": "V12__decouple_local_admin_operator.sql",
+      "bytes": 553,
+      "sha256": "bc515c84e0b2febf8f90e13c660193bfec582a1ee3151337471f887fea4ccd79",
+      "flywayChecksum": 2103031406,
+      "createTables": [],
+      "alterTables": [
+        "g2_evaluation_experiments"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 13,
+      "path": "backend/src/main/resources/db/migration/V13__scene_generation_runs.sql",
+      "script": "V13__scene_generation_runs.sql",
+      "bytes": 3086,
+      "sha256": "ede6ac3aa5eb89e66289612908e0e51808639b7dcd3ca5a949fc79f113d46ec0",
+      "flywayChecksum": -1495203298,
+      "createTables": [
+        "scene_generation_runs"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 14,
+      "path": "backend/src/main/resources/db/migration/V14__audit_high_remediation.sql",
+      "script": "V14__audit_high_remediation.sql",
+      "bytes": 7185,
+      "sha256": "db48ea574e3d41dbf655ee2f2d5b910de87b3d42e5125d35c424d7a7839d0af7",
+      "flywayChecksum": -1953457944,
+      "createTables": [
+        "ai_credit_reservations",
+        "external_identities",
+        "material_chunks",
+        "material_index_jobs"
+      ],
+      "alterTables": [
+        "ai_operation_runs",
+        "credit_conversion_orders",
+        "export_jobs",
+        "g2_evaluation_samples",
+        "manuscripts",
+        "project_credit_ledger"
+      ],
+      "dataTables": [
+        "ai_operation_runs",
+        "export_jobs",
+        "external_identities",
+        "g2_evaluation_samples",
+        "material_index_jobs",
+        "project_credit_ledger"
+      ]
+    },
+    {
+      "version": 15,
+      "path": "backend/src/main/resources/db/migration/V15__narrative_evidence_state.sql",
+      "script": "V15__narrative_evidence_state.sql",
+      "bytes": 3207,
+      "sha256": "9d0782530c2d5a666b19a94babfc40b329526c368688a246b970fb5d7279f2e8",
+      "flywayChecksum": -1818663450,
+      "createTables": [
+        "narrative_approvals",
+        "narrative_commits",
+        "narrative_extractions",
+        "narrative_ledgers",
+        "narrative_records"
+      ],
+      "alterTables": [
+        "manuscript_versions"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 16,
+      "path": "backend/src/main/resources/db/migration/V16__credit_ledger_string_type.sql",
+      "script": "V16__credit_ledger_string_type.sql",
+      "bytes": 276,
+      "sha256": "3ccaa80f954c723760544685e08a9b91a54ed48f556afd51b40a2c71155b98bd",
+      "flywayChecksum": -1611932509,
+      "createTables": [],
+      "alterTables": [
+        "project_credit_ledger"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 17,
+      "path": "backend/src/main/resources/db/migration/V17__character_role_archetype.sql",
+      "script": "V17__character_role_archetype.sql",
+      "bytes": 111,
+      "sha256": "8f237189eca7e42d636da59d3d5cbdd85d61ff086cfdcc2b13f37af76c364639",
+      "flywayChecksum": 217464861,
+      "createTables": [],
+      "alterTables": [
+        "character_cards"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 18,
+      "path": "backend/src/main/resources/db/migration/V18__narrative_context_isolation.sql",
+      "script": "V18__narrative_context_isolation.sql",
+      "bytes": 2320,
+      "sha256": "78b325490047f784ea14eef638b4e418c4818c66ea927cdc454f58c4829dde71",
+      "flywayChecksum": -1408807324,
+      "createTables": [
+        "ai_validation_budgets",
+        "ai_validation_calls",
+        "narrative_context_revisions",
+        "narrative_context_settings",
+        "narrative_generation_candidates"
+      ],
+      "alterTables": [
+        "plot_quality_runs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 19,
+      "path": "backend/src/main/resources/db/migration/V19__audit_material_governance.sql",
+      "script": "V19__audit_material_governance.sql",
+      "bytes": 2002,
+      "sha256": "e210e56883940141cb20ce8e36c0e0e070d5cadb12e089b5059756bbd29924a8",
+      "flywayChecksum": -1056711658,
+      "createTables": [
+        "material_duplicate_fingerprints",
+        "material_duplicate_jobs",
+        "material_duplicate_results",
+        "material_duplicate_terms"
+      ],
+      "alterTables": [
+        "material_upload_jobs",
+        "materials"
+      ],
+      "dataTables": [
+        "material_upload_jobs",
+        "materials"
+      ]
+    },
+    {
+      "version": 20,
+      "path": "backend/src/main/resources/db/migration/V20__audit_task_fencing.sql",
+      "script": "V20__audit_task_fencing.sql",
+      "bytes": 1395,
+      "sha256": "db073c76a741f428936e648c50f3a3c576644476d3160efafb84b26308077d7d",
+      "flywayChecksum": 613054475,
+      "createTables": [],
+      "alterTables": [
+        "ai_credit_reservations",
+        "material_chunks",
+        "outlines",
+        "worlds"
+      ],
+      "dataTables": [
+        "ai_credit_reservations",
+        "material_index_jobs"
+      ]
+    },
+    {
+      "version": 21,
+      "path": "backend/src/main/resources/db/migration/V21__audit_scene_content_storage.sql",
+      "script": "V21__audit_scene_content_storage.sql",
+      "bytes": 781,
+      "sha256": "4062c152e8023bec90b156d686e2af33142cf186cb905fcdc3795280a3b6cf62",
+      "flywayChecksum": -1861073093,
+      "createTables": [
+        "manuscript_content_migration",
+        "manuscript_scene_contents"
+      ],
+      "alterTables": [
+        "manuscripts"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 22,
+      "path": "backend/src/main/resources/db/migration/V22__audit_admin_pagination_indexes.sql",
+      "script": "V22__audit_admin_pagination_indexes.sql",
+      "bytes": 419,
+      "sha256": "e324e16206f032249e9cf4f2cc79a4be6c23028e077bd0b065f1ec15148b3ba3",
+      "flywayChecksum": 458643936,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 23,
+      "path": "backend/src/main/resources/db/migration/V23__audit_text_conversion_versions.sql",
+      "script": "V23__audit_text_conversion_versions.sql",
+      "bytes": 510,
+      "sha256": "61c79869a4959b0259effd7d258efcb44041c86b3f48c8c9e1cf5ee3476a03eb",
+      "flywayChecksum": -979281983,
+      "createTables": [],
+      "alterTables": [
+        "narrative_approvals",
+        "narrative_extractions",
+        "plot_quality_runs",
+        "slop_drift_runs",
+        "slop_quality_runs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 24,
+      "path": "backend/src/main/resources/db/migration/V24__creator_workflow_recovery.sql",
+      "script": "V24__creator_workflow_recovery.sql",
+      "bytes": 1215,
+      "sha256": "a18a6bfac98085486a61db6f4d24b2bd5fdbdfe516475bdaa8432724a2ef1ed6",
+      "flywayChecksum": -1949225096,
+      "createTables": [
+        "manuscript_creation_receipts"
+      ],
+      "alterTables": [
+        "ai_operation_runs",
+        "ai_operation_steps",
+        "ai_validation_budgets",
+        "ai_validation_calls"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 25,
+      "path": "backend/src/main/resources/db/migration/V25__material_evidence_foundation.sql",
+      "script": "V25__material_evidence_foundation.sql",
+      "bytes": 5672,
+      "sha256": "572003a71a6d1d86c24448300d3290228a0d5f3c48feba0f3a12078e2330e319",
+      "flywayChecksum": 1644506651,
+      "createTables": [
+        "material_auto_check_quota",
+        "material_entities",
+        "material_entity_names",
+        "material_entity_sources",
+        "material_evidence_chunks",
+        "material_merge_sources",
+        "material_mutation_receipts",
+        "material_processing_jobs",
+        "material_revisions",
+        "material_scene_packages",
+        "material_semantic_jobs",
+        "material_source_links",
+        "material_work_bindings",
+        "material_work_settings"
+      ],
+      "alterTables": [],
+      "dataTables": [
+        "material_revisions"
+      ]
+    },
+    {
+      "version": 26,
+      "path": "backend/src/main/resources/db/migration/V26__material_confirmations_and_hints.sql",
+      "script": "V26__material_confirmations_and_hints.sql",
+      "bytes": 1555,
+      "sha256": "4c10b31a3aaf09617bd8a0ac847cc586a34006a31998c36a150b2db26f60d193",
+      "flywayChecksum": -913891755,
+      "createTables": [
+        "material_confirmed_annotations",
+        "material_hint_slots"
+      ],
+      "alterTables": [
+        "material_entity_sources"
+      ],
+      "dataTables": [
+        "material_entity_sources"
+      ]
+    },
+    {
+      "version": 27,
+      "path": "backend/src/main/resources/db/migration/V27__material_basic_projection_jobs.sql",
+      "script": "V27__material_basic_projection_jobs.sql",
+      "bytes": 797,
+      "sha256": "cb1bd31a0b25f3179b9d6d1dc2bbf41634b90b9616df1fff5813c8115176cbbf",
+      "flywayChecksum": 1199301115,
+      "createTables": [
+        "material_basic_jobs"
+      ],
+      "alterTables": [],
+      "dataTables": [
+        "material_basic_jobs"
+      ]
+    },
+    {
+      "version": 28,
+      "path": "backend/src/main/resources/db/migration/V28__material_task_result_recovery.sql",
+      "script": "V28__material_task_result_recovery.sql",
+      "bytes": 246,
+      "sha256": "8b539e96284378319798dba05d65e70e5f00127d2f3095f120cd11919ce0adf8",
+      "flywayChecksum": 386018328,
+      "createTables": [],
+      "alterTables": [
+        "material_processing_jobs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 29,
+      "path": "backend/src/main/resources/db/migration/V29__material_citation_body_positions.sql",
+      "script": "V29__material_citation_body_positions.sql",
+      "bytes": 384,
+      "sha256": "a33c5f3b8f26eb573d5bfa6ef41bc4df0273a1997ab7af6763cadf9cae2b6ec2",
+      "flywayChecksum": 1448112597,
+      "createTables": [],
+      "alterTables": [
+        "material_source_links"
+      ],
+      "dataTables": [
+        "material_source_links"
+      ]
+    },
+    {
+      "version": 30,
+      "path": "backend/src/main/resources/db/migration/V30__material_gateway_request_identity.sql",
+      "script": "V30__material_gateway_request_identity.sql",
+      "bytes": 406,
+      "sha256": "ae5dc76ac70d56d3387f1d2cc85dd4ff77251e5f23c47225f6d4aa448eb4adb6",
+      "flywayChecksum": -1025435177,
+      "createTables": [],
+      "alterTables": [
+        "material_processing_jobs",
+        "material_semantic_jobs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 31,
+      "path": "backend/src/main/resources/db/migration/V31__material_report_source_links.sql",
+      "script": "V31__material_report_source_links.sql",
+      "bytes": 337,
+      "sha256": "97eb00c30ebd1ea6a35c05379142433166f62b9953468b663cf6864bf07116d6",
+      "flywayChecksum": -29561307,
+      "createTables": [],
+      "alterTables": [
+        "material_source_links"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 32,
+      "path": "backend/src/main/resources/db/migration/V32__material_gateway_budget_wait.sql",
+      "script": "V32__material_gateway_budget_wait.sql",
+      "bytes": 254,
+      "sha256": "8b29c2668b5e499b7726f9fe01c9f16ec6bc2f25351f37c62802f0432b3407bd",
+      "flywayChecksum": 554248884,
+      "createTables": [],
+      "alterTables": [
+        "material_processing_jobs",
+        "material_semantic_jobs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 33,
+      "path": "backend/src/main/resources/db/migration/V33__language_quality_review.sql",
+      "script": "V33__language_quality_review.sql",
+      "bytes": 1911,
+      "sha256": "28bac3411cc85ec97da01381776657048622a694b2ebd8cbbea599951a353278",
+      "flywayChecksum": -1388624709,
+      "createTables": [
+        "language_quality_decisions",
+        "language_quality_patches",
+        "language_quality_reports",
+        "language_quality_settings"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 34,
+      "path": "backend/src/main/resources/db/migration/V34__retained_admin_emergency_codes.sql",
+      "script": "V34__retained_admin_emergency_codes.sql",
+      "bytes": 1532,
+      "sha256": "f3bdf6d35ea41f1c3460b5f0c5158c192bbcffe0c5bcde91ac35fa76445caf96",
+      "flywayChecksum": 1882730342,
+      "createTables": [
+        "admin_emergency_challenge_bindings",
+        "admin_emergency_codes",
+        "admin_emergency_migrations",
+        "admin_emergency_subjects"
+      ],
+      "alterTables": [],
+      "dataTables": [
+        "admin_auth_challenges",
+        "admin_recovery_codes",
+        "admin_sessions"
+      ]
+    },
+    {
+      "version": 35,
+      "path": "backend/src/main/resources/db/migration/V35__restore_longtext_capacity.sql",
+      "script": "V35__restore_longtext_capacity.sql",
+      "bytes": 9757,
+      "sha256": "c1ed5766cef0df894235aa68bf332043d89137cfb7669c5b77bf8e64aa9cfb11",
+      "flywayChecksum": 224201350,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": []
+    }
+  ],
+  "pendingMigrations": [
+    {
+      "version": 36,
+      "path": "backend/src/main/resources/db/migration/V36__scene_generation_candidates.sql",
+      "script": "V36__scene_generation_candidates.sql",
+      "bytes": 784,
+      "sha256": "374ac5e7d8ffbe5e4d7780561c214be6229a6d8e7ebd9751307ddf0a26eb6128",
+      "flywayChecksum": 1987569454,
+      "createTables": [],
+      "alterTables": [
+        "narrative_generation_candidates"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 37,
+      "path": "backend/src/main/resources/db/migration/V37__writing_assistant.sql",
+      "script": "V37__writing_assistant.sql",
+      "bytes": 1755,
+      "sha256": "3804a47e51381b5eb27d84d93e0de4b89a6b2fa3c6e462115c49e490ac7f7426",
+      "flywayChecksum": -1899881833,
+      "createTables": [
+        "writing_assistant_proposals",
+        "writing_assistant_sessions",
+        "writing_assistant_turns"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 38,
+      "path": "backend/src/main/resources/db/migration/V38__story_assistant.sql",
+      "script": "V38__story_assistant.sql",
+      "bytes": 2239,
+      "sha256": "aa40a09a4f2ab8d6cedcf41b29f1c53bbed5ee65e2e7d6c1c5449f7d02a3b7f0",
+      "flywayChecksum": -1859918992,
+      "createTables": [
+        "story_assistant_proposals",
+        "story_assistant_receipts",
+        "story_assistant_sessions",
+        "story_assistant_turns"
+      ],
+      "alterTables": [
+        "character_cards"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 39,
+      "path": "backend/src/main/resources/db/migration/V39__ai_feature_model_configuration.sql",
+      "script": "V39__ai_feature_model_configuration.sql",
+      "bytes": 2434,
+      "sha256": "0273c77ae6babd92c3b7e93e590dcb96069e70fbdbcce1e2047e4a007a62c5c4",
+      "flywayChecksum": 1408452644,
+      "createTables": [
+        "ai_model_catalog_state",
+        "ai_model_options",
+        "ai_model_quotes"
+      ],
+      "alterTables": [
+        "ai_credit_reservations",
+        "ai_operation_runs",
+        "async_jobs",
+        "creation_workflow_runs",
+        "model_registry",
+        "scene_generation_runs",
+        "task_model_routing",
+        "user_model_preferences"
+      ],
+      "dataTables": [
+        "ai_model_catalog_state"
+      ]
+    },
+    {
+      "version": 40,
+      "path": "backend/src/main/resources/db/migration/V40__slop_review_snapshot.sql",
+      "script": "V40__slop_review_snapshot.sql",
+      "bytes": 76,
+      "sha256": "79f9237e408192375ea8f462fdf5649d60044a5e27be66d6c5afecc17bfe70d0",
+      "flywayChecksum": -1265648406,
+      "createTables": [],
+      "alterTables": [
+        "slop_quality_runs"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 41,
+      "path": "backend/src/main/resources/db/migration/V41__local_validation_money_budget.sql",
+      "script": "V41__local_validation_money_budget.sql",
+      "bytes": 726,
+      "sha256": "77fece8c7be9f5694a8219c6287e3447700c64ab4d1d7f307ccf417e28e49c55",
+      "flywayChecksum": -470571345,
+      "createTables": [],
+      "alterTables": [
+        "ai_validation_budgets",
+        "ai_validation_calls"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 42,
+      "path": "backend/src/main/resources/db/migration/V42__world_drafts_and_versions.sql",
+      "script": "V42__world_drafts_and_versions.sql",
+      "bytes": 3385,
+      "sha256": "d8b443c801fdde8ccddbae223a8aae05405dca315fdd729c8ac08d9818d27b25",
+      "flywayChecksum": -814379291,
+      "createTables": [
+        "world_entries",
+        "world_publish_receipts",
+        "world_relations",
+        "world_versions"
+      ],
+      "alterTables": [
+        "manuscripts",
+        "outlines",
+        "stories",
+        "worlds"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 43,
+      "path": "backend/src/main/resources/db/migration/V43__world_legacy_baselines.sql",
+      "script": "V43__world_legacy_baselines.sql",
+      "bytes": 5629,
+      "sha256": "04a38e179db97b128be94dbce41de61e50a81c4d8c9bd4942b4dc3e7f531a807",
+      "flywayChecksum": 733641645,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": [
+        "manuscripts",
+        "outlines",
+        "stories",
+        "world_entries",
+        "world_versions",
+        "worlds"
+      ]
+    },
+    {
+      "version": 44,
+      "path": "backend/src/main/resources/db/migration/V44__world_baseline_content_digest.sql",
+      "script": "V44__world_baseline_content_digest.sql",
+      "bytes": 196,
+      "sha256": "08a34d77bd7f8db46d263f92940e4ab514e524bef1e1e912313c90b99fe4d389",
+      "flywayChecksum": 1988861861,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": [
+        "world_versions"
+      ]
+    },
+    {
+      "version": 45,
+      "path": "backend/src/main/resources/db/migration/V45__world_baseline_utc_timestamp.sql",
+      "script": "V45__world_baseline_utc_timestamp.sql",
+      "bytes": 493,
+      "sha256": "28d3a8e139afff4cd257fe138efe94f17340b069ce73380e3d0fa79d240169bc",
+      "flywayChecksum": -703227939,
+      "createTables": [],
+      "alterTables": [],
+      "dataTables": [
+        "world_versions"
+      ]
+    },
+    {
+      "version": 46,
+      "path": "backend/src/main/resources/db/migration/V46__world_discussions_and_overview.sql",
+      "script": "V46__world_discussions_and_overview.sql",
+      "bytes": 2339,
+      "sha256": "0d0a759528c987434d3ed8f8ca75409ec864143573fbb7b96ce5b905051f4448",
+      "flywayChecksum": 163017988,
+      "createTables": [
+        "world_assistant_proposals",
+        "world_assistant_receipts",
+        "world_assistant_sessions",
+        "world_assistant_turns"
+      ],
+      "alterTables": [
+        "world_prompt_templates",
+        "worlds"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 47,
+      "path": "backend/src/main/resources/db/migration/V47__world_writing_context.sql",
+      "script": "V47__world_writing_context.sql",
+      "bytes": 1474,
+      "sha256": "a3fc1bd0ffb84d846bd84a86009e9e24b066966aece84e3989e306f4323a6586",
+      "flywayChecksum": 1145473361,
+      "createTables": [
+        "outline_ai_results",
+        "world_context_preferences"
+      ],
+      "alterTables": [],
+      "dataTables": []
+    },
+    {
+      "version": 48,
+      "path": "backend/src/main/resources/db/migration/V48__world_timeline_and_management.sql",
+      "script": "V48__world_timeline_and_management.sql",
+      "bytes": 1258,
+      "sha256": "97f62d1c9008d17c8280a5f0c1e476d493153b338425da6416ce24a3fdff14e5",
+      "flywayChecksum": 1967664988,
+      "createTables": [
+        "story_world_eras",
+        "world_copy_receipts"
+      ],
+      "alterTables": [
+        "worlds"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 49,
+      "path": "backend/src/main/resources/db/migration/V49__ai_response_metadata.sql",
+      "script": "V49__ai_response_metadata.sql",
+      "bytes": 181,
+      "sha256": "9d4bad4a97d4ca881dfbbbb713bddc53140a1804aff8ac482c64f7f06840adaa",
+      "flywayChecksum": -2103310886,
+      "createTables": [],
+      "alterTables": [
+        "ai_credit_reservations"
+      ],
+      "dataTables": []
+    },
+    {
+      "version": 50,
+      "path": "backend/src/main/resources/db/migration/V50__writing_agent_runs.sql",
+      "script": "V50__writing_agent_runs.sql",
+      "bytes": 2201,
+      "sha256": "ef21d14d47597759f9e5d53f6a800dfdccf677c66355d7334ae0f48b047462ea",
+      "flywayChecksum": 1292934646,
+      "createTables": [
+        "writing_agent_runs",
+        "writing_agent_steps"
+      ],
+      "alterTables": [
+        "ai_credit_reservations"
+      ],
+      "dataTables": []
+    }
+  ]
+}
