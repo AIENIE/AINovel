@@ -84,6 +84,11 @@ foreach ($entry in @{ ENV='local'; APP_ENV='local'; SERVER_ADDRESS='127.0.0.1'; 
 }
 if ([string]::IsNullOrWhiteSpace($localValues['EXTERNAL_GRPC_TRUST_CERT_COLLECTION'])) { throw 'Local gRPC trust path is not configured.' }
 Assert-AienieLocalOnlyEnvironment -Values $localValues
+$configurationPython = (Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+& $configurationPython -m unittest discover -s (Join-Path $windowsRoot '../config-pair/tests')
+if ($LASTEXITCODE -ne 0) { throw 'AINovel release configuration contract tests failed.' }
+& $configurationPython -m unittest discover -s (Join-Path $windowsRoot '../ci/tests')
+if ($LASTEXITCODE -ne 0) { throw 'AINovel staging deployment contract tests failed.' }
 Assert-AienieLocalOnlyEnvironment -Values @{
     ENV = 'local'
     APP_ENV = 'local'
