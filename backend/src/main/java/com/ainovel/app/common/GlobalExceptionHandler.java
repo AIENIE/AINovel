@@ -91,4 +91,12 @@ public class GlobalExceptionHandler {
                 ex.getClass().getSimpleName(), SafeLogThrowable.stackOnly(ex));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiError.of("Internal server error"));
     }
+
+    @ExceptionHandler({
+            org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class
+    })
+    public ResponseEntity<ApiError> handleMissingRoute(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of("NOT_FOUND"));
+    }
 }
