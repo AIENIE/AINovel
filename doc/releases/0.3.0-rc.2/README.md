@@ -8,7 +8,7 @@
 
 2026-11-01 作者批准通过控制面 `1c869f0`／v65 的 ReleaseRun 和项目自定义部署入口继续发布。ReleaseRun 关联 source、prepare、database、deployment、acceptance、closeout；实际镜像构建、部署操作回执和健康检查由平台执行。项目 `deploy_script` 仅在创建本次 staging 发布快照时临时挂接 `scripts/ci/deploy_staging.py`，创建后恢复原值并读回核对。共享控制面与 runner 不修改，应用 YAML/env 不修改。
 
-自定义入口先完成 S3 配置对及挂载验证，再消费 catalog 的日志／目录声明、冻结镜像及 UID/GID，保留日志、备份、发布记录和存储层保护。当前 Compose 的应用参数来自只读文件对，因此不恢复旧参数工具或旧凭据名称拦截。上次发布 `20261031001`／`2ffdb790-e847-5caf-8c16-c277b6742d56`／Jenkins #508 构建成功、部署前失败，原运行目录未被该发布覆盖；新部署完成前仍保持维护停写。
+自定义入口先完成 S3 配置对及挂载验证，再消费 catalog 的日志／目录声明、冻结镜像及 UID/GID，保留日志、备份、发布记录和存储层保护。当前 Compose 的应用参数来自只读文件对，因此不恢复旧参数工具或旧凭据名称拦截。上次发布 `20261031001`／`2ffdb790-e847-5caf-8c16-c277b6742d56`／Jenkins #508 构建成功、部署前失败，原运行目录未被该发布覆盖；该发布的失败记录保留。
 
 ## 数据库与配置
 
@@ -23,7 +23,7 @@ V36–V50 已通过数据库工作台执行，继续使用 [rc.1 冻结清单](.
 - `Build-Local.ps1 -Component All` 在 Node 22.23.2／pnpm 11.22.0 下通过；JAR 为 `ai-novel-backend.jar`，清单及 Maven 版本均为 `0.3.0`。首次运行被现有 Node 24 范围检查拒绝，未放宽版本要求。
 - 沿用此前 134 项隔离 MySQL 结果及新增 V35→V50 回放；Docker 8 项和冻结导出 3 项仍为条件跳过。
 
-本批完整候选检查已通过，剩余步骤为冻结及平台发布、实际源码／镜像／配置核对、正常 HTTPS 桌面和 390px 关键流程验收。验收完成后才清理已合入的过时分支，保留活动 release、master、develop、标签和既有工作树目录。原始结果位于工作区外 `aienie-runtime/evidence/product-artifacts/ainovel/release-0.3.0-rc.1-staging-20261031/`。
+候选 `4ea1c89c849c6d494caaaf27c6279fe49abfe387` 已通过平台发布 `20261101001`／`950c6ada-f8ac-5b1d-933c-2efd3cfc4629`／Jenkins #516 部署并恢复服务。源码、镜像摘要和配置内容核对通过，项目 `deploy_script` 已恢复为空字符串，共享平台未改动。普通用户桌面与 390px 保存、刷新、失败输入保留和历史读取通过。管理员有效会话的退役事件路径实际返回 401，未达到 404 契约，ReleaseRun `5fee3f4b-145b-5fcc-b45a-4b12d00b6177` 的验收已标记失败；修复继续使用 [rc.3](../0.3.0-rc.3/README.md)。原始结果位于工作区外 `aienie-runtime/evidence/product-artifacts/ainovel/release-0.3.0-rc.1-staging-20261031/`。
 
 ## 安全事项
 
