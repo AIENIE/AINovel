@@ -1,8 +1,9 @@
-"""Literal configuration helpers used by current local verification readers."""
+"""Literal configuration helpers for Windows readers and the active release guard."""
 
 from __future__ import annotations
 
 import re
+import yaml
 
 SECRET = re.compile(r"(?:PASSWORD|SECRET|TOKEN|API_KEY|AES_KEY|ENCRYPTION_KEY|PRIVATE_KEY|SIGNING_KEY|TOTP_KEY|KEYRING|CREDENTIALS|WEBHOOK_URL|AUTHORIZATION|AUTH_HEADER|_JWT$|_ACCESS_KEY$)")
 
@@ -13,6 +14,36 @@ class ConfigError(ValueError):
 
 def sensitive(key: str) -> bool:
     return key == "GRPC_AUTH_CALLERS" or bool(SECRET.search(key) and not NONSECRET.search(key))
+
+def parse_env(text: str) -> dict[str, str]:
+    values = {}
+    for number, line in enumerate(text.lstrip("\ufeff").splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        match = re.fullmatch(r"\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)", line)
+        if not match:
+            raise ConfigError(f"invalid env entry at line {number}")
+        key, value = match.groups()
+        if key in values:
+            raise ConfigError(f"duplicate env key: {key}")
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        values[key] = value
+    return values
+
+def walk_nodes(node, path=""):
+    if isinstance(node, yaml.MappingNode):
+        seen = set()
+        for key, child in node.value:
+            if key.value in seen:
+                raise ConfigError(f"duplicate YAML property: {path}.{key.value}")
+            seen.add(key.value)
+            yield from walk_nodes(child, f"{path}.{key.value}".lstrip("."))
+    elif isinstance(node, yaml.SequenceNode):
+        for index, child in enumerate(node.value):
+            yield from walk_nodes(child, f"{path}[{index}]")
+    else:
+        yield path, node
 
 def placeholders(value: str):
     """Yield top-level Spring placeholders, including nested defaults."""
