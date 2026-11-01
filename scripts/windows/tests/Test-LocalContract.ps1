@@ -87,6 +87,8 @@ Assert-AienieLocalOnlyEnvironment -Values $localValues
 $configurationPython = (Get-Command python.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 & $configurationPython -m unittest discover -s (Join-Path $windowsRoot '../config-pair/tests')
 if ($LASTEXITCODE -ne 0) { throw 'AINovel release configuration contract tests failed.' }
+& $configurationPython -m unittest discover -s (Join-Path $windowsRoot '../ci/tests')
+if ($LASTEXITCODE -ne 0) { throw 'AINovel staging deployment contract tests failed.' }
 Assert-AienieLocalOnlyEnvironment -Values @{
     ENV = 'local'
     APP_ENV = 'local'
