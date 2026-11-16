@@ -16,8 +16,19 @@ export const agentPreviewSchema = z.object({ contextHash: z.string(), selectionR
 export type AgentPreview = z.infer<typeof agentPreviewSchema>;
 const candidateSchema = z.object({ id, sequence: z.number(), parentId: id.nullable(), html: z.string(), hash: z.string(), actualHan: z.number(), replacements: z.unknown().array(), sources: z.unknown().array() });
 export type AgentCandidate = z.infer<typeof candidateSchema>;
+const checkReviewSchema = z.object({
+  status: z.enum(["NOT_SELECTED", "PENDING", "INCOMPLETE", "REPORTED"]),
+  stepSequence: z.number().nullish(),
+});
+const candidateReviewSchema = z.object({
+  minHan: z.number(),
+  maxHan: z.number(),
+  language: checkReviewSchema,
+  plot: checkReviewSchema,
+});
 const stepSchema = z.object({ sequence: z.number(), kind: z.string(), feature: z.string().nullable(), status: z.string(), result: z.unknown(), reservedCny: money.nullable(), settledCny: money.nullable(), projectCredits: z.number().nullable() });
 export const agentViewSchema = z.object({ id, manuscriptId: id, sceneId: id, branchId: id, status: z.string(), revision: z.number(), operationId: id.nullable(), progress: z.record(z.unknown()), candidates: candidateSchema.array(), steps: stepSchema.array(),
+  candidateReviews: z.record(candidateReviewSchema).optional(),
   settledCny: money, reservedCny: money, projectCredits: z.number(), maxCostCny: money, maxProjectCredits: z.number(), createdAt: z.string(), sourceHtml: z.string(), sourceVersion: z.number(), intent: z.string(), h2: z.boolean(), worldBinding: bindingSchema.nullable(), selectionRevision: z.number() });
 export type AgentRun = z.infer<typeof agentViewSchema>;
 export function createWritingAgentApi(http: DomainTransport, normalize: (value: unknown) => Manuscript) {

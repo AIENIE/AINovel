@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api-client";
 import * as assistantEditor from "@/lib/assistant-editor";
 import { createQueryClientWrapper, createTestQueryClient } from "@/test/queryClient";
-import { agentLimits, type AgentRun } from "@/lib/api/domains/writing-agent";
+import { agentLimits, agentViewSchema, type AgentRun } from "@/lib/api/domains/writing-agent";
 import { localizedErrorMessage, localizedOperationFailure } from "@/lib/error-messages";
 import type { Manuscript } from "@/types";
 import i18n from "@/i18n";
@@ -58,6 +58,39 @@ describe("creative agent review panel", () => {
     fireEvent.click(within(review).getByRole("button", { name: "完整前后对照" }));expect(within(review).getByText("完整候选正文")).toBeTruthy();
     expect(screen.getByText("世界人物")).toBeTruthy();expect(screen.getByText("检查未完整覆盖，不能视为通过。")).toBeTruthy();
     expect(api.writingAgent.start).not.toHaveBeenCalled();
+  });
+  it("opens the saved check for the selected candidate and keeps a partial draft available for adoption", async () => {
+    const latest = { ...candidate, id: "22222222-2222-4222-8222-222222222222", sequence: 2, parentId: id, actualHan: 3 };
+    const checkedRun = agentViewSchema.parse({
+      ...run("PAUSED_BUDGET"),
+      candidates: [candidate, latest],
+      candidateReviews: {
+        [candidate.id]: { minHan: 4, maxHan: 8, language: { status: "INCOMPLETE", stepSequence: 1 }, plot: { status: "NOT_SELECTED" } },
+        [latest.id]: { minHan: 4, maxHan: 8, language: { status: "PENDING" }, plot: { status: "NOT_SELECTED" } },
+      },
+    });
+    vi.mocked(api.writingAgent.list).mockResolvedValue([checkedRun]);
+    mount();
+
+    const review = within(await screen.findByRole("region", { name: "当前候选" }));
+    expect(review.getByText("目标篇幅 4–8 汉字")).toBeTruthy();
+    expect(review.getByText("当前稿篇幅待确认")).toBeTruthy();
+    expect(review.getByText("待检查")).toBeTruthy();
+    expect(review.getByText("未选择")).toBeTruthy();
+    expect(review.queryByRole("button", { name: "查看语言检查原记录" })).toBeNull();
+    expect(review.getByRole("button", { name: "采纳此候选" }).hasAttribute("disabled")).toBe(false);
+
+    fireEvent.change(screen.getByRole("combobox", { name: i18n.t("agent.candidates") }), { target: { value: candidate.id } });
+    expect(review.queryByText("当前稿篇幅待确认")).toBeNull();
+    expect(review.getByText("结果不完整")).toBeTruthy();
+    const recordedStep = screen.getByText("仅部分范围完成").closest("details");
+    expect(recordedStep?.open).toBe(false);
+    fireEvent.click(review.getByRole("button", { name: "查看语言检查原记录" }));
+    expect(recordedStep?.open).toBe(true);
+    expect(document.activeElement).toBe(recordedStep?.querySelector("summary"));
+    expect(api.writingAgent.start).not.toHaveBeenCalled();
+    expect(api.writingAgent.control).not.toHaveBeenCalled();
+    expect(api.writingAgent.accept).not.toHaveBeenCalled();
   });
   it("disables author adoption for unsaved input and retains readable old candidates", async () => {
     mount({ dirty: true, content: "<p>继续输入的新正文</p>" });

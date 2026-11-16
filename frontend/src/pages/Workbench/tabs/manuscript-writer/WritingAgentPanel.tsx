@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -44,13 +44,41 @@ function ActualResult({ value, modelStep = false }: { value: unknown; modelStep?
     <details className="min-w-0 text-xs text-muted-foreground"><summary>{t("agent.technical")}</summary><pre className="whitespace-pre-wrap break-all">{JSON.stringify(value, null, 2)}</pre></details>
   </div>;
 }
-function CandidateReview({ run, candidate, dirty, disabled, onAccept }: { run: AgentRun; candidate: AgentCandidate; dirty: boolean; disabled: boolean; onAccept: () => void }) {
+function CandidateReview({ run, candidate, dirty, disabled, onAccept, onOpenStep }: {
+  run: AgentRun;
+  candidate: AgentCandidate;
+  dirty: boolean;
+  disabled: boolean;
+  onAccept: () => void;
+  onOpenStep: (sequence: number) => void;
+}) {
   const { t } = useTranslation();const [view, setView] = useState<"comparison" | "diff">("comparison");
   const before = assistantPlainText(run.sourceHtml), after = assistantPlainText(candidate.html);
+  const review = run.candidateReviews?.[candidate.id];
   return <section aria-label={t("agent.after")} className="min-w-0 space-y-3">
     <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{t("agent.candidate", { number: candidate.sequence, han: candidate.actualHan })}</p>
       <div role="group" aria-label={t("agent.compare")} className="flex flex-wrap gap-2"><Button size="sm" variant={view === "comparison" ? "secondary" : "outline"} aria-pressed={view === "comparison"} onClick={() => setView("comparison")}>{t("agent.compare")}</Button><Button size="sm" variant={view === "diff" ? "secondary" : "outline"} aria-pressed={view === "diff"} onClick={() => setView("diff")}>{t("agent.diff")}</Button></div>
     </div>
+    {review && <div className="space-y-2 rounded border p-3 text-sm">
+      <p className="text-muted-foreground">{t("agent.review.target", { min: review.minHan, max: review.maxHan })}</p>
+      {(candidate.actualHan < review.minHan || candidate.actualHan > review.maxHan) &&
+        <p className="text-amber-700">{t("agent.review.outOfRange")}</p>}
+      <dl className="space-y-1">{(["language", "plot"] as const).map(kind => {
+        const check = review[kind];
+        const label = t("agent.review." + kind);
+        const sequence = check.stepSequence;
+        return <div key={kind} className="flex flex-wrap items-baseline gap-x-3">
+          <dt className="font-medium">{label}</dt>
+          <dd className={check.status === "PENDING" || check.status === "INCOMPLETE" ? "text-amber-700" : undefined}>
+            {t("agent.review." + check.status)}
+          </dd>
+          {sequence != null && <dd><Button size="sm" variant="link" className="h-auto p-0"
+            aria-label={t("agent.review.openNamed", { check: label })} onClick={() => onOpenStep(sequence)}>
+            {t("agent.review.open")}
+          </Button></dd>}
+        </div>;
+      })}</dl>
+    </div>}
     {view === "comparison" ? <div className="grid min-w-0 gap-3 md:grid-cols-2">{[{ label: t("agent.before"), text: before }, { label: t("agent.after"), text: after }].map(column => <section className="min-w-0 rounded border p-3" key={column.label}><h4 className="mb-2 text-xs font-medium text-muted-foreground">{column.label}</h4><p className="whitespace-pre-wrap break-words leading-7 [overflow-wrap:anywhere]">{column.text || t("worlds.emptyField")}</p></section>)}</div> : <InlineDiff before={before} after={after} />}
     {dirty && <p role="status" className="text-sm text-amber-700">{t("agent.saveFirst")}</p>}
     <Button size="sm" disabled={disabled || dirty || run.intent === "AUTHOR_QA"} onClick={onAccept}>{t("agent.adopt")}</Button>
@@ -63,6 +91,7 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
   const agent = useWritingAgent({ ...props, open });const run = agent.selectedRun;
   const [candidateId, setCandidateId] = useState("");
   const [answer, setAnswer] = useState("");
+  const stepList = useRef<HTMLElement>(null);
   useEffect(() => { setCandidateId("");setAnswer(""); }, [run?.id]);
   const candidate = run?.candidates.find(item => item.id === candidateId) || run?.candidates.at(-1);
   const progressMessage = text(run?.progress.message), progressAnswer = text(run?.progress.answer);
@@ -73,6 +102,16 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
   const startDisabled = locked || active || !!agent.pending || !props.manuscript?.currentBranchId || !props.sceneId || !agent.input.trim() || agent.intent === "EDIT" && props.dirty;
   const canAccept = !!run && !agentActive(run.status) && run.status !== "ACCEPTED" && !locked && !agent.pendingAdoption && props.manuscript?.version === run.sourceVersion && sameAssistantDocument(props.content, run.sourceHtml);
   const status = (value: string) => t(`agent.status.${value}`, { defaultValue: t("agent.unknown") });
+  const runStatus = (item: AgentRun) => item.status === "COMPLETED" && item.candidates.length
+    ? t("agent.delivered")
+    : status(displayedRunStatus(item));
+  const openStep = (sequence: number) => {
+    const step = stepList.current?.querySelector<HTMLDetailsElement>('details[data-sequence="' + sequence + '"]');
+    if (step) {
+      step.open = true;
+      step.querySelector("summary")?.focus();
+    }
+  };
   const toolLabel = (value: string) => t(`agent.tool.${value.replace(/\./g, "_")}`, { defaultValue: value });
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild><Button size="sm" variant="outline" disabled={!props.manuscript?.id || !props.sceneId}>{t("agent.title")}</Button></DialogTrigger>
@@ -106,8 +145,8 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
           {!!agent.error && <p role="alert" className="text-sm text-destructive">{agent.error}</p>}{!!agent.notice && <p role="status" className="text-sm">{agent.notice}</p>}
         </section>
         <section className="min-w-0 space-y-3 border-t pt-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{t("agent.history")}</h3><Button variant="ghost" size="sm" disabled={agent.history.isFetching} onClick={() => void agent.refresh()}>{t("agent.refresh")}</Button></div>
-          {agent.history.data?.length ? <select aria-label={t("agent.history")} className="block w-full min-w-0 rounded border bg-background p-2 text-sm" value={run?.id || ""} onChange={e => agent.setSelectedRunId(e.target.value)}>{agent.history.data.map(item => <option value={item.id} key={item.id}>{new Date(item.createdAt).toLocaleString()} · {status(displayedRunStatus(item))} · {item.id.slice(0, 8)}</option>)}</select> : <p className="text-sm text-muted-foreground">{t("agent.empty")}</p>}
-          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{status(displayedRunStatus(run))}</p>{!!progressMessage && <p className="whitespace-pre-wrap">{message(progressMessage)}</p>}{!!progressAnswer && progressAnswer !== progressMessage && <p className="whitespace-pre-wrap">{message(progressAnswer)}</p>}
+          {agent.history.data?.length ? <select aria-label={t("agent.history")} className="block w-full min-w-0 rounded border bg-background p-2 text-sm" value={run?.id || ""} onChange={e => agent.setSelectedRunId(e.target.value)}>{agent.history.data.map(item => <option value={item.id} key={item.id}>{new Date(item.createdAt).toLocaleString()} · {runStatus(item)} · {item.id.slice(0, 8)}</option>)}</select> : <p className="text-sm text-muted-foreground">{t("agent.empty")}</p>}
+          {run && <div className="min-w-0 space-y-4"><div className="space-y-2 text-sm"><p className="font-medium">{runStatus(run)}</p>{!!progressMessage && <p className="whitespace-pre-wrap">{message(progressMessage)}</p>}{!!progressAnswer && progressAnswer !== progressMessage && <p className="whitespace-pre-wrap">{message(progressAnswer)}</p>}
             <p className="text-xs text-muted-foreground">{t("agent.frozenWorld")}：{run.worldBinding ? `${run.worldBinding.name} · v${run.worldBinding.sequenceNumber} · ${t(`world4.${run.worldBinding.sourceType}`)}` : t("agent.noWorld")}</p>
             <p>{t("agent.cost", { settled: money(run.settledCny), reserved: money(run.reservedCny), credits: run.projectCredits })}</p><p className="text-xs text-muted-foreground">{t("agent.limit", { cny: run.maxCostCny, credits: run.maxProjectCredits })}</p>
             <p className="text-xs text-muted-foreground">{t("agent.usedSteps", { steps: modelSteps.length, results: savedModelResults, candidates: run.candidates.length })}</p>
@@ -116,9 +155,9 @@ export function WritingAgentPanel(props: WritingAgentPanelProps) {
             <div className="flex flex-wrap gap-2">{agentActive(run.status) && <Button size="sm" variant="outline" disabled={locked || run.status === "PAUSE_REQUESTED"} onClick={() => void agent.control(run, "pause")}>{t("agent.pause")}</Button>}{["PAUSED_USER", "WAITING_AUTHOR", "RECOVERY_REQUIRED"].includes(run.status) && <Button size="sm" variant="outline" disabled={locked || run.status === "WAITING_AUTHOR" && !answer.trim()} onClick={() => void agent.control(run, "resume", run.status === "WAITING_AUTHOR" ? answer.trim() : undefined)}>{t("agent.resume")}</Button>}{!["ACCEPTED", "CANCELLED"].includes(run.status) && <Button size="sm" variant="outline" disabled={locked} onClick={() => void agent.control(run, "cancel")}>{t("agent.cancel")}</Button>}</div><p className="text-xs text-muted-foreground">{t("agent.pauseHelp")}</p>
           </div>
             {!!run.candidates.length && <label className="block space-y-1 text-sm">{t("agent.candidates")}<select className="block w-full min-w-0 rounded border bg-background p-2" value={candidate?.id || ""} onChange={e => setCandidateId(e.target.value)}>{run.candidates.map(item => <option value={item.id} key={item.id}>{t("agent.candidate", { number: item.sequence, han: item.actualHan })}</option>)}</select></label>}
-            {candidate && <CandidateReview run={run} candidate={candidate} dirty={props.dirty} disabled={!canAccept} onAccept={() => void agent.accept(run, candidate)} />}
+            {candidate && <CandidateReview run={run} candidate={candidate} dirty={props.dirty} disabled={!canAccept} onAccept={() => void agent.accept(run, candidate)} onOpenStep={openStep} />}
             {candidate && !canAccept && !props.dirty && !locked && run.status !== "ACCEPTED" && <p className="text-sm text-amber-700">{t("agent.stale")}</p>}
-            {!!run.steps.length && <section className="min-w-0 space-y-2"><h4 className="text-sm font-medium">{t("agent.steps")}</h4>{run.steps.map(step => <details className="min-w-0 rounded border p-3 text-sm" key={step.sequence}><summary className="cursor-pointer break-words">{step.sequence} · {step.kind === "MODEL" ? t("agent.stepModel") : toolLabel(step.feature || step.kind) || t("agent.stepTool")} · {step.status === "COMPLETED" ? t("agent.status.SUCCEEDED") : status(step.status)}</summary><div className="mt-2"><ActualResult value={step.result} modelStep={step.kind === "MODEL"} /></div></details>)}</section>}
+            {!!run.steps.length && <section ref={stepList} className="min-w-0 space-y-2"><h4 className="text-sm font-medium">{t("agent.steps")}</h4>{run.steps.map(step => <details className="min-w-0 rounded border p-3 text-sm" key={step.sequence} data-sequence={step.sequence}><summary className="cursor-pointer break-words">{step.sequence} · {step.kind === "MODEL" ? t("agent.stepModel") : toolLabel(step.feature || step.kind) || t("agent.stepTool")} · {step.status === "COMPLETED" ? t("agent.status.SUCCEEDED") : status(step.status)}</summary><div className="mt-2"><ActualResult value={step.result} modelStep={step.kind === "MODEL"} /></div></details>)}</section>}
           </div>}
         </section>
       </div>

@@ -18,7 +18,11 @@ preview/start 请求：branchId、expectedVersion、sourceHtml、可选连续 se
 
 `limits` 为 modelCalls/controlCalls/paidTools/revisions/localTools；默认及硬上限 24/12/12/3/32。语言与剧情检查各最多4次，并共同受12次付费工具上限约束。它们是可能调用上限，不是固定步骤。新步骤 writing_agent.control/refine 初始未配置，不能隐式选模型。
 
-preview 返回首步实际消息 firstInput、contextHash、selectionRevision、h2、binding、工具名、issues 和预算。后续工具读取未知，因此预览不是“全程实际已读”。详情区分 MODEL 提出的工具名与 TOOL 实际回执；安全模型结果含用量、该步实际发送来源和一元执行方式，不包含 reasoning_content/provider_state。
+preview 返回首步实际消息 firstInput、contextHash、selectionRevision、h2、binding、工具名、issues、预算和 protocol。新版正文任务使用 `writing-agent-v2`，作者问答和已冻结的旧任务使用 `writing-agent-v1`。首步展示本次已确定的输入，后续实际阅读范围以工具回执为准。详情区分 MODEL 提出的工具名与 TOOL 实际回执；安全模型结果含用量、该步实际发送来源和一元执行方式，不包含 reasoning_content/provider_state。
+
+任务详情和历史列表返回 `candidateReviews`，以候选 ID 为键，提供 `minHan`、`maxHan`、`language` 和 `plot`。每项检查包含 `status` 和可空 `stepSequence`，后者指向同一候选 ID 与正文哈希的检查步骤。`NOT_SELECTED` 表示作者未选，`PENDING` 表示缺少该稿检查结果，`INCOMPLETE` 表示结果不完整，`REPORTED` 表示已保存完整报告。问题及依据可在原步骤查看。实际汉字数 `actualHan` 仍通过 `candidates` 返回。
+
+`writing-agent-v2` 在已勾选检查的正文任务中为修订后的复查预留次数。修订工具可能返回 `WRITING_AGENT_REVIEW_RESERVE`，`insufficient` 列出不足的次数类别，任务继续从当前候选协调。
 
 控制请求携带 expectedRevision 与 Idempotency-Key。WAITING_AUTHOR 恢复须 answer；暂停额度不能借 resume 调高，需要新授权。采纳另携带 expectedVersion、branchId、candidateId。正文、来源或配置基线变化时409，旧结果保留。重复处置重放原决定，不重复创建版本。
 

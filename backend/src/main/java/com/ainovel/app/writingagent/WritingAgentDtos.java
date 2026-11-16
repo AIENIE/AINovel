@@ -13,6 +13,7 @@ import java.util.*;
 public final class WritingAgentDtos {
     private WritingAgentDtos() {}
     public static final String PROTOCOL="writing-agent-v1";
+    public static final String REVIEW_PROTOCOL="writing-agent-v2";
     public record Limits(int modelCalls,int controlCalls,int paidTools,int revisions,int localTools) {
         public static Limits defaults(){return new Limits(24,12,12,3,32);}
         public Limits checked(){
@@ -42,10 +43,13 @@ public final class WritingAgentDtos {
             Object binding,List<String> tools,List<String> issues,Limits limits,BigDecimal maxCostCny,long maxProjectCredits,List<AiChatRequest.Message> firstInput) {}
     public record Candidate(UUID id,int sequence,UUID parentId,String html,String hash,int actualHan,
             List<AssistantDocumentProjection.Replacement> replacements,List<JsonNode> sources) {}
+    public enum CheckStatus { NOT_SELECTED, PENDING, INCOMPLETE, REPORTED }
+    public record CheckReview(CheckStatus status,Integer stepSequence) {}
+    public record CandidateReview(int minHan,int maxHan,CheckReview language,CheckReview plot) {}
     public record StepView(int sequence,String kind,String feature,String status,JsonNode result,
             BigDecimal reservedCny,BigDecimal settledCny,Long projectCredits) {}
     public record View(UUID id,UUID manuscriptId,UUID sceneId,UUID branchId,String status,long revision,
-            UUID operationId,JsonNode progress,List<Candidate> candidates,List<StepView> steps,
+            UUID operationId,JsonNode progress,List<Candidate> candidates,Map<UUID,CandidateReview> candidateReviews,List<StepView> steps,
             BigDecimal settledCny,BigDecimal reservedCny,long projectCredits,BigDecimal maxCostCny,
             long maxProjectCredits,Instant createdAt,String sourceHtml,long sourceVersion,String intent,boolean h2,Object worldBinding,long selectionRevision) {}
     public record Accepted(UUID runId,UUID operationId) {}

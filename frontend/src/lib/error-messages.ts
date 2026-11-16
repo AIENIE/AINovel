@@ -36,6 +36,7 @@ const AI_MODEL_ERROR_KEYS: Record<string, string> = {
   AI_VALIDATION_PHASE_BUDGET_EXHAUSTED: 'agent.phaseBudget',
   AI_VALIDATION_PHASE_BASELINE_INVALID: 'agent.phaseBaselineInvalid',
   WRITING_AGENT_CHECK_LIMIT: 'agent.checkLimit',
+  WRITING_AGENT_REVIEW_RESERVE: 'agent.review.reserve',
   WORLD_AGENT_REQUIRED_READ_CAPACITY: 'agent.worldLimit',
   AUTHOR_QA_READ_ONLY: 'agent.readOnly',
   H2_WORLD_TOOL_UNAVAILABLE: 'agent.h2',

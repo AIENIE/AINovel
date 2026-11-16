@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.*;
 import org.springframework.stereotype.Component;
 import java.util.*;
 import static com.ainovel.app.writingagent.WritingAgentDtos.*;
+import static com.ainovel.app.writingagent.WritingAgentReviews.*;
 
 @Component
 public class WritingAgentPrompts {
@@ -22,8 +23,8 @@ public class WritingAgentPrompts {
         if(!"AUTHOR_QA".equals(f.intent())){
             tools.add(tool("candidate_draft","一次付费起草，产生当前场景待审候选。无隐藏修订或自动保存。",Map.of(),List.of()));
             if(f.limits().revisions()>0)tools.add(tool("candidate_refine","根据问题或作者目标修改当前候选；一次付费调用，不改正式稿。",Map.of("instruction",text()),List.of("instruction")));
-            if(f.languageCheck())tools.add(tool("candidate_check_language","付费检查当前完整候选语言，返回原文证据；不会改稿。",Map.of(),List.of()));
-            if(f.plotCheck())tools.add(tool("candidate_check_plot","付费检查当前场景剧情及已读材料，不声称全书审查；不会改稿。",Map.of(),List.of()));
+            if(f.languageCheck())tools.add(tool(LANGUAGE_TOOL,"付费检查当前完整候选语言，返回原文证据；不会改稿。",Map.of(),List.of()));
+            if(f.plotCheck())tools.add(tool(PLOT_TOOL,"付费检查当前场景剧情及已读材料，不声称全书审查；不会改稿。",Map.of(),List.of()));
         }
         tools.add(tool("ask_author","关键设定、核心冲突或修改方向需要作者决定时暂停。",Map.of("question",text()),List.of("question")));
         tools.add(tool("finish","完成本次有界任务，交付当前候选或问答；说明未解决问题。",Map.of("answer",text()),List.of("answer")));
@@ -44,9 +45,23 @@ public class WritingAgentPrompts {
                 只交付待作者审阅候选；不能发布世界、升级绑定或自行修改正式正文。
                 使用原生工具协议调用，不输出自制JSON工具指令。需要结束使用finish，询问使用ask_author。
                 """;
+        boolean review = REVIEW_PROTOCOL.equals(f.protocol());
+        if (review) {
+            system = system.replace("AINOVEL_WRITING_AGENT_V1", "AINOVEL_WRITING_AGENT_V2") + """
+                    world、context 只读工具可同批调用。起草、修订、检查、询问和交审都要逐次单独调用，等回执后再决定下一步。
+                    按作者勾选的检查尽量复查将要交审的版本。新版候选需单独检查，以运行器提供的当前稿状态为准。
+                    起草和每项检查各用一轮协调和一次工具请求，交审用一轮协调。次数紧张时先读完必读、完成首稿，再按剩余额度安排已勾选的复查。
+                    修订前核对汉字数与目标篇幅，并考虑修改能否解决具体问题。出现轮次预留不足时，先复查或交审已有稿件。
+                    篇幅越界或检查结果不完整时，可以交审已有稿。相同候选和资料的检查会复用原报告；交审时说明尚待核对的事项。
+                    """;
+        }
         var input=json.createObjectNode();input.put("instruction",f.instruction());input.put("intent",f.intent());input.put("h2",f.context().h2());
         input.set("editable",json.valueToTree(f.document().runs()));input.set("base",json.valueToTree(f.base()));
         input.set("limits",json.valueToTree(f.limits()));input.set("mustRead",required);
+        if (review) {
+            input.put("minHan", f.context().minHan()).put("maxHan", f.context().maxHan());
+            input.put("languageCheck", f.languageCheck()).put("plotCheck", f.plotCheck());
+        }
         if(!f.world().isolated())input.set("worldBinding",json.valueToTree(f.world().binding()));
         return new ArrayList<>(List.of(new AiChatRequest.Message("system",system),new AiChatRequest.Message("user",input.toString())));
     }

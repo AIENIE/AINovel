@@ -89,14 +89,15 @@ public class WritingAgentService {
         var rulePrompt=mode.equals("crafted")?assembly.assembleWithCreativeConstraints(ruleInput,slop.sample(sceneId),0):assembly.assembleSceneDraft(ruleInput);
         if(lang.generation())rulePrompt=LanguageStandard.augment(rulePrompt,lang.version(),true);
         var rules=rulePrompt.messages().stream().filter(x->"system".equals(x.role())).toList();
-        var frozen=new Frozen(PROTOCOL,manuscriptId,request.branchId(),sceneId,m.getVersion(),hash(server),request.instruction(),intent,mode,document,filtered,world,filtered.base(),lang.generation()?LanguageStandard.text(lang.version()):"",rules,generation.planningHash(m),request.languageCheck(),request.plotCheck(),request.maxCostCny().setScale(6),request.maxProjectCredits(),limits,null);
+        String protocol = "EDIT".equals(intent) ? REVIEW_PROTOCOL : PROTOCOL;
+        var frozen=new Frozen(protocol,manuscriptId,request.branchId(),sceneId,m.getVersion(),hash(server),request.instruction(),intent,mode,document,filtered,world,filtered.base(),lang.generation()?LanguageStandard.text(lang.version()):"",rules,generation.planningHash(m),request.languageCheck(),request.plotCheck(),request.maxCostCny().setScale(6),request.maxProjectCredits(),limits,null);
         frozen=frozen.withProtocol(prompts.tools(frozen),prompts.initial(frozen,worlds.requiredReads(world,WorldAgentTools.ReadState.empty())),candidates.templateHash());
         if(request.contextHash()!=null&&!request.contextHash().equals(fingerprint(frozen)))throw error("WRITING_AGENT_CONTEXT_CHANGED");
         return frozen;
     }
     public String fingerprint(Frozen f){var n=(com.fasterxml.jackson.databind.node.ObjectNode)store.mapper().valueToTree(f);n.remove("selections");return hash(n.toString());}
     @Transactional(readOnly=true)
-    public Preview preview(User user,UUID m,UUID scene,Request request){var f=prepare(user,m,scene,request);return new Preview(fingerprint(f),f.world().selectionRevision(),PROTOCOL,f.context().h2(),f.world().binding(),toolNames(f),f.world().issues(),f.limits(),f.maxCostCny(),f.maxProjectCredits(),f.controlMessages());}
+    public Preview preview(User user,UUID m,UUID scene,Request request){var f=prepare(user,m,scene,request);return new Preview(fingerprint(f),f.world().selectionRevision(),f.protocol(),f.context().h2(),f.world().binding(),toolNames(f),f.world().issues(),f.limits(),f.maxCostCny(),f.maxProjectCredits(),f.controlMessages());}
     private List<String> toolNames(Frozen f){var names=new ArrayList<String>();for(var t:store.tree(f.toolsJson()))names.add(t.path("function").path("name").asText());return names;}
     public AiActionPlanner.Plan quote(User user,UUID m,UUID scene,JsonNode body){
         var f=prepare(user,m,scene,store.mapper().convertValue(body,Request.class));var steps=new ArrayList<AiActionPlanner.Step>();
@@ -104,8 +105,8 @@ public class WritingAgentService {
         if(!"AUTHOR_QA".equals(f.intent())){
             steps.add(step("scene."+f.mode()+".draft",true,1,8192));
             if(f.limits().revisions()>0)steps.add(step("writing_agent.refine",true,Math.min(f.limits().revisions(),f.limits().modelCalls()),8192));
-            if(f.languageCheck())steps.add(step("language.diagnose",true,Math.min(4,f.limits().modelCalls()),4096));
-            if(f.plotCheck())steps.add(step("plot.diagnose",true,Math.min(4,f.limits().modelCalls()),4096));
+            if(f.languageCheck())steps.add(step("language.diagnose",true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
+            if(f.plotCheck())steps.add(step("plot.diagnose",true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
         }
         return new AiActionPlanner.Plan("/v1/manuscripts/"+m+"/scenes/"+scene+"/agent-runs",steps,fingerprint(f),m.toString(),null,null,new com.ainovel.app.worldcontext.WorldWritingInput("AGENT",fingerprint(f),f.world().selectionRevision(),store.mapper().valueToTree(f)));
     }
@@ -134,11 +135,20 @@ public class WritingAgentService {
     public View get(User user,UUID m,UUID scene,UUID id){return view(require(user,m,scene,id));}
     View view(WritingAgentStore.Run run){
         var f=store.read(run.frozen(),Frozen.class);var steps=store.steps(run.id());var views=new ArrayList<StepView>();BigDecimal settled=BigDecimal.ZERO,reserved=BigDecimal.ZERO;long credits=0;
+        var checks = new ArrayList<WritingAgentReviews.CheckStep>();
         for(var s:steps){if(s.settledCny()!=null)settled=settled.add(s.settledCny());else reserved=reserved.add(s.reservedCny());if(s.settledCredits()!=null)credits+=s.settledCredits();
             JsonNode result=store.mapper().createObjectNode();if(s.result()!=null){var raw=store.tree(s.result());if(s.kind().equals("MODEL")){var out=store.read(s.result(),AiChatResponse.class);var node=store.mapper().createObjectNode();node.put("message",Objects.toString(out.content(),""));node.set("usage",store.mapper().valueToTree(out.usage()));node.put("transport","BUDGETED_UNARY");var requestRecord=store.read(s.request(),ModelRecord.class);if(requestRecord.request().context()!=null)node.set("sources",requestRecord.request().context().path("writingAgentSources"));if(out.nativeResponseJson()!=null){try{node.set("tools",store.mapper().valueToTree(out.nativeResult().toolCalls().stream().map(AiNativeResult.ToolCall::name).toList()));}catch(IllegalArgumentException ignored){node.put("error","AI_NATIVE_RESPONSE_INVALID");}}result=node;}else result=raw.path("output");}
-            views.add(new StepView(s.sequence(),s.kind(),s.feature(),s.result()!=null?"COMPLETED":Objects.toString(s.settlement(),"PREPARED"),result,s.reservedCny(),s.settledCny(),s.settledCredits()));}
+            views.add(new StepView(s.sequence(),s.kind(),s.feature(),s.result()!=null?"COMPLETED":Objects.toString(s.settlement(),"PREPARED"),result,s.reservedCny(),s.settledCny(),s.settledCredits()));
+            if ("TOOL".equals(s.kind()) && WritingAgentReviews.isCheckTool(s.feature())) {
+                checks.add(new WritingAgentReviews.CheckStep(s.sequence(), s.feature(), result));
+            }
+        }
         var values=store.jdbc().query("select metadata_json from narrative_generation_candidates where operation_id=? and source_kind='AGENT' order by generation_sequence",(r,n)->store.read(r.getString(1),Candidate.class),bytes(run.id()));
-        return new View(run.id(),run.manuscriptId(),run.sceneId(),run.branchId(),run.status(),run.revision(),run.operationId(),store.tree(run.state()),values,views,settled,reserved,credits,run.maxCny(),run.maxCredits(),run.createdAt(),f.document().sourceHtml(),f.sourceVersion(),f.intent(),f.context().h2(),f.world().binding(),f.world().selectionRevision());
+        var reviews = new LinkedHashMap<UUID, CandidateReview>();
+        for (var candidate : values) {
+            reviews.put(candidate.id(), WritingAgentReviews.summarize(f, candidate, checks));
+        }
+        return new View(run.id(),run.manuscriptId(),run.sceneId(),run.branchId(),run.status(),run.revision(),run.operationId(),store.tree(run.state()),values,reviews,views,settled,reserved,credits,run.maxCny(),run.maxCredits(),run.createdAt(),f.document().sourceHtml(),f.sourceVersion(),f.intent(),f.context().h2(),f.world().binding(),f.world().selectionRevision());
     }
     @Transactional
     public View control(User user,UUID m,UUID scene,UUID id,String action,Revision request,String key){

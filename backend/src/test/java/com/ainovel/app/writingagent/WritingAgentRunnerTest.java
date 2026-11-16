@@ -17,9 +17,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
@@ -73,8 +75,10 @@ class WritingAgentRunnerTest {
         assertThat(f.store.write(f.service.get(f.user,MANUSCRIPT,SCENE,RUN))).doesNotContain(PRIVATE,"opaque-provider-state");
     }
 
-    @Test void replaysToolCheckpointAfterWorkerModelWithoutReusingItsSequenceOrCallingAgain() {
-        recoveryAt("tool:draft");
+    @ParameterizedTest
+    @ValueSource(strings = {PROTOCOL, REVIEW_PROTOCOL})
+    void replaysToolCheckpointAfterWorkerModelWithoutReusingItsSequenceOrCallingAgain(String protocol) {
+        recoveryAt("tool:draft", protocol);
     }
 
     @Test void cglibServiceProxyRunsWorldAndCandidateToolsThroughTargetAccessors() throws Exception {
@@ -95,11 +99,13 @@ class WritingAgentRunnerTest {
         assertThat(invoked).contains("worlds","candidates","model");
         assertThat(f.service.sent.stream().filter(r->"scene.fast.draft".equals(r.featureKey())).findFirst().orElseThrow().messages().toString()).contains(RULE);
     }
-    @Test void replaysAStoredWorkerResponseWhenBusinessCheckpointWasNeverWritten() {
-        recoveryAt("worker:1");
+    @ParameterizedTest
+    @ValueSource(strings = {PROTOCOL, REVIEW_PROTOCOL})
+    void replaysAStoredWorkerResponseWhenBusinessCheckpointWasNeverWritten(String protocol) {
+        recoveryAt("worker:1", protocol);
     }
-    private void recoveryAt(String crashKey) {
-        var f=fixture(false,"EDIT",Limits.defaults());String run=f.frozen.document().runs().getFirst().runId();
+    private void recoveryAt(String crashKey, String protocol) {
+        var f=fixture(false,"EDIT",Limits.defaults(),protocol,false);String run=f.frozen.document().runs().getFirst().runId();
         f.service.script.addAll(List.of(call("draft","candidate_draft",Map.of()),candidate(run,"已保存的模型候选。"),call("finish","finish",Map.of("answer","交付作者"))));
         f.store.crashAfterResult=crashKey;
         assertThatThrownBy(()->new WritingAgentRunner(f.service,f.store).execute(f.operation(),RUN)).isInstanceOf(SimulatedRestart.class);
@@ -112,6 +118,87 @@ class WritingAgentRunnerTest {
         assertThat(f.store.step(RUN,"control:2").sequence()).isEqualTo(4);
         assertThat(f.store.journal.values().stream().map(WritingAgentStore.Step::sequence)).doesNotHaveDuplicates();
         assertThat(f.store.tree(f.store.current.state()).path("modelCalls").asInt()).isEqualTo(3);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void reportsStayWithTheirCandidateAfterRefinementAndRecovery(boolean explicitFinish) {
+        var f = fixture(false, "EDIT", Limits.defaults(), REVIEW_PROTOCOL, true);
+        String run = f.frozen.document().runs().getFirst().runId();
+        String complete = write(Map.of("complete", true, "summary", "已核对本稿", "issues", List.of()));
+        f.service.script.addAll(List.of(
+                calls(List.of(nativeTool("search", "world_search", Map.of("query", "港则")),
+                        nativeTool("read", "world_read", Map.of("sourceId", "entry:" + ENTRY)))),
+                call("draft", "candidate_draft", Map.of()), candidate(run, "船刚靠上码头。"),
+                call("language1", "candidate_check_language", Map.of()), plain(complete),
+                call("plot1", "candidate_check_plot", Map.of()), plain(complete),
+                call("refine", "candidate_refine", Map.of("instruction", "补充人物下船后的动作")),
+                candidate(run, "船刚靠上码头，他先伸手扶住了舷梯。"),
+                call("language2", "candidate_check_language", Map.of()), plain(complete),
+                call("plot2", "candidate_check_plot", Map.of()), plain(""),
+                explicitFinish ? call("finish", "finish", Map.of("answer", "请审阅剧情")) : direct("请审阅剧情")
+        ));
+        f.store.crashAfterResult = "tool:plot2";
+        var runner = new WritingAgentRunner(f.service, f.store);
+        assertThatThrownBy(() -> runner.execute(f.operation(), RUN)).isInstanceOf(SimulatedRestart.class);
+        assertThat(f.service.sent).hasSize(13);
+        runner.execute(f.operation(), RUN);
+
+        var view = f.service.get(f.user, MANUSCRIPT, SCENE, RUN);
+        assertThat(view.status()).isEqualTo("COMPLETED");
+        assertThat(f.service.sent).hasSize(14);
+        assertThat(f.service.sent.getFirst().messages().toString()).contains("只读工具可同批调用", "\"minHan\":2");
+        assertThat(f.service.sent.get(9).messages().getLast().content())
+                .contains("\"languageCheck\":\"PENDING\"", "\"plotCheck\":\"PENDING\"", "\"actualHan\":");
+        assertThat(f.service.sent.getLast().messages().getLast().content())
+                .contains("\"languageCheck\":\"REPORTED\"", "\"plotCheck\":\"INCOMPLETE\"");
+        assertThat(view.candidates()).hasSize(2);
+        var first = view.candidateReviews().get(view.candidates().getFirst().id());
+        var latest = view.candidateReviews().get(view.candidates().getLast().id());
+        assertThat(first.language()).isEqualTo(new CheckReview(CheckStatus.REPORTED, f.store.step(RUN, "tool:language1").sequence()));
+        assertThat(first.plot()).isEqualTo(new CheckReview(CheckStatus.REPORTED, f.store.step(RUN, "tool:plot1").sequence()));
+        assertThat(latest.language()).isEqualTo(new CheckReview(CheckStatus.REPORTED, f.store.step(RUN, "tool:language2").sequence()));
+        assertThat(latest.plot()).isEqualTo(new CheckReview(CheckStatus.INCOMPLETE, f.store.step(RUN, "tool:plot2").sequence()));
+        assertThat(latest.maxHan()).isEqualTo(500);
+        assertThat(f.store.journal.values().stream().map(WritingAgentStore.Step::sequence)).doesNotHaveDuplicates();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"4,12,12,modelCalls", "24,3,12,controlCalls", "24,12,2,paidTools"})
+    void retainsTheCandidateWhenRefinementWouldSpendTheReviewReserve(int model, int control, int paid, String gap) {
+        var f = fixture(false, "EDIT", new Limits(model, control, paid, 3, 32), REVIEW_PROTOCOL, false);
+        var run = f.frozen.document().runs().getFirst().runId();
+        f.service.script.addAll(List.of(
+                call("draft", "candidate_draft", Map.of()), candidate(run, "他转身关了门。"),
+                call("refine", "candidate_refine", Map.of("instruction", "润色最后一句")),
+                call("finish", "finish", Map.of("answer", "交审，语言待检查"))
+        ));
+        new WritingAgentRunner(f.service, f.store).execute(f.operation(), RUN);
+
+        var refusal = f.store.read(f.store.step(RUN, "tool:refine").result(), WritingAgentRunner.ToolCheckpoint.class);
+        assertThat(refusal.output().path("error").asText()).isEqualTo("WRITING_AGENT_REVIEW_RESERVE");
+        assertThat(refusal.output().path("insufficient")).extracting(node -> node.asText()).containsExactly(gap);
+        assertThat(f.service.sent.stream().map(AiChatRequest::featureKey))
+                .containsExactly("writing_agent.control", "scene.fast.draft", "writing_agent.control", "writing_agent.control");
+        var view = f.service.get(f.user, MANUSCRIPT, SCENE, RUN);
+        assertThat(view.status()).isEqualTo("COMPLETED");
+        var review = view.candidateReviews().get(view.candidates().getFirst().id());
+        assertThat(review.language().status()).isEqualTo(CheckStatus.PENDING);
+        assertThat(review.plot().status()).isEqualTo(CheckStatus.NOT_SELECTED);
+    }
+
+    @Test void keepsTheDraftWhenTheBudgetRunsOutBeforeAnyCheck() {
+        var f = fixture(false, "EDIT", new Limits(2, 12, 12, 3, 32), REVIEW_PROTOCOL, true);
+        f.service.script.addAll(List.of(call("draft", "candidate_draft", Map.of()),
+                candidate(f.frozen.document().runs().getFirst().runId(), "这一稿仍可供作者审阅。")));
+        new WritingAgentRunner(f.service, f.store).execute(f.operation(), RUN);
+
+        var view = f.service.get(f.user, MANUSCRIPT, SCENE, RUN);
+        assertThat(view.status()).isEqualTo("PAUSED_BUDGET");
+        assertThat(view.progress().path("message").asText()).isEqualTo("WRITING_AGENT_CALL_LIMIT");
+        assertThat(view.candidates()).hasSize(1);
+        assertThat(view.candidateReviews().get(view.candidates().getFirst().id()).plot().status()).isEqualTo(CheckStatus.PENDING);
+        assertThat(f.service.sent).hasSize(2);
     }
 
     @Test void authorQuestionResumesFromItsOriginalJournalAndRetainsAnswerAcrossStateUpdates() {
@@ -139,8 +226,7 @@ class WritingAgentRunnerTest {
 
     @Test void aDirectClarifyingReplyCanResumeWithoutReissuingTheOriginalRequest() {
         var f=fixture(false,"EDIT",Limits.defaults());String run=f.frozen.document().runs().getFirst().runId();
-        var envelope=json.createObjectNode();envelope.set("message",json.createObjectNode().put("role","assistant").put("content","希望这一场以谁的视角展开？"));envelope.put("finish_reason","stop");
-        f.service.script.add(new AiChatResponse("assistant","希望这一场以谁的视角展开？",new AiUsageDto(10,5,0,0,1),100,null,"fixture",null,write(envelope)));
+        f.service.script.add(direct("希望这一场以谁的视角展开？"));
         f.service.script.addAll(List.of(call("draft","candidate_draft",Map.of()),candidate(run,"码头灯下，他握住了船票。"),call("finish","finish",Map.of("answer","完成候选"))));
         new WritingAgentRunner(f.service,f.store).execute(f.operation(),RUN);
         assertThat(f.store.current.status()).isEqualTo("WAITING_AUTHOR");assertThat(f.service.sent).hasSize(1);
@@ -252,6 +338,9 @@ class WritingAgentRunnerTest {
     }
 
     private Fixture fixture(boolean h2,String intent,Limits limits) {
+        return fixture(h2, intent, limits, PROTOCOL, false);
+    }
+    private Fixture fixture(boolean h2,String intent,Limits limits,String protocol,boolean plotCheck) {
         var store=new MemoryStore(json);var worlds=new WorldAgentTools(json,null,null);var candidates=new CandidateAgentTools(json,20000,100000,24000);var prompts=new WritingAgentPrompts(json);
         var access=mock(ResourceAccessGuard.class);when(access.requireOwnedManuscript(any(),any())).thenReturn(mock(Manuscript.class));
         var operations=mock(AiOperationService.class);when(operations.submit(any(),anyString(),anyString(),any(),any(),anyInt(),anyString(),anyString())).thenReturn(new AiOperationDtos.Accepted(OPERATION));
@@ -265,7 +354,7 @@ class WritingAgentRunnerTest {
         var context=new AssistantContext.Snapshot(h2,null,base,base,List.of(authorOnly),2,500,null);
         var document=AssistantDocumentProjection.project("<p>原稿</p>",null);
         var selections=new AiSelectionContext.Snapshot("fixture",Map.of());
-        var node=json.createObjectNode();node.put("protocol",PROTOCOL);node.putPOJO("manuscriptId",MANUSCRIPT);node.putPOJO("branchId",MANUSCRIPT);node.putPOJO("sceneId",SCENE);node.put("sourceVersion",4);node.put("serverHash","original");node.put("instruction","按需查阅规则并完成当前场景候选");node.put("intent",intent);node.put("mode","fast");node.set("document",json.valueToTree(document));node.set("context",json.valueToTree(context));node.set("world",json.valueToTree(world));node.set("base",json.valueToTree(base));node.put("languageRules","");node.set("generationRules",json.valueToTree(List.of(new AiChatRequest.Message("system","冻结场景起草规范：只按实际已读材料写作，保持人物知情。"))));node.put("planningHash","planning");node.put("languageCheck",true);node.put("plotCheck",false);node.put("maxCostCny",5);node.put("maxProjectCredits",100);node.set("limits",json.valueToTree(limits));node.set("selections",json.valueToTree(selections));
+        var node=json.createObjectNode();node.put("protocol",protocol);node.putPOJO("manuscriptId",MANUSCRIPT);node.putPOJO("branchId",MANUSCRIPT);node.putPOJO("sceneId",SCENE);node.put("sourceVersion",4);node.put("serverHash","original");node.put("instruction","按需查阅规则并完成当前场景候选");node.put("intent",intent);node.put("mode","fast");node.set("document",json.valueToTree(document));node.set("context",json.valueToTree(context));node.set("world",json.valueToTree(world));node.set("base",json.valueToTree(base));node.put("languageRules","");node.set("generationRules",json.valueToTree(List.of(new AiChatRequest.Message("system","冻结场景起草规范：只按实际已读材料写作，保持人物知情。"))));node.put("planningHash","planning");node.put("languageCheck",true);node.put("plotCheck",plotCheck);node.put("maxCostCny",5);node.put("maxProjectCredits",100);node.set("limits",json.valueToTree(limits));node.set("selections",json.valueToTree(selections));
         Frozen provisional=json.convertValue(node,Frozen.class);
         node.put("toolsJson",prompts.tools(provisional));node.set("controlMessages",json.valueToTree(prompts.initial(provisional,worlds.requiredReads(world,WorldAgentTools.ReadState.empty()))));
         node.put("candidateTemplateHash",candidates.templateHash());
@@ -277,10 +366,21 @@ class WritingAgentRunnerTest {
         AiOperationExecution operation(){return new AiOperationExecution(store.current.operationId(),user,"{}",store.mapper(),(label,completed,total)->{});}
     }
     private AiChatResponse call(String id,String name,Map<String,Object> args) {
+        return calls(List.of(nativeTool(id, name, args)));
+    }
+    private Map<String,Object> nativeTool(String id,String name,Map<String,Object> args) {
+        return Map.of("id",id,"type","function","function",Map.of("name",name,"arguments",write(args)));
+    }
+    private AiChatResponse calls(List<Map<String,Object>> tools) {
         var message=json.createObjectNode().put("role","assistant");message.putNull("content");message.put("reasoning_content",PRIVATE);message.put("provider_state","opaque-provider-state");
-        message.set("tool_calls",json.valueToTree(List.of(Map.of("id",id,"type","function","function",Map.of("name",name,"arguments",write(args))))));
+        message.set("tool_calls",json.valueToTree(tools));
         var nativeResponse=json.createObjectNode().set("message",message);((ObjectNode)nativeResponse).put("finish_reason","tool_calls");
         return new AiChatResponse("assistant","",new AiUsageDto(10,5,0,0,1),100,null,"fixture",null,write(nativeResponse));
+    }
+    private AiChatResponse direct(String reply) {
+        var envelope = json.createObjectNode().put("finish_reason", "stop");
+        envelope.set("message", json.createObjectNode().put("role", "assistant").put("content", reply));
+        return new AiChatResponse("assistant", reply, new AiUsageDto(10,5,0,0,1), 100, null, "fixture", null, write(envelope));
     }
     private AiChatResponse candidate(String run,String paragraph){return plain(write(Map.of("replacements",List.of(Map.of("runId",run,"paragraphs",List.of(paragraph))))));}
     private static AiChatResponse plain(String value){return new AiChatResponse("assistant",value,new AiUsageDto(10,5,0,0,1),100);}
@@ -303,11 +403,19 @@ class WritingAgentRunnerTest {
     }
     private static final class MemoryStore extends WritingAgentStore {
         Run current;final Map<String,Step> journal=new LinkedHashMap<>();final List<String> sql=new ArrayList<>();String crashAfterResult;
+        final Map<UUID, Candidate> candidates = new LinkedHashMap<>();
         MemoryStore(ObjectMapper mapper){super(mock(JdbcTemplate.class),mapper,mock(PlatformTransactionManager.class));
+            when(jdbc().query(startsWith("select metadata_json from narrative_generation_candidates where operation_id"),
+                    org.mockito.ArgumentMatchers.<RowMapper<Candidate>>any(), any(Object[].class)))
+                    .thenAnswer(ignored -> List.copyOf(candidates.values()));
             when(jdbc().update(anyString(),any(Object[].class))).thenAnswer(invocation->{String statement=invocation.getArgument(0);Object[] values=(Object[])invocation.getRawArguments()[1];sql.add(statement);
                 if(statement.startsWith("update writing_agent_runs set status=")&&!current.status().equals("CANCELLED"))replace((String)values[0],current.operationId(),(String)values[1],current.decision());
                 else if(statement.startsWith("update writing_agent_runs set operation_id="))replace("QUEUED",uuid((byte[])values[0]),current.state(),current.decision());
                 else if(statement.startsWith("update writing_agent_runs set decision_json="))replace(current.status(),current.operationId(),current.state(),(String)values[0]);
+                else if (statement.startsWith("insert into narrative_generation_candidates")) {
+                    var candidate = read((String)values[values.length - 1], Candidate.class);
+                    candidates.putIfAbsent(candidate.id(), candidate);
+                }
                 return 1;
             });
         }
