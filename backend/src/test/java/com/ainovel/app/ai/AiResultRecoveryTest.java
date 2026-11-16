@@ -23,9 +23,13 @@ class AiResultRecoveryTest {
         var metadata=AiResponseMetadata.reported("length",2L,true);
         when(economy.reserveAiUsage(any(),anyLong(),anyString(),anyString(),eq("stable"),eq("hash")))
                 .thenReturn(new EconomyService.AiReservationStart(true,"durable response",1,2,0,1,metadata));
-        when(economy.currentBalance(user)).thenReturn(new EconomyService.BalanceSnapshot(9,0,9));
+        when(economy.projectBalance(user)).thenReturn(9L);
         var response=service.chatWithIdempotency(user,request,"stable");
         assertEquals("durable response",response.content());assertEquals(metadata,response.metadata());
+        assertEquals(9L, response.remainingProjectCredits());
+        assertNull(response.remainingCredits());
+        verify(economy, never()).settleAiUsage(any(), anyString(), anyString(), anyLong(), anyLong(), anyLong());
+        verify(economy, never()).currentBalance(any());
         verifyNoInteractions(gateway);
     }
     @Test void transportFailureRetainsReservationAndRequiresReconciliation() {
@@ -55,10 +59,11 @@ class AiResultRecoveryTest {
         when(configuration.write(any())).thenAnswer(i->new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(i.getArgument(0)));
         when(economy.reserveAiUsage(eq(user),eq(1L),eq("AI_USAGE"),eq("native-replay"),eq("native-replay"),anyString(),eq(selected)))
                 .thenReturn(new EconomyService.AiReservationStart(true,"",10,20,0,1,metadata,envelope));
-        when(economy.currentBalance(user)).thenReturn(new EconomyService.BalanceSnapshot(9,0,9));
+        when(economy.projectBalance(user)).thenReturn(0L);
         try(var ignored=com.ainovel.app.modelconfig.AiSelectionContext.install(new com.ainovel.app.modelconfig.AiSelectionContext.Snapshot("frozen-run",Map.of(selected.featureKey(),selected)))) {
             var response=service.chatWithIdempotency(user,request.forFeature(selected.featureKey()).withNativeTools(AiNativeProtocolTest.TOOLS,2048),"native-replay");
             assertEquals(envelope,response.nativeResponseJson());assertEquals("original-state",response.nativeResult().message().providerState());assertEquals(metadata,response.metadata());
+            assertEquals(0L, response.remainingProjectCredits());
         }
         verifyNoInteractions(gateway);
     }

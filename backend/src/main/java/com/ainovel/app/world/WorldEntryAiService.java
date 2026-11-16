@@ -92,7 +92,7 @@ public class WorldEntryAiService {
         var e=frozen.entry();
         var original=new Entry(e.id(),e.type(),e.title(),e.summary(),request.text(),e.aliases(),e.tags(),e.legacyModuleKey(),e.legacyFieldKey());
         var response=ai.chat(frozen.user(),prompts.entry(frozen.user(),frozen.content(),original,instruction,true).forFeature(store.feature(e,"refine")));
-        var result=new AiRefineResponse(response==null?"":response.content(),response==null?null:response.usage(),response==null?0:response.remainingCredits());
+        var result = response == null ? new AiRefineResponse("", null, null, null) : AiRefineResponse.fromChat(response);
         nonempty(result);return result;
     }
 

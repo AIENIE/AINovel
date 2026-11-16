@@ -97,6 +97,18 @@ class EconomyServiceTests {
     }
 
     @Test
+    void creditBalanceKeepsLocalAmountWhenPayServiceFailsAndReadsItAgainOnRetry() {
+        User user = user();
+        when(accountRepository.findByUser(user)).thenReturn(Optional.of(account(user, 120L)));
+        when(billingGrpcClient.publicBalance(42L))
+                .thenThrow(io.grpc.Status.UNAVAILABLE.asRuntimeException())
+                .thenReturn(0L);
+
+        assertEquals(new EconomyService.CreditBalance(120L, null, null), economyService.creditBalance(user));
+        assertEquals(new EconomyService.CreditBalance(120L, 0L, 120L), economyService.creditBalance(user));
+    }
+
+    @Test
     void currentBalance_shouldLogFixedFailureEventWithSafeThrowable() {
         User user = user();
         when(accountRepository.findByUser(user)).thenReturn(Optional.empty());
@@ -163,6 +175,7 @@ class EconomyServiceTests {
         EconomyService.AiChargeResult settled = economyService.settleAiUsage(
                 user, "request-1", "result", 100_000L, 0L, 0L);
         assertEquals(1L, settled.charged());
+        assertEquals(9L, settled.remainingProjectCredits());
         assertEquals(9L, account.getBalance());
 
         EconomyService.AiReservationStart replay = economyService.reserveAiUsage(
@@ -170,6 +183,7 @@ class EconomyServiceTests {
         assertEquals(true, replay.replay());
         assertEquals("result", replay.content());
         assertEquals(9L, account.getBalance());
+        verify(ledgerRepository, org.mockito.Mockito.times(2)).save(any());
     }
 
     @Test

@@ -81,7 +81,6 @@ public class AsyncJob {
     public long getChargedCredits() { return chargedCredits; }
     public void setChargedCredits(long chargedCredits) { this.chargedCredits = chargedCredits; }
     public long getRemainingCredits() { return remainingCredits; }
-    public void setRemainingCredits(long remainingCredits) { this.remainingCredits = remainingCredits; }
     public String getLeaseOwner() { return leaseOwner; }
     public void setLeaseOwner(String leaseOwner) { this.leaseOwner = leaseOwner; }
     public Instant getLeaseUntil() { return leaseUntil; }

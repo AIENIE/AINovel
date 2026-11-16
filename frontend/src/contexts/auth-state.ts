@@ -1,8 +1,8 @@
 import { createContext, useContext } from "react";
-import type { User } from "@/types";
+import type { UserIdentity } from "@/types";
 
 export type AuthContextValue = {
-  user: User | null;
+  user: UserIdentity | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
@@ -11,7 +11,6 @@ export type AuthContextValue = {
   retryAuth?: () => Promise<void>;
   acceptToken: (token: string) => Promise<void>;
   logout: () => void;
-  refreshProfile: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

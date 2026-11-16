@@ -2,18 +2,56 @@ package com.ainovel.app.user;
 
 import com.ainovel.app.common.CurrentUserResolver;
 import com.ainovel.app.economy.EconomyService;
+import com.ainovel.app.user.dto.UserIdentityResponse;
 import com.ainovel.app.user.dto.UserSummaryResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class UserControllerTests {
+
+    @Test
+    void identityUsesAuthenticatedUserWithoutLoadingBalances() {
+        var economy = mock(EconomyService.class);
+        var users = mock(CurrentUserResolver.class);
+        var controller = new UserController(economy, users, mock(UserSummaryQueryService.class));
+        var principal = mock(UserDetails.class);
+        var user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("author");
+        user.setEmail("author@example.test");
+        user.setRoles(Set.of("ROLE_ADMIN"));
+        when(users.require(principal)).thenReturn(user);
+
+        assertEquals(new UserIdentityResponse(user.getId(), "author", "author@example.test", null, "admin", false),
+                controller.identity(principal));
+        verifyNoInteractions(economy);
+    }
+
+    @Test
+    void balanceRequestUsesAuthenticatedUserAndKeepsUnavailableAmountsNull() throws Exception {
+        var economy = mock(EconomyService.class);
+        var users = mock(CurrentUserResolver.class);
+        var principal = mock(UserDetails.class);
+        var user = new User();
+        when(users.require(principal)).thenReturn(user);
+        when(economy.creditBalance(user)).thenReturn(new EconomyService.CreditBalance(24L, null, null));
+        var controller = new UserController(economy, users, mock(UserSummaryQueryService.class));
+
+        var balance = new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(controller.creditBalance(principal));
+        assertEquals(24L, balance.path("projectCredits").longValue());
+        assertEquals(true, balance.path("publicCredits").isNull());
+        assertEquals(true, balance.path("totalCredits").isNull());
+    }
 
     @Test
     void retiredPasswordHintReturnsNotFound() throws Exception {

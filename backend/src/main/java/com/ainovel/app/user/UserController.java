@@ -49,7 +49,19 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> profile(@AuthenticationPrincipal UserDetails principal) {
         User user = currentUserResolver.require(principal);
         EconomyService.BalanceSnapshot balance = economyService.currentBalance(user);
-        return ResponseEntity.ok(toProfile(user, balance));
+        return ResponseEntity.ok(toProfile(toIdentity(user), balance));
+    }
+
+    @GetMapping("/identity")
+    @Operation(summary = "获取当前用户身份")
+    public UserIdentityResponse identity(@AuthenticationPrincipal UserDetails principal) {
+        return toIdentity(currentUserResolver.require(principal));
+    }
+
+    @GetMapping("/credits/balance")
+    @Operation(summary = "获取积分余额", description = "通用积分查询暂不可用时，仍返回项目专属积分。")
+    public EconomyService.CreditBalance creditBalance(@AuthenticationPrincipal UserDetails principal) {
+        return economyService.creditBalance(currentUserResolver.require(principal));
     }
 
     @GetMapping("/summary")
@@ -181,19 +193,24 @@ public class UserController {
         return ResponseEntity.ok(items);
     }
 
-    private UserProfileResponse toProfile(User user, EconomyService.BalanceSnapshot balance) {
+    private UserIdentityResponse toIdentity(User user) {
         String role = user.hasRole("ROLE_ADMIN") ? "admin" : "user";
+        return new UserIdentityResponse(user.getId(), user.getUsername(), user.getEmail(), user.getAvatarUrl(),
+                role, user.isBanned());
+    }
+
+    private UserProfileResponse toProfile(UserIdentityResponse identity, EconomyService.BalanceSnapshot balance) {
         return new UserProfileResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getAvatarUrl(),
-                role,
+                identity.id(),
+                identity.username(),
+                identity.email(),
+                identity.avatar(),
+                identity.role(),
                 balance.projectCredits(),
                 balance.projectCredits(),
                 balance.publicCredits(),
                 balance.totalCredits(),
-                user.isBanned()
+                identity.isBanned()
         );
     }
 }

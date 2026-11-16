@@ -36,6 +36,7 @@ import {
   SlopQualityRun,
   Story,
   UserSummary,
+  UserIdentity,
   User,
   V2AnalysisJob,
   V2AnalysisReport,
@@ -61,6 +62,14 @@ import {
 } from "@/types";
 import { requestAdminOperationCode } from "@/lib/admin-operation-proof";
 import { z } from "zod";
+
+const userIdentitySchema = z.object({
+  id: z.string().uuid(), username: z.string(), email: z.string(), avatar: z.string().nullish(),
+  role: z.enum(["user", "admin"]), isBanned: z.boolean(),
+});
+const creditBalanceSchema = z.object({
+  projectCredits: z.number().int(), publicCredits: z.number().int().nullable(), totalCredits: z.number().int().nullable(),
+});
 
 const pendingMaterialSchema = z.object({
   id: z.string().uuid(), title: z.string(), type: z.string(), summary: z.string().nullable(),
@@ -357,24 +366,6 @@ async function safeErrorMessage(resp: Response): Promise<string> {
   } catch {
     return "";
   }
-}
-
-function toUser(profile: NetworkObject): User {
-  const projectCredits = Number(profile.projectCredits ?? profile.credits ?? 0);
-  const publicCredits = Number(profile.publicCredits ?? 0);
-  const totalCredits = Number(profile.totalCredits ?? (projectCredits + publicCredits));
-  return {
-    id: profile.id,
-    username: profile.username,
-    email: profile.email,
-    avatar: profile.avatar || undefined,
-    role: profile.role === "admin" ? "admin" : "user",
-    credits: projectCredits,
-    projectCredits,
-    publicCredits,
-    totalCredits,
-    isBanned: Boolean(profile.isBanned ?? false),
-  };
 }
 
 function toStory(dto: NetworkObject): Story {
@@ -836,9 +827,12 @@ export const api = {
   },
 
   user: {
-    getProfile: async () => {
-      const profile = await requestJson<NetworkObject>("/v1/user/profile", { method: "GET" });
-      return toUser(profile);
+    getIdentity: async (): Promise<UserIdentity> => {
+      const identity = userIdentitySchema.parse(await requestJson<unknown>("/v1/user/identity"));
+      return { ...identity, avatar: identity.avatar ?? undefined };
+    },
+    getCreditBalance: async (signal?: AbortSignal) => {
+      return creditBalanceSchema.parse(await requestJson<unknown>("/v1/user/credits/balance", { signal }));
     },
     redeem: async (code: string) => {
       return await requestJson<{

@@ -49,7 +49,7 @@ class GuidedCreationGenerationServiceTest {
         assertEquals(job.getId().toString(), context.getValue().referenceId());
         assertEquals("premise", context.getValue().operation());
         assertEquals(7L, result.chargedCredits());
-        assertEquals(91L, result.remainingCredits());
+        assertEquals(91L, result.remainingProjectCredits());
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> candidates = (List<Map<String, Object>>) result.stepData().get("candidates");
@@ -151,7 +151,7 @@ class GuidedCreationGenerationServiceTest {
         assertEquals("premise", contexts.getAllValues().get(0).operation());
         assertEquals("premise:json_repair", contexts.getAllValues().get(1).operation());
         assertEquals(3L, result.chargedCredits());
-        assertEquals(97L, result.remainingCredits());
+        assertEquals(97L, result.remainingProjectCredits());
     }
 
     private GuidedCreationGenerationService service(AiService aiService) {
@@ -190,7 +190,7 @@ class GuidedCreationGenerationServiceTest {
 
     private AiChatResponse response(String content, long charged, long remaining) {
         return new AiChatResponse("assistant", content,
-                new AiUsageDto(10, 20, 0, 0, charged), remaining);
+                new AiUsageDto(10, 20, 0, 0, charged), null, null, null, null, null, remaining);
     }
 
     private String premiseJson(int count) {

@@ -7,6 +7,7 @@ import com.ainovel.app.integration.AiGatewayGrpcClient;
 import com.ainovel.app.modelconfig.AiModelSelection;
 import com.ainovel.app.modelconfig.AiSelectionContext;
 import com.ainovel.app.user.User;
+import fireflychat.ai.v1.ChatCompletionsResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,28 @@ class WritingAgentModelRecoveryTest {
         verifyNoInteractions(ai, wire);
         verify(store, never()).result(any(), any(), any());
         verify(economy, never()).releaseAiReservation(any(), any());
+    }
+
+    @Test
+    void verifiedReceiptPublishesUsingTheProjectSettlementWithoutReadingPublicBalance() {
+        var receipt = ChatCompletionsResponse.newBuilder().setContent("已保存结果").setModelKey("actual")
+                .setPromptTokens(10).setCompletionTokens(20).setFinishReason("stop").build();
+        when(money.recoverIfPresent(run, "control:2", wire)).thenReturn(receipt);
+        String idempotencyKey = new AiUsageContext("WRITING_AGENT", run.toString(), "step:3").idempotencyKey();
+        when(economy.settleAiUsage(user, idempotencyKey, "已保存结果", 10, 20, 0))
+                .thenReturn(new EconomyService.AiChargeResult(1, 39));
+
+        try (var ignored = AiSelectionContext.install(new AiSelectionContext.Snapshot("agent-run", Map.of(selected.featureKey(), selected)))) {
+            var response = service.model(user, run, 3, "control:2", request);
+            assertEquals("已保存结果", response.content());
+            assertEquals("actual", response.actualModelKey());
+            assertEquals(39L, response.remainingProjectCredits());
+            assertNull(response.remainingCredits());
+            verify(store).result(run, "control:2", response);
+        }
+        verify(money).retail(run, "control:2", 1L);
+        verify(economy, never()).currentBalance(any());
+        verifyNoInteractions(ai, wire);
     }
 
     @Test

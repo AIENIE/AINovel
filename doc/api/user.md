@@ -1,13 +1,17 @@
 # User API
 
-## 个人资料
+## 当前用户与个人资料
 
+- `GET /api/v1/user/identity` 返回 `{id,username,email,avatar,role,isBanned}`。沿用普通用户会话校验，供前端建立和恢复登录态。
 - `GET /api/v1/user/profile`
   - 返回：`{id,username,email,avatar,role,credits,projectCredits,publicCredits,totalCredits,isBanned}`
+  - 兼容聚合查询。通用余额暂不可用时返回 HTTP 503 和 `PUBLIC_BALANCE_UNAVAILABLE`。
 - `GET /api/v1/user/summary`
   - 返回：`{novelCount,worldCount,totalWords,totalEntries}`
 
 ## 项目专属积分与通用积分
+
+- `GET /api/v1/user/credits/balance` 返回 `{projectCredits,publicCredits,totalCredits}`，由个人中心独立请求。通用余额暂不可用时仍返回 HTTP 200 和实际项目余额，`publicCredits`、`totalCredits` 为 `null`。查询到的零余额返回 `0`。
 
 - `POST /api/v1/user/redeem`
   - 功能：兑换 AINovel 本地项目专属积分兑换码

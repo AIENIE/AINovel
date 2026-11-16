@@ -252,7 +252,8 @@ public class GuidedCreationJobService {
                 ? new LinkedHashMap<>(result.stepData())
                 : mergeOutlineResult(jsonSupport.stepData(steps, GuidedCreationStep.OUTLINE), job, result);
         stepData.put("chargedCredits", numeric(stepData.get("chargedCredits")) + result.chargedCredits());
-        stepData.put("remainingCredits", result.remainingCredits());
+        stepData.remove("remainingCredits");
+        stepData.put("remainingProjectCredits", result.remainingProjectCredits());
         steps.put(job.getStep().name(), stepData);
         jsonSupport.writeSteps(run, steps);
         run.setActiveJobId(null);
@@ -265,7 +266,6 @@ public class GuidedCreationJobService {
         job.setResultJson(codec.writeRequired(result.stepData()));
         job.setErrorMessage(null);
         job.setChargedCredits(result.chargedCredits());
-        job.setRemainingCredits(result.remainingCredits());
         job.setLeaseOwner(null);
         job.setLeaseUntil(null);
         job.setCompletedAt(Instant.now());

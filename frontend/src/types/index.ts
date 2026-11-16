@@ -1,14 +1,17 @@
-export interface User {
+export interface UserIdentity {
   id: string;
   username: string;
   email: string;
   avatar?: string;
   role: 'user' | 'admin';
+  isBanned: boolean;
+}
+
+export interface User extends UserIdentity {
   credits: number; // legacy: projectCredits
   projectCredits: number;
   publicCredits: number;
   totalCredits: number;
-  isBanned: boolean;
 }
 
 export interface Story {
@@ -662,6 +665,7 @@ export interface GuidedCreationStepData {
   skipped?: boolean;
   chargedCredits?: number;
   remainingCredits?: number;
+  remainingProjectCredits?: number | null;
   generatedAt?: string;
   updatedAt?: string;
   confirmedAt?: string;

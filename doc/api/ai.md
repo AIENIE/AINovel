@@ -10,7 +10,7 @@
 - `POST /api/v1/ai/version-summary`：聊天消息及稿件上下文，归类 `versions.summary`。
 - `POST /api/v1/ai/outline-refine`：`{text,instruction?,kind}`；`kind=scene` 使用 `outline.scene_refine`，其余使用 `outline.chapter_refine`。
 
-旧 `modelId` 仅保留请求兼容，实际模型由已确认的功能选项确定；客户端 `featureKey` 不作为功能或价格依据。聊天响应包含 `{role,content,usage,remainingCredits,selection,actualModelKey}`，润色响应保留 `{result,usage,remainingCredits}`。
+旧 `modelId` 保留请求兼容，实际模型与价格取自已确认的功能选项。聊天响应包含 `{role,content,usage,remainingProjectCredits,selection,actualModelKey}`，润色响应包含 `{result,usage,remainingProjectCredits}`。新结果的余额来自项目结算，已结算的普通幂等回放读取本地项目余额。旧结果保留 `remainingCredits` 表示当时的积分合计，新结果的该字段为 `null`。
 
 `usage` 包含 `inputTokens`、`outputTokens`、`cacheTokens`、`cacheHitRate`、实际结算的项目积分 `cost`；缓存命中率限制在 0–1，缓存已包含在输入用量中，推理 Token 不额外重复收费。
 

@@ -162,7 +162,7 @@ public class WorldService {
         }
         var response=aiService.chat(user,prompts.entry(user,entryStore.content(world),templateEntry(world,moduleKey,fieldKey,text),prompt,true).forFeature("world."+moduleKey+"."+fieldKey+".refine"));
         if(response==null||safe(response.content()).isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");
-        return new AiRefineResponse(response.content(),response.usage(),response.remainingCredits());
+        return AiRefineResponse.fromChat(response);
     }
 
     @Transactional(readOnly = true)

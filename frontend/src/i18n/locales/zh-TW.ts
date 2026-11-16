@@ -993,6 +993,8 @@ export const zhTW = {
   "profile.ssoEnabled": "本系統已啟用統一登入（SSO）。",
   "profile.title": "個人中心",
   "profile.totalBalance": "總餘額",
+  "profile.balanceUnavailable": "暫時無法取得",
+  "profile.retryBalance": "重試餘額查詢",
 
   "g2.cannotTell": "無法區分",
   "g2.chooseA": "選擇文本 A",

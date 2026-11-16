@@ -57,7 +57,7 @@ public class AiController {
             @ApiResponse(
                     responseCode = "200",
                     description = "生成成功",
-                    content = @Content(examples = @ExampleObject(value = "{\"role\":\"assistant\",\"content\":\"你好，我可以帮你完善剧情。\",\"usage\":{\"promptTokens\":20,\"completionTokens\":32,\"cost\":0.0},\"remainingCredits\":1200.0}"))
+                    content = @Content(examples = @ExampleObject(value = "{\"role\":\"assistant\",\"content\":\"你好，我可以帮你完善剧情。\",\"usage\":{\"promptTokens\":20,\"completionTokens\":32,\"cost\":0.0},\"remainingProjectCredits\":1200}"))
             ),
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "400", description = "请求参数错误")
@@ -76,7 +76,7 @@ public class AiController {
             @ApiResponse(
                     responseCode = "200",
                     description = "润色成功",
-                    content = @Content(examples = @ExampleObject(value = "{\"result\":\"润色后的文本内容\",\"usage\":{\"promptTokens\":18,\"completionTokens\":28,\"cost\":0.0},\"remainingCredits\":1180.0}"))
+                    content = @Content(examples = @ExampleObject(value = "{\"result\":\"润色后的文本内容\",\"usage\":{\"promptTokens\":18,\"completionTokens\":28,\"cost\":0.0},\"remainingProjectCredits\":1180}"))
             ),
             @ApiResponse(responseCode = "401", description = "未登录"),
             @ApiResponse(responseCode = "400", description = "请求参数错误")
@@ -91,6 +91,7 @@ public class AiController {
             throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_NATIVE_INTERNAL_ONLY");
     }
     private static AiChatResponse publicResponse(AiChatResponse response){
-        return new AiChatResponse(response.role(),response.content(),response.usage(),response.remainingCredits(),response.selection(),response.actualModelKey(),response.metadata());
+        return new AiChatResponse(response.role(), response.content(), response.usage(), response.remainingCredits(),
+                response.selection(), response.actualModelKey(), response.metadata(), null, response.remainingProjectCredits());
     }
 }

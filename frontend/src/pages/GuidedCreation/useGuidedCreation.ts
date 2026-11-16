@@ -220,7 +220,7 @@ export function useGuidedCreation() {
   const remainingCredits = useMemo(() => {
     if (!workflow) return null;
     const values = Object.values(workflow.steps)
-      .map((step) => step?.remainingCredits)
+      .map((step) => step?.remainingProjectCredits)
       .filter((value): value is number => typeof value === "number");
     return values.length ? values[values.length - 1] : null;
   }, [workflow]);

@@ -4,6 +4,7 @@ import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.economy.EconomyService;
 import com.ainovel.app.integration.AiGatewayGrpcClient;
+import com.ainovel.app.modelconfig.AiModelSelection;
 import com.ainovel.app.user.User;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,20 +83,21 @@ public class AiService {
             if (reservation.replay()) {
                 String actual=stored==null?null:stored.actualModelKey();
                 if(selected!=null&&AiProgressContext.current()!=null)AiProgressContext.current().onModelResolved(actual);
-                return withSelection(response(user, reservation.content(), reservation.promptTokens(), reservation.completionTokens(),
-                        reservation.cacheTokens(), reservation.charged(), reservation.metadata(),reservation.nativeResponseJson()),selected,actual);
+                return response(reservation.content(), reservation.promptTokens(), reservation.completionTokens(),
+                        reservation.cacheTokens(), reservation.charged(), economyService.projectBalance(user),
+                        reservation.metadata(), reservation.nativeResponseJson(), selected, actual);
             }
             if(selected!=null)economyService.freezeAiRequest(user,idempotencyKey,request);
+            AiGatewayGrpcClient.ChatResult result;
+            EconomyService.AiChargeResult charge;
             try {
-                AiGatewayGrpcClient.ChatResult result = invokeGateway(remoteUid, request, idempotencyKey);
+                result = invokeGateway(remoteUid, request, idempotencyKey);
                 if(request.nativeTools())economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),result.modelKey(),result.metadata(),result.nativeResponseJson());
                 else economyService.recordAiResult(user,idempotencyKey,result.content(),result.promptTokens(),result.completionTokens(),result.cacheTokens(),result.modelKey(),result.metadata());
                 if(selected!=null&&(!selected.streaming()||request.nativeTools())&&AiProgressContext.current()!=null)
                     AiProgressContext.current().onUnaryCompleted(result.modelKey(),result.completionTokens(),result.promptTokens(),result.cacheTokens());
-                EconomyService.AiChargeResult charge = economyService.settleAiUsage(user, idempotencyKey,
+                charge = economyService.settleAiUsage(user, idempotencyKey,
                         result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens());
-                return withSelection(response(user, result.content(), result.promptTokens(), result.completionTokens(),
-                        result.cacheTokens(), charge.charged(), result.metadata(),result.nativeResponseJson()),selected,result.modelKey());
             } catch(com.ainovel.app.modelconfig.AiPaymentRequiredException pending) {
                 throw pending;
             } catch (AiRequestNotSentException denied) {
@@ -111,6 +113,9 @@ public class AiService {
                 }
                 throw new AiResultUncertainException(ex);
             }
+            return response(result.content(), result.promptTokens(), result.completionTokens(), result.cacheTokens(),
+                    charge.charged(), charge.remainingProjectCredits(), result.metadata(), result.nativeResponseJson(),
+                    selected, result.modelKey());
         }
     }
 
@@ -136,21 +141,13 @@ public class AiService {
                     request.messages(), progressListener);
     }
 
-    private AiChatResponse response(User user, String content, long promptTokens, long completionTokens,
-                                    long cacheTokens, long charged, AiResponseMetadata metadata) {
-        return response(user,content,promptTokens,completionTokens,cacheTokens,charged,metadata,null);
-    }
-
-    private AiChatResponse response(User user,String content,long promptTokens,long completionTokens,
-                                    long cacheTokens,long charged,AiResponseMetadata metadata,String nativeResponseJson) {
-        var balance = economyService.currentBalance(user);
-        return new AiChatResponse("assistant", content,
-                new AiUsageDto((int) promptTokens, (int) completionTokens, (int) cacheTokens,
-                        cacheHitRate(promptTokens, cacheTokens), charged), balance.totalCredits(),null,null,metadata,nativeResponseJson);
-    }
-
-    private AiChatResponse withSelection(AiChatResponse response,com.ainovel.app.modelconfig.AiModelSelection selected,String actual) {
-        return new AiChatResponse(response.role(),response.content(),response.usage(),response.remainingCredits(),selected,actual,response.metadata(),response.nativeResponseJson());
+    private AiChatResponse response(String content, long promptTokens, long completionTokens, long cacheTokens,
+                                    long charged, long projectCredits, AiResponseMetadata metadata,
+                                    String nativeResponseJson, AiModelSelection selection, String actualModelKey) {
+        var usage = new AiUsageDto((int) promptTokens, (int) completionTokens, (int) cacheTokens,
+                cacheHitRate(promptTokens, cacheTokens), charged);
+        return new AiChatResponse("assistant", content, usage, null, selection, actualModelKey, metadata,
+                nativeResponseJson, projectCredits);
     }
 
     /** A read-only lookup of owned durable receipts; never sends an inference or rewrites historical results. */
@@ -173,7 +170,7 @@ public class AiService {
         AiChatResponse resp = idempotencyKey == null
                 ? chat(user, chatRequest)
                 : chatWithIdempotency(user, chatRequest, idempotencyKey);
-        return new AiRefineResponse(resp.content(), resp.usage(), resp.remainingCredits());
+        return AiRefineResponse.fromChat(resp);
     }
 
     private String normalizeIdempotencyKey(String raw) {

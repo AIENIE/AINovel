@@ -248,7 +248,7 @@ class WorldTaskRecoveryTests {
     }
 
     private AiRefineResponse output(String text) {
-        return new AiRefineResponse(text, new AiUsageDto(1, 1, 0, 0, 0), 100);
+        return new AiRefineResponse(text, new AiUsageDto(1, 1, 0, 0, 0), null, 100L);
     }
     private com.ainovel.app.ai.dto.AiChatResponse chatOutput(String text) { return new com.ainovel.app.ai.dto.AiChatResponse("assistant",text,new AiUsageDto(10,20,0,0,1),99); }
 

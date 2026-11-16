@@ -39,17 +39,20 @@ class AiServiceTest {
                 .thenReturn(new AiGatewayGrpcClient.ChatResult("result", "deepseek-v4-flash", 100, 20, 60));
         when(economy.settleAiUsage(user, "stable", "result", 100, 20, 60))
                 .thenReturn(new EconomyService.AiChargeResult(1, 99));
-        when(economy.currentBalance(user)).thenReturn(new EconomyService.BalanceSnapshot(99, 0, 99));
         var result = service.chatWithIdempotency(user, request, "stable");
         assertEquals(60, result.usage().cacheTokens());
         assertEquals(.6, result.usage().cacheHitRate());
         assertEquals(1, result.usage().cost());
+        assertEquals(99L, result.remainingProjectCredits());
+        assertNull(result.remainingCredits());
         var order = inOrder(guard, economy, gateway);
         order.verify(guard).acquire(user, request);
         order.verify(economy).reserveAiUsage(user, 2, "AI_USAGE", "stable", "stable", "hash");
         order.verify(gateway).chatCompletions(eq("stable"), eq(9000003L), eq("deepseek-v4-flash"), anyList());
         order.verify(economy).recordAiResult(user, "stable", "result", 100, 20, 60, "deepseek-v4-flash", result.metadata());
         order.verify(economy).settleAiUsage(user, "stable", "result", 100, 20, 60);
+        verify(economy, never()).currentBalance(any());
+        verify(economy, never()).markAiResultUncertain(any(), anyString());
     }
 
     @Test

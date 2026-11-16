@@ -993,6 +993,8 @@ export const zhCN = {
   "profile.ssoEnabled": "本系统已启用统一登录（SSO）。",
   "profile.title": "个人中心",
   "profile.totalBalance": "总余额",
+  "profile.balanceUnavailable": "暂不可用",
+  "profile.retryBalance": "重试余额查询",
 
   "g2.cannotTell": "无法区分",
   "g2.chooseA": "选择文本 A",

@@ -79,8 +79,7 @@ public class GuidedCreationGenerationService {
         }
         normalized.put("promptVersion", promptFactory.version(step, operation));
         normalized.put("generatedAt", Instant.now().toString());
-        long remaining = Math.max(0L, Math.round(response.remainingCredits()));
-        return new GenerationResult(normalized, charged, remaining);
+        return new GenerationResult(normalized, charged, response.remainingProjectCredits());
     }
 
     private AiChatResponse chat(CreationWorkflowRun run, String prompt, AiUsageContext usageContext) {
@@ -270,5 +269,5 @@ public class GuidedCreationGenerationService {
 
     public record GenerationResult(Map<String, Object> stepData,
                                    long chargedCredits,
-                                   long remainingCredits) {}
+                                   Long remainingProjectCredits) {}
 }

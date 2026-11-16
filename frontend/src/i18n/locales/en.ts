@@ -993,6 +993,8 @@ export const en = {
   "profile.ssoEnabled": "SSO is enabled for this system.",
   "profile.title": "Profile",
   "profile.totalBalance": "Total Balance",
+  "profile.balanceUnavailable": "Unavailable",
+  "profile.retryBalance": "Retry balance lookup",
 
   "g2.cannotTell": "Can't tell",
   "g2.chooseA": "Choose Text A",

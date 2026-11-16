@@ -8,7 +8,7 @@ describe("api client", () => {
     if (oldToken) localStorage.setItem("token", oldToken);
     let finish!: (response: Response) => void;
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
-    const request = api.user.getProfile().catch(error => error);
+    const request = api.user.getIdentity().catch(error => error);
     localStorage.setItem("token", "new-session");
     finish(new Response(JSON.stringify({ message: "SESSION_INVALID" }), { status: 401 }));
     expect(await request).toBeInstanceOf(ApiError);
@@ -33,16 +33,15 @@ describe("api client", () => {
       "fetch",
       vi.fn(async (url: unknown, init?: RequestInit) => {
         const u = String(url);
-        if (u.endsWith("/api/v1/user/profile")) {
+        if (u.endsWith("/api/v1/user/identity")) {
           const headers = init?.headers as Headers | undefined;
           expect(headers?.get("Authorization")).toContain("Bearer t");
           return new Response(
             JSON.stringify({
-              id: "u1",
+              id: "2f2ac8d9-3b9b-45f9-a4a0-6f1f0899a9d1",
               username: "admin",
               email: "admin@example.com",
               role: "admin",
-              credits: 999,
               isBanned: false,
             }),
             { status: 200, headers: { "content-type": "application/json" } }
@@ -62,7 +61,7 @@ describe("api client", () => {
   it.each([403, 503])("preserves user credentials and location on %s", async (status) => {
     localStorage.setItem("token", "t");
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ message: "unavailable" }), { status })));
-    await expect(api.user.getProfile()).rejects.toBeInstanceOf(ApiError);
+    await expect(api.user.getIdentity()).rejects.toBeInstanceOf(ApiError);
     expect(localStorage.getItem("token")).toBe("t");
     expect(globalThis.location.assign).not.toHaveBeenCalled();
   });
@@ -83,11 +82,20 @@ describe("api client", () => {
     expect(saved.chapters[0].scenes[0].planning).toMatchObject({ minHan: 600, maxHan: 900 });
   });
 
-  it("reads profile from token in localStorage", async () => {
+  it("reads identity from token in localStorage", async () => {
     localStorage.setItem("token", "t");
-    const user = await api.user.getProfile();
+    const user = await api.user.getIdentity();
     expect(user.role).toBe("admin");
     expect(user.username).toBe("admin");
+  });
+
+  it("reads a partial credit balance without converting unavailable amounts to zero", async () => {
+    const balance = { projectCredits: 0, publicCredits: null, totalCredits: null };
+    const request = vi.fn(async () => new Response(JSON.stringify(balance)));
+    vi.stubGlobal("fetch", request);
+    localStorage.setItem("token", "t");
+    await expect(api.user.getCreditBalance()).resolves.toEqual(balance);
+    expect(request).toHaveBeenCalledWith("/api/v1/user/credits/balance", expect.objectContaining({ headers: expect.any(Headers) }));
   });
 
   it("accepts empty 204 responses for every v1 delete endpoint", async () => {
@@ -137,7 +145,7 @@ describe("api client", () => {
       "fetch",
       vi.fn(async (url: unknown) => {
         const u = String(url);
-        if (u.endsWith("/api/v1/user/profile")) {
+        if (u.endsWith("/api/v1/user/identity")) {
           return new Response(JSON.stringify({ message: "未登录" }), {
             status: 401,
             headers: { "content-type": "application/json" },
@@ -147,7 +155,7 @@ describe("api client", () => {
       }),
     );
 
-    const error = await api.user.getProfile().catch((err) => err);
+    const error = await api.user.getIdentity().catch((err) => err);
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(401);

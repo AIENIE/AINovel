@@ -315,7 +315,9 @@ public class WorldAssistantService {
             if(response!=null&&metadata==null)metadata=ai.storedResultMetadata(user,turn.operationId()+":world-assistant:"+phase);
             String code=operation.errorCode()==null?"AI_OPERATION_FAILED":operation.errorCode();
             if(response!=null&&WorldAssistantResultFailure.classifiable(code)) {
-                var reported=new AiChatResponse(response.role(),response.content(),response.usage(),response.remainingCredits(),response.selection(),response.actualModelKey(),metadata);
+                var reported = new AiChatResponse(response.role(), response.content(), response.usage(),
+                        response.remainingCredits(), response.selection(), response.actualModelKey(), metadata, null,
+                        response.remainingProjectCredits());
                 code=WorldAssistantResultFailure.code(reported);
             }
             failure=new FailureDiagnostics(phase,code,metadata==null?null:metadata.finishReason().name(),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/auth-state";
 import { api } from "@/lib/api-client";
@@ -13,7 +14,7 @@ import { Coins, Gift, Shield, Loader2, ArrowRightLeft } from "lucide-react";
 import { CreditConversionRecord, CreditLedgerItem } from "@/types";
 
 const ProfilePage = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
   
@@ -24,6 +25,14 @@ const ProfilePage = () => {
   const [ledger, setLedger] = useState<CreditLedgerItem[]>([]);
   const [conversions, setConversions] = useState<CreditConversionRecord[]>([]);
   const [isRecordsLoading, setIsRecordsLoading] = useState(false);
+  const balanceQuery = useQuery({
+    queryKey: ["user-credit-balance", user?.id],
+    queryFn: ({ signal }) => api.user.getCreditBalance(signal),
+    enabled: Boolean(user),
+    retry: false,
+  });
+  const balance = balanceQuery.isError ? undefined : balanceQuery.data;
+  const unavailableBalance = balanceQuery.isPending ? "—" : t("profile.balanceUnavailable");
 
   const loadRecords = async () => {
     setIsRecordsLoading(true);
@@ -58,8 +67,7 @@ const ProfilePage = () => {
         className: "bg-green-50 border-green-200 text-green-800"
       });
       setRedeemCode("");
-      await refreshProfile();
-      await loadRecords();
+      await Promise.all([balanceQuery.refetch(), loadRecords()]);
     } catch (error: unknown) {
       toast({ variant: "destructive", title: t("profile.redeemFailed"), description: localizedErrorMessage(error, "profile.redeemFailed") });
     } finally {
@@ -80,8 +88,7 @@ const ProfilePage = () => {
         className: "bg-blue-50 border-blue-200 text-blue-800"
       });
       setConvertAmount("");
-      await refreshProfile();
-      await loadRecords();
+      await Promise.all([balanceQuery.refetch(), loadRecords()]);
     } catch (error: unknown) {
       toast({ variant: "destructive", title: t("profile.redeemFailed"), description: localizedErrorMessage(error, "profile.redeemFailed") });
     } finally {
@@ -124,7 +131,7 @@ const ProfilePage = () => {
             <div className="p-4 bg-muted/30 rounded-lg">
               <div>
                 <div className="text-sm text-muted-foreground">{t("profile.projectCredits")}</div>
-                <div className="text-3xl font-bold text-primary">{user.projectCredits.toLocaleString()}</div>
+                <div className="text-3xl font-bold text-primary">{balance?.projectCredits.toLocaleString() ?? unavailableBalance}</div>
                 <div className="text-xs text-muted-foreground mt-1">{t("profile.creditRatio")}</div>
               </div>
             </div>
@@ -132,13 +139,20 @@ const ProfilePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="p-3 rounded-md border bg-background">
                 <div className="text-xs text-muted-foreground">{t("profile.publicCredits")}</div>
-                <div className="text-xl font-semibold">{user.publicCredits.toLocaleString()}</div>
+                <div className="text-xl font-semibold">{balance?.publicCredits?.toLocaleString() ?? unavailableBalance}</div>
               </div>
               <div className="p-3 rounded-md border bg-background">
                 <div className="text-xs text-muted-foreground">{t("profile.totalBalance")}</div>
-                <div className="text-xl font-semibold">{user.totalCredits.toLocaleString()}</div>
+                <div className="text-xl font-semibold">{balance?.totalCredits?.toLocaleString() ?? unavailableBalance}</div>
               </div>
             </div>
+
+            {balanceQuery.isPending && <p role="status" className="text-sm text-muted-foreground">{t("common.loading")}</p>}
+            {(balanceQuery.isError || balance?.publicCredits === null) && (
+              <Button variant="outline" size="sm" disabled={balanceQuery.isFetching} onClick={() => void balanceQuery.refetch()}>
+                {t("profile.retryBalance")}
+              </Button>
+            )}
 
             <div className="space-y-2">
               <Label>{t("profile.redeemLabel")}</Label>

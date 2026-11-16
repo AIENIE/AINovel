@@ -23,7 +23,7 @@
 - `DELETE /api/v1/worlds/{id}`：删除草稿世界。
 - `PUT /api/v1/worlds/{id}/modules`：兼容批量保存模块，Body `{modules: {key: {field:value}},expectedRevision?:number}`。
 - `PUT /api/v1/worlds/{id}/modules/{moduleKey}`：兼容单模块保存，Body `{fields:{field:value},expectedRevision?:number}`。
-- `POST /api/v1/worlds/{id}/modules/{moduleKey}/fields/{fieldKey}/refine`：字段精修（调用 LLM 并扣费），返回 `AiRefineResponse {result,usage,remainingCredits}`。
+- `POST /api/v1/worlds/{id}/modules/{moduleKey}/fields/{fieldKey}/refine` 调用模型并按用量结算，返回 `AiRefineResponse {result,usage,remainingProjectCredits}`。旧结果的 `remainingCredits` 为当时的积分合计。
 - `GET /api/v1/worlds/{id}/publish/preview`：旧模块生成预检，保留兼容；新版发布确认使用 draft/diff，不调用此接口。
 - `POST /api/v1/worlds/{id}/publish/operations`：兼容旧入口，仅补充缺失模块至草稿，返回可跟踪进度的任务；不会发布版本。
 - `GET /api/v1/worlds/{id}/generation`：生成队列状态。

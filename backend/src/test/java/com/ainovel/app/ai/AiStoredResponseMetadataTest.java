@@ -61,6 +61,8 @@ class AiStoredResponseMetadataTest {
 
     @Test void oldResponseJsonAndUnreportedMetadataRemainUnknown() throws Exception {
         var old=json.readValue("{\"role\":\"assistant\",\"content\":\"\",\"usage\":null,\"remainingCredits\":0}",AiChatResponse.class);
+        assertEquals(0.0, old.remainingCredits());
+        assertNull(old.remainingProjectCredits());
         assertNull(old.metadata());assertNull(AiResponseMetadata.reported(null,null,null));
         assertEquals(0L,AiResponseMetadata.reported("stop",0L,false).reasoningTokens());
         assertEquals(false,AiResponseMetadata.reported("stop",0L,false).usageAuthoritative());

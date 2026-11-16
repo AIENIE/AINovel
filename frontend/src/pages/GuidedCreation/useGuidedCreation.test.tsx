@@ -20,6 +20,16 @@ const failedRun = {
 describe("useGuidedCreation", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it.each([undefined, 0, 12])("shows only the recorded project balance (%s)", async (remainingProjectCredits) => {
+    const run = { ...failedRun, steps: { PREMISE: { remainingCredits: 80, remainingProjectCredits } } };
+    vi.spyOn(api.creationWorkflows, "list").mockResolvedValue([run] as never);
+    const wrapper = ({ children }: PropsWithChildren) => <MemoryRouter>{children}</MemoryRouter>;
+    const { result } = renderHook(() => useGuidedCreation(), { wrapper });
+
+    await waitFor(() => expect(result.current.workflow?.id).toBe(failedRun.id));
+    expect(result.current.remainingCredits).toBe(remainingProjectCredits ?? null);
+  });
+
   it("waits after world adoption and publication until the author requests the remaining generation", async () => {
     const worldRun={...failedRun,id:'world-run',status:'WAITING_USER',currentStep:'WORLD',steps:{WORLD:{candidates:[{candidateId:'one',name:'群岛'}]}}};
     vi.spyOn(api.creationWorkflows,'list').mockResolvedValue([worldRun] as never);

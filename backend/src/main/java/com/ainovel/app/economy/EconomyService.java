@@ -74,6 +74,9 @@ public class EconomyService {
     public record BalanceSnapshot(long projectCredits, long publicCredits, long totalCredits) {
     }
 
+    public record CreditBalance(long projectCredits, Long publicCredits, Long totalCredits) {
+    }
+
     public record CreditChangeResult(
             boolean success,
             long points,
@@ -207,9 +210,19 @@ public class EconomyService {
     }
 
     public BalanceSnapshot currentBalance(User user) {
-        long project = accountRepository.findByUser(user).map(ProjectCreditAccount::getBalance).orElse(Math.round(user.getCredits()));
+        long project = projectBalance(user);
         long pub = fetchPublicBalance(user);
         return new BalanceSnapshot(project, pub, project + pub);
+    }
+
+    public CreditBalance creditBalance(User user) {
+        long project = projectBalance(user);
+        try {
+            long publicCredits = fetchPublicBalance(user);
+            return new CreditBalance(project, publicCredits, project + publicCredits);
+        } catch (ApiStatusException unavailable) {
+            return new CreditBalance(project, null, null);
+        }
     }
 
     @Transactional(readOnly = true)

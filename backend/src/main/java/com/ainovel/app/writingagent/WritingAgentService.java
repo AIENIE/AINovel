@@ -205,7 +205,11 @@ public class WritingAgentService {
             var metadata=AiResponseMetadata.reported(prior.getFinishReason(),prior.hasReasoningTokens()?prior.getReasoningTokens():null,prior.hasUsageAuthoritative()?prior.getUsageAuthoritative():null);
             economy.recordAiResult(user,usage.idempotencyKey(),prior.getContent(),prior.getPromptTokens(),prior.getCompletionTokens(),prior.getCacheTokens(),prior.getModelKey(),metadata,prior.hasNativeResponseJson()?prior.getNativeResponseJson():null);
             var charged=economy.settleAiUsage(user,usage.idempotencyKey(),prior.getContent(),prior.getPromptTokens(),prior.getCompletionTokens(),prior.getCacheTokens());
-            response=new AiChatResponse("assistant",prior.getContent(),new AiUsageDto(prior.getPromptTokens(),prior.getCompletionTokens(),prior.getCacheTokens(),0,charged.charged()),economy.currentBalance(user).totalCredits(),selected,prior.getModelKey(),metadata,prior.hasNativeResponseJson()?prior.getNativeResponseJson():null);
+            var used = new AiUsageDto(prior.getPromptTokens(), prior.getCompletionTokens(), prior.getCacheTokens(), 0,
+                    charged.charged());
+            response = new AiChatResponse("assistant", prior.getContent(), used, null, selected, prior.getModelKey(),
+                    metadata, prior.hasNativeResponseJson() ? prior.getNativeResponseJson() : null,
+                    charged.remainingProjectCredits());
         }else try(var budget=AiNativeBudgetContext.open(money.owner(runId,key,selected))){response=ai.chat(user,request,usage);}
         money.retail(runId,key,Math.round(response.usage().cost()));store.result(runId,key,response);return response;
     }
