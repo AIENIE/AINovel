@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { pendingAiQuote, subscribeAiQuotes, finishAiQuote } from "@/lib/ai-quote-store";
-import { featureName, type AiModelSelection, type AiQuote } from "@/lib/ai-model-config";
+import { roleName, type AiModelSelection, type AiQuote } from "@/lib/ai-model-config";
 import { Loader2 } from "lucide-react";
 
 const boundedCalls = (calls: string) => /^UP_TO_(\d+)$/.exec(calls);
@@ -23,31 +23,50 @@ export function AiQuotePrompt() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [remember, setRemember] = useState(true);
+  const [choices, setChoices] = useState<Record<string, string>>({});
   const revision = useRef(0);
-  const callLabel = (calls: string) => {
-    const bounded = boundedCalls(calls);
-    return bounded ? t("aiModels.calls.UP_TO_N", { maxCalls: Number(bounded[1]) }) : t(`aiModels.calls.${calls}`);
+  const estimateLabel = (estimates: AiQuote["roles"][number]["estimates"]) => {
+    const labels = new Set<string>();
+    let callCount = 0;
+    let bounded = false;
+    for (const { calls, conditional } of estimates) {
+      const match = boundedCalls(calls);
+      if (calls === "ONE") callCount++;
+      else if (calls === "UP_TO_TWO") { callCount += 2; bounded = true; }
+      else if (match) { callCount += Number(match[1]); bounded = true; }
+      else labels.add(t("aiModels.calls." + calls));
+      bounded ||= conditional;
+    }
+    if (callCount > 0) labels.add(t(bounded ? "aiModels.calls.UP_TO_N" : "aiModels.calls.EXACT", { count: callCount, maxCalls: callCount }));
+    return [...labels].join(" · ");
   };
-  useEffect(() => { revision.current++; setQuote(pending?.quote ?? null); setError(""); setNotice(""); setBusy(false); }, [pending]);
-  const select = async (feature: string, option: string) => {
+  useEffect(() => {
+    revision.current++;
+    setQuote(pending?.quote ?? null); setChoices({}); setError(""); setNotice(""); setBusy(false);
+  }, [pending]);
+  const select = async (roleKey: string, option: string) => {
     if (!pending || !quote) return;
     const requestRevision = ++revision.current;
+    const selections = { ...choices, [roleKey]: option };
     setBusy(true); setError("");
-    const selections = Object.fromEntries(quote.steps.map((step) => [step.step.featureKey, step.selected.optionId]));
-    selections[feature] = option;
-    try { const next = await pending.refresh(selections); if (requestRevision === revision.current) setQuote(next); }
-    catch { if (requestRevision === revision.current) setError(t("aiModels.quoteFailed")); }
-    finally { if (requestRevision === revision.current) setBusy(false); }
+    try {
+      const next = await pending.refresh(selections);
+      if (requestRevision === revision.current) { setQuote(next); setChoices(selections); }
+    } catch {
+      if (requestRevision === revision.current) setError(t("aiModels.quoteFailed"));
+    } finally {
+      if (requestRevision === revision.current) setBusy(false);
+    }
   };
   const confirm = async () => {
     if (!pending || !quote) return;
     setBusy(true); setError("");
     try {
       if (Date.parse(quote.expiresAt) <= Date.now()) {
-        setQuote(await pending.refresh(Object.fromEntries(quote.steps.map((step) => [step.step.featureKey, step.selected.optionId]))));
+        setQuote(await pending.refresh(choices));
         setNotice(t("aiModels.quoteRenewed")); setBusy(false); return;
       }
-      if (remember) await pending.remember(Object.fromEntries(quote.steps.filter((step) => step.selected.billingEnabled).map((step) => [step.step.featureKey, step.selected.optionId])));
+      if (remember && Object.keys(choices).length) await pending.remember(choices);
       finishAiQuote(pending, quote.id);
     } catch { setError(t("aiModels.saveFailed")); setBusy(false); }
   };
@@ -55,18 +74,18 @@ export function AiQuotePrompt() {
     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader><DialogTitle>{t("aiModels.confirmTitle")}</DialogTitle><DialogDescription>{t("aiModels.confirmDescription")}</DialogDescription></DialogHeader>
       <div className="space-y-3">
-        {quote?.steps.map(({ step, feature, selected, estimatedCredits }) => <section key={step.featureKey} className="rounded-lg border p-3 sm:p-4">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{featureName(feature, i18n.language)}</span>
-            <Badge variant="outline">{t(step.conditional ? "aiModels.conditional" : "aiModels.required")}</Badge></div>
-          {feature.billingEnabled ? <select aria-label={featureName(feature, i18n.language)} value={selected.optionId} disabled={busy} onChange={(e) => void select(step.featureKey, e.target.value)} className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm">
-            {feature.options.map((option) => <option key={option.optionId} value={option.optionId} disabled={feature.unavailableOptions.includes(option.optionId)}>{option.label}</option>)}
+        {quote?.roles.map(({ role, estimates, selected, estimatedCredits }) => <section key={role.definition.key} className="rounded-lg border p-3 sm:p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{roleName(role, i18n.language)}</span>
+            <Badge variant="outline">{t(estimates.every((estimate) => estimate.conditional) ? "aiModels.conditional" : "aiModels.required")}</Badge></div>
+          {role.billingEnabled ? <select aria-label={roleName(role, i18n.language)} value={selected.optionId} disabled={busy} onChange={(e) => void select(role.definition.key, e.target.value)} className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm">
+            {role.options.map((option) => <option key={option.optionId} value={option.optionId} disabled={role.unavailableOptions.includes(option.optionId)}>{option.label}</option>)}
           </select> : <div className="text-sm">{selected.label} · {t("aiModels.free")}</div>}
           <p className="mt-2 break-all text-xs text-muted-foreground">{selected.modelKey}</p>
-          <p className="mt-2 break-words text-sm text-muted-foreground"><ModelPrice option={selected} /> · {t(boundedCalls(step.calls) ? "aiModels.boundedEstimate" : "aiModels.estimate", { amount: estimatedCredits })}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{callLabel(step.calls)} · {t(`aiModels.thinking.${selected.thinkingMode}`)}{selected.thinkingEffort ? ` · ${selected.thinkingEffort}` : ""}</p>
+          <p className="mt-2 break-words text-sm text-muted-foreground"><ModelPrice option={selected} /> · {t("aiModels.estimate", { amount: estimatedCredits })}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{estimateLabel(estimates)} · {t(`aiModels.thinking.${selected.thinkingMode}`)}{selected.thinkingEffort ? ` · ${selected.thinkingEffort}` : ""}</p>
         </section>)}
       </div>
-      <p className="text-sm font-medium">{t(quote?.steps.some(({ step }) => boundedCalls(step.calls)) ? "aiModels.totalBoundedEstimate" : "aiModels.totalEstimate", { amount: quote?.estimatedCredits ?? 0 })}</p>
+      <p className="text-sm font-medium">{t("aiModels.totalEstimate", { amount: quote?.estimatedCredits ?? 0 })}</p>
       <p className="text-xs leading-relaxed text-muted-foreground">{t("aiModels.settlementNotice")}</p>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />{t("aiModels.remember")}</label>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

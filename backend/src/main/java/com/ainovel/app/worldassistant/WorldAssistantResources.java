@@ -24,7 +24,7 @@ public class WorldAssistantResources {
     }
     public Content content(World world) {return entries.content(world);}
     public String hash(Content content) {return entries.hash(content);}
-    public String feature(Entry entry,String action) {return entries.feature(entry,action);}
+    public String stepKey(Entry entry,String action) {return entries.stepKey(entry,action);}
     public record Resource(String type,UUID id,String fieldKey,String title,JsonNode fields) {}
     public List<Resource> resources(UUID world,Content content) {
         var result=new ArrayList<Resource>();var metadata=json.valueToTree(content);

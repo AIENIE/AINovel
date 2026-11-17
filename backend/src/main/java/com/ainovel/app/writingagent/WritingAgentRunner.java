@@ -1,5 +1,6 @@
 package com.ainovel.app.writingagent;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
@@ -51,7 +52,7 @@ public class WritingAgentRunner {
                 var controlSources=retrievedSources(f,x);String editable=store.write(f.document().runs());
                 controlSources.add(new Source("scene:"+f.sceneId()+":editable","CANDIDATE","本次可编辑原文",editable,f.sceneId(),hash(editable),true,"initial-input"));
                 var controlManifest=store.mapper().createObjectNode();controlManifest.set("writingAgentSources",store.mapper().valueToTree(controlSources));
-                var request=new AiChatRequest(List.copyOf(messages),null,controlManifest).forFeature("writing_agent.control").withNativeTools(f.toolsJson(),f.selections().outputBudget("writing_agent.control"));
+                var request=new AiChatRequest(List.copyOf(messages),null,controlManifest).forRole(AiModelRole.AGENT_CONTROL, "writing_agent.control").withNativeTools(f.toolsJson(),f.selections().outputBudget(f.selections().roleBased() ? AiModelRole.AGENT_CONTROL.key() : "writing_agent.control"));
                 operation.progress().step("自主决策 "+x.controls,x.modelCalls-1,f.limits().modelCalls());
                 var response=service.model(operation.user(),runId,ordinal,modelKey,request);
                 if(store.run(runId).status().equals("CANCELLED"))return Map.of("runId",runId,"status","CANCELLED");
@@ -205,7 +206,8 @@ public class WritingAgentRunner {
             String sentBody=isCheckTool(name)?com.ainovel.app.quality.language.LanguageProjection.of(input.candidateHtml()).text():input.candidateHtml();
             actualSources.add(new Source(x.candidate==null?"scene:"+f.sceneId():"candidate:"+x.candidate.id(),"CANDIDATE","当前场景候选",sentBody,f.sceneId(),hash(sentBody),false,"current-target"));
             var manifest=store.mapper().createObjectNode();manifest.set("writingAgentSources",store.mapper().valueToTree(actualSources));
-            request=new AiChatRequest(request.messages(),request.modelId(),manifest,request.featureKey(),request.toolsJson(),request.maxOutputTokens());
+            request=new AiChatRequest(request.messages(),request.modelId(),manifest,request.featureKey(),request.toolsJson(),request.maxOutputTokens(), request.modelRole());
+            request = com.ainovel.app.modelconfig.AiSelectionContext.forSnapshot(request);
             String cache=hash(store.write(request));cacheKey=cache;if(!drafting&&!refining&&x.checks.containsKey(cache))return checkpoint(x,x.checks.get(cache),null);
             if(x.paid>=f.limits().paidTools()||x.modelCalls>=f.limits().modelCalls())return checkpoint(x,Map.of("error","WRITING_AGENT_CALL_LIMIT"),"PAUSED_BUDGET");
             if(name.equals(LANGUAGE_TOOL)&&x.languageChecks>=MAX_CHECKS_PER_KIND||name.equals(PLOT_TOOL)&&x.plotChecks>=MAX_CHECKS_PER_KIND)return checkpoint(x,Map.of("error","WRITING_AGENT_CHECK_LIMIT"),"PAUSED_BUDGET");

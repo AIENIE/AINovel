@@ -1,6 +1,7 @@
 package com.ainovel.app.ai.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.ainovel.app.modelconfig.AiModelRole;
 
 import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,12 +17,26 @@ public record AiChatRequest(
         JsonNode context,
         String featureKey,
         @JsonInclude(JsonInclude.Include.NON_NULL) @Schema(hidden = true) String toolsJson,
-        @JsonInclude(JsonInclude.Include.NON_NULL) @Schema(hidden = true) Integer maxOutputTokens
+        @JsonInclude(JsonInclude.Include.NON_NULL) @Schema(hidden = true) Integer maxOutputTokens,
+        @JsonInclude(JsonInclude.Include.NON_NULL) @Schema(hidden = true) AiModelRole modelRole
 ) {
-    public AiChatRequest(List<Message> messages,String modelId,JsonNode context) {this(messages,modelId,context,null,null,null);}
-    public AiChatRequest(List<Message> messages,String modelId,JsonNode context,String featureKey) {this(messages,modelId,context,featureKey,null,null);}
-    public AiChatRequest forFeature(String feature) {return new AiChatRequest(messages,modelId,context,feature,toolsJson,maxOutputTokens);}
-    public AiChatRequest withNativeTools(String tools,int outputTokens) {return new AiChatRequest(messages,modelId,context,featureKey,tools,outputTokens);}
+    public AiChatRequest(List<Message> messages, String modelId, JsonNode context) {
+        this(messages, modelId, context, null, null, null, null);
+    }
+    public AiChatRequest(List<Message> messages, String modelId, JsonNode context, String stepKey) {
+        this(messages, modelId, context, stepKey, null, null, null);
+    }
+    public AiChatRequest(List<Message> messages, String modelId, JsonNode context, String stepKey, String tools, Integer output) {
+        this(messages, modelId, context, stepKey, tools, output, null);
+    }
+
+    public AiChatRequest forRole(AiModelRole role, String stepKey) {
+        return new AiChatRequest(messages, modelId, context, stepKey, toolsJson, maxOutputTokens, role);
+    }
+
+    public AiChatRequest withNativeTools(String tools, int outputTokens) {
+        return new AiChatRequest(messages, modelId, context, featureKey, tools, outputTokens, modelRole);
+    }
     public boolean nativeTools() {return toolsJson != null;}
     public boolean hasNativeFields() {return toolsJson != null || messages != null && messages.stream().anyMatch(m -> m != null && m.hasNativeFields());}
     @Schema(description = "单条对话消息")

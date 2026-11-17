@@ -3,16 +3,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import ModelConfiguration from "./ModelConfiguration";
 import { api } from "@/lib/api-client";
 import type { ModelResponsibility } from "@/lib/ai-model-config";
-import { catalogFixture, featureFixture } from "@/test/ai-model-fixtures";
+import { catalogFixture, roleFixture } from "@/test/ai-model-fixtures";
 vi.mock("@/lib/api-client", () => ({ api: { modelConfig: { catalog: vi.fn(), routing: vi.fn(), save: vi.fn(), sync: vi.fn() } } }));
 vi.mock("@/components/ui/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 function routingFixture(): ModelResponsibility {
-  const feature = featureFixture();
-  return {
-    ...feature, definition: { ...feature.definition, key: "role.discussion", group: "support" },
-    operations: [feature.definition], outputTokenLimits: {}, legacyDefaults: [],
-  };
+  return roleFixture();
 }
 describe("Admin model configuration", () => {
   beforeEach(() => {
@@ -40,7 +36,7 @@ describe("Admin model configuration", () => {
   it("failed sync preserves the existing directory and explains that no configuration was replaced", async () => {
     vi.mocked(api.modelConfig.sync).mockRejectedValue(new Error("unavailable"));render(<ModelConfiguration />);
     await screen.findByLabelText("方案 1 思考设置");fireEvent.click(screen.getByRole("button", { name: "手动同步模型" }));
-    await screen.findByText(/上次成功目录和功能配置已保留/);
+    await screen.findByText(/上次成功目录和职责配置已保留/);
     expect((screen.getByLabelText("方案 1 模型") as HTMLSelectElement).value).toBe("model-a");
   });
   it("retains an unsaved option name while switching between feature configurations", async () => {
@@ -63,25 +59,20 @@ describe("Admin model configuration", () => {
     await waitFor(() => expect(api.modelConfig.save).toHaveBeenCalledWith(expect.objectContaining({ options: [expect.objectContaining({ thinkingMode: "DEFAULT", thinkingEffort: null })] })));
   });
 
-  it("finds a shared role by its covered operations and saves its configured output cap", async () => {
-    const world = routingFixture();
-    world.definition = { ...world.definition, key: "role.conception", group: "creation", zh: "构思与设定补全" };
-    world.operations = [
-      { ...world.definition, key: "world.geography.terrain.generate", zh: "地形地貌生成" },
-      { ...world.definition, key: "world.geography.climate.generate", zh: "气候特征生成" },
-    ];
-    world.defaultOptionId = world.options[1].optionId;
-    vi.mocked(api.modelConfig.routing).mockResolvedValue([routingFixture(), world]);
+  it("edits the configured default first and saves the responsibility", async () => {
+    const role = routingFixture();
+    role.definition = { ...role.definition, key: "role.conception", group: "creation", zh: "构思与设定补全" };
+    role.defaultOptionId = role.options[1].optionId;
+    vi.mocked(api.modelConfig.routing).mockResolvedValue([routingFixture(), role]);
     render(<ModelConfiguration />);
-    fireEvent.change(await screen.findByRole("textbox", { name: "搜索职责或操作" }), { target: { value: "气候" } });
-    expect(screen.getByRole("button", { name: /构思与设定补全/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /气候特征生成/ })).toBeNull();
-    expect((screen.getByLabelText("方案 1 展示名") as HTMLInputElement).value).toBe(world.options[1].label);
+    fireEvent.click(await screen.findByRole("button", { name: /构思与设定补全/ }));
+    expect(screen.queryByText("覆盖操作")).toBeNull();
+    expect((screen.getByLabelText("方案 1 展示名") as HTMLInputElement).value).toBe(role.options[1].label);
     fireEvent.change(screen.getByLabelText("方案 1 总输出上限"), { target: { value: "65536" } });
     fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
     await waitFor(() => expect(api.modelConfig.save).toHaveBeenCalledWith(expect.objectContaining({
       definition: expect.objectContaining({ key: "role.conception" }),
-      outputTokenLimits: { [world.options[1].optionId]: 65536 },
+      outputTokenLimits: { [role.options[1].optionId]: 65536 },
     })));
   });
 });

@@ -1,5 +1,6 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.RefineRequest;
 import com.ainovel.app.story.dto.*;
@@ -134,14 +135,14 @@ public class StoryService {
         Story story = storyRepository.findByIdWithUser(storyId).orElseThrow(() -> new BusinessException("故事不存在"));
         accessGuard.assertOwner(story.getUser());
         String instruction = request.instruction() == null ? "" : request.instruction();
-        return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null).forFeature("story.refine")).result();
+        return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null).forRole(AiModelRole.SETTING_REFINE, "story.refine")).result();
     }
 
     public String refineCharacter(User user, UUID characterId, RefineRequest request) {
         CharacterCard card = characterCardRepository.findByIdWithStoryUser(characterId).orElseThrow(() -> new BusinessException("角色不存在"));
         accessGuard.assertOwner(card.getStory().getUser());
         String instruction = request.instruction() == null ? "" : request.instruction();
-        return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null).forFeature("character.refine")).result();
+        return aiService.refine(user, new AiRefineRequest(request.text(), instruction, null).forRole(AiModelRole.SETTING_REFINE, "character.refine")).result();
     }
 
     public Map<String, Object> conception(User user, StoryCreateRequest request) {

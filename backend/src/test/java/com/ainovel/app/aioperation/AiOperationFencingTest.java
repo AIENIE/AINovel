@@ -110,7 +110,7 @@ class AiOperationFencingTest {
         when(handler.execute(any())).thenAnswer(i->{
             assertEquals(snapshot,com.ainovel.app.modelconfig.AiSelectionContext.current());
             keys.add(com.ainovel.app.modelconfig.AiSelectionContext.callKey("generic.chat"));
-            return Map.of("model",com.ainovel.app.modelconfig.AiSelectionContext.selection("generic.chat").modelKey());
+            return Map.of("model",com.ainovel.app.modelconfig.AiSelectionContext.selection(new com.ainovel.app.ai.dto.AiChatRequest(java.util.List.of(),null,null,"generic.chat")).modelKey());
         });
         ReflectionTestUtils.invokeMethod(service,"execute",run.getId());
         assertNull(com.ainovel.app.modelconfig.AiSelectionContext.current());

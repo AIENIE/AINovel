@@ -101,16 +101,16 @@ public class WritingAgentService {
     private List<String> toolNames(Frozen f){var names=new ArrayList<String>();for(var t:store.tree(f.toolsJson()))names.add(t.path("function").path("name").asText());return names;}
     public AiActionPlanner.Plan quote(User user,UUID m,UUID scene,JsonNode body){
         var f=prepare(user,m,scene,store.mapper().convertValue(body,Request.class));var steps=new ArrayList<AiActionPlanner.Step>();
-        steps.add(step("writing_agent.control",false,Math.min(f.limits().controlCalls(),f.limits().modelCalls()),4096));
+        steps.add(step("writing_agent.control", AiModelRole.AGENT_CONTROL,false,Math.min(f.limits().controlCalls(),f.limits().modelCalls()),4096));
         if(!"AUTHOR_QA".equals(f.intent())){
-            steps.add(step("scene."+f.mode()+".draft",true,1,8192));
-            if(f.limits().revisions()>0)steps.add(step("writing_agent.refine",true,Math.min(f.limits().revisions(),f.limits().modelCalls()),8192));
-            if(f.languageCheck())steps.add(step("language.diagnose",true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
-            if(f.plotCheck())steps.add(step("plot.diagnose",true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
+            steps.add(step("scene."+f.mode()+".draft", AiModelRole.PROSE_DRAFT,true,1,8192));
+            if(f.limits().revisions()>0)steps.add(step("writing_agent.refine", AiModelRole.PROSE_REVISE,true,Math.min(f.limits().revisions(),f.limits().modelCalls()),8192));
+            if(f.languageCheck())steps.add(step("language.diagnose", AiModelRole.LANGUAGE_CHECK,true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
+            if(f.plotCheck())steps.add(step("plot.diagnose", AiModelRole.PLOT_CHECK,true,Math.min(WritingAgentReviews.MAX_CHECKS_PER_KIND,f.limits().modelCalls()),4096));
         }
         return new AiActionPlanner.Plan("/v1/manuscripts/"+m+"/scenes/"+scene+"/agent-runs",steps,fingerprint(f),m.toString(),null,null,new com.ainovel.app.worldcontext.WorldWritingInput("AGENT",fingerprint(f),f.world().selectionRevision(),store.mapper().valueToTree(f)));
     }
-    private static AiActionPlanner.Step step(String feature,boolean conditional,int maximum,int output){return new AiActionPlanner.Step(feature,conditional,"UP_TO_"+maximum,24000,output);}
+    private static AiActionPlanner.Step step(String feature,AiModelRole role,boolean conditional,int maximum,int output){return new AiActionPlanner.Step(feature,role,conditional,"UP_TO_"+maximum,24000,output);}
     @Transactional(isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Accepted submit(User user,UUID m,UUID scene,Request request,String key){
         key(key);lockOwned(user,m);
@@ -119,7 +119,7 @@ public class WritingAgentService {
         var f=prepare(user,m,scene,request);if(!f.world().issues().isEmpty())throw error("WRITING_AGENT_WORLD_REVIEW_REQUIRED");
         var selection=AiSelectionContext.current();if(selection==null||selection.writingInput()==null||!"AGENT".equals(selection.writingInput().purpose()))throw error("AI_QUOTE_REQUIRED");
         var quoted=store.mapper().convertValue(selection.writingInput().frozen(),Frozen.class);if(!fingerprint(f).equals(fingerprint(quoted)))throw error("AI_QUOTE_INPUT_CHANGED");
-        var capability=configuration.nativeCapabilities(selection.selections().get("writing_agent.control").modelKey());
+        var capability=configuration.nativeCapabilities(selection.selections().get(selection.roleBased() ? AiModelRole.AGENT_CONTROL.key() : "writing_agent.control").modelKey());
         if(!capability.budgetToolsDeclared()||!capability.budgetToolsAvailable())throw error("AI_NATIVE_BUDGET_UNAVAILABLE");
         if(operations.active(user,"AGENT_SCENE",scene)!=null)throw error("WRITING_AGENT_BUSY");
         var frozen=quoted.withSelection(selection);
@@ -193,7 +193,7 @@ public class WritingAgentService {
         if(step==null)step=store.request(runId,sequence,key,"MODEL",request.featureKey(),new ModelRecord(request,request.featureKey()));
         else {if(!step.kind().equals("MODEL")||step.sequence()!=sequence||!step.feature().equals(request.featureKey()))throw error("WRITING_AGENT_REQUEST_CHANGED");request=store.read(step.request(),ModelRecord.class).request();}
         if(step.result()!=null)return store.read(step.result(),AiChatResponse.class);
-        var selected=AiSelectionContext.selection(request.featureKey());if(selected==null)throw error("AI_STEP_NOT_QUOTED");
+        var selected=AiSelectionContext.selection(request);if(selected==null)throw error("AI_STEP_NOT_QUOTED");
         var usage=new AiUsageContext("WRITING_AGENT",runId.toString(),"step:"+sequence);AiChatResponse response;
         final fireflychat.ai.v1.ChatCompletionsResponse prior;
         try{prior=money.recoverIfPresent(runId,key,gateway.moneyTransport());}

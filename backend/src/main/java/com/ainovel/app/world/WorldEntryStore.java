@@ -133,9 +133,21 @@ public class WorldEntryStore {
         if("magic_tech".equals(module)&&Set.of("system_name","rules","limitations").contains(field))return "system_name".equals(field)?"SYSTEM":"RULE";
         return "CUSTOM";
     }
-    public String feature(Entry entry,String action) {
-        return entry.legacyModuleKey()!=null&&!"CUSTOM".equals(legacyType(entry.legacyModuleKey(),entry.legacyFieldKey()))
-            ?"world."+entry.legacyModuleKey()+"."+entry.legacyFieldKey()+"."+action:"world.entry."+action;
+    public String stepKey(Entry entry, String action) {
+        boolean previous = legacySelection();
+        if (entry.legacyModuleKey() != null && (!previous || !"CUSTOM".equals(legacyType(entry.legacyModuleKey(), entry.legacyFieldKey())))) {
+            return fieldStepKey(entry.legacyModuleKey(), entry.legacyFieldKey(), action);
+        }
+        return previous ? "world.entry." + action : "world-entry:" + entry.id() + ":" + action;
+    }
+
+    static String fieldStepKey(String module, String field, String action) {
+        return legacySelection() ? "world." + module + "." + field + "." + action : "world-field:" + module + ":" + field + ":" + action;
+    }
+
+    private static boolean legacySelection() {
+        var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
+        return snapshot != null && !snapshot.roleBased();
     }
     public Map<String,Map<String,String>> modules(String value) {return read(value,new TypeReference<>(){},new TreeMap<>());}
     public List<String> strings(String value) {return clean(read(value,new TypeReference<>(){},List.of()));}

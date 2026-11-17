@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import ModelPreferences from "./ModelPreferences";
 import { api } from "@/lib/api-client";
 
-vi.mock("./AiFeaturePreferences", () => ({ default: () => <div>选型</div> }));
+vi.mock("./RolePreferences", () => ({ default: () => <div>选型</div> }));
 vi.mock("@/lib/api-client", async importOriginal => ({ ...await importOriginal<typeof import("@/lib/api-client")>(), api: { v2: { models: { list: vi.fn(), usageSummary: vi.fn(), usageDetails: vi.fn() } } } }));
 
 describe("model usage reads", () => {

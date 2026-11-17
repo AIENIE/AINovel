@@ -24,7 +24,8 @@ import static org.mockito.Mockito.*;
 class AiQualityRequestTest {
     private final AtomicReference<ChatCompletionsRequest> sent = new AtomicReference<>();
     private Status failure;
-    private boolean responseMetadata,emptyStream;
+    private boolean responseMetadata,emptyStream,truncateStream;
+    private boolean usedStream;
 
     @ParameterizedTest
     @ValueSource(booleans={false,true})
@@ -37,7 +38,7 @@ class AiQualityRequestTest {
     @Test void emptyCompletedStreamStillFailsRatherThanBecomingAUsableResult() {
         emptyStream=true;responseMetadata=true;
         assertThatThrownBy(()->client().complete("request",1,choice("world.overview.integrate"),messages(),(tokens,estimated)->{}))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("invalid COMPLETED");
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("invalid completion receipt");
     }
 
     @Test void moneyTransportPreservesTheSameSafeMetadata() {
@@ -107,6 +108,48 @@ class AiQualityRequestTest {
         verify(validation).complete(callId, Map.of("errorType", "StatusRuntimeException", "grpcCode", "RESOURCE_EXHAUSTED"), false);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings={"gpt-6.1-sol","gemini-4-hydrogen"})
+    void usesTheTimedStreamWithoutAListenerAndFreezesTheSameLimitsForBudget(String model) {
+        var selection = new AiModelSelection("role.prose_draft", "option", model, "Plan",
+                "OFF", null, true, true, "FIXED", 1L, null, null, 1);
+        var client = client();
+        assertThat(client.complete("request", 1, selection, messages(), null).content()).isEqualTo("{}");
+        assertThat(usedStream).isTrue();
+        var limits = sent.get().getStreamTimeouts();
+        assertThat(limits.getFirstTextMs()).isEqualTo(300_000L);
+        assertThat(limits.getIdleMs()).isEqualTo(120_000L);
+        assertThat(limits.getTotalMs()).isEqualTo(600_000L);
+        assertThat(limits.getIdleAfterFirstText()).isTrue();
+
+        var validation = mock(AiValidationCallBudget.class);
+        when(validation.monetaryEnabled()).thenReturn(true);
+        var money = mock(AiValidationMoneyGateway.class);
+        when(money.call(any(), any())).thenAnswer(call -> {
+            ChatCompletionsRequest prepared = call.getArgument(0);
+            AiValidationMoneyGateway.Transport transport = call.getArgument(1);
+            assertThat(prepared.getStreamTimeouts()).isEqualTo(limits);
+            var receipt = transport.send(prepared.toBuilder().setBudgetCredential("fixture").build());
+            assertThat(receipt.hasBudgetCharge()).isTrue();
+            assertThat(receipt.getUsageAuthoritative()).isTrue();
+            assertThat(receipt.getStreamTiming().getFirstTextMs()).isEqualTo(180_000L);
+            return receipt;
+        });
+        ReflectionTestUtils.setField(client,"validationBudget",validation);
+        ReflectionTestUtils.setField(client,"moneyGateway",money);
+        assertThat(client.complete("request", 1, selection, messages(), null).content()).isEqualTo("{}");
+        assertThat(usedStream).isTrue();
+        assertThat(sent.get().getBudgetCredential()).isEqualTo("fixture");
+        assertThat(sent.get().getStreamTimeouts()).isEqualTo(limits);
+    }
+
+    @Test void aBudgetedStreamWithoutCompletionRemainsUncertain() {
+        truncateStream = true;
+        var request = ChatCompletionsRequest.newBuilder().setModel("gpt-6.1-sol").setRequestId("request")
+                .setBudgetCredential("fixture").setStreamTimeouts(ChatStreamTimeouts.getDefaultInstance()).build();
+        assertThatThrownBy(() -> client().moneyTransport().send(request)).hasMessageContaining("without COMPLETED");
+    }
+
     private AiGatewayGrpcClient client() {
         var properties = new ExternalServiceProperties();
         properties.getAiserviceGrpc().setAddress("static://localhost:9999");
@@ -141,7 +184,7 @@ class AiQualityRequestTest {
         @Override public void start(Listener<Object> listener, Metadata headers) { this.listener = listener; }
         @Override public void request(int count) { requested += count; drain(); }
         @Override public void cancel(String message, Throwable cause) { closed = true; }
-        @Override public void sendMessage(ChatCompletionsRequest message) { sent.set(message); }
+        @Override public void sendMessage(ChatCompletionsRequest message) { sent.set(message); usedStream=streaming; }
         @Override public void halfClose() {
             if (failure != null) { closed = true; listener.onClose(failure, new Metadata()); return; }
             if (streaming) {
@@ -149,7 +192,11 @@ class AiQualityRequestTest {
                 if(!emptyStream)replies.add(event(2, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA).setContentDelta("{}").setOutputTokensSoFar(2).build());
                 var completed=event(emptyStream?2:3, ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_COMPLETED).setPromptTokens(3).setCompletionTokens(2);
                 if(responseMetadata)completed.setFinishReason("length").setReasoningTokens(0).setUsageAuthoritative(true);
-                replies.add(completed.build());
+                if (sent.get().hasBudgetCredential()) {
+                    completed.setUsageAuthoritative(true).setBudgetCharge(BudgetCharge.newBuilder().setCurrency("CNY").setTotalCost("0.01"))
+                            .setStreamTiming(ChatStreamTiming.newBuilder().setFirstTextMs(180_000));
+                }
+                if (!truncateStream) replies.add(completed.build());
             } else {
                 var response=ChatCompletionsResponse.newBuilder().setContent("{}").setModelKey("test-model").setPromptTokens(3).setCompletionTokens(2);
                 if(responseMetadata)response.setFinishReason("length").setReasoningTokens(0).setUsageAuthoritative(true);

@@ -1,13 +1,15 @@
 package com.ainovel.app.integration;
 
+import com.ainovel.app.ai.AiRequestNotSentException;
 import com.ainovel.app.ai.dto.AiChatRequest;
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.dto.AiResponseMetadata;
 import com.ainovel.app.ai.dto.AiModelDto;
 import fireflychat.ai.v1.AiGatewayServiceGrpc;
 import fireflychat.ai.v1.ChatCompletionsRequest;
 import fireflychat.ai.v1.ChatCompletionsResponse;
 import fireflychat.ai.v1.ChatCompletionsStreamEvent;
-import fireflychat.ai.v1.ChatStreamEventType;
+import fireflychat.ai.v1.ChatStreamTimeouts;
 import fireflychat.ai.v1.ChatMessage;
 import fireflychat.ai.v1.Embedding;
 import fireflychat.ai.v1.EmbeddingsRequest;
@@ -43,7 +45,12 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 public class AiGatewayGrpcClient {
-    private static final Set<String> QUALITY_REPORT_FEATURES = Set.of("slop.judge", "slop.diagnose", "plot.diagnose");
+    private static final ChatStreamTimeouts TEXT_STREAM_LIMITS = ChatStreamTimeouts.newBuilder()
+            .setFirstTextMs(300_000).setIdleMs(120_000).setTotalMs(600_000).setIdleAfterFirstText(true).build();
+    private static final long TEXT_STREAM_RPC_MS = 615_000;
+    private static final Set<String> REPORT_KEYS = Set.of(AiModelRole.LANGUAGE_CHECK.key(), AiModelRole.PLOT_CHECK.key(),
+            AiModelRole.REVISION_REVIEW.key(), "slop.judge", "slop.diagnose", "plot.diagnose");
+
     public static final String RETRIEVAL_RERANK_MODEL="qwen3.7-text-rerank";
     public static final String RETRIEVAL_STRUCTURED_MODEL="qwen3.7-flash-2026-07-15";
     @org.springframework.beans.factory.annotation.Autowired
@@ -117,28 +124,19 @@ public class AiGatewayGrpcClient {
     public ChatResult complete(String requestId,long remoteUserId,
             com.ainovel.app.modelconfig.AiModelSelection selected,List<AiChatRequest.Message> messages,
             StreamProgressListener listener) {
-        var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
-        if(owner!=null) {
-            var snapshot=com.ainovel.app.modelconfig.AiSelectionContext.current();
-            if(snapshot==null)throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_CONFIGURATION_REQUIRED");
-            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected).toBuilder()
-                    .setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
-            return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
+        if (requiresTextStreaming(selected.modelKey()) && !selected.streaming()) {
+            throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED, "AI_MODEL_UNAVAILABLE");
         }
-        if(monetaryValidation()) return moneyChat(selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected));
-        try {return validated(listener==null?"CHAT":"CHAT_STREAM",requestId,selected.modelKey(),messages,()->{
-            var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),messages),selected);
-            if(listener==null) {
-                var response=stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
-                return chatResult(response);
-            }
-            return consumeStream(requestId,request,listener);
-        });}catch(io.grpc.StatusRuntimeException failure) {
-            if(failure.getStatus().getCode()==io.grpc.Status.Code.FAILED_PRECONDITION
-                    &&failure.getStatus().getDescription()!=null&&failure.getStatus().getDescription().startsWith("THINKING_OPTIONS_UNSUPPORTED"))
-                throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT,"AI_THINKING_UNSUPPORTED");
-            throw failure;
+        var request = textStreamLimits(selectedRequest(buildChatRequest(requestId, remoteUserId, selected.modelKey(), messages), selected));
+        var owner = com.ainovel.app.ai.AiNativeBudgetContext.current();
+        if (owner != null) {
+            var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
+            if (snapshot == null) throw new AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED, "AI_NATIVE_CONFIGURATION_REQUIRED");
+            var bounded = request.toBuilder().setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
+            var transport = moneyTransport(listener);
+            return chatResult(owner.call(bounded, transport, monetaryValidation() ? grant -> moneyGateway.callPrepared(bounded, grant, transport) : null));
         }
+        return textChat(request, messages, listener, listener != null);
     }
 
     /** Native tool turns retain the complete wire envelope and use an explicitly bounded unary call. */
@@ -147,7 +145,7 @@ public class AiGatewayGrpcClient {
         if(!input.nativeTools())return complete(requestId,remoteUserId,selected,input.messages(),listener);
         var request=selectedRequest(buildChatRequest(requestId,remoteUserId,selected.modelKey(),input),selected);
         var capabilities=chatCapabilities(selected.modelKey());
-        if(!capabilities.getBudgetToolsDeclared() || !capabilities.getBudgetToolsAvailable())
+        if(requiresTextStreaming(selected.modelKey()) || !capabilities.getBudgetToolsDeclared() || !capabilities.getBudgetToolsAvailable())
             throw new com.ainovel.app.ai.AiRequestNotSentException(org.springframework.http.HttpStatus.PRECONDITION_FAILED,"AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE");
         var owner=com.ainovel.app.ai.AiNativeBudgetContext.current();
         if(owner!=null)return chatResult(owner.call(request,moneyTransport(),monetaryValidation()?grant->moneyGateway.callPrepared(request,grant,moneyTransport()):null));
@@ -171,13 +169,19 @@ public class AiGatewayGrpcClient {
             com.ainovel.app.modelconfig.AiModelSelection selected) {
         var request = withThinking(original, selected);
         var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
-        // JSON reports must not inherit a provider's much larger prose-generation default.
-        // Drafting and full-text revisions keep their existing output behavior.
         if (snapshot != null && (snapshot.explicitOutputLimits().containsKey(selected.featureKey())
-                || QUALITY_REPORT_FEATURES.contains(selected.featureKey()))) {
+                || REPORT_KEYS.contains(selected.featureKey()))) {
             request = request.toBuilder().setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
         }
         return request;
+    }
+
+    public static boolean requiresTextStreaming(String model) {
+        return model != null && (model.startsWith("gpt-") || model.startsWith("gemini-"));
+    }
+
+    private static ChatCompletionsRequest textStreamLimits(ChatCompletionsRequest request) {
+        return requiresTextStreaming(request.getModel()) ? request.toBuilder().setStreamTimeouts(TEXT_STREAM_LIMITS).build() : request;
     }
 
     public ChatResult chatCompletions(long remoteUserId, String model, List<AiChatRequest.Message> messages) {
@@ -185,43 +189,52 @@ public class AiGatewayGrpcClient {
     }
 
     public ChatResult chatCompletions(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
-        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
-        return validated("CHAT", requestId, model, messages, () -> chatTransport(requestId, remoteUserId, model, messages));
+        return textChat(textStreamLimits(buildChatRequest(requestId, remoteUserId, model, messages)), messages, null, false);
     }
 
-    private ChatResult chatTransport(String requestId, long remoteUserId, String model, List<AiChatRequest.Message> messages) {
-        AiGatewayServiceGrpc.AiGatewayServiceBlockingStub stub = stub();
-        ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
-        ChatCompletionsResponse response = stub.withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .chatCompletions(request);
-        return chatResult(response);
-    }
-
-    public ChatResult chatCompletionsStream(long remoteUserId,
-                                            String model,
-                                            List<AiChatRequest.Message> messages,
-                                            StreamProgressListener listener) {
+    public ChatResult chatCompletionsStream(long remoteUserId, String model,
+                                            List<AiChatRequest.Message> messages, StreamProgressListener listener) {
         return chatCompletionsStream(UUID.randomUUID().toString(), remoteUserId, model, messages, listener);
     }
 
-    public ChatResult chatCompletionsStream(String requestId,
-                                            long remoteUserId,
-                                            String model,
-                                            List<AiChatRequest.Message> messages,
-                                            StreamProgressListener listener) {
-        if(monetaryValidation()) return moneyChat(buildChatRequest(requestId,remoteUserId,model,messages));
-        return validated("CHAT_STREAM", requestId, model, messages, () -> streamTransport(requestId, remoteUserId, model, messages, listener));
+    public ChatResult chatCompletionsStream(String requestId, long remoteUserId, String model,
+                                            List<AiChatRequest.Message> messages, StreamProgressListener listener) {
+        return textChat(textStreamLimits(buildChatRequest(requestId, remoteUserId, model, messages)), messages, listener, true);
+    }
+
+    private ChatResult textChat(ChatCompletionsRequest request, List<AiChatRequest.Message> messages,
+                                StreamProgressListener listener, boolean streamRequested) {
+        if (monetaryValidation()) return chatResult(moneyGateway.call(request, moneyTransport(listener)));
+        boolean streaming = request.hasStreamTimeouts() || streamRequested;
+        try {
+            return validated(streaming ? "CHAT_STREAM" : "CHAT", request.getRequestId(), request.getModel(), messages,
+                    () -> chatResult(streaming ? consumeStream(request, listener) : unaryChat(request)));
+        } catch (io.grpc.StatusRuntimeException failure) {
+            String description = failure.getStatus().getDescription();
+            if (failure.getStatus().getCode()==io.grpc.Status.Code.FAILED_PRECONDITION
+                    && description!=null && description.startsWith("THINKING_OPTIONS_UNSUPPORTED")) {
+                throw new AiRequestNotSentException(org.springframework.http.HttpStatus.CONFLICT, "AI_THINKING_UNSUPPORTED");
+            }
+            throw failure;
+        }
+    }
+
+    private ChatCompletionsResponse unaryChat(ChatCompletionsRequest request) {
+        return stub().withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS).chatCompletions(request);
     }
 
     private boolean monetaryValidation() { return validationBudget.monetaryEnabled(); }
-    public com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() {
+
+    public com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport() { return moneyTransport(null); }
+
+    private com.ainovel.app.ai.AiValidationMoneyGateway.Transport moneyTransport(StreamProgressListener listener) {
         return new com.ainovel.app.ai.AiValidationMoneyGateway.Transport() {
             public fireflychat.ai.v1.ModelChatCapabilities capabilities(String model) { return chatCapabilities(model); }
             public fireflychat.ai.v1.PrepareCallBudgetResponse prepare(fireflychat.ai.v1.PrepareCallBudgetRequest request) {
                 return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).prepareCallBudget(request);
             }
             public ChatCompletionsResponse send(ChatCompletionsRequest request) {
-                return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).chatCompletions(request);
+                return request.hasStreamTimeouts() ? consumeStream(request, listener) : unaryChat(request);
             }
             public fireflychat.ai.v1.GetBudgetCallStatusResponse status(fireflychat.ai.v1.GetBudgetCallStatusRequest request) {
                 return stub().withDeadlineAfter(timeoutMs(),TimeUnit.MILLISECONDS).getBudgetCallStatus(request);
@@ -229,70 +242,71 @@ public class AiGatewayGrpcClient {
         };
     }
     private ChatResult moneyChat(ChatCompletionsRequest request) {
-        // Explicit local acceptance uses only the declared unary text budget path, even when the UI tracks progress.
-        var response=moneyGateway.call(request,moneyTransport());
-        return chatResult(response);
+        return chatResult(moneyGateway.call(request, moneyTransport()));
     }
     @org.springframework.scheduling.annotation.Scheduled(fixedDelayString="${app.ai.validation.reconcile-delay-ms:30000}")
     public void reconcileValidationMoney() {
         if(monetaryValidation()) moneyGateway.reconcilePending(moneyTransport());
     }
 
-    private ChatResult streamTransport(String requestId,
-                                            long remoteUserId,
-                                            String model,
-                                            List<AiChatRequest.Message> messages,
-                                            StreamProgressListener listener) {
-        ChatCompletionsRequest request = buildChatRequest(requestId, remoteUserId, model, messages);
-        return consumeStream(requestId,request,listener);
+    private ChatCompletionsResponse consumeStream(ChatCompletionsRequest request, StreamProgressListener listener) {
+        Iterator<ChatCompletionsStreamEvent> events = stub()
+                .withDeadlineAfter(request.hasStreamTimeouts() ? TEXT_STREAM_RPC_MS : timeoutMs(), TimeUnit.MILLISECONDS)
+                .chatCompletionsStream(request);
+        return collectStream(request, events, listener);
     }
 
-    private ChatResult consumeStream(String requestId,ChatCompletionsRequest request,StreamProgressListener listener) {
-        Iterator<ChatCompletionsStreamEvent> events = stub()
-                .withDeadlineAfter(timeoutMs(), TimeUnit.MILLISECONDS)
-                .chatCompletionsStream(request);
-        StringBuilder content = new StringBuilder();
+    static ChatCompletionsResponse collectStream(ChatCompletionsRequest request, Iterator<ChatCompletionsStreamEvent> events,
+                                                  StreamProgressListener listener) {
+        String requestId = request.getRequestId();
+        var content = new StringBuilder();
         long expectedSequence = 1;
-        long previousOutputTokens = 0;
+        long outputTokens = 0;
         boolean started = false;
-        boolean receivedDelta = false;
         ChatCompletionsStreamEvent completed = null;
         while (events.hasNext()) {
-            ChatCompletionsStreamEvent event = events.next();
-            if (completed != null) {
-                throw new IllegalStateException("ai-service returned an event after COMPLETED");
-            }
-            if (!requestId.equals(event.getRequestId()) || event.getSequence() != expectedSequence++) {
+            var event = events.next();
+            if (completed != null || !requestId.equals(event.getRequestId()) || event.getSequence()!=expectedSequence++) {
                 throw new IllegalStateException("ai-service returned an invalid stream sequence");
             }
-            if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_STARTED) {
-                if (started) throw new IllegalStateException("ai-service returned duplicate STARTED event");
-                started = true;
-                listener.onStarted(requestId, event.getModelKey());
-            } else if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA) {
-                if (!started || event.getContentDelta().isEmpty()) {
-                    throw new IllegalStateException("ai-service returned invalid CONTENT_DELTA event");
+            switch (event.getEventType()) {
+                case CHAT_STREAM_EVENT_TYPE_STARTED -> {
+                    if (started) throw new IllegalStateException("ai-service returned duplicate STARTED event");
+                    started = true;
+                    if (listener != null) listener.onStarted(requestId, event.getModelKey());
                 }
-                if (event.getOutputTokensSoFar() < previousOutputTokens) {
-                    throw new IllegalStateException("ai-service returned decreasing output token progress");
+                case CHAT_STREAM_EVENT_TYPE_CONTENT_DELTA -> {
+                    if (!started || event.getContentDelta().isEmpty() || event.getOutputTokensSoFar() < outputTokens) {
+                        throw new IllegalStateException("ai-service returned invalid CONTENT_DELTA");
+                    }
+                    outputTokens = event.getOutputTokensSoFar();
+                    content.append(event.getContentDelta());
+                    if (listener != null && !event.getContentDelta().isBlank()) listener.onDelta(outputTokens, event.getOutputTokensEstimated());
                 }
-                previousOutputTokens = event.getOutputTokensSoFar();
-                receivedDelta = true;
-                content.append(event.getContentDelta());
-                listener.onDelta(event.getOutputTokensSoFar(), event.getOutputTokensEstimated());
-            } else if (event.getEventType() == ChatStreamEventType.CHAT_STREAM_EVENT_TYPE_COMPLETED) {
-                if (!started || !receivedDelta) throw new IllegalStateException("ai-service returned invalid COMPLETED event");
-                completed = event;
-            } else {
-                throw new IllegalStateException("ai-service returned an unknown stream event");
+                case CHAT_STREAM_EVENT_TYPE_COMPLETED -> {
+                    boolean bounded = request.hasBudgetCredential();
+                    if (!started || event.getOutputTokensEstimated()
+                            || !bounded && content.isEmpty()
+                            || bounded && (!event.getUsageAuthoritative() || !event.hasBudgetCharge())) {
+                        throw new IllegalStateException("ai-service returned an invalid completion receipt");
+                    }
+                    completed = event;
+                }
+                default -> throw new IllegalStateException("ai-service returned an unknown stream event");
             }
         }
         if (completed == null) throw new IllegalStateException("ai-service stream ended without COMPLETED event");
-        listener.onCompleted(completed.getCompletionTokens(), completed.getPromptTokens(), completed.getCacheTokens());
-        return new ChatResult(content.toString(), completed.getModelKey(), completed.getPromptTokens(),
-                completed.getCompletionTokens(), completed.getCacheTokens(), AiResponseMetadata.reported(
-                        completed.getFinishReason(), completed.hasReasoningTokens() ? completed.getReasoningTokens() : null,
-                        completed.hasUsageAuthoritative() ? completed.getUsageAuthoritative() : null));
+        if (listener != null) listener.onCompleted(completed.getCompletionTokens(), completed.getPromptTokens(), completed.getCacheTokens());
+        var result = ChatCompletionsResponse.newBuilder().setContent(content.toString()).setModelKey(completed.getModelKey())
+                .setPromptTokens(completed.getPromptTokens()).setCompletionTokens(completed.getCompletionTokens())
+                .setCacheTokens(completed.getCacheTokens()).setFinishReason(completed.getFinishReason());
+        if (completed.hasReasoningTokens()) result.setReasoningTokens(completed.getReasoningTokens());
+        if (completed.hasUsageAuthoritative()) result.setUsageAuthoritative(completed.getUsageAuthoritative());
+        if (completed.hasBudgetCharge()) result.setBudgetCharge(completed.getBudgetCharge());
+        if (completed.hasStreamTiming()) result.setStreamTiming(completed.getStreamTiming());
+        if (completed.hasCreditBilling()) result.setCreditBilling(completed.getCreditBilling());
+        if (completed.hasNativeResponseJson()) result.setNativeResponseJson(completed.getNativeResponseJson());
+        return result.build();
     }
 
     private ChatCompletionsRequest buildChatRequest(String requestId,

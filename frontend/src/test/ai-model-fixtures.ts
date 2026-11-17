@@ -1,19 +1,19 @@
-import type { AiFeature, AiQuote, ModelCatalog } from "@/lib/ai-model-config";
-export function featureFixture(): AiFeature {
-  return { definition: { key: "generic.chat", group: "tools", zh: "通用对话", tw: "通用對話", en: "General chat" }, revision: 1,
-    billingEnabled: true, defaultOptionId: "option-a", preferredOptionId: null, preferenceInvalid: false, unavailableOptions: [],
+import type { ModelResponsibility, AiQuote, ModelCatalog } from "@/lib/ai-model-config";
+export function roleFixture(): ModelResponsibility {
+  return { definition: { key: "role.discussion", group: "support", zh: "通用对话", tw: "通用對話", en: "General chat" }, revision: 1,
+    billingEnabled: true, defaultOptionId: "option-a", preferredOptionId: null, preferenceInvalid: false, unavailableOptions: [], outputTokenLimits: {},
     options: [
-      { featureKey: "generic.chat", optionId: "option-a", modelKey: "model-a", label: "Fast", thinkingMode: "DEFAULT", thinkingEffort: null,
+      { featureKey: "role.discussion", optionId: "option-a", modelKey: "model-a", label: "Fast", thinkingMode: "DEFAULT", thinkingEffort: null,
         streaming: true, billingEnabled: true, pricingMode: "FIXED", fixedCredits: 1, inputPer1k: null, outputPer1k: null, revision: 1 },
-      { featureKey: "generic.chat", optionId: "option-b", modelKey: "model-a", label: "Careful", thinkingMode: "ON", thinkingEffort: "HIGH",
+      { featureKey: "role.discussion", optionId: "option-b", modelKey: "model-a", label: "Careful", thinkingMode: "ON", thinkingEffort: "HIGH",
         streaming: true, billingEnabled: true, pricingMode: "TOKENS", fixedCredits: null, inputPer1k: 0.1, outputPer1k: 0.3, revision: 1 },
     ] };
 }
 export function quoteFixture(): AiQuote {
-  const feature = featureFixture();
+  const role = roleFixture();
   return { id: "quote-one", expiresAt: new Date(Date.now() + 600000).toISOString(), estimatedCredits: 1,
-    steps: [{ step: { featureKey: "generic.chat", conditional: false, calls: "ONE", estimatedInput: 100, estimatedOutput: 4096 },
-      feature, selected: feature.options[0], estimatedCredits: 1 }] };
+    roles: [{ estimates: [{ conditional: false, calls: "ONE", estimatedInput: 100, estimatedOutput: 4096 }],
+      role, selected: role.options[0], estimatedCredits: 1 }] };
 }
 export function catalogFixture(): ModelCatalog {
   return { revision: 1, last_attempt_at: null, last_success_at: null, last_error: null, specialized: [

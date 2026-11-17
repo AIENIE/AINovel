@@ -1,5 +1,6 @@
 package com.ainovel.app.storyassistant;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
@@ -18,6 +19,11 @@ import static com.ainovel.app.storyassistant.StoryAssistantErrors.*;
 
 @Service
 public class StoryAssistantService {
+
+    public static AiModelRole modelRole(String intent) {
+        return "DISCUSS".equalsIgnoreCase(intent) ? AiModelRole.DISCUSSION : AiModelRole.SETTING_PROPOSAL;
+    }
+
     public static final String TYPE="STORY_ASSISTANT_TURN";
     private final StoryAssistantStore store;
     private final StoryAssistantResources resources;
@@ -211,7 +217,8 @@ public class StoryAssistantService {
     private AiChatResponse call(AiOperationExecution execution,UUID turnId,String stage,AiChatRequest request){
         var row=store.turn(turnId);String raw=stage.equals("plan")?row.planResultJson():row.finalResultJson();if(raw!=null)return store.read(raw,AiChatResponse.class);
         String saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        var configured=request.forFeature("story_assistant."+store.read(row.frozenJson(),Frozen.class).intent().toLowerCase(java.util.Locale.ROOT)+"."+stage);
+        String intent = store.read(row.frozenJson(),Frozen.class).intent();
+        var configured = request.forRole(modelRole(intent), "story_assistant."+intent.toLowerCase(java.util.Locale.ROOT)+"."+stage);
         if(saved==null){AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var frozen=store.read(saved,AiChatRequest.class);AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),frozen,execution.operationId()+":story-assistant:"+stage);store.checkpoint(turnId,stage+"_result_json",response);return response;

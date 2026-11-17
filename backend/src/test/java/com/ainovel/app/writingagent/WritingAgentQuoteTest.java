@@ -35,7 +35,7 @@ class WritingAgentQuoteTest {
         doReturn(frozen).when(service).prepare(eq(user),eq(manuscript),eq(scene),any());
 
         var plan=service.quote(user,manuscript,scene,json.valueToTree(request));
-        var calls=plan.steps().stream().collect(Collectors.toMap(step->step.featureKey(),step->step.calls()));
+        var calls=plan.steps().stream().collect(Collectors.toMap(step->step.stepKey(),step->step.calls()));
 
         assertEquals(Map.of("writing_agent.control","UP_TO_"+maximum,"scene.fast.draft","UP_TO_1",
                 "writing_agent.refine","UP_TO_"+Math.min(3,maximum),"language.diagnose","UP_TO_"+Math.min(4,maximum),

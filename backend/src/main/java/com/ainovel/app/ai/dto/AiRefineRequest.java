@@ -1,6 +1,7 @@
 package com.ainovel.app.ai.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.ainovel.app.modelconfig.AiModelRole;
 
 @Schema(description = "AI 润色请求")
 public record AiRefineRequest(
@@ -10,8 +11,12 @@ public record AiRefineRequest(
         String instruction,
         @Schema(description = "模型 ID", example = "2")
         String modelId,
-        String featureKey
+        String featureKey,
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @Schema(hidden = true) AiModelRole modelRole
 ) {
-    public AiRefineRequest(String text,String instruction,String modelId) {this(text,instruction,modelId,null);}
-    public AiRefineRequest forFeature(String feature) {return new AiRefineRequest(text,instruction,modelId,feature);}
+    public AiRefineRequest(String text, String instruction, String modelId) { this(text, instruction, modelId, null, null); }
+    public AiRefineRequest forRole(AiModelRole role, String stepKey) {
+        return new AiRefineRequest(text, instruction, modelId, stepKey, role);
+    }
 }

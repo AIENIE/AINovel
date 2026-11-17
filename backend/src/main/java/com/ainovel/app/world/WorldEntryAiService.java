@@ -1,5 +1,6 @@
 package com.ainovel.app.world;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.AiOperationExecutionContext;
@@ -39,7 +40,7 @@ public class WorldEntryAiService {
     }
     public AiChatRequest freezeRequest(UUID worldId,UUID entryId,Long revision) {
         var input=input(worldId,entryId,revision);
-        return prompts.entry(input.user(),input.content(),input.entry(),"补全该条目正文",false).forFeature(store.feature(input.entry(),"generate"));
+        return prompts.entry(input.user(),input.content(),input.entry(),"补全该条目正文",false).forRole(AiModelRole.CONCEPTION, store.stepKey(input.entry(),"generate"));
     }
     public Map<String,AiChatRequest> freezeModules(UUID worldId,List<String> moduleKeys) {
         return tx.execute(status->{
@@ -51,11 +52,18 @@ public class WorldEntryAiService {
             var requests=new LinkedHashMap<String,AiChatRequest>();
             for(var generated:store.legacyEntries(worldId,projected))if(Objects.toString(generated.content(),"").isBlank()) {
                 var entry=content.entries().stream().filter(e->Objects.equals(e.legacyModuleKey(),generated.legacyModuleKey())&&Objects.equals(e.legacyFieldKey(),generated.legacyFieldKey())).findFirst().orElse(generated);
-                requests.put(entry.legacyModuleKey()+":"+entry.legacyFieldKey(),prompts.entry(world.getUser(),content,entry,"补全该字段正文",false).forFeature(store.feature(entry,"generate")));
+                requests.put(entry.legacyModuleKey()+":"+entry.legacyFieldKey(),prompts.entry(world.getUser(),content,entry,"补全该字段正文",false).forRole(AiModelRole.CONCEPTION, store.stepKey(entry,"generate")));
             }
             return Map.copyOf(requests);
         });
     }
+    public void validateForQuote(UUID worldId, UUID entryId, boolean requireEmpty) {
+        var entry = input(worldId, entryId, null).entry();
+        if (requireEmpty && !Objects.toString(entry.content(), "").isBlank()) {
+            throw WorldEntryStore.error("WORLD_ENTRY_NOT_EMPTY");
+        }
+    }
+
     public void requireEmpty(UUID worldId,UUID entryId,Long revision) {
         if(revision==null)throw WorldEntryStore.error("WORLD_REVISION_REQUIRED");
         if(!Objects.toString(input(worldId,entryId,revision).entry().content(),"").isBlank())throw WorldEntryStore.error("WORLD_ENTRY_NOT_EMPTY");
@@ -71,7 +79,7 @@ public class WorldEntryAiService {
             }
             var response=ai.refine(frozen.user(),new AiRefineRequest(store.write(frozen.content()),
                 "请补全世界条目“"+frozen.entry().title()+"”的正文。只返回该条目的设定内容，与提供的已有设定一致，不改写其他条目。",null)
-                .forFeature(store.feature(frozen.entry(),"generate")));
+                .forRole(AiModelRole.CONCEPTION, store.stepKey(frozen.entry(),"generate")));
             return nonempty(response);
         });
         return AiOperationExecutionContext.complete(()->tx.execute(status->{
@@ -91,7 +99,7 @@ public class WorldEntryAiService {
         String instruction=Objects.toString(request.instruction(),"").strip();
         var e=frozen.entry();
         var original=new Entry(e.id(),e.type(),e.title(),e.summary(),request.text(),e.aliases(),e.tags(),e.legacyModuleKey(),e.legacyFieldKey());
-        var response=ai.chat(frozen.user(),prompts.entry(frozen.user(),frozen.content(),original,instruction,true).forFeature(store.feature(e,"refine")));
+        var response=ai.chat(frozen.user(),prompts.entry(frozen.user(),frozen.content(),original,instruction,true).forRole(AiModelRole.SETTING_REFINE, store.stepKey(e,"refine")));
         var result = response == null ? new AiRefineResponse("", null, null, null) : AiRefineResponse.fromChat(response);
         nonempty(result);return result;
     }

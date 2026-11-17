@@ -1,5 +1,6 @@
 package com.ainovel.app.writingagent;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.assistant.AssistantDocumentProjection;
 import com.ainovel.app.assistant.AssistantDtos;
@@ -78,7 +79,7 @@ public class CandidateAgentTools {
         add(messages,"user",(refine?"当前完整候选（只读全景）：\n":"现有场景完整原文（只读全景）：\n")+candidate(input));
         add(messages,"user","本次可编辑组（原组身份不变，已包括父候选修改）：\n"+write(AssistantDocumentProjection.promptRuns(input.document(),input.parent())));
         add(messages,"user","本次实际已读资料（仅允许以下内容，未读取不等于不存在）：\n"+write(allowedReads(input)));
-        return requireFits(new AiChatRequest(List.copyOf(messages),null,null).forFeature(feature));
+        return requireFits(new AiChatRequest(List.copyOf(messages),null,null).forRole(feature.equals("writing_agent.refine") ? AiModelRole.PROSE_REVISE : AiModelRole.PROSE_DRAFT, feature));
     }
     public Candidate parseCandidate(String raw,Input input) {
         requireDocument(input);var node=LanguageAnalysis.json(raw,json);
@@ -108,7 +109,7 @@ public class CandidateAgentTools {
         add(messages,"user","作者目标：\n"+Objects.toString(input.instruction(),""));
         add(messages,"user","本次获准且实际已读资料：\n"+write(allowedReads(input)));
         add(messages,"user","当前完整场景候选：\n"+projection(input).text());
-        return requireFits(new AiChatRequest(List.copyOf(messages),null,null).forFeature("plot.diagnose"));
+        return requireFits(new AiChatRequest(List.copyOf(messages),null,null).forRole(AiModelRole.PLOT_CHECK, "plot.diagnose"));
     }
     public Report parsePlot(String raw,Input input) {
         var node=LanguageAnalysis.json(raw,json);

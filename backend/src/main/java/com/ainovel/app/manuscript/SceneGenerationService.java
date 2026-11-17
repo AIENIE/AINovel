@@ -1,5 +1,6 @@
 package com.ainovel.app.manuscript;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
@@ -153,7 +154,7 @@ public class SceneGenerationService {
                         +SceneGenerationPromptBuilder.lengthRevision(previousDraft,previous.actualHan(),min,max)));
             }
             var retained=candidateStore.draft(operationId,attempt);
-            var request=new AiChatRequest(messages,null,null).forFeature("scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length"));
+            var request=new AiChatRequest(messages,null,null).forRole(attempt==1?AiModelRole.PROSE_DRAFT:AiModelRole.PROSE_REVISE, "scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length"));
             if(attempt==2&&retained!=null&&retained.getRequestJson()!=null) {
                 try {request=objectMapper.readValue(retained.getRequestJson(),AiChatRequest.class);messages=new ArrayList<>(request.messages());}
                 catch(Exception e){throw new com.ainovel.app.ai.AiResultUncertainException(e);}
@@ -307,7 +308,7 @@ public class SceneGenerationService {
                     owner, story, sceneContext, characterContext, previousContext,
                     previousDraft, previousCount, attempt, sceneContext.lengthRange().minHan(), sceneContext.lengthRange().maxHan(), mode, compiledContext
             );
-            String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null).forFeature("scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length")),
+            String raw = aiService.chat(owner, new AiChatRequest(prompt.messages(), null, null).forRole(attempt==1?AiModelRole.PROSE_DRAFT:AiModelRole.PROSE_REVISE, "scene."+mode.name().toLowerCase(java.util.Locale.ROOT)+(attempt==1?".draft":".length")),
                     usageContext.forOperation("draft-" + attempt)).content();
             String normalized = normalizeGeneratedText(raw);
             int hanCount = countHanCharacters(normalized);

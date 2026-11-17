@@ -138,9 +138,11 @@ message ChatCompletionsRequest {
   // A budgeted request must use the same bound as PrepareCallBudget.
   optional int32 max_output_tokens = 14;
   optional string evaluation_run_id = 15;
-  // Unary only, ENV=local and existing authenticated/authorized callers; no project-specific debug allowlist.
+  // ENV=local and existing authenticated/authorized callers; no project-specific debug allowlist.
   // Observes the existing response; does not enable thinking or change generation.
   optional bool include_debug = 16;
+  // Opt-in streaming limits; omitted keeps existing caller defaults. Included in request identity.
+  optional ChatStreamTimeouts stream_timeouts = 17;
 }
 
 message ChatCompletionsResponse {
@@ -162,6 +164,8 @@ message ChatCompletionsResponse {
   // Present only for an explicitly requested CNY budget; persisted with the original result.
   optional BudgetCharge budget_charge = 11;
   optional ChatDebugInfo debug_info = 12;
+  optional ChatStreamTiming stream_timing = 13;
+  ModelCreditBilling credit_billing = 14;
 }
 
 // Local diagnostics only. Never echo into conversation history or business memory.
@@ -212,6 +216,10 @@ message ChatCompletionsStreamEvent {
   optional string native_response_json = 13;
   optional int64 reasoning_tokens = 14;
   optional bool usage_authoritative = 15;
+  optional BudgetCharge budget_charge = 16;
+  optional ChatDebugInfo debug_info = 17;
+  optional ChatStreamTiming stream_timing = 18;
+  ModelCreditBilling credit_billing = 19;
 }
 
 message EmbeddingsRequest {
@@ -421,6 +429,12 @@ message GetBudgetCallStatusResponse {
   optional BudgetPriceQuote price_quote = 13;
   // Present only with a committed monetary success, including authoritative usage.
   optional BudgetCharge charge = 14;
+  optional ChatStreamProgress stream_progress = 15;
+  // TERMINATED is persisted only after the owning gateway worker finishes cleanup.
+  // Expiry, missing ownership after restart and historical records remain UNKNOWN.
+  optional BudgetExecutionState execution_state = 16;
+  // Present only with durable TERMINATED evidence; not a provider cancellation acknowledgement.
+  optional int64 execution_ended_at_epoch_ms = 17;
 }
 
 service AiGatewayService {
@@ -441,4 +455,53 @@ service AiGatewayService {
   rpc GenerateImage(GenerateImageRequest) returns (GenerateImageResponse);
   // Read-only caller catalog; no ordinary user ID or inference consumption.
   rpc ListCallerModels(ListCallerModelsRequest) returns (ListCallerModelsResponse);
+}
+
+message ChatStreamTimeouts {
+  int64 first_text_ms = 1;
+  int64 idle_ms = 2;
+  int64 total_ms = 3;
+  // Apply the provider read idle limit after the first visible text delta.
+  optional bool idle_after_first_text = 4;
+}
+
+message ChatStreamTiming {
+  optional int64 provider_started_at_epoch_ms = 1;
+  optional int64 first_event_ms = 2;
+  optional int64 first_text_ms = 3;
+  int64 total_ms = 4;
+  optional int64 last_event_at_epoch_ms = 5;
+}
+
+message ChatStreamProgress {
+  string content = 1;
+  optional ChatStreamTiming timing = 2;
+}
+
+enum BudgetExecutionState {
+  BUDGET_EXECUTION_STATE_UNKNOWN = 0;
+  BUDGET_EXECUTION_STATE_NOT_STARTED = 1;
+  BUDGET_EXECUTION_STATE_RUNNING = 2;
+  BUDGET_EXECUTION_STATE_TERMINATED = 3;
+}
+
+enum ModelCreditBillingMode {
+  MODEL_CREDIT_BILLING_MODE_UNSPECIFIED = 0;
+  MODEL_CREDIT_BILLING_MODE_TOKEN = 1;
+  MODEL_CREDIT_BILLING_MODE_INPUT_TOKEN = 2;
+  MODEL_CREDIT_BILLING_MODE_CALL = 3;
+}
+
+message ModelCreditPricing {
+  ModelCreditBillingMode mode = 1;
+  string unit = 2; // Always CREDITS.
+  optional string input_price_per_million = 3;
+  optional string output_price_per_million = 4;
+  optional string cache_input_price_per_million = 5;
+  optional string price_per_call = 6; // Missing means not configured, not free.
+}
+
+message ModelCreditBilling {
+  ModelCreditPricing pricing = 1;
+  optional string estimated_credits = 2; // Decimal credits, rounded HALF_UP to six places.
 }

@@ -22,7 +22,7 @@ class V2ModelCapabilitiesTest {
     private final V2ModelRegistryRepository models = mock(V2ModelRegistryRepository.class);
 
     private V2ModelPersistenceService service(V2ModelRegistry model) {
-        var service = new V2ModelPersistenceService(models, mock(V2UserModelPreferenceRepository.class), projection);
+        var service = new V2ModelPersistenceService(models, projection);
         ReflectionTestUtils.setField(service, "modelConfiguration", mock(AiModelConfigurationService.class));
         when(models.findByOrderByPriorityDesc()).thenReturn(List.of(model));
         when(models.findByModelKey(model.getModelKey())).thenReturn(Optional.of(model));

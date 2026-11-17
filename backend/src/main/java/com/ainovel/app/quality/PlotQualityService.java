@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
@@ -80,7 +81,7 @@ public class PlotQualityService {
                     List.of(new AiChatRequest.Message("user", buildAnalysisPrompt(request))),
                     null,
                     null
-            ).forFeature("plot.diagnose")).content();
+            ).forRole(AiModelRole.PLOT_CHECK, "plot.diagnose")).content();
             return toRun(request, parseJson(content));
         } catch (RuntimeException ex) {
             if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;
@@ -162,7 +163,7 @@ public class PlotQualityService {
 
     public PlotQualityRun generateRevisionCandidate(User user, Manuscript manuscript, UUID runId) {
         var snapshot = boundary.snapshot(manuscript, current -> revisionPrompt(user, current, runId));
-        String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forFeature("plot.revise")).content();
+        String candidate = aiService.chat(user, new AiChatRequest(List.of(new AiChatRequest.Message("user", snapshot.data())), null, null).forRole(AiModelRole.PROSE_REVISE, "plot.revise")).content();
         return boundary.save(snapshot, current -> {
             PlotQualityRun run = requireRun(runId);
             ensureRunBelongsToManuscript(run, current);

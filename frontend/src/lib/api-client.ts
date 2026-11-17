@@ -1,6 +1,6 @@
 import { requestAiQuote } from "./ai-quote-store";
 import { createWorldContextApi } from './api/domains/world-context';
-import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment, ModelResponsibility } from "./ai-model-config";
+import type { AiQuote, ModelCatalog, AiPendingPayment, ModelResponsibility } from "./ai-model-config";
 import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
@@ -886,8 +886,8 @@ export const api = {
       options: feature.options.map((option) => ({ id: option.optionId, modelKey: option.modelKey,
         label: option.label, thinkingMode: option.thinkingMode, thinkingEffort: option.thinkingEffort, pricingMode: option.pricingMode,
         fixedCredits: option.fixedCredits, inputPer1k: option.inputPer1k, outputPer1k: option.outputPer1k })) }) }, adminCookieAuth()),
-    features: () => requestJson<AiFeature[]>("/v2/ai-features"),
-    preference: (key: string, preferredOptionId: string | null) => requestJson<AiFeature>(`/v2/users/me/model-preferences/${key}`, { method: "PUT", body: JSON.stringify({ preferredOptionId }) }),
+    responsibilities: () => requestJson<ModelResponsibility[]>("/v2/users/me/model-preferences"),
+    preference: (key: string, preferredOptionId: string | null) => requestJson<ModelResponsibility>(`/v2/users/me/model-preferences/${key}`, { method: "PUT", body: JSON.stringify({ preferredOptionId }) }),
   },
   ai: {
     versionSummary: (messages: Array<{ role: string; content: string }>, context: NetworkObject) => requestJson<NetworkObject>("/v1/ai/version-summary", { method: "POST", body: JSON.stringify({ messages, context }) }),

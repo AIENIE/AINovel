@@ -93,76 +93,100 @@ class AiModelConfigurationMysqlTest {
     private AiModelConfigurationService.CatalogModel model(String id,String key) {
         return new AiModelConfigurationService.CatalogModel(id,key,key,"fixture",true,true,false,AiModelConfigurationService.Thinking.unknown(),null);
     }
-    private AiModelConfigurationService.RoutingView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid) {
+    private AiModelConfigurationService.RoleView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid) {
         return setPrice(mode, fixed, input, output, paid, null);
     }
-    private AiModelConfigurationService.RoutingView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid,Integer limit) {
-        var before=config.feature("generic.chat",user);String id=UUID.randomUUID().toString();
+    private AiModelConfigurationService.RoleView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid,Integer limit) {
+        var before=config.role(AiModelRole.DISCUSSION,user);String id=UUID.randomUUID().toString();
         var option=new AiModelConfigurationService.OptionInput(id,"model-a","Custom visible name","DEFAULT",null,mode,fixed,input,output);
-        return config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(before.revision(),paid,id,List.of(option),
+        return config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(before.revision(),paid,id,List.of(option),
                 limit == null ? Map.of() : Map.of(id, limit)));
     }
     private AiQuoteService.View quote() {return quotes.create(user,new AiQuoteService.Request("/v1/ai/chat",json.valueToTree(Map.of("messages",List.of(Map.of("role","user","content","hello")))),Map.of()));}
     private AiSelectionContext.Snapshot accept(AiQuoteService.View q,String key) {
         return quotes.accept(user,"/v1/ai/chat",json.valueToTree(Map.of("messages",List.of(Map.of("role","user","content","hello")))),q.id(),key);
     }
-    private AiChatRequest request(String content) {return new AiChatRequest(List.of(new AiChatRequest.Message("user",content)),null,null).forFeature("generic.chat");}
-    @Test void worldFieldsAndEntriesShareTheRoleButRetainTheirExecutionKeys() {
+    private AiChatRequest request(String content) {return new AiChatRequest(List.of(new AiChatRequest.Message("user",content)),null,null).forRole(AiModelRole.DISCUSSION, "generic.chat");}
+    @Test void newWorldFieldsUseTheSameRoleWithoutRegisteringAnOperation() {
         tx.executeWithoutResult(status -> {
-            var shared = config.feature("world.entry.generate", user);
-            String id=UUID.randomUUID().toString();
-            var option=new AiModelConfigurationService.OptionInput(id,"model-b","设定模型","DEFAULT",null,"FIXED",2L,null,null);
-            config.update("role.conception",new AiModelConfigurationService.FeatureUpdate(shared.revision(),true,id,List.of(option)));
-            for (String key : List.of("world.geography.terrain.generate", "world.geography.climate.generate", "world.entry.generate", "guided.world")) {
-                var feature = config.feature(key, user);
-                assertThat(feature.defaultOptionId()).isEqualTo(id);
-                assertThat(feature.options()).singleElement().satisfies(selection -> {
-                    assertThat(selection.featureKey()).isEqualTo(key);
-                    assertThat(selection.modelKey()).isEqualTo("model-b");
-                });
+            var shared = config.role(AiModelRole.CONCEPTION, user);
+            String id = UUID.randomUUID().toString();
+            var option = new AiModelConfigurationService.OptionInput(id,"model-b","设定模型","DEFAULT",null,"FIXED",2L,null,null);
+            var role = config.update("role.conception", new AiModelConfigurationService.RoleUpdate(shared.revision(),true,id,List.of(option)));
+            var snapshot = new AiSelectionContext.Snapshot("world-quote", Map.of("role.conception", role.options().getFirst()),
+                    null, Map.of(), null, null, null, Map.of(), true);
+            try (var scope = AiSelectionContext.install(snapshot)) {
+                for (var key : List.of("world-field:geography:terrain:generate", "world-field:geography:new-field:generate")) {
+                    assertThat(AiSelectionContext.selection(request("生成").forRole(AiModelRole.CONCEPTION,key)).optionId()).isEqualTo(id);
+                }
+                assertThat(AiSelectionContext.callKey("terrain")).isNotEqualTo(AiSelectionContext.callKey("new-field"));
             }
-            assertThat(config.feature("world.geography.climate.refine", user).defaultOptionId()).isNotEqualTo(id);
-            assertThat(config.feature("writing_agent.control", user).options()).isEmpty();
             status.setRollbackOnly();
         });
     }
 
-    @Test void copiesCompatibleLegacyOptionsAndMapsOnlyTheOriginalOperationPreference() {
+    @Test void migratesAUniqueLegacyPreferenceAndRemovesTheLeafRows() {
         tx.executeWithoutResult(status -> {
             clearConceptionRole();
             String preferred = legacyWorldOption("world.geography.terrain.generate", "model-a", 2);
-            legacyWorldOption("world.geography.climate.generate", "model-b", 2);
-            jdbc.update("insert into user_model_preferences(id,user_id,task_type,preferred_option_id) values(?,?,?,?)",
-                    AiModelConfigurationService.bytes(UUID.randomUUID()), AiModelConfigurationService.bytes(user.getId()),
-                    "world.geography.terrain.generate", preferred);
-            config.ensureInitialized();
-            var terrain = config.feature("world.geography.terrain.generate", user);
-            var climate = config.feature("world.geography.climate.generate", user);
-            assertThat(terrain.options()).hasSize(2);
-            assertThat(terrain.preferredOptionId()).isNotEqualTo(preferred);
-            assertThat(terrain.preferenceInvalid()).isFalse();
-            assertThat(climate.defaultOptionId()).isEqualTo(terrain.defaultOptionId());
-            assertThat(climate.preferredOptionId()).isNull();
-            assertThat(config.optionId(terrain, preferred)).isEqualTo(terrain.preferredOptionId());
-            assertThat(config.optionId(climate, preferred)).isEqualTo(preferred);
-            assertThatThrownBy(() -> config.update("world.geography.terrain.generate",
-                    new AiModelConfigurationService.FeatureUpdate(0, true, preferred, List.of()))).hasMessage("AI_CONFIGURATION_CHANGED");
+            legacyWorldOption("world.geography.climate.generate", "model-a", 2);
+            legacyPreference("world.geography.terrain.generate", preferred);
+            migrateResponsibilities();
+            var role = config.role(AiModelRole.CONCEPTION, user);
+            assertThat(role.options()).hasSize(1);
+            assertThat(role.preferredOptionId()).isEqualTo(role.defaultOptionId()).isNotEqualTo(preferred);
+            assertThat(jdbc.queryForObject("select count(*) from task_model_routing where task_type like 'world.%'",Integer.class)).isZero();
+            assertThat(jdbc.queryForObject("select count(*) from user_model_preferences where task_type like 'world.%'",Integer.class)).isZero();
+            assertThat(config.preference(user,"role.conception",null).preferredOptionId()).isNull();
             status.setRollbackOnly();
         });
     }
 
-    @Test void differentLegacyRatesKeepTheirOriginalDefaultsUntilAnExplicitSharedSave() {
+    @Test void migrationMakesIncompatibleLegacyDefaultsUnconfigured() {
         tx.executeWithoutResult(status -> {
             clearConceptionRole();
-            String terrain = legacyWorldOption("world.geography.terrain.generate", "model-a", 2);
-            String climate = legacyWorldOption("world.geography.climate.generate", "model-b", 3);
-            var shared = config.routing().stream().filter(role -> role.definition().key().equals("role.conception")).findFirst().orElseThrow();
-            assertThat(shared.options()).isEmpty();
-            assertThat(shared.legacyDefaults()).hasSize(2);
-            assertThat(config.feature("world.geography.terrain.generate", user).defaultOptionId()).isEqualTo(terrain);
-            assertThat(config.feature("world.geography.climate.generate", user).defaultOptionId()).isEqualTo(climate);
+            legacyWorldOption("world.geography.terrain.generate", "model-a", 2);
+            legacyWorldOption("world.geography.climate.generate", "model-b", 3);
+            migrateResponsibilities();
+            config.ensureInitialized();
+            var role = config.role(AiModelRole.CONCEPTION,user);
+            assertThat(role.options()).isEmpty();
+            assertThat(role.defaultOptionId()).isNull();
             status.setRollbackOnly();
         });
+    }
+
+    @Test void conflictingOldPreferencesFollowTheExistingResponsibilityDefault() {
+        tx.executeWithoutResult(status -> {
+            var configBefore = config.role(AiModelRole.CONCEPTION, user);
+            String first = UUID.randomUUID().toString();
+            String second = UUID.randomUUID().toString();
+            config.update("role.conception", new AiModelConfigurationService.RoleUpdate(configBefore.revision(), true, first,
+                    List.of(new AiModelConfigurationService.OptionInput(first,"model-a","A","DEFAULT",null,"FIXED",2L,null,null),
+                            new AiModelConfigurationService.OptionInput(second,"model-b","B","DEFAULT",null,"FIXED",2L,null,null))));
+            legacyPreference("world.geography.terrain.generate", legacyWorldOption("world.geography.terrain.generate","model-a",2));
+            legacyPreference("world.geography.climate.generate", legacyWorldOption("world.geography.climate.generate","model-b",2));
+            migrateResponsibilities();
+            var role = config.role(AiModelRole.CONCEPTION, user);
+            assertThat(role.preferredOptionId()).isNull();
+            assertThat(role.defaultOptionId()).isEqualTo(first);
+            status.setRollbackOnly();
+        });
+    }
+
+    private void legacyPreference(String key, String optionId) {
+        jdbc.update("insert into user_model_preferences(id,user_id,task_type,preferred_option_id) values(?,?,?,?)",
+                AiModelConfigurationService.bytes(UUID.randomUUID()), AiModelConfigurationService.bytes(user.getId()), key, optionId);
+    }
+
+    private void migrateResponsibilities() {
+        var context = mock(org.flywaydb.core.api.migration.Context.class);
+        when(context.getConnection()).thenReturn(org.springframework.jdbc.datasource.DataSourceUtils.getConnection(jdbc.getDataSource()));
+        try {
+            new db.migration.V51__consolidate_model_responsibilities().migrate(context);
+        } catch (Exception error) {
+            throw new AssertionError(error);
+        }
     }
 
     private void clearConceptionRole() {
@@ -187,10 +211,10 @@ class AiModelConfigurationMysqlTest {
         setPrice("FIXED",19L,null,null,true);
         jdbc.update("update ai_model_quotes set expires_at=? where id=?",Timestamp.from(Instant.now().minusSeconds(1)),q.id());
         assertThat(accept(q,"same-request")).isEqualTo(snapshot);
-        assertThat(snapshot.selections().get("generic.chat").fixedCredits()).isEqualTo(3L);
-        assertThat(q.steps().getFirst().step().estimatedOutput()).isEqualTo(32768);
-        assertThat(snapshot.outputBudget("generic.chat")).isEqualTo(32768);
-        assertThat(snapshot.explicitOutputLimits()).containsEntry("generic.chat", 32768);
+        assertThat(snapshot.selections().get("role.discussion").fixedCredits()).isEqualTo(3L);
+        assertThat(q.roles().getFirst().estimates().getFirst().estimatedOutput()).isEqualTo(32768);
+        assertThat(snapshot.outputBudget("role.discussion")).isEqualTo(32768);
+        assertThat(snapshot.explicitOutputLimits()).containsEntry("role.discussion", 32768);
         assertThatThrownBy(()->accept(q,"different-request")).hasMessage("AI_QUOTE_ALREADY_USED");
     }
     @Test void unacceptedQuotesRejectChangedPricesExpiredTimeDifferentInputAndDifferentUsers() {
@@ -202,12 +226,12 @@ class AiModelConfigurationMysqlTest {
         var other=new User();other.setId(UUID.randomUUID());assertThatThrownBy(()->quotes.accept(other,"/v1/ai/chat",json.createObjectNode(),changed.id(),"request")).hasMessage("AI_QUOTE_INVALID");
     }
     @Test void syncPreservesRetailOptionsWhileEmptyAndFailedCatalogsDoNotChooseOtherModels() {
-        var before=config.feature("generic.chat",user);
+        var before=config.role(AiModelRole.DISCUSSION,user);
         when(gateway.listCallerModels()).thenThrow(new IllegalStateException("upstream unavailable"));
         assertThatThrownBy(config::sync).hasMessage("AI_CATALOG_SYNC_FAILED");
-        assertThat(config.feature("generic.chat",user).options()).isEqualTo(before.options());assertThat(config.available("model-a")).isTrue();
+        assertThat(config.role(AiModelRole.DISCUSSION,user).options()).isEqualTo(before.options());assertThat(config.available("model-a")).isTrue();
         doReturn(List.of()).when(gateway).listCallerModels();config.sync();
-        var after=config.feature("generic.chat",user);
+        var after=config.role(AiModelRole.DISCUSSION,user);
         assertThat(after.options()).extracting(AiModelSelection::label).containsExactly("Custom visible name");
         assertThat(after.unavailableOptions()).containsExactly(before.defaultOptionId());
         assertThatThrownBy(this::quote).hasMessage("AI_OPTION_UNAVAILABLE");
@@ -221,7 +245,7 @@ class AiModelConfigurationMysqlTest {
         }
         assertThat(economy.projectBalance(user)).isZero();assertThat(jdbc.queryForObject("select count(*) from project_credit_ledger where user_id=?",Long.class,AiModelConfigurationService.bytes(user.getId()))).isZero();
         var paid=new AiModelConfigurationService.OptionInput(UUID.randomUUID().toString(),"model-a","second","DEFAULT",null,"FIXED",1L,null,null);
-        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(feature.revision(),false,feature.defaultOptionId(),List.of(paid,paid)))).hasMessage("AI_OPTIONS_INVALID");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(feature.revision(),false,feature.defaultOptionId(),List.of(paid,paid)))).hasMessage("AI_OPTIONS_INVALID");
         var stored=reservations.findAll().stream().filter(r->r.getUser().getId().equals(user.getId())).findFirst().orElseThrow();
         assertThat(stored.getReservedAmount()).isZero();assertThat(stored.getSettledAmount()).isZero();assertThat(stored.getStatus()).isEqualTo(AiCreditReservation.Status.COMPLETED);
     }
@@ -274,21 +298,21 @@ class AiModelConfigurationMysqlTest {
         assertThatThrownBy(()->quotes.accept(user,target,body,q.id(),"business-request")).hasMessage("AI_QUOTE_INPUT_CHANGED");
     }
     @Test void sameModelCanHaveDifferentPlansAndADeletedPreferenceCannotSilentlyFallBack() {
-        var f=config.feature("generic.chat",user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
+        var f=config.role(AiModelRole.DISCUSSION,user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
         var first=new AiModelConfigurationService.OptionInput(a,"model-a","Fast","DEFAULT",null,"FIXED",1L,null,null);
         var second=new AiModelConfigurationService.OptionInput(b,"model-a","Careful","DEFAULT",null,"FIXED",5L,null,null);
-        var updated=config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(first,second)));
-        config.preference(user,"generic.chat",b);assertThat(quote().steps().getFirst().selected().label()).isEqualTo("Careful");
-        config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(updated.revision(),true,a,List.of(first)));
+        var updated=config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(f.revision(),true,a,List.of(first,second)));
+        config.preference(user,"role.discussion",b);assertThat(quote().roles().getFirst().selected().label()).isEqualTo("Careful");
+        config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(updated.revision(),true,a,List.of(first)));
         assertThatThrownBy(this::quote).hasMessage("AI_PREFERENCE_UNAVAILABLE");
-        config.preference(user,"generic.chat",a);assertThat(quote().steps().getFirst().selected().label()).isEqualTo("Fast");
+        config.preference(user,"role.discussion",a);assertThat(quote().roles().getFirst().selected().label()).isEqualTo("Fast");
     }
     @Test void newUnknownThinkingOptionsAreRejectedAndStaleWritesDoNotOverwritePricing() {
-        var f=config.feature("generic.chat",user);String id=UUID.randomUUID().toString();
+        var f=config.role(AiModelRole.DISCUSSION,user);String id=UUID.randomUUID().toString();
         var on=new AiModelConfigurationService.OptionInput(id,"model-a","Unsupported","ON","HIGH","FIXED",1L,null,null);
-        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_THINKING_UNSUPPORTED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_THINKING_UNSUPPORTED");
         setPrice("FIXED",9L,null,null,true);
-        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_CONFIGURATION_CHANGED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_CONFIGURATION_CHANGED");
     }
     @Test void concurrentSameCallCannotDoubleReserveOrDoubleInvoke() throws Exception {
         var snapshot=accept(quote(),"concurrent-request");var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
@@ -313,21 +337,24 @@ class AiModelConfigurationMysqlTest {
     @Test void oneModelCanOfferSeparateThinkingLevelsAndUnsupportedLevelsAreRejected() {
         var thinking=new AiModelConfigurationService.Thinking(true,true,true,List.of(new AiModelConfigurationService.ThinkingOption("LOW","Low"),new AiModelConfigurationService.ThinkingOption("HIGH","High")),null,null);
         when(gateway.listCallerModels()).thenReturn(List.of(new AiModelConfigurationService.CatalogModel("1","model-a","Model A","fixture",true,false,false,thinking,null)));
-        config.sync();var f=config.feature("generic.chat",user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
+        config.sync();var f=config.role(AiModelRole.DISCUSSION,user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
         var low=new AiModelConfigurationService.OptionInput(a,"model-a","Low price","ON","LOW","FIXED",2L,null,null);
         var high=new AiModelConfigurationService.OptionInput(b,"model-a","High price","ON","HIGH","TOKENS",null,new BigDecimal("0.123456"),new BigDecimal("0.654321"));
-        config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(low,high)));
-        config.preference(user,"generic.chat",b);var selection=quote().steps().getFirst().selected();
+        config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(f.revision(),true,a,List.of(low,high)));
+        config.preference(user,"role.discussion",b);var selection=quote().roles().getFirst().selected();
         assertThat(selection.thinkingEffort()).isEqualTo("HIGH");assertThat(selection.modelKey()).isEqualTo("model-a");assertThat(selection.streaming()).isFalse();
         var bad=new AiModelConfigurationService.OptionInput(a,"model-a","Unsupported","ON","MAX","FIXED",2L,null,null);
-        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision()+1,true,a,List.of(bad)))).hasMessage("AI_THINKING_UNSUPPORTED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.RoleUpdate(f.revision()+1,true,a,List.of(bad)))).hasMessage("AI_THINKING_UNSUPPORTED");
     }
     @Test void multiStepQuoteUsesTrustedActionAndG2TaskReceiptRetainsBothSelections() {
         var story=tx.execute(s->{var v=new com.ainovel.app.story.model.Story();v.setUser(user);v.setTitle("Story");v.setSynopsis("Input");v.setStatus("draft");em.persist(v);em.flush();return v;});
         String target="/v1/story-cards/"+story.getId()+"/assistant/turns";var body=json.valueToTree(Map.of("intent","DISCUSS","pricingMode","FREE"));
         var q=quotes.create(user,new AiQuoteService.Request(target,body,Map.of()));
-        assertThat(q.steps()).extracting(v->v.step().featureKey()).containsExactly("story_assistant.discuss.plan","story_assistant.discuss.final");
-        assertThat(q.steps()).allSatisfy(v->{assertThat(v.step().conditional()).isFalse();assertThat(v.selected().billingEnabled()).isTrue();});
+        assertThat(q.roles()).singleElement().satisfies(role -> {
+            assertThat(role.role().definition().key()).isEqualTo("role.discussion");
+            assertThat(role.estimates()).hasSize(2).allSatisfy(estimate -> assertThat(estimate.conditional()).isFalse());
+            assertThat(role.estimatedCredits()).isEqualTo(6);
+        });
         var snapshot=quotes.accept(user,target,body,q.id(),"multi-step");var sample=UUID.randomUUID();
         try(var ignored=AiSelectionContext.install(snapshot)){quotes.freezeTaskSnapshot(user,sample);}
         setPrice("FIXED",99L,null,null,true);

@@ -1,5 +1,6 @@
 package com.ainovel.app.worldassistant;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
@@ -19,6 +20,16 @@ import static com.ainovel.app.quality.language.LanguageProjection.hash;
 
 @Service
 public class WorldAssistantService {
+
+    public static AiModelRole modelRole(String intent) {
+        return switch (intent.toUpperCase(Locale.ROOT)) {
+            case "DISCUSS" -> AiModelRole.DISCUSSION;
+            case "OVERVIEW" -> AiModelRole.SUMMARIZATION;
+            case "ENTRY_REFINE" -> AiModelRole.SETTING_REFINE;
+            default -> AiModelRole.SETTING_PROPOSAL;
+        };
+    }
+
     public static final String TYPE="WORLD_ASSISTANT_TURN";
     public static final String PROTOCOL="world-assistant-v2";
     private final WorldAssistantStore store;
@@ -117,7 +128,7 @@ public class WorldAssistantService {
         if(entry!=null&&Objects.toString(entry.content(),"").isBlank())throw invalid("WORLD_ENTRY_TEXT_REQUIRED");
         String instruction=Objects.toString(request.instruction(),"").strip();if(instruction.length()>8000)throw invalid("WORLD_ASSISTANT_REQUEST_INVALID");
         if(instruction.isBlank())instruction=entry==null?"整合已保存设定，形成世界概览。":"改善条目表述，保持已有事实与限制。";
-        return new Frozen(worldId,null,entry==null?"OVERVIEW":"ENTRY_REFINE",instruction,null,null,entryId,snapshot,List.of(),context.templates(user),entry==null?"world.overview.integrate":resources.feature(entry,"refine"));
+        return new Frozen(worldId,null,entry==null?"OVERVIEW":"ENTRY_REFINE",instruction,null,null,entryId,snapshot,List.of(),context.templates(user),entry==null?"world.overview.integrate":resources.stepKey(entry,"refine"));
     }
     private Frozen freeze(User user,UUID worldId,TurnRequest request) {
         validateRequest(request);ownedSession(user,worldId,request.sessionId(),false);
@@ -292,7 +303,7 @@ public class WorldAssistantService {
         var row=store.turn(turnId);String result=stage.equals("plan")?row.planResultJson():row.finalResultJson();if(result!=null)return store.read(result,AiChatResponse.class);
         var frozen=frozen(row);String feature=frozen.singleFeature()==null?"world_assistant."+frozen.intent().toLowerCase(Locale.ROOT)+"."+stage:frozen.singleFeature();
         String saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        if(saved==null){if(!PROTOCOL.equals(frozen.protocolVersion()))throw conflict("WORLD_ASSISTANT_LEGACY_INPUT_UNAVAILABLE");var configured=request.get().forFeature(feature);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
+        if(saved==null){if(!PROTOCOL.equals(frozen.protocolVersion()))throw conflict("WORLD_ASSISTANT_LEGACY_INPUT_UNAVAILABLE");var configured=request.get().forRole(modelRole(frozen.intent()), feature);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",configured);return null;});row=store.turn(turnId);saved=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var input=store.read(saved,AiChatRequest.class);AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),input,execution.operationId()+":world-assistant:"+stage);store.checkpoint(turnId,stage+"_result_json",response);return response;
     }

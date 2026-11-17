@@ -1,5 +1,6 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
@@ -63,11 +64,14 @@ public class OutlineAiService {
         String instructions=generate?"生成第 "+chapter+" 章，必须返回 JSON：{\"title\":\"章节标题\",\"summary\":\"章节摘要\",\"scenes\":[{\"title\":\"节标题\",\"summary\":\"节剧情摘要\"}]}。scenes 必须恰好 "+count+" 项。只输出 JSON。":
                 "润色目标摘要，保留作者已有剧情和目标，不擅自改写其他资料。只输出润色后的摘要。";
         var prompt=new AiChatRequest(List.of(new AiChatRequest.Message("system","你是长篇小说策划编辑。世界材料是作者设定，章节规划是尚未发生的计划。"),
-                new AiChatRequest.Message("user",instructions+"\n"+query+"\n实际纳入的世界材料：\n"+world.content())),null,null).forFeature(feature(request.action()));
+                new AiChatRequest.Message("user",instructions+"\n"+query+"\n实际纳入的世界材料：\n"+world.content())),null,null).forRole(modelRole(request.action()), feature(request.action()));
         var frozen=new Frozen(outlineId,o.getRevision(),request.nodeId(),request.action(),chapter,count,before,Objects.toString(request.instruction(),""),query,world,prompt);
         if(request.contextHash()!=null&&!request.contextHash().equals(hash(store.write(frozen))))throw WorldContextPreferences.conflict("WORLD_CONTEXT_CHANGED");
         if(request.expectedSelectionRevision()!=null&&request.expectedSelectionRevision()!=world.selectionRevision())throw WorldContextPreferences.conflict("WORLD_CONTEXT_SELECTION_CHANGED");
         return frozen;
+    }
+    public static AiModelRole modelRole(String action) {
+        return "CHAPTER_GENERATE".equals(action) ? AiModelRole.OUTLINE : AiModelRole.SETTING_REFINE;
     }
     public static String feature(String action){return switch(action){case "CHAPTER_GENERATE"->"outline.chapter";case "CHAPTER_REFINE"->"outline.chapter_refine";case "SCENE_REFINE"->"outline.scene_refine";default->throw WorldContextSelector.error("OUTLINE_AI_ACTION_INVALID");};}
     public String fingerprint(Frozen frozen){return hash(store.write(frozen));}

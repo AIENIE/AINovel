@@ -18,8 +18,6 @@ public class AiModelConfigurationController {
     public Map<String,Object> catalog(){return config.catalog();}
     @PostMapping("/admin/model-catalog/sync") @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     public Map<String,Object> sync(){return config.sync();}
-    @GetMapping("/ai-features")
-    public List<AiModelConfigurationService.FeatureView> features(@AuthenticationPrincipal UserDetails principal){return config.features(users.require(principal));}
     @PostMapping("/ai-quotes")
     public AiQuoteService.View quote(@AuthenticationPrincipal UserDetails principal,@RequestBody AiQuoteService.Request request){return quotes.create(users.require(principal),request);}
     @GetMapping("/ai-quotes/pending")

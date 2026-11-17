@@ -13,7 +13,7 @@
 
 ## 职责配置（管理员）
 
-- `GET /admin/model-routing` 返回职责配置。每项包含 `definition`、覆盖的 `operations`、`revision`、`billingEnabled`、`defaultOptionId`、`options`、`unavailableOptions` 和 `outputTokenLimits`。旧计费口径有冲突时，`legacyDefaults` 列出仍在生效的操作和旧方案。
+- `GET /admin/model-routing` 返回职责配置。每项包含 `definition`、`revision`、`billingEnabled`、`defaultOptionId`、`options`、`unavailableOptions` 和 `outputTokenLimits`。缺少默认项时可保存该职责的方案。
 - `PUT /admin/model-routing/{roleKey}` 保存完整职责配置。职责键为 `role.*`，沿用管理员操作证明和审计。提交旧操作键时返回 `AI_CONFIGURATION_CHANGED`，页面重新载入后可编辑对应职责。
 
 ```json
@@ -38,23 +38,21 @@
 
 免费职责配置一个方案。计费职责至少配置一个方案，并从中指定默认项。相同模型可以提供不同强度、名称和价格的多个方案。`outputTokenLimits` 可选，按方案 ID 指定含思考的总输出上限。每项须为正整数。固定计价使用 `pricingMode=FIXED` 与正整数 `fixedCredits`。Token 价格最多六位小数，输入或输出至少一项大于零。
 
-服务端用 `AiFeatures` 定义操作，再由 `AiModelResponsibilities` 指定共享职责。例如地形、气候、世界条目和引导世界观的补全共用一个默认方案。原操作键继续用于报价、调用次数和历史记录。自主创作协调的方案须具备原生工具预算能力。专用检索和结构化核验仍在目录中只读展示。
+业务模块通过 `AiModelRole` 指定职责。模型目录、后台配置、用户偏好和报价都使用职责键。自主创作协调使用登记了工具和金额预算组合能力的模型。专用检索和结构化核验在目录中只读展示。
 
-初始化合并同职责、同计费口径的存量方案。计费口径有冲突时，管理员明确保存统一方案后生效。空库按环境配置初始化普通职责，自主创作协调由管理员配置。对同一操作，原有方案 ID 可解析到等价的共享方案。
+V51 汇总旧操作配置并清理旧配置行。唯一有效的等价用户方案迁为职责偏好，冲突时跟随后台默认。旧库没有职责配置且旧默认或计费口径冲突时，该职责等待管理员保存方案。已受理任务通过原快照恢复。
 
 ## 用户选型
 
-- `GET /ai-features`：返回用户可见的完整功能选项、默认项、`preferredOptionId`、`preferenceInvalid` 和不可用项。免费功能只展示后台配置。
-- `GET /users/me/model-preferences`：保留历史偏好，并增加 `preferredOptionId`。
-- `PUT /users/me/model-preferences/{featureKey}`：请求 `{ "preferredOptionId": "方案 ID" }`，返回该功能的当前视图；传 `null` 跟随后台默认。免费功能不能设置用户偏好。
-- `DELETE /users/me/model-preferences/{featureKey}`：清除偏好。失效偏好必须显式重新选择，不静默回退。
-- `GET /models`、`GET /models/{modelKey}`：保留目录兼容接口，不能用其历史费率字段推算用户售价。
+- `GET /users/me/model-preferences` 返回各职责的方案、默认项、`preferredOptionId`、`preferenceInvalid` 和不可用项。免费职责展示后台方案。
+- `PUT /users/me/model-preferences/{roleKey}` 接收 `{ "preferredOptionId": "方案 ID" }` 并返回该职责的当前视图。传 `null` 后跟随后台默认。免费职责由后台指定方案。
+- `GET /models` 和 `GET /models/{modelKey}` 提供旧版模型目录。实际用户售价由职责方案决定。
 
 ## 操作报价与提交
 
-`POST /ai-quotes`：请求 `{ target, body, selections }`。`target` 是不带 `/api` 的真实业务路径和查询参数；`body` 必须与提交的业务 JSON 相同；`selections` 是 `{ "具体功能键": "方案 ID" }`，不接受客户端生效价格。
+`POST /ai-quotes` 请求包含 `target`、`body` 和可选的 `selections`。业务路径不带 `/api`，请求正文与业务提交一致。`selections` 按职责键引用后台方案，例如 `{"role.prose_draft":"方案 ID"}`。
 
-服务端根据业务入口确定操作步骤，返回 `{ id, expiresAt, steps, estimatedCredits }`。每步含所选完整方案、必需或条件标记、调用次数说明、估算输入和输出 Token、费用。分块、条件修订和既有尝试上限随步骤展示。配置了总输出上限的方案把该上限用于报价和实际请求，其余方案沿用操作原有的估算与执行方式。
+返回 `id`、`expiresAt`、`roles` 和 `estimatedCredits`。每项职责包含完整方案和汇总费用，`estimates` 记录必需或条件调用、次数和预估用量。估算对每次调用分别计费后求和。已设置的总输出上限同时用于报价和执行。
 
 用户确认后，以原 `Idempotency-Key`、原路径和内容、`X-AI-Quote-Id` 提交业务入口。计费操作缺少报价返回 `428 AI_QUOTE_REQUIRED`。报价 10 分钟内首次受理有效，受理前业务输入或配置变化、报价过期均需重新确认。已受理任务及其子任务恢复时读取冻结的模型、思考、展示名、价格和输出上限。免费操作直接受理，带幂等键时同样保留首次受理快照。世界模块 `/retry` 按原生成路径识别报价，调用方仍须复用原键和报价。
 

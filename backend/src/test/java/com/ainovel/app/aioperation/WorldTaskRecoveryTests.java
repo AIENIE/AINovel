@@ -74,7 +74,9 @@ class WorldTaskRecoveryTests {
             json.valueToTree(tasks.freezeEntry(world.id(),id,draft.world().revision())))));
         operations.saveAndFlush(operation);
         when(ai.chat(any(),any())).thenAnswer(call->{
-            assertEquals("world.entry.generate",((com.ainovel.app.ai.dto.AiChatRequest)call.getArgument(1)).featureKey());
+            var request = (com.ainovel.app.ai.dto.AiChatRequest) call.getArgument(1);
+            assertEquals("world-entry:" + id + ":generate", request.featureKey());
+            assertEquals(com.ainovel.app.modelconfig.AiModelRole.CONCEPTION, request.modelRole());
             worlds.update(world.id(),new WorldUpdateRequest(null,null,null,null,"作者在调用期间修改"));
             return chatOutput("只在退潮时开放的港口");
         });
@@ -85,7 +87,7 @@ class WorldTaskRecoveryTests {
         reset(ai);when(ai.chat(any(),any())).thenReturn(chatOutput("候选正文"));
         var candidate=entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","增加细节",null));
         assertEquals("候选正文",candidate.result());assertEquals("",versions.draft(world.id()).entries().getFirst().content());
-        verify(ai).chat(any(),argThat(r->r.featureKey().equals("world.entry.refine")));
+        verify(ai).chat(any(),argThat(r->r.modelRole()==com.ainovel.app.modelconfig.AiModelRole.SETTING_REFINE && r.featureKey().equals("world-entry:" + id + ":refine")));
         when(ai.chat(any(),any())).thenReturn(chatOutput(" "));
         assertThrows(ApiStatusException.class,()->entryAi.refine(world.id(),id,new com.ainovel.app.common.RefineRequest("作者原文","",null)));
         assertEquals("",versions.draft(world.id()).entries().getFirst().content());
@@ -109,7 +111,7 @@ class WorldTaskRecoveryTests {
 
         assertThrows(RuntimeException.class, () -> execute(operation, user));
         assertFalse(worlds.get(world.id()).modules().containsKey("geography"));
-        assertEquals(Map.of("terrain", "world.geography.terrain.generate"),
+        assertEquals(Map.of("terrain", "world-field:geography:terrain:generate"),
                 tasks.generatedResults(user, world.id(), operation.getId()).modules().get("geography"));
         assertNull(operations.findById(operation.getId()).orElseThrow().getResultJson());
 
@@ -165,6 +167,7 @@ class WorldTaskRecoveryTests {
     void publishingResumesAfterItsOwnAppliedModuleWithoutRegeneratingIt() throws Exception {
         User user = user("world_publish_recovery");
         WorldDetailDto world = world(user);
+        assertEquals(9, worlds.generationCalls(world.id(), null));
         AiOperationRun operation = operation(user, world, "WORLD_PUBLISH", null, true);
         AtomicInteger calls = new AtomicInteger();
         var features = new ArrayList<String>();
@@ -182,8 +185,9 @@ class WorldTaskRecoveryTests {
         assertEquals("draft", result.status());
         assertEquals("0.1.0", result.version());
         assertEquals(3, result.modules().size());
+        assertEquals(0, worlds.generationCalls(world.id(), null));
         assertEquals(10, calls.get());
-        assertEquals(3, features.stream().filter(feature -> feature.startsWith("world.geography.")).count());
+        assertEquals(3, features.stream().filter(feature -> feature.startsWith("world-field:geography:")).count());
         assertEquals(List.of("geography", "society", "magic_tech"), tasks.generatedResults(user, world.id(), operation.getId()).appliedModules());
         assertEquals(AiOperationStatus.SUCCEEDED, operations.findById(operation.getId()).orElseThrow().getStatus());
     }

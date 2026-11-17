@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 @Component
 public class NarrativeExtractionHandler implements AiOperationHandler {
     public static final String TYPE = "NARRATIVE_STATE_EXTRACT";
@@ -36,7 +37,7 @@ public class NarrativeExtractionHandler implements AiOperationHandler {
         execution.progress().step("提取带证据的变化候选", 1, 3);
         var result = ai.chat(execution.user(), new AiChatRequest(List.of(
                 new AiChatRequest.Message("system", prompt),
-                new AiChatRequest.Message("user", execution.objectMapper().writeValueAsString(input))), null, null).forFeature("narrative.extract"),
+                new AiChatRequest.Message("user", execution.objectMapper().writeValueAsString(input))), null, null).forRole(AiModelRole.FACT_EXTRACTION, "narrative.extract"),
                 new AiUsageContext("NARRATIVE_EXTRACTION", extractionId.toString(), "p11-v1"));
         return AiOperationExecutionContext.complete(() -> {
             narrative.storeResult(execution.user(), extractionId, execution.operationId(), result.content(), result.usage(), result.actualModelKey());

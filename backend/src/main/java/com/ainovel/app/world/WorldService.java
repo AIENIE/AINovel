@@ -1,5 +1,6 @@
 package com.ainovel.app.world;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.common.ApiStatusException;
 import com.ainovel.app.common.JsonColumnCodec;
@@ -160,7 +161,7 @@ public class WorldService {
         if (prompt.isBlank()) {
             prompt = "请优化以下世界观字段表述，使其更清晰、更具细节且保持一致性。";
         }
-        var response=aiService.chat(user,prompts.entry(user,entryStore.content(world),templateEntry(world,moduleKey,fieldKey,text),prompt,true).forFeature("world."+moduleKey+"."+fieldKey+".refine"));
+        var response=aiService.chat(user,prompts.entry(user,entryStore.content(world),templateEntry(world,moduleKey,fieldKey,text),prompt,true).forRole(AiModelRole.SETTING_REFINE, WorldEntryStore.fieldStepKey(moduleKey, fieldKey, "refine")));
         if(response==null||safe(response.content()).isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");
         return AiRefineResponse.fromChat(response);
     }
@@ -305,6 +306,22 @@ public class WorldService {
                 : com.ainovel.app.aioperation.AiOperationExecutionContext.apply(apply);
     }
 
+    @Transactional(readOnly = true)
+    public int generationCalls(UUID worldId, String moduleKey) {
+        World world = worldRepository.findById(worldId).orElseThrow(() -> new BusinessException("世界不存在"));
+        accessGuard.assertOwner(world.getUser());
+        var values = entryStore.projection(entryStore.entries(world));
+        var modules = definitions().stream().filter(module -> moduleKey == null || module.key().equals(moduleKey)).toList();
+        if (modules.isEmpty()) throw new BusinessException("世界模块不存在：" + moduleKey);
+        int calls = 0;
+        for (var module : modules) {
+            var fields = values.getOrDefault(module.key(), Map.of());
+            if (moduleKey == null && fields.values().stream().anyMatch(value -> !Objects.toString(value, "").isBlank())) continue;
+            calls += (int) module.fields().stream().filter(field -> Objects.toString(fields.get(field.key()), "").isBlank()).count();
+        }
+        return calls;
+    }
+
     public WorldDetailDto retryModule(UUID id, String moduleKey) {
         return generateModule(id, moduleKey);
     }
@@ -316,7 +333,7 @@ public class WorldService {
     }
     private String generateCurrentField(World world,WorldDefinitionDto module,WorldDefinitionDto.Field field) {
         var response=aiService.chat(world.getUser(),prompts.entry(world.getUser(),entryStore.content(world),templateEntry(world,module.key(),field.key(),""),"补全该字段正文",false)
-            .forFeature("world."+module.key()+"."+field.key()+".generate"));
+            .forRole(AiModelRole.CONCEPTION, WorldEntryStore.fieldStepKey(module.key(), field.key(), "generate")));
         if(response==null||safe(response.content()).isBlank())throw new BusinessException("WORLD_AI_EMPTY_RESULT");return response.content().strip();
     }
     // Frozen W1/W2 requests retain their original prompt and feature identity on recovery.
@@ -328,7 +345,7 @@ public class WorldService {
                 + "模块：" + module.label() + "\n"
                 + "字段：" + field.label();
         String instruction = "请为该世界观字段生成可直接保存的中文设定内容，避免占位说明，保持具体、可用、与已有世界设定一致。";
-        AiRefineResponse response = aiService.refine(world.getUser(), new AiRefineRequest(text, instruction, null).forFeature("world."+module.key()+"."+field.key()+".generate"));
+        AiRefineResponse response = aiService.refine(world.getUser(), new AiRefineRequest(text, instruction, null).forRole(AiModelRole.CONCEPTION, WorldEntryStore.fieldStepKey(module.key(), field.key(), "generate")));
         String result = response == null ? "" : safe(response.result()).trim();
         if (result.isBlank()) {
             throw new RuntimeException("AI 返回空内容");

@@ -13,51 +13,50 @@ class AiActionPlannerTest {
     private final ObjectMapper json=new ObjectMapper();
     private final AiActionPlanner planner=new AiActionPlanner(mock(JdbcTemplate.class),json);
     @Test void publicationIsFreeAndEntryAiHasSeparateFeatures() {
-        assertThat(planner.features("/v1/worlds/id/publish",json.createObjectNode())).isEmpty();
-        assertThat(planner.features("/v1/worlds/id/entries/entry/generate/operations",json.createObjectNode())).containsExactly("world.entry.generate");
-        assertThat(planner.features("/v1/worlds/id/entries/entry/refine",json.createObjectNode())).containsExactly("world.entry.refine");
-        assertThat(planner.features("/v1/worlds/id/publish/operations",json.createObjectNode())).hasSize(9).doesNotContain("world.entry.generate");
+        assertThat(planner.calls("/v1/worlds/id/publish",json.createObjectNode()).keySet()).isEmpty();
+        assertThat(planner.calls("/v1/worlds/id/entries/entry/generate/operations",json.createObjectNode()).keySet()).containsExactly("world.entry.generate");
+        assertThat(planner.calls("/v1/worlds/id/entries/entry/refine",json.createObjectNode()).keySet()).containsExactly("world.refine");
+        assertThat(planner.calls("/v1/worlds/id/publish/operations",json.createObjectNode()).keySet()).containsExactly("world.generation");
     }
     @Test void worldDiscussionHasAtMostTwoStepsAndOverviewAndEntryRefineAreSingleCalls() throws Exception {
-        for(String intent:java.util.List.of("discuss","propose","refine"))assertThat(planner.features("/v1/worlds/id/assistant/turns",json.readTree("{\"intent\":\""+intent.toUpperCase()+"\"}"))).containsExactly("world_assistant."+intent+".plan","world_assistant."+intent+".final");
-        assertThat(planner.features("/v1/worlds/id/entries/entry/refine/operations",json.createObjectNode())).containsExactly("world.entry.refine");
-        assertThat(planner.features("/v1/worlds/id/overview/integrate/operations",json.createObjectNode())).containsExactly("world.overview.integrate");
+        for(String intent:java.util.List.of("discuss","propose","refine"))assertThat(planner.calls("/v1/worlds/id/assistant/turns",json.readTree("{\"intent\":\""+intent.toUpperCase()+"\"}")).keySet()).containsExactly("world_assistant."+intent+".plan","world_assistant."+intent+".final");
+        assertThat(planner.calls("/v1/worlds/id/entries/entry/refine/operations",json.createObjectNode()).keySet()).containsExactly("world.refine");
+        assertThat(planner.calls("/v1/worlds/id/overview/integrate/operations",json.createObjectNode()).keySet()).containsExactly("world.overview.integrate");
         assertThat(planner.candidate("POST","/v1/worlds/id/assistant/turns")).isTrue();
     }
     @Test void reviewedPlotAdoptionNeverQuotesOrInvokesSlopAndWholeDraftRepairIsRetired() {
-        assertThat(planner.features("/v2/manuscripts/id/plot-quality-runs/run/apply-revision",json.createObjectNode())).isEmpty();
+        assertThat(planner.calls("/v2/manuscripts/id/plot-quality-runs/run/apply-revision",json.createObjectNode()).keySet()).isEmpty();
         assertThat(planner.candidate("POST","/v2/manuscripts/id/plot-quality-runs/run/apply-revision")).isFalse();
         for(String route:java.util.List.of("/v1/manuscripts/id/scenes/id/generate/operations?mode=fast", "/v1/g2-evaluations/id/samples"))
-            assertThat(planner.features(route,json.createObjectNode())).doesNotContain("slop.revise");
-        assertThat(AiFeatures.require("slop.revise").retired()).isTrue();
+            assertThat(planner.calls(route,json.createObjectNode()).keySet()).doesNotContain("slop.revise");
     }
     @Test void derivesStepsFromActualRouteAndBodyRatherThanClientFeatureFields() throws Exception {
-        assertThat(planner.features("/v1/ai/chat",json.readTree("{\"featureKey\":\"free-feature\"}"))).containsExactly("generic.chat");
-        assertThat(planner.features("/v1/manuscripts/id/scenes/id/generate/operations?mode=crafted",json.createObjectNode()))
+        assertThat(planner.calls("/v1/ai/chat",json.readTree("{\"featureKey\":\"free-feature\"}")).keySet()).containsExactly("generic.chat");
+        assertThat(planner.calls("/v1/manuscripts/id/scenes/id/generate/operations?mode=crafted",json.createObjectNode()).keySet())
                 .startsWith("scene.crafted.draft","scene.crafted.length").contains("language.diagnose","slop.judge","plot.diagnose");
-        assertThat(planner.features("/v1/manuscripts/id/scenes/id/assistant/turns",json.readTree("{\"intent\":\"AUTHOR_QA\"}")))
+        assertThat(planner.calls("/v1/manuscripts/id/scenes/id/assistant/turns",json.readTree("{\"intent\":\"AUTHOR_QA\"}")).keySet())
                 .containsExactly("assistant.author_qa.plan","assistant.author_qa.final");
-        assertThat(planner.features("/v1/story-cards/id/assistant/turns",json.readTree("{\"intent\":\"PROPOSE\"}")))
+        assertThat(planner.calls("/v1/story-cards/id/assistant/turns",json.readTree("{\"intent\":\"PROPOSE\"}")).keySet())
                 .containsExactly("story_assistant.propose.plan","story_assistant.propose.final");
-        assertThat(planner.features("/v1/worlds/id/modules/geography/fields/terrain/refine",json.createObjectNode())).containsExactly("world.geography.terrain.refine");
+        assertThat(planner.calls("/v1/worlds/id/modules/geography/fields/terrain/refine",json.createObjectNode()).keySet()).containsExactly("world.refine");
     }
     @Test void onlyAiMutationsAreCandidatesAndAutomaticGuidedRunIncludesLaterStages() {
         assertThat(planner.candidate("POST","/v1/story-cards/id/assistant/turns")).isTrue();
         assertThat(planner.candidate("GET","/v1/ai/chat")).isFalse();
         assertThat(planner.candidate("POST","/v1/admin/model-catalog/sync")).isFalse();
-        assertThat(planner.features("/v1/creation-workflows/id/auto-run",json.createObjectNode())).contains("guided.premise","guided.world","guided.characters","guided.outline","guided.json_repair").doesNotContain("guided.outline_develop","guided.outline_rewrite");
-        assertThat(planner.features("/v2/manuscripts/id/quality-runs/language/report/issues/issue/suggestions/operations",json.createObjectNode())).containsExactly("language.revise","language.review");
-        assertThat(planner.features("/v2/manuscripts/id/scenes/id/citations",json.createObjectNode())).isEmpty();
+        assertThat(planner.calls("/v1/creation-workflows/id/auto-run",json.createObjectNode()).keySet()).contains("guided.premise","guided.world","guided.characters","guided.outline","guided.json_repair").doesNotContain("guided.outline_develop","guided.outline_rewrite");
+        assertThat(planner.calls("/v2/manuscripts/id/quality-runs/language/report/issues/issue/suggestions/operations",json.createObjectNode()).keySet()).containsExactly("language.revise","language.review");
+        assertThat(planner.calls("/v2/manuscripts/id/scenes/id/citations",json.createObjectNode()).keySet()).isEmpty();
     }
     @Test void automaticCreationQuotesOnlyUntilWorldPublicationAndManualDraftCreationDoesNot() throws Exception {
         assertThat(planner.candidate("POST","/v1/creation-workflows")).isTrue();
-        assertThat(planner.features("/v1/creation-workflows",json.readTree("{\"autoRun\":true}"))).containsExactly("guided.premise","guided.world","guided.json_repair");
-        assertThat(planner.features("/v1/creation-workflows",json.readTree("{\"autoRun\":false}"))).isEmpty();
+        assertThat(planner.calls("/v1/creation-workflows",json.readTree("{\"autoRun\":true}")).keySet()).containsExactly("guided.premise","guided.world","guided.json_repair");
+        assertThat(planner.calls("/v1/creation-workflows",json.readTree("{\"autoRun\":false}")).keySet()).isEmpty();
     }
     @Test void outlineRewriteHasItsOwnConfiguredStepAndInvalidIntentIsAClientError() throws Exception {
-        assertThat(planner.features("/v1/creation-workflows/id/steps/outline/directions/a/develop",json.readTree("{\"action\":\"rewrite\"}")))
+        assertThat(planner.calls("/v1/creation-workflows/id/steps/outline/directions/a/develop",json.readTree("{\"action\":\"rewrite\"}")).keySet())
                 .containsExactly("guided.outline_rewrite","guided.json_repair");
-        assertThatThrownBy(()->planner.features("/v1/story-cards/id/assistant/turns",json.readTree("{\"intent\":\"unknown\"}")))
+        assertThatThrownBy(()->planner.calls("/v1/story-cards/id/assistant/turns",json.readTree("{\"intent\":\"unknown\"}")))
                 .isInstanceOf(com.ainovel.app.common.ApiStatusException.class).hasMessage("AI_ACTION_INVALID");
     }
 
@@ -68,7 +67,7 @@ class AiActionPlannerTest {
         org.mockito.Mockito.when(jdbc.queryForList(org.mockito.ArgumentMatchers.startsWith("select r.*"),org.mockito.ArgumentMatchers.any(byte[].class),org.mockito.ArgumentMatchers.any(byte[].class)))
                 .thenAnswer(i->new java.util.ArrayList<>(java.util.List.of(new java.util.LinkedHashMap<>(row))));
         var result=planner.plan(user,"/v1/creation-workflows/"+id+"/auto-run",json.createObjectNode());
-        assertThat(result.steps()).extracting(AiActionPlanner.Step::featureKey).containsExactly("guided.outline_expand","guided.json_repair");
+        assertThat(result.steps()).extracting(AiActionPlanner.Step::stepKey).containsExactly("guided.outline_expand","guided.json_repair");
         row.put("steps_json","{\"OUTLINE\":{\"candidates\":[{}],\"outlinePhase\":\"OUTLINE_PREVIEW\"}}");
         assertThat(planner.plan(user,"/v1/creation-workflows/"+id+"/auto-run",json.createObjectNode()).steps()).isEmpty();
     }

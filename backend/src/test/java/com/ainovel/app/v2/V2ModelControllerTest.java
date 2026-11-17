@@ -60,7 +60,7 @@ class V2ModelControllerTest {
         Map<String, Object> updated = Map.of("taskType", "role.prose_draft");
         var configuration = mock(com.ainovel.app.modelconfig.AiModelConfigurationService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelConfiguration",configuration);
-        var feature = new com.ainovel.app.modelconfig.AiModelConfigurationService.RoutingView(null,0,false,null,List.of(),List.of(),Map.of(),List.of(),List.of());
+        var feature = new com.ainovel.app.modelconfig.AiModelConfigurationService.RoleView(null,0,false,null,null,false,List.of(),List.of(),Map.of());
         when(configuration.update(org.mockito.ArgumentMatchers.eq("role.prose_draft"), org.mockito.ArgumentMatchers.any())).thenReturn(feature);
         when(configuration.asMap(feature)).thenReturn(updated);
 

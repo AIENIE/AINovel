@@ -66,7 +66,9 @@ export function AiOperationProgressPanel() {
           <Progress value={operation.status === "SUCCEEDED" ? 100 : percent} className="h-1.5" />
           <div className="flex items-center justify-between text-xs">
             <span>
-              {t("ai.tokensOutput", { count: operation.currentStepOutputTokens, formatted: operation.currentStepOutputTokens.toLocaleString() })}
+              {operation.status === "STREAMING" && operation.currentStepOutputTokens === 0
+                ? t("ai.waitingFirstOutput")
+                : t("ai.tokensOutput", { count: operation.currentStepOutputTokens, formatted: operation.currentStepOutputTokens.toLocaleString() })}
               {operation.outputTokensEstimated ? t("ai.tokensEstimated") : ""}
             </span>
             <span>{operation.completedSteps}/{operation.totalSteps}</span>

@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.quality.language.LanguageAnalysis;
 import com.ainovel.app.quality.language.LanguageDtos;
@@ -83,7 +84,7 @@ public final class SlopEvidence {
                "risk_explanation":"具体影响或排除理由","repair_hint":"最小建议","signal_id":"对应 patternId，可为空"}]}
             """;
         try { return new AiChatRequest(List.of(new AiChatRequest.Message("system",VERSION+"\n"+rules),
-                new AiChatRequest.Message("user",json.writeValueAsString(body))),null,null).forFeature(feature); }
+                new AiChatRequest.Message("user",json.writeValueAsString(body))),null,null).forRole(AiModelRole.LANGUAGE_CHECK, feature); }
         catch(Exception e) { throw new IllegalStateException(e); }
     }
     public static Parsed parse(String raw,LanguageProjection.Projection projection,ObjectMapper json) {

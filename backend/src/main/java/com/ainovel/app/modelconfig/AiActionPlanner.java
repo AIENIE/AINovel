@@ -13,7 +13,9 @@ import java.util.regex.Pattern;
 /** The HTTP action, never a client-supplied feature key, determines all possible priced steps. */
 @Component
 public class AiActionPlanner {
-    public record Step(String featureKey,boolean conditional,String calls,int estimatedInput,int estimatedOutput) {}
+    public record Step(String stepKey, AiModelRole role, boolean conditional, String calls, int estimatedInput, int estimatedOutput) {
+        public Step withEstimatedInput(int input) { return new Step(stepKey, role, conditional, calls, input, estimatedOutput); }
+    }
     public record Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,
             com.ainovel.app.worldcontext.WorldWritingInput writingInput) {
         public Plan(String target,List<Step> steps,String businessHash,String businessScope,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput){this(target,steps,businessHash,businessScope,worldInput,worldAssistantInput,null);}
@@ -44,96 +46,136 @@ public class AiActionPlanner {
     @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy
     private com.ainovel.app.writingagent.WritingAgentService writingAgent;
     public AiActionPlanner(JdbcTemplate jdbc,ObjectMapper json) {this.jdbc=jdbc;this.json=json;}
-    public List<String> features(String target,JsonNode body) {
-        String path=target.split("\\?",2)[0]; if(path.startsWith("/api/"))path=path.substring(4);
-        var keys=new LinkedHashSet<String>();
-        if(path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/agent-runs")) {
-            keys.add("writing_agent.control");
-            if(!"AUTHOR_QA".equals(body.path("intent").asText("EDIT"))) {
-                keys.add("scene."+("crafted".equals(body.path("mode").asText())?"crafted":"fast")+".draft");
-                if(!body.has("limits")||body.path("limits").path("revisions").asInt(3)>0)keys.add("writing_agent.refine");
-                if(body.path("languageCheck").asBoolean())keys.add("language.diagnose");
-                if(body.path("plotCheck").asBoolean())keys.add("plot.diagnose");
+    @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy
+    private com.ainovel.app.world.WorldService worlds;
+    @org.springframework.beans.factory.annotation.Autowired @org.springframework.context.annotation.Lazy
+    private com.ainovel.app.world.WorldEntryAiService worldEntries;
+
+    public Map<String,AiModelRole> calls(String target, JsonNode body) {
+        String path = target.split("\\?", 2)[0];
+        if (path.startsWith("/api/")) path = path.substring(4);
+        var calls = new LinkedHashMap<String, AiModelRole>();
+        if (path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/agent-runs")) {
+            calls.put("writing_agent.control", AiModelRole.AGENT_CONTROL);
+        } else if (path.equals("/v1/creation-workflows") && body.path("autoRun").asBoolean()) {
+            guided(calls, "premise", "world", "json_repair");
+        } else if (path.matches("/v1/conception(/operations)?")) {
+            calls.put("story.conception", AiModelRole.CONCEPTION);
+        } else if (path.matches("/v1/(story-cards|character-cards)/[^/]+/refine")) {
+            calls.put(path.contains("/story-cards/") ? "story.refine" : "character.refine", AiModelRole.SETTING_REFINE);
+        } else if (path.matches("/v1/outlines/scenes/[^/]+/refine")) {
+            calls.put("outline.scene_refine", AiModelRole.SETTING_REFINE);
+        } else if (path.matches("/v1/outlines/[^/]+/chapters(/operations)?")) {
+            calls.put("outline.chapter", AiModelRole.OUTLINE);
+        } else if (path.matches("/v1/outlines/[^/]+/ai-operations")) {
+            var action = body.path("action").asText();
+            calls.put(com.ainovel.app.story.OutlineAiService.feature(action), com.ainovel.app.story.OutlineAiService.modelRole(action));
+        } else if (path.matches("/v1/worlds/[^/]+/(modules/[^/]+/fields/[^/]+/refine|entries/[^/]+/refine(/operations)?)")) {
+            calls.put("world.refine", AiModelRole.SETTING_REFINE);
+        } else if (path.matches("/v1/worlds/[^/]+/entries/[^/]+/generate/operations")) {
+            calls.put("world.entry.generate", AiModelRole.CONCEPTION);
+        } else if (path.matches("/v1/worlds/[^/]+/(publish/operations|generation/[^/]+(/operations|/retry)?)")) {
+            calls.put("world.generation", AiModelRole.CONCEPTION);
+        } else if (path.matches("/v1/worlds/[^/]+/overview/integrate/operations")) {
+            calls.put("world.overview.integrate", AiModelRole.SUMMARIZATION);
+        } else if (path.matches("/v1/worlds/[^/]+/assistant/turns")) {
+            String intent = body.path("intent").asText("DISCUSS").toLowerCase(Locale.ROOT);
+            if (!Set.of("discuss", "propose", "refine").contains(intent)) throw AiModelConfigurationService.error("AI_ACTION_INVALID");
+            stages(calls, "world_assistant", intent, com.ainovel.app.worldassistant.WorldAssistantService.modelRole(intent));
+        } else if (path.matches("/v1/creation-workflows/[^/]+/(steps/[^/]+/generate|steps/outline/directions/[^/]+/(develop|expand)|auto-run)")) {
+            if (path.endsWith("/auto-run")) guided(calls, "premise", "world", "characters", "outline", "outline_expand");
+            else if (path.endsWith("/develop")) guided(calls, "rewrite".equalsIgnoreCase(body.path("action").asText()) ? "outline_rewrite" : "outline_develop");
+            else if (path.endsWith("/expand")) guided(calls, "outline_expand");
+            else {
+                String step = path.split("/")[5].toLowerCase(Locale.ROOT);
+                if (!Set.of("premise", "world", "characters", "outline").contains(step)) throw AiModelConfigurationService.error("AI_ACTION_INVALID");
+                guided(calls, step);
             }
-            return List.copyOf(keys);
+            guided(calls, "json_repair");
+        } else if (path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/generate(/operations)?") || path.matches("/v1/manuscript/scenes/[^/]+/generate")) {
+            scene(calls, "crafted".equalsIgnoreCase(queryParameter(target, "mode")) ? "crafted" : "fast");
+            calls.put("slop.judge", AiModelRole.LANGUAGE_CHECK);
+            calls.put("plot.diagnose", AiModelRole.PLOT_CHECK);
+            calls.put("language.diagnose", AiModelRole.LANGUAGE_CHECK);
+        } else if (path.matches("/v1/g2-evaluations/[^/]+/samples")) {
+            scene(calls, "fast");
+            scene(calls, "crafted");
+            calls.put("slop.judge", AiModelRole.LANGUAGE_CHECK);
+        } else if (path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/assistant/turns")) {
+            String intent = body.path("intent").asText("AUTO").toLowerCase(Locale.ROOT);
+            if (!Set.of("auto", "edit", "author_qa").contains(intent)) throw AiModelConfigurationService.error("AI_ACTION_INVALID");
+            stages(calls, "assistant", intent, com.ainovel.app.assistant.WritingAssistantService.modelRole(intent));
+        } else if (path.matches("/v1/story-cards/[^/]+/assistant/turns")) {
+            String intent = body.path("intent").asText().toLowerCase(Locale.ROOT);
+            if (!Set.of("discuss", "propose", "refine").contains(intent)) throw AiModelConfigurationService.error("AI_ACTION_INVALID");
+            stages(calls, "story_assistant", intent, com.ainovel.app.storyassistant.StoryAssistantService.modelRole(intent));
+        } else if (path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs/language/operations")) {
+            calls.put("language.diagnose", AiModelRole.LANGUAGE_CHECK);
+        } else if (path.matches("/v2/manuscripts/[^/]+/quality-runs/(language/)?[^/]+/issues/[^/]+/suggestions/operations")) {
+            calls.put("language.revise", AiModelRole.PROSE_REVISE);
+            calls.put("language.review", AiModelRole.REVISION_REVIEW);
+        } else if (path.matches("/v2/manuscripts/[^/]+/branches/[^/]+/narrative/scene-approvals")) {
+            calls.put("narrative.extract", AiModelRole.FACT_EXTRACTION);
+        } else if (path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs(/operations)?")) {
+            calls.put("slop.diagnose", AiModelRole.LANGUAGE_CHECK);
+        } else if (path.matches("/v2/manuscripts/[^/]+/slop-drift-runs(/operations)?")) {
+            calls.put("slop.drift", AiModelRole.LANGUAGE_CHECK);
+        } else if (path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/plot-quality-runs(/operations)?")) {
+            calls.put("plot.diagnose", AiModelRole.PLOT_CHECK);
+        } else if (path.matches("/v2/manuscripts/[^/]+/plot-quality-runs/[^/]+/revision-candidate(/operations)?")) {
+            calls.put("plot.revise", AiModelRole.PROSE_REVISE);
+        } else if (path.equals("/v1/ai/chat")) {
+            calls.put("generic.chat", AiModelRole.DISCUSSION);
+        } else if (path.equals("/v1/ai/refine")) {
+            calls.put("generic.refine", AiModelRole.SETTING_REFINE);
+        } else if (path.equals("/v1/ai/version-summary")) {
+            calls.put("versions.summary", AiModelRole.SUMMARIZATION);
+        } else if (path.equals("/v1/ai/outline-refine")) {
+            calls.put("outline.refine", AiModelRole.SETTING_REFINE);
         }
-        if(path.equals("/v1/creation-workflows")&&body.path("autoRun").asBoolean()) {
-            keys.addAll(List.of("guided.premise","guided.world","guided.json_repair"));
-        } else if(path.equals("/v1/conception")||path.equals("/v1/conception/operations"))keys.add("story.conception");
-        else if(path.matches("/v1/story-cards/[^/]+/refine"))keys.add("story.refine");
-        else if(path.matches("/v1/character-cards/[^/]+/refine"))keys.add("character.refine");
-        else if(path.matches("/v1/outlines/scenes/[^/]+/refine"))keys.add("outline.scene_refine");
-        else if(path.matches("/v1/outlines/[^/]+/chapters(/operations)?"))keys.add("outline.chapter");
-        else if(path.matches("/v1/outlines/[^/]+/ai-operations"))keys.add(com.ainovel.app.story.OutlineAiService.feature(body.path("action").asText()));
-        else if(path.matches("/v1/worlds/[^/]+/modules/[^/]+/fields/[^/]+/refine")) {
-            String[] p=path.split("/"); keys.add("world."+p[5]+"."+p[7]+".refine");
-        } else if(path.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine(/operations)?)")) {
-            keys.add("world.entry."+(path.contains("/refine")?"refine":"generate"));
-        } else if(path.matches("/v1/worlds/[^/]+/(publish/operations|generation/[^/]+(/operations|/retry)?)")) {
-            var p=path.split("/");var module=p[4].equals("generation")?p[5]:null;
-            for(var f:AiFeatures.all())if(f.key().startsWith("world.")&&!f.key().startsWith("world.entry.")&&f.key().endsWith(".generate")&&(module==null||f.key().startsWith("world."+module+".")))keys.add(f.key());
-        } else if(path.matches("/v1/worlds/[^/]+/overview/integrate/operations"))keys.add("world.overview.integrate");
-        else if(path.matches("/v1/worlds/[^/]+/assistant/turns")) {
-            String intent=body.path("intent").asText("DISCUSS").toLowerCase(Locale.ROOT);
-            if(!Set.of("discuss","propose","refine").contains(intent))throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_ACTION_INVALID");
-            keys.add("world_assistant."+intent+".plan");keys.add("world_assistant."+intent+".final");
-        } else if(path.matches("/v1/creation-workflows/[^/]+/(steps/[^/]+/generate|steps/outline/directions/[^/]+/(develop|expand)|auto-run)")) {
-            if(path.endsWith("/auto-run")){keys.addAll(automaticGuidedSteps());}
-            else if(path.endsWith("/develop"))keys.add("rewrite".equalsIgnoreCase(body.path("action").asText())?"guided.outline_rewrite":"guided.outline_develop");
-            else if(path.endsWith("/expand"))keys.add("guided.outline_expand");
-            else {String[] p=path.split("/");keys.add("guided."+p[5].toLowerCase(Locale.ROOT));}
-            keys.add("guided.json_repair");
-        } else if(path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/generate(/operations)?")||path.matches("/v1/manuscript/scenes/[^/]+/generate")) {
-            String mode="crafted".equalsIgnoreCase(queryParameter(target,"mode"))?"crafted":"fast";
-            keys.add("scene."+mode+".draft");keys.add("scene."+mode+".length");generationQuality(keys);
-        } else if(path.matches("/v1/g2-evaluations/[^/]+/samples")) {
-            for(String mode:List.of("fast","crafted")){keys.add("scene."+mode+".draft");keys.add("scene."+mode+".length");} keys.add("slop.judge");
-        } else if(path.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/assistant/turns")) {
-            String intent=body.path("intent").asText("AUTO").toLowerCase(Locale.ROOT);
-            keys.add("assistant."+intent+".plan");keys.add("assistant."+intent+".final");
-        } else if(path.matches("/v1/story-cards/[^/]+/assistant/turns")) {
-            String intent=body.path("intent").asText().toLowerCase(Locale.ROOT);
-            keys.add("story_assistant."+intent+".plan");keys.add("story_assistant."+intent+".final");
-        } else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs/language/operations"))keys.add("language.diagnose");
-        else if(path.matches("/v2/manuscripts/[^/]+/quality-runs/language/[^/]+/issues/[^/]+/suggestions/operations")){keys.add("language.revise");keys.add("language.review");}
-        else if(path.matches("/v2/manuscripts/[^/]+/quality-runs/[^/]+/issues/[^/]+/suggestions/operations")){keys.add("language.revise");keys.add("language.review");}
-        else if(path.matches("/v2/manuscripts/[^/]+/branches/[^/]+/narrative/scene-approvals"))keys.add("narrative.extract");
-        else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/quality-runs(/operations)?"))keys.add("slop.diagnose");
-        else if(path.matches("/v2/manuscripts/[^/]+/slop-drift-runs(/operations)?"))keys.add("slop.drift");
-        else if(path.matches("/v2/manuscripts/[^/]+/scenes/[^/]+/plot-quality-runs(/operations)?"))keys.add("plot.diagnose");
-        else if(path.matches("/v2/manuscripts/[^/]+/plot-quality-runs/[^/]+/revision-candidate(/operations)?"))keys.add("plot.revise");
-        else if(path.equals("/v1/ai/chat"))keys.add("generic.chat");
-        else if(path.equals("/v1/ai/refine"))keys.add("generic.refine");
-        else if(path.equals("/v1/ai/version-summary"))keys.add("versions.summary");
-        else if(path.equals("/v1/ai/outline-refine"))keys.add(body.path("kind").asText().equals("scene")?"outline.scene_refine":"outline.chapter_refine");
-        try{keys.forEach(AiFeatures::require);}catch(IllegalArgumentException e){throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"AI_ACTION_INVALID");}
-        return List.copyOf(keys);
+        return calls;
     }
-    private static void generationQuality(Set<String> keys) {keys.addAll(List.of("slop.judge","plot.diagnose","language.diagnose"));}
-    public boolean candidate(String method,String target) {
-        if(!"POST".equals(method)||target.contains("/admin"))return false;
-        if(target.equals("/v1/creation-workflows")||target.matches(".*/assistant/turns"))return true;
-        try{return !features(target,json.createObjectNode()).isEmpty();}
-        catch(com.ainovel.app.common.ApiStatusException e){return true;}
+
+    private static void stages(Map<String,AiModelRole> calls, String prefix, String intent, AiModelRole role) {
+        calls.put(prefix + "." + intent + ".plan", role);
+        calls.put(prefix + "." + intent + ".final", role);
     }
+
+    private static void guided(Map<String,AiModelRole> calls, String... steps) {
+        for (String step : steps) calls.put("guided." + step, com.ainovel.app.workflow.GuidedCreationGenerationService.modelRole(step));
+    }
+
+    private static void scene(Map<String,AiModelRole> calls, String mode) {
+        calls.put("scene." + mode + ".draft", AiModelRole.PROSE_DRAFT);
+        calls.put("scene." + mode + ".length", AiModelRole.PROSE_REVISE);
+    }
+
+    public boolean candidate(String method, String target) {
+        if (!"POST".equals(method) || target.contains("/admin")) return false;
+        if (target.equals("/v1/creation-workflows") || target.matches(".*/assistant/turns")) return true;
+        try { return !calls(target, json.createObjectNode()).isEmpty(); }
+        catch (com.ainovel.app.common.ApiStatusException e) { return true; }
+    }
+
     @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public Plan plan(User user,String target,JsonNode body) {
         if(target.matches("/v1/manuscripts/[^/]+/scenes/[^/]+/agent-runs")) {
             var parts=target.split("/");return writingAgent.quote(user,UUID.fromString(parts[3]),UUID.fromString(parts[5]),body);
         }
-        var keys=new ArrayList<>(features(target,body));
+        var plannedCalls = calls(target, body);
+        var keys = new ArrayList<>(plannedCalls.keySet());
         if(keys.isEmpty())throw AiModelConfigurationService.error("AI_ACTION_INVALID");
         String state=businessState(user,target,body);
-        if(target.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine(/operations)?)")) {
-            var parts=target.split("/");String action=target.contains("/refine")?"refine":"generate";
-            var origins=jdbc.query("select legacy_module_key,legacy_field_key,content from world_entries where world_id=? and id=?",
-                (rs,i)->{var row=new HashMap<String,String>();row.put("legacy_module_key",rs.getString(1));row.put("legacy_field_key",rs.getString(2));row.put("content",rs.getString(3));return row;},
-                AiModelConfigurationService.bytes(UUID.fromString(parts[3])),AiModelConfigurationService.bytes(UUID.fromString(parts[5])));
-            if(origins.isEmpty())throw AiModelConfigurationService.error("WORLD_ENTRY_NOT_FOUND");
-            var entry=origins.getFirst();String module=(String)entry.get("legacy_module_key"),field=(String)entry.get("legacy_field_key");
-            String legacy="world."+module+"."+field+"."+action;
-            if(AiFeatures.all().stream().anyMatch(f->f.key().equals(legacy))){keys.clear();keys.add(legacy);}
-            if(action.equals("generate")&&!Objects.toString(entry.get("content"),"").isBlank())throw AiModelConfigurationService.error("WORLD_ENTRY_NOT_EMPTY");
+        String path = target.split("\\?", 2)[0];
+        if (path.matches("/v1/worlds/[^/]+/entries/[^/]+/(generate/operations|refine(/operations)?)")) {
+            var parts = path.split("/");
+            worldEntries.validateForQuote(UUID.fromString(parts[3]), UUID.fromString(parts[5]), keys.contains("world.entry.generate"));
+        }
+        int worldCalls = 0;
+        if (keys.contains("world.generation")) {
+            var parts = path.split("/");
+            worldCalls = worlds.generationCalls(UUID.fromString(parts[3]), parts[4].equals("generation") ? parts[5] : null);
+            if (worldCalls == 0) keys.remove("world.generation");
         }
         String scope=null;
         try {
@@ -153,12 +195,6 @@ public class AiActionPlanner {
             }
             if(target.matches("/v1/manuscript/scenes/[^/]+/generate")) {
                 var rows=json.readTree(state);scope=uuidFromJson(rows.get(0).path("id"));
-            }
-            if(target.contains("/worlds/")&&!target.contains("/entries/")&&!keys.isEmpty()&&keys.getFirst().startsWith("world.")&&keys.getFirst().endsWith(".generate")) {
-                var row=json.readTree(state).get(0);var modules=json.readTree(row.path("modules_json").asText("{}"));
-                keys.removeIf(key->{var parts=key.split("\\.");var module=modules.path(parts[1]);
-                    if(target.contains("/publish/")&&module.isObject())for(var field:module)if(!field.asText("").isBlank())return true;
-                    return !module.path(parts[2]).asText("").isBlank();});
             }
             if(keys.contains("language.diagnose")&&(target.contains("/generate")||target.contains("/g2-evaluations/"))) {
                 // The G2 path never schedules the ordinary post-generation language job.
@@ -182,12 +218,12 @@ public class AiActionPlanner {
         int input=assistantInput==null?Math.max(1,com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(state+body)):worldAssistant.estimatedInput(assistantInput);
         for(int i=0;i<keys.size();i++) {
             var k=keys.get(i);
-            String calls=k.equals("language.diagnose")?"CHUNKS":target.contains("/g2-evaluations/")&&k.startsWith("slop.")?"QUALITY":k.startsWith("world.")?"ONE":k.equals("guided.json_repair")?"PER_STEP":
+            String calls=k.equals("world.generation")?"UP_TO_"+worldCalls:k.equals("language.diagnose")?"CHUNKS":target.contains("/g2-evaluations/")&&k.startsWith("slop.")?"QUALITY":k.startsWith("world.")?"ONE":k.equals("guided.json_repair")?"PER_STEP":
                     target.contains("/g2-evaluations/")&&k.endsWith(".length")?"UP_TO_TWO":"ONE";
             boolean conditional=k.startsWith("world_assistant.")&&k.endsWith(".final")||k.endsWith(".length")||k.equals("guided.json_repair")||(target.endsWith("/auto-run")||target.equals("/v1/creation-workflows"))&&i>0
                     ||(target.contains("/generate")||target.contains("/g2-evaluations/"))&&(k.startsWith("slop.")||k.startsWith("plot.")||k.startsWith("language."));
             int output=k.startsWith("scene.")?sceneOutputTokens(target,body,state):4096;
-            steps.add(new Step(k,conditional,calls,input,output));
+            steps.add(new Step(k,plannedCalls.get(k),conditional,calls,input,output));
         }
         String compiledHash="";
         com.ainovel.app.worldcontext.WorldWritingInput writingInput=null;
@@ -211,7 +247,7 @@ public class AiActionPlanner {
                     compiledHash=hash(json.valueToTree(prepared).toString());
                     writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("ASSISTANT",compiledHash,selected==null?0:selected.selectionRevision(),json.valueToTree(prepared));
                     int actualInput=writingAssistant.estimatedInput(prepared);
-                    steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
+                    steps=steps.stream().map(s->s.withEstimatedInput(actualInput)).toList();
                 }
                 if(!target.contains("/assistant")) {
                     var mode=target.contains("mode=crafted")?com.ainovel.app.manuscript.GenerationMode.CRAFTED:com.ainovel.app.manuscript.GenerationMode.FAST;
@@ -225,7 +261,7 @@ public class AiActionPlanner {
                     if(body.hasNonNull("expectedSelectionRevision")&&body.path("expectedSelectionRevision").asLong()!=selectionRevision)throw com.ainovel.app.worldcontext.WorldContextPreferences.conflict("WORLD_CONTEXT_SELECTION_CHANGED");
                     writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("SCENE",compiledHash,selectionRevision,json.valueToTree(prepared));
                     int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
-                    steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
+                    steps=steps.stream().map(s->s.withEstimatedInput(actualInput)).toList();
                 }
             }
         }
@@ -235,20 +271,17 @@ public class AiActionPlanner {
             var prepared=outlineAi.prepare(user,id,request);com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(prepared.worldContext());
             compiledHash=outlineAi.fingerprint(prepared);writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("OUTLINE",compiledHash,prepared.worldContext().selectionRevision(),json.valueToTree(prepared));
             int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
-            steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
+            steps=steps.stream().map(s->s.withEstimatedInput(actualInput)).toList();
         }
         if(target.matches("/v1/outlines/[^/]+/(ai-operations|chapters(/operations)?)")) {
             UUID id=UUID.fromString(target.split("/")[3]);var request=target.endsWith("/ai-operations")?json.convertValue(body,com.ainovel.app.story.OutlineAiService.Request.class):com.ainovel.app.story.OutlineAiService.chapterRequest(json.convertValue(body,com.ainovel.app.story.dto.OutlineChapterGenerateRequest.class));
             var prepared=outlineAi.prepare(user,id,request);com.ainovel.app.worldcontext.WorldContextSelector.requireUsable(prepared.worldContext());
             compiledHash=outlineAi.fingerprint(prepared);writingInput=new com.ainovel.app.worldcontext.WorldWritingInput("OUTLINE",compiledHash,prepared.worldContext().selectionRevision(),json.valueToTree(prepared));
             int actualInput=prepared.prompt().messages().stream().mapToInt(m->com.ainovel.app.manuscript.context.SceneDraftContextCompiler.estimateTokens(m.content())).sum();
-            steps=steps.stream().map(s->new Step(s.featureKey(),s.conditional(),s.calls(),actualInput,s.estimatedOutput())).toList();
+            steps=steps.stream().map(s->s.withEstimatedInput(actualInput)).toList();
         }
         return new Plan(target,List.copyOf(steps),hash(state+keys+compiledHash+json.valueToTree(worldInput).toString()+json.valueToTree(writingInput)
             +(assistantInput==null?"":json.valueToTree(assistantInput).toString())),scope,worldInput,assistantInput,writingInput);
-    }
-    private static List<String> automaticGuidedSteps() {
-        return List.of("guided.premise","guided.world","guided.characters","guided.outline","guided.outline_expand","guided.json_repair");
     }
     private String businessState(User user,String target,JsonNode body) {
         // Related rows participate in freshness checks without exposing their content in the quote view.

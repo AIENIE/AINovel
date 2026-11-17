@@ -26,7 +26,7 @@ class AiQuoteRequestFilterTest {
     private MockHttpServletRequest request() {
         var request=new MockHttpServletRequest("POST","/api/v1/ai/chat");request.setContent("{\"messages\":[]}".getBytes(StandardCharsets.UTF_8));
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken("author",null,java.util.List.of()));
-        when(planner.candidate("POST","/v1/ai/chat")).thenReturn(true);when(planner.features(eq("/v1/ai/chat"),any())).thenReturn(java.util.List.of("generic.chat"));when(users.require(any())).thenReturn(user);return request;
+        when(planner.candidate("POST","/v1/ai/chat")).thenReturn(true);when(planner.calls(eq("/v1/ai/chat"),any())).thenReturn(java.util.Map.of("generic.chat",AiModelRole.DISCUSSION));when(users.require(any())).thenReturn(user);return request;
     }
     @AfterEach void clear(){SecurityContextHolder.clearContext();assertThat(AiSelectionContext.current()).isNull();}
     @Test void missingPaidQuoteStopsBeforeControllerMutation() throws Exception {

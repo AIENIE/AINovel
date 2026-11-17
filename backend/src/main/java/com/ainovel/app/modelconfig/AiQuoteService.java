@@ -15,9 +15,10 @@ import java.util.*;
 @Service
 public class AiQuoteService {
     public record Request(String target,JsonNode body,Map<String,String> selections) {}
-    public record QuoteStep(AiActionPlanner.Step step,AiModelConfigurationService.FeatureView feature,
-            AiModelSelection selected,long estimatedCredits) {}
-    public record View(String id,Instant expiresAt,List<QuoteStep> steps,long estimatedCredits) {}
+    public record Estimate(boolean conditional, String calls, int estimatedInput, int estimatedOutput) {}
+    public record QuoteRole(AiModelConfigurationService.RoleView role, AiModelSelection selected,
+                            List<Estimate> estimates, long estimatedCredits) {}
+    public record View(String id, Instant expiresAt, List<QuoteRole> roles, long estimatedCredits) {}
     public record Pending(String id,String target,JsonNode body,String requestKey,String quoteId,String label) {}
     private final AiModelConfigurationService config;
     private final AiActionPlanner planner;
@@ -36,31 +37,12 @@ public class AiQuoteService {
         return tx.execute(s->{
             long revision=jdbc.queryForObject("select revision from ai_model_catalog_state where id=1 for update",Long.class);
             requireNoUnresolvedOperation(user,target,body,"");
-            var selections=new LinkedHashMap<String,AiModelSelection>();List<QuoteStep> steps=new ArrayList<>();
-            var outputLimits = new LinkedHashMap<String,Integer>();
-            for(var step:plan.steps()) {
-                var feature=config.feature(step.featureKey(),user);
-                if(feature.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
-                String requested=request.selections()==null?null:request.selections().get(step.featureKey());
-                if(!feature.billingEnabled()) requested=feature.defaultOptionId();
-                else if(requested==null) {
-                    if(feature.preferenceInvalid())throw AiModelConfigurationService.error("AI_PREFERENCE_UNAVAILABLE");
-                    requested=feature.preferredOptionId()==null?feature.defaultOptionId():feature.preferredOptionId();
-                }
-                String id=config.optionId(feature, requested);
-                var selected=feature.options().stream().filter(o->o.optionId().equals(id)).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
-                if(feature.unavailableOptions().contains(id))throw AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE");
-                recordOutputLimit(outputLimits, feature, selected);
-                selections.put(step.featureKey(),selected);
-                int output = outputLimits.getOrDefault(step.featureKey(), step.estimatedOutput());
-                var estimatedStep = new AiActionPlanner.Step(step.featureKey(), step.conditional(), step.calls(), step.estimatedInput(), output);
-                steps.add(new QuoteStep(estimatedStep,feature,selected,Math.multiplyExact(selected.cost(step.estimatedInput(),output),maximumCalls(step.calls()))));
-            }
+            var roles = quoteRoles(plan, user, request.selections()==null ? Map.of() : request.selections(), false);
             String id=UUID.randomUUID().toString();Instant expires=Instant.now().plusSeconds(600);
             jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,expires_at) values(?,?,?,?,?,?,?,?,?)",
                     id,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),revision,
-                    config.write(snapshot(id, selections, plan, outputLimits)),Timestamp.from(expires));
-            return new View(id,expires,List.copyOf(steps),steps.stream().mapToLong(QuoteStep::estimatedCredits).sum());
+                    config.write(snapshot(id, roles, plan)),Timestamp.from(expires));
+            return new View(id, expires, roles, roles.stream().mapToLong(QuoteRole::estimatedCredits).sum());
         });
     }
     public AiSelectionContext.Snapshot accept(User user,String suppliedTarget,JsonNode body,String quoteId,String requestKey) {
@@ -79,17 +61,9 @@ public class AiQuoteService {
                     }
                 }
                 requireNoUnresolvedOperation(user,target,body,receipt==null?"":receipt);
-                var plan=planner.plan(user,target,body);var values=new LinkedHashMap<String,AiModelSelection>();
-                var outputLimits = new LinkedHashMap<String,Integer>();
-                for(var step:plan.steps()) {
-                    var f=config.feature(step.featureKey(),user);
-                    if(f.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
-                    if(f.billingEnabled())throw new ApiStatusException(HttpStatus.PRECONDITION_REQUIRED,"AI_QUOTE_REQUIRED");
-                    var selected=f.options().stream().filter(v->v.optionId().equals(f.defaultOptionId())&&!f.unavailableOptions().contains(v.optionId())).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
-                    recordOutputLimit(outputLimits, f, selected);
-                    values.put(step.featureKey(),selected);
-                }
-                var snapshot=snapshot(receipt==null?UUID.randomUUID().toString():receipt, values, plan, outputLimits);
+                var plan = planner.plan(user, target, body);
+                var roles = quoteRoles(plan, user, Map.of(), true);
+                var snapshot = snapshot(receipt==null ? UUID.randomUUID().toString() : receipt, roles, plan);
                 if(receipt!=null)jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,accepted_request_key,expires_at) values(?,?,?,?,?,?,?,?,?,?)",
                         receipt,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),config.revision(),config.write(snapshot),requestKey,Timestamp.from(Instant.now()));
                 return snapshot;
@@ -106,13 +80,15 @@ public class AiQuoteService {
                 if(!accepted.equals(binding))throw AiModelConfigurationService.error("AI_QUOTE_ALREADY_USED");
                 return config.readSnapshot((String)q.get("selections_json"));
             }
+            var frozen = config.readSnapshot((String) q.get("selections_json"));
+            if (!frozen.roleBased()) throw AiModelConfigurationService.error("AI_QUOTE_EXPIRED");
             var plan=planner.plan(user,target,body);
             long revision=jdbc.queryForObject("select revision from ai_model_catalog_state where id=1 for update",Long.class);
             requireNoUnresolvedOperation(user,target,body,quoteId);
             if(!((Timestamp)q.get("expires_at")).toInstant().isAfter(Instant.now()))throw AiModelConfigurationService.error("AI_QUOTE_EXPIRED");
             if(revision!=((Number)q.get("configuration_revision")).longValue()||!plan.businessHash().equals(q.get("business_hash")))throw AiModelConfigurationService.error("AI_QUOTE_INPUT_CHANGED");
             jdbc.update("update ai_model_quotes set accepted_request_key=? where id=?",binding,quoteId);
-            return config.readSnapshot((String)q.get("selections_json"));
+            return frozen;
         });
     }
     private String canonicalTarget(String target) {
@@ -127,18 +103,58 @@ public class AiQuoteService {
         if(status.equals("RESULT_READY"))throw new AiPaymentRequiredException();
         throw new ApiStatusException(HttpStatus.CONFLICT,status.equals("RESERVED")?"AI_REQUEST_IN_PROGRESS":"AI_RESULT_RECONCILIATION_REQUIRED");
     }
-    private static void recordOutputLimit(Map<String,Integer> limits, AiModelConfigurationService.FeatureView feature, AiModelSelection selected) {
-        Integer limit = feature.outputTokenLimits().get(selected.optionId());
-        if (limit != null) limits.put(selected.featureKey(), limit);
+    private List<QuoteRole> quoteRoles(AiActionPlanner.Plan plan, User user, Map<String,String> requested, boolean mustBeFree) {
+        var stepsByRole = new LinkedHashMap<AiModelRole,List<AiActionPlanner.Step>>();
+        for (var step : plan.steps()) {
+            stepsByRole.computeIfAbsent(step.role(), ignored -> new ArrayList<>()).add(step);
+        }
+        if (requested.keySet().stream().anyMatch(key -> !stepsByRole.containsKey(AiModelRole.find(key)))) {
+            throw AiModelConfigurationService.error("AI_ACTION_INVALID");
+        }
+        var quotes = new ArrayList<QuoteRole>();
+        for (var entry : stepsByRole.entrySet()) {
+            var role = config.role(entry.getKey(), user);
+            if (role.options().isEmpty()) throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
+            if (mustBeFree && role.billingEnabled()) throw new ApiStatusException(HttpStatus.PRECONDITION_REQUIRED, "AI_QUOTE_REQUIRED");
+            String choice = role.billingEnabled() ? requested.get(entry.getKey().key()) : null;
+            if (choice == null) {
+                if (role.preferenceInvalid()) throw AiModelConfigurationService.error("AI_PREFERENCE_UNAVAILABLE");
+                choice = role.preferredOptionId()==null ? role.defaultOptionId() : role.preferredOptionId();
+            }
+            String id = choice;
+            var selected = role.options().stream().filter(option -> option.optionId().equals(id) && !role.unavailableOptions().contains(id))
+                    .findFirst().orElseThrow(() -> AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
+            int output = role.outputTokenLimits().getOrDefault(id,
+                    entry.getValue().stream().mapToInt(AiActionPlanner.Step::estimatedOutput).max().orElseThrow());
+            var estimates = entry.getValue().stream().map(step -> new Estimate(step.conditional(), step.calls(), step.estimatedInput(), output)).toList();
+            long credits = 0;
+            for (var estimate : estimates) {
+                credits = Math.addExact(credits, Math.multiplyExact(selected.cost(estimate.estimatedInput(), output), maximumCalls(estimate.calls())));
+            }
+            quotes.add(new QuoteRole(role, selected, estimates, credits));
+        }
+        return List.copyOf(quotes);
     }
-    private static AiSelectionContext.Snapshot snapshot(String id, Map<String,AiModelSelection> selections, AiActionPlanner.Plan plan,
-                                                        Map<String,Integer> outputLimits) {
+
+    private static AiSelectionContext.Snapshot snapshot(String id, List<QuoteRole> roles, AiActionPlanner.Plan plan) {
+        var selections = new LinkedHashMap<String,AiModelSelection>();
         var budgets = new LinkedHashMap<String,Integer>();
-        for (var step : plan.steps()) budgets.put(step.featureKey(), outputLimits.getOrDefault(step.featureKey(), step.estimatedOutput()));
+        var explicitLimits = new LinkedHashMap<String,Integer>();
+        for (var quote : roles) {
+            String key = quote.role().definition().key();
+            selections.put(key, quote.selected());
+            budgets.put(key, quote.estimates().getFirst().estimatedOutput());
+            Integer limit = quote.role().outputTokenLimits().get(quote.selected().optionId());
+            if (limit != null) explicitLimits.put(key, limit);
+        }
         return new AiSelectionContext.Snapshot(id, selections, plan.businessScope(), budgets, plan.worldInput(),
-                plan.worldAssistantInput(), plan.writingInput(), outputLimits);
+                plan.worldAssistantInput(), plan.writingInput(), explicitLimits, true);
     }
-    private static int maximumCalls(String value){if(value!=null&&value.matches("UP_TO_[0-9]+"))return Integer.parseInt(value.substring(6));return 1;}
+
+    private static int maximumCalls(String value) {
+        if ("UP_TO_TWO".equals(value)) return 2;
+        return value != null && value.matches("UP_TO_[0-9]+") ? Integer.parseInt(value.substring(6)) : 1;
+    }
     /** A durable receipt uses the existing quote snapshot store for G2's independently scheduled task. */
     public void freezeTaskSnapshot(User user,UUID taskId) {
         var snapshot=AiSelectionContext.current();if(snapshot==null)return;

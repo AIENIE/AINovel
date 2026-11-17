@@ -32,7 +32,7 @@ class WritingAgentModelRecoveryTest {
     private final WritingAgentService service = mock(WritingAgentService.class, CALLS_REAL_METHODS);
     private final UUID run = UUID.randomUUID();
     private final User user = new User();
-    private final AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "冻结请求")), null, null).forFeature("writing_agent.control");
+    private final AiChatRequest request = new AiChatRequest(List.of(new AiChatRequest.Message("user", "冻结请求")), null, null).forRole(null, "writing_agent.control");
     private final AiModelSelection selected = new AiModelSelection("writing_agent.control", "option", "model", "Model",
             "OFF", null, false, true, "FIXED", 1L, null, null, 1);
 

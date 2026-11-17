@@ -1,5 +1,6 @@
 package com.ainovel.app.modelconfig;
 
+import com.ainovel.app.ai.dto.AiChatRequest;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -9,7 +10,15 @@ public final class AiSelectionContext {
             com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,
             com.ainovel.app.worldcontext.WorldWritingInput writingInput,
             @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
-            Map<String,Integer> explicitOutputLimits) {
+            Map<String,Integer> explicitOutputLimits,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_DEFAULT)
+            boolean roleBased) {
+        public Snapshot(String identity, Map<String,AiModelSelection> selections, String scope, Map<String,Integer> budgets,
+                        com.ainovel.app.world.WorldBindingService.Frozen worldInput,
+                        com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,
+                        com.ainovel.app.worldcontext.WorldWritingInput writingInput, Map<String,Integer> explicitOutputLimits) {
+            this(identity, selections, scope, budgets, worldInput, worldAssistantInput, writingInput, explicitOutputLimits, false);
+        }
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,com.ainovel.app.worldcontext.WorldWritingInput writingInput){this(identity,selections,scope,budgets,worldInput,worldAssistantInput,writingInput,Map.of());}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput){this(identity,selections,scope,budgets,worldInput,worldAssistantInput,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput){this(identity,selections,scope,budgets,worldInput,null);}
@@ -27,14 +36,22 @@ public final class AiSelectionContext {
     private static final ThreadLocal<Scope> CURRENT=new ThreadLocal<>();
     private AiSelectionContext() {}
     public static Snapshot current() { return CURRENT.get()==null?null:CURRENT.get().snapshot(); }
-    public static AiModelSelection selection(String feature) {
-        Snapshot s=current();
-        if(s==null) return null;
-        AiModelSelection selected=s.selections().get(feature);
+    public static AiModelSelection selection(AiChatRequest request) {
+        Snapshot s = current();
+        if (s == null) return null;
+        String step = request.featureKey() == null ? "generic.chat" : request.featureKey();
+        String route = s.roleBased() && request.modelRole() != null ? request.modelRole().key() : step;
+        AiModelSelection selected = s.selections().get(route);
         if(selected==null) throw new com.ainovel.app.common.ApiStatusException(
                 org.springframework.http.HttpStatus.CONFLICT,"AI_STEP_NOT_QUOTED");
         return selected;
     }
+    public static AiChatRequest forSnapshot(AiChatRequest request) {
+        var snapshot = current();
+        if (snapshot == null) return request.forRole(null, null);
+        return snapshot.roleBased() ? request : request.forRole(null, request.featureKey());
+    }
+
     public static String callKey(String hash) {
         Scope s=CURRENT.get();
         if(s==null) return null;

@@ -1,5 +1,6 @@
 package com.ainovel.app.assistant;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.*;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.aioperation.*;
@@ -27,6 +28,11 @@ import static com.ainovel.app.quality.language.LanguageProjection.hash;
 
 @Service
 public class WritingAssistantService {
+
+    public static AiModelRole modelRole(String intent) {
+        return "AUTHOR_QA".equalsIgnoreCase(intent) ? AiModelRole.DISCUSSION : AiModelRole.PROSE_REVISE;
+    }
+
     @org.springframework.beans.factory.annotation.Autowired private com.ainovel.app.world.WorldBindingService worldBindings;
     public static final String TYPE="WRITING_ASSISTANT_TURN";
     private final AssistantStore store;
@@ -264,7 +270,8 @@ public class WritingAssistantService {
         var row=store.turn(turnId);String raw=stage.equals("plan")?row.planResultJson():row.finalResultJson();
         if(raw!=null)return store.read(raw,AiChatResponse.class);
         String frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();
-        if(frozen==null){var request=builder.get().forFeature("assistant."+frozen(row).intent().toLowerCase(java.util.Locale.ROOT)+"."+stage);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",request);return null;});row=store.turn(turnId);frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
+        if(frozen==null){String intent = frozen(row).intent();
+            var request = builder.get().forRole(modelRole(intent), "assistant."+intent.toLowerCase(java.util.Locale.ROOT)+"."+stage);AiOperationExecutionContext.apply(()->{store.checkpoint(turnId,stage+"_request_json",request);return null;});row=store.turn(turnId);frozen=stage.equals("plan")?row.planRequestJson():row.finalRequestJson();}
         var request=store.read(frozen,AiChatRequest.class);
         AiOperationExecutionContext.apply(()->null);
         var response=ai.chatWithIdempotency(execution.user(),request,execution.operationId()+":assistant:"+stage);

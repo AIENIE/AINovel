@@ -61,7 +61,7 @@ class AiResultRecoveryTest {
                 .thenReturn(new EconomyService.AiReservationStart(true,"",10,20,0,1,metadata,envelope));
         when(economy.projectBalance(user)).thenReturn(0L);
         try(var ignored=com.ainovel.app.modelconfig.AiSelectionContext.install(new com.ainovel.app.modelconfig.AiSelectionContext.Snapshot("frozen-run",Map.of(selected.featureKey(),selected)))) {
-            var response=service.chatWithIdempotency(user,request.forFeature(selected.featureKey()).withNativeTools(AiNativeProtocolTest.TOOLS,2048),"native-replay");
+            var response=service.chatWithIdempotency(user,request.forRole(null, selected.featureKey()).withNativeTools(AiNativeProtocolTest.TOOLS,2048),"native-replay");
             assertEquals(envelope,response.nativeResponseJson());assertEquals("original-state",response.nativeResult().message().providerState());assertEquals(metadata,response.metadata());
             assertEquals(0L, response.remainingProjectCredits());
         }

@@ -37,11 +37,18 @@ public class AiValidationMoneyGateway {
         boolean reservedOrPrior=false;
         try {
             var prior=ledger.existingMoney(request.getRequestId());
-            if(prior.isPresent()) { reservedOrPrior=true; ledger.requireSameRequest(prior.get(),request); return recover(prior.get(),transport); }
+            if (prior.isPresent()) {
+                reservedOrPrior = true;
+                var frozen = ledger.request(prior.get());
+                var comparable = request.toBuilder().clearStreamTimeouts();
+                if (frozen.hasStreamTimeouts()) comparable.setStreamTimeouts(frozen.getStreamTimeouts());
+                ledger.requireSameRequest(prior.get(), comparable.build());
+                return recover(prior.get(), transport);
+            }
             if(modelKey.isBlank() || !modelKey.equals(request.getModel()) || !request.getImg().isBlank()
-                    || request.hasReasoningPrefix() || request.hasBudgetCredential()
+                    || request.hasReasoningPrefix() || request.hasBudgetCredential() || request.hasStreamTimeouts() && request.hasToolsJson()
                     || !request.hasToolsJson() && request.getMessagesList().stream().anyMatch(m->m.hasToolCallsJson() || m.hasToolCallId() || m.hasReasoningContent() || m.hasProviderState())
-                    || request.getMaxOutputTokens()<1) throw notSent("AI_VALIDATION_UNARY_TEXT_ONLY");
+                    || request.getMaxOutputTokens()<1) throw notSent("AI_VALIDATION_TEXT_REQUEST_INVALID");
             var caps=transport.capabilities(request.getModel());
             if(request.hasToolsJson() && (!caps.getBudgetToolsDeclared() || !caps.getBudgetToolsAvailable()))
                 throw notSent("AI_NATIVE_BUDGET_TOOLS_UNAVAILABLE");

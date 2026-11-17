@@ -1,5 +1,6 @@
 package com.ainovel.app.workflow;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.AiUsageContext;
 import com.ainovel.app.ai.dto.AiChatRequest;
@@ -23,6 +24,12 @@ import java.util.UUID;
 
 @Service
 public class GuidedCreationGenerationService {
+
+    public static AiModelRole modelRole(String operation) {
+        if (operation.endsWith(":json_repair") || operation.equals("json_repair")) return AiModelRole.FORMAT_REPAIR;
+        return operation.startsWith("outline") ? AiModelRole.OUTLINE : AiModelRole.CONCEPTION;
+    }
+
     private final AiService aiService;
     private final GuidedCreationPromptFactory promptFactory;
     private final GuidedCreationJsonSupport jsonSupport;
@@ -85,7 +92,8 @@ public class GuidedCreationGenerationService {
     private AiChatResponse chat(CreationWorkflowRun run, String prompt, AiUsageContext usageContext) {
         return aiService.chat(
                 run.getUser(),
-                new AiChatRequest(List.of(new AiChatRequest.Message("user", prompt)), null, null).forFeature(usageContext.operation().endsWith(":json_repair")?"guided.json_repair":"guided."+usageContext.operation().split(":")[0]),
+                new AiChatRequest(List.of(new AiChatRequest.Message("user", prompt)), null, null).forRole(modelRole(usageContext.operation()),
+                        usageContext.operation().endsWith(":json_repair")?"guided.json_repair":"guided."+usageContext.operation().split(":")[0]),
                 usageContext);
     }
 

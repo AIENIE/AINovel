@@ -30,18 +30,12 @@ function eligible(role: ModelResponsibility, model: CatalogModel) {
 
 function defaultLabel(role: ModelResponsibility, models: CatalogModel[]) {
   const option = role.options.find((item) => item.optionId === role.defaultOptionId);
-  if (!option) return role.legacyDefaults.length ? "沿用各操作的计费" : "待配置";
+  if (!option) return "待配置";
   const model = models.find((item) => item.modelKey === option.modelKey);
   const thinking = option.thinkingMode === "ON" ? option.thinkingEffort ?? "开启思考"
     : option.thinkingMode === "OFF" ? "关闭思考" : null;
   return [model?.displayName ?? option.label, thinking, role.unavailableOptions.includes(option.optionId) ? "需更换" : null]
     .filter(Boolean).join(" · ");
-}
-
-function priceLabel(option: AiModelSelection) {
-  if (!option.billingEnabled) return "免费";
-  return option.pricingMode === "FIXED" ? `每次 ${option.fixedCredits} 项目积分`
-    : `输入 ${option.inputPer1k}，输出 ${option.outputPer1k} 项目积分／千 token`;
 }
 
 function defaultFirst(role: ModelResponsibility): ModelResponsibility {
@@ -91,17 +85,6 @@ function RoleEditor({ role, models, update, save, saving }: {
       <Save className="mr-2 h-4 w-4" />{saving ? "正在保存" : "保存配置"}
     </Button>
   }>
-    <details className="mb-5 rounded-md border border-zinc-800 bg-zinc-950/50 px-4 py-2.5 text-sm">
-      <summary className="cursor-pointer text-zinc-300">覆盖操作 <span className="ml-1 text-zinc-500">{role.operations.length}</span></summary>
-      <ul className="mt-3 grid list-inside list-disc gap-x-5 gap-y-1.5 text-xs text-zinc-400 sm:grid-cols-2">
-        {role.operations.map((operation) => <li key={operation.key}>{operation.zh}</li>)}
-      </ul>
-    </details>
-    {role.legacyDefaults.length ? <div className="mb-5 space-y-2 rounded-md border border-amber-900/70 bg-amber-950/20 p-3 text-sm text-amber-200">
-      <p>这些操作目前各自计费。保存后会使用这项职责的统一方案。</p>
-      <ul className="space-y-1 text-xs">{role.legacyDefaults.map(({ operation, option }) =>
-        <li key={operation.key}>{operation.zh} · {priceLabel(option)}</li>)}</ul>
-    </div> : null}
     <fieldset disabled={saving} className="min-w-0 space-y-4">
       <label className="flex items-center gap-2 text-sm text-zinc-200">
         <input type="checkbox" checked={role.billingEnabled} onChange={(event) => {
@@ -256,7 +239,6 @@ export default function ModelConfiguration() {
   const [roles, setRoles] = useState<ModelResponsibility[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ModelResponsibility>>({});
   const [active, setActive] = useState("");
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -283,7 +265,7 @@ export default function ModelConfiguration() {
       setCatalog(await api.modelConfig.sync());
       setRoles((await api.modelConfig.routing()).map(defaultFirst));
       toast({ title: "模型目录已同步" });
-    } catch { setError("同步失败，上次成功目录和功能配置已保留。"); }
+    } catch { setError("同步失败，上次成功目录和职责配置已保留。"); }
     finally { setSyncing(false); }
   };
 
@@ -301,10 +283,7 @@ export default function ModelConfiguration() {
     } finally { setSaving(false); }
   };
 
-  const query = search.trim().toLowerCase();
-  const visibleRoles = roles.filter(({ definition, operations }) => [definition, ...operations]
-    .some((item) => `${item.zh} ${item.key}`.toLowerCase().includes(query)));
-  const selected = visibleRoles.find((role) => role.definition.key === active) ?? visibleRoles[0];
+  const selected = roles.find((role) => role.definition.key === active) ?? roles[0];
 
   return <div className="space-y-5">
     <AdminPageHeader title="模型配置" actions={
@@ -321,18 +300,16 @@ export default function ModelConfiguration() {
       </div>
       <TabsContent value="roles" className="grid items-start gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
         <div className="min-w-0 space-y-3">
-          <Input aria-label="搜索职责或操作" placeholder="搜索职责或操作" className="border-zinc-700 bg-zinc-900"
-            disabled={saving} value={search} onChange={(event) => setSearch(event.target.value)} />
           {selected ? <label className="block space-y-1.5 text-xs text-zinc-400 lg:hidden"><span>职责</span>
             <select aria-label="选择职责" className={selectClass} value={selected.definition.key} disabled={saving}
               onChange={(event) => setActive(event.target.value)}>
-              {visibleRoles.map((role) => <option key={role.definition.key} value={role.definition.key}>{role.definition.zh}</option>)}
+              {roles.map((role) => <option key={role.definition.key} value={role.definition.key}>{role.definition.zh}</option>)}
             </select>
             <span className="block break-words">{defaultLabel(selected, catalog.models)}</span>
           </label> : null}
           <nav className="hidden space-y-4 lg:block" aria-label="模型职责">
             {Object.entries(groups).map(([group, title]) => {
-              const entries = visibleRoles.filter((role) => role.definition.group === group);
+              const entries = roles.filter((role) => role.definition.group === group);
               if (!entries.length) return null;
               return <div key={group}>
                 <h2 className="mb-1.5 px-2 text-xs font-medium text-zinc-400">{title}</h2>

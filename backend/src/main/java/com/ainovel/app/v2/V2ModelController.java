@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -88,7 +87,7 @@ public class V2ModelController {
     @GetMapping("/users/me/model-preferences")
     public List<Map<String, Object>> listPreferences(@AuthenticationPrincipal UserDetails principal) {
         User user = accessGuard.currentUser(principal);
-        return persistenceService.listPreferences(user);
+        return modelConfiguration.responsibilities(user).stream().map(modelConfiguration::asMap).toList();
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -98,21 +97,12 @@ public class V2ModelController {
                                              @PathVariable String taskType,
                                              @RequestBody V2RequestPayload payload) {
         User user = accessGuard.currentUser(principal);
-        if(payload.value().has("preferredOptionId")) {
-            modelConfiguration.preference(user,taskType,(String)payload.get("preferredOptionId"));
-            return modelConfiguration.asMap(modelConfiguration.feature(taskType,user));
+        if (!payload.value().has("preferredOptionId") || !(payload.value().get("preferredOptionId").isTextual()
+                || payload.value().get("preferredOptionId").isNull())) {
+            throw new com.ainovel.app.common.ApiStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "AI_OPTIONS_INVALID");
         }
-        return persistenceService.savePreference(user, taskType, uuid(payload.get("preferredModelId")));
-    }
-
-    @Operation(summary = "v2 API endpoint")
-
-    @DeleteMapping("/users/me/model-preferences/{taskType}")
-    public ResponseEntity<Void> resetPreference(@AuthenticationPrincipal UserDetails principal,
-                                                @PathVariable String taskType) {
-        User user = accessGuard.currentUser(principal);
-        persistenceService.resetPreference(user, taskType);
-        return ResponseEntity.noContent().build();
+        return modelConfiguration.asMap(modelConfiguration.preference(user, taskType,
+                payload.value().get("preferredOptionId").textValue()));
     }
 
     @Operation(summary = "v2 API endpoint")
@@ -130,20 +120,6 @@ public class V2ModelController {
                                                   @RequestParam(required = false, defaultValue = "100") int limit) {
         User user = accessGuard.currentUser(principal);
         return persistenceService.usageDetails(user, limit);
-    }
-
-    private UUID uuid(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof UUID id) {
-            return id;
-        }
-        try {
-            return UUID.fromString(value.toString());
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
     }
 
 }

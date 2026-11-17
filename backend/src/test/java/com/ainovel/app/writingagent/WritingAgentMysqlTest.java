@@ -79,7 +79,7 @@ class WritingAgentMysqlTest {
         assertThrows(org.springframework.dao.DataIntegrityViolationException.class,()->store.create(fixture.user().getId(),f,original.requestKey(),"different-hash"));
         var step=store.request(run,0,"step-zero","MODEL","writing_agent.control",request);
         assertEquals(step.id(),store.request(run,0,"step-zero","MODEL","writing_agent.control",request).id());
-        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->store.request(run,0,"step-zero","MODEL","writing_agent.control",request.forFeature("changed")));
+        assertThrows(com.ainovel.app.common.ApiStatusException.class,()->store.request(run,0,"step-zero","MODEL","writing_agent.control",request.forRole(null, "changed")));
         assertThrows(org.springframework.dao.DataIntegrityViolationException.class,()->store.request(run,0,"other-key","MODEL","writing_agent.control",request));
         assertThrows(IllegalStateException.class,()->store.isolated(()->{store.result(run,"step-zero",Map.of("answer","已产生"));throw new IllegalStateException("business rollback");}));
         assertTrue(new WritingAgentStore(jdbc,json,manager).step(run,"step-zero").result().contains("已产生"));

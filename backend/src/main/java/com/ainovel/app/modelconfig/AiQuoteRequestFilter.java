@@ -41,7 +41,7 @@ public class AiQuoteRequestFilter extends OncePerRequestFilter {
         AiSelectionContext.Snapshot snapshot;
         try {
             var input=body.length==0?json.createObjectNode():json.readTree(body);
-            if(planner.features(target(request),input).isEmpty()){chain.doFilter(new BodyRequest(request,body),response);return;}
+            if(planner.calls(target(request),input).isEmpty()){chain.doFilter(new BodyRequest(request,body),response);return;}
             snapshot=quotes.accept(users.require(principal),target(request),input,request.getHeader("X-AI-Quote-Id"),request.getHeader("Idempotency-Key"));
         } catch(ApiStatusException ex) {
             response.setStatus(ex.getStatus().value());response.setContentType("application/json");

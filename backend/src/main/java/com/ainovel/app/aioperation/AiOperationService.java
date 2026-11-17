@@ -302,10 +302,12 @@ public class AiOperationService {
                 update(id,token,run->run.setModelKey(modelKey));
             }
             @Override public void onStarted(String requestId, String modelKey) {
-                currentStepTokenBase.set(repository.findById(id).map(AiOperationRun::getOutputTokens).orElse(0L));
+                lastUpdate.set(0);
                 update(id, token, run -> {
                     run.setStatus(AiOperationStatus.STREAMING);
                     run.setStreamStarted(true);
+                    run.setOutputTokens(0);
+                    run.setOutputTokensEstimated(false);
                     run.setRequestId(requestId);
                     run.setModelKey(modelKey);
                 });
@@ -316,7 +318,7 @@ public class AiOperationService {
                 if (now - previous < 250_000_000L && outputTokens > 0) return;
                 if (lastUpdate.compareAndSet(previous, now)) {
                     update(id, token, run -> {
-                        run.setOutputTokens(currentStepTokenBase.get() + outputTokens);
+                        run.setOutputTokens(outputTokens);
                         run.setOutputTokensEstimated(estimated);
                     });
                 }

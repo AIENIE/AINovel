@@ -43,17 +43,21 @@ class AiModelSelectionTest {
         try(var ignored=AiSelectionContext.install(outer)) {
             first=AiSelectionContext.callKey("generic.chat");
             assertThat(AiSelectionContext.callKey("generic.chat")).isNotEqualTo(first);
-            assertThatThrownBy(()->AiSelectionContext.selection("plot.revise")).hasMessage("AI_STEP_NOT_QUOTED");
+            assertThatThrownBy(()->AiSelectionContext.selection(new com.ainovel.app.ai.dto.AiChatRequest(List.of(), null, null, "plot.revise"))).hasMessage("AI_STEP_NOT_QUOTED");
             try(var child=AiSelectionContext.install(new AiSelectionContext.Snapshot("quote-b",Map.of()))) {assertThat(AiSelectionContext.current().identity()).isEqualTo("quote-b");}
             assertThat(AiSelectionContext.current()).isEqualTo(outer);
         }
         assertThat(AiSelectionContext.current()).isNull();
         try(var resumed=AiSelectionContext.install(outer)) {assertThat(AiSelectionContext.callKey("generic.chat")).isEqualTo(first);}
     }
-    @Test void functionalRegistryDoesNotIncludeUnimplementedOrSpecializedCapabilities() {
-        assertThat(AiFeatures.all()).extracting(AiFeatures.Definition::key).doesNotHaveDuplicates()
-                .contains("scene.fast.length","language.review","story_assistant.propose.final","world.magic_tech.rules.generate")
-                .doesNotContain("beta_reader","continuity_check","embedding","rerank");
-        assertThat(AiFeatures.all()).allSatisfy(f->{assertThat(f.key().length()).isLessThanOrEqualTo(50);assertThat(f.zh()).isNotBlank();assertThat(f.tw()).isNotBlank();assertThat(f.en()).isNotBlank();});
+    @Test void directoryContainsOnlyConfiguredResponsibilities() {
+        assertThat(java.util.List.of(AiModelRole.values())).extracting(AiModelRole::key).hasSize(14).doesNotHaveDuplicates()
+                .contains("role.prose_revise", "role.revision_review", "role.setting_proposal", "role.conception");
+        assertThat(java.util.List.of(AiModelRole.values())).allSatisfy(role -> {
+            assertThat(role.key()).startsWith("role.").hasSizeLessThanOrEqualTo(50);
+            assertThat(role.definition().zh()).isNotBlank();
+            assertThat(role.definition().tw()).isNotBlank();
+            assertThat(role.definition().en()).isNotBlank();
+        });
     }
 }

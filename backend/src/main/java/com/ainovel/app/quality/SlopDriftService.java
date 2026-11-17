@@ -1,5 +1,6 @@
 package com.ainovel.app.quality;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.common.BusinessException;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
@@ -71,7 +72,7 @@ public class SlopDriftService {
                     List.of(new AiChatRequest.Message("user", buildPrompt(input, windows))),
                     null,
                     null
-            ).forFeature("slop.drift")).content());
+            ).forRole(AiModelRole.LANGUAGE_CHECK, "slop.drift")).content());
             return completedRun(input, windows, root);
         } catch (RuntimeException ex) {
             if (ex instanceof com.ainovel.app.modelconfig.AiPaymentRequiredException) throw ex;

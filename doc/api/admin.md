@@ -120,7 +120,7 @@ TOTP 模式下，高风险写操作没有有效 `X-Admin-Operation-Proof` 时返
 
 - `GET /api/v2/admin/model-catalog`：目录、同步状态与专用链路只读配置。
 - `POST /api/v2/admin/model-catalog/sync`：手动同步当前环境 ai-service 调用方文本目录；不执行模型探测或推理。
-- `GET /api/v2/admin/model-routing` 返回各职责覆盖的操作、模型选项、默认项、价格、输出上限和配置版本。
+- `GET /api/v2/admin/model-routing` 返回各职责的模型选项、默认项、价格、输出上限和配置版本。
 - `PUT /api/v2/admin/model-routing/{roleKey}` 保存职责配置，沿用既有操作证明与审计。已受理任务读取原报价快照。
 
 请求结构、thinking 能力及兼容错误见[模型配置 API](v2-models.md)。后台售价独立于 ai-service 上游费率；不提供上游凭据或模型池管理。

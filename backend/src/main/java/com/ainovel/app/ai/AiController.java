@@ -1,5 +1,6 @@
 package com.ainovel.app.ai;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.dto.*;
 import com.ainovel.app.common.CurrentUserResolver;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,14 +28,14 @@ public class AiController {
     public AiChatResponse summarizeVersions(@AuthenticationPrincipal UserDetails principal,
             @RequestHeader("Idempotency-Key") String key,@RequestBody AiChatRequest request) {
         ordinaryRequest(request);
-        return publicResponse(aiService.chatWithIdempotency(currentUserResolver.require(principal),request.forFeature("versions.summary"),key));
+        return publicResponse(aiService.chatWithIdempotency(currentUserResolver.require(principal),request.forRole(AiModelRole.SUMMARIZATION, "versions.summary"),key));
     }
     public record OutlineRefineInput(String text,String instruction,String kind) {}
     @PostMapping("/outline-refine")
     public AiRefineResponse refineOutline(@AuthenticationPrincipal UserDetails principal,
             @RequestHeader("Idempotency-Key") String key,@RequestBody OutlineRefineInput request) {
         return aiService.refine(currentUserResolver.require(principal),new AiRefineRequest(request.text(),request.instruction(),null)
-                .forFeature("scene".equals(request.kind())?"outline.scene_refine":"outline.chapter_refine"),key);
+                .forRole(AiModelRole.SETTING_REFINE, "scene".equals(request.kind())?"outline.scene_refine":"outline.chapter_refine"),key);
     }
     @Autowired
     private AiService aiService;
@@ -67,7 +68,7 @@ public class AiController {
                                                @Valid @RequestBody AiChatRequest request) {
         ordinaryRequest(request);
         return ResponseEntity.ok(publicResponse(aiService.chatWithIdempotency(
-                currentUserResolver.require(principal), request.forFeature("generic.chat"), idempotencyKey)));
+                currentUserResolver.require(principal), request.forRole(AiModelRole.DISCUSSION, "generic.chat"), idempotencyKey)));
     }
 
     @PostMapping("/refine")
@@ -84,7 +85,7 @@ public class AiController {
     public ResponseEntity<AiRefineResponse> refine(@AuthenticationPrincipal UserDetails principal,
                                                    @RequestHeader("Idempotency-Key") String idempotencyKey,
                                                    @Valid @RequestBody AiRefineRequest request) {
-        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request.forFeature("generic.refine"), idempotencyKey));
+        return ResponseEntity.ok(aiService.refine(currentUserResolver.require(principal), request.forRole(AiModelRole.SETTING_REFINE, "generic.refine"), idempotencyKey));
     }
     private static void ordinaryRequest(AiChatRequest request) {
         if(request!=null && (request.hasNativeFields() || request.maxOutputTokens()!=null))

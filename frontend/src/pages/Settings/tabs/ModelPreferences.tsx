@@ -1,5 +1,5 @@
-import { featureName } from "@/lib/ai-model-config";
-import AiFeaturePreferences from "./AiFeaturePreferences";
+import { roleName } from "@/lib/ai-model-config";
+import RolePreferences from "./RolePreferences";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type NetworkObject } from "@/lib/api-client";
@@ -64,7 +64,7 @@ const ModelPreferences = () => {
   const usageByTask = useMemo(() => {
     const summary = new Map<string, { key: string; calls: number; input: number; output: number; cost: number }>();
     for (const item of usageDetails) {
-      const task = item.definition ? featureName({ definition: item.definition }, i18n.language) : String(item.taskType || t("aiModels.historical"));
+      const task = item.definition ? roleName({ definition: item.definition }, i18n.language) : String(item.taskType || t("aiModels.historical"));
       const current = summary.get(task) || { key: task, calls: 0, input: 0, output: 0, cost: 0 };
       current.calls += 1;
       current.input += toNumber(item.inputTokens);
@@ -94,7 +94,7 @@ const ModelPreferences = () => {
     <div className="space-y-4">
       {loadError && <div role="alert" className="text-sm text-destructive">{loadError}<Button variant="link" onClick={() => void refresh()}>{t("common.retry")}</Button></div>}
       <div className="grid gap-4 lg:grid-cols-2">
-        <AiFeaturePreferences />
+        <RolePreferences />
 
         <Card>
           <CardHeader>
@@ -124,7 +124,7 @@ const ModelPreferences = () => {
               {usageDetails.slice(0, 8).map((item) => (
                 <div key={item.id} className="rounded border p-2 text-xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span>{item.definition ? featureName({ definition: item.definition }, i18n.language) : item.taskType}</span>
+                    <span>{item.definition ? roleName({ definition: item.definition }, i18n.language) : item.taskType}</span>
                     <Badge variant="outline">{item.modelLabel || t("aiModels.historical")}</Badge>
                   </div>
                   <div className="text-muted-foreground">

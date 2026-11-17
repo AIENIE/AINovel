@@ -1,5 +1,6 @@
 package com.ainovel.app.story;
 
+import com.ainovel.app.modelconfig.AiModelRole;
 import com.ainovel.app.ai.AiService;
 import com.ainovel.app.ai.dto.AiChatRequest;
 import com.ainovel.app.story.dto.CharacterRequest;
@@ -43,7 +44,7 @@ public class StoryConceptionService {
                     List.of(new AiChatRequest.Message("user", promptContext.prompt())),
                     null,
                     null
-            ).forFeature("story.conception"));
+            ).forRole(AiModelRole.CONCEPTION, "story.conception"));
         Map<String, Object> parsed = parseJsonObject(response.content());
         if (parsed == null || parsed.isEmpty()) {
             throw new com.ainovel.app.common.BusinessException("AI_INITIALIZATION_INVALID_RESULT");
