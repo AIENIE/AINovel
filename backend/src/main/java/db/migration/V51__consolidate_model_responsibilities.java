@@ -17,7 +17,7 @@ public class V51__consolidate_model_responsibilities extends BaseJavaMigration {
         Map.entry("role.conception", List.of("story.conception", "guided.premise", "guided.world", "guided.characters", "world.entry.generate", "world.*.generate")),
         Map.entry("role.outline", List.of("outline.chapter", "guided.outline", "guided.outline_develop", "guided.outline_rewrite", "guided.outline_expand")),
         Map.entry("role.setting_refine", List.of("story.refine", "character.refine", "outline.chapter_refine", "outline.scene_refine", "world.entry.refine", "world.*.refine", "generic.refine")),
-        Map.entry("role.prose_draft", List.of("scene.fast.draft", "scene.crafted.draft")),
+        Map.entry("role.prose_draft", List.of("scene.fast.draft", "scene.crafted.draft", "draft_generation")),
         Map.entry("role.prose_revise", List.of("scene.fast.length", "scene.crafted.length", "writing_agent.refine", "language.revise", "plot.revise", "assistant.auto.*", "assistant.edit.*")),
         Map.entry("role.setting_proposal", List.of("story_assistant.propose.*", "story_assistant.refine.*", "world_assistant.propose.*", "world_assistant.refine.*")),
         Map.entry("role.language_check", List.of("language.diagnose", "slop.judge", "slop.diagnose", "slop.drift")),
