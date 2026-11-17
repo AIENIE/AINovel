@@ -173,7 +173,8 @@ public class AiGatewayGrpcClient {
         var snapshot = com.ainovel.app.modelconfig.AiSelectionContext.current();
         // JSON reports must not inherit a provider's much larger prose-generation default.
         // Drafting and full-text revisions keep their existing output behavior.
-        if (snapshot != null && QUALITY_REPORT_FEATURES.contains(selected.featureKey())) {
+        if (snapshot != null && (snapshot.explicitOutputLimits().containsKey(selected.featureKey())
+                || QUALITY_REPORT_FEATURES.contains(selected.featureKey()))) {
             request = request.toBuilder().setMaxOutputTokens(snapshot.outputBudget(selected.featureKey())).build();
         }
         return request;

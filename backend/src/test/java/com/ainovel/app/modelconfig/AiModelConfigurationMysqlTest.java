@@ -93,36 +93,104 @@ class AiModelConfigurationMysqlTest {
     private AiModelConfigurationService.CatalogModel model(String id,String key) {
         return new AiModelConfigurationService.CatalogModel(id,key,key,"fixture",true,true,false,AiModelConfigurationService.Thinking.unknown(),null);
     }
-    private AiModelConfigurationService.FeatureView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid) {
+    private AiModelConfigurationService.RoutingView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid) {
+        return setPrice(mode, fixed, input, output, paid, null);
+    }
+    private AiModelConfigurationService.RoutingView setPrice(String mode,Long fixed,BigDecimal input,BigDecimal output,boolean paid,Integer limit) {
         var before=config.feature("generic.chat",user);String id=UUID.randomUUID().toString();
         var option=new AiModelConfigurationService.OptionInput(id,"model-a","Custom visible name","DEFAULT",null,mode,fixed,input,output);
-        return config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(before.revision(),paid,id,List.of(option)));
+        return config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(before.revision(),paid,id,List.of(option),
+                limit == null ? Map.of() : Map.of(id, limit)));
     }
     private AiQuoteService.View quote() {return quotes.create(user,new AiQuoteService.Request("/v1/ai/chat",json.valueToTree(Map.of("messages",List.of(Map.of("role","user","content","hello")))),Map.of()));}
     private AiSelectionContext.Snapshot accept(AiQuoteService.View q,String key) {
         return quotes.accept(user,"/v1/ai/chat",json.valueToTree(Map.of("messages",List.of(Map.of("role","user","content","hello")))),q.id(),key);
     }
     private AiChatRequest request(String content) {return new AiChatRequest(List.of(new AiChatRequest.Message("user",content)),null,null).forFeature("generic.chat");}
-    @Test void newWorldEntryStepsRemainUnconfiguredUntilExplicitlySaved() {
-        for(String key:List.of("world.entry.generate","world.entry.refine","world_assistant.discuss.plan","world_assistant.discuss.final","world_assistant.propose.plan","world_assistant.propose.final","world_assistant.refine.plan","world_assistant.refine.final","world.overview.integrate")) {
-            assertThat(config.feature(key,user).options()).isEmpty();
-            assertThat(config.feature(key,user).defaultOptionId()).isNull();
+    @Test void worldFieldsAndEntriesShareTheRoleButRetainTheirExecutionKeys() {
+        tx.executeWithoutResult(status -> {
+            var shared = config.feature("world.entry.generate", user);
             String id=UUID.randomUUID().toString();
-            var option=new AiModelConfigurationService.OptionInput(id,"model-a","条目模型","DEFAULT",null,"FIXED",2L,null,null);
-            var saved=config.update(key,new AiModelConfigurationService.FeatureUpdate(0,true,id,List.of(option)));
-            assertThat(saved.revision()).isEqualTo(1);assertThat(saved.options()).hasSize(1);
-            assertThat(saved.defaultOptionId()).isEqualTo(id);
-            jdbc.update("delete from ai_model_options where task_type=?",key);
-            jdbc.update("delete from task_model_routing where task_type=?",key);
-        }
+            var option=new AiModelConfigurationService.OptionInput(id,"model-b","设定模型","DEFAULT",null,"FIXED",2L,null,null);
+            config.update("role.conception",new AiModelConfigurationService.FeatureUpdate(shared.revision(),true,id,List.of(option)));
+            for (String key : List.of("world.geography.terrain.generate", "world.geography.climate.generate", "world.entry.generate", "guided.world")) {
+                var feature = config.feature(key, user);
+                assertThat(feature.defaultOptionId()).isEqualTo(id);
+                assertThat(feature.options()).singleElement().satisfies(selection -> {
+                    assertThat(selection.featureKey()).isEqualTo(key);
+                    assertThat(selection.modelKey()).isEqualTo("model-b");
+                });
+            }
+            assertThat(config.feature("world.geography.climate.refine", user).defaultOptionId()).isNotEqualTo(id);
+            assertThat(config.feature("writing_agent.control", user).options()).isEmpty();
+            status.setRollbackOnly();
+        });
+    }
+
+    @Test void copiesCompatibleLegacyOptionsAndMapsOnlyTheOriginalOperationPreference() {
+        tx.executeWithoutResult(status -> {
+            clearConceptionRole();
+            String preferred = legacyWorldOption("world.geography.terrain.generate", "model-a", 2);
+            legacyWorldOption("world.geography.climate.generate", "model-b", 2);
+            jdbc.update("insert into user_model_preferences(id,user_id,task_type,preferred_option_id) values(?,?,?,?)",
+                    AiModelConfigurationService.bytes(UUID.randomUUID()), AiModelConfigurationService.bytes(user.getId()),
+                    "world.geography.terrain.generate", preferred);
+            config.ensureInitialized();
+            var terrain = config.feature("world.geography.terrain.generate", user);
+            var climate = config.feature("world.geography.climate.generate", user);
+            assertThat(terrain.options()).hasSize(2);
+            assertThat(terrain.preferredOptionId()).isNotEqualTo(preferred);
+            assertThat(terrain.preferenceInvalid()).isFalse();
+            assertThat(climate.defaultOptionId()).isEqualTo(terrain.defaultOptionId());
+            assertThat(climate.preferredOptionId()).isNull();
+            assertThat(config.optionId(terrain, preferred)).isEqualTo(terrain.preferredOptionId());
+            assertThat(config.optionId(climate, preferred)).isEqualTo(preferred);
+            assertThatThrownBy(() -> config.update("world.geography.terrain.generate",
+                    new AiModelConfigurationService.FeatureUpdate(0, true, preferred, List.of()))).hasMessage("AI_CONFIGURATION_CHANGED");
+            status.setRollbackOnly();
+        });
+    }
+
+    @Test void differentLegacyRatesKeepTheirOriginalDefaultsUntilAnExplicitSharedSave() {
+        tx.executeWithoutResult(status -> {
+            clearConceptionRole();
+            String terrain = legacyWorldOption("world.geography.terrain.generate", "model-a", 2);
+            String climate = legacyWorldOption("world.geography.climate.generate", "model-b", 3);
+            var shared = config.routing().stream().filter(role -> role.definition().key().equals("role.conception")).findFirst().orElseThrow();
+            assertThat(shared.options()).isEmpty();
+            assertThat(shared.legacyDefaults()).hasSize(2);
+            assertThat(config.feature("world.geography.terrain.generate", user).defaultOptionId()).isEqualTo(terrain);
+            assertThat(config.feature("world.geography.climate.generate", user).defaultOptionId()).isEqualTo(climate);
+            status.setRollbackOnly();
+        });
+    }
+
+    private void clearConceptionRole() {
+        jdbc.update("delete from ai_model_options where task_type='role.conception'");
+        jdbc.update("delete from task_model_routing where task_type='role.conception'");
+    }
+
+    private String legacyWorldOption(String key, String model, long credits) {
+        String id = UUID.randomUUID().toString();
+        byte[] modelId = jdbc.queryForObject("select id from model_registry where model_key=?", byte[].class, model);
+        jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,billing_enabled,default_option_id) values(?,?,?,'fixed','{}',true,?)",
+                AiModelConfigurationService.bytes(UUID.randomUUID()), key, modelId, id);
+        var selection = new AiModelSelection(key, id, model, model, "DEFAULT", null, true, true, "FIXED", credits, null, null, 0);
+        jdbc.update("insert into ai_model_options(id,task_type,model_id,settings_json,active,position_index) values(?,?,?,?,true,0)",
+                id, key, modelId, config.write(selection));
+        return id;
     }
     @Test void paidRequiresAQuoteAndAcceptedSelectionSurvivesPriceChangeAndExpiry() {
+        setPrice("FIXED",3L,null,null,true,32768);
         assertThatThrownBy(()->quotes.accept(user,"/v1/ai/chat",json.createObjectNode(),null,"key")).hasMessage("AI_QUOTE_REQUIRED");
         var q=quote();var snapshot=accept(q,"same-request");
         setPrice("FIXED",19L,null,null,true);
         jdbc.update("update ai_model_quotes set expires_at=? where id=?",Timestamp.from(Instant.now().minusSeconds(1)),q.id());
         assertThat(accept(q,"same-request")).isEqualTo(snapshot);
         assertThat(snapshot.selections().get("generic.chat").fixedCredits()).isEqualTo(3L);
+        assertThat(q.steps().getFirst().step().estimatedOutput()).isEqualTo(32768);
+        assertThat(snapshot.outputBudget("generic.chat")).isEqualTo(32768);
+        assertThat(snapshot.explicitOutputLimits()).containsEntry("generic.chat", 32768);
         assertThatThrownBy(()->accept(q,"different-request")).hasMessage("AI_QUOTE_ALREADY_USED");
     }
     @Test void unacceptedQuotesRejectChangedPricesExpiredTimeDifferentInputAndDifferentUsers() {
@@ -153,7 +221,7 @@ class AiModelConfigurationMysqlTest {
         }
         assertThat(economy.projectBalance(user)).isZero();assertThat(jdbc.queryForObject("select count(*) from project_credit_ledger where user_id=?",Long.class,AiModelConfigurationService.bytes(user.getId()))).isZero();
         var paid=new AiModelConfigurationService.OptionInput(UUID.randomUUID().toString(),"model-a","second","DEFAULT",null,"FIXED",1L,null,null);
-        assertThatThrownBy(()->config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(feature.revision(),false,feature.defaultOptionId(),List.of(paid,paid)))).hasMessage("AI_OPTIONS_INVALID");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(feature.revision(),false,feature.defaultOptionId(),List.of(paid,paid)))).hasMessage("AI_OPTIONS_INVALID");
         var stored=reservations.findAll().stream().filter(r->r.getUser().getId().equals(user.getId())).findFirst().orElseThrow();
         assertThat(stored.getReservedAmount()).isZero();assertThat(stored.getSettledAmount()).isZero();assertThat(stored.getStatus()).isEqualTo(AiCreditReservation.Status.COMPLETED);
     }
@@ -209,18 +277,18 @@ class AiModelConfigurationMysqlTest {
         var f=config.feature("generic.chat",user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
         var first=new AiModelConfigurationService.OptionInput(a,"model-a","Fast","DEFAULT",null,"FIXED",1L,null,null);
         var second=new AiModelConfigurationService.OptionInput(b,"model-a","Careful","DEFAULT",null,"FIXED",5L,null,null);
-        var updated=config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(first,second)));
+        var updated=config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(first,second)));
         config.preference(user,"generic.chat",b);assertThat(quote().steps().getFirst().selected().label()).isEqualTo("Careful");
-        config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(updated.revision(),true,a,List.of(first)));
+        config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(updated.revision(),true,a,List.of(first)));
         assertThatThrownBy(this::quote).hasMessage("AI_PREFERENCE_UNAVAILABLE");
         config.preference(user,"generic.chat",a);assertThat(quote().steps().getFirst().selected().label()).isEqualTo("Fast");
     }
     @Test void newUnknownThinkingOptionsAreRejectedAndStaleWritesDoNotOverwritePricing() {
         var f=config.feature("generic.chat",user);String id=UUID.randomUUID().toString();
         var on=new AiModelConfigurationService.OptionInput(id,"model-a","Unsupported","ON","HIGH","FIXED",1L,null,null);
-        assertThatThrownBy(()->config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_THINKING_UNSUPPORTED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_THINKING_UNSUPPORTED");
         setPrice("FIXED",9L,null,null,true);
-        assertThatThrownBy(()->config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_CONFIGURATION_CHANGED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,id,List.of(on)))).hasMessage("AI_CONFIGURATION_CHANGED");
     }
     @Test void concurrentSameCallCannotDoubleReserveOrDoubleInvoke() throws Exception {
         var snapshot=accept(quote(),"concurrent-request");var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
@@ -248,11 +316,11 @@ class AiModelConfigurationMysqlTest {
         config.sync();var f=config.feature("generic.chat",user);String a=UUID.randomUUID().toString(),b=UUID.randomUUID().toString();
         var low=new AiModelConfigurationService.OptionInput(a,"model-a","Low price","ON","LOW","FIXED",2L,null,null);
         var high=new AiModelConfigurationService.OptionInput(b,"model-a","High price","ON","HIGH","TOKENS",null,new BigDecimal("0.123456"),new BigDecimal("0.654321"));
-        config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(low,high)));
+        config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision(),true,a,List.of(low,high)));
         config.preference(user,"generic.chat",b);var selection=quote().steps().getFirst().selected();
         assertThat(selection.thinkingEffort()).isEqualTo("HIGH");assertThat(selection.modelKey()).isEqualTo("model-a");assertThat(selection.streaming()).isFalse();
         var bad=new AiModelConfigurationService.OptionInput(a,"model-a","Unsupported","ON","MAX","FIXED",2L,null,null);
-        assertThatThrownBy(()->config.update("generic.chat",new AiModelConfigurationService.FeatureUpdate(f.revision()+1,true,a,List.of(bad)))).hasMessage("AI_THINKING_UNSUPPORTED");
+        assertThatThrownBy(()->config.update("role.discussion",new AiModelConfigurationService.FeatureUpdate(f.revision()+1,true,a,List.of(bad)))).hasMessage("AI_THINKING_UNSUPPORTED");
     }
     @Test void multiStepQuoteUsesTrustedActionAndG2TaskReceiptRetainsBothSelections() {
         var story=tx.execute(s->{var v=new com.ainovel.app.story.model.Story();v.setUser(user);v.setTitle("Story");v.setSynopsis("Input");v.setStatus("draft");em.persist(v);em.flush();return v;});

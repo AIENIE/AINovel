@@ -37,6 +37,7 @@ public class AiQuoteService {
             long revision=jdbc.queryForObject("select revision from ai_model_catalog_state where id=1 for update",Long.class);
             requireNoUnresolvedOperation(user,target,body,"");
             var selections=new LinkedHashMap<String,AiModelSelection>();List<QuoteStep> steps=new ArrayList<>();
+            var outputLimits = new LinkedHashMap<String,Integer>();
             for(var step:plan.steps()) {
                 var feature=config.feature(step.featureKey(),user);
                 if(feature.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
@@ -46,16 +47,19 @@ public class AiQuoteService {
                     if(feature.preferenceInvalid())throw AiModelConfigurationService.error("AI_PREFERENCE_UNAVAILABLE");
                     requested=feature.preferredOptionId()==null?feature.defaultOptionId():feature.preferredOptionId();
                 }
-                String id=requested;
+                String id=config.optionId(feature, requested);
                 var selected=feature.options().stream().filter(o->o.optionId().equals(id)).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
                 if(feature.unavailableOptions().contains(id))throw AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE");
+                recordOutputLimit(outputLimits, feature, selected);
                 selections.put(step.featureKey(),selected);
-                steps.add(new QuoteStep(step,feature,selected,Math.multiplyExact(selected.cost(step.estimatedInput(),step.estimatedOutput()),maximumCalls(step.calls()))));
+                int output = outputLimits.getOrDefault(step.featureKey(), step.estimatedOutput());
+                var estimatedStep = new AiActionPlanner.Step(step.featureKey(), step.conditional(), step.calls(), step.estimatedInput(), output);
+                steps.add(new QuoteStep(estimatedStep,feature,selected,Math.multiplyExact(selected.cost(step.estimatedInput(),output),maximumCalls(step.calls()))));
             }
             String id=UUID.randomUUID().toString();Instant expires=Instant.now().plusSeconds(600);
             jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,expires_at) values(?,?,?,?,?,?,?,?,?)",
                     id,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),revision,
-                    config.write(new AiSelectionContext.Snapshot(id,selections,plan.businessScope(),budgets(plan),plan.worldInput(),plan.worldAssistantInput(),plan.writingInput())),Timestamp.from(expires));
+                    config.write(snapshot(id, selections, plan, outputLimits)),Timestamp.from(expires));
             return new View(id,expires,List.copyOf(steps),steps.stream().mapToLong(QuoteStep::estimatedCredits).sum());
         });
     }
@@ -76,14 +80,16 @@ public class AiQuoteService {
                 }
                 requireNoUnresolvedOperation(user,target,body,receipt==null?"":receipt);
                 var plan=planner.plan(user,target,body);var values=new LinkedHashMap<String,AiModelSelection>();
+                var outputLimits = new LinkedHashMap<String,Integer>();
                 for(var step:plan.steps()) {
                     var f=config.feature(step.featureKey(),user);
                     if(f.options().isEmpty())throw AiModelConfigurationService.error("AI_FEATURE_UNCONFIGURED");
                     if(f.billingEnabled())throw new ApiStatusException(HttpStatus.PRECONDITION_REQUIRED,"AI_QUOTE_REQUIRED");
                     var selected=f.options().stream().filter(v->v.optionId().equals(f.defaultOptionId())&&!f.unavailableOptions().contains(v.optionId())).findFirst().orElseThrow(()->AiModelConfigurationService.error("AI_OPTION_UNAVAILABLE"));
+                    recordOutputLimit(outputLimits, f, selected);
                     values.put(step.featureKey(),selected);
                 }
-                var snapshot=new AiSelectionContext.Snapshot(receipt==null?UUID.randomUUID().toString():receipt,values,plan.businessScope(),budgets(plan),plan.worldInput(),plan.worldAssistantInput(),plan.writingInput());
+                var snapshot=snapshot(receipt==null?UUID.randomUUID().toString():receipt, values, plan, outputLimits);
                 if(receipt!=null)jdbc.update("insert into ai_model_quotes(id,user_id,input_hash,target_path,request_json,business_hash,configuration_revision,selections_json,accepted_request_key,expires_at) values(?,?,?,?,?,?,?,?,?,?)",
                         receipt,AiModelConfigurationService.bytes(user.getId()),inputHash(target,body),target,config.write(body),plan.businessHash(),config.revision(),config.write(snapshot),requestKey,Timestamp.from(Instant.now()));
                 return snapshot;
@@ -121,8 +127,16 @@ public class AiQuoteService {
         if(status.equals("RESULT_READY"))throw new AiPaymentRequiredException();
         throw new ApiStatusException(HttpStatus.CONFLICT,status.equals("RESERVED")?"AI_REQUEST_IN_PROGRESS":"AI_RESULT_RECONCILIATION_REQUIRED");
     }
-    private Map<String,Integer> budgets(AiActionPlanner.Plan plan) {
-        Map<String,Integer> values=new LinkedHashMap<>();for(var step:plan.steps())values.put(step.featureKey(),step.estimatedOutput());return values;
+    private static void recordOutputLimit(Map<String,Integer> limits, AiModelConfigurationService.FeatureView feature, AiModelSelection selected) {
+        Integer limit = feature.outputTokenLimits().get(selected.optionId());
+        if (limit != null) limits.put(selected.featureKey(), limit);
+    }
+    private static AiSelectionContext.Snapshot snapshot(String id, Map<String,AiModelSelection> selections, AiActionPlanner.Plan plan,
+                                                        Map<String,Integer> outputLimits) {
+        var budgets = new LinkedHashMap<String,Integer>();
+        for (var step : plan.steps()) budgets.put(step.featureKey(), outputLimits.getOrDefault(step.featureKey(), step.estimatedOutput()));
+        return new AiSelectionContext.Snapshot(id, selections, plan.businessScope(), budgets, plan.worldInput(),
+                plan.worldAssistantInput(), plan.writingInput(), outputLimits);
     }
     private static int maximumCalls(String value){if(value!=null&&value.matches("UP_TO_[0-9]+"))return Integer.parseInt(value.substring(6));return 1;}
     /** A durable receipt uses the existing quote snapshot store for G2's independently scheduled task. */

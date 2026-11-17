@@ -1,6 +1,6 @@
 import { requestAiQuote } from "./ai-quote-store";
 import { createWorldContextApi } from './api/domains/world-context';
-import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment } from "./ai-model-config";
+import type { AiFeature, AiQuote, ModelCatalog, AiPendingPayment, ModelResponsibility } from "./ai-model-config";
 import type { SceneCandidate, SceneCandidateDetail } from "./scene-candidates";
 import { createVersionApi } from "./api/domains/versions";
 import { createExportApi } from "./api/domains/exports";
@@ -880,9 +880,10 @@ export const api = {
       /^\/v1\/(?:story-cards|character-cards|outlines\/scenes)\/[^/]+\/refine$/.test(pending.target) ? "text" : "json"),
     catalog: () => requestJson<ModelCatalog>("/v2/admin/model-catalog", {}, adminCookieAuth()),
     sync: () => requestJson<ModelCatalog>("/v2/admin/model-catalog/sync", { method: "POST" }, adminCookieAuth()),
-    routing: () => requestJson<AiFeature[]>("/v2/admin/model-routing", {}, adminCookieAuth()),
-    save: (feature: AiFeature) => requestJson<AiFeature>(`/v2/admin/model-routing/${feature.definition.key}`, { method: "PUT", body: JSON.stringify({ revision: feature.revision,
-      billingEnabled: feature.billingEnabled, defaultOptionId: feature.defaultOptionId, options: feature.options.map((option) => ({ id: option.optionId, modelKey: option.modelKey,
+    routing: () => requestJson<ModelResponsibility[]>("/v2/admin/model-routing", {}, adminCookieAuth()),
+    save: (feature: ModelResponsibility) => requestJson<ModelResponsibility>(`/v2/admin/model-routing/${feature.definition.key}`, { method: "PUT", body: JSON.stringify({ revision: feature.revision,
+      billingEnabled: feature.billingEnabled, defaultOptionId: feature.defaultOptionId, outputTokenLimits: feature.outputTokenLimits,
+      options: feature.options.map((option) => ({ id: option.optionId, modelKey: option.modelKey,
         label: option.label, thinkingMode: option.thinkingMode, thinkingEffort: option.thinkingEffort, pricingMode: option.pricingMode,
         fixedCredits: option.fixedCredits, inputPer1k: option.inputPer1k, outputPer1k: option.outputPer1k })) }) }, adminCookieAuth()),
     features: () => requestJson<AiFeature[]>("/v2/ai-features"),

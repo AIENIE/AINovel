@@ -15,6 +15,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
@@ -45,10 +48,34 @@ public class AiModelConfigurationService {
     }
     public record OptionInput(String id,String modelKey,String label,String thinkingMode,String thinkingEffort,
             String pricingMode,Long fixedCredits,BigDecimal inputPer1k,BigDecimal outputPer1k) {}
-    public record FeatureUpdate(long revision,boolean billingEnabled,String defaultOptionId,List<OptionInput> options) {}
+    public record FeatureUpdate(long revision,boolean billingEnabled,String defaultOptionId,List<OptionInput> options,
+                                Map<String,Integer> outputTokenLimits) {
+        public FeatureUpdate(long revision,boolean billingEnabled,String defaultOptionId,List<OptionInput> options) {
+            this(revision,billingEnabled,defaultOptionId,options,Map.of());
+        }
+    }
     public record FeatureView(AiFeatures.Definition definition,long revision,boolean billingEnabled,
             String defaultOptionId,String preferredOptionId,boolean preferenceInvalid,List<AiModelSelection> options,
-            List<String> unavailableOptions) {}
+            List<String> unavailableOptions,Map<String,Integer> outputTokenLimits) {}
+    public record RoutingView(AiFeatures.Definition definition,long revision,boolean billingEnabled,String defaultOptionId,
+            List<AiModelSelection> options,List<String> unavailableOptions,Map<String,Integer> outputTokenLimits,
+            List<AiFeatures.Definition> operations,List<LegacyDefault> legacyDefaults) {}
+    public record LegacyDefault(AiFeatures.Definition operation,AiModelSelection option) {}
+
+    private record Route(String key, boolean billed, long revision, String defaultId, Map<String,Integer> outputLimits) {}
+    private record Price(boolean billed, String mode, Long fixed, BigDecimal input, BigDecimal output) {
+        static Price of(AiModelSelection option) {
+            if (!option.billingEnabled()) return new Price(false, null, null, null, null);
+            if ("FIXED".equals(option.pricingMode())) return new Price(true, "FIXED", option.fixedCredits(), null, null);
+            return new Price(true, "TOKENS", null, option.inputPer1k().stripTrailingZeros(), option.outputPer1k().stripTrailingZeros());
+        }
+    }
+    private record PlanIdentity(String model, String mode, String effort, Price price) {
+        static PlanIdentity of(AiModelSelection option) {
+            return new PlanIdentity(option.modelKey(), option.thinkingMode(), option.thinkingEffort(), Price.of(option));
+        }
+    }
+    private static final BigDecimal DEFAULT_RATE = new BigDecimal("0.01");
     private final V2ModelRegistryRepository models;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
@@ -66,17 +93,71 @@ public class AiModelConfigurationService {
                 var m=new V2ModelRegistry();m.setModelKey(bootstrap.modelKey());m.setDisplayName(bootstrap.displayName());m.setProvider("未同步");
                 m.setSupportsStreaming(true);m.setAvailable(jdbc.queryForObject("select count(*) from ai_model_catalog_state where id=1 and last_success_at is not null",Integer.class)==0);return models.saveAndFlush(m);
             });
-            for(var feature:AiFeatures.all()) {
-                if(feature.key().startsWith("world.entry.")||feature.key().startsWith("world_assistant.")||feature.key().equals("world.overview.integrate")||feature.key().startsWith("writing_agent."))continue;
-                if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,feature.key())>0) continue;
-                String id=UUID.randomUUID().toString();
-                jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,true,0,?)",
-                        bytes(UUID.randomUUID()),feature.key(),bytes(model.getId()),Timestamp.from(Instant.now()),Timestamp.from(Instant.now()),id);
-                var selection=new AiModelSelection(feature.key(),id,model.getModelKey(),model.getDisplayName(),"DEFAULT",null,
-                        model.isSupportsStreaming(),true,"TOKENS",null,new BigDecimal("0.01"),new BigDecimal("0.01"),0);
-                insertOption(selection,model.getId(),0);
+            var existing = new HashSet<>(jdbc.queryForList("select task_type from task_model_routing", String.class));
+            boolean changed = false;
+            for (var role : AiModelResponsibilities.all()) {
+                if (!existing.contains(role.key())) changed |= initializeRole(role, existing, model);
             }
+            if (changed) advanceCatalogRevision();
         });
+    }
+
+    private boolean initializeRole(AiModelResponsibilities.Role role, Set<String> existing, V2ModelRegistry model) {
+        var defaults = legacyDefaults(role, existing);
+        if (defaults.isEmpty()) {
+            if (AiModelResponsibilities.AGENT_CONTROL.equals(role.key())) return false;
+            String id = UUID.randomUUID().toString();
+            var selection = new AiModelSelection(role.key(), id, model.getModelKey(), model.getDisplayName(), "DEFAULT", null,
+                    model.isSupportsStreaming(), true, "TOKENS", null, DEFAULT_RATE, DEFAULT_RATE, 0);
+            insertRoute(role.key(), model.getId(), true, 0, id, Map.of());
+            insertOption(selection, model.getId(), 0);
+            return true;
+        }
+        var primary = defaults.getFirst().option();
+        Price price = Price.of(primary);
+        if (defaults.stream().anyMatch(entry -> !price.equals(Price.of(entry.option())))) return false;
+
+        String defaultId = sharedOptionId(role.key(), primary.optionId());
+        var distinct = new LinkedHashMap<PlanIdentity,AiModelSelection>();
+        distinct.put(PlanIdentity.of(primary), primary);
+        if (primary.billingEnabled()) {
+            for (var operation : role.operations()) {
+                if (!existing.contains(operation.key())) continue;
+                for (var option : storedOptions(operation.key())) distinct.putIfAbsent(PlanIdentity.of(option), option);
+            }
+        }
+        insertRoute(role.key(), modelId(primary.modelKey()), primary.billingEnabled(), 0, defaultId, Map.of());
+        var labels = new HashSet<String>();
+        int index = 0;
+        for (var option : distinct.values()) {
+            String id = sharedOptionId(role.key(), option.optionId());
+            String label = option.label();
+            if (!labels.add(label)) {
+                int suffix = index + 1;
+                do { label = option.label().substring(0, Math.min(180, option.label().length())) + " · " + suffix++; }
+                while (!labels.add(label));
+            }
+            insertOption(new AiModelSelection(role.key(), id, option.modelKey(), label, option.thinkingMode(),
+                    option.thinkingEffort(), option.streaming(), primary.billingEnabled(), option.pricingMode(),
+                    option.fixedCredits(), option.inputPer1k(), option.outputPer1k(), 0), modelId(option.modelKey()), index++);
+        }
+        return true;
+    }
+
+    private List<LegacyDefault> legacyDefaults(AiModelResponsibilities.Role role, Set<String> existing) {
+        var result = new ArrayList<LegacyDefault>();
+        for (var operation : role.operations()) {
+            if (!existing.contains(operation.key())) continue;
+            var route = storedRoute(operation.key());
+            if (route == null || route.defaultId() == null) continue;
+            storedOptions(route.key()).stream().filter(option -> route.defaultId().equals(option.optionId())).findFirst()
+                    .ifPresent(option -> result.add(new LegacyDefault(operation, project(option, operation.key(), route, option.streaming()))));
+        }
+        return result;
+    }
+
+    private static String sharedOptionId(String roleKey, String legacyId) {
+        return UUID.nameUUIDFromBytes((roleKey + "\n" + legacyId).getBytes(StandardCharsets.UTF_8)).toString();
     }
     public Map<String,Object> catalog() {
         ensureInitialized();
@@ -132,33 +213,125 @@ public class AiModelConfigurationService {
         ensureInitialized();
         return AiFeatures.all().stream().map(f->feature(f.key(),user)).toList();
     }
-    public FeatureView feature(String key,User user) {
-        var definition=AiFeatures.require(key);
-        var rows=jdbc.queryForList("select billing_enabled,configuration_revision,default_option_id from task_model_routing where task_type=?",key);
-        if(rows.isEmpty())return new FeatureView(definition,0,true,null,null,false,List.of(),List.of());
-        var row=rows.getFirst();
-        Object enabled=row.get("billing_enabled");
-        boolean bill=Boolean.TRUE.equals(enabled)||(enabled instanceof Number n&&n.intValue()!=0)||(enabled instanceof byte[] bytes&&bytes.length>0&&bytes[0]!=0);
-        long revision=((Number)row.get("configuration_revision")).longValue();
-        var settings=jdbc.query("select settings_json from ai_model_options where task_type=? and active=true order by position_index,id",(rs,i)->read(rs.getString(1),AiModelSelection.class),key);
-        List<String> unavailable=new ArrayList<>();
-        List<AiModelSelection> options=settings.stream().map(v->{
-            var model=models.findByModelKey(v.modelKey()).orElseThrow();
-            try {validateThinking(catalogModel(model).thinking(),v.thinkingMode(),v.thinkingEffort());if(!model.isAvailable()) unavailable.add(v.optionId());}
-            catch(ApiStatusException e){unavailable.add(v.optionId());}
-            return new AiModelSelection(key,v.optionId(),v.modelKey(),v.label(),v.thinkingMode(),v.thinkingEffort(),model.isSupportsStreaming(),bill,v.pricingMode(),v.fixedCredits(),v.inputPer1k(),v.outputPer1k(),revision);
-        }).toList();
-        String pref=!bill||user==null?null:jdbc.query("select preferred_option_id from user_model_preferences where user_id=? and task_type=?",(rs,i)->rs.getString(1),bytes(user.getId()),key).stream().findFirst().orElse(null);
-        boolean invalid=pref!=null&&(options.stream().noneMatch(o->o.optionId().equals(pref))||unavailable.contains(pref));
-        return new FeatureView(definition,revision,bill,(String)row.get("default_option_id"),pref,invalid,options,List.copyOf(unavailable));
+
+    public List<RoutingView> routing() {
+        ensureInitialized();
+        return AiModelResponsibilities.all().stream().map(this::routing).toList();
     }
-    public FeatureView update(String key,FeatureUpdate request) {
-        if(AiFeatures.require(key).retired()) throw error("AI_FEATURE_RETIRED");
+
+    private RoutingView routing(AiModelResponsibilities.Role role) {
+        var route = storedRoute(role.key());
+        var view = view(role.definition(), route, null);
+        var defaults = route == null ? legacyDefaults(role, new HashSet<>(jdbc.queryForList(
+                "select task_type from task_model_routing", String.class))) : List.<LegacyDefault>of();
+        return new RoutingView(view.definition(), view.revision(), view.billingEnabled(), view.defaultOptionId(),
+                view.options(), view.unavailableOptions(), view.outputTokenLimits(), role.operations(), defaults);
+    }
+
+    public FeatureView feature(String key,User user) {
+        var definition = AiFeatures.require(key);
+        var role = AiModelResponsibilities.forOperation(key);
+        var shared = role == null ? null : storedRoute(role.key());
+        return view(definition, shared != null ? shared : storedRoute(key), user);
+    }
+
+    private FeatureView view(AiFeatures.Definition definition, Route route, User user) {
+        if (route == null) return new FeatureView(definition, 0, true, null, null, false, List.of(), List.of(), Map.of());
+        List<String> unavailable = new ArrayList<>();
+        var options = storedOptions(route.key()).stream().map(option -> {
+            var model = catalogModel(models.findByModelKey(option.modelKey()).orElseThrow());
+            try {
+                validateThinking(model.thinking(), option.thinkingMode(), option.thinkingEffort());
+                validateRoleCapabilities(route.key(), model);
+                if (!model.available()) unavailable.add(option.optionId());
+            } catch (ApiStatusException invalid) {
+                unavailable.add(option.optionId());
+            }
+            return project(option, definition.key(), route, model.supportsStreaming());
+        }).toList();
+        String historicalPreference = !route.billed() || user == null ? null : jdbc.query(
+                "select preferred_option_id from user_model_preferences where user_id=? and task_type=?",
+                (rs, i) -> rs.getString(1), bytes(user.getId()), definition.key()).stream().filter(Objects::nonNull).findFirst().orElse(null);
+        String preferred = optionId(definition.key(), historicalPreference, options);
+        boolean invalid = preferred != null && (options.stream().noneMatch(o -> o.optionId().equals(preferred)) || unavailable.contains(preferred));
+        return new FeatureView(definition, route.revision(), route.billed(), route.defaultId(), preferred, invalid,
+                options, List.copyOf(unavailable), route.outputLimits());
+    }
+
+    public String optionId(FeatureView feature, String id) {
+        return optionId(feature.definition().key(), id, feature.options());
+    }
+
+    private String optionId(String operation, String id, List<AiModelSelection> options) {
+        if (id == null || options.stream().anyMatch(option -> option.optionId().equals(id))) return id;
+        var rows = jdbc.query("select settings_json from ai_model_options where id=? and task_type=? and active=true",
+                (rs, i) -> read(rs.getString(1), AiModelSelection.class), id, operation);
+        if (rows.isEmpty()) return id;
+        var legacy = rows.getFirst();
+        var identity = PlanIdentity.of(legacy);
+        return options.stream().filter(option -> identity.equals(PlanIdentity.of(option)))
+                .min(Comparator.comparing(option -> !option.label().equals(legacy.label())))
+                .map(AiModelSelection::optionId).orElse(id);
+    }
+
+    private static AiModelSelection project(AiModelSelection option, String operation, Route route, boolean streaming) {
+        return new AiModelSelection(operation, option.optionId(), option.modelKey(), option.label(), option.thinkingMode(),
+                option.thinkingEffort(), streaming, route.billed(), option.pricingMode(), option.fixedCredits(),
+                option.inputPer1k(), option.outputPer1k(), route.revision());
+    }
+
+    private Route storedRoute(String key) {
+        return jdbc.query("select task_type,billing_enabled,configuration_revision,default_option_id,config_json "
+                        + "from task_model_routing where task_type=?", (rs,i) -> storedRoute(rs), key).stream().findFirst().orElse(null);
+    }
+
+    private Route storedRoute(ResultSet rs) throws SQLException {
+        String key = rs.getString("task_type");
+        var limits = Map.<String,Integer>of();
+        if (AiModelResponsibilities.byKey(key) != null) {
+            String raw = rs.getString("config_json");
+            if (raw != null) {
+                try {
+                    limits = json.readValue(raw, new TypeReference<Map<String,Integer>>() {});
+                } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) {
+                    throw new IllegalStateException("Unreadable model output limits", invalid);
+                }
+            }
+        }
+        return new Route(key, rs.getBoolean("billing_enabled"), rs.getLong("configuration_revision"),
+                rs.getString("default_option_id"), limits);
+    }
+
+    private List<AiModelSelection> storedOptions(String key) {
+        return jdbc.query("select settings_json from ai_model_options where task_type=? and active=true order by position_index,id",
+                (rs, i) -> read(rs.getString(1), AiModelSelection.class), key);
+    }
+
+    private UUID modelId(String modelKey) {
+        return models.findByModelKey(modelKey).orElseThrow().getId();
+    }
+
+    private void insertRoute(String key, UUID modelId, boolean billed, long revision, String defaultId, Map<String,Integer> limits) {
+        var now = Timestamp.from(Instant.now());
+        jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,"
+                        + "created_at,updated_at,billing_enabled,configuration_revision,default_option_id) "
+                        + "values(?,?,?,'fixed',?,?,?,?,?,?)",
+                bytes(UUID.randomUUID()), key, bytes(modelId), write(limits), now, now, billed, revision, defaultId);
+    }
+
+    private void advanceCatalogRevision() {
+        jdbc.update("update ai_model_catalog_state set revision=revision+1 where id=1");
+    }
+
+    public RoutingView update(String key,FeatureUpdate request) {
+        var role = AiModelResponsibilities.byKey(key);
+        if (role == null) throw error("AI_CONFIGURATION_CHANGED");
         ensureInitialized();
         return tx.execute(s->{
             jdbc.queryForObject("select revision from ai_model_catalog_state where id=1 for update",Long.class);
-            var prior=feature(key,null);
-            if(prior.revision()!=request.revision()) throw error("AI_CONFIGURATION_CHANGED");
+            var prior = storedRoute(key);
+            long revision = prior == null ? 0 : prior.revision();
+            if(revision!=request.revision()) throw error("AI_CONFIGURATION_CHANGED");
             if(request.options()==null||request.options().isEmpty()||(!request.billingEnabled()&&request.options().size()!=1)) throw error("AI_OPTIONS_INVALID");
             Set<String> ids=new HashSet<>(),labels=new HashSet<>();List<AiModelSelection> selections=new ArrayList<>();
             for(var option:request.options()) {
@@ -167,29 +340,46 @@ public class AiModelConfigurationService {
                 if(option.id()==null||!option.id().matches("[0-9a-fA-F-]{36}")||!ids.add(option.id())||option.label()==null||option.label().isBlank()||option.label().length()>200||!labels.add(option.label().strip())) throw error("AI_OPTIONS_INVALID");
                 var owner=jdbc.query("select task_type from ai_model_options where id=?",(rs,i)->rs.getString(1),option.id());
                 if(!owner.isEmpty()&&!owner.getFirst().equals(key)) throw error("AI_OPTIONS_INVALID");
-                validateThinking(catalogModel(m).thinking(),option.thinkingMode(),option.thinkingEffort());
+                var catalog = catalogModel(m);
+                validateThinking(catalog.thinking(),option.thinkingMode(),option.thinkingEffort());
+                validateRoleCapabilities(key, catalog);
                 validatePrice(request.billingEnabled(),option);
-                selections.add(new AiModelSelection(key,option.id(),m.getModelKey(),option.label().strip(),option.thinkingMode(),option.thinkingEffort(),m.isSupportsStreaming(),request.billingEnabled(),request.billingEnabled()?option.pricingMode():"TOKENS",option.fixedCredits(),option.inputPer1k(),option.outputPer1k(),prior.revision()+1));
+                selections.add(new AiModelSelection(key,option.id(),m.getModelKey(),option.label().strip(),option.thinkingMode(),option.thinkingEffort(),m.isSupportsStreaming(),request.billingEnabled(),request.billingEnabled()?option.pricingMode():"TOKENS",option.fixedCredits(),option.inputPer1k(),option.outputPer1k(),revision+1));
             }
             if(!ids.contains(request.defaultOptionId())) throw error("AI_DEFAULT_OPTION_INVALID");
+            var limits = request.outputTokenLimits() == null ? Map.<String,Integer>of() : request.outputTokenLimits();
+            if (!ids.containsAll(limits.keySet()) || limits.values().stream().anyMatch(limit -> limit == null || limit <= 0)) {
+                throw error("AI_OUTPUT_LIMIT_INVALID");
+            }
             var primary=selections.stream().filter(v->v.optionId().equals(request.defaultOptionId())).findFirst().orElseThrow();
-            if(jdbc.queryForObject("select count(*) from task_model_routing where task_type=?",Integer.class,key)==0)
-                jdbc.update("insert into task_model_routing(id,task_type,recommended_model_id,routing_strategy,config_json,created_at,updated_at,billing_enabled,configuration_revision,default_option_id) values(?,?,?,'fixed','{}',?,?,?,0,?)",
-                    bytes(UUID.randomUUID()),key,bytes(models.findByModelKey(primary.modelKey()).orElseThrow().getId()),Timestamp.from(Instant.now()),Timestamp.from(Instant.now()),request.billingEnabled(),request.defaultOptionId());
+            if (prior == null) insertRoute(key, modelId(primary.modelKey()), request.billingEnabled(), revision, request.defaultOptionId(), limits);
             jdbc.update("update ai_model_options set active=false where task_type=?",key);
             int index=0;for(var selected:selections) {
                 jdbc.update("delete from ai_model_options where id=? and task_type=?",selected.optionId(),key);
-                insertOption(selected,models.findByModelKey(selected.modelKey()).orElseThrow().getId(),index++);
+                insertOption(selected,modelId(selected.modelKey()),index++);
             }
-            jdbc.update("update task_model_routing set billing_enabled=?,configuration_revision=configuration_revision+1,default_option_id=?,recommended_model_id=?,fallback_model_id=null,updated_at=? where task_type=?",request.billingEnabled(),request.defaultOptionId(),bytes(models.findByModelKey(primary.modelKey()).orElseThrow().getId()),Timestamp.from(Instant.now()),key);
-            jdbc.update("update ai_model_catalog_state set revision=revision+1 where id=1");
-            return feature(key,null);
+            jdbc.update("update task_model_routing set billing_enabled=?,configuration_revision=configuration_revision+1,default_option_id=?,recommended_model_id=?,fallback_model_id=null,config_json=?,updated_at=? where task_type=?",request.billingEnabled(),request.defaultOptionId(),bytes(modelId(primary.modelKey())),write(limits),Timestamp.from(Instant.now()),key);
+            advanceCatalogRevision();
+            return routing(role);
         });
     }
+
+    private static void validateRoleCapabilities(String key, CatalogModel model) {
+        if (AiModelResponsibilities.AGENT_CONTROL.equals(key)
+                && (!model.chatCapabilities().budgetToolsDeclared() || !model.chatCapabilities().budgetToolsAvailable())) {
+            throw error("AI_NATIVE_BUDGET_UNAVAILABLE");
+        }
+    }
+
     public FeatureUpdate parseUpdate(com.fasterxml.jackson.databind.JsonNode payload) {
         try {
             if(payload.path("billingEnabled").asBoolean()&&payload.path("options").isArray())for(var option:payload.path("options"))
                 if("FIXED".equals(option.path("pricingMode").asText())&&!option.path("fixedCredits").isIntegralNumber())throw new IllegalArgumentException();
+            var limits = payload.path("outputTokenLimits");
+            if (!limits.isMissingNode() && !limits.isNull()) {
+                if (!limits.isObject()) throw new IllegalArgumentException();
+                for (var limit : limits) if (!limit.isIntegralNumber() || !limit.canConvertToInt()) throw new IllegalArgumentException();
+            }
             return json.treeToValue(payload,FeatureUpdate.class);
         } catch(Exception e){throw new ApiStatusException(HttpStatus.BAD_REQUEST,"AI_OPTIONS_INVALID");}
     }
@@ -197,11 +387,12 @@ public class AiModelConfigurationService {
         if(AiFeatures.require(key).retired()) throw error("AI_FEATURE_RETIRED");
         ensureInitialized();tx.executeWithoutResult(s->{
             var feature=feature(key,user);
+            String desired = optionId(feature, optionId);
             if(!feature.billingEnabled()) throw error("AI_FEATURE_IS_FREE");
-            if(optionId!=null&&(feature.unavailableOptions().contains(optionId)||feature.options().stream().noneMatch(o->o.optionId().equals(optionId)))) throw error("AI_OPTION_UNAVAILABLE");
+            if(desired!=null&&(feature.unavailableOptions().contains(desired)||feature.options().stream().noneMatch(o->o.optionId().equals(desired)))) throw error("AI_OPTION_UNAVAILABLE");
             var ids=jdbc.query("select id from user_model_preferences where user_id=? and task_type=?",(rs,i)->rs.getBytes(1),bytes(user.getId()),key);
-            if(ids.isEmpty()) jdbc.update("insert into user_model_preferences(id,user_id,task_type,preferred_option_id,created_at,updated_at) values(?,?,?,?,?,?)",bytes(UUID.randomUUID()),bytes(user.getId()),key,optionId,Timestamp.from(Instant.now()),Timestamp.from(Instant.now()));
-            else jdbc.update("update user_model_preferences set preferred_option_id=?,updated_at=? where user_id=? and task_type=?",optionId,Timestamp.from(Instant.now()),bytes(user.getId()),key);
+            if(ids.isEmpty()) jdbc.update("insert into user_model_preferences(id,user_id,task_type,preferred_option_id,created_at,updated_at) values(?,?,?,?,?,?)",bytes(UUID.randomUUID()),bytes(user.getId()),key,desired,Timestamp.from(Instant.now()),Timestamp.from(Instant.now()));
+            else jdbc.update("update user_model_preferences set preferred_option_id=?,updated_at=? where user_id=? and task_type=?",desired,Timestamp.from(Instant.now()),bytes(user.getId()),key);
         });
     }
     public long revision() {return jdbc.queryForObject("select revision from ai_model_catalog_state where id=1",Long.class);}

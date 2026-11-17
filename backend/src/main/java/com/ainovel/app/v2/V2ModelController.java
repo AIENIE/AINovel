@@ -58,7 +58,7 @@ public class V2ModelController {
     @PreAuthorize("hasAuthority('AUTH_LOCAL_ADMIN')")
     @SecurityRequirement(name = "adminSessionCookie")
     public List<Map<String, Object>> listRouting() {
-        return modelConfiguration.features(null).stream().map(modelConfiguration::asMap).toList();
+        return modelConfiguration.routing().stream().map(modelConfiguration::asMap).toList();
     }
 
     @Operation(summary = "v2 API endpoint")

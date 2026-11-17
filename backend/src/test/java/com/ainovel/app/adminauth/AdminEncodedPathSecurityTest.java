@@ -99,7 +99,7 @@ class AdminEncodedPathSecurityTest {
                 "session-hash", "local-admin", "FULL", "PASSWORD_TOTP",
                 now.minusSeconds(60), now.minusSeconds(30), now.plusSeconds(600)
         ));
-        when(modelConfiguration.features(null)).thenReturn(List.of());
+        when(modelConfiguration.routing()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v2/admin/model-routing")
                         .servletPath("/api")
@@ -107,7 +107,7 @@ class AdminEncodedPathSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
 
-        verify(modelConfiguration).features(null);
+        verify(modelConfiguration).routing();
         verify(jwtService, never()).parseClaims(any());
         verifyNoInteractions(resourceAccessGuard);
     }

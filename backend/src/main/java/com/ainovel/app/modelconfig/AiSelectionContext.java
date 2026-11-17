@@ -7,13 +7,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AiSelectionContext {
     public record Snapshot(String identity, Map<String,AiModelSelection> selections,String businessScope,Map<String,Integer> outputBudgets,
             com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,
-            com.ainovel.app.worldcontext.WorldWritingInput writingInput) {
+            com.ainovel.app.worldcontext.WorldWritingInput writingInput,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_EMPTY)
+            Map<String,Integer> explicitOutputLimits) {
+        public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput,com.ainovel.app.worldcontext.WorldWritingInput writingInput){this(identity,selections,scope,budgets,worldInput,worldAssistantInput,writingInput,Map.of());}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput,com.ainovel.app.worldassistant.WorldAssistantService.Frozen worldAssistantInput){this(identity,selections,scope,budgets,worldInput,worldAssistantInput,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets,com.ainovel.app.world.WorldBindingService.Frozen worldInput){this(identity,selections,scope,budgets,worldInput,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope,Map<String,Integer> budgets){this(identity,selections,scope,budgets,null);}
         public Snapshot(String identity,Map<String,AiModelSelection> selections){this(identity,selections,null,Map.of());}
         public Snapshot(String identity,Map<String,AiModelSelection> selections,String scope){this(identity,selections,scope,Map.of());}
-        public Snapshot { selections=Map.copyOf(selections);outputBudgets=outputBudgets==null?Map.of():Map.copyOf(outputBudgets); }
+        public Snapshot {
+            selections=Map.copyOf(selections);
+            outputBudgets=outputBudgets==null?Map.of():Map.copyOf(outputBudgets);
+            explicitOutputLimits=explicitOutputLimits==null?Map.of():Map.copyOf(explicitOutputLimits);
+        }
         public int outputBudget(String feature) {return outputBudgets.getOrDefault(feature,4096);}
     }
     private record Scope(Snapshot snapshot, Map<String,AtomicInteger> calls) {}

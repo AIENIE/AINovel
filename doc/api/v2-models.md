@@ -11,16 +11,17 @@
 
 `thinking.declared=false` 时只允许 `DEFAULT`。已声明能力时，`OFF` 必须支持关闭；`ON` 必须支持开启。`ON` 的 `thinkingEffort=null` 使用模型/服务默认强度，指定值必须属于目录的 `options`，不按型号推断支持。
 
-## 功能配置（管理员）
+## 职责配置（管理员）
 
-- `GET /admin/model-routing`：返回具体功能定义及配置；每项包含 `definition`、`revision`、`billingEnabled`、`defaultOptionId`、`options` 和 `unavailableOptions`。
-- `PUT /admin/model-routing/{featureKey}`：保存完整配置，继续沿用该入口的 TOTP 操作证明与审计。旧粗粒度路由请求返回 `AI_ROUTING_PAYLOAD_UPGRADE_REQUIRED`。
+- `GET /admin/model-routing` 返回职责配置。每项包含 `definition`、覆盖的 `operations`、`revision`、`billingEnabled`、`defaultOptionId`、`options`、`unavailableOptions` 和 `outputTokenLimits`。旧计费口径有冲突时，`legacyDefaults` 列出仍在生效的操作和旧方案。
+- `PUT /admin/model-routing/{roleKey}` 保存完整职责配置。职责键为 `role.*`，沿用管理员操作证明和审计。提交旧操作键时返回 `AI_CONFIGURATION_CHANGED`，页面重新载入后可编辑对应职责。
 
 ```json
 {
   "revision": 0,
   "billingEnabled": true,
   "defaultOptionId": "a92eb81e-ed47-40c0-af6e-15b692292502",
+  "outputTokenLimits": { "a92eb81e-ed47-40c0-af6e-15b692292502": 32768 },
   "options": [{
     "id": "a92eb81e-ed47-40c0-af6e-15b692292502",
     "modelKey": "目录中的稳定模型键",
@@ -35,11 +36,11 @@
 }
 ```
 
-免费功能恰好一个方案；计费功能至少一个方案，默认 ID 必须在其中。相同模型可以提供不同强度、名称和价格的多个方案。固定计价使用 `pricingMode=FIXED` 与正整数 `fixedCredits`；Token 价格非负、最多六位小数，输入和输出不能同时为零。服务端校验目录能力、方案所属功能和配置版本。
+免费职责配置一个方案。计费职责至少配置一个方案，并从中指定默认项。相同模型可以提供不同强度、名称和价格的多个方案。`outputTokenLimits` 可选，按方案 ID 指定含思考的总输出上限。每项须为正整数。固定计价使用 `pricingMode=FIXED` 与正整数 `fixedCredits`。Token 价格最多六位小数，输入或输出至少一项大于零。
 
-功能键由服务端 `AiFeatures` 注册：基础创作、世界观具体模块/字段、引导候选/大纲操作/修复、快速与精雕起草/篇幅修订、两类助手各意图的计划/最终输出、质量步骤和通用工具。未实现功能不注册。专用检索与结构化链路继续原调用与计费，不提供本轮可编辑选项。
+服务端用 `AiFeatures` 定义操作，再由 `AiModelResponsibilities` 指定共享职责。例如地形、气候、世界条目和引导世界观的补全共用一个默认方案。原操作键继续用于报价、调用次数和历史记录。自主创作协调的方案须具备原生工具预算能力。专用检索和结构化核验仍在目录中只读展示。
 
-初始化按当前环境生效的模型、`DEFAULT` 思考和旧价格（输入/输出每千 Token 各 `0.01` 项目积分）创建选项，不扩散旧粗粒度用户偏好。首次成功同步后模型若不可用，管理员必须修正。
+初始化合并同职责、同计费口径的存量方案。计费口径有冲突时，管理员明确保存统一方案后生效。空库按环境配置初始化普通职责，自主创作协调由管理员配置。对同一操作，原有方案 ID 可解析到等价的共享方案。
 
 ## 用户选型
 
@@ -53,9 +54,9 @@
 
 `POST /ai-quotes`：请求 `{ target, body, selections }`。`target` 是不带 `/api` 的真实业务路径和查询参数；`body` 必须与提交的业务 JSON 相同；`selections` 是 `{ "具体功能键": "方案 ID" }`，不接受客户端生效价格。
 
-服务端根据业务入口确定功能步骤，返回 `{ id, expiresAt, steps, estimatedCredits }`。每步含所选完整方案、必需/条件标记、调用次数说明、估算输入/输出 Token 和费用。估算展示按每步骤一次合计；分块、条件修订与既有尝试上限另行说明，不承诺支出上限。输出估算使用现有场景篇幅预算，缺失时按 4096 Token；估算不限制实际输出。
+服务端根据业务入口确定操作步骤，返回 `{ id, expiresAt, steps, estimatedCredits }`。每步含所选完整方案、必需或条件标记、调用次数说明、估算输入和输出 Token、费用。分块、条件修订和既有尝试上限随步骤展示。配置了总输出上限的方案把该上限用于报价和实际请求，其余方案沿用操作原有的估算与执行方式。
 
-用户确认后，以原 `Idempotency-Key`、原路径/内容和 `X-AI-Quote-Id` 请求头提交业务入口。计费操作缺少报价返回 `428 AI_QUOTE_REQUIRED`，旧页面需刷新，旧脚本需适配。报价 10 分钟内首次受理有效，受理前业务输入或配置变化、报价过期均需重新确认。已受理任务及其自动子任务持久化原模型、思考、展示名和价格；恢复不读取新售价。免费操作不需要收费确认，带幂等键时同样保留首次受理快照。旧世界模块 `/retry` 按原生成路径识别报价，调用方仍须复用原键和报价。
+用户确认后，以原 `Idempotency-Key`、原路径和内容、`X-AI-Quote-Id` 提交业务入口。计费操作缺少报价返回 `428 AI_QUOTE_REQUIRED`。报价 10 分钟内首次受理有效，受理前业务输入或配置变化、报价过期均需重新确认。已受理任务及其子任务恢复时读取冻结的模型、思考、展示名、价格和输出上限。免费操作直接受理，带幂等键时同样保留首次受理快照。世界模块 `/retry` 按原生成路径识别报价，调用方仍须复用原键和报价。
 
 主要错误：`AI_QUOTE_EXPIRED`、`AI_QUOTE_INPUT_CHANGED`、`AI_QUOTE_ALREADY_USED`、`AI_PREFERENCE_UNAVAILABLE`、`AI_OPTION_UNAVAILABLE`、`AI_MODEL_UNAVAILABLE`、`AI_THINKING_UNSUPPORTED`。不会自动换模型、档位或价格。
 

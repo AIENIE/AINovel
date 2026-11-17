@@ -84,6 +84,17 @@ class AiQualityRequestTest {
         assertThat(sent.get().getMaxOutputTokens()).isZero();
     }
 
+    @Test void streamUsesAnExplicitFrozenLimitForProse() {
+        String feature = "scene.fast.draft";
+        var selection = choice(feature);
+        var limits = Map.of(feature, 65536);
+        var snapshot = new AiSelectionContext.Snapshot("quote", Map.of(feature, selection), null, limits, null, null, null, limits);
+        try (var scope = AiSelectionContext.install(snapshot)) {
+            client().complete("request", 1, selection, messages(), (tokens, estimated) -> {});
+        }
+        assertThat(sent.get().getMaxOutputTokens()).isEqualTo(65536);
+    }
+
     @Test void recordsOnlyTheGrpcCodeWithoutClassifyingAnAmbiguousFailureAsUnsent() {
         var client = client();
         var validation = mock(AiValidationCallBudget.class);

@@ -182,6 +182,7 @@ function Get-ChildEnvironment {
     $child['AINOVEL_BACKEND_PORT'] = [string]$BackendPort
     $child['SPRING_PROFILES_ACTIVE'] = 'local'
     $child['AIENIE_RUNTIME_PLANE'] = 'windows-local'
+    $child['VITE_WRITING_AGENT_DEFAULT_CNY'] = '20'
     Assert-AienieLocalOnlyEnvironment -Values $child
     return $child
 }

@@ -57,16 +57,16 @@ class V2ModelControllerTest {
         V2ModelPersistenceService persistenceService = mock(V2ModelPersistenceService.class);
         OpsRecordFileSink recordFileSink = mock(OpsRecordFileSink.class);
         V2ModelController controller = new V2ModelController(accessGuard, persistenceService, recordFileSink);
-        Map<String, Object> updated = Map.of("taskType", "draft_generation");
+        Map<String, Object> updated = Map.of("taskType", "role.prose_draft");
         var configuration = mock(com.ainovel.app.modelconfig.AiModelConfigurationService.class);
         org.springframework.test.util.ReflectionTestUtils.setField(controller,"modelConfiguration",configuration);
-        var feature = new com.ainovel.app.modelconfig.AiModelConfigurationService.FeatureView(null,0,false,null,null,false,List.of(),List.of());
-        when(configuration.update(org.mockito.ArgumentMatchers.eq("draft_generation"), org.mockito.ArgumentMatchers.any())).thenReturn(feature);
+        var feature = new com.ainovel.app.modelconfig.AiModelConfigurationService.RoutingView(null,0,false,null,List.of(),List.of(),Map.of(),List.of(),List.of());
+        when(configuration.update(org.mockito.ArgumentMatchers.eq("role.prose_draft"), org.mockito.ArgumentMatchers.any())).thenReturn(feature);
         when(configuration.asMap(feature)).thenReturn(updated);
 
         Map<String, Object> result = controller.updateRouting(
                 new UsernamePasswordAuthenticationToken("local-operator", "n/a"),
-                "draft_generation",
+                "role.prose_draft",
                 V2RequestPayload.of(Map.of("options", List.of()))
         );
 
@@ -76,7 +76,7 @@ class V2ModelControllerTest {
         verify(recordFileSink).appendAudit(audit.capture());
         assertEquals("local-operator", audit.getValue().get("actor"));
         assertEquals("model-routing.update", audit.getValue().get("action"));
-        assertEquals("draft_generation", audit.getValue().get("targetId"));
+        assertEquals("role.prose_draft", audit.getValue().get("targetId"));
     }
 
     private User user() {

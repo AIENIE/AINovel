@@ -22,7 +22,8 @@ export function useWritingAgent(options: WritingAgentOptions) {
   const [input, setInputValue] = useState("");const inputRevision = useRef(0);
   const [intent, setIntent] = useState<AgentRequest["intent"]>("EDIT");const [mode, setMode] = useState<AgentRequest["mode"]>("fast");
   const [languageCheck, setLanguageCheck] = useState(false), [plotCheck, setPlotCheck] = useState(false);
-  const [maxCost, setMaxCost] = useState("5"), [maxCredits, setMaxCredits] = useState("100"), [maxCalls, setMaxCalls] = useState(24);
+  const [maxCost, setMaxCost] = useState(import.meta.env.VITE_WRITING_AGENT_DEFAULT_CNY ?? "5");
+  const [maxCredits, setMaxCredits] = useState("100"), [maxCalls, setMaxCalls] = useState(24);
   const [useSelection, setUseSelection] = useState(false), [preview, setPreview] = useState<AgentPreview | null>(null);
   const [working, setWorking] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [selectedRunId, setSelectedRunId] = useState("");const [pending, setPending] = useState<PendingSubmission | null>(null);

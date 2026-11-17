@@ -9,6 +9,17 @@ export type AiFeature = {
   revision: number; billingEnabled: boolean; defaultOptionId: string; preferredOptionId: string | null;
   preferenceInvalid: boolean; options: AiModelSelection[]; unavailableOptions: string[];
 };
+export type ModelResponsibility = {
+  definition: AiFeature["definition"];
+  revision: number;
+  billingEnabled: boolean;
+  defaultOptionId: string | null;
+  options: AiModelSelection[];
+  unavailableOptions: string[];
+  outputTokenLimits: Record<string, number>;
+  operations: AiFeature["definition"][];
+  legacyDefaults: Array<{ operation: AiFeature["definition"]; option: AiModelSelection }>;
+};
 export type ThinkingCapabilities = {
   declared: boolean; supportsEnable: boolean; supportsDisable: boolean;
   options: Array<{ effort: string; label: string }>; defaultEnabled: boolean | null; defaultEffort: string | null;
@@ -16,6 +27,10 @@ export type ThinkingCapabilities = {
 export type CatalogModel = {
   id: string | null; modelKey: string; displayName: string; provider: string; available: boolean;
   supportsStreaming: boolean; supportsImageInput: boolean; thinking: ThinkingCapabilities; syncedAt: string | null;
+  chatCapabilities?: {
+    budgetDeclared: boolean; budgetAvailable: boolean; budgetToolsDeclared: boolean; budgetToolsAvailable: boolean;
+    maxPromptTokens: number; maxOutputTokens: number;
+  };
 };
 export type ModelCatalog = {
   revision: number; last_attempt_at: string | null; last_success_at: string | null; last_error: string | null;
