@@ -70,16 +70,18 @@ describe("Admin model configuration", () => {
       { ...world.definition, key: "world.geography.terrain.generate", zh: "地形地貌生成" },
       { ...world.definition, key: "world.geography.climate.generate", zh: "气候特征生成" },
     ];
+    world.defaultOptionId = world.options[1].optionId;
     vi.mocked(api.modelConfig.routing).mockResolvedValue([routingFixture(), world]);
     render(<ModelConfiguration />);
     fireEvent.change(await screen.findByRole("textbox", { name: "搜索职责或操作" }), { target: { value: "气候" } });
     expect(screen.getByRole("button", { name: /构思与设定补全/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /气候特征生成/ })).toBeNull();
+    expect((screen.getByLabelText("方案 1 展示名") as HTMLInputElement).value).toBe(world.options[1].label);
     fireEvent.change(screen.getByLabelText("方案 1 总输出上限"), { target: { value: "65536" } });
     fireEvent.click(screen.getByRole("button", { name: "保存配置" }));
     await waitFor(() => expect(api.modelConfig.save).toHaveBeenCalledWith(expect.objectContaining({
       definition: expect.objectContaining({ key: "role.conception" }),
-      outputTokenLimits: { [world.options[0].optionId]: 65536 },
+      outputTokenLimits: { [world.options[1].optionId]: 65536 },
     })));
   });
 });

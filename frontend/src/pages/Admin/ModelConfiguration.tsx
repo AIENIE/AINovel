@@ -44,6 +44,12 @@ function priceLabel(option: AiModelSelection) {
     : `输入 ${option.inputPer1k}，输出 ${option.outputPer1k} 项目积分／千 token`;
 }
 
+function defaultFirst(role: ModelResponsibility): ModelResponsibility {
+  const index = role.options.findIndex((option) => option.optionId === role.defaultOptionId);
+  if (index <= 0) return role;
+  return { ...role, options: [role.options[index], ...role.options.filter((_, position) => position !== index)] };
+}
+
 function newOption(role: ModelResponsibility, model: CatalogModel): AiModelSelection {
   return {
     featureKey: role.definition.key, optionId: crypto.randomUUID(), modelKey: model.modelKey, label: model.displayName,
@@ -263,7 +269,7 @@ export default function ModelConfiguration() {
     try {
       const [directory, routing] = await Promise.all([api.modelConfig.catalog(), api.modelConfig.routing()]);
       setCatalog(directory);
-      setRoles(routing);
+      setRoles(routing.map(defaultFirst));
       setDrafts({});
     } catch (failure) { setError(getErrorMessage(failure, "模型配置加载失败")); }
     finally { setLoading(false); }
@@ -275,7 +281,7 @@ export default function ModelConfiguration() {
     setError("");
     try {
       setCatalog(await api.modelConfig.sync());
-      setRoles(await api.modelConfig.routing());
+      setRoles((await api.modelConfig.routing()).map(defaultFirst));
       toast({ title: "模型目录已同步" });
     } catch { setError("同步失败，上次成功目录和功能配置已保留。"); }
     finally { setSyncing(false); }
@@ -285,7 +291,7 @@ export default function ModelConfiguration() {
     setSaving(true);
     try {
       const updated = await api.modelConfig.save(draft);
-      setRoles((current) => current.map((role) => role.definition.key === updated.definition.key ? updated : role));
+      setRoles((current) => current.map((role) => role.definition.key === updated.definition.key ? defaultFirst(updated) : role));
       setDrafts((current) => {
         const next = { ...current };
         delete next[draft.definition.key];
